@@ -1,0 +1,219 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Instrument+Serif:ital@0;1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Warm cream/beige palette inspired by Shikshaq */
+    --background: 40 33% 96%;
+    --foreground: 30 10% 15%;
+
+    --card: 40 40% 98%;
+    --card-foreground: 30 10% 15%;
+
+    --popover: 40 40% 98%;
+    --popover-foreground: 30 10% 15%;
+
+    --primary: 30 10% 15%;
+    --primary-foreground: 40 33% 96%;
+
+    --secondary: 35 30% 90%;
+    --secondary-foreground: 30 10% 20%;
+
+    --muted: 35 20% 92%;
+    --muted-foreground: 30 10% 45%;
+
+    --accent: 35 40% 88%;
+    --accent-foreground: 30 10% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 35 20% 88%;
+    --input: 35 20% 88%;
+    --ring: 30 10% 25%;
+
+    --radius: 0.75rem;
+
+    /* Custom colors */
+    --cream: 40 33% 96%;
+    --cream-dark: 35 25% 92%;
+    --charcoal: 30 10% 15%;
+    --warm-gray: 30 10% 45%;
+
+    /* Subject badge colors */
+    --badge-maths: 28 85% 65%;
+    --badge-english: 180 45% 50%;
+    --badge-science: 145 55% 45%;
+    --badge-commerce: 220 60% 55%;
+    --badge-computer: 280 50% 55%;
+    --badge-hindi: 0 65% 55%;
+    --badge-history: 35 55% 50%;
+    --badge-geography: 160 50% 45%;
+
+    /* Fonts */
+    --font-sans: 'DM Sans', system-ui, sans-serif;
+    --font-serif: 'Instrument Serif', Georgia, serif;
+
+    --sidebar-background: 40 33% 96%;
+    --sidebar-foreground: 30 10% 25%;
+    --sidebar-primary: 30 10% 15%;
+    --sidebar-primary-foreground: 40 33% 96%;
+    --sidebar-accent: 35 30% 90%;
+    --sidebar-accent-foreground: 30 10% 15%;
+    --sidebar-border: 35 20% 88%;
+    --sidebar-ring: 30 10% 25%;
+  }
+
+  .dark {
+    --background: 30 15% 8%;
+    --foreground: 40 20% 95%;
+
+    --card: 30 15% 10%;
+    --card-foreground: 40 20% 95%;
+
+    --popover: 30 15% 10%;
+    --popover-foreground: 40 20% 95%;
+
+    --primary: 40 20% 95%;
+    --primary-foreground: 30 15% 8%;
+
+    --secondary: 30 15% 15%;
+    --secondary-foreground: 40 20% 95%;
+
+    --muted: 30 15% 15%;
+    --muted-foreground: 40 10% 60%;
+
+    --accent: 30 15% 18%;
+    --accent-foreground: 40 20% 95%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 40 20% 95%;
+
+    --border: 30 15% 18%;
+    --input: 30 15% 18%;
+    --ring: 40 20% 70%;
+
+    --cream: 30 15% 8%;
+    --cream-dark: 30 15% 12%;
+    --charcoal: 40 20% 95%;
+    --warm-gray: 40 10% 60%;
+
+    --sidebar-background: 30 15% 8%;
+    --sidebar-foreground: 40 20% 95%;
+    --sidebar-primary: 40 20% 95%;
+    --sidebar-primary-foreground: 30 15% 8%;
+    --sidebar-accent: 30 15% 15%;
+    --sidebar-accent-foreground: 40 20% 95%;
+    --sidebar-border: 30 15% 18%;
+    --sidebar-ring: 40 20% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .nav-link {
+    @apply flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200;
+  }
+
+  .nav-link-active {
+    @apply bg-card shadow-sm border border-border;
+  }
+
+  .search-input {
+    @apply w-full bg-card border border-border rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 transition-all duration-200;
+  }
+
+  .teacher-card {
+    @apply relative overflow-hidden rounded-2xl bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  .subject-badge {
+    @apply inline-flex px-3 py-1 rounded-full text-xs font-medium text-white/95;
+  }
+
+  .section-title {
+    @apply text-lg font-medium text-foreground;
+  }
+
+  .view-more-link {
+    @apply flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors;
+  }
+
+  .hero-cta {
+    @apply inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-full font-medium transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+  }
+
+  .step-number {
+    @apply text-7xl font-serif text-primary/10;
+  }
+
+  .faq-trigger {
+    @apply flex items-center justify-between w-full py-4 text-left text-base font-medium text-foreground hover:text-foreground/80 transition-colors;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out forwards;
+  }
+
+  .animate-slide-in-left {
+    animation: slideInLeft 0.5s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInLeft {
+    from { 
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
