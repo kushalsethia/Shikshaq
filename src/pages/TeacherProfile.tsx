@@ -200,7 +200,18 @@ export default function TeacherProfile() {
             )}
 
             <h1 className="text-3xl md:text-4xl font-serif text-foreground mb-4">
-              {teacher.name}
+              {(() => {
+                const sirMaam = teacher.sir_maam;
+                if (!sirMaam) return teacher.name;
+                
+                const sirMaamLower = String(sirMaam).toLowerCase().trim();
+                if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
+                  return `${teacher.name} Sir`;
+                } else if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
+                  return `${teacher.name} Ma'am`;
+                }
+                return teacher.name;
+              })()}
             </h1>
 
             {/* Quick Info */}

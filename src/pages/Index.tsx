@@ -63,22 +63,45 @@ export default function Index() {
           }
         }
 
+        // Fetch Sir/Ma'am data from Shikshaqmine table
+        let sirMaamMap = new Map();
+        if (teachersData.length > 0) {
+          const teacherSlugs = teachersData.map((t: any) => t.slug);
+          const { data: shikshaqData } = await supabase
+            .from('Shikshaqmine')
+            .select('Slug, "Sir/Ma\'am?"')
+            .in('Slug', teacherSlugs);
+          
+          if (shikshaqData) {
+            shikshaqData.forEach((record: any) => {
+              sirMaamMap.set(record.Slug, record["Sir/Ma'am?"]);
+            });
+          }
+        }
+
         // Process teachers data - if we have subject_id, look up the subject
         if (teachersData.length > 0) {
           const processedTeachers = teachersData.map((teacher: any) => {
             // If relationship worked, use it
-            if (teacher.subjects) {
-              return teacher;
+            let teacherWithSubject = teacher;
+            if (!teacher.subjects) {
+              // Otherwise, look up subject manually
+              if (teacher.subject_id && subjectsRes.data) {
+                const subject = subjectsRes.data.find((s: any) => s.id === teacher.subject_id);
+                teacherWithSubject = {
+                  ...teacher,
+                  subjects: subject ? { name: subject.name, slug: subject.slug } : null
+                };
+              } else {
+                teacherWithSubject = { ...teacher, subjects: null };
+              }
             }
-            // Otherwise, look up subject manually
-            if (teacher.subject_id && subjectsRes.data) {
-              const subject = subjectsRes.data.find((s: any) => s.id === teacher.subject_id);
-              return {
-                ...teacher,
-                subjects: subject ? { name: subject.name, slug: subject.slug } : null
-              };
-            }
-            return { ...teacher, subjects: null };
+            
+            // Add Sir/Ma'am data
+            return {
+              ...teacherWithSubject,
+              sir_maam: sirMaamMap.get(teacher.slug) || null
+            };
           });
 
           setFeaturedTeachers(processedTeachers);
@@ -140,6 +163,7 @@ export default function Index() {
                   subjectSlug={teacher.subjects?.slug}
                   imageUrl={teacher.image_url}
                   isFeatured={true}
+                  sirMaam={(teacher as any).sir_maam}
                 />
               ))}
             </div>

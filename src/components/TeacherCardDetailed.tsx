@@ -9,6 +9,20 @@ interface TeacherCardDetailedProps {
   subjects?: string; // Comma-separated subjects from Shikshaqmine
   classes?: string; // Classes taught from Shikshaqmine
   modeOfTeaching?: string; // Mode of teaching from Shikshaqmine
+  sirMaam?: string | null; // Sir/Ma'am from Shikshaqmine
+}
+
+// Helper function to format name with Sir/Ma'am
+function formatTeacherName(name: string, sirMaam?: string | null): string {
+  if (!sirMaam) return name;
+  
+  const sirMaamLower = String(sirMaam).toLowerCase().trim();
+  if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
+    return `${name} Sir`;
+  } else if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
+    return `${name} Ma'am`;
+  }
+  return name;
 }
 
 export function TeacherCardDetailed({ 
@@ -17,8 +31,10 @@ export function TeacherCardDetailed({
   imageUrl, 
   subjects,
   classes,
-  modeOfTeaching 
+  modeOfTeaching,
+  sirMaam
 }: TeacherCardDetailedProps) {
+  const displayName = formatTeacherName(name, sirMaam);
   return (
     <Link 
       to={`/teacher/${slug}`} 
@@ -44,7 +60,7 @@ export function TeacherCardDetailed({
       {/* Teacher Info */}
       <div className="flex-1 min-w-0">
         <h3 className="text-xl md:text-2xl font-serif font-bold text-foreground mb-2 group-hover:text-foreground/80 transition-colors">
-          {name}
+          {displayName}
         </h3>
 
         {/* Subjects */}

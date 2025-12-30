@@ -128,7 +128,7 @@ export default function Browse() {
           const shikshaqPromises = chunks.map(chunk =>
             supabase
               .from('Shikshaqmine')
-              .select('Slug, Subjects, "Classes Taught", "Classes Taught for Backend", Area, "AREAS FOR FILTERING", "Mode of Teaching", "School Boards Catered", "Class Size (Group/ Solo)"')
+              .select('Slug, Subjects, "Classes Taught", "Classes Taught for Backend", Area, "AREAS FOR FILTERING", "Mode of Teaching", "School Boards Catered", "Class Size (Group/ Solo)", "Sir/Ma\'am?"')
               .in('Slug', chunk)
           );
           
@@ -320,6 +320,7 @@ export default function Browse() {
               subjects: record.Subjects,
               classes: record["Classes Taught"],
               modeOfTeaching: record["Mode of Teaching"],
+              sirMaam: record["Sir/Ma'am?"],
             });
           });
         }
@@ -332,6 +333,7 @@ export default function Browse() {
             subjects_from_shikshaq: shikshaqInfo?.subjects || null,
             classes_taught: shikshaqInfo?.classes || null,
             mode_of_teaching: shikshaqInfo?.modeOfTeaching || null,
+            sir_maam: shikshaqInfo?.sirMaam || null,
           };
         });
 
@@ -496,6 +498,7 @@ export default function Browse() {
                 subjects={teacher.subjects_from_shikshaq || teacher.subjects?.name}
                 classes={teacher.classes_taught}
                 modeOfTeaching={teacher.mode_of_teaching}
+                sirMaam={(teacher as any).sir_maam}
               />
             ))}
           </div>

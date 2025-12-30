@@ -8,6 +8,20 @@ interface TeacherCardProps {
   imageUrl?: string;
   subjectSlug?: string;
   isFeatured?: boolean; // Optional prop to indicate if this is a featured teacher
+  sirMaam?: string | null; // Sir/Ma'am from Shikshaqmine
+}
+
+// Helper function to format name with Sir/Ma'am
+function formatTeacherName(name: string, sirMaam?: string | null): string {
+  if (!sirMaam) return name;
+  
+  const sirMaamLower = String(sirMaam).toLowerCase().trim();
+  if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
+    return `${name} Sir`;
+  } else if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
+    return `${name} Ma'am`;
+  }
+  return name;
 }
 
 const subjectColors: Record<string, string> = {
@@ -25,11 +39,13 @@ const subjectColors: Record<string, string> = {
   economics: 'bg-badge-commerce',
 };
 
-export function TeacherCard({ name, slug, subject, imageUrl, subjectSlug, isFeatured }: TeacherCardProps) {
+export function TeacherCard({ name, slug, subject, imageUrl, subjectSlug, isFeatured, sirMaam }: TeacherCardProps) {
   // If featured, always use green; otherwise use subject-specific colors
   const badgeColor = isFeatured 
     ? 'bg-badge-science' // Green color for featured teachers
     : (subjectColors[subjectSlug?.toLowerCase() || subject.toLowerCase()] || 'bg-muted-foreground');
+  
+  const displayName = formatTeacherName(name, sirMaam);
 
   return (
     <Link to={`/teacher/${slug}`} className="teacher-card group">
@@ -58,7 +74,7 @@ export function TeacherCard({ name, slug, subject, imageUrl, subjectSlug, isFeat
       
       <div className="p-3">
         <h3 className="font-medium text-foreground group-hover:text-foreground/80 transition-colors">
-          {name}
+          {displayName}
         </h3>
       </div>
     </Link>
