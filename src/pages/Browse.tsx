@@ -86,19 +86,8 @@ export default function Browse() {
           .order('name')
           .limit(500); // Limit to prevent fetching too much data
 
-        // Apply subject filter at database level if specified
-        if (subjectFilter) {
-          const { data: subjectData } = await supabase
-            .from('subjects')
-            .select('id')
-            .eq('slug', subjectFilter)
-            .single();
-          
-          if (subjectData) {
-            query = query.eq('subject_id', subjectData.id);
-          }
-        }
-
+        // Don't filter by subject at database level - we'll filter using Shikshaqmine data
+        // This allows matching all subjects a teacher teaches, not just the featured one
         const { data: teachersData, error } = await query;
         
         if (error) {
@@ -153,7 +142,20 @@ export default function Browse() {
         ]);
         const effectiveClassFilters = Array.from(allClassFilters);
 
-        const hasActiveFilters = filters.subjects.length > 0 || effectiveClassFilters.length > 0 || 
+        // Include subject from dropdown in filters (combine URL param and filter panel selections)
+        let effectiveSubjectFilters = [...filters.subjects];
+        if (subjectFilter && subjectFilter !== 'all') {
+          // Find the subject name from the subjects list to match against Shikshaqmine data
+          const selectedSubject = subjects.find(s => s.slug === subjectFilter);
+          if (selectedSubject) {
+            // Add to filters if not already present
+            if (!effectiveSubjectFilters.includes(selectedSubject.name)) {
+              effectiveSubjectFilters = [...effectiveSubjectFilters, selectedSubject.name];
+            }
+          }
+        }
+
+        const hasActiveFilters = effectiveSubjectFilters.length > 0 || effectiveClassFilters.length > 0 || 
             filters.boards.length > 0 || filters.classSize.length > 0 || 
             filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
@@ -193,10 +195,10 @@ export default function Browse() {
                 }
               }
 
-              // Check subjects
-              if (filters.subjects.length > 0) {
+              // Check subjects (includes both dropdown and advanced filter selections)
+              if (effectiveSubjectFilters.length > 0) {
                 const subjects = (record.Subjects || '').toLowerCase();
-                const hasSubject = filters.subjects.some(subj => {
+                const hasSubject = effectiveSubjectFilters.some(subj => {
                   const subjLower = subj.toLowerCase();
                   // Handle "Accountancy" matching "Accounts" in database for backward compatibility
                   if (subjLower === 'accountancy') {
