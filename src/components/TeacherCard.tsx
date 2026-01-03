@@ -13,6 +13,7 @@ interface TeacherCardProps {
   subjectSlug?: string;
   isFeatured?: boolean; // Optional prop to indicate if this is a featured teacher
   sirMaam?: string | null; // Sir/Ma'am from Shikshaqmine
+  isLiked?: boolean; // Optional: pass liked state directly to avoid hook call
 }
 
 // Helper function to format name with Sir/Ma'am
@@ -43,7 +44,7 @@ const subjectColors: Record<string, string> = {
   economics: 'bg-badge-commerce',
 };
 
-export function TeacherCard({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, sirMaam }: TeacherCardProps) {
+export function TeacherCard({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, sirMaam, isLiked: isLikedProp }: TeacherCardProps) {
   // If featured, always use green; otherwise use subject-specific colors
   const badgeColor = isFeatured 
     ? 'bg-badge-science' // Green color for featured teachers
@@ -51,9 +52,12 @@ export function TeacherCard({ id, name, slug, subject, imageUrl, subjectSlug, is
   
   const displayName = formatTeacherName(name, sirMaam);
   const { user } = useAuth();
-  const { isLiked, toggleLike } = useLikes();
   const navigate = useNavigate();
-  const liked = isLiked(id);
+  
+  // Always call hook (React rules), but use prop if provided for immediate rendering
+  const likesHook = useLikes();
+  const liked = isLikedProp !== undefined ? isLikedProp : likesHook.isLiked(id);
+  const toggleLike = likesHook.toggleLike;
 
   const handleHeartClick = async (e: React.MouseEvent) => {
     e.preventDefault();

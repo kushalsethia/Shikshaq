@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,8 +31,19 @@ export default function Auth() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (!authLoading && user) {
+      // Check if there's a redirect path in the URL (e.g., from OAuth callback)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const redirectTo = hashParams.get('redirect_to') || location.state?.from?.pathname || '/';
+      navigate(redirectTo, { replace: true });
+    }
+  }, [user, authLoading, navigate, location]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -66,9 +77,13 @@ export default function Auth() {
           } else {
             toast.error(error.message);
           }
+          setLoading(false);
         } else {
           toast.success('Welcome back!');
-          navigate('/');
+          // Wait a moment for auth state to update, then navigate
+          setTimeout(() => {
+            navigate('/', { replace: true });
+          }, 100);
         }
       } else {
         const result = signupSchema.safeParse(formData);
@@ -91,9 +106,13 @@ export default function Auth() {
           } else {
             toast.error(error.message);
           }
+          setLoading(false);
         } else {
           toast.success('Account created successfully!');
-          navigate('/');
+          // Wait a moment for auth state to update, then navigate
+          setTimeout(() => {
+            navigate('/', { replace: true });
+          }, 100);
         }
       }
     } catch (error) {

@@ -23,12 +23,40 @@ export function useLikes() {
           .select('teacher_id')
           .eq('user_id', user.id);
 
-        if (error) throw error;
+        if (error) {
+          // Log the full error for debugging
+          console.error('Error fetching likes:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+          });
+          
+          // If table doesn't exist (404), just return empty set
+          if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('404')) {
+            console.warn('liked_teachers table does not exist or RLS policy issue. Please check your Supabase setup.');
+            setLikedTeacherIds(new Set());
+            setLoading(false);
+            return;
+          }
+          
+          // If it's a permission error, it might be RLS
+          if (error.code === '42501' || error.message?.includes('permission denied')) {
+            console.error('RLS Policy Error: User may not have permission to read liked_teachers. Check RLS policies in Supabase.');
+            setLikedTeacherIds(new Set());
+            setLoading(false);
+            return;
+          }
+          
+          throw error;
+        }
 
         const likedIds = new Set(data?.map((like) => like.teacher_id) || []);
         setLikedTeacherIds(likedIds);
       } catch (error) {
         console.error('Error fetching likes:', error);
+        // Set empty set on error to prevent crashes
+        setLikedTeacherIds(new Set());
       } finally {
         setLoading(false);
       }
@@ -58,7 +86,29 @@ export function useLikes() {
           .eq('user_id', user.id)
           .eq('teacher_id', teacherId);
 
-        if (error) throw error;
+        if (error) {
+          // Log the full error for debugging
+          console.error('Error toggling like (delete):', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+          });
+          
+          // If table doesn't exist, show helpful message
+          if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('404')) {
+            toast.error('Table not found. Check if liked_teachers table exists in Supabase.');
+            return currentlyLiked;
+          }
+          
+          // If it's a permission error, it might be RLS
+          if (error.code === '42501' || error.message?.includes('permission denied')) {
+            toast.error('Permission denied. Check RLS policies in Supabase.');
+            return currentlyLiked;
+          }
+          
+          throw error;
+        }
 
         setLikedTeacherIds((prev) => {
           const next = new Set(prev);
@@ -73,7 +123,29 @@ export function useLikes() {
           .from('liked_teachers')
           .insert({ user_id: user.id, teacher_id: teacherId });
 
-        if (error) throw error;
+        if (error) {
+          // Log the full error for debugging
+          console.error('Error toggling like (insert):', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+          });
+          
+          // If table doesn't exist, show helpful message
+          if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('404')) {
+            toast.error('Table not found. Check if liked_teachers table exists in Supabase.');
+            return currentlyLiked;
+          }
+          
+          // If it's a permission error, it might be RLS
+          if (error.code === '42501' || error.message?.includes('permission denied')) {
+            toast.error('Permission denied. Check RLS policies in Supabase.');
+            return currentlyLiked;
+          }
+          
+          throw error;
+        }
 
         setLikedTeacherIds((prev) => new Set(prev).add(teacherId));
         toast.success('Added to liked teachers');
@@ -81,7 +153,12 @@ export function useLikes() {
       }
     } catch (error: any) {
       console.error('Error toggling like:', error);
-      toast.error(error.message || 'Failed to update like');
+      // Check for 404 or table not found errors
+      if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('404')) {
+        toast.error('Database table not found. Please run the migration in Supabase.');
+      } else {
+        toast.error(error.message || 'Failed to update like');
+      }
       return currentlyLiked;
     }
   };

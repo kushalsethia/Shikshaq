@@ -22,7 +22,7 @@ interface LikedTeacher {
 export default function LikedTeachers() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { likedTeacherIds, loading: likesLoading } = useLikes();
+  const { likedTeacherIds, loading: likesLoading, isLiked } = useLikes();
   const [likedTeachers, setLikedTeachers] = useState<LikedTeacher[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,41 +33,55 @@ export default function LikedTeachers() {
     }
 
     async function fetchLikedTeachers() {
-      if (likesLoading || likedTeacherIds.size === 0) {
+      // Don't wait for likesLoading - fetch teachers immediately
+      // We know these are liked teachers since we're on the liked teachers page
+      if (likedTeacherIds.size === 0 && !likesLoading) {
+        setLikedTeachers([]);
         setLoading(false);
         return;
       }
 
+      // If likes are still loading but we have some IDs, proceed anyway
+      const teacherIds = Array.from(likedTeacherIds);
+      if (teacherIds.length === 0 && likesLoading) {
+        return; // Wait for likes to load
+      }
+
       try {
-        const teacherIds = Array.from(likedTeacherIds);
-        
-        // Fetch teachers in batches if needed
-        const { data, error } = await supabase
+        // First fetch all teachers
+        const { data: teachersData, error: teachersError } = await supabase
           .from('teachers_list')
           .select('id, name, slug, image_url, subjects(name, slug)')
           .in('id', teacherIds);
 
-        if (error) throw error;
+        if (teachersError) throw teachersError;
 
-        // Fetch Sir/Ma'am data from Shikshaqmine
-        const teachersWithSirMaam = await Promise.all(
-          (data || []).map(async (teacher) => {
-            try {
-              const { data: shikshaqData } = await supabase
-                .from('Shikshaqmine')
-                .select('"Sir/Ma\'am?"')
-                .eq('Slug', teacher.slug)
-                .maybeSingle();
+        if (!teachersData || teachersData.length === 0) {
+          setLikedTeachers([]);
+          setLoading(false);
+          return;
+        }
 
-              return {
-                ...teacher,
-                sirMaam: shikshaqData ? (shikshaqData as any)["Sir/Ma'am?"] : null,
-              };
-            } catch {
-              return { ...teacher, sirMaam: null };
-            }
-          })
-        );
+        // Extract all slugs and fetch Sir/Ma'am data in a single query
+        const slugs = teachersData.map(t => t.slug);
+        const { data: sirMaamData } = await supabase
+          .from('Shikshaqmine')
+          .select('Slug, "Sir/Ma\'am?"')
+          .in('Slug', slugs);
+
+        // Create a map of slug -> sirMaam for fast lookup
+        const sirMaamMap = new Map<string, string | null>();
+        if (sirMaamData) {
+          sirMaamData.forEach((record: any) => {
+            sirMaamMap.set(record.Slug, record["Sir/Ma'am?"] || null);
+          });
+        }
+
+        // Combine teachers with Sir/Ma'am data
+        const teachersWithSirMaam = teachersData.map((teacher) => ({
+          ...teacher,
+          sirMaam: sirMaamMap.get(teacher.slug) || null,
+        }));
 
         setLikedTeachers(teachersWithSirMaam);
       } catch (error) {
@@ -78,13 +92,14 @@ export default function LikedTeachers() {
     }
 
     fetchLikedTeachers();
-  }, [user, likedTeacherIds, likesLoading, navigate]);
+  }, [user, likedTeacherIds, navigate]); // Removed likesLoading from dependencies
 
   if (!user) {
     return null; // Will redirect to auth
   }
 
-  if (loading || likesLoading) {
+  // Show loading only if we don't have any teachers yet
+  if (loading && likedTeachers.length === 0) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -153,6 +168,7 @@ export default function LikedTeachers() {
                 imageUrl={teacher.image_url || undefined}
                 subjectSlug={teacher.subjects?.slug}
                 sirMaam={teacher.sirMaam}
+                isLiked={true} // All teachers on this page are liked
               />
             ))}
           </div>

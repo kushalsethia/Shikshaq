@@ -38,13 +38,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     handleAuthCallback();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
         
         // Clean up URL hash after successful auth
         if (event === 'SIGNED_IN' && window.location.hash) {
+          // Wait a bit for the session to be fully set
+          await new Promise(resolve => setTimeout(resolve, 100));
           window.history.replaceState(null, '', window.location.pathname);
         }
       }
