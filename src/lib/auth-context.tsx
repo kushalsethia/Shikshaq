@@ -20,38 +20,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle OAuth callback - check for hash fragment
-    const handleAuthCallback = async () => {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      if (hashParams.get('access_token') || hashParams.get('error')) {
-        // Get the session from the hash
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-        
-        // Clean up the URL hash
-        window.history.replaceState(null, '', window.location.pathname);
-      }
-    };
-
-    handleAuthCallback();
-
+    // Handle OAuth callback - Supabase automatically processes hash fragments
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // Clean up URL hash after successful auth
+        // Clean up URL hash after successful auth (but don't navigate here)
         if (event === 'SIGNED_IN' && window.location.hash) {
-          // Wait a bit for the session to be fully set
-          await new Promise(resolve => setTimeout(resolve, 100));
-          window.history.replaceState(null, '', window.location.pathname);
+          // The Auth page will handle the redirect
+          // Just clean up the hash after a brief delay
+          setTimeout(() => {
+            if (window.location.hash) {
+              window.history.replaceState(null, '', window.location.pathname);
+            }
+          }, 500);
         }
       }
     );
 
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -65,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}${window.location.pathname}`,
+        redirectTo: `${window.location.origin}/auth`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

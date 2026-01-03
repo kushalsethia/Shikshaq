@@ -35,15 +35,27 @@ export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect if user is already authenticated
+  // Handle OAuth callback and redirect if authenticated
   useEffect(() => {
+    // Check for OAuth callback in hash
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const hasAccessToken = hashParams.get('access_token');
+    
+    // If user becomes authenticated (either from OAuth or regular login)
     if (!authLoading && user) {
-      // Check if there's a redirect path in the URL (e.g., from OAuth callback)
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const redirectTo = hashParams.get('redirect_to') || location.state?.from?.pathname || '/';
-      navigate(redirectTo, { replace: true });
+      // Small delay to ensure session is fully processed
+      const redirectTimer = setTimeout(() => {
+        // Clean up hash if present
+        if (window.location.hash) {
+          window.history.replaceState(null, '', '/auth');
+        }
+        // Redirect to home
+        navigate('/', { replace: true });
+      }, hasAccessToken ? 300 : 100); // Longer delay for OAuth callback
+      
+      return () => clearTimeout(redirectTimer);
     }
-  }, [user, authLoading, navigate, location]);
+  }, [user, authLoading, navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
