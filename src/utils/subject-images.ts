@@ -74,7 +74,6 @@ const subjectImageMap: Record<string, string> = {
   'cyber-security': subjectComputer,
   'cybersecurity': subjectComputer,
   'engineering graphics': subjectComputer,
-  'multimedia & web technology': subjectComputer,
   
   // Hindi (used for other languages)
   'hindi': subjectHindi,
