@@ -25,16 +25,39 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [processingOAuth, setProcessingOAuth] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [isResetPassword, setIsResetPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
+    newPassword: '',
+    confirmPassword: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, user, loading: authLoading } = useAuth();
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail, resetPasswordForEmail, updatePassword, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Check for password reset token in URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const type = searchParams.get('type');
+    if (type === 'reset-password') {
+      // Check if we have a password reset token in the hash
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const typeParam = hashParams.get('type');
+      
+      if (accessToken && typeParam === 'recovery') {
+        setIsResetPassword(true);
+        setIsLogin(false);
+        setIsForgotPassword(false);
+      }
+    }
+  }, [location]);
 
   // Handle OAuth callback and redirect if authenticated
   useEffect(() => {
@@ -42,6 +65,12 @@ export default function Auth() {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const hasAccessToken = hashParams.get('access_token');
     const hasError = hashParams.get('error');
+    const typeParam = hashParams.get('type');
+    
+    // Skip OAuth processing if this is a password reset
+    if (isResetPassword || typeParam === 'recovery') {
+      return;
+    }
     
     // Set processing state if we have an OAuth callback
     if (hasAccessToken) {
@@ -91,6 +120,84 @@ export default function Auth() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setErrors({ ...errors, [e.target.name]: '' });
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+
+    if (!formData.email) {
+      setErrors({ email: 'Please enter your email address' });
+      setLoading(false);
+      return;
+    }
+
+    const emailSchema = z.string().email('Please enter a valid email');
+    const emailResult = emailSchema.safeParse(formData.email);
+    
+    if (!emailResult.success) {
+      setErrors({ email: emailResult.error.errors[0].message });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await resetPasswordForEmail(formData.email);
+      if (error) {
+        setErrors({ email: error.message || 'Failed to send reset email' });
+      } else {
+        setResetEmailSent(true);
+      }
+    } catch (error: any) {
+      setErrors({ email: error.message || 'Failed to send reset email' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+
+    if (!formData.newPassword || !formData.confirmPassword) {
+      setErrors({ 
+        newPassword: !formData.newPassword ? 'Please enter a new password' : '',
+        confirmPassword: !formData.confirmPassword ? 'Please confirm your password' : '',
+      });
+      setLoading(false);
+      return;
+    }
+
+    if (formData.newPassword.length < 6) {
+      setErrors({ newPassword: 'Password must be at least 6 characters' });
+      setLoading(false);
+      return;
+    }
+
+    if (formData.newPassword !== formData.confirmPassword) {
+      setErrors({ confirmPassword: 'Passwords do not match' });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await updatePassword(formData.newPassword);
+      if (error) {
+        setErrors({ newPassword: error.message || 'Failed to update password' });
+      } else {
+        toast.success('Password updated successfully! Please sign in.');
+        setIsResetPassword(false);
+        setIsLogin(true);
+        setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '' });
+        setErrors({});
+      }
+    } catch (error: any) {
+      setErrors({ newPassword: error.message || 'Failed to update password' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -215,12 +322,13 @@ export default function Auth() {
               }
             </p>
 
-            {/* Google Button */}
-            <Button
-              variant="outline"
-              className="w-full mb-6 h-12 gap-3"
-              onClick={handleGoogleSignIn}
-            >
+            {/* Google Button - Hide for forgot/reset password */}
+            {!isForgotPassword && !isResetPassword && (
+              <Button
+                variant="outline"
+                className="w-full mb-6 h-12 gap-3"
+                onClick={handleGoogleSignIn}
+              >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="currentColor"
@@ -239,106 +347,258 @@ export default function Auth() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-              Continue with Google
-            </Button>
+                Continue with Google
+              </Button>
+            )}
 
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
+            {!isForgotPassword && !isResetPassword && (
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">or</span>
+                </div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">or</span>
+            )}
+
+            {/* Forgot Password Success Message */}
+            {resetEmailSent && (
+              <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                <p className="text-sm text-foreground text-center">
+                  <strong>Check your email!</strong> We've sent a password reset link to {formData.email}
+                </p>
               </div>
-            </div>
+            )}
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="fullName"
-                      name="fullName"
-                      type="text"
-                      placeholder="Enter your name"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                      className={`pl-10 ${errors.fullName ? 'border-destructive' : ''}`}
-                    />
+            <form onSubmit={isResetPassword ? handleResetPassword : isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-4">
+              {/* Reset Password Form */}
+              {isResetPassword ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="newPassword"
+                        name="newPassword"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Enter new password"
+                        value={formData.newPassword}
+                        onChange={handleInputChange}
+                        className={`pl-10 pr-10 ${errors.newPassword ? 'border-destructive' : ''}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {errors.newPassword && (
+                      <p className="text-sm text-destructive">{errors.newPassword}</p>
+                    )}
                   </div>
-                  {errors.fullName && (
-                    <p className="text-sm text-destructive">{errors.fullName}</p>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Confirm new password"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        className={`pl-10 pr-10 ${errors.confirmPassword ? 'border-destructive' : ''}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                    )}
+                  </div>
+
+                  <Button type="submit" className="w-full h-12" disabled={loading}>
+                    {loading ? 'Updating...' : 'Update Password'}
+                  </Button>
+                </>
+              ) : isForgotPassword ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
+                      />
+                    </div>
+                    {errors.email && (
+                      <p className="text-sm text-destructive">{errors.email}</p>
+                    )}
+                  </div>
+
+                  <Button type="submit" className="w-full h-12" disabled={loading || resetEmailSent}>
+                    {loading ? 'Sending...' : resetEmailSent ? 'Email Sent!' : 'Send Reset Link'}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {!isLogin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName">Full Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="fullName"
+                          name="fullName"
+                          type="text"
+                          placeholder="Enter your name"
+                          value={formData.fullName}
+                          onChange={handleInputChange}
+                          className={`pl-10 ${errors.fullName ? 'border-destructive' : ''}`}
+                        />
+                      </div>
+                      {errors.fullName && (
+                        <p className="text-sm text-destructive">{errors.fullName}</p>
+                      )}
+                    </div>
                   )}
-                </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
+                      />
+                    </div>
+                    {errors.email && (
+                      <p className="text-sm text-destructive">{errors.email}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Enter your password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="text-sm text-destructive">{errors.password}</p>
+                    )}
+                  </div>
+
+                  <Button type="submit" className="w-full h-12" disabled={loading}>
+                    {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
+                  </Button>
+                </>
               )}
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
-                  />
-                </div>
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password}</p>
-                )}
-              </div>
-
-              <Button type="submit" className="w-full h-12" disabled={loading}>
-                {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
-              </Button>
             </form>
 
-            {/* Toggle */}
-            <p className="text-center text-sm text-muted-foreground mt-6">
-              {isLogin ? "Don't have an account? " : 'Already have an account? '}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                  setFormData({ fullName: '', email: '', password: '' });
-                }}
-                className="text-foreground font-medium hover:underline"
-              >
-                {isLogin ? 'Sign up' : 'Sign in'}
-              </button>
-            </p>
+            {/* Toggle / Forgot Password Link */}
+            {isResetPassword ? (
+              <p className="text-center text-sm text-muted-foreground mt-6">
+                Remember your password?{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsResetPassword(false);
+                    setIsLogin(true);
+                    setErrors({});
+                    setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '' });
+                    window.history.replaceState(null, '', '/auth');
+                  }}
+                  className="text-foreground font-medium hover:underline"
+                >
+                  Sign in
+                </button>
+              </p>
+            ) : isForgotPassword ? (
+              <p className="text-center text-sm text-muted-foreground mt-6">
+                Remember your password?{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setIsLogin(true);
+                    setResetEmailSent(false);
+                    setErrors({});
+                    setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '' });
+                  }}
+                  className="text-foreground font-medium hover:underline"
+                >
+                  Sign in
+                </button>
+              </p>
+            ) : (
+              <>
+                {isLogin && (
+                  <p className="text-center text-sm mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(true);
+                        setErrors({});
+                      }}
+                      className="text-foreground font-medium hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </p>
+                )}
+                <p className="text-center text-sm text-muted-foreground mt-6">
+                  {isLogin ? "Don't have an account? " : 'Already have an account? '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setErrors({});
+                      setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '' });
+                    }}
+                    className="text-foreground font-medium hover:underline"
+                  >
+                    {isLogin ? 'Sign up' : 'Sign in'}
+                  </button>
+                </p>
+              </>
+            )}
           </div>
         </div>
       </main>
