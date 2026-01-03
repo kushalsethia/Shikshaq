@@ -5,7 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { useAuth } from '@/lib/auth-context';
-import { useLikes } from '@/hooks/useLikes';
+import { useLikes } from '@/lib/likes-context';
 import { Button } from '@/components/ui/button';
 import { Heart, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';

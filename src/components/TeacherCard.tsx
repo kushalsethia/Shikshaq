@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Heart } from 'lucide-react';
-import { useLikes } from '@/hooks/useLikes';
+import { useLikes } from '@/lib/likes-context';
 import { useAuth } from '@/lib/auth-context';
 import { useNavigate } from 'react-router-dom';
 import { memo } from 'react';

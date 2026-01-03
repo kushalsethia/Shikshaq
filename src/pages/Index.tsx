@@ -11,7 +11,7 @@ import { FAQ } from '@/components/FAQ';
 import { Testimonials } from '@/components/Testimonials';
 import { Footer } from '@/components/Footer';
 import { HeroSection } from '@/components/HeroSection';
-import { useLikes } from '@/hooks/useLikes';
+import { useLikes } from '@/lib/likes-context';
 
 
 interface Teacher {

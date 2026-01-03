@@ -5,7 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MapPin, Clock, MessageCircle, BadgeCheck, Heart } from 'lucide-react';
-import { useLikes } from '@/hooks/useLikes';
+import { useLikes } from '@/lib/likes-context';
 import { useAuth } from '@/lib/auth-context';
 
 
