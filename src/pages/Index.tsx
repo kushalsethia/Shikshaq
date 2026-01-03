@@ -33,7 +33,8 @@ export default function Index() {
   const [featuredTeachers, setFeaturedTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
-  const { isLiked } = useLikes(); // Pre-fetch likes once for all cards
+  // Pre-initialize likes hook (shared state will be used by all TeacherCard components)
+  useLikes();
 
   useEffect(() => {
     async function fetchData() {
@@ -166,7 +167,7 @@ export default function Index() {
                   imageUrl={teacher.image_url}
                   isFeatured={true}
                   sirMaam={(teacher as any).sir_maam}
-                  isLiked={isLiked(teacher.id)} // Pass liked state to avoid each card calling hook
+                  // No need to pass isLiked - each card will use the shared hook state for real-time updates
                 />
               ))}
             </div>

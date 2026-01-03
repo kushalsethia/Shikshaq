@@ -54,10 +54,10 @@ export function TeacherCard({ id, name, slug, subject, imageUrl, subjectSlug, is
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Always call hook (React rules), but use prop if provided for immediate rendering
-  const likesHook = useLikes();
-  const liked = isLikedProp !== undefined ? isLikedProp : likesHook.isLiked(id);
-  const toggleLike = likesHook.toggleLike;
+  // Always use hook for real-time updates (hook state is shared across all components)
+  const { isLiked, toggleLike } = useLikes();
+  // Always use hook's state for real-time updates - the hook state is reactive and will update immediately
+  const liked = isLiked(id);
 
   const handleHeartClick = async (e: React.MouseEvent) => {
     e.preventDefault();
