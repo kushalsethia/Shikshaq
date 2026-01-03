@@ -63,15 +63,47 @@ export default function Browse() {
         .order('name');
       
       if (data) {
-        setSubjects(data);
+        // Filter out duplicates and fix misspellings
+        const seen = new Set<string>();
+        const cleanedSubjects = data
+          .map((subject: any) => {
+            // Fix common misspellings
+            let name = subject.name;
+            if (name.toLowerCase() === 'englsih') {
+              name = 'English';
+            }
+            return { ...subject, name };
+          })
+          .filter((subject: any) => {
+            // Remove duplicates (case-insensitive)
+            const nameLower = subject.name.toLowerCase();
+            if (seen.has(nameLower)) {
+              return false;
+            }
+            seen.add(nameLower);
+            return true;
+          });
+        
+        setSubjects(cleanedSubjects);
       }
     }
 
     fetchSubjects();
   }, []);
 
+  // Sync selectedSubject with URL parameter when it changes
+  useEffect(() => {
+    const subjectFromUrl = searchParams.get('subject') || '';
+    setSelectedSubject(subjectFromUrl);
+  }, [searchParams]);
+
   useEffect(() => {
     async function fetchTeachers() {
+      // Don't fetch if subjects haven't loaded yet (needed for subject filtering)
+      if (subjects.length === 0 && searchParams.get('subject')) {
+        return;
+      }
+      
       setLoading(true);
       try {
         // First, get teachers from teachers_list with a reasonable limit
@@ -152,6 +184,10 @@ export default function Browse() {
             if (!effectiveSubjectFilters.includes(selectedSubject.name)) {
               effectiveSubjectFilters = [...effectiveSubjectFilters, selectedSubject.name];
             }
+          } else {
+            // If subject not found in subjects list, try to use the slug as a fallback
+            // This handles cases where subjects haven't loaded yet
+            console.warn('Subject not found in subjects list:', subjectFilter);
           }
         }
 
@@ -161,7 +197,8 @@ export default function Browse() {
 
         // Apply search query if present - search across name, subjects, areas, and classes
         // This should be combined with other filters
-        if (allShikshaqData && (searchQuery || hasActiveFilters)) {
+        // Always filter if we have active filters, even if no search query
+        if (allShikshaqData && hasActiveFilters) {
           const matchingSlugs = allShikshaqData
             .filter((record: any) => {
               // Apply search query if present
@@ -304,6 +341,10 @@ export default function Browse() {
           filteredTeachers = teachersData.filter(teacher => 
             matchingSlugs.includes(teacher.slug)
           );
+        } else if (hasActiveFilters && !allShikshaqData) {
+          // If we have filters but no Shikshaqmine data, show empty results
+          // (can't filter without Shikshaqmine data)
+          filteredTeachers = [];
         } else {
           // If we have a search query but no Shikshaqmine data, fall back to name-only search
           if (searchQuery && !allShikshaqData) {
@@ -349,7 +390,7 @@ export default function Browse() {
     }
 
     fetchTeachers();
-  }, [searchParams, filters]);
+  }, [searchParams, filters, subjects]);
 
   const handleSubjectChange = (value: string) => {
     setSelectedSubject(value);
