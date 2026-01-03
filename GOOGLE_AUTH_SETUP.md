@@ -45,9 +45,9 @@ Common issues:
    - **Authorized redirect URIs**: Add these URLs:
      ```
      https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback
-     http://localhost:8080/auth/v1/callback
      ```
      Replace `YOUR_PROJECT_REF` with your actual Supabase project reference
+     - **Note**: Only add the Supabase callback URL here. Do NOT add your Vercel URL directly.
    - Click "Create"
    - **Copy the Client ID and Client Secret** (you'll need these)
 
@@ -70,12 +70,17 @@ Common issues:
    - The redirect URL should be: `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`
    - This is automatically handled by Supabase
 
-### Step 4: Update Authorized Redirect URIs in Google Cloud
+### Step 4: Configure Supabase for Production (Vercel)
 
-Make sure you've added BOTH of these URLs in Google Cloud Console:
+1. **Go to Supabase Dashboard** → **Settings** → **Auth**
+2. **Update Site URL**:
+   - Set to: `https://shikshaq.vercel.app`
+3. **Add Redirect URLs**:
+   - Add: `https://shikshaq.vercel.app/**`
+   - (Optional for local dev): `http://localhost:8080/**`
+4. Click **Save**
 
-1. **Supabase callback URL**: `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`
-2. **Local development** (optional): `http://localhost:8080/auth/v1/callback`
+**Important**: The Site URL tells Supabase where your app is hosted. The Redirect URLs allow Supabase to redirect back to your app after authentication.
 
 ### Step 5: Test the Setup
 
@@ -111,6 +116,20 @@ https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback
 - Check browser console for errors (F12)
 - Verify Google provider is enabled in Supabase
 - Check that Client ID and Secret are saved in Supabase
+
+### Issue: Redirect goes to wrong URL or port
+
+**Solution**:
+1. Go to Supabase Dashboard → **Settings** → **Auth**
+2. Scroll down to **Site URL** section
+3. Update **Site URL**:
+   - **For production**: `https://shikshaq.vercel.app`
+   - **For local development**: `http://localhost:8080` (change when testing locally)
+4. In **Redirect URLs**, add:
+   - `https://shikshaq.vercel.app/**` (for production)
+   - `http://localhost:8080/**` (for local dev - optional)
+5. Click **Save**
+6. The redirect URL in the code uses `window.location.origin`, so it should automatically match your current URL, but Supabase's Site URL setting is the primary configuration
 
 ### Issue: "Access blocked: This app's request is invalid"
 

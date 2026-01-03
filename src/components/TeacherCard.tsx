@@ -1,4 +1,8 @@
 import { Link } from 'react-router-dom';
+import { Heart } from 'lucide-react';
+import { useLikes } from '@/hooks/useLikes';
+import { useAuth } from '@/lib/auth-context';
+import { useNavigate } from 'react-router-dom';
 
 interface TeacherCardProps {
   id: string;
@@ -39,13 +43,29 @@ const subjectColors: Record<string, string> = {
   economics: 'bg-badge-commerce',
 };
 
-export function TeacherCard({ name, slug, subject, imageUrl, subjectSlug, isFeatured, sirMaam }: TeacherCardProps) {
+export function TeacherCard({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, sirMaam }: TeacherCardProps) {
   // If featured, always use green; otherwise use subject-specific colors
   const badgeColor = isFeatured 
     ? 'bg-badge-science' // Green color for featured teachers
     : (subjectColors[subjectSlug?.toLowerCase() || subject.toLowerCase()] || 'bg-muted-foreground');
   
   const displayName = formatTeacherName(name, sirMaam);
+  const { user } = useAuth();
+  const { isLiked, toggleLike } = useLikes();
+  const navigate = useNavigate();
+  const liked = isLiked(id);
+
+  const handleHeartClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
+    await toggleLike(id);
+  };
 
   return (
     <Link to={`/teacher/${slug}`} className="teacher-card group">
@@ -70,6 +90,21 @@ export function TeacherCard({ name, slug, subject, imageUrl, subjectSlug, isFeat
             {subject}
           </span>
         </div>
+
+        {/* Heart Icon */}
+        <button
+          onClick={handleHeartClick}
+          className="absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
+          aria-label={liked ? 'Unlike teacher' : 'Like teacher'}
+        >
+          <Heart
+            className={`w-5 h-5 transition-colors ${
+              liked
+                ? 'fill-red-500 text-red-500'
+                : 'text-foreground/70 hover:text-red-500'
+            }`}
+          />
+        </button>
       </div>
       
       <div className="p-3">

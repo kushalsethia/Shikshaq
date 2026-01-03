@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import TeacherProfile from "./pages/TeacherProfile";
 import Help from "./pages/Help";
 import Join from "./pages/Join";
+import LikedTeachers from "./pages/LikedTeachers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/browse" element={<Browse />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/teacher/:slug" element={<TeacherProfile />} />
+            <Route path="/liked-teachers" element={<LikedTeachers />} />
             <Route path="/help" element={<Help />} />
             <Route path="/join" element={<Join />} />
             <Route path="*" element={<NotFound />} />

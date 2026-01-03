@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn } from 'lucide-react';
+import { Home, Search, HelpCircle, Menu, X, LogIn, Heart } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/Logo';
@@ -71,6 +72,14 @@ export function Navbar() {
                   <DropdownMenuItem className="text-muted-foreground text-sm">
                     {user.email}
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/liked-teachers" className="flex items-center gap-2">
+                      <Heart className="w-4 h-4" />
+                      Liked Teachers
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => signOut()} className="text-destructive">
                     Sign out
                   </DropdownMenuItem>

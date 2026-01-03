@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MapPin, Clock, MessageCircle, BadgeCheck } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, MessageCircle, BadgeCheck, Heart } from 'lucide-react';
+import { useLikes } from '@/hooks/useLikes';
+import { useAuth } from '@/lib/auth-context';
 
 
 interface Teacher {
@@ -33,6 +35,9 @@ export default function TeacherProfile() {
   const { slug } = useParams<{ slug: string }>();
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { isLiked, toggleLike } = useLikes();
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function fetchTeacher() {
@@ -176,12 +181,34 @@ export default function TeacherProfile() {
                   </span>
                 </div>
               )}
-              {teacher.is_verified && (
-                <div className="absolute top-4 right-4 bg-card/90 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
-                  <BadgeCheck className="w-4 h-4 text-badge-science" />
-                  <span className="text-sm font-medium">Verified</span>
-                </div>
-              )}
+              <div className="absolute top-4 right-4 flex items-center gap-2">
+                {teacher.is_verified && (
+                  <div className="bg-card/90 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
+                    <BadgeCheck className="w-4 h-4 text-badge-science" />
+                    <span className="text-sm font-medium">Verified</span>
+                  </div>
+                )}
+                <button
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (!user) {
+                      navigate('/auth');
+                      return;
+                    }
+                    await toggleLike(teacher.id);
+                  }}
+                  className="p-3 rounded-full bg-card/90 backdrop-blur-sm hover:bg-card transition-colors"
+                  aria-label={isLiked(teacher.id) ? 'Unlike teacher' : 'Like teacher'}
+                >
+                  <Heart
+                    className={`w-6 h-6 transition-colors ${
+                      isLiked(teacher.id)
+                        ? 'fill-red-500 text-red-500'
+                        : 'text-foreground/70 hover:text-red-500'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
 
