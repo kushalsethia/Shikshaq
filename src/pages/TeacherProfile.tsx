@@ -433,16 +433,26 @@ export default function TeacherProfile() {
               <p className="text-muted-foreground text-sm mb-4">
                 Reach out directly to discuss class timings, fees, and more.
               </p>
-              <a
-                href={`https://wa.me/${teacher.whatsapp_number || '8240980312'}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button className="w-full gap-2">
+              {user ? (
+                <a
+                  href={`https://wa.me/${teacher.whatsapp_number || '8240980312'}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button className="w-full gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    Contact via WhatsApp
+                  </Button>
+                </a>
+              ) : (
+                <Button 
+                  className="w-full gap-2" 
+                  onClick={() => navigate('/auth')}
+                >
                   <MessageCircle className="w-4 h-4" />
-                  Contact via WhatsApp
+                  Sign in to contact
                 </Button>
-              </a>
+              )}
             </div>
           </div>
         </div>

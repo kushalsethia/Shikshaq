@@ -11,6 +11,7 @@ import { FAQ } from '@/components/FAQ';
 import { Testimonials } from '@/components/Testimonials';
 import { Footer } from '@/components/Footer';
 import { HeroSection } from '@/components/HeroSection';
+import { useLikes } from '@/hooks/useLikes';
 
 
 interface Teacher {
@@ -32,6 +33,7 @@ export default function Index() {
   const [featuredTeachers, setFeaturedTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isLiked } = useLikes(); // Pre-fetch likes once for all cards
 
   useEffect(() => {
     async function fetchData() {
@@ -164,6 +166,7 @@ export default function Index() {
                   imageUrl={teacher.image_url}
                   isFeatured={true}
                   sirMaam={(teacher as any).sir_maam}
+                  isLiked={isLiked(teacher.id)} // Pass liked state to avoid each card calling hook
                 />
               ))}
             </div>

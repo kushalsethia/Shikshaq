@@ -26,7 +26,7 @@ export interface FilterState {
 
 const SUBJECTS = [
   'Maths', 'English', 'Physics', 'Chemistry', 'Biology', 'Computer', 'Hindi',
-  'History & Civics', 'Geography', 'Economics', 'Accountancy', 'Business Studies',
+  'History & Civics', 'Geography', 'Economics', 'Accounts', 'Business Studies',
   'Commerce', 'Psychology', 'Sociology', 'Political Science', 'Environmental Science',
   'Bengali', 'Drawing', 'SAT', 'ACT', 'CAT', 'NMAT', 'GMAT', 'CA', 'CFA'
 ];
@@ -71,7 +71,17 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="text-2xl font-serif">Filter your search</SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-2xl font-serif">Filter your search</SheetTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onOpenChange(false)}
+              className="h-8 w-8"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </SheetHeader>
 
         <div className="mt-6 space-y-8">
