@@ -20,27 +20,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle OAuth callback - Supabase automatically processes hash fragments
+    // Handle OAuth callback - check for hash fragment first
+    const handleOAuthCallback = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      if (hashParams.get('access_token') || hashParams.get('error')) {
+        try {
+          // Supabase will automatically process the hash and set the session
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) {
+            console.error('Error getting session from OAuth callback:', error);
+            setLoading(false);
+            return;
+          }
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+        } catch (error) {
+          console.error('Error processing OAuth callback:', error);
+          setLoading(false);
+        }
+      }
+    };
+
+    // Process OAuth callback if hash is present
+    handleOAuthCallback();
+
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // Clean up URL hash after successful auth (but don't navigate here)
+        // Clean up URL hash after successful auth
         if (event === 'SIGNED_IN' && window.location.hash) {
-          // The Auth page will handle the redirect
-          // Just clean up the hash after a brief delay
           setTimeout(() => {
             if (window.location.hash) {
               window.history.replaceState(null, '', window.location.pathname);
             }
-          }, 500);
+          }, 100);
         }
       }
     );
 
-    // Get initial session
+    // Get initial session (fallback if no hash)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);

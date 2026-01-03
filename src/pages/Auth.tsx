@@ -24,6 +24,7 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [processingOAuth, setProcessingOAuth] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -40,9 +41,26 @@ export default function Auth() {
     // Check for OAuth callback in hash
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const hasAccessToken = hashParams.get('access_token');
+    const hasError = hashParams.get('error');
+    
+    // Set processing state if we have an OAuth callback
+    if (hasAccessToken) {
+      setProcessingOAuth(true);
+    }
+    
+    // If there's an error in the hash, show it
+    if (hasError) {
+      const errorDescription = hashParams.get('error_description') || 'Authentication failed';
+      toast.error(`OAuth Error: ${errorDescription}`);
+      setProcessingOAuth(false);
+      // Clean up the hash
+      window.history.replaceState(null, '', '/auth');
+      return;
+    }
     
     // If user becomes authenticated (either from OAuth or regular login)
     if (!authLoading && user) {
+      setProcessingOAuth(false);
       // Small delay to ensure session is fully processed
       const redirectTimer = setTimeout(() => {
         // Clean up hash if present
@@ -51,9 +69,22 @@ export default function Auth() {
         }
         // Redirect to home
         navigate('/', { replace: true });
-      }, hasAccessToken ? 300 : 100); // Longer delay for OAuth callback
+      }, hasAccessToken ? 500 : 100); // Longer delay for OAuth callback to ensure session is set
       
       return () => clearTimeout(redirectTimer);
+    }
+    
+    // If we have an access token but user isn't set yet, wait a bit more
+    if (hasAccessToken && authLoading) {
+      // Give Supabase more time to process the session (max 3 seconds)
+      const waitTimer = setTimeout(() => {
+        if (!user) {
+          setProcessingOAuth(false);
+          toast.error('Authentication timed out. Please try again.');
+          window.history.replaceState(null, '', '/auth');
+        }
+      }, 3000);
+      return () => clearTimeout(waitTimer);
     }
   }, [user, authLoading, navigate]);
 
@@ -141,6 +172,18 @@ export default function Auth() {
       toast.error('Failed to sign in with Google');
     }
   };
+
+  // Show loading state while processing OAuth callback
+  if (processingOAuth || (authLoading && window.location.hash.includes('access_token'))) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Completing sign in...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
