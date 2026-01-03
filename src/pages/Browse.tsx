@@ -197,8 +197,8 @@ export default function Browse() {
 
         // Apply search query if present - search across name, subjects, areas, and classes
         // This should be combined with other filters
-        // Always filter if we have active filters, even if no search query
-        if (allShikshaqData && hasActiveFilters) {
+        // Filter if we have a search query OR active filters
+        if (allShikshaqData && (searchQuery || hasActiveFilters)) {
           const matchingSlugs = allShikshaqData
             .filter((record: any) => {
               // Apply search query if present
@@ -341,17 +341,17 @@ export default function Browse() {
           filteredTeachers = teachersData.filter(teacher => 
             matchingSlugs.includes(teacher.slug)
           );
-        } else if (hasActiveFilters && !allShikshaqData) {
-          // If we have filters but no Shikshaqmine data, show empty results
-          // (can't filter without Shikshaqmine data)
-          filteredTeachers = [];
-        } else {
-          // If we have a search query but no Shikshaqmine data, fall back to name-only search
-          if (searchQuery && !allShikshaqData) {
+        } else if ((searchQuery || hasActiveFilters) && !allShikshaqData) {
+          // If we have search query or filters but no Shikshaqmine data, fall back to name-only search
+          if (searchQuery) {
             const searchLower = searchQuery.toLowerCase().trim();
             filteredTeachers = teachersData.filter(teacher => 
               teacher.name?.toLowerCase().includes(searchLower)
             );
+          } else {
+            // If we have filters but no Shikshaqmine data, show empty results
+            // (can't filter without Shikshaqmine data)
+            filteredTeachers = [];
           }
         }
 
