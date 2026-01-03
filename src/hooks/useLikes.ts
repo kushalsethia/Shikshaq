@@ -76,6 +76,18 @@ export function useLikes() {
     }
 
     const currentlyLiked = isLiked(teacherId);
+    const newLikedState = !currentlyLiked;
+
+    // Optimistic update: Update UI immediately before server call
+    setLikedTeacherIds((prev) => {
+      const next = new Set(prev);
+      if (newLikedState) {
+        next.add(teacherId);
+      } else {
+        next.delete(teacherId);
+      }
+      return next;
+    });
 
     try {
       if (currentlyLiked) {
@@ -87,6 +99,13 @@ export function useLikes() {
           .eq('teacher_id', teacherId);
 
         if (error) {
+          // Revert optimistic update on error
+          setLikedTeacherIds((prev) => {
+            const next = new Set(prev);
+            next.add(teacherId); // Revert to liked state
+            return next;
+          });
+
           // Log the full error for debugging
           console.error('Error toggling like (delete):', {
             code: error.code,
@@ -110,11 +129,6 @@ export function useLikes() {
           throw error;
         }
 
-        setLikedTeacherIds((prev) => {
-          const next = new Set(prev);
-          next.delete(teacherId);
-          return next;
-        });
         toast.success('Removed from liked teachers');
         return false;
       } else {
@@ -124,6 +138,13 @@ export function useLikes() {
           .insert({ user_id: user.id, teacher_id: teacherId });
 
         if (error) {
+          // Revert optimistic update on error
+          setLikedTeacherIds((prev) => {
+            const next = new Set(prev);
+            next.delete(teacherId); // Revert to unliked state
+            return next;
+          });
+
           // Log the full error for debugging
           console.error('Error toggling like (insert):', {
             code: error.code,
@@ -147,7 +168,6 @@ export function useLikes() {
           throw error;
         }
 
-        setLikedTeacherIds((prev) => new Set(prev).add(teacherId));
         toast.success('Added to liked teachers');
         return true;
       }

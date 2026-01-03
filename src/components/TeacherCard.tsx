@@ -3,6 +3,7 @@ import { Heart } from 'lucide-react';
 import { useLikes } from '@/hooks/useLikes';
 import { useAuth } from '@/lib/auth-context';
 import { useNavigate } from 'react-router-dom';
+import { memo } from 'react';
 
 interface TeacherCardProps {
   id: string;
@@ -44,7 +45,7 @@ const subjectColors: Record<string, string> = {
   economics: 'bg-badge-commerce',
 };
 
-export function TeacherCard({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, sirMaam, isLiked: isLikedProp }: TeacherCardProps) {
+function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, sirMaam, isLiked: isLikedProp }: TeacherCardProps) {
   // If featured, always use green; otherwise use subject-specific colors
   const badgeColor = isFeatured 
     ? 'bg-badge-science' // Green color for featured teachers
@@ -54,9 +55,9 @@ export function TeacherCard({ id, name, slug, subject, imageUrl, subjectSlug, is
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Always use hook for real-time updates (hook state is shared across all components)
+  // Use hook for real-time updates (optimistic updates make this instant)
   const { isLiked, toggleLike } = useLikes();
-  // Always use hook's state for real-time updates - the hook state is reactive and will update immediately
+  // Use hook's state for real-time updates, prop is only for initial optimization
   const liked = isLiked(id);
 
   const handleHeartClick = async (e: React.MouseEvent) => {
@@ -68,6 +69,7 @@ export function TeacherCard({ id, name, slug, subject, imageUrl, subjectSlug, is
       return;
     }
 
+    // Optimistic update happens in the hook - UI updates instantly
     await toggleLike(id);
   };
 
@@ -119,3 +121,7 @@ export function TeacherCard({ id, name, slug, subject, imageUrl, subjectSlug, is
     </Link>
   );
 }
+
+// Memoize component to prevent unnecessary re-renders
+// Only re-renders when props change or hook state for this specific teacher changes
+export const TeacherCard = memo(TeacherCardComponent);
