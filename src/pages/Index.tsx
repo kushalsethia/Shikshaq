@@ -175,6 +175,9 @@ export default function Index() {
         </div>
       </section>
 
+      {/* Hero CTA */}
+      <HeroSection />
+
       {/* Subjects */}
       <section className="py-8">
         <div className="container">
@@ -212,9 +215,6 @@ export default function Index() {
           )}
         </div>
       </section>
-
-      {/* Hero CTA */}
-      <HeroSection />
 
       {/* How It Works */}
       <HowItWorks />

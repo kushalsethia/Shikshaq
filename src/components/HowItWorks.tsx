@@ -33,9 +33,9 @@ export function HowItWorks() {
               key={step.number}
               className={`flex flex-col ${index % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-8 md:gap-16`}
             >
-              <div className="flex-1 text-center md:text-left">
-                <span className="step-number">{step.number}</span>
-                <h3 className="text-2xl md:text-3xl font-serif text-foreground -mt-8 mb-4">
+              <div className="flex-1 text-center md:text-left relative">
+                <span className="step-number block mb-2">{step.number}</span>
+                <h3 className="text-2xl md:text-3xl font-serif text-foreground mb-4">
                   {step.title}
                 </h3>
                 <p className="text-muted-foreground text-lg">

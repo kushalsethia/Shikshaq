@@ -16,8 +16,8 @@ export function Logo({ className = '', showText = true, size = 'md' }: LogoProps
 
   const textSizeClasses = {
     sm: 'text-lg',
-    md: 'text-xl',
-    lg: 'text-2xl',
+    md: 'text-2xl',
+    lg: 'text-3xl',
   };
 
   return (
@@ -30,7 +30,7 @@ export function Logo({ className = '', showText = true, size = 'md' }: LogoProps
         />
       </div>
       {showText && (
-        <span className={`font-serif ${textSizeClasses[size]} text-foreground`}>
+        <span className={`font-serif ${textSizeClasses[size]} text-foreground leading-none`}>
           ShikshAq.in
         </span>
       )}

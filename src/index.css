@@ -160,7 +160,7 @@
   }
 
   .step-number {
-    @apply text-7xl font-serif text-primary/10;
+    @apply text-7xl font-serif text-primary/10 leading-none;
   }
 
   .faq-trigger {
