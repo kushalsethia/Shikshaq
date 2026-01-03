@@ -1,4 +1,3 @@
-import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -71,17 +70,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-2xl font-serif">Filter your search</SheetTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <SheetTitle className="text-2xl font-serif">Filter your search</SheetTitle>
         </SheetHeader>
 
         <div className="mt-6 space-y-8">
