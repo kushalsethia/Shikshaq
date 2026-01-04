@@ -17,6 +17,7 @@ import AdminRecommendations from "./pages/AdminRecommendations";
 import LikedTeachers from "./pages/LikedTeachers";
 import SelectRole from "./pages/SelectRole";
 import SignUpSuccess from "./pages/SignUpSuccess";
+import StudentDashboard from "./pages/StudentDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/admin/recommendations" element={<AdminRecommendations />} />
               <Route path="/select-role" element={<SelectRole />} />
               <Route path="/signup-success" element={<SignUpSuccess />} />
+              <Route path="/dashboard/student" element={<StudentDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
