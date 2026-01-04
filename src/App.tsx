@@ -12,6 +12,8 @@ import Auth from "./pages/Auth";
 import TeacherProfile from "./pages/TeacherProfile";
 import Help from "./pages/Help";
 import Join from "./pages/Join";
+import RecommendTeacher from "./pages/RecommendTeacher";
+import AdminRecommendations from "./pages/AdminRecommendations";
 import LikedTeachers from "./pages/LikedTeachers";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +36,8 @@ const App = () => (
               <Route path="/liked-teachers" element={<LikedTeachers />} />
               <Route path="/help" element={<Help />} />
               <Route path="/join" element={<Join />} />
+              <Route path="/recommend-teacher" element={<RecommendTeacher />} />
+              <Route path="/admin/recommendations" element={<AdminRecommendations />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

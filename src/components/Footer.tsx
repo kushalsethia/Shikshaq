@@ -68,15 +68,25 @@ export function Footer() {
           {/* Content */}
           <div className="relative z-10">
             <p className="text-purple-50 mb-2 text-sm md:text-base">Free of charge, no commissions!</p>
-            <h2 className="text-2xl md:text-4xl font-serif text-white mb-6">
-              Join ShikshAQ as a teacher today!
+            <h2 className="text-2xl md:text-4xl lg:text-5xl font-serif font-bold text-white mb-6">
+              We're always on the lookout for the best tuition teachers!
             </h2>
-            <Link 
-              to="/join" 
-              className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-900 transition-colors"
-            >
-              Join Us
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                to="/recommend-teacher" 
+                className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-900 hover:scale-105 transition-all duration-200 text-center"
+              >
+                Recommend a Teacher
+              </Link>
+              <a
+                href="https://forms.gle/6ks9bpsz2EojgfrQA"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-900 hover:scale-105 transition-all duration-200 text-center"
+              >
+                I am a Teacher
+              </a>
+            </div>
           </div>
         </div>
       </div>
