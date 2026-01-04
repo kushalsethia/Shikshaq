@@ -1,0 +1,133 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { GraduationCap, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { Navbar } from '@/components/Navbar';
+import { Footer } from '@/components/Footer';
+import { Logo } from '@/components/Logo';
+
+export default function SelectRole() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [role, setRole] = useState<'student' | 'guardian' | ''>('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!role) {
+      toast.error('Please select whether you are a student or guardian');
+      return;
+    }
+
+    if (!user) {
+      toast.error('You must be signed in to continue');
+      navigate('/auth');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Create profile record
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          role: role,
+        });
+
+      if (error) {
+        console.error('Error creating profile:', error);
+        toast.error('Failed to create profile. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      toast.success('Profile created successfully!');
+      
+      // Redirect to home page
+      navigate('/', { replace: true });
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Something went wrong. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container py-16 text-center">
+          <p className="text-muted-foreground mb-4">You must be signed in to continue.</p>
+          <Button onClick={() => navigate('/auth')}>Sign In</Button>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      
+      <main className="flex-1 flex items-center justify-center py-16">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <Logo size="lg" className="mx-auto mb-4" />
+            <h1 className="text-3xl font-serif text-foreground mb-2">
+              Complete Your Profile
+            </h1>
+            <p className="text-muted-foreground">
+              Please select whether you are a student or guardian
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-3">
+              <Label className="text-base">I am a...</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setRole('student')}
+                  className={`flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-all ${
+                    role === 'student'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <GraduationCap className="w-8 h-8 mb-3" />
+                  <span className="font-medium text-lg">Student</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('guardian')}
+                  className={`flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-all ${
+                    role === 'guardian'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <Users className="w-8 h-8 mb-3" />
+                  <span className="font-medium text-lg">Guardian</span>
+                </button>
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full h-12" disabled={loading || !role}>
+              {loading ? 'Creating Profile...' : 'Continue'}
+            </Button>
+          </form>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+}
+
