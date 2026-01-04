@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, GraduationCap, Users } from 'lucide-react';
 import { z } from 'zod';
 import { Logo } from '@/components/Logo';
 
@@ -18,6 +19,9 @@ const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  role: z.enum(['student', 'guardian'], {
+    required_error: 'Please select whether you are a student or guardian',
+  }),
 });
 
 export default function Auth() {
@@ -34,6 +38,7 @@ export default function Auth() {
     password: '',
     newPassword: '',
     confirmPassword: '',
+    role: '' as 'student' | 'guardian' | '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -90,17 +95,41 @@ export default function Auth() {
     // If user becomes authenticated (either from OAuth or regular login)
     if (!authLoading && user) {
       setProcessingOAuth(false);
-      // Small delay to ensure session is fully processed
-      const redirectTimer = setTimeout(() => {
-        // Clean up hash if present
-        if (window.location.hash) {
-          window.history.replaceState(null, '', '/auth');
-        }
-        // Redirect to home
-        navigate('/', { replace: true });
-      }, hasAccessToken ? 500 : 100); // Longer delay for OAuth callback to ensure session is set
       
-      return () => clearTimeout(redirectTimer);
+      // Check if user has a profile
+      const checkProfile = async () => {
+        try {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('id, role')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          // Clean up hash if present
+          if (window.location.hash) {
+            window.history.replaceState(null, '', '/auth');
+          }
+
+          if (error) {
+            console.error('Error checking profile:', error);
+          }
+
+          if (!profile) {
+            // No profile found - redirect to role selection
+            navigate('/select-role', { replace: true });
+          } else {
+            // Profile exists - redirect to home
+            navigate('/', { replace: true });
+          }
+        } catch (error) {
+          console.error('Error checking profile:', error);
+          // On error, redirect to role selection to be safe
+          navigate('/select-role', { replace: true });
+        }
+      };
+
+      // Small delay to ensure session is fully processed
+      setTimeout(checkProfile, hasAccessToken ? 500 : 200);
     }
     
     // If we have an access token but user isn't set yet, wait a bit more
@@ -249,7 +278,12 @@ export default function Auth() {
           return;
         }
 
-        const { error } = await signUpWithEmail(formData.email, formData.password, formData.fullName);
+        const { error } = await signUpWithEmail(
+          formData.email,
+          formData.password,
+          formData.fullName,
+          formData.role as 'student' | 'guardian'
+        );
         if (error) {
           if (error.message.includes('already registered')) {
             toast.error('This email is already registered. Please sign in instead.');
@@ -259,10 +293,10 @@ export default function Auth() {
           setLoading(false);
         } else {
           toast.success('Account created successfully!');
-          // Wait a moment for auth state to update, then navigate
+          // Redirect to sign-up success page
           setTimeout(() => {
-            navigate('/', { replace: true });
-          }, 100);
+            navigate('/signup-success', { replace: true });
+          }, 500);
         }
       }
     } catch (error) {
@@ -525,6 +559,48 @@ export default function Auth() {
                     )}
                   </div>
 
+                  {/* Role Selection - Only for Sign Up */}
+                  {!isLogin && (
+                    <div className="space-y-3">
+                      <Label>I am a...</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, role: 'student' });
+                            setErrors({ ...errors, role: '' });
+                          }}
+                          className={`flex flex-col items-center justify-center rounded-lg border-2 p-4 transition-all ${
+                            formData.role === 'student'
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          } ${errors.role ? 'border-destructive' : ''}`}
+                        >
+                          <GraduationCap className="w-6 h-6 mb-2" />
+                          <span className="font-medium">Student</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, role: 'guardian' });
+                            setErrors({ ...errors, role: '' });
+                          }}
+                          className={`flex flex-col items-center justify-center rounded-lg border-2 p-4 transition-all ${
+                            formData.role === 'guardian'
+                              ? 'border-primary bg-primary/10'
+                              : 'border-border hover:border-primary/50'
+                          } ${errors.role ? 'border-destructive' : ''}`}
+                        >
+                          <Users className="w-6 h-6 mb-2" />
+                          <span className="font-medium">Guardian</span>
+                        </button>
+                      </div>
+                      {errors.role && (
+                        <p className="text-sm text-destructive">{errors.role}</p>
+                      )}
+                    </div>
+                  )}
+
                   <Button type="submit" className="w-full h-12" disabled={loading}>
                     {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
                   </Button>
@@ -590,7 +666,7 @@ export default function Auth() {
                     onClick={() => {
                       setIsLogin(!isLogin);
                       setErrors({});
-                      setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '' });
+                      setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '', role: '' });
                     }}
                     className="text-foreground font-medium hover:underline"
                   >

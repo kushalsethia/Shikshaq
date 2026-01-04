@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield } from 'lucide-react';
+import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,37 +19,57 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<'student' | 'guardian' | 'teacher' | null>(null);
 
-  // Check if user is an admin
+  // Check if user is an admin and get their role
   useEffect(() => {
-    async function checkAdminStatus() {
+    async function checkAdminStatusAndRole() {
       if (!user) {
         setIsAdmin(false);
+        setUserRole(null);
         return;
       }
 
       try {
-        const { data, error } = await supabase
+        // Check admin status
+        const { data: adminData, error: adminError } = await supabase
           .from('admins')
           .select('id')
           .eq('id', user.id)
           .maybeSingle();
 
-        if (error) {
-          console.log('Error checking admin status:', error.message);
+        if (adminError) {
+          console.log('Error checking admin status:', adminError.message);
           setIsAdmin(false);
-        } else if (data && data.id === user.id) {
+        } else if (adminData && adminData.id === user.id) {
           setIsAdmin(true);
         } else {
           setIsAdmin(false);
         }
+
+        // Get user role from profiles
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.log('Error fetching profile:', profileError.message);
+          setUserRole(null);
+        } else if (profileData) {
+          setUserRole(profileData.role as 'student' | 'guardian' | 'teacher');
+        } else {
+          setUserRole(null);
+        }
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        console.error('Error:', error);
         setIsAdmin(false);
+        setUserRole(null);
       }
     }
 
-    checkAdminStatus();
+    checkAdminStatusAndRole();
   }, [user]);
 
   const navItems = [
@@ -107,6 +127,22 @@ export function Navbar() {
                     {user.email}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
+                  {userRole === 'student' && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard/student" className="flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4" />
+                        Student Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {userRole === 'guardian' && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard/guardian" className="flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        Guardian Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link to="/liked-teachers" className="flex items-center gap-2">
                       <Heart className="w-4 h-4" />
