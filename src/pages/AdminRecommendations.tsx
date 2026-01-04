@@ -3,8 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ArrowLeft, CheckCircle, XCircle, Clock, User, Phone, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
@@ -32,59 +30,16 @@ interface Recommendation {
   updated_at: string;
 }
 
-// Admin password from environment variable
-// Set VITE_ADMIN_PASSWORD in your .env.local file (not committed to git)
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || '';
-
 export default function AdminRecommendations() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState<string>('');
   const [editNotes, setEditNotes] = useState<string>('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-
-  useEffect(() => {
-    // Check if admin password is stored in sessionStorage
-    const storedAuth = sessionStorage.getItem('admin_authenticated');
-    if (storedAuth === 'true') {
-      setIsAuthenticated(true);
-      fetchRecommendations();
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Check if admin password is configured
-    if (!ADMIN_PASSWORD) {
-      setPasswordError('Admin password not configured. Please set VITE_ADMIN_PASSWORD in your .env.local file.');
-      return;
-    }
-    
-    if (adminPassword === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('admin_authenticated', 'true');
-      setPasswordError('');
-      fetchRecommendations();
-    } else {
-      setPasswordError('Incorrect password');
-      setAdminPassword('');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    sessionStorage.removeItem('admin_authenticated');
-    setAdminPassword('');
-    setRecommendations([]);
-  };
 
   async function fetchRecommendations() {
     try {
@@ -107,6 +62,49 @@ export default function AdminRecommendations() {
       setLoading(false);
     }
   }
+
+  // Check if current user is an admin
+  useEffect(() => {
+    async function checkAdminStatus() {
+      if (!user) {
+        setCheckingAdmin(false);
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('admins')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle(); // Use maybeSingle instead of single to handle "not found" gracefully
+
+        if (error) {
+          // Error querying (table might not exist or RLS issue)
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        } else if (data && data.id === user.id) {
+          // User is an admin
+          setIsAdmin(true);
+          fetchRecommendations();
+        } else {
+          // User is not an admin
+          console.log('User is not an admin');
+          setIsAdmin(false);
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+      } finally {
+        setCheckingAdmin(false);
+        setLoading(false);
+      }
+    }
+
+    checkAdminStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const handleEdit = (rec: Recommendation) => {
     setEditingId(rec.id);
@@ -167,67 +165,8 @@ export default function AdminRecommendations() {
     }
   };
 
-  // Show password prompt if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="container py-16">
-          <div className="max-w-md mx-auto">
-            <div className="bg-card rounded-3xl p-8 border border-border shadow-sm">
-              <div className="text-center mb-6">
-                <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h1 className="text-2xl font-serif text-foreground mb-2">
-                  Admin Access
-                </h1>
-                <p className="text-muted-foreground">
-                  Enter the admin password to view recommendations
-                </p>
-              </div>
-
-              <form onSubmit={handleAdminLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="adminPassword">Admin Password</Label>
-                  <Input
-                    id="adminPassword"
-                    type="password"
-                    value={adminPassword}
-                    onChange={(e) => {
-                      setAdminPassword(e.target.value);
-                      setPasswordError('');
-                    }}
-                    placeholder="Enter admin password"
-                    className={passwordError ? 'border-destructive' : ''}
-                    autoFocus
-                  />
-                  {passwordError && (
-                    <p className="text-sm text-destructive">{passwordError}</p>
-                  )}
-                </div>
-
-                <Button type="submit" className="w-full">
-                  Access Admin Panel
-                </Button>
-              </form>
-
-              <div className="mt-6 text-center">
-                <Link
-                  to="/"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4 inline mr-2" />
-                  Back to home
-                </Link>
-              </div>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (loading) {
+  // Show loading state while checking admin status
+  if (checkingAdmin || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -246,6 +185,68 @@ export default function AdminRecommendations() {
     );
   }
 
+  // Show sign-in prompt if not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container py-16">
+          <div className="max-w-md mx-auto">
+            <div className="bg-card rounded-3xl p-8 border border-border shadow-sm text-center">
+              <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h1 className="text-2xl font-serif text-foreground mb-2">
+                Sign In Required
+              </h1>
+              <p className="text-muted-foreground mb-6">
+                You need to sign in to access the admin panel.
+              </p>
+              <Link to="/auth">
+                <Button>Sign In</Button>
+              </Link>
+              <div className="mt-6">
+                <Link
+                  to="/"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4 inline mr-2" />
+                  Back to home
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Show access denied if user is not an admin
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container py-16">
+          <div className="max-w-md mx-auto">
+            <div className="bg-card rounded-3xl p-8 border border-border shadow-sm text-center">
+              <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h1 className="text-2xl font-serif text-foreground mb-2">
+                Access Denied
+              </h1>
+              <p className="text-muted-foreground mb-6">
+                You don't have admin privileges to access this page.
+              </p>
+              <Link to="/">
+                <Button variant="outline">Back to Home</Button>
+              </Link>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -261,24 +262,13 @@ export default function AdminRecommendations() {
         </Link>
 
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-serif text-foreground mb-2">
-              Teacher Recommendations
-            </h1>
-            <p className="text-muted-foreground">
-              View and manage teacher recommendations submitted through the form.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={handleLogout}
-            size="sm"
-            className="gap-2"
-          >
-            <Lock className="w-4 h-4" />
-            Logout
-          </Button>
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-serif text-foreground mb-2">
+            Teacher Recommendations
+          </h1>
+          <p className="text-muted-foreground">
+            View and manage teacher recommendations submitted through the form.
+          </p>
         </div>
 
         {/* Recommendations List */}
