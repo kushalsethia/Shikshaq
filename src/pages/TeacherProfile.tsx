@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, MapPin, Clock, MessageCircle, BadgeCheck, Heart } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useAuth } from '@/lib/auth-context';
+import { getWhatsAppLink } from '@/utils/whatsapp';
 
 
 interface Teacher {
@@ -435,7 +436,7 @@ export default function TeacherProfile() {
               </p>
               {user ? (
                 <a
-                  href={`https://wa.me/${teacher.whatsapp_number || '8240980312'}`}
+                  href={getWhatsAppLink(teacher.whatsapp_number)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
