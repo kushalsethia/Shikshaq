@@ -409,7 +409,8 @@ export default function StudentDashboard() {
                     type="date"
                     value={formData.date_of_birth}
                     onChange={handleInputChange}
-                    className="text-left"
+                    className="w-full text-left [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-datetime-edit-text]:text-left [&::-webkit-datetime-edit-month-field]:text-left [&::-webkit-datetime-edit-day-field]:text-left [&::-webkit-datetime-edit-year-field]:text-left"
+                    style={{ textAlign: 'left', direction: 'ltr' }}
                   />
                   {profile.age && (
                     <p className="text-xs text-muted-foreground">Age: {profile.age} years</p>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { SearchBar } from '@/components/SearchBar';
@@ -12,6 +12,13 @@ import { Testimonials } from '@/components/Testimonials';
 import { Footer } from '@/components/Footer';
 import { HeroSection } from '@/components/HeroSection';
 import { useLikes } from '@/lib/likes-context';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
 
 
 interface Teacher {
@@ -155,22 +162,56 @@ export default function Index() {
               ))}
             </div>
           ) : featuredTeachers.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {featuredTeachers.map((teacher) => (
-                <TeacherCard
-                  key={teacher.id}
-                  id={teacher.id}
-                  name={teacher.name}
-                  slug={teacher.slug}
-                  subject={teacher.subjects?.name || 'General'}
-                  subjectSlug={teacher.subjects?.slug}
-                  imageUrl={teacher.image_url}
-                  isFeatured={true}
-                  sirMaam={(teacher as any).sir_maam}
-                  isLiked={isLiked(teacher.id)} // Pass for fast initial render, hook handles real-time updates
-                />
-              ))}
-            </div>
+            <>
+              {/* Mobile: Carousel */}
+              <div className="md:hidden relative">
+                <Carousel
+                  opts={{
+                    align: "start",
+                    loop: true,
+                  }}
+                  className="w-full"
+                >
+                  <CarouselContent className="-ml-2 md:-ml-4">
+                    {featuredTeachers.map((teacher) => (
+                      <CarouselItem key={teacher.id} className="pl-2 md:pl-4 basis-1/2">
+                        <TeacherCard
+                          id={teacher.id}
+                          name={teacher.name}
+                          slug={teacher.slug}
+                          subject={teacher.subjects?.name || 'General'}
+                          subjectSlug={teacher.subjects?.slug}
+                          imageUrl={teacher.image_url}
+                          isFeatured={true}
+                          sirMaam={(teacher as any).sir_maam}
+                          isLiked={isLiked(teacher.id)}
+                        />
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="left-0" />
+                  <CarouselNext className="right-0" />
+                </Carousel>
+              </div>
+
+              {/* Desktop: Grid */}
+              <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {featuredTeachers.map((teacher) => (
+                  <TeacherCard
+                    key={teacher.id}
+                    id={teacher.id}
+                    name={teacher.name}
+                    slug={teacher.slug}
+                    subject={teacher.subjects?.name || 'General'}
+                    subjectSlug={teacher.subjects?.slug}
+                    imageUrl={teacher.image_url}
+                    isFeatured={true}
+                    sirMaam={(teacher as any).sir_maam}
+                    isLiked={isLiked(teacher.id)} // Pass for fast initial render, hook handles real-time updates
+                  />
+                ))}
+              </div>
+            </>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <p>No teachers found. Please add teachers to your Supabase database.</p>
