@@ -166,7 +166,14 @@ export default function StudentDashboard() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    
+    // For phone number, only allow numeric characters
+    if (name === 'phone') {
+      const numericValue = value.replace(/\D/g, ''); // Remove all non-digit characters
+      setFormData({ ...formData, [name]: numericValue });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSubjectToggle = (subjectId: string) => {
@@ -179,8 +186,28 @@ export default function StudentDashboard() {
     });
   };
 
+  const validateRequiredFields = (): boolean => {
+    const required = {
+      phone: formData.phone.trim(),
+      date_of_birth: formData.date_of_birth.trim(),
+      school_college: formData.school_college.trim(),
+      grade: formData.grade.trim(),
+    };
+
+    if (!required.phone || !required.date_of_birth || !required.school_college || !required.grade) {
+      toast.error('Please fill in all required fields: Phone, Date of Birth, School/College, and Grade');
+      return false;
+    }
+    return true;
+  };
+
   const handleSave = async () => {
     if (!user || !profile) return;
+
+    // Validate required fields
+    if (!validateRequiredFields()) {
+      return;
+    }
 
     setSaving(true);
 
@@ -312,58 +339,77 @@ export default function StudentDashboard() {
             <div className="space-y-4 pb-6 border-b border-border">
               <h2 className="text-xl font-serif text-foreground flex items-center gap-2">
                 <Lock className="w-5 h-5 text-muted-foreground" />
-                Account Information (Not Changeable)
+                Account Information
               </h2>
               
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Name</Label>
+                  <Label>
+                    Name <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     value={userName}
                     disabled
                     className="bg-muted cursor-not-allowed"
                   />
-                  <p className="text-xs text-muted-foreground">Imported from Google Auth</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label>
+                    Email <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     value={userEmail}
                     disabled
                     className="bg-muted cursor-not-allowed"
                   />
-                  <p className="text-xs text-muted-foreground">Imported from Google Auth</p>
                 </div>
               </div>
             </div>
 
             {/* Editable Fields Section */}
             <div className="space-y-4">
-              <h2 className="text-xl font-serif text-foreground">Profile Information</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-serif text-foreground">Profile Information</h2>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving || !formData.phone.trim() || !formData.date_of_birth.trim() || !formData.school_college.trim() || !formData.grade.trim()}
+                  className="gap-2"
+                  size="lg"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number (Optional)</Label>
+                  <Label htmlFor="phone">
+                    Phone Number <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="phone"
                     name="phone"
                     type="tel"
-                    placeholder="+91 XXXXXXXXXX"
+                    placeholder="91XXXXXXXXXX"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    maxLength={13}
+                    maxLength={12}
+                    inputMode="numeric"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="date_of_birth">Date of Birth (Optional)</Label>
+                  <Label htmlFor="date_of_birth">
+                    Date of Birth <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="date_of_birth"
                     name="date_of_birth"
                     type="date"
                     value={formData.date_of_birth}
                     onChange={handleInputChange}
+                    className="text-left"
                   />
                   {profile.age && (
                     <p className="text-xs text-muted-foreground">Age: {profile.age} years</p>
@@ -371,7 +417,9 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="school_college">School/College (Optional)</Label>
+                  <Label htmlFor="school_college">
+                    School/College <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="school_college"
                     name="school_college"
@@ -383,7 +431,9 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="grade">Grade (Optional)</Label>
+                  <Label htmlFor="grade">
+                    Grade <span className="text-red-500">*</span>
+                  </Label>
                   <Select
                     value={formData.grade}
                     onValueChange={(value) => setFormData({ ...formData, grade: value })}
@@ -404,10 +454,11 @@ export default function StudentDashboard() {
                       <SelectItem value="10">Class 10</SelectItem>
                       <SelectItem value="11">Class 11</SelectItem>
                       <SelectItem value="12">Class 12</SelectItem>
-                      <SelectItem value="1st year">1st Year</SelectItem>
-                      <SelectItem value="2nd year">2nd Year</SelectItem>
-                      <SelectItem value="3rd year">3rd Year</SelectItem>
-                      <SelectItem value="4th year">4th Year</SelectItem>
+                      <SelectItem value="UG, First Year">UG, First Year</SelectItem>
+                      <SelectItem value="UG, Second Year">UG, Second Year</SelectItem>
+                      <SelectItem value="UG, Third Year">UG, Third Year</SelectItem>
+                      <SelectItem value="UG, Fourth Year">UG, Fourth Year</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -458,7 +509,7 @@ export default function StudentDashboard() {
 
               {/* Subjects Selection */}
               <div className="space-y-3 pt-4 border-t border-border">
-                <Label>Subjects Interested In (Optional)</Label>
+                <Label>Subjects Interested In</Label>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-4 border border-border rounded-lg">
                   {subjects.map((subject) => (
                     <div key={subject.id} className="flex items-center space-x-2">
