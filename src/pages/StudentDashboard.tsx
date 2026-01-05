@@ -410,7 +410,7 @@ export default function StudentDashboard() {
                     type="date"
                     value={formData.date_of_birth}
                     onChange={handleInputChange}
-                    className="w-full date-input-left"
+                    className="w-full date-input-left date-input-mobile"
                     style={{ textAlign: 'left', direction: 'ltr' }}
                   />
                   {profile.age && (
