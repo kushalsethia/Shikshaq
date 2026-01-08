@@ -55,11 +55,27 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
     if (!user) return;
     
     try {
+      // Fetch profile, try avatar_url separately
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, role, school_college, grade, avatar_url')
+        .select('full_name, role, school_college, grade')
         .eq('id', user.id)
         .single();
+      
+      if (data && !error) {
+        // Try to get avatar_url if column exists
+        try {
+          const { data: avatarData } = await supabase
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', user.id)
+            .single();
+          
+          (data as any).avatar_url = avatarData?.avatar_url || null;
+        } catch (e) {
+          (data as any).avatar_url = null;
+        }
+      }
 
       if (error) throw error;
       setCurrentUserProfile(data);
@@ -103,12 +119,34 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
             return;
           }
 
-          // Fetch profiles
+          // Fetch profiles (avatar_url might not exist, so we'll handle it gracefully)
           const userIds = [...new Set(commentsWithDefault.map(c => c.user_id))];
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
-            .select('id, full_name, role, school_college, grade, avatar_url')
+            .select('id, full_name, role, school_college, grade')
             .in('id', userIds);
+          
+          // Try to fetch avatar_url separately if column exists
+          if (!profilesError && profilesData) {
+            try {
+              const { data: profilesWithAvatar } = await supabase
+                .from('profiles')
+                .select('id, avatar_url')
+                .in('id', userIds);
+              
+              if (profilesWithAvatar) {
+                const avatarMap = new Map(profilesWithAvatar.map(p => [p.id, p.avatar_url]));
+                profilesData.forEach(profile => {
+                  (profile as any).avatar_url = avatarMap.get(profile.id) || null;
+                });
+              }
+            } catch (e) {
+              // avatar_url column doesn't exist, that's okay
+              profilesData.forEach(profile => {
+                (profile as any).avatar_url = null;
+              });
+            }
+          }
 
           if (profilesError) throw profilesError;
 
@@ -132,12 +170,34 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
         return;
       }
 
-      // Fetch all user profiles in one query
+      // Fetch all user profiles in one query (avatar_url might not exist)
       const userIds = [...new Set(commentsData.map(c => c.user_id))];
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, full_name, role, school_college, grade, avatar_url')
+        .select('id, full_name, role, school_college, grade')
         .in('id', userIds);
+      
+      // Try to fetch avatar_url separately if column exists
+      if (!profilesError && profilesData) {
+        try {
+          const { data: profilesWithAvatar } = await supabase
+            .from('profiles')
+            .select('id, avatar_url')
+            .in('id', userIds);
+          
+          if (profilesWithAvatar) {
+            const avatarMap = new Map(profilesWithAvatar.map(p => [p.id, p.avatar_url]));
+            profilesData.forEach(profile => {
+              (profile as any).avatar_url = avatarMap.get(profile.id) || null;
+            });
+          }
+        } catch (e) {
+          // avatar_url column doesn't exist, that's okay
+          profilesData.forEach(profile => {
+            (profile as any).avatar_url = null;
+          });
+        }
+      }
 
       if (profilesError) throw profilesError;
 
