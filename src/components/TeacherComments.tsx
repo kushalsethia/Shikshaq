@@ -170,34 +170,43 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
         return;
       }
 
-      // Fetch all user profiles in one query (avatar_url might not exist)
+      // Fetch all user profiles in one query
       const userIds = [...new Set(commentsData.map(c => c.user_id))];
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, full_name, role, school_college, grade')
+        .select('id, full_name, role, school_college, grade, avatar_url')
         .in('id', userIds);
       
-      // Try to fetch avatar_url separately if column exists
-      if (!profilesError && profilesData) {
-        try {
-          const { data: profilesWithAvatar } = await supabase
-            .from('profiles')
-            .select('id, avatar_url')
-            .in('id', userIds);
-          
-          if (profilesWithAvatar) {
-            const avatarMap = new Map(profilesWithAvatar.map(p => [p.id, p.avatar_url]));
-            profilesData.forEach(profile => {
-              (profile as any).avatar_url = avatarMap.get(profile.id) || null;
-            });
-          }
-        } catch (e) {
-          // avatar_url column doesn't exist, that's okay
-          profilesData.forEach(profile => {
-            (profile as any).avatar_url = null;
-          });
-        }
+      // If avatar_url column doesn't exist, try without it
+      if (profilesError && (profilesError.message?.includes('avatar_url') || profilesError.code === '42703')) {
+        const { data: fallbackProfiles, error: fallbackError } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, school_college, grade')
+          .in('id', userIds);
+        
+        if (fallbackError) throw fallbackError;
+        
+        // Add null avatar_url for profiles without the column
+        (fallbackProfiles || []).forEach(profile => {
+          (profile as any).avatar_url = null;
+        });
+        
+        // Create a map for quick lookup
+        const profilesMap = new Map(
+          (fallbackProfiles || []).map(profile => [profile.id, profile])
+        );
+
+        // Combine comments with profiles
+        const commentsWithProfiles = commentsData.map(comment => ({
+          ...comment,
+          profiles: profilesMap.get(comment.user_id) || null,
+        }));
+
+        setComments(commentsWithProfiles);
+        return;
       }
+      
+      if (profilesError) throw profilesError;
 
       if (profilesError) throw profilesError;
 
@@ -342,23 +351,23 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                   ) : (
                     <>
                       <Avatar className="w-10 h-10">
-                        <AvatarImage src={currentUserProfile.avatar_url || undefined} />
-                        <AvatarFallback>
+                        <AvatarImage src={currentUserProfile.avatar_url || undefined} alt={currentUserProfile.full_name || ''} />
+                        <AvatarFallback className="bg-primary text-primary-foreground">
                           {currentUserProfile.full_name
                             ? currentUserProfile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-                            : 'U'}
+                            : user?.email?.charAt(0).toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <h4 className="font-medium text-foreground">
-                          {currentUserProfile.full_name || 'User'}
+                          {currentUserProfile.full_name || user?.email?.split('@')[0] || 'User'}
                         </h4>
                         {currentUserProfile.role === 'student' && (
                           <p className="text-sm text-muted-foreground">
                             {[
                               currentUserProfile.school_college,
                               currentUserProfile.grade && `Grade ${currentUserProfile.grade}`
-                            ].filter(Boolean).join(' • ')}
+                            ].filter(Boolean).join(' • ') || 'Student'}
                           </p>
                         )}
                         {currentUserProfile.role === 'guardian' && (
