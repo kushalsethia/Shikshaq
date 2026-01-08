@@ -101,7 +101,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         <button
           onClick={handleHeartClick}
           className="absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
-          aria-label={liked ? 'Unlike teacher' : 'Like teacher'}
+          aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
         >
           <Heart
             className={`w-5 h-5 transition-colors ${
