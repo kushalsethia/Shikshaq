@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { MessageCircle, Send, User, Clock } from 'lucide-react';
+import { MessageCircle, Send, User, Clock, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -40,6 +40,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
   const [newComment, setNewComment] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<{
     full_name: string | null;
     role: string | null;
@@ -191,6 +192,36 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       setError(err.message || 'Failed to submit comment');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    if (!user) return;
+    
+    // Confirm deletion
+    if (!window.confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setDeletingCommentId(commentId);
+      setError(null);
+
+      const { error } = await supabase
+        .from('teacher_comments')
+        .delete()
+        .eq('id', commentId)
+        .eq('user_id', user.id); // Extra safety check
+
+      if (error) throw error;
+
+      toast.success('Comment deleted successfully');
+      await fetchComments(); // Refresh comments
+    } catch (err: any) {
+      console.error('Error deleting comment:', err);
+      toast.error(err.message || 'Failed to delete comment');
+    } finally {
+      setDeletingCommentId(null);
     }
   }
 
@@ -431,9 +462,28 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                         </p>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                      </span>
+                      {/* Delete button - only show for user's own comments */}
+                      {user && comment.user_id === user.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteComment(comment.id)}
+                          disabled={deletingCommentId === comment.id}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                          title="Delete comment"
+                        >
+                          {deletingCommentId === comment.id ? (
+                            <Clock className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-foreground whitespace-pre-wrap break-words">
                     {comment.comment}
