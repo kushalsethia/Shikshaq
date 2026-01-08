@@ -8,6 +8,7 @@ import { ArrowLeft, MapPin, Clock, MessageCircle, BadgeCheck, Heart } from 'luci
 import { useLikes } from '@/lib/likes-context';
 import { useAuth } from '@/lib/auth-context';
 import { getWhatsAppLink } from '@/utils/whatsapp';
+import { TeacherComments } from '@/components/TeacherComments';
 
 
 interface Teacher {
@@ -457,6 +458,9 @@ export default function TeacherProfile() {
             </div>
           </div>
         </div>
+
+        {/* Comments Section */}
+        {teacher && <TeacherComments teacherId={teacher.id} />}
       </main>
 
       <Footer />

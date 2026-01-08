@@ -1,0 +1,254 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth-context';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { MessageCircle, Send, User } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+
+interface Comment {
+  id: string;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  profiles: {
+    full_name: string | null;
+    role: string | null;
+    school_college: string | null;
+    grade: string | null;
+  } | null;
+}
+
+interface TeacherCommentsProps {
+  teacherId: string;
+}
+
+export function TeacherComments({ teacherId }: TeacherCommentsProps) {
+  const { user } = useAuth();
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchComments();
+  }, [teacherId]);
+
+  async function fetchComments() {
+    try {
+      setLoading(true);
+      
+      // Fetch comments
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('teacher_comments')
+        .select('id, comment, created_at, updated_at, user_id')
+        .eq('teacher_id', teacherId)
+        .order('created_at', { ascending: false });
+
+      if (commentsError) throw commentsError;
+
+      if (!commentsData || commentsData.length === 0) {
+        setComments([]);
+        return;
+      }
+
+      // Fetch all user profiles in one query
+      const userIds = [...new Set(commentsData.map(c => c.user_id))];
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, role, school_college, grade')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create a map for quick lookup
+      const profilesMap = new Map(
+        (profilesData || []).map(profile => [profile.id, profile])
+      );
+
+      // Combine comments with profiles
+      const commentsWithProfiles = commentsData.map(comment => ({
+        ...comment,
+        profiles: profilesMap.get(comment.user_id) || null,
+      }));
+
+      setComments(commentsWithProfiles);
+    } catch (err) {
+      console.error('Error fetching comments:', err);
+      setError('Failed to load comments');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || !newComment.trim()) return;
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      const { error } = await supabase
+        .from('teacher_comments')
+        .insert({
+          teacher_id: teacherId,
+          user_id: user.id,
+          comment: newComment.trim(),
+        });
+
+      if (error) throw error;
+
+      setNewComment('');
+      await fetchComments(); // Refresh comments
+    } catch (err: any) {
+      console.error('Error submitting comment:', err);
+      setError(err.message || 'Failed to submit comment');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function getCommentAuthorName(comment: Comment): string {
+    if (comment.profiles?.role === 'guardian') {
+      return 'Guardian';
+    }
+    
+    if (comment.profiles?.full_name) {
+      return comment.profiles.full_name;
+    }
+    
+    return 'Anonymous';
+  }
+
+  function getCommentAuthorInfo(comment: Comment): string {
+    if (comment.profiles?.role === 'guardian') {
+      return '';
+    }
+    
+    if (comment.profiles?.role === 'student') {
+      const parts: string[] = [];
+      if (comment.profiles.school_college) {
+        parts.push(comment.profiles.school_college);
+      }
+      if (comment.profiles.grade) {
+        parts.push(`Grade ${comment.profiles.grade}`);
+      }
+      return parts.join(' • ');
+    }
+    
+    return '';
+  }
+
+  return (
+    <div className="mt-12 border-t border-border pt-8">
+      <div className="flex items-center gap-3 mb-6">
+        <MessageCircle className="w-6 h-6 text-foreground" />
+        <h2 className="text-2xl font-serif text-foreground">Comments</h2>
+        <span className="text-muted-foreground">({comments.length})</span>
+      </div>
+
+      {/* Comment Form - Only for authenticated users */}
+      {user ? (
+        <form onSubmit={handleSubmit} className="mb-8">
+          <div className="space-y-4">
+            <Textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Share your thoughts about this teacher..."
+              className="min-h-[100px] resize-none"
+              disabled={submitting}
+            />
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
+            )}
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                disabled={!newComment.trim() || submitting}
+                className="gap-2"
+              >
+                <Send className="w-4 h-4" />
+                {submitting ? 'Posting...' : 'Post Comment'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      ) : (
+        <div className="mb-8 p-4 bg-muted rounded-lg text-center">
+          <p className="text-muted-foreground">
+            <Button
+              variant="link"
+              className="p-0 h-auto text-foreground underline"
+              onClick={() => window.location.href = '/auth'}
+            >
+              Sign in
+            </Button>
+            {' '}to leave a comment
+          </p>
+        </div>
+      )}
+
+      {/* Comments List */}
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-full bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-muted rounded w-1/4" />
+                  <div className="h-4 bg-muted rounded w-full" />
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : comments.length === 0 ? (
+        <div className="text-center py-12">
+          <MessageCircle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+          <p className="text-muted-foreground">No comments yet. Be the first to share your thoughts!</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {comments.map((comment) => (
+            <div key={comment.id} className="flex gap-4">
+              {/* Avatar */}
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="w-5 h-5 text-primary" />
+                </div>
+              </div>
+
+              {/* Comment Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <div>
+                    <h4 className="font-medium text-foreground">
+                      {getCommentAuthorName(comment)}
+                    </h4>
+                    {getCommentAuthorInfo(comment) && (
+                      <p className="text-sm text-muted-foreground">
+                        {getCommentAuthorInfo(comment)}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                  </span>
+                </div>
+                <p className="text-foreground whitespace-pre-wrap break-words">
+                  {comment.comment}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
