@@ -179,7 +179,7 @@ export function LikesProvider({ children }: { children: ReactNode }) {
 
   const toggleLike = useCallback(async (teacherId: string): Promise<boolean> => {
     if (!user) {
-      toast.error('Please sign in to like teachers');
+      toast.error('Please sign in to favourite teachers');
       return false;
     }
 
@@ -240,7 +240,7 @@ export function LikesProvider({ children }: { children: ReactNode }) {
           throw error;
         }
 
-        toast.success('Removed from liked teachers');
+        toast.success('Removed from favourite teachers');
         return false;
       } else {
         // Like
@@ -280,7 +280,7 @@ export function LikesProvider({ children }: { children: ReactNode }) {
           throw error;
         }
 
-        toast.success('Added to liked teachers');
+        toast.success('Added to favourite teachers');
         return true;
       }
     } catch (error: any) {

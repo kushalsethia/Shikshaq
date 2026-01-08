@@ -199,7 +199,7 @@ export default function TeacherProfile() {
                     await toggleLike(teacher.id);
                   }}
                   className="p-3 rounded-full bg-card/90 backdrop-blur-sm hover:bg-card transition-colors"
-                  aria-label={isLiked(teacher.id) ? 'Unlike teacher' : 'Like teacher'}
+                  aria-label={isLiked(teacher.id) ? 'Remove from favourites' : 'Add to favourites'}
                 >
                   <Heart
                     className={`w-6 h-6 transition-colors ${

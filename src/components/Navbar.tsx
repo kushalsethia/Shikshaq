@@ -146,7 +146,7 @@ export function Navbar() {
                   <DropdownMenuItem asChild>
                     <Link to="/liked-teachers" className="flex items-center gap-2">
                       <Heart className="w-4 h-4" />
-                      Liked Teachers
+                      Favourite Teachers
                     </Link>
                   </DropdownMenuItem>
                   {isAdmin && (

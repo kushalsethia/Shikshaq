@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth-context";
 import { LikesProvider } from "@/lib/likes-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { FloatingWhatsAppButton } from "@/components/FloatingWhatsAppButton";
 import Index from "./pages/Index";
 import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
@@ -32,6 +33,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <ScrollToTop />
+            <FloatingWhatsAppButton />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/browse" element={<Browse />} />
