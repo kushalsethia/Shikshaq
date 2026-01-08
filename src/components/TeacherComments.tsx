@@ -71,15 +71,61 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
   async function fetchComments() {
     try {
       setLoading(true);
+      setError(null);
       
-      // Fetch comments with is_anonymous
+      // Fetch comments with is_anonymous (handle case where column might not exist)
       const { data: commentsData, error: commentsError } = await supabase
         .from('teacher_comments')
         .select('id, comment, created_at, updated_at, user_id, is_anonymous')
         .eq('teacher_id', teacherId)
         .order('created_at', { ascending: false });
 
-      if (commentsError) throw commentsError;
+      if (commentsError) {
+        console.error('Comments fetch error:', commentsError);
+        // If is_anonymous column doesn't exist, try without it
+        if (commentsError.message?.includes('is_anonymous') || commentsError.code === '42703') {
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('teacher_comments')
+            .select('id, comment, created_at, updated_at, user_id')
+            .eq('teacher_id', teacherId)
+            .order('created_at', { ascending: false });
+          
+          if (fallbackError) throw fallbackError;
+          
+          // Add default is_anonymous = false for old comments
+          const commentsWithDefault = (fallbackData || []).map(comment => ({
+            ...comment,
+            is_anonymous: false,
+          }));
+          
+          if (!commentsWithDefault || commentsWithDefault.length === 0) {
+            setComments([]);
+            return;
+          }
+
+          // Fetch profiles
+          const userIds = [...new Set(commentsWithDefault.map(c => c.user_id))];
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, role, school_college, grade, avatar_url')
+            .in('id', userIds);
+
+          if (profilesError) throw profilesError;
+
+          const profilesMap = new Map(
+            (profilesData || []).map(profile => [profile.id, profile])
+          );
+
+          const commentsWithProfiles = commentsWithDefault.map(comment => ({
+            ...comment,
+            profiles: profilesMap.get(comment.user_id) || null,
+          }));
+
+          setComments(commentsWithProfiles);
+          return;
+        }
+        throw commentsError;
+      }
 
       if (!commentsData || commentsData.length === 0) {
         setComments([]);
@@ -107,9 +153,9 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       }));
 
       setComments(commentsWithProfiles);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching comments:', err);
-      setError('Failed to load comments');
+      setError(err.message || 'Failed to load comments');
     } finally {
       setLoading(false);
     }
