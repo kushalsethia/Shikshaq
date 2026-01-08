@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS public.teacher_comments (
   teacher_id UUID NOT NULL,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   comment TEXT NOT NULL,
+  is_anonymous BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );

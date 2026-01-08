@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { MessageCircle, Send, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -12,11 +14,13 @@ interface Comment {
   created_at: string;
   updated_at: string;
   user_id: string;
+  is_anonymous: boolean;
   profiles: {
     full_name: string | null;
     role: string | null;
     school_college: string | null;
     grade: string | null;
+    avatar_url: string | null;
   } | null;
 }
 
@@ -30,20 +34,48 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<{
+    full_name: string | null;
+    role: string | null;
+    school_college: string | null;
+    grade: string | null;
+    avatar_url: string | null;
+  } | null>(null);
 
   useEffect(() => {
     fetchComments();
-  }, [teacherId]);
+    if (user) {
+      fetchCurrentUserProfile();
+    }
+  }, [teacherId, user]);
+
+  async function fetchCurrentUserProfile() {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, role, school_college, grade, avatar_url')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      setCurrentUserProfile(data);
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  }
 
   async function fetchComments() {
     try {
       setLoading(true);
       
-      // Fetch comments
+      // Fetch comments with is_anonymous
       const { data: commentsData, error: commentsError } = await supabase
         .from('teacher_comments')
-        .select('id, comment, created_at, updated_at, user_id')
+        .select('id, comment, created_at, updated_at, user_id, is_anonymous')
         .eq('teacher_id', teacherId)
         .order('created_at', { ascending: false });
 
@@ -58,7 +90,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       const userIds = [...new Set(commentsData.map(c => c.user_id))];
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, full_name, role, school_college, grade')
+        .select('id, full_name, role, school_college, grade, avatar_url')
         .in('id', userIds);
 
       if (profilesError) throw profilesError;
@@ -97,11 +129,13 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
           teacher_id: teacherId,
           user_id: user.id,
           comment: newComment.trim(),
+          is_anonymous: isAnonymous,
         });
 
       if (error) throw error;
 
       setNewComment('');
+      setIsAnonymous(false);
       await fetchComments(); // Refresh comments
     } catch (err: any) {
       console.error('Error submitting comment:', err);
@@ -112,6 +146,11 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
   }
 
   function getCommentAuthorName(comment: Comment): string {
+    // If comment is anonymous, show Anonymous
+    if (comment.is_anonymous) {
+      return 'Anonymous';
+    }
+
     if (comment.profiles?.role === 'guardian') {
       return 'Guardian';
     }
@@ -124,6 +163,11 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
   }
 
   function getCommentAuthorInfo(comment: Comment): string {
+    // If anonymous, don't show info
+    if (comment.is_anonymous) {
+      return '';
+    }
+
     if (comment.profiles?.role === 'guardian') {
       return '';
     }
@@ -142,6 +186,28 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
     return '';
   }
 
+  function getCommentAvatar(comment: Comment): string | null {
+    // If anonymous, don't show avatar
+    if (comment.is_anonymous) {
+      return null;
+    }
+    return comment.profiles?.avatar_url || null;
+  }
+
+  function getCommentInitials(comment: Comment): string {
+    if (comment.is_anonymous) {
+      return 'A';
+    }
+    if (comment.profiles?.full_name) {
+      const names = comment.profiles.full_name.split(' ');
+      if (names.length >= 2) {
+        return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+      }
+      return names[0][0].toUpperCase();
+    }
+    return 'U';
+  }
+
   return (
     <div className="mt-12 border-t border-border pt-8">
       <div className="flex items-center gap-3 mb-6">
@@ -154,6 +220,51 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       {user ? (
         <form onSubmit={handleSubmit} className="mb-8">
           <div className="space-y-4">
+            {/* Preview of how comment will appear */}
+            {currentUserProfile && (
+              <div className="p-4 bg-muted rounded-lg border border-border">
+                <div className="flex items-center gap-3 mb-2">
+                  {isAnonymous ? (
+                    <>
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <User className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-foreground">Anonymous</h4>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={currentUserProfile.avatar_url || undefined} />
+                        <AvatarFallback>
+                          {currentUserProfile.full_name
+                            ? currentUserProfile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                            : 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h4 className="font-medium text-foreground">
+                          {currentUserProfile.full_name || 'User'}
+                        </h4>
+                        {currentUserProfile.role === 'student' && (
+                          <p className="text-sm text-muted-foreground">
+                            {[
+                              currentUserProfile.school_college,
+                              currentUserProfile.grade && `Grade ${currentUserProfile.grade}`
+                            ].filter(Boolean).join(' • ')}
+                          </p>
+                        )}
+                        {currentUserProfile.role === 'guardian' && (
+                          <p className="text-sm text-muted-foreground">Guardian</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             <Textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
@@ -161,6 +272,22 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
               className="min-h-[100px] resize-none"
               disabled={submitting}
             />
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="anonymous"
+                checked={isAnonymous}
+                onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+                disabled={submitting}
+              />
+              <label
+                htmlFor="anonymous"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                Post as anonymous
+              </label>
+            </div>
+
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
@@ -214,41 +341,52 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
         </div>
       ) : (
         <div className="space-y-6">
-          {comments.map((comment) => (
-            <div key={comment.id} className="flex gap-4">
-              {/* Avatar */}
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="w-5 h-5 text-primary" />
+          {comments.map((comment) => {
+            const avatarUrl = getCommentAvatar(comment);
+            const initials = getCommentInitials(comment);
+            
+            return (
+              <div key={comment.id} className="flex gap-4">
+                {/* Avatar */}
+                <div className="flex-shrink-0">
+                  {avatarUrl ? (
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={avatarUrl} />
+                      <AvatarFallback>{initials}</AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-5 h-5 text-primary" />
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              {/* Comment Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-4 mb-2">
-                  <div>
-                    <h4 className="font-medium text-foreground">
-                      {getCommentAuthorName(comment)}
-                    </h4>
-                    {getCommentAuthorInfo(comment) && (
-                      <p className="text-sm text-muted-foreground">
-                        {getCommentAuthorInfo(comment)}
-                      </p>
-                    )}
+                {/* Comment Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <div>
+                      <h4 className="font-medium text-foreground">
+                        {getCommentAuthorName(comment)}
+                      </h4>
+                      {getCommentAuthorInfo(comment) && (
+                        <p className="text-sm text-muted-foreground">
+                          {getCommentAuthorInfo(comment)}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                  </span>
+                  <p className="text-foreground whitespace-pre-wrap break-words">
+                    {comment.comment}
+                  </p>
                 </div>
-                <p className="text-foreground whitespace-pre-wrap break-words">
-                  {comment.comment}
-                </p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
-
