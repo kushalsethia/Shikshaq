@@ -231,10 +231,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       return 'Anonymous';
     }
 
-    if (comment.profiles?.role === 'guardian') {
-      return 'Guardian';
-    }
-    
+    // Return the user's actual name (same for students and guardians)
     if (comment.profiles?.full_name) {
       return comment.profiles.full_name;
     }
@@ -248,10 +245,12 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       return '';
     }
 
+    // For guardians, show "Guardian" as the subtitle
     if (comment.profiles?.role === 'guardian') {
-      return '';
+      return 'Guardian';
     }
     
+    // For students, show school/college and grade
     if (comment.profiles?.role === 'student') {
       const parts: string[] = [];
       if (comment.profiles.school_college) {
