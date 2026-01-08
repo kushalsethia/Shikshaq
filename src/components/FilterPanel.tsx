@@ -27,7 +27,7 @@ const SUBJECTS = [
   'Maths', 'English', 'Physics', 'Chemistry', 'Biology', 'Computer', 'Hindi',
   'History & Civics', 'Geography', 'Economics', 'Accounts', 'Business Studies',
   'Commerce', 'Psychology', 'Sociology', 'Political Science', 'Environmental Science',
-  'Bengali', 'Drawing', 'SAT', 'ACT', 'CAT', 'NMAT', 'GMAT', 'CA', 'CFA'
+  'Bengali', 'Drawing', 'SAT', 'ACT', 'CAT', 'NMAT', 'GMAT', 'CA', 'CFA', 'JEE'
 ];
 
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];

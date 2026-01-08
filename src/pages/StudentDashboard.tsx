@@ -50,7 +50,7 @@ export default function StudentDashboard() {
   const [saving, setSaving] = useState(false);
   
   // School board options
-  const schoolBoards = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'];
+  const schoolBoards = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State', 'College'];
   const [formData, setFormData] = useState({
     phone: '',
     school_college: '',
