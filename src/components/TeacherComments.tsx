@@ -55,30 +55,29 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
     if (!user) return;
     
     try {
-      // Fetch profile, try avatar_url separately
+      // Get name and avatar directly from Google auth metadata (same as Navbar)
+      // This ensures we always have the latest data from Google OAuth
+      const googleName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      const googleAvatar = user.user_metadata?.avatar_url || null;
+      
+      // Fetch profile data (school/college, grade, role) from profiles table
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, role, school_college, grade')
+        .select('role, school_college, grade')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
-      if (data && !error) {
-        // Try to get avatar_url if column exists
-        try {
-          const { data: avatarData } = await supabase
-            .from('profiles')
-            .select('avatar_url')
-            .eq('id', user.id)
-            .single();
-          
-          (data as any).avatar_url = avatarData?.avatar_url || null;
-        } catch (e) {
-          (data as any).avatar_url = null;
-        }
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
       }
-
-      if (error) throw error;
-      setCurrentUserProfile(data);
+      
+      setCurrentUserProfile({
+        full_name: googleName,
+        role: data?.role || null,
+        school_college: data?.school_college || null,
+        grade: data?.grade || null,
+        avatar_url: googleAvatar, // Always use Google auth metadata for current user
+      });
     } catch (err) {
       console.error('Error fetching user profile:', err);
     }
