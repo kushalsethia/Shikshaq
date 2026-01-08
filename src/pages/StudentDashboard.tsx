@@ -45,10 +45,12 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [boards, setBoards] = useState<string[]>([]);
   const [studentSubjects, setStudentSubjects] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  // School board options
+  const schoolBoards = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'];
   const [formData, setFormData] = useState({
     phone: '',
     school_college: '',
@@ -117,33 +119,6 @@ export default function StudentDashboard() {
         if (subjectsData) {
           setSubjects(subjectsData);
         }
-
-        // Fetch unique boards from Shikshaqmine table
-        const { data: shikshaqData } = await supabase
-          .from('Shikshaqmine')
-          .select('"School Boards Catered"');
-
-        const boardSet = new Set<string>();
-        if (shikshaqData) {
-          shikshaqData.forEach((record: any) => {
-            const boardsStr = record["School Boards Catered"];
-            if (boardsStr) {
-              // Split by comma and clean up
-              const boardsList = boardsStr.split(',').map((b: string) => b.trim()).filter(Boolean);
-              boardsList.forEach((board: string) => {
-                if (board) {
-                  boardSet.add(board);
-                }
-              });
-            }
-          });
-        }
-
-        // Convert to array and sort, or use default list if none found
-        const uniqueBoards = boardSet.size > 0 
-          ? Array.from(boardSet).sort()
-          : ['CBSE', 'ICSE', 'IGCSE', 'IB', 'State Board'];
-        setBoards(uniqueBoards);
 
         // Fetch student's selected subjects
         const { data: studentSubjectsData } = await supabase
@@ -475,7 +450,7 @@ export default function StudentDashboard() {
                       <SelectValue placeholder="Select school board" />
                     </SelectTrigger>
                     <SelectContent>
-                      {boards.map((board) => (
+                      {schoolBoards.map((board) => (
                         <SelectItem key={board} value={board}>
                           {board}
                         </SelectItem>
