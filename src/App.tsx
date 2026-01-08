@@ -15,6 +15,7 @@ import Help from "./pages/Help";
 import Join from "./pages/Join";
 import RecommendTeacher from "./pages/RecommendTeacher";
 import AdminRecommendations from "./pages/AdminRecommendations";
+import AdminComments from "./pages/AdminComments";
 import LikedTeachers from "./pages/LikedTeachers";
 import SelectRole from "./pages/SelectRole";
 import SignUpSuccess from "./pages/SignUpSuccess";
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/recommend-teacher" element={<RecommendTeacher />} />
               <Route path="/admin" element={<Navigate to="/admin/recommendations" replace />} />
               <Route path="/admin/recommendations" element={<AdminRecommendations />} />
+              <Route path="/admin/comments" element={<AdminComments />} />
               <Route path="/select-role" element={<SelectRole />} />
               <Route path="/signup-success" element={<SignUpSuccess />} />
               <Route path="/dashboard/student" element={<StudentDashboard />} />

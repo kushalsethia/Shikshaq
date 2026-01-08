@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users } from 'lucide-react';
+import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -155,7 +155,13 @@ export function Navbar() {
                       <DropdownMenuItem asChild>
                         <Link to="/admin/recommendations" className="flex items-center gap-2">
                           <Shield className="w-4 h-4" />
-                          Admin
+                          Recommendations
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/comments" className="flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4" />
+                          Comments
                         </Link>
                       </DropdownMenuItem>
                     </>

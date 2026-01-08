@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { MessageCircle, Send, User } from 'lucide-react';
+import { MessageCircle, Send, User, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Comment {
   id: string;
@@ -15,6 +16,9 @@ interface Comment {
   updated_at: string;
   user_id: string;
   is_anonymous: boolean;
+  approved: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
   profiles: {
     full_name: string | null;
     role: string | null;
@@ -88,79 +92,18 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       setLoading(true);
       setError(null);
       
-      // Fetch comments with is_anonymous (handle case where column might not exist)
+      // Fetch approved comments, or pending comments if they're the current user's
+      // The RLS policies will handle filtering:
+      // - Public can see approved comments
+      // - Users can see their own pending comments
       const { data: commentsData, error: commentsError } = await supabase
         .from('teacher_comments')
-        .select('id, comment, created_at, updated_at, user_id, is_anonymous')
+        .select('id, comment, created_at, updated_at, user_id, is_anonymous, approved, approved_by, approved_at')
         .eq('teacher_id', teacherId)
         .order('created_at', { ascending: false });
 
       if (commentsError) {
         console.error('Comments fetch error:', commentsError);
-        // If is_anonymous column doesn't exist, try without it
-        if (commentsError.message?.includes('is_anonymous') || commentsError.code === '42703') {
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('teacher_comments')
-            .select('id, comment, created_at, updated_at, user_id')
-            .eq('teacher_id', teacherId)
-            .order('created_at', { ascending: false });
-          
-          if (fallbackError) throw fallbackError;
-          
-          // Add default is_anonymous = false for old comments
-          const commentsWithDefault = (fallbackData || []).map(comment => ({
-            ...comment,
-            is_anonymous: false,
-          }));
-          
-          if (!commentsWithDefault || commentsWithDefault.length === 0) {
-            setComments([]);
-            return;
-          }
-
-          // Fetch profiles (avatar_url might not exist, so we'll handle it gracefully)
-          const userIds = [...new Set(commentsWithDefault.map(c => c.user_id))];
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, full_name, role, school_college, grade')
-            .in('id', userIds);
-          
-          // Try to fetch avatar_url separately if column exists
-          if (!profilesError && profilesData) {
-            try {
-              const { data: profilesWithAvatar } = await supabase
-                .from('profiles')
-                .select('id, avatar_url')
-                .in('id', userIds);
-              
-              if (profilesWithAvatar) {
-                const avatarMap = new Map(profilesWithAvatar.map(p => [p.id, p.avatar_url]));
-                profilesData.forEach(profile => {
-                  (profile as any).avatar_url = avatarMap.get(profile.id) || null;
-                });
-              }
-            } catch (e) {
-              // avatar_url column doesn't exist, that's okay
-              profilesData.forEach(profile => {
-                (profile as any).avatar_url = null;
-              });
-            }
-          }
-
-          if (profilesError) throw profilesError;
-
-          const profilesMap = new Map(
-            (profilesData || []).map(profile => [profile.id, profile])
-          );
-
-          const commentsWithProfiles = commentsWithDefault.map(comment => ({
-            ...comment,
-            profiles: profilesMap.get(comment.user_id) || null,
-          }));
-
-          setComments(commentsWithProfiles);
-          return;
-        }
         throw commentsError;
       }
 
@@ -169,43 +112,35 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
         return;
       }
 
+      // Add default values for comments without approval columns (backwards compatibility)
+      const commentsWithDefaults = commentsData.map(comment => ({
+        ...comment,
+        approved: (comment as any).approved ?? true, // Default to true for old comments
+        approved_by: (comment as any).approved_by ?? null,
+        approved_at: (comment as any).approved_at ?? null,
+      }));
+
+      // Filter: Only show approved comments, or pending comments if they belong to current user
+      const filteredComments = commentsWithDefaults.filter(comment => 
+        comment.approved || (user && comment.user_id === user.id)
+      );
+
       // Fetch all user profiles in one query
-      const userIds = [...new Set(commentsData.map(c => c.user_id))];
+      const userIds = [...new Set(filteredComments.map(c => c.user_id))];
+      if (userIds.length === 0) {
+        setComments([]);
+        return;
+      }
+
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, role, school_college, grade, avatar_url')
         .in('id', userIds);
       
-      // If avatar_url column doesn't exist, try without it
-      if (profilesError && (profilesError.message?.includes('avatar_url') || profilesError.code === '42703')) {
-        const { data: fallbackProfiles, error: fallbackError } = await supabase
-          .from('profiles')
-          .select('id, full_name, role, school_college, grade')
-          .in('id', userIds);
-        
-        if (fallbackError) throw fallbackError;
-        
-        // Add null avatar_url for profiles without the column
-        (fallbackProfiles || []).forEach(profile => {
-          (profile as any).avatar_url = null;
-        });
-        
-        // Create a map for quick lookup
-        const profilesMap = new Map(
-          (fallbackProfiles || []).map(profile => [profile.id, profile])
-        );
-
-        // Combine comments with profiles
-        const commentsWithProfiles = commentsData.map(comment => ({
-          ...comment,
-          profiles: profilesMap.get(comment.user_id) || null,
-        }));
-
-        setComments(commentsWithProfiles);
-        return;
+      if (profilesError) {
+        console.error('Profiles fetch error:', profilesError);
+        // Continue without profiles if there's an error
       }
-      
-      if (profilesError) throw profilesError;
 
       // Create a map for quick lookup
       const profilesMap = new Map(
@@ -213,7 +148,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       );
 
       // Combine comments with profiles
-      const commentsWithProfiles = commentsData.map(comment => ({
+      const commentsWithProfiles = filteredComments.map(comment => ({
         ...comment,
         profiles: profilesMap.get(comment.user_id) || null,
       }));
@@ -242,12 +177,14 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
           user_id: user.id,
           comment: newComment.trim(),
           is_anonymous: isAnonymous,
+          approved: false, // New comments are always pending approval
         });
 
       if (error) throw error;
 
       setNewComment('');
       setIsAnonymous(false);
+      toast.success('Your comment has been submitted and is pending approval');
       await fetchComments(); // Refresh comments
     } catch (err: any) {
       console.error('Error submitting comment:', err);
@@ -476,10 +413,18 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                 {/* Comment Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-4 mb-2">
-                    <div>
-                      <h4 className="font-medium text-foreground">
-                        {getCommentAuthorName(comment)}
-                      </h4>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium text-foreground">
+                          {getCommentAuthorName(comment)}
+                        </h4>
+                        {!comment.approved && user && comment.user_id === user.id && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-600 border border-yellow-500/20">
+                            <Clock className="w-3 h-3" />
+                            Pending Approval
+                          </span>
+                        )}
+                      </div>
                       {getCommentAuthorInfo(comment) && (
                         <p className="text-sm text-muted-foreground">
                           {getCommentAuthorInfo(comment)}
