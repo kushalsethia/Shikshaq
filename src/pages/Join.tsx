@@ -2,6 +2,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
+import { getWhatsAppLink } from '@/utils/whatsapp';
 
 export default function Join() {
   return (
@@ -61,7 +62,7 @@ export default function Join() {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Have questions? <a href="https://wa.me/8240980312" className="text-foreground hover:underline">Contact us on WhatsApp</a>
+            Have questions? <a href={getWhatsAppLink('8240980312')} className="text-foreground hover:underline">Contact us on WhatsApp</a>
           </p>
         </div>
       </main>
