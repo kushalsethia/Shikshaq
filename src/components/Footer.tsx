@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Instagram, MessageCircle, Mail } from 'lucide-react';
 import { Logo } from '@/components/Logo';
+import { getWhatsAppLink } from '@/utils/whatsapp';
 
 export function Footer() {
   return (
@@ -117,7 +118,7 @@ export function Footer() {
 
             <div className="flex items-center gap-4">
               <a
-                href="https://wa.me/8240980312"
+                href={getWhatsAppLink('8240980312')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-full bg-muted hover:bg-accent transition-colors"

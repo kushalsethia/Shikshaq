@@ -2,6 +2,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { FAQ } from '@/components/FAQ';
 import { MessageCircle, Mail, Instagram } from 'lucide-react';
+import { getWhatsAppLink } from '@/utils/whatsapp';
 
 export default function Help() {
   return (
@@ -21,7 +22,7 @@ export default function Help() {
         {/* Contact Cards */}
         <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto mb-16">
           <a
-            href="https://wa.me/8240980312"
+            href={getWhatsAppLink('8240980312')}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-all hover:-translate-y-1 border border-border"
