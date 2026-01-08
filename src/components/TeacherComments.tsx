@@ -208,8 +208,6 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       
       if (profilesError) throw profilesError;
 
-      if (profilesError) throw profilesError;
-
       // Create a map for quick lookup
       const profilesMap = new Map(
         (profilesData || []).map(profile => [profile.id, profile])
