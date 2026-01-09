@@ -1,6 +1,51 @@
 -- Fix role selection for Google Auth users
 -- Remove default role assignment so users are prompted to select their role
 
+-- First, ensure email, full_name, and avatar_url columns exist
+DO $$ 
+BEGIN
+  -- Add email column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'profiles' 
+    AND column_name = 'email'
+  ) THEN
+    ALTER TABLE public.profiles ADD COLUMN email TEXT;
+  END IF;
+
+  -- Add full_name column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'profiles' 
+    AND column_name = 'full_name'
+  ) THEN
+    ALTER TABLE public.profiles ADD COLUMN full_name TEXT;
+  END IF;
+
+  -- Add avatar_url column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'profiles' 
+    AND column_name = 'avatar_url'
+  ) THEN
+    ALTER TABLE public.profiles ADD COLUMN avatar_url TEXT;
+  END IF;
+END $$;
+
+-- Alter the role column to allow NULL values
+-- Drop the existing CHECK constraint if it exists
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+
+-- Alter the column to allow NULL
+ALTER TABLE public.profiles ALTER COLUMN role DROP NOT NULL;
+
+-- Recreate the CHECK constraint to allow NULL or valid roles
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check 
+  CHECK (role IS NULL OR role IN ('student', 'guardian', 'teacher'));
+
 -- Update the handle_new_user function to NOT set a default role
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
