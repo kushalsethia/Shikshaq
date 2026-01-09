@@ -114,11 +114,11 @@ export default function Auth() {
             console.error('Error checking profile:', error);
           }
 
-          if (!profile) {
-            // No profile found - redirect to role selection
+          if (!profile || !profile.role) {
+            // No profile found or no role set - redirect to role selection
             navigate('/select-role', { replace: true });
           } else {
-            // Profile exists - redirect to home
+            // Profile exists with role - redirect to home
             navigate('/', { replace: true });
           }
         } catch (error) {
