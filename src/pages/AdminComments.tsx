@@ -210,15 +210,18 @@ export default function AdminComments() {
     if (comment.is_anonymous) {
       return 'Anonymous';
     }
-    if (comment.profiles?.role === 'guardian') {
-      return 'Guardian';
+    if (comment.profiles?.full_name) {
+      return comment.profiles.full_name;
     }
-    return comment.profiles?.full_name || 'User';
+    return 'Anonymous';
   };
 
   const getCommentAuthorInfo = (comment: Comment): string => {
-    if (comment.is_anonymous || comment.profiles?.role === 'guardian') {
+    if (comment.is_anonymous) {
       return '';
+    }
+    if (comment.profiles?.role === 'guardian') {
+      return 'Guardian';
     }
     if (comment.profiles?.role === 'student') {
       const parts: string[] = [];
