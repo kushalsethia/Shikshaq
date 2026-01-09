@@ -33,17 +33,19 @@ export default function SelectRole() {
     setLoading(true);
 
     try {
-      // Create profile record
+      // Update profile with role (use upsert in case profile already exists from Google Auth)
       const { error } = await supabase
         .from('profiles')
-        .insert({
+        .upsert({
           id: user.id,
           role: role,
+        }, {
+          onConflict: 'id'
         });
 
       if (error) {
-        console.error('Error creating profile:', error);
-        toast.error('Failed to create profile. Please try again.');
+        console.error('Error updating profile:', error);
+        toast.error('Failed to update profile. Please try again.');
         setLoading(false);
         return;
       }
