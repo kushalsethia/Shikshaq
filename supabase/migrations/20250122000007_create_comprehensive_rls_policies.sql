@@ -2,6 +2,7 @@
 -- This migration creates proper security policies for teachers_list, Shikshaqmine, and teacher_upvotes
 
 -- Helper function to check if user is admin
+-- Checks both admins table and profiles.role = 'admin'
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -9,6 +10,10 @@ SECURITY DEFINER
 STABLE
 AS $$
   SELECT EXISTS (
+    SELECT 1
+    FROM public.admins
+    WHERE id = auth.uid()
+  ) OR EXISTS (
     SELECT 1
     FROM public.profiles
     WHERE id = auth.uid() AND role = 'admin'
