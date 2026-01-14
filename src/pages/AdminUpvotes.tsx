@@ -25,24 +25,32 @@ export default function AdminUpvotes() {
   const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   useEffect(() => {
-    async function checkAdmin() {
+    async function checkAdminStatus() {
       if (!user) {
-        setIsAdmin(false);
         setCheckingAdmin(false);
+        setIsAdmin(false);
+        setLoading(false);
         return;
       }
 
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
+        const { data, error } = await supabase
+          .from('admins')
+          .select('id')
           .eq('id', user.id)
-          .single();
+          .maybeSingle(); // Use maybeSingle instead of single to handle "not found" gracefully
 
-        if (profile && profile.role === 'admin') {
+        if (error) {
+          // Error querying (table might not exist or RLS issue)
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        } else if (data && data.id === user.id) {
+          // User is an admin
           setIsAdmin(true);
           fetchUpvoteStats();
         } else {
+          // User is not an admin
+          console.log('User is not an admin');
           setIsAdmin(false);
           toast.error('Access denied. Admin only.');
           navigate('/');
@@ -52,10 +60,11 @@ export default function AdminUpvotes() {
         setIsAdmin(false);
       } finally {
         setCheckingAdmin(false);
+        setLoading(false);
       }
     }
 
-    checkAdmin();
+    checkAdminStatus();
   }, [user, navigate]);
 
   async function fetchUpvoteStats() {
