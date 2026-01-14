@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Heart } from 'lucide-react';
+import { Heart, ThumbsUp } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
+import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
 import { useNavigate } from 'react-router-dom';
 import { memo } from 'react';
@@ -57,8 +58,11 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
   
   // Use hook for real-time updates (optimistic updates make this instant)
   const { isLiked, toggleLike } = useLikes();
+  const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
   // Use hook's state for real-time updates, prop is only for initial optimization
   const liked = isLiked(id);
+  const upvoted = isUpvoted(id);
+  const upvoteCount = getUpvoteCount(id);
 
   const handleHeartClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -71,6 +75,18 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
 
     // Optimistic update happens in the hook - UI updates instantly
     await toggleLike(id);
+  };
+
+  const handleUpvoteClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
+    await toggleUpvote(id);
   };
 
   return (
@@ -97,7 +113,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
           </span>
         </div>
 
-        {/* Heart Icon */}
+        {/* Heart Icon (Favourite) */}
         <button
           onClick={handleHeartClick}
           className="absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
@@ -110,6 +126,28 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
                 : 'text-foreground/70 hover:text-red-500'
             }`}
           />
+        </button>
+
+        {/* Upvote Button */}
+        <button
+          onClick={handleUpvoteClick}
+          className="absolute bottom-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10 flex items-center gap-1"
+          aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
+        >
+          <ThumbsUp
+            className={`w-4 h-4 transition-colors ${
+              upvoted
+                ? 'fill-blue-500 text-blue-500'
+                : 'text-foreground/70 hover:text-blue-500'
+            }`}
+          />
+          {upvoteCount > 0 && (
+            <span className={`text-xs font-medium ${
+              upvoted ? 'text-blue-500' : 'text-foreground/70'
+            }`}>
+              {upvoteCount}
+            </span>
+          )}
         </button>
       </div>
       

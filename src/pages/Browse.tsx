@@ -526,6 +526,7 @@ export default function Browse() {
           <div className="space-y-4">
             {teachers.map((teacher) => (
               <TeacherCardDetailed
+                id={teacher.id}
                 key={teacher.id}
                 id={teacher.id}
                 name={teacher.name}
