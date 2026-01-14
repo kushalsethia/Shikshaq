@@ -141,7 +141,7 @@ END $$;
 -- Drop existing policies to recreate with better names
 DROP POLICY IF EXISTS "Anyone can view upvotes" ON public.teacher_upvotes;
 DROP POLICY IF EXISTS "Users can upvote teachers" ON public.teacher_upvotes;
-DROP POLICY IF EXISTS "Users can remove their upvotes" ON public public.teacher_upvotes;
+DROP POLICY IF EXISTS "Users can remove their upvotes" ON public.teacher_upvotes;
 
 -- Policy: Anyone can view upvotes (for displaying counts)
 CREATE POLICY "Anyone can view upvotes"
