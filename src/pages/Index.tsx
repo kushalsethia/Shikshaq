@@ -196,65 +196,49 @@ export default function Index() {
               ))}
             </div>
           ) : featuredTeachers.length > 0 ? (
-            <>
-              {/* Mobile: Carousel */}
-              <div className="md:hidden relative">
-                <Carousel
-                  opts={{
-                    align: "start",
-                    loop: true,
-                    dragFree: true, // Enable free dragging for smoother swipe
-                    containScroll: "trimSnaps",
-                  }}
-                  className="w-full"
-                >
-                  <CarouselContent className="-ml-2 md:-ml-4">
-                    {featuredTeachers.map((teacher) => (
-                      <CarouselItem key={teacher.id} className="pl-2 md:pl-4 basis-1/2">
-                        <TeacherCard
-                          id={teacher.id}
-                          name={teacher.name}
-                          slug={teacher.slug}
-                          subject={teacher.subjects?.name || 'General'}
-                          subjectSlug={teacher.subjects?.slug}
-                          imageUrl={teacher.image_url}
-                          isFeatured={true}
-                          sirMaam={(teacher as any).sir_maam}
-                          isLiked={isLiked(teacher.id)}
-                        />
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  <CarouselPrevious className="left-0" />
-                  <CarouselNext className="right-0" />
-                </Carousel>
-                {/* Mobile: View more button below carousel */}
-                <div className="flex justify-end mt-6">
-                  <Link to="/browse" className="view-more-link font-bold">
-                    View more teachers
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
+            <div className="relative">
+              {/* Carousel for both mobile and desktop */}
+              <Carousel
+                opts={{
+                  align: "start",
+                  loop: true,
+                  dragFree: true, // Enable free dragging for smoother swipe
+                  containScroll: "trimSnaps",
+                  slidesToScroll: "auto",
+                }}
+                className="w-full"
+              >
+                <CarouselContent className="-ml-2 md:-ml-4">
+                  {featuredTeachers.map((teacher) => (
+                    <CarouselItem 
+                      key={teacher.id} 
+                      className="pl-2 md:pl-4 basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/6"
+                    >
+                      <TeacherCard
+                        id={teacher.id}
+                        name={teacher.name}
+                        slug={teacher.slug}
+                        subject={teacher.subjects?.name || 'General'}
+                        subjectSlug={teacher.subjects?.slug}
+                        imageUrl={teacher.image_url}
+                        isFeatured={true}
+                        sirMaam={(teacher as any).sir_maam}
+                        isLiked={isLiked(teacher.id)}
+                      />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious className="left-0 md:left-4" />
+                <CarouselNext className="right-0 md:right-4" />
+              </Carousel>
+              {/* View more button below carousel */}
+              <div className="flex justify-end mt-6">
+                <Link to="/browse" className="view-more-link font-bold md:font-normal">
+                  View more teachers
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
-
-              {/* Desktop: Grid */}
-              <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {featuredTeachers.map((teacher) => (
-                  <TeacherCard
-                    key={teacher.id}
-                    id={teacher.id}
-                    name={teacher.name}
-                    slug={teacher.slug}
-                    subject={teacher.subjects?.name || 'General'}
-                    subjectSlug={teacher.subjects?.slug}
-                    imageUrl={teacher.image_url}
-                    isFeatured={true}
-                    sirMaam={(teacher as any).sir_maam}
-                    isLiked={isLiked(teacher.id)} // Pass for fast initial render, hook handles real-time updates
-                  />
-                ))}
-              </div>
-            </>
+            </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <p>No teachers found. Please add teachers to your Supabase database.</p>
