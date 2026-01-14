@@ -231,8 +231,8 @@ export default function Index() {
                   <CarouselNext className="right-0" />
                 </Carousel>
                 {/* Mobile: View more button below carousel */}
-                <div className="flex justify-center mt-6">
-                  <Link to="/browse" className="view-more-link">
+                <div className="flex justify-end mt-6">
+                  <Link to="/browse" className="view-more-link font-bold">
                     View more teachers
                     <ArrowRight className="w-4 h-4" />
                   </Link>
