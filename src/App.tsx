@@ -17,6 +17,7 @@ import Join from "./pages/Join";
 import RecommendTeacher from "./pages/RecommendTeacher";
 import AdminRecommendations from "./pages/AdminRecommendations";
 import AdminComments from "./pages/AdminComments";
+import AdminUpvotes from "./pages/AdminUpvotes";
 import LikedTeachers from "./pages/LikedTeachers";
 import SelectRole from "./pages/SelectRole";
 import SignUpSuccess from "./pages/SignUpSuccess";
