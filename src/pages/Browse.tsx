@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { fuzzySearch, prepareRecordForSearch } from '@/utils/fuzzySearch';
 
 
 interface Teacher {
@@ -195,42 +196,34 @@ export default function Browse() {
             filters.boards.length > 0 || filters.classSize.length > 0 || 
             filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-        // Apply search query if present - search across name, subjects, areas, and classes
+        // Apply search query if present - use fuzzy search across name, subjects, areas, and classes
         // This should be combined with other filters
         // Filter if we have a search query OR active filters
         if (allShikshaqData && (searchQuery || hasActiveFilters)) {
-          const matchingSlugs = allShikshaqData
+          let recordsToFilter = allShikshaqData;
+          
+          // Apply fuzzy search if we have a search query
+          if (searchQuery && searchQuery.trim().length >= 2) {
+            // Prepare records for fuzzy search
+            const searchableRecords = allShikshaqData.map((record: any) => {
+              const teacher = teachersData.find(t => t.slug === record.Slug);
+              return prepareRecordForSearch(record, teacher?.name);
+            });
+            
+            // Perform fuzzy search
+            const fuzzyResults = fuzzySearch(searchableRecords, searchQuery);
+            
+            // Get the slugs from fuzzy search results
+            const fuzzySlugs = new Set(fuzzyResults.map((r: any) => r.Slug));
+            
+            // Filter records to only include those that matched fuzzy search
+            recordsToFilter = allShikshaqData.filter((record: any) => 
+              fuzzySlugs.has(record.Slug)
+            );
+          }
+          
+          const matchingSlugs = recordsToFilter
             .filter((record: any) => {
-              // Apply search query if present
-              if (searchQuery) {
-                const searchLower = searchQuery.toLowerCase().trim();
-                
-                // Search in teacher name
-                const teacher = teachersData.find(t => t.slug === record.Slug);
-                const nameMatch = teacher?.name?.toLowerCase().includes(searchLower) || false;
-                
-                // Search in subjects
-                const subjects = (record.Subjects || '').toLowerCase();
-                const subjectMatch = subjects.includes(searchLower);
-                
-                // Search in areas
-                const areaData = (record.Area || record["AREAS FOR FILTERING"] || '').toLowerCase();
-                const areaMatch = areaData.includes(searchLower);
-                
-                // Search in classes
-                const classesBackend = (record["Classes Taught for Backend"] || '').toLowerCase();
-                const classesDisplay = (record["Classes Taught"] || '').toLowerCase();
-                const classMatch = classesBackend.includes(searchLower) || 
-                                  classesDisplay.includes(searchLower) ||
-                                  classesDisplay.includes(`class ${searchLower}`) ||
-                                  classesDisplay.includes(`class ${searchLower} -`) ||
-                                  classesDisplay.includes(`- ${searchLower}`);
-                
-                // If search query doesn't match anything, exclude this record
-                if (!nameMatch && !subjectMatch && !areaMatch && !classMatch) {
-                  return false;
-                }
-              }
 
               // Check subjects (includes both dropdown and advanced filter selections)
               if (effectiveSubjectFilters.length > 0) {
