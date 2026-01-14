@@ -83,9 +83,9 @@ export default function TeacherProfile() {
             boardsTaught = (shikshaqData as any)["School Boards Catered"];
             classSize = (shikshaqData as any)["Class Size (Group/ Solo)"];
             modeOfTeaching = (shikshaqData as any)["Mode of Teaching"];
-            locationV2 = (shikshaqData as any)["Location V2"] || (shikshaqData as any)["location_v2"];
-            studentsHomeAreas = (shikshaqData as any)["student's home in these areas"] || (shikshaqData as any)["Student's home in these areas"];
-            tutorsHomeAreas = (shikshaqData as any)["Tutor's home in these areas"];
+            locationV2 = (shikshaqData as any)["LOCATION V2"] || (shikshaqData as any)["Location V2"] || (shikshaqData as any)["location_v2"];
+            studentsHomeAreas = (shikshaqData as any)["STUDENT'S HOME IN THESE AREAS"] || (shikshaqData as any)["student's home in these areas"] || (shikshaqData as any)["Student's home in these areas"];
+            tutorsHomeAreas = (shikshaqData as any)["TUTOR'S HOME IN THESE AREAS"] || (shikshaqData as any)["Tutor's home in these areas"];
             console.log('Found data from Shikshaqmine:', { 
               sirMaam, 
               subjects: subjectsFromShikshaq,
