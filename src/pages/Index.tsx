@@ -177,13 +177,8 @@ export default function Index() {
       {/* Featured Teachers */}
       <section className="py-8">
         <div className="container">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6">
             <h2 className="section-title">Featured tuition teachers on ShikshAq</h2>
-            {/* Desktop: View more button */}
-            <Link to="/browse" className="view-more-link hidden md:flex">
-              View more teachers
-              <ArrowRight className="w-4 h-4" />
-            </Link>
           </div>
 
           {loading ? (
@@ -205,6 +200,7 @@ export default function Index() {
                   dragFree: true, // Enable free dragging for smoother swipe
                   containScroll: "trimSnaps",
                   slidesToScroll: "auto",
+                  watchDrag: true, // Enable mouse drag
                 }}
                 className="w-full"
               >
