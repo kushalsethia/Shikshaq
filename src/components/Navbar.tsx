@@ -164,6 +164,12 @@ export function Navbar() {
                           Comments
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/upvotes" className="flex items-center gap-2">
+                          <ThumbsUp className="w-4 h-4" />
+                          Upvotes
+                        </Link>
+                      </DropdownMenuItem>
                     </>
                   )}
                   <DropdownMenuSeparator />
