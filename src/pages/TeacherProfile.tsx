@@ -31,6 +31,9 @@ interface Teacher {
   boards_taught?: string | null; // The "School Boards Catered" field from Shikshaqmine table
   class_size?: string | null; // The "Class Size (Group/ Solo)" field from Shikshaqmine table
   mode_of_teaching?: string | null; // The "Mode of Teaching" field from Shikshaqmine table
+  location_v2?: string | null; // The "Location V2" field from Shikshaqmine table
+  students_home_areas?: string | null; // The "student's home in these areas" field from Shikshaqmine table
+  tutors_home_areas?: string | null; // The "Tutor's home in these areas" field from Shikshaqmine table
 }
 
 export default function TeacherProfile() {
@@ -60,6 +63,9 @@ export default function TeacherProfile() {
       let boardsTaught = null;
       let classSize = null;
       let modeOfTeaching = null;
+      let locationV2 = null;
+      let studentsHomeAreas = null;
+      let tutorsHomeAreas = null;
       if (teacherData) {
         try {
           const { data: shikshaqData, error } = await supabase
@@ -77,6 +83,9 @@ export default function TeacherProfile() {
             boardsTaught = (shikshaqData as any)["School Boards Catered"];
             classSize = (shikshaqData as any)["Class Size (Group/ Solo)"];
             modeOfTeaching = (shikshaqData as any)["Mode of Teaching"];
+            locationV2 = (shikshaqData as any)["Location V2"] || (shikshaqData as any)["location_v2"];
+            studentsHomeAreas = (shikshaqData as any)["student's home in these areas"] || (shikshaqData as any)["Student's home in these areas"];
+            tutorsHomeAreas = (shikshaqData as any)["Tutor's home in these areas"];
             console.log('Found data from Shikshaqmine:', { 
               sirMaam, 
               subjects: subjectsFromShikshaq,
@@ -84,7 +93,10 @@ export default function TeacherProfile() {
               area: area,
               boardsTaught: boardsTaught,
               classSize: classSize,
-              modeOfTeaching: modeOfTeaching
+              modeOfTeaching: modeOfTeaching,
+              locationV2: locationV2,
+              studentsHomeAreas: studentsHomeAreas,
+              tutorsHomeAreas: tutorsHomeAreas
             });
           } else if (error) {
             console.warn('Error fetching from Shikshaqmine:', error);
@@ -105,6 +117,9 @@ export default function TeacherProfile() {
           boards_taught: boardsTaught,
           class_size: classSize,
           mode_of_teaching: modeOfTeaching,
+          location_v2: locationV2,
+          students_home_areas: studentsHomeAreas,
+          tutors_home_areas: tutorsHomeAreas,
         } as Teacher);
       }
       setLoading(false);
@@ -349,47 +364,130 @@ export default function TeacherProfile() {
               })()}
             </div>
 
-            {/* Tuition centre location section */}
+            {/* Location V2 section - Home tutoring locations */}
             {(() => {
+              const locationV2 = teacher.location_v2;
+              if (!locationV2) return null;
+
               const sirMaam = teacher.sir_maam;
               const nameLower = teacher.name.toLowerCase();
               
+              let pronoun = 'She'; // Default to "She"
               let possessive = 'Her'; // Default to "Her"
               
               if (sirMaam) {
                 const sirMaamLower = String(sirMaam).toLowerCase().trim();
                 if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
+                  pronoun = 'He';
                   possessive = 'His';
                 }
               } else {
                 const hasSir = nameLower.includes('sir');
                 const hasMr = nameLower.includes('mr') || nameLower.includes('mr.');
                 if (hasSir || hasMr) {
+                  pronoun = 'He';
                   possessive = 'His';
                 }
               }
 
-              const areaData = teacher.area;
-              
-              if (areaData) {
-                return (
-                  <div className="mb-8">
-                    <p className="text-sm text-foreground mb-3">
-                      <span className="font-serif">{possessive}</span>{' '}
-                      <span className="px-2 py-1 rounded-md bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 text-sm font-medium">
-                        Tuition centre(s)
-                      </span>{' '}
-                      <span className="font-serif">are located in</span>
-                    </p>
-                    <div className="w-full px-4 py-3 rounded-lg bg-muted text-foreground border border-border">
-                      {areaData}
-                    </div>
-                  </div>
-                );
+              const locationV2Lower = String(locationV2).toLowerCase().trim();
+              const studentsHomeAreas = teacher.students_home_areas;
+              const tutorsHomeAreas = teacher.tutors_home_areas;
+
+              // Helper function to parse areas and create bubbles
+              const parseAreas = (areasString: string | null | undefined): string[] => {
+                if (!areasString) return [];
+                return areasString
+                  .split(',')
+                  .map(area => area.trim())
+                  .filter(area => area.length > 0);
+              };
+
+              const studentsAreas = parseAreas(studentsHomeAreas);
+              const tutorsAreas = parseAreas(tutorsHomeAreas);
+
+              // Check what to display based on location_v2
+              const isStudentsHomeOnly = locationV2Lower.includes('students home tutoring only') || 
+                                         locationV2Lower.includes("student's home tutoring only");
+              const isTeachersHomeOnly = locationV2Lower.includes("teacher's home tutoring") || 
+                                         locationV2Lower.includes("tutor's home tutoring");
+              const isBothOptions = locationV2Lower.includes('both options listed') || 
+                                    locationV2Lower.includes('both options');
+
+              if (!isStudentsHomeOnly && !isTeachersHomeOnly && !isBothOptions) {
+                return null; // Unknown location_v2 value
               }
-              return null;
+
+              return (
+                <div className="mb-8 space-y-6">
+                  {/* Students home tutoring section */}
+                  {(isStudentsHomeOnly || isBothOptions) && studentsAreas.length > 0 && (
+                    <div>
+                      <p className="text-sm text-foreground mb-3">
+                        <span className="font-serif">{pronoun}</span> provides home to home tutoring to students in
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {studentsAreas.map((area, index) => (
+                          <span
+                            key={index}
+                            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                          >
+                            {area}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Teacher's home tutoring section */}
+                  {(isTeachersHomeOnly || isBothOptions) && tutorsAreas.length > 0 && (
+                    <div>
+                      <p className="text-sm text-foreground mb-3">
+                        <span className="font-serif">{possessive}</span> tuition centre's are located in
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {tutorsAreas.map((area, index) => (
+                          <span
+                            key={index}
+                            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                          >
+                            {area}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
             })()}
 
+            {/* CTA - Contact via WhatsApp */}
+            <div className="bg-card rounded-2xl p-6 border border-border mb-8">
+              <h3 className="font-medium text-foreground mb-2">Interested in classes?</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Reach out directly to discuss class timings, fees, and more.
+              </p>
+              {user ? (
+                <a
+                  href={getWhatsAppLink(teacher.whatsapp_number)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button className="w-full gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    Contact via WhatsApp
+                  </Button>
+                </a>
+              ) : (
+                <Button 
+                  className="w-full gap-2" 
+                  onClick={() => navigate('/auth')}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Sign in to contact
+                </Button>
+              )}
+            </div>
 
             {/* Additional Details Section */}
             {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching) && (
@@ -429,33 +527,6 @@ export default function TeacherProfile() {
               </div>
             )}
 
-            {/* CTA */}
-            <div className="bg-card rounded-2xl p-6 border border-border">
-              <h3 className="font-medium text-foreground mb-2">Interested in classes?</h3>
-              <p className="text-muted-foreground text-sm mb-4">
-                Reach out directly to discuss class timings, fees, and more.
-              </p>
-              {user ? (
-                <a
-                  href={getWhatsAppLink(teacher.whatsapp_number)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button className="w-full gap-2">
-                    <MessageCircle className="w-4 h-4" />
-                    Contact via WhatsApp
-                  </Button>
-                </a>
-              ) : (
-                <Button 
-                  className="w-full gap-2" 
-                  onClick={() => navigate('/auth')}
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Sign in to contact
-                </Button>
-              )}
-            </div>
           </div>
         </div>
 
