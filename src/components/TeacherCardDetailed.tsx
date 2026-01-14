@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ThumbsUp } from 'lucide-react';
+import { useUpvotes } from '@/lib/upvotes-context';
+import { useAuth } from '@/lib/auth-context';
+import { useNavigate } from 'react-router-dom';
 
 interface TeacherCardDetailedProps {
   id: string;
@@ -26,6 +29,7 @@ function formatTeacherName(name: string, sirMaam?: string | null): string {
 }
 
 export function TeacherCardDetailed({ 
+  id,
   name, 
   slug, 
   imageUrl, 
@@ -35,6 +39,24 @@ export function TeacherCardDetailed({
   sirMaam
 }: TeacherCardDetailedProps) {
   const displayName = formatTeacherName(name, sirMaam);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
+  const upvoted = isUpvoted(id);
+  const upvoteCount = getUpvoteCount(id);
+
+  const handleUpvoteClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+
+    await toggleUpvote(id);
+  };
+
   return (
     <Link 
       to={`/teacher/${slug}`} 
@@ -55,6 +77,27 @@ export function TeacherCardDetailed({
             </span>
           </div>
         )}
+        {/* Upvote Button */}
+        <button
+          onClick={handleUpvoteClick}
+          className="absolute bottom-2 right-2 p-1.5 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background transition-colors z-10 flex items-center gap-1"
+          aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
+        >
+          <ThumbsUp
+            className={`w-3.5 h-3.5 transition-colors ${
+              upvoted
+                ? 'fill-blue-500 text-blue-500'
+                : 'text-foreground/70 hover:text-blue-500'
+            }`}
+          />
+          {upvoteCount > 0 && (
+            <span className={`text-xs font-medium ${
+              upvoted ? 'text-blue-500' : 'text-foreground/70'
+            }`}>
+              {upvoteCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Teacher Info */}

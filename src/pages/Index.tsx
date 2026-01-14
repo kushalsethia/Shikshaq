@@ -46,63 +46,61 @@ export default function Index() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch teachers and subjects in parallel for better performance
-        const [teachersRes, subjectsRes, shikshaqRes] = await Promise.all([
-          supabase
-            .from('teachers_list')
-            .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-            .eq('is_featured', true)
-            .limit(16),
+        // Fetch teachers by upvotes (top 16) and subjects in parallel
+        const [subjectsRes, upvotesRes] = await Promise.all([
           supabase
             .from('subjects')
             .select('*')
             .limit(8),
           supabase
-            .from('Shikshaqmine')
-            .select('Slug, Featured')
-            .eq('Featured', true)
-            .limit(16)
+            .from('teacher_upvotes')
+            .select('teacher_id')
         ]);
 
-        // Get featured teachers from Shikshaqmine table if available
-        let teachersData = teachersRes.data || [];
-        if (shikshaqRes.data && shikshaqRes.data.length > 0) {
-          // Get teachers that are featured in Shikshaqmine
-          const featuredSlugs = shikshaqRes.data.map((r: any) => r.Slug);
-          const { data: featuredTeachersData } = await supabase
-            .from('teachers_list')
-            .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-            .in('slug', featuredSlugs)
-            .limit(16);
-          
-          if (featuredTeachersData && featuredTeachersData.length > 0) {
-            teachersData = featuredTeachersData;
+        // Get top 16 teachers by upvote count
+        let teachersData: any[] = [];
+        
+        if (upvotesRes.data && upvotesRes.data.length > 0) {
+          // Count upvotes per teacher
+          const upvoteCounts = new Map<string, number>();
+          upvotesRes.data.forEach((upvote: any) => {
+            const current = upvoteCounts.get(upvote.teacher_id) || 0;
+            upvoteCounts.set(upvote.teacher_id, current + 1);
+          });
+
+          // Sort by upvote count and get top 16 teacher IDs
+          const topTeacherIds = Array.from(upvoteCounts.entries())
+            .sort((a, b) => b[1] - a[1]) // Sort by count descending
+            .slice(0, 16)
+            .map(([teacherId]) => teacherId);
+
+          if (topTeacherIds.length > 0) {
+            const { data: topTeachers } = await supabase
+              .from('teachers_list')
+              .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
+              .in('id', topTeacherIds);
+
+            if (topTeachers) {
+              // Sort teachers to match upvote order
+              const teacherMap = new Map(topTeachers.map((t: any) => [t.id, t]));
+              teachersData = topTeacherIds
+                .map(id => teacherMap.get(id))
+                .filter(Boolean) as any[];
+            }
           }
         }
 
-        // If still no featured teachers, get random teachers
-        if (teachersData.length === 0) {
+        // If we have less than 16 teachers, fill with random teachers
+        if (teachersData.length < 16) {
+          const existingIds = new Set(teachersData.map((t: any) => t.id));
           const { data: allTeachers } = await supabase
             .from('teachers_list')
             .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-            .limit(100); // Get more to randomize from
-          
-          if (allTeachers && allTeachers.length > 0) {
-            // Shuffle and take 16
-            const shuffled = [...allTeachers].sort(() => Math.random() - 0.5);
-            teachersData = shuffled.slice(0, 16);
-          }
-        } else if (teachersData.length < 16) {
-          // If we have some but less than 16, fill with random teachers
-          const existingSlugs = new Set(teachersData.map((t: any) => t.slug));
-          const { data: additionalTeachers } = await supabase
-            .from('teachers_list')
-            .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-            .not('slug', 'in', `(${Array.from(existingSlugs).map(s => `"${s}"`).join(',')})`)
             .limit(100);
           
-          if (additionalTeachers && additionalTeachers.length > 0) {
-            const shuffled = [...additionalTeachers].sort(() => Math.random() - 0.5);
+          if (allTeachers && allTeachers.length > 0) {
+            const availableTeachers = allTeachers.filter((t: any) => !existingIds.has(t.id));
+            const shuffled = [...availableTeachers].sort(() => Math.random() - 0.5);
             const needed = 16 - teachersData.length;
             teachersData = [...teachersData, ...shuffled.slice(0, needed)];
           }

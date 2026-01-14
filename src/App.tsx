@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth-context";
 import { LikesProvider } from "@/lib/likes-context";
+import { UpvotesProvider } from "@/lib/upvotes-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { FloatingWhatsAppButton } from "@/components/FloatingWhatsAppButton";
 import Index from "./pages/Index";
@@ -30,8 +31,9 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <LikesProvider>
-          <Toaster />
-          <Sonner />
+          <UpvotesProvider>
+            <Toaster />
+            <Sonner />
           <BrowserRouter>
             <ScrollToTop />
             <FloatingWhatsAppButton />
@@ -47,6 +49,7 @@ const App = () => (
               <Route path="/admin" element={<Navigate to="/admin/recommendations" replace />} />
               <Route path="/admin/recommendations" element={<AdminRecommendations />} />
               <Route path="/admin/comments" element={<AdminComments />} />
+              <Route path="/admin/upvotes" element={<AdminUpvotes />} />
               <Route path="/select-role" element={<SelectRole />} />
               <Route path="/signup-success" element={<SignUpSuccess />} />
               <Route path="/dashboard/student" element={<StudentDashboard />} />
@@ -54,6 +57,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          </UpvotesProvider>
         </LikesProvider>
       </AuthProvider>
     </TooltipProvider>
