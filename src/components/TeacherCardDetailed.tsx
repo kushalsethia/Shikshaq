@@ -77,27 +77,6 @@ export function TeacherCardDetailed({
             </span>
           </div>
         )}
-        {/* Upvote Button */}
-        <button
-          onClick={handleUpvoteClick}
-          className="absolute bottom-2 right-2 p-1.5 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background transition-colors z-10 flex items-center gap-1"
-          aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
-        >
-          <ThumbsUp
-            className={`w-3.5 h-3.5 transition-colors ${
-              upvoted
-                ? 'fill-blue-500 text-blue-500'
-                : 'text-foreground/70 hover:text-blue-500'
-            }`}
-          />
-          {upvoteCount > 0 && (
-            <span className={`text-xs font-medium ${
-              upvoted ? 'text-blue-500' : 'text-foreground/70'
-            }`}>
-              {upvoteCount}
-            </span>
-          )}
-        </button>
       </div>
 
       {/* Teacher Info */}
@@ -128,8 +107,29 @@ export function TeacherCardDetailed({
         </div>
       </div>
 
-      {/* View More Arrow */}
-      <div className="flex items-center flex-shrink-0">
+      {/* View More Arrow and Upvote Button */}
+      <div className="flex items-center gap-4 flex-shrink-0">
+        {/* Upvote Button */}
+        <button
+          onClick={handleUpvoteClick}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background/80 hover:bg-background transition-colors z-10"
+          aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
+        >
+          <ThumbsUp
+            className={`w-4 h-4 transition-colors ${
+              upvoted
+                ? 'fill-blue-500 text-blue-500'
+                : 'text-foreground/70 hover:text-blue-500'
+            }`}
+          />
+          {upvoteCount > 0 && (
+            <span className={`text-sm font-medium ${
+              upvoted ? 'text-blue-500' : 'text-foreground/70'
+            }`}>
+              {upvoteCount}
+            </span>
+          )}
+        </button>
         <div className="text-muted-foreground group-hover:text-foreground transition-colors flex items-center gap-1">
           <span className="text-sm font-bold hidden sm:inline">View more details</span>
           <ArrowRight className="w-4 h-4 font-bold" strokeWidth={2.5} />
