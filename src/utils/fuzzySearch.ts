@@ -10,11 +10,10 @@ export interface SearchableRecord {
 }
 
 /**
- * Fuzzy search configuration for teacher search
- * Searches across name, subjects, areas, and classes
- * Stricter threshold for better relevance
+ * Fuzzy search configuration for teacher name search
+ * Uses threshold 0.3 for name searches (stricter matching)
  */
-export function createFuseInstance<T extends SearchableRecord>(records: T[]) {
+export function createNameFuseInstance<T extends SearchableRecord>(records: T[]) {
   return new Fuse(records, {
     keys: [
       { name: 'name', weight: 0.5 }, // Teacher name has highest weight
@@ -23,20 +22,42 @@ export function createFuseInstance<T extends SearchableRecord>(records: T[]) {
       { name: 'classesBackend', weight: 0.025 }, // Classes backend
       { name: 'classesDisplay', weight: 0.025 }, // Classes display
     ],
-    threshold: 0.2, // 0.0 = perfect match, 1.0 = match anything
-    // Lower threshold = stricter matching (fewer, more relevant results)
-    // 0.2 means matches must be quite close to the query
+    threshold: 0.3, // Stricter for name searches
     includeScore: true,
-    minMatchCharLength: 2, // Minimum character length to trigger fuzzy search
-    ignoreLocation: false, // Prioritize matches at the start of strings
-    findAllMatches: false, // Return only the best matches
-    distance: 100, // Maximum distance for a match (lower = stricter)
-    shouldSort: true, // Sort results by relevance
+    minMatchCharLength: 2,
+    ignoreLocation: false,
+    findAllMatches: false,
+    distance: 100,
+    shouldSort: true,
+  });
+}
+
+/**
+ * Fuzzy search configuration for subject search
+ * Uses threshold 0.4 for subject searches (more lenient matching)
+ */
+export function createSubjectFuseInstance<T extends SearchableRecord>(records: T[]) {
+  return new Fuse(records, {
+    keys: [
+      { name: 'subjects', weight: 0.6 }, // Subjects have highest weight for subject searches
+      { name: 'name', weight: 0.2 }, // Name is less important
+      { name: 'area', weight: 0.1 }, // Areas are moderately important
+      { name: 'classesBackend', weight: 0.05 }, // Classes backend
+      { name: 'classesDisplay', weight: 0.05 }, // Classes display
+    ],
+    threshold: 0.4, // More lenient for subject searches
+    includeScore: true,
+    minMatchCharLength: 2,
+    ignoreLocation: false,
+    findAllMatches: false,
+    distance: 100,
+    shouldSort: true,
   });
 }
 
 /**
  * Perform fuzzy search on records with exact match prioritization
+ * Uses threshold 0.3 for name searches and 0.4 for subject searches
  * Returns records that match the search query, prioritizing exact matches
  */
 export function fuzzySearch<T extends SearchableRecord>(
@@ -64,6 +85,14 @@ export function fuzzySearch<T extends SearchableRecord>(
     }
   });
 
+  // Determine if this is primarily a subject search or name search
+  // Check if query matches any subject names in the records
+  const isSubjectSearch = exactMatches.some(record => 
+    record.subjects?.toLowerCase().includes(trimmedQuery)
+  ) || records.some(record => 
+    record.subjects?.toLowerCase().includes(trimmedQuery)
+  );
+
   // If we have exact matches, prioritize them
   if (exactMatches.length > 0) {
     // Sort exact matches: name matches first, then subjects, then areas
@@ -85,7 +114,10 @@ export function fuzzySearch<T extends SearchableRecord>(
       const remainingRecords = records.filter((r: any) => !exactSlugs.has(r.Slug));
       
       if (remainingRecords.length > 0) {
-        const fuse = createFuseInstance(remainingRecords);
+        // Use appropriate fuse instance based on search type
+        const fuse = isSubjectSearch 
+          ? createSubjectFuseInstance(remainingRecords)
+          : createNameFuseInstance(remainingRecords);
         const fuzzyResults = fuse.search(trimmedQuery);
         fuzzyMatches.push(...fuzzyResults.map(result => result.item));
       }
@@ -94,8 +126,10 @@ export function fuzzySearch<T extends SearchableRecord>(
     return [...exactMatches, ...fuzzyMatches];
   }
 
-  // If no exact matches, use fuzzy search but with stricter criteria
-  const fuse = createFuseInstance(records);
+  // If no exact matches, use fuzzy search with appropriate threshold
+  const fuse = isSubjectSearch 
+    ? createSubjectFuseInstance(records)
+    : createNameFuseInstance(records);
   const results = fuse.search(trimmedQuery);
   
   // Return records sorted by relevance (best matches first)
