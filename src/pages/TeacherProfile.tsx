@@ -9,6 +9,7 @@ import { useLikes } from '@/lib/likes-context';
 import { useAuth } from '@/lib/auth-context';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { TeacherComments } from '@/components/TeacherComments';
+import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey, clearExpiredCache } from '@/utils/cache';
 
 
 interface Teacher {
@@ -48,12 +49,24 @@ export default function TeacherProfile() {
     async function fetchTeacher() {
       if (!slug) return;
 
-      // Fetch teacher from teachers_list
-      const { data: teacherData } = await supabase
-        .from('teachers_list')
-        .select('*, subjects(name, slug)')
-        .eq('slug', slug)
-        .maybeSingle();
+      // Check cache for teacher profile
+      const teacherCacheKey = getTeacherProfileCacheKey(slug);
+      let teacherData = getCache<any>(teacherCacheKey);
+      
+      if (!teacherData) {
+        // Fetch teacher from teachers_list
+        const { data } = await supabase
+          .from('teachers_list')
+          .select('*, subjects(name, slug)')
+          .eq('slug', slug)
+          .maybeSingle();
+        
+        if (data) {
+          teacherData = data;
+          // Cache teacher profile
+          setCache(teacherCacheKey, teacherData, CACHE_TTL.TEACHER_PROFILE);
+        }
+      }
 
       // Fetch all data from Shikshaqmine table
       let sirMaam = null;
@@ -68,13 +81,27 @@ export default function TeacherProfile() {
       let tutorsHomeAreas = null;
       if (teacherData) {
         try {
-          const { data: shikshaqData, error } = await supabase
-            .from('Shikshaqmine')
-            .select('*')
-            .eq('Slug', slug)
-            .maybeSingle();
+          // Check cache for Shikshaqmine data
+          const shikshaqCacheKey = getShikshaqmineBySlugCacheKey(slug);
+          let shikshaqData = getCache<any>(shikshaqCacheKey);
           
-          if (shikshaqData && !error) {
+          if (!shikshaqData) {
+            const { data, error } = await supabase
+              .from('Shikshaqmine')
+              .select('*')
+              .eq('Slug', slug)
+              .maybeSingle();
+            
+            if (error) {
+              console.warn('Error fetching from Shikshaqmine:', error);
+            } else if (data) {
+              shikshaqData = data;
+              // Cache Shikshaqmine data
+              setCache(shikshaqCacheKey, shikshaqData, CACHE_TTL.SHIKSHAQMINE);
+            }
+          }
+          
+          if (shikshaqData) {
             // Access the columns with special characters
             sirMaam = (shikshaqData as any)["Sir/Ma'am?"];
             subjectsFromShikshaq = (shikshaqData as any)["Subjects"];
@@ -98,8 +125,6 @@ export default function TeacherProfile() {
               studentsHomeAreas: studentsHomeAreas,
               tutorsHomeAreas: tutorsHomeAreas
             });
-          } else if (error) {
-            console.warn('Error fetching from Shikshaqmine:', error);
           }
         } catch (err) {
           console.warn('Error accessing Shikshaqmine table:', err);

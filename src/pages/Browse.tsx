@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { fuzzySearch, prepareRecordForSearch } from '@/utils/fuzzySearch';
 import { useLikes } from '@/lib/likes-context';
+import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
 import {
   Carousel,
   CarouselContent,
@@ -98,6 +99,14 @@ export default function Browse() {
 
   useEffect(() => {
     async function fetchSubjects() {
+      // Check cache first
+      const cacheKey = 'subjects';
+      const cached = getCache(cacheKey);
+      if (cached) {
+        setSubjects(cached);
+        return;
+      }
+
       const { data } = await supabase
         .from('subjects')
         .select('*')
@@ -126,10 +135,14 @@ export default function Browse() {
           });
         
         setSubjects(cleanedSubjects);
+        // Cache the cleaned subjects
+        setCache(cacheKey, cleanedSubjects, CACHE_TTL.SUBJECTS);
       }
     }
 
     fetchSubjects();
+    // Clean up expired cache on mount
+    clearExpiredCache();
   }, []);
 
   // Sync selectedSubject with URL parameter when it changes
@@ -264,27 +277,48 @@ export default function Browse() {
         // Fetch all teachers (up to 200) for infinite scroll
         const limit = 200;
         
-        let query = supabase
-          .from('teachers_list')
-          .select('id, name, slug, image_url, bio, location, subjects(name, slug)')
-          .order('is_featured', { ascending: false })
-          .order('name')
-          .limit(limit);
-
-        // Don't filter by subject at database level - we'll filter using Shikshaqmine data
-        // This allows matching all subjects a teacher teaches, not just the featured one
-        const { data: teachersData, error } = await query;
-        
-        if (error) {
-          console.error('Error fetching teachers:', error);
-          setLoading(false);
-          return;
+        // Check cache for teachers list (only when no filters/search - cached data won't have filters applied)
+        let teachersData = null;
+        if (!hasFiltersOrSearch) {
+          const cacheKey = getTeachersListCacheKey(limit);
+          const cached = getCache<any[]>(cacheKey);
+          if (cached) {
+            teachersData = cached;
+          }
         }
 
+        // Fetch from API if not in cache
         if (!teachersData) {
-          setTeachers([]);
-          setLoading(false);
-          return;
+          let query = supabase
+            .from('teachers_list')
+            .select('id, name, slug, image_url, bio, location, subjects(name, slug)')
+            .order('is_featured', { ascending: false })
+            .order('name')
+            .limit(limit);
+
+          // Don't filter by subject at database level - we'll filter using Shikshaqmine data
+          // This allows matching all subjects a teacher teaches, not just the featured one
+          const { data, error } = await query;
+          
+          if (error) {
+            console.error('Error fetching teachers:', error);
+            setLoading(false);
+            return;
+          }
+
+          if (!data) {
+            setTeachers([]);
+            setLoading(false);
+            return;
+          }
+
+          teachersData = data;
+          
+          // Cache the teachers list (only if no filters/search - we want fresh data when filtering)
+          if (!hasFiltersOrSearch) {
+            const cacheKey = getTeachersListCacheKey(limit);
+            setCache(cacheKey, teachersData, CACHE_TTL.TEACHERS_LIST);
+          }
         }
 
         // Fetch Shikshaqmine data for filtering and enrichment (only if we have teachers and need it)
@@ -303,12 +337,27 @@ export default function Browse() {
           
           // Fetch data in parallel chunks - only fetch needed columns
           // Note: This fetches all Shikshaqmine data because filtering logic is complex (includes() checks)
-          const shikshaqPromises = chunks.map(chunk =>
-            supabase
+          // Check cache for each chunk first
+          const shikshaqPromises = chunks.map(async (chunk) => {
+            const cacheKey = getShikshaqmineChunkCacheKey(chunk);
+            const cached = getCache<any[]>(cacheKey);
+            if (cached) {
+              return { data: cached, error: null };
+            }
+            
+            // Fetch from API if not in cache
+            const result = await supabase
               .from('Shikshaqmine')
               .select('Slug, Subjects, "Classes Taught", "Classes Taught for Backend", Area, "AREAS FOR FILTERING", "Mode of Teaching", "School Boards Catered", "Class Size (Group/ Solo)", "Sir/Ma\'am?"')
-              .in('Slug', chunk)
-          );
+              .in('Slug', chunk);
+            
+            // Cache the result if successful
+            if (result.data && !result.error) {
+              setCache(cacheKey, result.data, CACHE_TTL.SHIKSHAQMINE_CHUNK);
+            }
+            
+            return result;
+          });
           
           const shikshaqResults = await Promise.all(shikshaqPromises);
           allShikshaqData = shikshaqResults.flatMap(result => result.data || []);
@@ -570,6 +619,16 @@ export default function Browse() {
     async function fetchFeaturedTeachers() {
       try {
         setFeaturedLoading(true);
+        
+        // Check cache for featured teachers
+        const cacheKey = 'featured_teachers_browse';
+        const cached = getCache<any[]>(cacheKey);
+        if (cached) {
+          setFeaturedTeachers(cached);
+          setFeaturedLoading(false);
+          return;
+        }
+        
         // Use the view to get top teachers efficiently
         const { data: upvoteStats } = await supabase
           .from('teacher_upvote_stats')
@@ -641,6 +700,8 @@ export default function Browse() {
           });
 
           setFeaturedTeachers(processedTeachers);
+          // Cache featured teachers
+          setCache(cacheKey, processedTeachers, CACHE_TTL.FEATURED_TEACHERS);
         }
       } catch (error) {
         console.error('Error fetching featured teachers:', error);

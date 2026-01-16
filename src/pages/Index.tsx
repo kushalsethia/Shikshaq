@@ -46,8 +46,25 @@ export default function Index() {
   useEffect(() => {
     async function fetchData() {
       try {
+        // Check cache for featured teachers
+        const featuredCacheKey = 'featured_teachers_index';
+        const cachedFeatured = getCache<any[]>(featuredCacheKey);
+        
+        // Check cache for subjects
+        const subjectsCacheKey = 'subjects_index';
+        const cachedSubjects = getCache<any[]>(subjectsCacheKey);
+        
+        // If both are cached, use them and return early
+        if (cachedFeatured && cachedSubjects) {
+          setFeaturedTeachers(cachedFeatured);
+          setSubjects(cachedSubjects);
+          setLoading(false);
+          return;
+        }
+        
         // Fetch teachers by upvotes (top 16) and subjects in parallel
         const [subjectsRes, upvotesRes] = await Promise.all([
+          cachedSubjects ? Promise.resolve({ data: cachedSubjects, error: null }) :
           supabase
             .from('subjects')
             .select('*')
@@ -148,10 +165,14 @@ export default function Index() {
           });
 
           setFeaturedTeachers(processedTeachers);
+          // Cache featured teachers
+          setCache(featuredCacheKey, processedTeachers, CACHE_TTL.FEATURED_TEACHERS);
         }
 
         if (subjectsRes.data) {
           setSubjects(subjectsRes.data);
+          // Cache subjects
+          setCache(subjectsCacheKey, subjectsRes.data, CACHE_TTL.SUBJECTS);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -161,6 +182,8 @@ export default function Index() {
     }
 
     fetchData();
+    // Clean up expired cache on mount
+    clearExpiredCache();
   }, []);
 
   return (
