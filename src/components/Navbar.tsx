@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp } from 'lucide-react';
+import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, Instagram, MessageCircle, HelpCircle as HelpCircleIcon, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/Logo';
+import { getWhatsAppLink } from '@/utils/whatsapp';
 
 export function Navbar() {
   const location = useLocation();
@@ -97,6 +98,20 @@ export function Navbar() {
               >
                 <item.icon className="w-4 h-4" />
                 {item.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Mobile Navigation - Always Visible */}
+          <div className="md:hidden flex items-center gap-1 bg-muted/50 rounded-full p-1 flex-1 mx-4">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`nav-link flex-1 justify-center ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
+              >
+                <item.icon className="w-4 h-4" />
+                <span className="text-xs">{item.label}</span>
               </Link>
             ))}
           </div>
@@ -197,27 +212,69 @@ export function Navbar() {
           </div>
         </nav>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Hamburger Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border animate-fade-in">
             <div className="flex flex-col gap-2">
-              {navItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`nav-link ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
-                >
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
-                </Link>
-              ))}
+              <Link
+                to="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="nav-link hover:bg-muted"
+              >
+                <Home className="w-4 h-4" />
+                Home
+              </Link>
+              <Link
+                to="/help#faq"
+                onClick={() => setMobileMenuOpen(false)}
+                className="nav-link hover:bg-muted"
+              >
+                <HelpCircleIcon className="w-4 h-4" />
+                FAQ
+              </Link>
+              <a
+                href="mailto:join.shikshaq@gmail.com"
+                onClick={() => setMobileMenuOpen(false)}
+                className="nav-link hover:bg-muted"
+              >
+                <Mail className="w-4 h-4" />
+                Gmail
+              </a>
+              <a
+                href="https://www.instagram.com/shikshaq.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="nav-link hover:bg-muted"
+              >
+                <Instagram className="w-4 h-4" />
+                Instagram
+              </a>
+              <a
+                href={getWhatsAppLink('8240980312')}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="nav-link hover:bg-muted"
+              >
+                <MessageCircle className="w-4 h-4" />
+                WhatsApp
+              </a>
               <Link
                 to="/join"
                 onClick={() => setMobileMenuOpen(false)}
                 className="nav-link hover:bg-muted"
               >
+                <ExternalLink className="w-4 h-4" />
                 Join as a teacher
+              </Link>
+              <Link
+                to="/recommend-teacher"
+                onClick={() => setMobileMenuOpen(false)}
+                className="nav-link hover:bg-muted"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Recommend a teacher
               </Link>
             </div>
           </div>
