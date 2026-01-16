@@ -4,7 +4,9 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetClose,
 } from '@/components/ui/sheet';
+import { X } from 'lucide-react';
 
 interface FilterPanelProps {
   open: boolean;
@@ -66,9 +68,19 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
     filters.areas.length > 0 ||
     filters.modeOfTeaching.length > 0;
 
+  const handleApplyFilters = () => {
+    onOpenChange(false);
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+        {/* Custom larger close button */}
+        <SheetClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none z-50">
+          <X className="h-6 w-6" />
+          <span className="sr-only">Close</span>
+        </SheetClose>
+        
         <SheetHeader>
           <SheetTitle className="text-2xl font-serif">Filter your search</SheetTitle>
         </SheetHeader>
@@ -195,18 +207,26 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
           </div>
         </div>
 
-        {/* Clear filters button */}
-        {hasActiveFilters && (
-          <div className="mt-8 pt-6 border-t">
+        {/* Filter action buttons */}
+        <div className="mt-8 pt-6 border-t space-y-3 sticky bottom-0 bg-background pb-4">
+          <div className="flex gap-3">
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                onClick={onClearFilters}
+                className="flex-1"
+              >
+                Clear filters
+              </Button>
+            )}
             <Button
-              variant="outline"
-              onClick={onClearFilters}
-              className="w-full"
+              onClick={handleApplyFilters}
+              className={`flex-1 bg-green-600 hover:bg-green-700 text-white ${!hasActiveFilters ? 'w-full' : ''}`}
             >
-              Clear all filters
+              Apply filters
             </Button>
           </div>
-        )}
+        </div>
       </SheetContent>
     </Sheet>
   );
