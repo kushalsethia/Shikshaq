@@ -63,13 +63,12 @@ export function TeacherCardDetailed({
       className="group flex gap-4 bg-card rounded-2xl p-4 border border-border hover:shadow-lg transition-all duration-300"
     >
       {/* Teacher Image */}
-      <div className="relative w-24 h-24 md:w-32 md:h-32 flex-shrink-0 overflow-hidden rounded-xl">
+      <div className="relative w-28 h-28 md:w-32 md:h-32 flex-shrink-0 overflow-hidden rounded-xl">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center">
