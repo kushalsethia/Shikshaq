@@ -192,10 +192,49 @@ export function fuzzySearch<T extends SearchableRecord>(
   const words = cleanedWords;
   const isMultiWord = words.length > 1;
 
-  // For multi-word queries, use AND logic
+  // For multi-word queries, use AND logic with optimized relevance scoring
   if (isMultiWord) {
     const exactMatches: T[] = [];
     const fuzzyMatches: T[] = [];
+
+    // Categorize words for better matching
+    const categorizeWords = (words: string[]) => {
+      const classes: string[] = [];
+      const subjects: string[] = [];
+      const areas: string[] = [];
+      const names: string[] = [];
+      
+      words.forEach(word => {
+        const lower = word.toLowerCase();
+        // Check if it's a class number
+        if (/^\d+$/.test(word) || lower.includes('class') || lower.includes('grade') || 
+            lower.includes('std') || lower.includes('standard')) {
+          classes.push(word);
+        }
+        // Check if it's likely an area
+        else if (lower.includes('lake') || lower.includes('town') || lower.includes('street') ||
+                 lower.includes('road') || lower.includes('avenue') || lower.includes('park') ||
+                 lower.includes('howrah') || lower.includes('behala') || lower.includes('salt') ||
+                 lower.includes('new') || lower.includes('old') || word.length > 5) {
+          areas.push(word);
+        }
+        // Check if it's likely a subject (common subject names)
+        else if (lower.includes('math') || lower.includes('physics') || lower.includes('chemistry') ||
+                 lower.includes('biology') || lower.includes('english') || lower.includes('hindi') ||
+                 lower.includes('history') || lower.includes('geography') || lower.includes('economics') ||
+                 lower.includes('accounts') || lower.includes('commerce') || word.length > 4) {
+          subjects.push(word);
+        }
+        // Otherwise, treat as potential name
+        else {
+          names.push(word);
+        }
+      });
+      
+      return { classes, subjects, areas, names };
+    };
+
+    const categorized = categorizeWords(words);
 
     // First, find exact matches where ALL words match
     records.forEach(record => {
@@ -204,36 +243,47 @@ export function fuzzySearch<T extends SearchableRecord>(
       }
     });
 
-    // Sort exact matches by relevance (prioritize name matches, then subjects, then classes)
+    // Enhanced relevance scoring: prioritize subjects > areas > classes > names
     exactMatches.sort((a, b) => {
-      // Count how many words match in name
-      const aNameMatches = words.filter(word => 
-        a.name?.toLowerCase().includes(word.toLowerCase())
-      ).length;
-      const bNameMatches = words.filter(word => 
-        b.name?.toLowerCase().includes(word.toLowerCase())
-      ).length;
-      if (aNameMatches !== bNameMatches) return bNameMatches - aNameMatches;
-
-      // Count how many words match in subjects
-      const aSubjectMatches = words.filter(word => 
+      // Score based on subject matches (highest priority)
+      const aSubjectScore = categorized.subjects.filter(word => 
         a.subjects?.toLowerCase().includes(word.toLowerCase())
-      ).length;
-      const bSubjectMatches = words.filter(word => 
+      ).length * 10;
+      const bSubjectScore = categorized.subjects.filter(word => 
         b.subjects?.toLowerCase().includes(word.toLowerCase())
-      ).length;
-      if (aSubjectMatches !== bSubjectMatches) return bSubjectMatches - aSubjectMatches;
+      ).length * 10;
+      if (aSubjectScore !== bSubjectScore) return bSubjectScore - aSubjectScore;
 
-      // Count how many words match in classes
-      const aClassMatches = words.filter(word => 
-        a.classesBackend?.toLowerCase().includes(word.toLowerCase()) ||
-        a.classesDisplay?.toLowerCase().includes(word.toLowerCase())
-      ).length;
-      const bClassMatches = words.filter(word => 
-        b.classesBackend?.toLowerCase().includes(word.toLowerCase()) ||
-        b.classesDisplay?.toLowerCase().includes(word.toLowerCase())
-      ).length;
-      if (aClassMatches !== bClassMatches) return bClassMatches - aClassMatches;
+      // Score based on area matches
+      const aAreaScore = categorized.areas.filter(word => 
+        a.area?.toLowerCase().includes(word.toLowerCase())
+      ).length * 8;
+      const bAreaScore = categorized.areas.filter(word => 
+        b.area?.toLowerCase().includes(word.toLowerCase())
+      ).length * 8;
+      if (aAreaScore !== bAreaScore) return bAreaScore - aAreaScore;
+
+      // Score based on class matches
+      const aClassScore = categorized.classes.filter(word => {
+        const lower = word.toLowerCase();
+        return a.classesBackend?.toLowerCase().includes(lower) ||
+               a.classesDisplay?.toLowerCase().includes(lower);
+      }).length * 6;
+      const bClassScore = categorized.classes.filter(word => {
+        const lower = word.toLowerCase();
+        return b.classesBackend?.toLowerCase().includes(lower) ||
+               b.classesDisplay?.toLowerCase().includes(lower);
+      }).length * 6;
+      if (aClassScore !== bClassScore) return bClassScore - aClassScore;
+
+      // Score based on name matches (lowest priority)
+      const aNameScore = categorized.names.filter(word => 
+        a.name?.toLowerCase().includes(word.toLowerCase())
+      ).length * 2;
+      const bNameScore = categorized.names.filter(word => 
+        b.name?.toLowerCase().includes(word.toLowerCase())
+      ).length * 2;
+      if (aNameScore !== bNameScore) return bNameScore - aNameScore;
 
       return 0;
     });
@@ -241,96 +291,177 @@ export function fuzzySearch<T extends SearchableRecord>(
     // If we have exact matches, use them
     if (exactMatches.length > 0) {
       // For fuzzy matches, search each word individually with fuzzy search and find intersection
-      if (exactMatches.length < 20) {
+      // For longer queries (3+ words), be more selective to avoid too many results
+      const maxFuzzyResults = words.length > 3 ? 10 : 20;
+      
+      if (exactMatches.length < maxFuzzyResults) {
         const exactSlugs = new Set(exactMatches.map((r: any) => r.Slug));
         const remainingRecords = records.filter((r: any) => !exactSlugs.has(r.Slug));
         
-        // Search for each word with fuzzy search and find records that match all words
+        // Search for each word with fuzzy search, prioritizing important word types
         const wordMatches: Map<string, Set<T>> = new Map();
         
-        words.forEach(word => {
-          // Determine if word is likely an area, subject, or name/class
-          // Areas and subjects are usually longer words, classes are numbers
-          const isLikelySubjectOrArea = word.length > 3 && !/^\d+$/.test(word);
-          
-          // Check if word might be an area name (common area patterns)
-          const isLikelyArea = isLikelySubjectOrArea && (
-            word.includes('lake') || word.includes('town') || word.includes('street') ||
-            word.includes('road') || word.includes('avenue') || word.includes('park') ||
-            word.includes('howrah') || word.includes('behala') || word.includes('salt') ||
-            word.includes('new') || word.includes('old') || word.length > 5
-          );
+        // Search in priority order: subjects > areas > classes > names
+        const searchOrder = [
+          ...categorized.subjects,
+          ...categorized.areas,
+          ...categorized.classes,
+          ...categorized.names
+        ];
+        
+        searchOrder.forEach(word => {
+          const isLikelyArea = categorized.areas.includes(word);
+          const isLikelySubject = categorized.subjects.includes(word);
+          const isLikelyClass = categorized.classes.includes(word);
           
           const fuse = isLikelyArea
             ? createAreaFuseInstance(remainingRecords)
-            : isLikelySubjectOrArea
+            : isLikelySubject
             ? createSubjectFuseInstance(remainingRecords)
+            : isLikelyClass
+            ? createNameFuseInstance(remainingRecords)
             : createNameFuseInstance(remainingRecords);
           
           const results = fuse.search(word);
-          const matchedRecords = new Set(results.map(result => result.item));
+          // Limit results per word for longer queries to improve performance
+          const limit = words.length > 3 ? 50 : 100;
+          const matchedRecords = new Set(
+            results.slice(0, limit).map(result => result.item)
+          );
           wordMatches.set(word, matchedRecords);
         });
 
         // Find intersection: records that appear in all word match sets
         if (wordMatches.size > 0) {
-          const allMatchedRecords = Array.from(wordMatches.values())[0];
-          for (const record of allMatchedRecords) {
-            const matchesAll = Array.from(wordMatches.values()).every(matchSet => 
-              matchSet.has(record)
-            );
-            if (matchesAll) {
-              fuzzyMatches.push(record);
+          // Start with the smallest set for efficiency
+          const sortedWordMatches = Array.from(wordMatches.entries())
+            .sort((a, b) => a[1].size - b[1].size);
+          
+          if (sortedWordMatches.length > 0) {
+            const [firstWord, firstSet] = sortedWordMatches[0];
+            const otherSets = sortedWordMatches.slice(1).map(([_, set]) => set);
+            
+            for (const record of firstSet) {
+              const matchesAll = otherSets.every(matchSet => matchSet.has(record));
+              if (matchesAll) {
+                fuzzyMatches.push(record);
+              }
             }
           }
         }
+        
+        // Sort fuzzy matches by relevance using same scoring as exact matches
+        fuzzyMatches.sort((a, b) => {
+          const aSubjectScore = categorized.subjects.filter(word => 
+            a.subjects?.toLowerCase().includes(word.toLowerCase())
+          ).length * 10;
+          const bSubjectScore = categorized.subjects.filter(word => 
+            b.subjects?.toLowerCase().includes(word.toLowerCase())
+          ).length * 10;
+          if (aSubjectScore !== bSubjectScore) return bSubjectScore - aSubjectScore;
+
+          const aAreaScore = categorized.areas.filter(word => 
+            a.area?.toLowerCase().includes(word.toLowerCase())
+          ).length * 8;
+          const bAreaScore = categorized.areas.filter(word => 
+            b.area?.toLowerCase().includes(word.toLowerCase())
+          ).length * 8;
+          if (aAreaScore !== bAreaScore) return bAreaScore - aAreaScore;
+
+          return 0;
+        });
       }
       
       return [...exactMatches, ...fuzzyMatches];
     }
 
-    // If no exact matches, use fuzzy search with AND logic
+    // If no exact matches, use fuzzy search with AND logic and optimized relevance
+    const categorized = categorizeWords(words);
     const wordMatches: Map<string, Set<T>> = new Map();
     
-    words.forEach(word => {
-      // Determine if word is likely an area, subject, or name/class
-      // Areas and subjects are usually longer words, classes are numbers
-      const isLikelySubjectOrArea = word.length > 3 && !/^\d+$/.test(word);
-      
-      // Check if word might be an area name (common area patterns)
-      const isLikelyArea = isLikelySubjectOrArea && (
-        word.includes('lake') || word.includes('town') || word.includes('street') ||
-        word.includes('road') || word.includes('avenue') || word.includes('park') ||
-        word.includes('howrah') || word.includes('behala') || word.includes('salt') ||
-        word.includes('new') || word.includes('old') || word.length > 5
-      );
+    // Search in priority order: subjects > areas > classes > names
+    const searchOrder = [
+      ...categorized.subjects,
+      ...categorized.areas,
+      ...categorized.classes,
+      ...categorized.names
+    ];
+    
+    searchOrder.forEach(word => {
+      const isLikelyArea = categorized.areas.includes(word);
+      const isLikelySubject = categorized.subjects.includes(word);
+      const isLikelyClass = categorized.classes.includes(word);
       
       const fuse = isLikelyArea
         ? createAreaFuseInstance(records)
-        : isLikelySubjectOrArea
+        : isLikelySubject
         ? createSubjectFuseInstance(records)
+        : isLikelyClass
+        ? createNameFuseInstance(records)
         : createNameFuseInstance(records);
       
       const results = fuse.search(word);
-      const matchedRecords = new Set(results.map(result => result.item));
+      // Limit results per word for longer queries to improve performance
+      const limit = words.length > 3 ? 50 : 100;
+      const matchedRecords = new Set(
+        results.slice(0, limit).map(result => result.item)
+      );
       wordMatches.set(word, matchedRecords);
     });
 
     // Find intersection: records that appear in all word match sets
     if (wordMatches.size > 0) {
-      const allMatchedRecords = Array.from(wordMatches.values())[0];
-      const finalMatches: T[] = [];
+      // Start with the smallest set for efficiency
+      const sortedWordMatches = Array.from(wordMatches.entries())
+        .sort((a, b) => a[1].size - b[1].size);
       
-      for (const record of allMatchedRecords) {
-        const matchesAll = Array.from(wordMatches.values()).every(matchSet => 
-          matchSet.has(record)
-        );
-        if (matchesAll) {
-          finalMatches.push(record);
+      if (sortedWordMatches.length > 0) {
+        const [firstWord, firstSet] = sortedWordMatches[0];
+        const otherSets = sortedWordMatches.slice(1).map(([_, set]) => set);
+        const finalMatches: T[] = [];
+        
+        for (const record of firstSet) {
+          const matchesAll = otherSets.every(matchSet => matchSet.has(record));
+          if (matchesAll) {
+            finalMatches.push(record);
+          }
         }
+        
+        // Sort by relevance: subjects > areas > classes > names
+        finalMatches.sort((a, b) => {
+          const aSubjectScore = categorized.subjects.filter(word => 
+            a.subjects?.toLowerCase().includes(word.toLowerCase())
+          ).length * 10;
+          const bSubjectScore = categorized.subjects.filter(word => 
+            b.subjects?.toLowerCase().includes(word.toLowerCase())
+          ).length * 10;
+          if (aSubjectScore !== bSubjectScore) return bSubjectScore - aSubjectScore;
+
+          const aAreaScore = categorized.areas.filter(word => 
+            a.area?.toLowerCase().includes(word.toLowerCase())
+          ).length * 8;
+          const bAreaScore = categorized.areas.filter(word => 
+            b.area?.toLowerCase().includes(word.toLowerCase())
+          ).length * 8;
+          if (aAreaScore !== bAreaScore) return bAreaScore - aAreaScore;
+
+          const aClassScore = categorized.classes.filter(word => {
+            const lower = word.toLowerCase();
+            return a.classesBackend?.toLowerCase().includes(lower) ||
+                   a.classesDisplay?.toLowerCase().includes(lower);
+          }).length * 6;
+          const bClassScore = categorized.classes.filter(word => {
+            const lower = word.toLowerCase();
+            return b.classesBackend?.toLowerCase().includes(lower) ||
+                   b.classesDisplay?.toLowerCase().includes(lower);
+          }).length * 6;
+          if (aClassScore !== bClassScore) return bClassScore - aClassScore;
+
+          return 0;
+        });
+        
+        return finalMatches;
       }
-      
-      return finalMatches;
     }
 
     return [];
