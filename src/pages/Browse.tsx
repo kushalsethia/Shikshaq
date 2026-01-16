@@ -381,10 +381,10 @@ export default function Browse() {
           // Pre-compute lowercase filter values once (outside loop for performance)
           const subjectFiltersLower = effectiveSubjectFilters.map(s => s.toLowerCase());
           const classFiltersLower = effectiveClassFilters.map(c => c.toLowerCase());
-          const boardFiltersLower = filters.boards.map(b => b.toLowerCase());
-          const classSizeFiltersLower = filters.classSize.map(s => s.toLowerCase());
-          const areaFiltersLower = filters.areas.map(a => a.toLowerCase());
-          const modeFiltersLower = filters.modeOfTeaching.map(m => m.toLowerCase());
+          const boardFiltersLower = urlFilters.boards.map(b => b.toLowerCase());
+          const classSizeFiltersLower = urlFilters.classSize.map(s => s.toLowerCase());
+          const areaFiltersLower = urlFilters.areas.map(a => a.toLowerCase());
+          const modeFiltersLower = urlFilters.modeOfTeaching.map(m => m.toLowerCase());
           
           const matchingSlugs = recordsToFilter
             .filter((record: any) => {
@@ -439,7 +439,7 @@ export default function Browse() {
               }
 
               // Check boards - optimized
-              if (filters.boards.length > 0) {
+              if (urlFilters.boards.length > 0) {
                 const hasBoard = boardFiltersLower.some(boardLower => 
                   boards.includes(boardLower)
                 );
@@ -449,7 +449,7 @@ export default function Browse() {
               }
 
               // Check class size - optimized
-              if (filters.classSize.length > 0) {
+              if (urlFilters.classSize.length > 0) {
                 const hasSize = classSizeFiltersLower.some(sizeLower => 
                   classSize.includes(sizeLower)
                 );
@@ -459,7 +459,7 @@ export default function Browse() {
               }
 
               // Check areas - optimized
-              if (filters.areas.length > 0) {
+              if (urlFilters.areas.length > 0) {
                 const hasArea = areaFiltersLower.some(areaLower => 
                   areaData.includes(areaLower)
                 );
@@ -469,7 +469,7 @@ export default function Browse() {
               }
 
               // Check mode of teaching - optimized
-              if (filters.modeOfTeaching.length > 0) {
+              if (urlFilters.modeOfTeaching.length > 0) {
                 const hasMode = modeFiltersLower.some(modeLower => 
                   mode.includes(modeLower) || 
                   mode.includes(modeLower + ' /') ||
