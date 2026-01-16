@@ -667,8 +667,8 @@ export default function Browse() {
           </div>
         )}
 
-        {/* Other Recommended Tuition Teachers Section - Only show if there are search results */}
-        {!loading && teachers.length > 0 && (
+        {/* Other Recommended Tuition Teachers Section - Show after any search or when there are results */}
+        {!loading && (searchParams.get('q') || teachers.length > 0) && (
           <section className="mt-16">
             <div className="mb-6">
               <h2 className="section-title">Other recommended tuition teachers</h2>

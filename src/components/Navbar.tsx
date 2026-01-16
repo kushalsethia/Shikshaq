@@ -208,7 +208,7 @@ export function Navbar() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/help#faq" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                  <Link to="/#faq" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
                     <HelpCircle className="w-4 h-4" />
                     FAQ
                   </Link>
