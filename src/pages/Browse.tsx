@@ -340,9 +340,10 @@ export default function Browse() {
           }
         }
 
-        // Fetch Shikshaqmine data for filtering and enrichment (only if we have teachers and need it)
+        // Fetch Shikshaqmine data for filtering and enrichment (always fetch to show all subjects/classes in cards)
+        // Previously only fetched when filters/search were active, causing cards to only show one subject
         let allShikshaqData = null;
-        if (teachersData && teachersData.length > 0 && (searchQuery || hasFiltersOrSearch)) {
+        if (teachersData && teachersData.length > 0) {
           const teacherSlugs = teachersData.map(t => t.slug);
           
           // Optimize: For preset filters only (no search query), we can potentially filter at DB level
@@ -950,19 +951,25 @@ export default function Browse() {
           )
         ) : displayedTeachers.length > 0 ? (
           <div className="space-y-4">
-            {displayedTeachers.map((teacher) => (
-              <TeacherCardDetailed
-                key={teacher.id}
-                id={teacher.id}
-                name={teacher.name}
-                slug={teacher.slug}
-                imageUrl={teacher.image_url}
-                subjects={teacher.subjects_from_shikshaq || teacher.subjects?.name}
-                classes={teacher.classes_taught}
-                modeOfTeaching={teacher.mode_of_teaching}
-                sirMaam={(teacher as any).sir_maam}
-              />
-            ))}
+            {displayedTeachers.map((teacher) => {
+              // Always prefer subjects_from_shikshaq (all subjects) over subjects?.name (single featured subject)
+              // subjects_from_shikshaq contains all subjects the teacher teaches from Shikshaqmine
+              const displaySubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
+              
+              return (
+                <TeacherCardDetailed
+                  key={teacher.id}
+                  id={teacher.id}
+                  name={teacher.name}
+                  slug={teacher.slug}
+                  imageUrl={teacher.image_url}
+                  subjects={displaySubjects}
+                  classes={teacher.classes_taught}
+                  modeOfTeaching={teacher.mode_of_teaching}
+                  sirMaam={(teacher as any).sir_maam}
+                />
+              );
+            })}
             
             {/* Infinite scroll loading indicator */}
             {hasMore && (
