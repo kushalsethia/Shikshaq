@@ -89,21 +89,21 @@ export function Navbar() {
             {/* Logo */}
             <Logo size="md" />
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-1 bg-muted/50 rounded-full p-1">
-              {navItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`nav-link ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
-                >
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
-                </Link>
-              ))}
-            </div>
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-1 bg-muted/50 rounded-full p-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`nav-link ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
+              >
+                <item.icon className="w-4 h-4" />
+                {item.label}
+              </Link>
+            ))}
+          </div>
 
-          {/* Right Side */}
+          {/* Right Side - Mobile and Desktop */}
           <div className="flex items-center gap-3">
             <Link
               to="/join"
