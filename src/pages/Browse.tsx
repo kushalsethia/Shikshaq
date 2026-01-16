@@ -764,18 +764,34 @@ export default function Browse() {
 
         {/* Teachers List */}
         {loading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="animate-pulse flex gap-4 bg-card rounded-2xl p-4 border border-border">
-                <div className="w-24 h-24 md:w-32 md:h-32 bg-muted rounded-xl" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-6 bg-muted rounded w-1/3" />
-                  <div className="h-4 bg-muted rounded w-2/3" />
-                  <div className="h-4 bg-muted rounded w-1/4" />
-                </div>
+          hasFilters ? (
+            // Show search message when filters are active
+            <div className="flex flex-col items-center justify-center py-16 md:py-24">
+              <div className="text-center space-y-4">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mb-4"></div>
+                <h2 className="text-2xl md:text-3xl font-serif text-foreground">
+                  We are searching for your perfect teacher
+                </h2>
+                <p className="text-muted-foreground text-lg">
+                  Please wait while we find the best matches for you...
+                </p>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            // Show skeleton loaders for initial load
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="animate-pulse flex gap-4 bg-card rounded-2xl p-4 border border-border">
+                  <div className="w-24 h-24 md:w-32 md:h-32 bg-muted rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-6 bg-muted rounded w-1/3" />
+                    <div className="h-4 bg-muted rounded w-2/3" />
+                    <div className="h-4 bg-muted rounded w-1/4" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
         ) : displayedTeachers.length > 0 ? (
           <div className="space-y-4">
             {displayedTeachers.map((teacher) => (
