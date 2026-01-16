@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
@@ -90,6 +90,9 @@ export default function Browse() {
   const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const { isLiked } = useLikes();
+  
+  // Ref to track if we're updating URL ourselves (to prevent circular updates)
+  const isUpdatingUrlRef = useRef(false);
 
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -135,20 +138,13 @@ export default function Browse() {
     setSelectedSubject(subjectFromUrl);
   }, [searchParams]);
 
-  // Sync filters from URL when URL changes (e.g., browser back/forward)
+  // Update URL when filters change (but not when URL changes filters)
   useEffect(() => {
-    setFilters({
-      subjects: parseArrayParam(searchParams.get('filter_subjects')),
-      classes: parseArrayParam(searchParams.get('filter_classes')),
-      boards: parseArrayParam(searchParams.get('filter_boards')),
-      classSize: parseArrayParam(searchParams.get('filter_classSize')),
-      areas: parseArrayParam(searchParams.get('filter_areas')),
-      modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
-    });
-  }, [searchParams]);
+    // Skip if we're in the middle of syncing from URL
+    if (isUpdatingUrlRef.current) {
+      return;
+    }
 
-  // Update URL when filters change
-  useEffect(() => {
     const newParams = new URLSearchParams(searchParams);
     
     // Update filter params
@@ -198,9 +194,45 @@ export default function Browse() {
     const currentParams = searchParams.toString();
     const newParamsStr = newParams.toString();
     if (currentParams !== newParamsStr) {
+      isUpdatingUrlRef.current = true;
       setSearchParams(newParams, { replace: true });
+      // Reset flag after a short delay to allow URL update to complete
+      setTimeout(() => {
+        isUpdatingUrlRef.current = false;
+      }, 0);
     }
   }, [filters, searchParams, setSearchParams]);
+
+  // Sync filters from URL when URL changes (e.g., browser back/forward)
+  // Only sync if filters in URL are different from current filters
+  useEffect(() => {
+    // Skip if we just updated the URL ourselves
+    if (isUpdatingUrlRef.current) {
+      return;
+    }
+
+    const urlFilters = {
+      subjects: parseArrayParam(searchParams.get('filter_subjects')),
+      classes: parseArrayParam(searchParams.get('filter_classes')),
+      boards: parseArrayParam(searchParams.get('filter_boards')),
+      classSize: parseArrayParam(searchParams.get('filter_classSize')),
+      areas: parseArrayParam(searchParams.get('filter_areas')),
+      modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
+    };
+
+    // Only update if filters actually differ (prevent unnecessary updates)
+    const filtersChanged = 
+      JSON.stringify(urlFilters.subjects) !== JSON.stringify(filters.subjects) ||
+      JSON.stringify(urlFilters.classes) !== JSON.stringify(filters.classes) ||
+      JSON.stringify(urlFilters.boards) !== JSON.stringify(filters.boards) ||
+      JSON.stringify(urlFilters.classSize) !== JSON.stringify(filters.classSize) ||
+      JSON.stringify(urlFilters.areas) !== JSON.stringify(filters.areas) ||
+      JSON.stringify(urlFilters.modeOfTeaching) !== JSON.stringify(filters.modeOfTeaching);
+
+    if (filtersChanged) {
+      setFilters(urlFilters);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function fetchTeachers() {
@@ -506,7 +538,7 @@ export default function Browse() {
     }
 
     fetchTeachers();
-  }, [searchParams, filters, subjects]);
+  }, [searchParams, subjects]); // Remove filters from deps - filters are already in searchParams
 
   // Fetch featured teachers for "Other recommended" section - only when needed
   useEffect(() => {
