@@ -8,6 +8,7 @@ import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { FloatingWhatsAppButton } from "@/components/FloatingWhatsAppButton";
+import { Chatbot } from "@/components/Chatbot";
 import Index from "./pages/Index";
 import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
@@ -39,6 +40,7 @@ const App = () => (
           <BrowserRouter>
             <ScrollToTop />
             <FloatingWhatsAppButton />
+            <Chatbot />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/browse" element={<Browse />} />
