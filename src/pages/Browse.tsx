@@ -89,8 +89,6 @@ export default function Browse() {
   const [displayedTeachers, setDisplayedTeachers] = useState<Teacher[]>([]);
   const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
   const [hasMore, setHasMore] = useState(true);
-  const [totalTeachersCount, setTotalTeachersCount] = useState<number | null>(null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const { isLiked } = useLikes();
   
   // Ref to track if we're updating URL ourselves (to prevent circular updates)
@@ -100,26 +98,6 @@ export default function Browse() {
 
   useEffect(() => {
     async function fetchSubjects() {
-      // Check localStorage cache first
-      const cachedSubjects = localStorage.getItem('subjects_cache');
-      const cacheTimestamp = localStorage.getItem('subjects_cache_timestamp');
-      const CACHE_DURATION = 1000 * 60 * 60; // 1 hour cache
-      
-      if (cachedSubjects && cacheTimestamp) {
-        const age = Date.now() - parseInt(cacheTimestamp);
-        if (age < CACHE_DURATION) {
-          try {
-            setSubjects(JSON.parse(cachedSubjects));
-            return; // Use cached data
-          } catch (e) {
-            // Cache corrupted, fetch fresh data
-            localStorage.removeItem('subjects_cache');
-            localStorage.removeItem('subjects_cache_timestamp');
-          }
-        }
-      }
-
-      // Fetch fresh data if no cache or cache expired
       const { data } = await supabase
         .from('subjects')
         .select('*')
@@ -146,10 +124,6 @@ export default function Browse() {
             seen.add(nameLower);
             return true;
           });
-        
-        // Cache the cleaned subjects
-        localStorage.setItem('subjects_cache', JSON.stringify(cleanedSubjects));
-        localStorage.setItem('subjects_cache_timestamp', Date.now().toString());
         
         setSubjects(cleanedSubjects);
       }
@@ -271,8 +245,6 @@ export default function Browse() {
       setDisplayedTeachers([]);
       setAllTeachersData([]);
       setHasMore(true);
-      setTotalTeachersCount(null);
-      setIsLoadingMore(false);
       setLoading(true);
       try {
         // First, get teachers from teachers_list with a reasonable limit
@@ -286,26 +258,15 @@ export default function Browse() {
           filters.boards.length > 0 || filters.classSize.length > 0 ||
           filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-        // For infinite scroll: Fetch batches of 50 as user scrolls
-        // Initial load: fetch first 50
-        // Loading more: fetch next 50 from where we left off
-        const limit = 50;
-        const offset = isLoadingMore ? allTeachersData.length : 0;
-        
-        // Get total count for header (only on initial load)
-        if (!isLoadingMore && totalTeachersCount === null) {
-          const { count } = await supabase
-            .from('teachers_list')
-            .select('*', { count: 'exact', head: true });
-          setTotalTeachersCount(count || 0);
-        }
+        // Fetch all teachers (up to 200) for infinite scroll
+        const limit = 200;
         
         let query = supabase
           .from('teachers_list')
           .select('id, name, slug, image_url, bio, location, subjects(name, slug)')
           .order('is_featured', { ascending: false })
           .order('name')
-          .range(offset, offset + limit - 1);
+          .limit(limit);
 
         // Don't filter by subject at database level - we'll filter using Shikshaqmine data
         // This allows matching all subjects a teacher teaches, not just the featured one
@@ -327,9 +288,8 @@ export default function Browse() {
         let allShikshaqData = null;
         if (teachersData && teachersData.length > 0 && (searchQuery || hasFiltersOrSearch)) {
           const teacherSlugs = teachersData.map(t => t.slug);
-          // Optimize chunk size: smaller chunks = faster parallel queries
-          // 50 is optimal balance between parallel requests and query efficiency
-          const chunkSize = 50;
+          // Split into chunks if too many slugs to avoid query size limits
+          const chunkSize = 100;
           const chunks = [];
           for (let i = 0; i < teacherSlugs.length; i += chunkSize) {
             chunks.push(teacherSlugs.slice(i, i + chunkSize));
@@ -563,27 +523,13 @@ export default function Browse() {
         });
 
         console.log('Fetched and filtered teachers:', enrichedTeachers.length);
-        
-        // For infinite scroll: append if loading more, replace if initial load
-        if (isLoadingMore) {
-          // Append new teachers to existing ones
-          const newTeachers = [...allTeachersData, ...enrichedTeachers];
-          setAllTeachersData(newTeachers);
-          setDisplayedTeachers(newTeachers);
-          setTeachers(newTeachers);
-          // Check if there are more teachers to load
-          const totalLoaded = newTeachers.length;
-          const remaining = (totalTeachersCount || 0) - totalLoaded;
-          setHasMore(remaining > 0 && enrichedTeachers.length === limit);
-        } else {
-          // Initial load: replace all
-          setAllTeachersData(enrichedTeachers);
-          setDisplayedTeachers(enrichedTeachers);
-          setTeachers(enrichedTeachers);
-          // Check if there are more teachers to load
-          const remaining = (totalTeachersCount || 0) - enrichedTeachers.length;
-          setHasMore(remaining > 0 && enrichedTeachers.length === limit);
-        }
+        // Store all teachers
+        setAllTeachersData(enrichedTeachers);
+        // Show first 20 teachers initially for infinite scroll
+        const initialDisplay = 20;
+        setDisplayedTeachers(enrichedTeachers.slice(0, initialDisplay));
+        setTeachers(enrichedTeachers); // Keep for count display
+        setHasMore(enrichedTeachers.length > initialDisplay);
       } catch (error) {
         console.error('Error fetching teachers:', error);
       } finally {
@@ -591,9 +537,7 @@ export default function Browse() {
       }
     }
 
-    if (!isLoadingMore) {
-      fetchTeachers();
-    }
+    fetchTeachers();
   }, [searchParams, subjects]); // Remove filters from deps - filters are already in searchParams
 
   // Fetch featured teachers for "Other recommended" section - only when needed
@@ -732,15 +676,23 @@ export default function Browse() {
     filters.boards.length > 0 || filters.classSize.length > 0 ||
     filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-  // Infinite scroll handler - fetch more from database when user scrolls
+  // Infinite scroll handler
   useEffect(() => {
-    if (!hasMore || loading || isLoadingMore) return;
+    if (!hasMore || loading || allTeachersData.length === 0) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoadingMore && !loading) {
-          // Trigger fetch for next batch from database
-          setIsLoadingMore(true);
+        if (entries[0].isIntersecting && hasMore) {
+          // Load next batch of 20 teachers
+          const currentCount = displayedTeachers.length;
+          const nextBatch = allTeachersData.slice(currentCount, currentCount + 20);
+          
+          if (nextBatch.length > 0) {
+            setDisplayedTeachers((prev) => [...prev, ...nextBatch]);
+            setHasMore(currentCount + 20 < allTeachersData.length);
+          } else {
+            setHasMore(false);
+          }
         }
       },
       { threshold: 0.1 }
@@ -756,111 +708,7 @@ export default function Browse() {
         observer.unobserve(trigger);
       }
     };
-  }, [hasMore, loading, isLoadingMore]);
-
-  // Fetch more teachers when isLoadingMore is true
-  useEffect(() => {
-    if (!isLoadingMore || loading) return;
-    
-    async function loadMoreTeachers() {
-      try {
-        setLoading(true);
-        const currentOffset = allTeachersData.length;
-        const limit = 50;
-        
-        // Fetch next batch from database
-        let query = supabase
-          .from('teachers_list')
-          .select('id, name, slug, image_url, bio, location, subjects(name, slug)')
-          .order('is_featured', { ascending: false })
-          .order('name')
-          .range(currentOffset, currentOffset + limit - 1);
-
-        const { data: teachersData, error } = await query;
-        
-        if (error) {
-          console.error('Error fetching more teachers:', error);
-          setIsLoadingMore(false);
-          setLoading(false);
-          return;
-        }
-
-        if (!teachersData || teachersData.length === 0) {
-          setHasMore(false);
-          setIsLoadingMore(false);
-          setLoading(false);
-          return;
-        }
-
-        // If filters/search are active, we need to filter these too
-        const searchQuery = searchParams.get('q');
-        const subjectFilter = searchParams.get('subject');
-        const classFilter = searchParams.get('class');
-        const hasFiltersOrSearch = searchQuery || subjectFilter || classFilter || 
-          filters.subjects.length > 0 || filters.classes.length > 0 ||
-          filters.boards.length > 0 || filters.classSize.length > 0 ||
-          filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
-
-        let filteredTeachers = teachersData;
-        
-        // Apply same filtering logic if filters are active
-        // For simplicity, we'll fetch Shikshaqmine data and filter
-        if (hasFiltersOrSearch && teachersData.length > 0) {
-          // Fetch Shikshaqmine data for this batch
-          const teacherSlugs = teachersData.map(t => t.slug);
-          const chunkSize = 50;
-          const chunks = [];
-          for (let i = 0; i < teacherSlugs.length; i += chunkSize) {
-            chunks.push(teacherSlugs.slice(i, i + chunkSize));
-          }
-          
-          const shikshaqPromises = chunks.map(chunk =>
-            supabase
-              .from('Shikshaqmine')
-              .select('Slug, Subjects, "Classes Taught", "Classes Taught for Backend", Area, "AREAS FOR FILTERING", "Mode of Teaching", "School Boards Catered", "Class Size (Group/ Solo)", "Sir/Ma\'am?"')
-              .in('Slug', chunk)
-          );
-          
-          const shikshaqResults = await Promise.all(shikshaqPromises);
-          const batchShikshaqData = shikshaqResults.flatMap(result => result.data || []);
-          
-          // Note: For infinite scroll with filters, we'd need to apply the same filtering logic
-          // For now, we'll just append and let the user see more results
-          // A full implementation would re-run the filter logic here
-          filteredTeachers = teachersData;
-        }
-
-        // Enrich teachers
-        const enrichedTeachers = filteredTeachers.map(teacher => ({
-          ...teacher,
-          subjects_from_shikshaq: null,
-          classes_taught: null,
-          mode_of_teaching: null,
-          sir_maam: null,
-        }));
-
-        // Append new teachers
-        const newTeachers = [...allTeachersData, ...enrichedTeachers];
-        setAllTeachersData(newTeachers);
-        setDisplayedTeachers(newTeachers);
-        setTeachers(newTeachers);
-        
-        // Check if there are more
-        const totalLoaded = newTeachers.length;
-        const remaining = (totalTeachersCount || 0) - totalLoaded;
-        setHasMore(remaining > 0 && enrichedTeachers.length === limit);
-        
-      } catch (error) {
-        console.error('Error loading more teachers:', error);
-        setHasMore(false);
-      } finally {
-        setIsLoadingMore(false);
-        setLoading(false);
-      }
-    }
-    
-    loadMoreTeachers();
-  }, [isLoadingMore, allTeachersData.length, totalTeachersCount, searchParams, filters]);
+  }, [hasMore, loading, allTeachersData, displayedTeachers.length]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -998,14 +846,9 @@ export default function Browse() {
                 id="scroll-trigger" 
                 className="h-20 flex items-center justify-center"
               >
-                {isLoadingMore ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
-                    <div className="text-muted-foreground">Loading more teachers...</div>
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground">Scroll down to load more</div>
-                )}
+                <div className="animate-pulse text-muted-foreground">
+                  Loading more teachers...
+                </div>
               </div>
             )}
           </div>
