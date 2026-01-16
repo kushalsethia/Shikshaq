@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
@@ -133,12 +133,21 @@ export default function Browse() {
         const subjectFilter = searchParams.get('subject');
         const classFilter = searchParams.get('class');
 
+        // Only fetch teachers if we have filters or search - otherwise show empty or limit initial load
+        const hasFiltersOrSearch = searchQuery || subjectFilter || classFilter || 
+          filters.subjects.length > 0 || filters.classes.length > 0 ||
+          filters.boards.length > 0 || filters.classSize.length > 0 ||
+          filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
+
+        // Reduce initial limit - only fetch what we need
+        const limit = hasFiltersOrSearch ? 200 : 50; // Start with 50, fetch more if needed
+        
         let query = supabase
           .from('teachers_list')
           .select('id, name, slug, image_url, bio, location, subjects(name, slug)')
           .order('is_featured', { ascending: false })
           .order('name')
-          .limit(500); // Limit to prevent fetching too much data
+          .limit(limit);
 
         // Don't filter by subject at database level - we'll filter using Shikshaqmine data
         // This allows matching all subjects a teacher teaches, not just the featured one
@@ -156,9 +165,9 @@ export default function Browse() {
           return;
         }
 
-        // Fetch Shikshaqmine data for filtering and enrichment (only if we have teachers)
+        // Fetch Shikshaqmine data for filtering and enrichment (only if we have teachers and need it)
         let allShikshaqData = null;
-        if (teachersData && teachersData.length > 0) {
+        if (teachersData && teachersData.length > 0 && (searchQuery || hasFiltersOrSearch)) {
           const teacherSlugs = teachersData.map(t => t.slug);
           // Split into chunks if too many slugs to avoid query size limits
           const chunkSize = 100;
@@ -167,7 +176,7 @@ export default function Browse() {
             chunks.push(teacherSlugs.slice(i, i + chunkSize));
           }
           
-          // Fetch data in parallel chunks
+          // Fetch data in parallel chunks - only fetch needed columns
           const shikshaqPromises = chunks.map(chunk =>
             supabase
               .from('Shikshaqmine')
@@ -406,31 +415,30 @@ export default function Browse() {
     fetchTeachers();
   }, [searchParams, filters, subjects]);
 
-  // Fetch featured teachers for "Other recommended" section
+  // Fetch featured teachers for "Other recommended" section - only when needed
   useEffect(() => {
+    // Only fetch if we have search results or search query
+    const shouldFetchFeatured = searchParams.get('q') || teachers.length > 0;
+    if (!shouldFetchFeatured) {
+      setFeaturedLoading(false);
+      setFeaturedTeachers([]);
+      return;
+    }
+
     async function fetchFeaturedTeachers() {
       try {
         setFeaturedLoading(true);
-        // Fetch teachers by upvotes (top 16) similar to home page
-        const upvotesRes = await supabase
-          .from('teacher_upvotes')
-          .select('teacher_id');
+        // Use the view to get top teachers efficiently
+        const { data: upvoteStats } = await supabase
+          .from('teacher_upvote_stats')
+          .select('teacher_id')
+          .order('upvote_count', { ascending: false })
+          .limit(16);
 
         let teachersData: any[] = [];
         
-        if (upvotesRes.data && upvotesRes.data.length > 0) {
-          // Count upvotes per teacher
-          const upvoteCounts = new Map<string, number>();
-          upvotesRes.data.forEach((upvote: any) => {
-            const current = upvoteCounts.get(upvote.teacher_id) || 0;
-            upvoteCounts.set(upvote.teacher_id, current + 1);
-          });
-
-          // Sort by upvote count and get top 16 teacher IDs
-          const topTeacherIds = Array.from(upvoteCounts.entries())
-            .sort((a, b) => b[1] - a[1]) // Sort by count descending
-            .slice(0, 16)
-            .map(([teacherId]) => teacherId);
+        if (upvoteStats && upvoteStats.length > 0) {
+          const topTeacherIds = upvoteStats.map((stat: any) => stat.teacher_id);
 
           if (topTeacherIds.length > 0) {
             const { data: topTeachers } = await supabase
