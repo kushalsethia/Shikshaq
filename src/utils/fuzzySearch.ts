@@ -471,6 +471,18 @@ export function fuzzySearch<T extends SearchableRecord>(
   const exactMatches: T[] = [];
   const fuzzyMatches: T[] = [];
 
+  // Check if query looks like a name (not a common subject/area/class word)
+  const commonSubjects = ['math', 'physics', 'chemistry', 'biology', 'english', 'hindi', 'history', 
+    'geography', 'economics', 'accounts', 'commerce', 'computer', 'science', 'drawing'];
+  const commonAreas = ['lake', 'town', 'street', 'road', 'avenue', 'park', 'howrah', 'behala', 
+    'salt', 'new', 'old', 'sealdah', 'alipore', 'park'];
+  const isLikelyName = trimmedQuery.length >= 3 && 
+    !commonSubjects.some(subj => trimmedQuery.includes(subj)) &&
+    !commonAreas.some(area => trimmedQuery.includes(area)) &&
+    !/^\d+$/.test(trimmedQuery) &&
+    !trimmedQuery.includes('class') && !trimmedQuery.includes('grade') && 
+    !trimmedQuery.includes('std') && !trimmedQuery.includes('standard');
+
   // First, find exact matches (highest priority)
   records.forEach(record => {
     const nameMatch = record.name?.toLowerCase().includes(trimmedQuery);
@@ -479,26 +491,35 @@ export function fuzzySearch<T extends SearchableRecord>(
     const classesMatch = record.classesBackend?.includes(trimmedQuery) || 
                          record.classesDisplay?.includes(trimmedQuery);
     
-    if (nameMatch || subjectsMatch || areaMatch || classesMatch) {
-      exactMatches.push(record);
+    // For name-like queries, prioritize name matches
+    if (isLikelyName) {
+      if (nameMatch) {
+        exactMatches.push(record);
+      }
+    } else {
+      if (nameMatch || subjectsMatch || areaMatch || classesMatch) {
+        exactMatches.push(record);
+      }
     }
   });
 
   // Determine search type: area > subject > name
   // Check if query matches any area names in the records
-  const isAreaSearch = exactMatches.some(record => 
-    record.area?.toLowerCase().includes(trimmedQuery)
-  ) || records.some(record => 
-    record.area?.toLowerCase().includes(trimmedQuery)
-  ) || (
-    trimmedQuery.includes('lake') || trimmedQuery.includes('town') || trimmedQuery.includes('street') ||
-    trimmedQuery.includes('road') || trimmedQuery.includes('avenue') || trimmedQuery.includes('park') ||
-    trimmedQuery.includes('howrah') || trimmedQuery.includes('behala') || trimmedQuery.includes('salt') ||
-    trimmedQuery.includes('new') || trimmedQuery.includes('old') || trimmedQuery.length > 5
+  const isAreaSearch = !isLikelyName && (
+    exactMatches.some(record => 
+      record.area?.toLowerCase().includes(trimmedQuery)
+    ) || records.some(record => 
+      record.area?.toLowerCase().includes(trimmedQuery)
+    ) || (
+      trimmedQuery.includes('lake') || trimmedQuery.includes('town') || trimmedQuery.includes('street') ||
+      trimmedQuery.includes('road') || trimmedQuery.includes('avenue') || trimmedQuery.includes('park') ||
+      trimmedQuery.includes('howrah') || trimmedQuery.includes('behala') || trimmedQuery.includes('salt') ||
+      trimmedQuery.includes('new') || trimmedQuery.includes('old') || trimmedQuery.length > 5
+    )
   );
   
   // Check if query matches any subject names in the records
-  const isSubjectSearch = !isAreaSearch && (
+  const isSubjectSearch = !isLikelyName && !isAreaSearch && (
     exactMatches.some(record => 
       record.subjects?.toLowerCase().includes(trimmedQuery)
     ) || records.some(record => 
@@ -538,7 +559,20 @@ export function fuzzySearch<T extends SearchableRecord>(
           ? createSubjectFuseInstance(remainingRecords)
           : createNameFuseInstance(remainingRecords);
         const fuzzyResults = fuse.search(trimmedQuery);
-        fuzzyMatches.push(...fuzzyResults.map(result => result.item));
+        
+        // For name-like queries, filter to only include results where name matches
+        if (isLikelyName) {
+          const nameFuzzyMatches = fuzzyResults
+            .map(result => result.item)
+            .filter(record => 
+              record.name?.toLowerCase().includes(trimmedQuery) ||
+              record.name?.toLowerCase().startsWith(trimmedQuery) ||
+              record.name?.toLowerCase().split(/\s+/).some(word => word.startsWith(trimmedQuery))
+            );
+          fuzzyMatches.push(...nameFuzzyMatches);
+        } else {
+          fuzzyMatches.push(...fuzzyResults.map(result => result.item));
+        }
       }
     }
     
@@ -552,6 +586,18 @@ export function fuzzySearch<T extends SearchableRecord>(
     ? createSubjectFuseInstance(records)
     : createNameFuseInstance(records);
   const results = fuse.search(trimmedQuery);
+  
+  // For name-like queries, filter to only include results where name matches
+  if (isLikelyName) {
+    const nameMatches = results
+      .map(result => result.item)
+      .filter(record => 
+        record.name?.toLowerCase().includes(trimmedQuery) ||
+        record.name?.toLowerCase().startsWith(trimmedQuery) ||
+        record.name?.toLowerCase().split(/\s+/).some(word => word.startsWith(trimmedQuery))
+      );
+    return nameMatches;
+  }
   
   // Return records sorted by relevance (best matches first)
   return results.map(result => result.item);
