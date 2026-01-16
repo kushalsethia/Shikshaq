@@ -7,7 +7,7 @@ import { TeacherCardDetailed } from '@/components/TeacherCardDetailed';
 import { TeacherCard } from '@/components/TeacherCard';
 import { Footer } from '@/components/Footer';
 import { FilterPanel, FilterState } from '@/components/FilterPanel';
-import { Filter, X } from 'lucide-react';
+import { Filter, X, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -73,6 +73,8 @@ export default function Browse() {
   });
   const [featuredTeachers, setFeaturedTeachers] = useState<FeaturedTeacher[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [showAllTeachers, setShowAllTeachers] = useState(false);
+  const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
   const { isLiked } = useLikes();
 
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
@@ -139,9 +141,9 @@ export default function Browse() {
           filters.boards.length > 0 || filters.classSize.length > 0 ||
           filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-        // Reduced limit from 500 to 200 for better performance
-        // Always fetch teachers (show all by default)
-        const limit = 200;
+        // Initial load: show only 45 teachers for better performance
+        // If "View more" is clicked, fetch all (up to 200)
+        const limit = showAllTeachers ? 200 : 45;
         
         let query = supabase
           .from('teachers_list')
@@ -414,7 +416,7 @@ export default function Browse() {
     }
 
     fetchTeachers();
-  }, [searchParams, filters, subjects]);
+  }, [searchParams, filters, subjects, showAllTeachers]);
 
   // Fetch featured teachers for "Other recommended" section - only when needed
   useEffect(() => {
@@ -543,6 +545,7 @@ export default function Browse() {
       modeOfTeaching: [],
     });
     setSearchParams({});
+    setShowAllTeachers(false); // Reset view more when clearing filters
   };
 
   const hasFilters = searchParams.get('subject') || searchParams.get('class') || searchParams.get('q') ||
@@ -630,7 +633,7 @@ export default function Browse() {
             }
           </h1>
           <p className="text-muted-foreground mt-1">
-            {loading ? 'Loading...' : `${teachers.length} teachers found`}
+            {loading ? 'Loading...' : `${allTeachersData.length > 0 ? allTeachersData.length : teachers.length} teachers found${!showAllTeachers && allTeachersData.length > 45 ? ` (showing ${teachers.length})` : ''}`}
           </p>
         </div>
 
@@ -663,6 +666,21 @@ export default function Browse() {
                 sirMaam={(teacher as any).sir_maam}
               />
             ))}
+            
+            {/* View More Button - Show if there are more than 45 teachers and not all are shown */}
+            {!showAllTeachers && allTeachersData.length > 45 && (
+              <div className="flex justify-center mt-8">
+                <Button 
+                  onClick={() => setShowAllTeachers(true)}
+                  variant="outline"
+                  size="lg"
+                  className="gap-2"
+                >
+                  View more teachers ({allTeachersData.length - 45} more)
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-16">
