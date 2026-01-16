@@ -146,8 +146,9 @@ export default function Browse() {
           filters.boards.length > 0 || filters.classSize.length > 0 ||
           filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-        // Fetch all teachers (up to 200) for infinite scroll
-        const limit = 200;
+        // Fetch teachers - start with smaller initial load for faster page load
+        // Only fetch more when filters/search are active
+        const initialLimit = hasFiltersOrSearch || searchQuery ? 200 : 50;
         
         // Fetch teachers first
         const { data: teachersData, error } = await supabase
@@ -155,7 +156,7 @@ export default function Browse() {
           .select('id, name, slug, image_url, bio, location, subjects(name, slug)')
           .order('is_featured', { ascending: false })
           .order('name')
-          .limit(limit);
+          .limit(initialLimit);
         
         if (error) {
           console.error('Error fetching teachers:', error);
@@ -175,8 +176,8 @@ export default function Browse() {
         let allShikshaqData = null;
         if (teachersData && teachersData.length > 0 && (searchQuery || hasFiltersOrSearch)) {
           const teacherSlugs = teachersData.map(t => t.slug);
-          // Use smaller chunks (30 instead of 100) for faster parallel fetching and better responsiveness
-          const chunkSize = 30;
+          // Use optimal chunk size - 50 balances parallel requests and query efficiency
+          const chunkSize = 50;
           const chunks = [];
           for (let i = 0; i < teacherSlugs.length; i += chunkSize) {
             chunks.push(teacherSlugs.slice(i, i + chunkSize));
