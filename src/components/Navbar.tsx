@@ -82,39 +82,26 @@ export function Navbar() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
-      <div className="container mx-auto px-4">
-        <nav className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Logo size="md" />
+    <>
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
+        <div className="container mx-auto px-4">
+          <nav className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Logo size="md" />
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-1 bg-muted/50 rounded-full p-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`nav-link ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
-              >
-                <item.icon className="w-4 h-4" />
-                {item.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Mobile Navigation - Always Visible */}
-          <div className="md:hidden flex items-center gap-1 bg-muted/50 rounded-full p-1 flex-1 mx-4">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`nav-link flex-1 justify-center ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
-              >
-                <item.icon className="w-4 h-4" />
-                <span className="text-xs">{item.label}</span>
-              </Link>
-            ))}
-          </div>
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-1 bg-muted/50 rounded-full p-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`nav-link ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
+                >
+                  <item.icon className="w-4 h-4" />
+                  {item.label}
+                </Link>
+              ))}
+            </div>
 
           {/* Right Side */}
           <div className="flex items-center gap-3">
@@ -281,5 +268,28 @@ export function Navbar() {
         )}
       </div>
     </header>
+
+    {/* Mobile Sticky Navigation Bar - Below Main Navbar */}
+    <div className="md:hidden sticky top-16 z-40 bg-background border-b border-border/50">
+      <div className="container mx-auto px-4">
+        <nav className="flex items-center justify-around h-14">
+          {navItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+                isActive(item.path)
+                  ? 'text-foreground border-b-2 border-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="text-xs font-medium">{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </div>
+    </>
   );
 }
