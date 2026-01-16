@@ -221,18 +221,21 @@ export default function Browse() {
     };
 
     // Only update if filters actually differ (prevent unnecessary updates)
+    // Sort arrays before comparing to handle order differences
     const filtersChanged = 
-      JSON.stringify(urlFilters.subjects) !== JSON.stringify(filters.subjects) ||
-      JSON.stringify(urlFilters.classes) !== JSON.stringify(filters.classes) ||
-      JSON.stringify(urlFilters.boards) !== JSON.stringify(filters.boards) ||
-      JSON.stringify(urlFilters.classSize) !== JSON.stringify(filters.classSize) ||
-      JSON.stringify(urlFilters.areas) !== JSON.stringify(filters.areas) ||
-      JSON.stringify(urlFilters.modeOfTeaching) !== JSON.stringify(filters.modeOfTeaching);
+      JSON.stringify([...urlFilters.subjects].sort()) !== JSON.stringify([...filters.subjects].sort()) ||
+      JSON.stringify([...urlFilters.classes].sort()) !== JSON.stringify([...filters.classes].sort()) ||
+      JSON.stringify([...urlFilters.boards].sort()) !== JSON.stringify([...filters.boards].sort()) ||
+      JSON.stringify([...urlFilters.classSize].sort()) !== JSON.stringify([...filters.classSize].sort()) ||
+      JSON.stringify([...urlFilters.areas].sort()) !== JSON.stringify([...filters.areas].sort()) ||
+      JSON.stringify([...urlFilters.modeOfTeaching].sort()) !== JSON.stringify([...filters.modeOfTeaching].sort());
 
     if (filtersChanged) {
+      // Use a ref to prevent recursive updates
+      isUpdatingUrlRef.current = false; // Allow this update
       setFilters(urlFilters);
     }
-  }, [searchParams]);
+  }, [searchParams]); // Don't include filters in deps to prevent loops
 
   useEffect(() => {
     async function fetchTeachers() {
