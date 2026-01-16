@@ -286,17 +286,13 @@ export default function Browse() {
           filters.boards.length > 0 || filters.classSize.length > 0 ||
           filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-        // For infinite scroll: Fetch 50 initially, then load more as user scrolls
-        // This improves initial page load while still allowing access to all teachers
-        const initialLimit = 50;
-        const currentOffset = displayedTeachers.length; // Start from where we left off
+        // For infinite scroll: Fetch batches of 50 as user scrolls
+        // Initial load: fetch first 50
+        // Loading more: fetch next 50 from where we left off
+        const limit = 50;
+        const offset = isLoadingMore ? allTeachersData.length : 0;
         
-        // If we're loading more (infinite scroll), fetch next batch
-        // Otherwise, fetch initial batch
-        const limit = isLoadingMore ? 50 : initialLimit;
-        const offset = isLoadingMore ? currentOffset : 0;
-        
-        // First, get total count for infinite scroll
+        // Get total count for header (only on initial load)
         if (!isLoadingMore && totalTeachersCount === null) {
           const { count } = await supabase
             .from('teachers_list')
@@ -571,10 +567,14 @@ export default function Browse() {
         // For infinite scroll: append if loading more, replace if initial load
         if (isLoadingMore) {
           // Append new teachers to existing ones
-          setAllTeachersData(prev => [...prev, ...enrichedTeachers]);
-          setDisplayedTeachers(prev => [...prev, ...enrichedTeachers]);
-          setTeachers(prev => [...prev, ...enrichedTeachers]);
-          setHasMore(enrichedTeachers.length === 50); // If we got 50, there might be more
+          const newTeachers = [...allTeachersData, ...enrichedTeachers];
+          setAllTeachersData(newTeachers);
+          setDisplayedTeachers(newTeachers);
+          setTeachers(newTeachers);
+          // Check if there are more teachers to load
+          const totalLoaded = newTeachers.length;
+          const remaining = (totalTeachersCount || 0) - totalLoaded;
+          setHasMore(remaining > 0 && enrichedTeachers.length === limit);
         } else {
           // Initial load: replace all
           setAllTeachersData(enrichedTeachers);
@@ -582,7 +582,7 @@ export default function Browse() {
           setTeachers(enrichedTeachers);
           // Check if there are more teachers to load
           const remaining = (totalTeachersCount || 0) - enrichedTeachers.length;
-          setHasMore(remaining > 0);
+          setHasMore(remaining > 0 && enrichedTeachers.length === limit);
         }
       } catch (error) {
         console.error('Error fetching teachers:', error);
@@ -840,12 +840,14 @@ export default function Browse() {
         }));
 
         // Append new teachers
-        setAllTeachersData(prev => [...prev, ...enrichedTeachers]);
-        setDisplayedTeachers(prev => [...prev, ...enrichedTeachers]);
-        setTeachers(prev => [...prev, ...enrichedTeachers]);
+        const newTeachers = [...allTeachersData, ...enrichedTeachers];
+        setAllTeachersData(newTeachers);
+        setDisplayedTeachers(newTeachers);
+        setTeachers(newTeachers);
         
         // Check if there are more
-        const remaining = (totalTeachersCount || 0) - (currentOffset + enrichedTeachers.length);
+        const totalLoaded = newTeachers.length;
+        const remaining = (totalTeachersCount || 0) - totalLoaded;
         setHasMore(remaining > 0 && enrichedTeachers.length === limit);
         
       } catch (error) {
