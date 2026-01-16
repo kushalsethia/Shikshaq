@@ -133,14 +133,21 @@ export default function Browse() {
         const subjectFilter = searchParams.get('subject');
         const classFilter = searchParams.get('class');
 
-        // Only fetch teachers if we have filters or search - otherwise show empty or limit initial load
+        // Only fetch teachers if we have filters or search - otherwise show empty
         const hasFiltersOrSearch = searchQuery || subjectFilter || classFilter || 
           filters.subjects.length > 0 || filters.classes.length > 0 ||
           filters.boards.length > 0 || filters.classSize.length > 0 ||
           filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-        // Reduce initial limit - only fetch what we need
-        const limit = hasFiltersOrSearch ? 200 : 50; // Start with 50, fetch more if needed
+        // If no filters/search, don't fetch at all (show empty state)
+        if (!hasFiltersOrSearch) {
+          setTeachers([]);
+          setLoading(false);
+          return;
+        }
+
+        // Reduced limit from 500 to 200
+        const limit = 200;
         
         let query = supabase
           .from('teachers_list')
@@ -508,7 +515,7 @@ export default function Browse() {
     }
 
     fetchFeaturedTeachers();
-  }, []);
+  }, [searchParams.get('q'), teachers.length]);
 
   const handleSubjectChange = (value: string) => {
     setSelectedSubject(value);
