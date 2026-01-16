@@ -8,7 +8,7 @@ export function FloatingWhatsAppButton() {
       href={getWhatsAppLink(whatsappNumber)}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-black text-white px-5 py-3.5 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 group"
+      className="fixed bottom-6 right-6 z-40 flex items-center gap-3 bg-black text-white px-5 py-3.5 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 group"
       aria-label="Chat with Team Shikshaq on WhatsApp"
     >
       {/* WhatsApp Icon */}
