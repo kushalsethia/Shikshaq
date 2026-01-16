@@ -407,7 +407,10 @@ export default function Browse() {
         });
 
         console.log('Fetched and filtered teachers:', enrichedTeachers.length);
-        setTeachers(enrichedTeachers);
+        // Store all teachers
+        setAllTeachersData(enrichedTeachers);
+        // Show only first 45 initially, or all if "View more" was clicked
+        setTeachers(showAllTeachers ? enrichedTeachers : enrichedTeachers.slice(0, 45));
       } catch (error) {
         console.error('Error fetching teachers:', error);
       } finally {
