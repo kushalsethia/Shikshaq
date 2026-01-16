@@ -67,12 +67,13 @@ Q: What if I can't find a tutor? A: Contact us and we'll help find a match.`;
       });
     }
 
-    // Try models in order - some may be available on free tier
-    // Note: Model availability varies by API key and free tier status
+    // Use Gemini 2.5 Flash-Lite (fastest and available on free tier)
+    // Fallback to other models if needed
     const modelsToTry = [
-      'gemini-1.5-flash-latest',  // Latest flash model
-      'gemini-1.5-pro-latest',    // Latest pro model
-      'gemini-pro',                // Standard pro model
+      'gemini-2.5-flash-lite',    // Fastest, free tier model
+      'gemini-1.5-flash-latest',  // Latest flash model (fallback)
+      'gemini-1.5-pro-latest',    // Latest pro model (fallback)
+      'gemini-pro',                // Standard pro model (fallback)
     ];
     let lastError: Error | null = null;
     let result: { response: { text: () => string } } | null = null;
