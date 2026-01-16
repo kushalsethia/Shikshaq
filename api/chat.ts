@@ -67,64 +67,59 @@ Q: What if I can't find a tutor? A: Contact us and we'll help find a match.`;
       });
     }
 
-    // Use gemini-1.5-flash for fastest responses (optimized for speed)
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
-      generationConfig: {
-        maxOutputTokens: 150, // Limit response length for speed
-        temperature: 0.7, // Balanced creativity vs consistency
-      },
-    });
+    // Try gemini-2.0-flash first (faster, may be available on free tier)
+    // Fallback to gemini-pro (stable and reliable on free tier)
+    const modelsToTry = ['gemini-2.0-flash', 'gemini-pro'];
+    let lastError: Error | null = null;
+    let result: { response: { text: () => string } } | null = null;
 
     // Concise prompt for faster processing
     const fullPrompt = `${systemPrompt}${conversationContext}\n\nUser: ${message}\n\nAssistant:`;
 
-    try {
-      // Reduced timeout to 10 seconds (flash model is fast)
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout')), 10000);
-      });
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Trying model: ${modelName}...`);
+        const model = genAI.getGenerativeModel({ 
+          model: modelName,
+          generationConfig: {
+            maxOutputTokens: 150, // Limit response length for speed
+            temperature: 0.7, // Balanced creativity vs consistency
+          },
+        });
+
+        // Timeout: 15 seconds (gemini-pro is reliable but may be slower)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 15000);
+        });
 
         const generatePromise = model.generateContent(fullPrompt);
-        const result = await Promise.race([generatePromise, timeoutPromise]) as { response: { text: () => string } };
+        result = await Promise.race([generatePromise, timeoutPromise]) as { response: { text: () => string } };
         
-      const response = result.response;
-      const text = response.text();
+        console.log(`Success with model: ${modelName}`);
+        break; // Success, exit loop
+      } catch (modelError: unknown) {
+        const err = modelError as Error;
+        lastError = err;
+        console.warn(`Model ${modelName} failed:`, err.message);
+        // Continue to next model
+      }
+    }
 
-      return res.status(200).json({ response: text });
-    } catch (apiError: unknown) {
-      // Log detailed error for debugging
-      const error = apiError as Error;
+    if (!result) {
+      // All models failed
+      const error = lastError || new Error('All models failed');
       console.error('Gemini API error:', {
         message: error.message,
         name: error.name,
         stack: error.stack?.substring(0, 200),
       });
-
-      // If gemini-1.5-flash fails, try gemini-pro as fallback (slower but more reliable)
-      try {
-        console.log('Falling back to gemini-pro...');
-        const fallbackModel = genAI.getGenerativeModel({ 
-          model: 'gemini-pro',
-          generationConfig: {
-            maxOutputTokens: 150,
-            temperature: 0.7,
-          },
-        });
-        
-        const fallbackResult = await Promise.race([
-          fallbackModel.generateContent(fullPrompt),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Fallback timeout')), 15000))
-        ]) as { response: { text: () => string } };
-        
-        const fallbackText = fallbackResult.response.text();
-        return res.status(200).json({ response: fallbackText });
-      } catch (fallbackError: unknown) {
-        const fallbackErr = fallbackError as Error;
-        console.error('Fallback model also failed:', fallbackErr.message);
-        throw error; // Throw original error
-      }
+      throw error;
     }
+
+    const response = result.response;
+    const text = response.text();
+
+    return res.status(200).json({ response: text });
   } catch (error: unknown) {
     const err = error as Error & { status?: number };
     console.error('Chat handler error:', {
