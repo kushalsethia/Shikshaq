@@ -14,12 +14,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
 
 export function Navbar() {
   const location = useLocation();
@@ -196,88 +190,81 @@ export function Navbar() {
             )}
 
             {/* Mobile Menu Button */}
-            <button
-              className="md:hidden p-2 rounded-lg hover:bg-muted transition-colors"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+            <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden"
+                >
+                  {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 md:hidden">
+                <DropdownMenuItem asChild>
+                  <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                    <Home className="w-4 h-4" />
+                    Home
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/help#faq" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                    <HelpCircle className="w-4 h-4" />
+                    FAQ
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1.5">
+                  <div className="flex items-center gap-3 justify-center">
+                    <a
+                      href="mailto:join.shikshaq@gmail.com"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="p-2 rounded-lg hover:bg-muted transition-colors"
+                      aria-label="Gmail"
+                    >
+                      <Mail className="w-5 h-5" />
+                    </a>
+                    <a
+                      href="https://instagram.com/shikshaq.in"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="p-2 rounded-lg hover:bg-muted transition-colors"
+                      aria-label="Instagram"
+                    >
+                      <Instagram className="w-5 h-5" />
+                    </a>
+                    <a
+                      href={getWhatsAppLink('8240980312')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="p-2 rounded-lg hover:bg-muted transition-colors"
+                      aria-label="WhatsApp"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </a>
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/join" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4" />
+                    Join as a teacher
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/recommend-teacher" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4" />
+                    Recommend a teacher
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </nav>
-
       </div>
     </header>
-
-    {/* Mobile Hamburger Menu - Overlay Sheet */}
-    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-      <SheetContent side="left" className="w-64 md:hidden">
-        <SheetHeader>
-          <SheetTitle className="text-xl font-serif">Menu</SheetTitle>
-        </SheetHeader>
-        <div className="flex flex-col gap-2 mt-6">
-          <Link
-            to="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className="nav-link hover:bg-muted"
-          >
-            <Home className="w-4 h-4" />
-            Home
-          </Link>
-          <Link
-            to="/help#faq"
-            onClick={() => setMobileMenuOpen(false)}
-            className="nav-link hover:bg-muted"
-          >
-            <HelpCircle className="w-4 h-4" />
-            FAQ
-          </Link>
-          <a
-            href="mailto:join.shikshaq@gmail.com"
-            onClick={() => setMobileMenuOpen(false)}
-            className="nav-link hover:bg-muted"
-          >
-            <Mail className="w-4 h-4" />
-            Gmail
-          </a>
-          <a
-            href="https://instagram.com/shikshaq.in"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setMobileMenuOpen(false)}
-            className="nav-link hover:bg-muted"
-          >
-            <Instagram className="w-4 h-4" />
-            Instagram
-          </a>
-          <a
-            href={getWhatsAppLink('8240980312')}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setMobileMenuOpen(false)}
-            className="nav-link hover:bg-muted"
-          >
-            <MessageCircle className="w-4 h-4" />
-            WhatsApp
-          </a>
-          <Link
-            to="/join"
-            onClick={() => setMobileMenuOpen(false)}
-            className="nav-link hover:bg-muted"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Join as a teacher
-          </Link>
-          <Link
-            to="/recommend-teacher"
-            onClick={() => setMobileMenuOpen(false)}
-            className="nav-link hover:bg-muted"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Recommend a teacher
-          </Link>
-        </div>
-      </SheetContent>
-    </Sheet>
 
     {/* Mobile Sticky Navigation Bar - Below Main Navbar */}
     <div className="md:hidden sticky top-16 z-40 bg-background border-b border-border/50">
