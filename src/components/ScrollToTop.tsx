@@ -6,6 +6,16 @@ export function ScrollToTop() {
   const prevPathnameRef = useRef(pathname);
   const prevHashRef = useRef(hash);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasScrolledRef = useRef(false);
+  const targetScrollPositionRef = useRef<number | null>(null);
+  const scrollGuardTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Disable browser's automatic scroll restoration
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
 
   useEffect(() => {
     const pathnameChanged = pathname !== prevPathnameRef.current;
@@ -16,12 +26,23 @@ export function ScrollToTop() {
       clearTimeout(scrollTimeoutRef.current);
       scrollTimeoutRef.current = null;
     }
+    if (scrollGuardTimeoutRef.current) {
+      clearTimeout(scrollGuardTimeoutRef.current);
+      scrollGuardTimeoutRef.current = null;
+    }
+    
+    // Reset flags when pathname changes
+    if (pathnameChanged) {
+      hasScrolledRef.current = false;
+      targetScrollPositionRef.current = null;
+    }
     
     // If navigating with a hash (either hash changed or pathname changed with hash)
-    if (hash) {
+    if (hash && !hasScrolledRef.current) {
+      hasScrolledRef.current = true;
+      
       // Wait for page to render, then scroll to hash element
-      // If pathname changed, wait longer for the new page to fully load
-      const delay = pathnameChanged ? 200 : 50;
+      const delay = pathnameChanged ? 400 : 100;
       
       scrollTimeoutRef.current = setTimeout(() => {
         requestAnimationFrame(() => {
@@ -33,12 +54,41 @@ export function ScrollToTop() {
               // Account for sticky navbar (approximately 80px for navbar + sticky nav)
               const offset = 80;
               const targetPosition = Math.max(0, elementTop - offset);
+              targetScrollPositionRef.current = targetPosition;
               
               // Use smooth scroll with proper offset
               window.scrollTo({
                 top: targetPosition,
                 behavior: 'smooth'
               });
+              
+              // Set up a scroll guard to prevent unwanted scrolling for 3 seconds
+              scrollGuardTimeoutRef.current = setTimeout(() => {
+                // Monitor scroll position and prevent unwanted changes
+                let lastScrollTime = Date.now();
+                const checkInterval = setInterval(() => {
+                  const now = Date.now();
+                  // Only check if it's been more than 1 second since our scroll
+                  if (now - lastScrollTime > 1000 && targetScrollPositionRef.current !== null) {
+                    const currentScroll = window.pageYOffset;
+                    const expectedPosition = targetScrollPositionRef.current;
+                    
+                    // If we've scrolled significantly away from target (more than 100px), restore position
+                    if (Math.abs(currentScroll - expectedPosition) > 100) {
+                      window.scrollTo({
+                        top: expectedPosition,
+                        behavior: 'auto'
+                      });
+                    }
+                  }
+                }, 500);
+                
+                // Clear the guard after 3 seconds
+                setTimeout(() => {
+                  clearInterval(checkInterval);
+                  targetScrollPositionRef.current = null;
+                }, 3000);
+              }, 1500);
             }
           });
         });
@@ -57,6 +107,9 @@ export function ScrollToTop() {
     return () => {
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
+      }
+      if (scrollGuardTimeoutRef.current) {
+        clearTimeout(scrollGuardTimeoutRef.current);
       }
     };
   }, [pathname, hash]);
