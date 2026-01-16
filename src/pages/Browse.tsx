@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { SearchBar } from '@/components/SearchBar';
 import { TeacherCardDetailed } from '@/components/TeacherCardDetailed';
+import { TeacherCard } from '@/components/TeacherCard';
 import { Footer } from '@/components/Footer';
 import { FilterPanel, FilterState } from '@/components/FilterPanel';
 import { Filter, X } from 'lucide-react';
@@ -16,6 +17,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { fuzzySearch, prepareRecordForSearch } from '@/utils/fuzzySearch';
+import { useLikes } from '@/lib/likes-context';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
 
 
 interface Teacher {
@@ -37,6 +46,15 @@ interface Subject {
   slug: string;
 }
 
+interface FeaturedTeacher {
+  id: string;
+  name: string;
+  slug: string;
+  image_url: string | null;
+  subjects: { name: string; slug: string } | null;
+  sir_maam?: string | null;
+}
+
 export default function Browse() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -53,6 +71,9 @@ export default function Browse() {
     areas: [],
     modeOfTeaching: [],
   });
+  const [featuredTeachers, setFeaturedTeachers] = useState<FeaturedTeacher[]>([]);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
+  const { isLiked } = useLikes();
 
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -385,6 +406,102 @@ export default function Browse() {
     fetchTeachers();
   }, [searchParams, filters, subjects]);
 
+  // Fetch featured teachers for "Other recommended" section
+  useEffect(() => {
+    async function fetchFeaturedTeachers() {
+      try {
+        setFeaturedLoading(true);
+        // Fetch teachers by upvotes (top 16) similar to home page
+        const upvotesRes = await supabase
+          .from('teacher_upvotes')
+          .select('teacher_id');
+
+        let teachersData: any[] = [];
+        
+        if (upvotesRes.data && upvotesRes.data.length > 0) {
+          // Count upvotes per teacher
+          const upvoteCounts = new Map<string, number>();
+          upvotesRes.data.forEach((upvote: any) => {
+            const current = upvoteCounts.get(upvote.teacher_id) || 0;
+            upvoteCounts.set(upvote.teacher_id, current + 1);
+          });
+
+          // Sort by upvote count and get top 16 teacher IDs
+          const topTeacherIds = Array.from(upvoteCounts.entries())
+            .sort((a, b) => b[1] - a[1]) // Sort by count descending
+            .slice(0, 16)
+            .map(([teacherId]) => teacherId);
+
+          if (topTeacherIds.length > 0) {
+            const { data: topTeachers } = await supabase
+              .from('teachers_list')
+              .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
+              .in('id', topTeacherIds);
+
+            if (topTeachers) {
+              // Sort teachers to match upvote order
+              const teacherMap = new Map(topTeachers.map((t: any) => [t.id, t]));
+              teachersData = topTeacherIds
+                .map(id => teacherMap.get(id))
+                .filter(Boolean) as any[];
+            }
+          }
+        }
+
+        // If we have less than 16 teachers, fill with random teachers
+        if (teachersData.length < 16) {
+          const existingIds = new Set(teachersData.map((t: any) => t.id));
+          const { data: allTeachers } = await supabase
+            .from('teachers_list')
+            .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
+            .limit(100);
+          
+          if (allTeachers && allTeachers.length > 0) {
+            const availableTeachers = allTeachers.filter((t: any) => !existingIds.has(t.id));
+            const shuffled = [...availableTeachers].sort(() => Math.random() - 0.5);
+            const needed = 16 - teachersData.length;
+            teachersData = [...teachersData, ...shuffled.slice(0, needed)];
+          }
+        }
+
+        // Fetch Sir/Ma'am data from Shikshaqmine table
+        let sirMaamMap = new Map();
+        if (teachersData.length > 0) {
+          const teacherSlugs = teachersData.map((t: any) => t.slug);
+          const { data: shikshaqData } = await supabase
+            .from('Shikshaqmine')
+            .select('Slug, "Sir/Ma\'am?"')
+            .in('Slug', teacherSlugs);
+          
+          if (shikshaqData) {
+            shikshaqData.forEach((record: any) => {
+              sirMaamMap.set(record.Slug, record["Sir/Ma'am?"]);
+            });
+          }
+        }
+
+        // Process teachers data
+        if (teachersData.length > 0) {
+          const processedTeachers = teachersData.map((teacher: any) => {
+            // Add Sir/Ma'am data
+            return {
+              ...teacher,
+              sir_maam: sirMaamMap.get(teacher.slug) || null
+            };
+          });
+
+          setFeaturedTeachers(processedTeachers);
+        }
+      } catch (error) {
+        console.error('Error fetching featured teachers:', error);
+      } finally {
+        setFeaturedLoading(false);
+      }
+    }
+
+    fetchFeaturedTeachers();
+  }, []);
+
   const handleSubjectChange = (value: string) => {
     setSelectedSubject(value);
     if (value && value !== 'all') {
@@ -548,6 +665,63 @@ export default function Browse() {
               Clear all filters
             </Button>
           </div>
+        )}
+
+        {/* Other Recommended Tuition Teachers Section - Only show if there are search results */}
+        {!loading && teachers.length > 0 && (
+          <section className="mt-16">
+            <div className="mb-6">
+              <h2 className="section-title">Other recommended tuition teachers</h2>
+            </div>
+
+            {featuredLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {[...Array(16)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="aspect-[4/5] bg-muted rounded-2xl" />
+                    <div className="mt-3 h-4 bg-muted rounded w-3/4" />
+                  </div>
+                ))}
+              </div>
+            ) : featuredTeachers.length > 0 ? (
+              <div className="relative">
+                <Carousel
+                  opts={{
+                    align: "start",
+                    loop: true,
+                    dragFree: true,
+                    containScroll: "trimSnaps",
+                    slidesToScroll: "auto",
+                    watchDrag: true,
+                  }}
+                  className="w-full"
+                >
+                  <CarouselContent className="-ml-2 md:-ml-4">
+                    {featuredTeachers.map((teacher) => (
+                      <CarouselItem 
+                        key={teacher.id} 
+                        className="pl-2 md:pl-4 basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/6"
+                      >
+                        <TeacherCard
+                          id={teacher.id}
+                          name={teacher.name}
+                          slug={teacher.slug}
+                          subject={teacher.subjects?.name || 'General'}
+                          subjectSlug={teacher.subjects?.slug}
+                          imageUrl={teacher.image_url}
+                          isFeatured={true}
+                          sirMaam={teacher.sir_maam}
+                          isLiked={isLiked(teacher.id)}
+                        />
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="left-0 md:left-4" />
+                  <CarouselNext className="right-0 md:right-4" />
+                </Carousel>
+              </div>
+            ) : null}
+          </section>
         )}
       </main>
 
