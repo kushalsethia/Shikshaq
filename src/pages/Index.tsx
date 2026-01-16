@@ -19,6 +19,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
+import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache';
 
 
 interface Teacher {
