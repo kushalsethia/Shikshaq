@@ -39,6 +39,30 @@ Additional Information:
 - Platform is free to use for students and parents
 - Based in Kolkata, India`;
 
+// Quick responses for common questions (instant, no API call needed)
+const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
+  {
+    keywords: ['free', 'cost', 'price', 'charge', 'fee', 'payment', 'money'],
+    response: 'Yes! ShikshAq is completely free for students and parents. There are no platform fees, commissions, or hidden charges. You only pay the tuition fees directly to the teacher.',
+  },
+  {
+    keywords: ['what is', 'about', 'tell me'],
+    response: 'ShikshAq is a platform that connects students and parents with verified tuition teachers across Kolkata. You can search for teachers by subject, class, or location, and contact them directly via WhatsApp. No middlemen, no hassle!',
+  },
+  {
+    keywords: ['how', 'work', 'does it work'],
+    response: 'Simply search for teachers by subject, grade, or locality. Browse through detailed profiles, read reviews, and when you find someone you like, reach out to them directly via WhatsApp. No middlemen, no hassle.',
+  },
+  {
+    keywords: ['safe', 'verified', 'trust', 'genuine'],
+    response: 'Yes! All tutors on our platform go through a verification process. We verify their identity, qualifications, and teaching experience to ensure you connect with genuine educators.',
+  },
+  {
+    keywords: ['contact', 'help', 'support', 'reach', 'email', 'whatsapp'],
+    response: 'You can reach us via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. Our team is always ready to help you with any questions or concerns you might have.',
+  },
+];
+
 const SYSTEM_PROMPT = `You are a friendly and helpful AI assistant for ShikshAq, a tutoring platform that connects students with verified tuition teachers in Kolkata, India.
 
 Your role:
@@ -80,18 +104,46 @@ export function Chatbot() {
     }
   }, [isOpen]);
 
+  const getQuickResponse = (message: string): string | null => {
+    const lowerMessage = message.toLowerCase();
+    
+    // Check if message matches any quick response keywords
+    for (const quickResponse of QUICK_RESPONSES) {
+      const matchesKeyword = quickResponse.keywords.some(keyword => 
+        lowerMessage.includes(keyword.toLowerCase())
+      );
+      
+      if (matchesKeyword) {
+        return quickResponse.response;
+      }
+    }
+    
+    return null;
+  };
+
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
     const userMessage = input.trim();
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    
+    // Check for quick response first (instant, no API call)
+    const quickResponse = getQuickResponse(userMessage);
+    if (quickResponse) {
+      // Small delay to make it feel natural
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setMessages((prev) => [...prev, { role: 'assistant', content: quickResponse }]);
+      return;
+    }
+
+    // If no quick response, use API
     setLoading(true);
 
     try {
-      // Add timeout to prevent infinite loading
+      // Reduced timeout to 15 seconds
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -129,12 +181,14 @@ export function Chatbot() {
     } catch (error: any) {
       console.error('Chat error:', error);
       
-      let errorMessage = "Sorry, I'm having trouble right now.";
+      let errorMessage = "Sorry, I'm having trouble right now. ";
       
       if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-        errorMessage = "The request is taking too long. Please try again or contact us directly via WhatsApp (+91 8240980312).";
+        errorMessage = "The request is taking too long. For quick answers, try asking 'Is ShikshAq free?' or 'How do I contact you?'. You can also reach us directly via WhatsApp (+91 8240980312).";
       } else if (error.message?.includes('API key')) {
         errorMessage = "The chatbot is temporarily unavailable. Please contact us directly via WhatsApp (+91 8240980312) or email (join.shikshaq@gmail.com).";
+      } else {
+        errorMessage += "Please contact us directly via WhatsApp (+91 8240980312) or email (join.shikshaq@gmail.com) for assistance.";
       }
 
       setMessages((prev) => [
