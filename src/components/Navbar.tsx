@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, Instagram, MessageCircle, HelpCircle as HelpCircleIcon, ExternalLink } from 'lucide-react';
+import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, Instagram, MessageCircle, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -229,7 +229,7 @@ export function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="nav-link hover:bg-muted"
               >
-                <HelpCircleIcon className="w-4 h-4" />
+                <HelpCircle className="w-4 h-4" />
                 FAQ
               </Link>
               <a
