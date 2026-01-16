@@ -796,7 +796,21 @@ export default function Browse() {
 
         {/* Teachers List */}
         {loading ? (
-          hasFilters ? (
+          // Check if this is initial page load (no teachers loaded yet)
+          displayedTeachers.length === 0 && allTeachersData.length === 0 ? (
+            // Show loading screen for initial page load
+            <div className="flex flex-col items-center justify-center py-24 md:py-32 min-h-[60vh]">
+              <div className="text-center space-y-6">
+                <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mb-6"></div>
+                <h2 className="text-3xl md:text-4xl font-serif text-foreground">
+                  Finding your favourite teachers
+                </h2>
+                <p className="text-muted-foreground text-lg">
+                  Please wait while we load the best tutors for you...
+                </p>
+              </div>
+            </div>
+          ) : hasFilters ? (
             // Show search message when filters are active
             <div className="flex flex-col items-center justify-center py-16 md:py-24">
               <div className="text-center space-y-4">
@@ -810,7 +824,7 @@ export default function Browse() {
               </div>
             </div>
           ) : (
-            // Show skeleton loaders for initial load
+            // Show skeleton loaders when loading more (has some teachers already)
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="animate-pulse flex gap-4 bg-card rounded-2xl p-4 border border-border">
