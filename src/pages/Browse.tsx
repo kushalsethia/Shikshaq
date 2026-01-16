@@ -143,9 +143,9 @@ export default function Browse() {
           filters.boards.length > 0 || filters.classSize.length > 0 ||
           filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-        // Initial load: show only 45 teachers for better performance
-        // If "View more" is clicked, fetch all (up to 200)
-        const limit = showAllTeachers ? 200 : 45;
+        // Always fetch up to 200 teachers, but display only 45 initially
+        // This way we don't need to re-fetch when "View more" is clicked
+        const limit = 200;
         
         let query = supabase
           .from('teachers_list')
