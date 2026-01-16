@@ -13,6 +13,7 @@ import Browse from "./pages/Browse";
 import Auth from "./pages/Auth";
 import TeacherProfile from "./pages/TeacherProfile";
 import Help from "./pages/Help";
+import FAQ from "./pages/FAQ";
 import Join from "./pages/Join";
 import RecommendTeacher from "./pages/RecommendTeacher";
 import AdminRecommendations from "./pages/AdminRecommendations";
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/teacher/:slug" element={<TeacherProfile />} />
               <Route path="/liked-teachers" element={<LikedTeachers />} />
               <Route path="/help" element={<Help />} />
+              <Route path="/faq" element={<FAQ />} />
               <Route path="/join" element={<Join />} />
               <Route path="/recommend-teacher" element={<RecommendTeacher />} />
               <Route path="/admin" element={<Navigate to="/admin/recommendations" replace />} />
