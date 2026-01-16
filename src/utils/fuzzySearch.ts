@@ -20,19 +20,29 @@ const STOP_WORDS = new Set([
 ]);
 
 /**
- * Normalize search terms (e.g., "grade" -> "class")
+ * Normalize search terms (e.g., "grade" -> "class", "mathematics" -> "maths")
  */
 function normalizeSearchTerm(term: string): string {
-  const lower = term.toLowerCase().trim();
+  let lower = term.toLowerCase().trim();
   
   // Map "grade" to "class" for class searches
   if (lower === 'grade' || lower.startsWith('grade ')) {
-    return lower.replace(/^grade\s*/, 'class ');
+    lower = lower.replace(/^grade\s*/, 'class ');
   }
   
   // Map "std" to "class"
   if (lower === 'std' || lower.startsWith('std ')) {
-    return lower.replace(/^std\s*/, 'class ');
+    lower = lower.replace(/^std\s*/, 'class ');
+  }
+  
+  // Map "standard" to "class"
+  if (lower === 'standard' || lower.startsWith('standard ')) {
+    lower = lower.replace(/^standard\s*/i, 'class ');
+  }
+  
+  // Map "mathematics" to "maths"
+  if (lower === 'mathematics' || lower.includes('mathematics')) {
+    lower = lower.replace(/mathematics/gi, 'maths');
   }
   
   return lower;
