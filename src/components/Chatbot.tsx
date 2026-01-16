@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { HelpCircle, X, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getWhatsAppLink } from '@/utils/whatsapp';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -59,7 +60,7 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
   {
     keywords: ['contact', 'help', 'support', 'reach', 'email', 'whatsapp'],
-    response: 'You can reach us via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. Our team is always ready to help you with any questions or concerns you might have.',
+    response: `You can reach us via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. Our team is always ready to help you with any questions or concerns you might have.\n\n<a href="${getWhatsAppLink('8240980312')}" target="_blank" rel="noopener noreferrer" class="text-primary underline font-medium">Contact us on WhatsApp →</a>`,
   },
 ];
 
@@ -221,9 +222,9 @@ export function Chatbot() {
         <HelpCircle className="w-6 h-6" />
       </button>
 
-      {/* Chat Window - Uses part of screen, not full screen */}
+      {/* Chat Window - Uses part of screen, smaller on mobile */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-[calc(100vw-3rem)] md:w-[28rem] h-[calc(100vh-8rem)] max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col transition-all duration-300">
+        <div className="fixed bottom-24 right-3 md:right-6 w-[calc(100vw-1.5rem)] md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col transition-all duration-300">
           {/* Header - Mobile: Larger, Desktop: Compact */}
           <div className="flex items-center justify-between p-3 md:p-4 border-b border-border flex-shrink-0">
             <div className="flex items-center gap-2 md:gap-3">
@@ -258,7 +259,31 @@ export function Chatbot() {
                       : 'bg-muted text-foreground'
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                  <div 
+                    className="text-sm whitespace-pre-wrap break-words [&_a]:text-primary [&_a]:underline [&_a]:font-medium [&_a]:hover:text-primary/80"
+                    dangerouslySetInnerHTML={{ 
+                      __html: (() => {
+                        let content = message.content;
+                        
+                        // Convert WhatsApp links (https://wa.me/...) to clickable links
+                        content = content.replace(
+                          /(https:\/\/wa\.me\/[\d]+)/g, 
+                          '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+                        );
+                        
+                        // If contact info is mentioned but no link present, add a WhatsApp link
+                        if ((content.includes('8240980312') || content.includes('WhatsApp') || content.includes('contact')) && !content.includes('wa.me')) {
+                          const whatsappLink = getWhatsAppLink('8240980312');
+                          content += `\n\n<a href="${whatsappLink}" target="_blank" rel="noopener noreferrer">Contact us on WhatsApp →</a>`;
+                        }
+                        
+                        // Convert line breaks to <br> for proper rendering
+                        content = content.replace(/\n/g, '<br>');
+                        
+                        return content;
+                      })()
+                    }} 
+                  />
                 </div>
               </div>
             ))}

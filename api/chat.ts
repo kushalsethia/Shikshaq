@@ -53,7 +53,11 @@ Q: What if I can't find a tutor? A: Contact us via WhatsApp and we'll help find 
 
 WHEN YOU DON'T KNOW:
 If you don't know the answer or it's outside ShikshAq context, respond with:
-"I'm not sure about that, but you can contact us directly via WhatsApp: https://wa.me/918240980312"`;
+"I'm not sure about that, but you can contact us directly via WhatsApp: https://wa.me/918240980312"
+
+CONTACT RESPONSES:
+When users ask to contact ShikshAq or want help, always include the WhatsApp link:
+"You can reach us via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. Contact us on WhatsApp: https://wa.me/918240980312"`;
 
     // Build conversation history for context (last 5 messages to keep it fast)
     // Convert history from frontend format to simple text
