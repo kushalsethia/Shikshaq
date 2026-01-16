@@ -73,8 +73,9 @@ export default function Browse() {
   });
   const [featuredTeachers, setFeaturedTeachers] = useState<FeaturedTeacher[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
-  const [showAllTeachers, setShowAllTeachers] = useState(false);
+  const [displayedTeachers, setDisplayedTeachers] = useState<Teacher[]>([]);
   const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
+  const [hasMore, setHasMore] = useState(true);
   const { isLiked } = useLikes();
 
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
@@ -128,8 +129,10 @@ export default function Browse() {
         return;
       }
       
-      // Reset "View more" when filters/search change
-      setShowAllTeachers(false);
+      // Reset infinite scroll when filters/search change
+      setDisplayedTeachers([]);
+      setAllTeachersData([]);
+      setHasMore(true);
       setLoading(true);
       try {
         // First, get teachers from teachers_list with a reasonable limit
@@ -143,8 +146,7 @@ export default function Browse() {
           filters.boards.length > 0 || filters.classSize.length > 0 ||
           filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-        // Always fetch up to 200 teachers, but display only 45 initially
-        // This way we don't need to re-fetch when "View more" is clicked
+        // Fetch all teachers (up to 200) for infinite scroll
         const limit = 200;
         
         let query = supabase
@@ -411,8 +413,11 @@ export default function Browse() {
         console.log('Fetched and filtered teachers:', enrichedTeachers.length);
         // Store all teachers
         setAllTeachersData(enrichedTeachers);
-        // Show only first 45 initially, or all if "View more" was clicked
-        setTeachers(showAllTeachers ? enrichedTeachers : enrichedTeachers.slice(0, 45));
+        // Show first 20 teachers initially for infinite scroll
+        const initialDisplay = 20;
+        setDisplayedTeachers(enrichedTeachers.slice(0, initialDisplay));
+        setTeachers(enrichedTeachers); // Keep for count display
+        setHasMore(enrichedTeachers.length > initialDisplay);
       } catch (error) {
         console.error('Error fetching teachers:', error);
       } finally {
@@ -421,7 +426,7 @@ export default function Browse() {
     }
 
     fetchTeachers();
-  }, [searchParams, filters, subjects, showAllTeachers]);
+  }, [searchParams, filters, subjects]);
 
   // Fetch featured teachers for "Other recommended" section - only when needed
   useEffect(() => {
@@ -550,13 +555,48 @@ export default function Browse() {
       modeOfTeaching: [],
     });
     setSearchParams({});
-    setShowAllTeachers(false); // Reset view more when clearing filters
+    setDisplayedTeachers([]);
+    setHasMore(true);
   };
 
   const hasFilters = searchParams.get('subject') || searchParams.get('class') || searchParams.get('q') ||
     filters.subjects.length > 0 || filters.classes.length > 0 ||
     filters.boards.length > 0 || filters.classSize.length > 0 ||
     filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
+
+  // Infinite scroll handler
+  useEffect(() => {
+    if (!hasMore || loading || allTeachersData.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          // Load next batch of 20 teachers
+          const currentCount = displayedTeachers.length;
+          const nextBatch = allTeachersData.slice(currentCount, currentCount + 20);
+          
+          if (nextBatch.length > 0) {
+            setDisplayedTeachers((prev) => [...prev, ...nextBatch]);
+            setHasMore(currentCount + 20 < allTeachersData.length);
+          } else {
+            setHasMore(false);
+          }
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const trigger = document.getElementById('scroll-trigger');
+    if (trigger) {
+      observer.observe(trigger);
+    }
+
+    return () => {
+      if (trigger) {
+        observer.unobserve(trigger);
+      }
+    };
+  }, [hasMore, loading, allTeachersData, displayedTeachers.length]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -638,7 +678,7 @@ export default function Browse() {
             }
           </h1>
           <p className="text-muted-foreground mt-1">
-            {loading ? 'Loading...' : `${allTeachersData.length > 0 ? allTeachersData.length : teachers.length} teachers found${!showAllTeachers && allTeachersData.length > 45 ? ` (showing ${teachers.length})` : ''}`}
+            {loading ? 'Loading...' : `${teachers.length} teachers found`}
           </p>
         </div>
 
@@ -656,9 +696,9 @@ export default function Browse() {
               </div>
             ))}
           </div>
-        ) : teachers.length > 0 ? (
+        ) : displayedTeachers.length > 0 ? (
           <div className="space-y-4">
-            {teachers.map((teacher) => (
+            {displayedTeachers.map((teacher) => (
               <TeacherCardDetailed
                 key={teacher.id}
                 id={teacher.id}
@@ -672,18 +712,15 @@ export default function Browse() {
               />
             ))}
             
-            {/* View More Button - Show if there are more than 45 teachers and not all are shown */}
-            {!showAllTeachers && allTeachersData.length > 45 && (
-              <div className="flex justify-center mt-8">
-                <Button 
-                  onClick={() => setShowAllTeachers(true)}
-                  variant="outline"
-                  size="lg"
-                  className="gap-2"
-                >
-                  View more teachers ({allTeachersData.length - 45} more)
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
+            {/* Infinite scroll loading indicator */}
+            {hasMore && (
+              <div 
+                id="scroll-trigger" 
+                className="h-20 flex items-center justify-center"
+              >
+                <div className="animate-pulse text-muted-foreground">
+                  Loading more teachers...
+                </div>
               </div>
             )}
           </div>
