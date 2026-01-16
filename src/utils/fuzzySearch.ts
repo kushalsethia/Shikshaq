@@ -134,6 +134,45 @@ export function createAreaFuseInstance<T extends SearchableRecord>(records: T[])
 }
 
 /**
+ * Categorize words into subjects, areas, classes, and names for better matching
+ */
+function categorizeWords(words: string[]) {
+  const classes: string[] = [];
+  const subjects: string[] = [];
+  const areas: string[] = [];
+  const names: string[] = [];
+  
+  words.forEach(word => {
+    const lower = word.toLowerCase();
+    // Check if it's a class number
+    if (/^\d+$/.test(word) || lower.includes('class') || lower.includes('grade') || 
+        lower.includes('std') || lower.includes('standard')) {
+      classes.push(word);
+    }
+    // Check if it's likely an area
+    else if (lower.includes('lake') || lower.includes('town') || lower.includes('street') ||
+             lower.includes('road') || lower.includes('avenue') || lower.includes('park') ||
+             lower.includes('howrah') || lower.includes('behala') || lower.includes('salt') ||
+             lower.includes('new') || lower.includes('old') || word.length > 5) {
+      areas.push(word);
+    }
+    // Check if it's likely a subject (common subject names)
+    else if (lower.includes('math') || lower.includes('physics') || lower.includes('chemistry') ||
+             lower.includes('biology') || lower.includes('english') || lower.includes('hindi') ||
+             lower.includes('history') || lower.includes('geography') || lower.includes('economics') ||
+             lower.includes('accounts') || lower.includes('commerce') || word.length > 4) {
+      subjects.push(word);
+    }
+    // Otherwise, treat as potential name
+    else {
+      names.push(word);
+    }
+  });
+  
+  return { classes, subjects, areas, names };
+}
+
+/**
  * Check if a record matches all words in a query (AND search)
  * Also checks for normalized terms (e.g., "grade" matches "class")
  */
@@ -196,44 +235,6 @@ export function fuzzySearch<T extends SearchableRecord>(
   if (isMultiWord) {
     const exactMatches: T[] = [];
     const fuzzyMatches: T[] = [];
-
-    // Categorize words for better matching
-    const categorizeWords = (words: string[]) => {
-      const classes: string[] = [];
-      const subjects: string[] = [];
-      const areas: string[] = [];
-      const names: string[] = [];
-      
-      words.forEach(word => {
-        const lower = word.toLowerCase();
-        // Check if it's a class number
-        if (/^\d+$/.test(word) || lower.includes('class') || lower.includes('grade') || 
-            lower.includes('std') || lower.includes('standard')) {
-          classes.push(word);
-        }
-        // Check if it's likely an area
-        else if (lower.includes('lake') || lower.includes('town') || lower.includes('street') ||
-                 lower.includes('road') || lower.includes('avenue') || lower.includes('park') ||
-                 lower.includes('howrah') || lower.includes('behala') || lower.includes('salt') ||
-                 lower.includes('new') || lower.includes('old') || word.length > 5) {
-          areas.push(word);
-        }
-        // Check if it's likely a subject (common subject names)
-        else if (lower.includes('math') || lower.includes('physics') || lower.includes('chemistry') ||
-                 lower.includes('biology') || lower.includes('english') || lower.includes('hindi') ||
-                 lower.includes('history') || lower.includes('geography') || lower.includes('economics') ||
-                 lower.includes('accounts') || lower.includes('commerce') || word.length > 4) {
-          subjects.push(word);
-        }
-        // Otherwise, treat as potential name
-        else {
-          names.push(word);
-        }
-      });
-      
-      return { classes, subjects, areas, names };
-    };
-
     const categorized = categorizeWords(words);
 
     // First, find exact matches where ALL words match
@@ -376,7 +377,6 @@ export function fuzzySearch<T extends SearchableRecord>(
     }
 
     // If no exact matches, use fuzzy search with AND logic and optimized relevance
-    const categorized = categorizeWords(words);
     const wordMatches: Map<string, Set<T>> = new Map();
     
     // Search in priority order: subjects > areas > classes > names
