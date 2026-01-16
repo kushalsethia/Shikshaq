@@ -91,69 +91,73 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
 
   return (
     <Link to={`/teacher/${slug}`} className="teacher-card group">
-      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center">
-            <span className="text-4xl font-serif text-muted-foreground">
-              {name.charAt(0)}
+      <div className="relative aspect-[4/5] overflow-visible rounded-2xl">
+        {/* Photo with padding/offset */}
+        <div className="relative w-full h-full p-2 md:p-3">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={name}
+              className="w-full h-full object-cover rounded-xl transition-transform duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-xl">
+              <span className="text-4xl font-serif text-muted-foreground">
+                {name.charAt(0)}
+              </span>
+            </div>
+          )}
+          
+          {/* Subject Badge - More subtle and closer to top-left edge */}
+          <div className="absolute top-1 left-1 md:top-2 md:left-2">
+            <span className={`subject-badge ${badgeColor} text-xs opacity-75 backdrop-blur-sm bg-background/60`}>
+              {subject}
             </span>
           </div>
-        )}
-        
-        {/* Subject Badge */}
-        <div className="absolute top-3 left-3">
-          <span className={`subject-badge ${badgeColor}`}>
-            {subject}
-          </span>
-        </div>
 
-        {/* Heart Icon (Favourite) */}
-        <button
-          onClick={handleHeartClick}
-          className="absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
-          aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
-        >
-          <Heart
-            className={`w-5 h-5 transition-colors ${
-              liked
-                ? 'fill-red-500 text-red-500'
-                : 'text-foreground/70 hover:text-red-500'
-            }`}
-          />
-        </button>
-
-        {/* Upvote Button - Only show if not featured */}
-        {!isFeatured && (
+          {/* Heart Icon (Favourite) */}
           <button
-            onClick={handleUpvoteClick}
-            className="absolute bottom-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10 flex items-center gap-1"
-            aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
+            onClick={handleHeartClick}
+            className="absolute top-1 right-1 md:top-2 md:right-2 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
+            aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
           >
-            <ThumbsUp
-              className={`w-4 h-4 transition-colors ${
-                upvoted
-                  ? 'fill-blue-500 text-blue-500'
-                  : 'text-foreground/70 hover:text-blue-500'
+            <Heart
+              className={`w-5 h-5 transition-colors ${
+                liked
+                  ? 'fill-red-500 text-red-500'
+                  : 'text-foreground/70 hover:text-red-500'
               }`}
             />
-            {upvoteCount > 0 && (
-              <span className={`text-xs font-medium ${
-                upvoted ? 'text-blue-500' : 'text-foreground/70'
-              }`}>
-                {upvoteCount}
-              </span>
-            )}
           </button>
-        )}
+
+          {/* Upvote Button - Only show if not featured */}
+          {!isFeatured && (
+            <button
+              onClick={handleUpvoteClick}
+              className="absolute bottom-1 right-1 md:bottom-2 md:right-2 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10 flex items-center gap-1"
+              aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
+            >
+              <ThumbsUp
+                className={`w-4 h-4 transition-colors ${
+                  upvoted
+                    ? 'fill-blue-500 text-blue-500'
+                    : 'text-foreground/70 hover:text-blue-500'
+                }`}
+              />
+              {upvoteCount > 0 && (
+                <span className={`text-xs font-medium ${
+                  upvoted ? 'text-blue-500' : 'text-foreground/70'
+                }`}>
+                  {upvoteCount}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
       </div>
       
-      <div className="p-3">
+      {/* Name aligned with photo padding */}
+      <div className="px-2 md:px-3 pt-2">
         <h3 className="font-medium text-foreground group-hover:text-foreground/80 transition-colors">
           {displayName}
         </h3>
