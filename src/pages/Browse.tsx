@@ -375,14 +375,28 @@ export default function Browse() {
             );
           }
           
+          // Pre-compute lowercase filter values once (outside loop for performance)
+          const subjectFiltersLower = effectiveSubjectFilters.map(s => s.toLowerCase());
+          const classFiltersLower = effectiveClassFilters.map(c => c.toLowerCase());
+          const boardFiltersLower = filters.boards.map(b => b.toLowerCase());
+          const classSizeFiltersLower = filters.classSize.map(s => s.toLowerCase());
+          const areaFiltersLower = filters.areas.map(a => a.toLowerCase());
+          const modeFiltersLower = filters.modeOfTeaching.map(m => m.toLowerCase());
+          
           const matchingSlugs = recordsToFilter
             .filter((record: any) => {
+              // Pre-compute lowercase values for this record once (inside loop but before checks)
+              const subjects = (record.Subjects || '').toLowerCase();
+              const classesBackend = (record["Classes Taught for Backend"] || '').toLowerCase();
+              const classesDisplay = (record["Classes Taught"] || '').toLowerCase();
+              const boards = (record["School Boards Catered"] || '').toLowerCase();
+              const classSize = (record["Class Size (Group/ Solo)"] || '').toLowerCase();
+              const areaData = (record.Area || record["AREAS FOR FILTERING"] || '').toLowerCase();
+              const mode = (record["Mode of Teaching"] || '').toLowerCase();
 
               // Check subjects (includes both dropdown and advanced filter selections)
               if (effectiveSubjectFilters.length > 0) {
-                const subjects = (record.Subjects || '').toLowerCase();
-                const hasSubject = effectiveSubjectFilters.some(subj => {
-                  const subjLower = subj.toLowerCase();
+                const hasSubject = subjectFiltersLower.some(subjLower => {
                   // Handle "Accountancy" matching "Accounts" in database for backward compatibility
                   if (subjLower === 'accountancy') {
                     return subjects.includes('accountancy') || subjects.includes('accounts');
