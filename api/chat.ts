@@ -67,9 +67,13 @@ Q: What if I can't find a tutor? A: Contact us and we'll help find a match.`;
       });
     }
 
-    // Use gemini-pro only (available on free tier)
-    // Note: gemini-2.0-flash is NOT available on free tier (quota limit: 0)
-    const modelsToTry = ['gemini-pro'];
+    // Try models in order - some may be available on free tier
+    // Note: Model availability varies by API key and free tier status
+    const modelsToTry = [
+      'gemini-1.5-flash-latest',  // Latest flash model
+      'gemini-1.5-pro-latest',    // Latest pro model
+      'gemini-pro',                // Standard pro model
+    ];
     let lastError: Error | null = null;
     let result: { response: { text: () => string } } | null = null;
 
@@ -113,6 +117,13 @@ Q: What if I can't find a tutor? A: Contact us and we'll help find a match.`;
         name: error.name,
         stack: error.stack?.substring(0, 200),
       });
+      
+      // If all models failed with 404, suggest checking available models
+      if (error.message?.includes('404 Not Found') || error.message?.includes('is not found')) {
+        console.error('Note: None of the models are available. Check Google AI Studio to see which models your API key has access to.');
+        console.error('Common models: gemini-1.5-flash-latest, gemini-1.5-pro-latest, gemini-pro');
+      }
+      
       throw error;
     }
 
