@@ -89,6 +89,10 @@ export function Chatbot() {
     setLoading(true);
 
     try {
+      // Add timeout to prevent infinite loading
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -101,22 +105,43 @@ export function Chatbot() {
             parts: [{ text: m.content }],
           })),
         }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error('Failed to get response');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (!data.response) {
+        throw new Error('No response from server');
+      }
+
       setMessages((prev) => [...prev, { role: 'assistant', content: data.response }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
+      
+      let errorMessage = "Sorry, I'm having trouble right now.";
+      
+      if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+        errorMessage = "The request is taking too long. Please try again or contact us directly via WhatsApp (+91 8240980312).";
+      } else if (error.message?.includes('API key')) {
+        errorMessage = "The chatbot is temporarily unavailable. Please contact us directly via WhatsApp (+91 8240980312) or email (join.shikshaq@gmail.com).";
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content:
-            "Sorry, I'm having trouble right now. Please contact us directly via WhatsApp (+91 8240980312) or email (join.shikshaq@gmail.com) for assistance.",
+          content: errorMessage,
         },
       ]);
     } finally {
