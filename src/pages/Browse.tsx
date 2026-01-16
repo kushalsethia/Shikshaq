@@ -63,14 +63,27 @@ export default function Browse() {
   const [selectedSubject, setSelectedSubject] = useState(searchParams.get('subject') || '');
   const [selectedClass, setSelectedClass] = useState(searchParams.get('class') || '');
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterState>({
-    subjects: [],
-    classes: [],
-    boards: [],
-    classSize: [],
-    areas: [],
-    modeOfTeaching: [],
-  });
+  
+  // Helper function to parse array from URL params
+  const parseArrayParam = (param: string | null): string[] => {
+    if (!param) return [];
+    return param.split(',').filter(Boolean);
+  };
+
+  // Helper function to serialize array to URL param
+  const serializeArrayParam = (arr: string[]): string | null => {
+    return arr.length > 0 ? arr.join(',') : null;
+  };
+
+  // Initialize filters from URL params
+  const [filters, setFilters] = useState<FilterState>(() => ({
+    subjects: parseArrayParam(searchParams.get('filter_subjects')),
+    classes: parseArrayParam(searchParams.get('filter_classes')),
+    boards: parseArrayParam(searchParams.get('filter_boards')),
+    classSize: parseArrayParam(searchParams.get('filter_classSize')),
+    areas: parseArrayParam(searchParams.get('filter_areas')),
+    modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
+  }));
   const [featuredTeachers, setFeaturedTeachers] = useState<FeaturedTeacher[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [displayedTeachers, setDisplayedTeachers] = useState<Teacher[]>([]);
@@ -121,6 +134,73 @@ export default function Browse() {
     const subjectFromUrl = searchParams.get('subject') || '';
     setSelectedSubject(subjectFromUrl);
   }, [searchParams]);
+
+  // Sync filters from URL when URL changes (e.g., browser back/forward)
+  useEffect(() => {
+    setFilters({
+      subjects: parseArrayParam(searchParams.get('filter_subjects')),
+      classes: parseArrayParam(searchParams.get('filter_classes')),
+      boards: parseArrayParam(searchParams.get('filter_boards')),
+      classSize: parseArrayParam(searchParams.get('filter_classSize')),
+      areas: parseArrayParam(searchParams.get('filter_areas')),
+      modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
+    });
+  }, [searchParams]);
+
+  // Update URL when filters change
+  useEffect(() => {
+    const newParams = new URLSearchParams(searchParams);
+    
+    // Update filter params
+    const subjectsParam = serializeArrayParam(filters.subjects);
+    if (subjectsParam) {
+      newParams.set('filter_subjects', subjectsParam);
+    } else {
+      newParams.delete('filter_subjects');
+    }
+
+    const classesParam = serializeArrayParam(filters.classes);
+    if (classesParam) {
+      newParams.set('filter_classes', classesParam);
+    } else {
+      newParams.delete('filter_classes');
+    }
+
+    const boardsParam = serializeArrayParam(filters.boards);
+    if (boardsParam) {
+      newParams.set('filter_boards', boardsParam);
+    } else {
+      newParams.delete('filter_boards');
+    }
+
+    const classSizeParam = serializeArrayParam(filters.classSize);
+    if (classSizeParam) {
+      newParams.set('filter_classSize', classSizeParam);
+    } else {
+      newParams.delete('filter_classSize');
+    }
+
+    const areasParam = serializeArrayParam(filters.areas);
+    if (areasParam) {
+      newParams.set('filter_areas', areasParam);
+    } else {
+      newParams.delete('filter_areas');
+    }
+
+    const modeParam = serializeArrayParam(filters.modeOfTeaching);
+    if (modeParam) {
+      newParams.set('filter_modeOfTeaching', modeParam);
+    } else {
+      newParams.delete('filter_modeOfTeaching');
+    }
+
+    // Only update URL if params actually changed (avoid infinite loop)
+    const currentParams = searchParams.toString();
+    const newParamsStr = newParams.toString();
+    if (currentParams !== newParamsStr) {
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [filters, searchParams, setSearchParams]);
 
   useEffect(() => {
     async function fetchTeachers() {
