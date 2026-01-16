@@ -1,23 +1,18 @@
 // Vercel serverless function for Gemini AI chatbot
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export default async function handler(req: Request): Promise<Response> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default async function handler(req: any, res: any) {
   // Only allow POST requests
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { message, history } = await req.json();
+    const { message, history } = req.body;
 
     if (!message || typeof message !== 'string') {
-      return new Response(JSON.stringify({ error: 'Message is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return res.status(400).json({ error: 'Message is required' });
     }
 
     // Get API key from environment variable
@@ -25,112 +20,127 @@ export default async function handler(req: Request): Promise<Response> {
     
     if (!apiKey) {
       console.error('GEMINI_API_KEY not found in environment variables');
-      return new Response(JSON.stringify({ error: 'API key not configured' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return res.status(500).json({ error: 'API key not configured' });
     }
 
     // Initialize Gemini AI
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    // System prompt with FAQ context
-    const systemPrompt = `You are a friendly and helpful AI assistant for ShikshAq, a tutoring platform that connects students with verified tuition teachers in Kolkata, India.
+    // Optimized system prompt - concise and focused for faster responses
+    const systemPrompt = `You are ShikshAq's AI assistant. Answer questions about ShikshAq briefly and helpfully.
 
-Your role:
-- Answer questions about ShikshAq based on the provided FAQ context
-- Be concise, friendly, and helpful
-- If you don't know something or the question is outside the FAQ context, politely suggest contacting the team via WhatsApp (+91 8240980312) or email (join.shikshaq@gmail.com)
-- Keep responses brief (2-3 sentences maximum)
-- Use a conversational, warm tone
+KEY FACTS:
+- Free platform connecting students/parents with verified tutors in Kolkata
+- Search by subject, class, location, board, mode (online/offline), class size
+- Direct WhatsApp contact with teachers - no middlemen
+- Platform is FREE for users - only pay teachers directly
+- All tutors verified (identity, qualifications, experience)
+- Contact: WhatsApp +91 8240980312 or email join.shikshaq@gmail.com
 
-FAQ Context:
-ShikshAq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.
+RULES:
+- Keep answers brief (1-2 sentences, max 3)
+- Use friendly, warm tone
+- If unsure, suggest contacting the team
+- Only answer ShikshAq-related questions
 
-Common Questions and Answers:
+COMMON QUESTIONS:
+Q: Is ShikshAq free? A: Yes! Completely free for students/parents. No platform fees.
+Q: How does it work? A: Search teachers, browse profiles, contact via WhatsApp directly.
+Q: Are tutors verified? A: Yes! All tutors are verified for identity and qualifications.
+Q: What if I can't find a tutor? A: Contact us and we'll help find a match.`;
 
-1. What exactly is ShikshAq?
-ShikshAq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.
+    // Build conversation history for context (last 5 messages to keep it fast)
+    // Convert history from frontend format to simple text
+    const historyArray = Array.isArray(history) ? history : [];
+    const recentHistory = historyArray.slice(-5);
+    let conversationContext = '';
+    if (recentHistory.length > 0) {
+      conversationContext = '\n\nRecent conversation:\n';
+      recentHistory.forEach((msg: { role?: string; parts?: { text?: string }[]; content?: string }) => {
+        const role = msg.role === 'model' ? 'assistant' : msg.role || 'user';
+        const content = msg.parts?.[0]?.text || msg.content || '';
+        if (role === 'user') {
+          conversationContext += `User: ${content}\n`;
+        } else if (role === 'assistant' || role === 'model') {
+          conversationContext += `Assistant: ${content}\n`;
+        }
+      });
+    }
 
-2. How does it actually work?
-Simply search for teachers by subject, grade, or locality. Browse through detailed profiles, read reviews, and when you find someone you like, reach out to them directly via WhatsApp. No middlemen, no hassle.
+    // Use gemini-1.5-flash for fastest responses (optimized for speed)
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        maxOutputTokens: 150, // Limit response length for speed
+        temperature: 0.7, // Balanced creativity vs consistency
+      },
+    });
 
-3. Is this safe? Are the tutors actually verified?
-Yes! All tutors on our platform go through a verification process. We verify their identity, qualifications, and teaching experience to ensure you connect with genuine educators.
+    // Concise prompt for faster processing
+    const fullPrompt = `${systemPrompt}${conversationContext}\n\nUser: ${message}\n\nAssistant:`;
 
-4. What if I search and can't find the right tutor?
-If you can't find a suitable tutor, you can contact us and we'll help you find the right match. We're constantly adding new teachers to our platform.
-
-5. What if I connect with a tutor and it doesn't work out?
-That's okay! There's no commitment. You can always browse and connect with other tutors until you find the perfect fit for your learning needs.
-
-6. How much does this cost? What about payments?
-ShikshAq is completely free for students and parents! There are no commissions or hidden fees. You negotiate the tuition fees directly with the teacher.
-
-7. Is ShikshAq free to use?
-Yes! ShikshAq is completely free for students and parents. There are no platform fees, commissions, or hidden charges. The platform is free to use, and you only pay the tuition fees directly to the teacher.
-
-8. What if I need help? How do I reach your team?
-You can reach us via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. Our team is always ready to help you with any questions or concerns you might have.
-
-Additional Information:
-- Teachers can be searched by subject, class, location, board, mode of teaching, and class size
-- All teachers have detailed profiles with their qualifications, experience, and teaching areas
-- Direct communication via WhatsApp for each teacher
-- Platform is free to use for students and parents
-- Based in Kolkata, India
-
-Remember: Only answer questions related to ShikshAq. For other topics, politely redirect to contact the team.`;
-
-    // Prepare the full prompt with system instructions
-    const fullPrompt = `${systemPrompt}\n\nUser: ${message}\n\nAssistant:`;
-
-    // Try different models with fallback
-    const modelsToTry = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.5-pro'];
-    let lastError: Error | null = null;
-    let result: any = null;
-
-    for (const modelName of modelsToTry) {
-      try {
-        const model = genAI.getGenerativeModel({ model: modelName });
-        
-        // Generate response with timeout
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Request timeout')), 30000); // 30 second timeout
-        });
+    try {
+      // Reduced timeout to 10 seconds (flash model is fast)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 10000);
+      });
 
         const generatePromise = model.generateContent(fullPrompt);
-        result = await Promise.race([generatePromise, timeoutPromise]) as any;
-        break; // Success, exit loop
-      } catch (modelError: any) {
-        lastError = modelError;
-        console.warn(`Model ${modelName} failed, trying next...`, modelError.message);
-        // Continue to next model
+        const result = await Promise.race([generatePromise, timeoutPromise]) as { response: { text: () => string } };
+        
+      const response = result.response;
+      const text = response.text();
+
+      return res.status(200).json({ response: text });
+    } catch (apiError: unknown) {
+      // Log detailed error for debugging
+      const error = apiError as Error;
+      console.error('Gemini API error:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack?.substring(0, 200),
+      });
+
+      // If gemini-1.5-flash fails, try gemini-pro as fallback (slower but more reliable)
+      try {
+        console.log('Falling back to gemini-pro...');
+        const fallbackModel = genAI.getGenerativeModel({ 
+          model: 'gemini-pro',
+          generationConfig: {
+            maxOutputTokens: 150,
+            temperature: 0.7,
+          },
+        });
+        
+        const fallbackResult = await Promise.race([
+          fallbackModel.generateContent(fullPrompt),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Fallback timeout')), 15000))
+        ]) as { response: { text: () => string } };
+        
+        const fallbackText = fallbackResult.response.text();
+        return res.status(200).json({ response: fallbackText });
+      } catch (fallbackError: unknown) {
+        const fallbackErr = fallbackError as Error;
+        console.error('Fallback model also failed:', fallbackErr.message);
+        throw error; // Throw original error
       }
     }
-
-    if (!result) {
-      throw lastError || new Error('All models failed');
-    }
-
-    const response = result.response;
-    const text = response.text();
-
-    return new Response(JSON.stringify({ response: text }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
+  } catch (error: unknown) {
+    const err = error as Error & { status?: number };
+    console.error('Chat handler error:', {
+      message: err.message,
+      name: err.name,
+      status: err.status,
     });
-  } catch (error: any) {
-    console.error('Gemini API error:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Failed to generate response',
-        message: error.message || 'Unknown error',
-      }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+
+    // Return user-friendly error message
+    return res.status(500).json({
+      error: 'Failed to generate response',
+      message: err.message?.includes('API key') 
+        ? 'API key not configured' 
+        : err.message?.includes('timeout')
+        ? 'Request timeout - please try again'
+        : 'Unable to generate response',
+    });
   }
 }
