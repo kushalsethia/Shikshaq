@@ -56,8 +56,25 @@ export function createSubjectFuseInstance<T extends SearchableRecord>(records: T
 }
 
 /**
+ * Check if a record matches all words in a query (AND search)
+ */
+function matchesAllWords<T extends SearchableRecord>(record: T, words: string[]): boolean {
+  return words.every(word => {
+    const wordLower = word.toLowerCase();
+    return (
+      record.name?.toLowerCase().includes(wordLower) ||
+      record.subjects?.toLowerCase().includes(wordLower) ||
+      record.area?.toLowerCase().includes(wordLower) ||
+      record.classesBackend?.toLowerCase().includes(wordLower) ||
+      record.classesDisplay?.toLowerCase().includes(wordLower)
+    );
+  });
+}
+
+/**
  * Perform fuzzy search on records with exact match prioritization
- * Uses threshold 0.3 for name searches and 0.4 for subject searches
+ * Uses threshold 0.2 for name searches and 0.4 for subject searches
+ * For multi-word queries, performs AND search (all words must match)
  * Returns records that match the search query, prioritizing exact matches
  */
 export function fuzzySearch<T extends SearchableRecord>(
@@ -69,6 +86,120 @@ export function fuzzySearch<T extends SearchableRecord>(
   }
 
   const trimmedQuery = query.trim().toLowerCase();
+  const words = trimmedQuery.split(/\s+/).filter(word => word.length > 0);
+  const isMultiWord = words.length > 1;
+
+  // For multi-word queries, use AND logic
+  if (isMultiWord) {
+    const exactMatches: T[] = [];
+    const fuzzyMatches: T[] = [];
+
+    // First, find exact matches where ALL words match
+    records.forEach(record => {
+      if (matchesAllWords(record, words)) {
+        exactMatches.push(record);
+      }
+    });
+
+    // Sort exact matches by relevance (prioritize name matches, then subjects, then classes)
+    exactMatches.sort((a, b) => {
+      // Count how many words match in name
+      const aNameMatches = words.filter(word => 
+        a.name?.toLowerCase().includes(word.toLowerCase())
+      ).length;
+      const bNameMatches = words.filter(word => 
+        b.name?.toLowerCase().includes(word.toLowerCase())
+      ).length;
+      if (aNameMatches !== bNameMatches) return bNameMatches - aNameMatches;
+
+      // Count how many words match in subjects
+      const aSubjectMatches = words.filter(word => 
+        a.subjects?.toLowerCase().includes(word.toLowerCase())
+      ).length;
+      const bSubjectMatches = words.filter(word => 
+        b.subjects?.toLowerCase().includes(word.toLowerCase())
+      ).length;
+      if (aSubjectMatches !== bSubjectMatches) return bSubjectMatches - aSubjectMatches;
+
+      // Count how many words match in classes
+      const aClassMatches = words.filter(word => 
+        a.classesBackend?.toLowerCase().includes(word.toLowerCase()) ||
+        a.classesDisplay?.toLowerCase().includes(word.toLowerCase())
+      ).length;
+      const bClassMatches = words.filter(word => 
+        b.classesBackend?.toLowerCase().includes(word.toLowerCase()) ||
+        b.classesDisplay?.toLowerCase().includes(word.toLowerCase())
+      ).length;
+      if (aClassMatches !== bClassMatches) return bClassMatches - aClassMatches;
+
+      return 0;
+    });
+
+    // If we have exact matches, use them
+    if (exactMatches.length > 0) {
+      // For fuzzy matches, search each word individually and find intersection
+      if (exactMatches.length < 20) {
+        const exactSlugs = new Set(exactMatches.map((r: any) => r.Slug));
+        const remainingRecords = records.filter((r: any) => !exactSlugs.has(r.Slug));
+        
+        // Search for each word and find records that match all words
+        const wordMatches: Map<string, Set<T>> = new Map();
+        
+        words.forEach(word => {
+          const fuse = createNameFuseInstance(remainingRecords);
+          const results = fuse.search(word);
+          const matchedRecords = new Set(results.map(result => result.item));
+          wordMatches.set(word, matchedRecords);
+        });
+
+        // Find intersection: records that appear in all word match sets
+        if (wordMatches.size > 0) {
+          const allMatchedRecords = Array.from(wordMatches.values())[0];
+          for (const record of allMatchedRecords) {
+            const matchesAll = Array.from(wordMatches.values()).every(matchSet => 
+              matchSet.has(record)
+            );
+            if (matchesAll) {
+              fuzzyMatches.push(record);
+            }
+          }
+        }
+      }
+      
+      return [...exactMatches, ...fuzzyMatches];
+    }
+
+    // If no exact matches, use fuzzy search with AND logic
+    const wordMatches: Map<string, Set<T>> = new Map();
+    
+    words.forEach(word => {
+      const fuse = createNameFuseInstance(records);
+      const results = fuse.search(word);
+      const matchedRecords = new Set(results.map(result => result.item));
+      wordMatches.set(word, matchedRecords);
+    });
+
+    // Find intersection: records that appear in all word match sets
+    if (wordMatches.size > 0) {
+      const allMatchedRecords = Array.from(wordMatches.values())[0];
+      const finalMatches: T[] = [];
+      
+      for (const record of allMatchedRecords) {
+        const matchesAll = Array.from(wordMatches.values()).every(matchSet => 
+          matchSet.has(record)
+        );
+        if (matchesAll) {
+          finalMatches.push(record);
+        }
+      }
+      
+      return finalMatches;
+    }
+
+    return [];
+  }
+
+  // Single word search - use existing logic
   const exactMatches: T[] = [];
   const fuzzyMatches: T[] = [];
 
