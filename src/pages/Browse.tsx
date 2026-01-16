@@ -94,6 +94,8 @@ export default function Browse() {
   
   // Ref to track if we're updating URL ourselves (to prevent circular updates)
   const isUpdatingUrlRef = useRef(false);
+  // Ref to track loading timeout
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -261,7 +263,18 @@ export default function Browse() {
       setDisplayedTeachers([]);
       setAllTeachersData([]);
       setHasMore(true);
-      setLoading(true);
+      
+      // Clear any existing loading timeout
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      
+      // Use a delay before showing loading state to prevent flickering on fast filters
+      // Only show loading if filtering takes more than 150ms (fast filters won't show loading screen)
+      loadingTimeoutRef.current = setTimeout(() => {
+        setLoading(true);
+      }, 150);
+      
       try {
         // First, get teachers from teachers_list with a reasonable limit
         const searchQuery = searchParams.get('q');
@@ -302,12 +315,18 @@ export default function Browse() {
           
           if (error) {
             console.error('Error fetching teachers:', error);
+            if (loadingTimeoutRef.current) {
+              clearTimeout(loadingTimeoutRef.current);
+            }
             setLoading(false);
             return;
           }
 
           if (!data) {
             setTeachers([]);
+            if (loadingTimeoutRef.current) {
+              clearTimeout(loadingTimeoutRef.current);
+            }
             setLoading(false);
             return;
           }
@@ -599,11 +618,24 @@ export default function Browse() {
       } catch (error) {
         console.error('Error fetching teachers:', error);
       } finally {
+        // Clear loading timeout and set loading to false
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
         setLoading(false);
       }
     }
 
     fetchTeachers();
+    
+    // Cleanup timeout on unmount or when dependencies change
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    };
   }, [searchParams, subjects]); // Remove filters from deps - filters are already in searchParams
 
   // Fetch featured teachers for "Other recommended" section - only when needed
