@@ -149,16 +149,13 @@ export default function Browse() {
         // Fetch all teachers (up to 200) for infinite scroll
         const limit = 200;
         
-        let query = supabase
+        // Fetch teachers first
+        const { data: teachersData, error } = await supabase
           .from('teachers_list')
           .select('id, name, slug, image_url, bio, location, subjects(name, slug)')
           .order('is_featured', { ascending: false })
           .order('name')
           .limit(limit);
-
-        // Don't filter by subject at database level - we'll filter using Shikshaqmine data
-        // This allows matching all subjects a teacher teaches, not just the featured one
-        const { data: teachersData, error } = await query;
         
         if (error) {
           console.error('Error fetching teachers:', error);
@@ -166,8 +163,10 @@ export default function Browse() {
           return;
         }
 
-        if (!teachersData) {
+        if (!teachersData || teachersData.length === 0) {
           setTeachers([]);
+          setAllTeachersData([]);
+          setDisplayedTeachers([]);
           setLoading(false);
           return;
         }
@@ -176,14 +175,14 @@ export default function Browse() {
         let allShikshaqData = null;
         if (teachersData && teachersData.length > 0 && (searchQuery || hasFiltersOrSearch)) {
           const teacherSlugs = teachersData.map(t => t.slug);
-          // Split into chunks if too many slugs to avoid query size limits
-          const chunkSize = 100;
+          // Use smaller chunks (30 instead of 100) for faster parallel fetching and better responsiveness
+          const chunkSize = 30;
           const chunks = [];
           for (let i = 0; i < teacherSlugs.length; i += chunkSize) {
             chunks.push(teacherSlugs.slice(i, i + chunkSize));
           }
           
-          // Fetch data in parallel chunks - only fetch needed columns
+          // Fetch all chunks in parallel for maximum speed
           const shikshaqPromises = chunks.map(chunk =>
             supabase
               .from('Shikshaqmine')
@@ -241,9 +240,12 @@ export default function Browse() {
           
           // Apply fuzzy search if we have a search query
           if (searchQuery && searchQuery.trim().length >= 2) {
-            // Prepare records for fuzzy search
+            // Create a map for faster teacher lookup
+            const teacherMap = new Map(teachersData.map(t => [t.slug, t]));
+            
+            // Prepare records for fuzzy search (optimized with map lookup)
             const searchableRecords = allShikshaqData.map((record: any) => {
-              const teacher = teachersData.find(t => t.slug === record.Slug);
+              const teacher = teacherMap.get(record.Slug);
               return prepareRecordForSearch(record, teacher?.name);
             });
             
@@ -259,45 +261,46 @@ export default function Browse() {
             );
           }
           
+          // Optimize filtering with early returns and pre-computed lowercase values
+          // Pre-compute lowercase filter values once (outside the filter loop for performance)
+          const subjectFiltersLower = effectiveSubjectFilters.map(s => s.toLowerCase());
+          const classFiltersLower = effectiveClassFilters.map(c => c.toLowerCase());
+          const boardFiltersLower = filters.boards.map(b => b.toLowerCase());
+          const classSizeFiltersLower = filters.classSize.map(s => s.toLowerCase());
+          const areaFiltersLower = filters.areas.map(a => a.toLowerCase());
+          const modeFiltersLower = filters.modeOfTeaching.map(m => m.toLowerCase());
+          
           const matchingSlugs = recordsToFilter
             .filter((record: any) => {
+              // Pre-compute lowercase values for this record once
+              const subjects = (record.Subjects || '').toLowerCase();
+              const classesBackend = (record["Classes Taught for Backend"] || '').toLowerCase();
+              const classesDisplay = (record["Classes Taught"] || '').toLowerCase();
+              const boards = (record["School Boards Catered"] || '').toLowerCase();
+              const classSize = (record["Class Size (Group/ Solo)"] || '').toLowerCase();
+              const areaData = (record.Area || record["AREAS FOR FILTERING"] || '').toLowerCase();
+              const mode = (record["Mode of Teaching"] || '').toLowerCase();
 
-              // Check subjects (includes both dropdown and advanced filter selections)
+              // Check subjects (early return for performance)
               if (effectiveSubjectFilters.length > 0) {
-                const subjects = (record.Subjects || '').toLowerCase();
-                const hasSubject = effectiveSubjectFilters.some(subj => {
-                  const subjLower = subj.toLowerCase();
-                  // Handle "Accountancy" matching "Accounts" in database for backward compatibility
+                const hasSubject = subjectFiltersLower.some(subjLower => {
                   if (subjLower === 'accountancy') {
                     return subjects.includes('accountancy') || subjects.includes('accounts');
                   }
                   return subjects.includes(subjLower);
                 });
-                if (!hasSubject) {
-                  return false;
-                }
+                if (!hasSubject) return false;
               }
 
-              // Check classes - use "Classes Taught for Backend" column (has numeric values like "5,6,7,8")
+              // Check classes - optimized with pre-computed values
               if (effectiveClassFilters.length > 0) {
-                // First try the backend column with numeric values
-                const classesBackend = (record["Classes Taught for Backend"] || '').toLowerCase();
-                // Also check the display column as fallback
-                const classesDisplay = (record["Classes Taught"] || '').toLowerCase();
-                
-                const hasClass = effectiveClassFilters.some(cls => {
-                  const classLower = cls.toLowerCase();
-                  
-                  // Check backend column (numeric values like "5,6,7,8")
+                const hasClass = classFiltersLower.some(classLower => {
+                  // Check backend column first (faster - numeric comparison)
                   if (classesBackend) {
-                    // Split by comma and check if the class number matches
                     const backendClasses = classesBackend.split(',').map(c => c.trim());
-                    if (backendClasses.includes(classLower)) {
-                      return true;
-                    }
+                    if (backendClasses.includes(classLower)) return true;
                   }
-                  
-                  // Fallback to display column (handles ranges like "Class V - X" or "Class 5-10")
+                  // Fallback to display column
                   if (classesDisplay) {
                     return classesDisplay.includes(classLower) || 
                            classesDisplay.includes(`class ${classLower}`) ||
@@ -305,62 +308,44 @@ export default function Browse() {
                            classesDisplay.includes(`- ${classLower}`) ||
                            classesDisplay.includes(`class ${classLower}-`);
                   }
-                  
                   return false;
                 });
-                if (!hasClass) {
-                  return false;
-                }
+                if (!hasClass) return false;
               }
 
-              // Check boards
+              // Check boards (early return)
               if (filters.boards.length > 0) {
-                const boards = (record["School Boards Catered"] || '').toLowerCase();
-                const hasBoard = filters.boards.some(board => 
-                  boards.includes(board.toLowerCase())
+                const hasBoard = boardFiltersLower.some(boardLower => 
+                  boards.includes(boardLower)
                 );
-                if (!hasBoard) {
-                  return false;
-                }
+                if (!hasBoard) return false;
               }
 
-              // Check class size
+              // Check class size (early return)
               if (filters.classSize.length > 0) {
-                const classSize = (record["Class Size (Group/ Solo)"] || '').toLowerCase();
-                const hasSize = filters.classSize.some(size => 
-                  classSize.includes(size.toLowerCase())
+                const hasSize = classSizeFiltersLower.some(sizeLower => 
+                  classSize.includes(sizeLower)
                 );
-                if (!hasSize) {
-                  return false;
-                }
+                if (!hasSize) return false;
               }
 
-              // Check areas - use "Area" column first, fallback to "AREAS FOR FILTERING"
+              // Check areas (early return)
               if (filters.areas.length > 0) {
-                const areaData = (record.Area || record["AREAS FOR FILTERING"] || '').toLowerCase();
-                const hasArea = filters.areas.some(area => {
-                  const areaLower = area.toLowerCase();
-                  // Check if the area name appears in the Area field
-                  return areaData.includes(areaLower);
-                });
-                if (!hasArea) {
-                  return false;
-                }
+                const hasArea = areaFiltersLower.some(areaLower => 
+                  areaData.includes(areaLower)
+                );
+                if (!hasArea) return false;
               }
 
-              // Check mode of teaching
+              // Check mode of teaching (early return)
               if (filters.modeOfTeaching.length > 0) {
-                const mode = (record["Mode of Teaching"] || '').toLowerCase();
-                const hasMode = filters.modeOfTeaching.some(m => {
-                  const modeLower = m.toLowerCase();
-                  return mode.includes(modeLower) || 
-                         mode.includes(modeLower + ' /') ||
-                         mode.includes('/ ' + modeLower) ||
-                         mode.includes(modeLower + '/');
-                });
-                if (!hasMode) {
-                  return false;
-                }
+                const hasMode = modeFiltersLower.some(modeLower => 
+                  mode.includes(modeLower) || 
+                  mode.includes(modeLower + ' /') ||
+                  mode.includes('/ ' + modeLower) ||
+                  mode.includes(modeLower + '/')
+                );
+                if (!hasMode) return false;
               }
 
               return true;
