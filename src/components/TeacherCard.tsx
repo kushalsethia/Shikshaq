@@ -106,8 +106,8 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
           </div>
         )}
         
-        {/* Subject Badge */}
-        <div className="absolute top-3 left-3">
+        {/* Subject Badge - Moved closer to top-left */}
+        <div className="absolute top-2 left-2">
           <span className={`subject-badge ${badgeColor}`}>
             {subject}
           </span>
@@ -153,8 +153,8 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         )}
       </div>
       
-      <div className="p-3">
-        <h3 className="font-medium text-foreground group-hover:text-foreground/80 transition-colors">
+      <div className="pt-3">
+        <h3 className="font-semibold text-foreground group-hover:text-foreground/80 transition-colors">
           {displayName}
         </h3>
       </div>
