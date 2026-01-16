@@ -98,6 +98,26 @@ export default function Browse() {
 
   useEffect(() => {
     async function fetchSubjects() {
+      // Check localStorage cache first
+      const cachedSubjects = localStorage.getItem('subjects_cache');
+      const cacheTimestamp = localStorage.getItem('subjects_cache_timestamp');
+      const CACHE_DURATION = 1000 * 60 * 60; // 1 hour cache
+      
+      if (cachedSubjects && cacheTimestamp) {
+        const age = Date.now() - parseInt(cacheTimestamp);
+        if (age < CACHE_DURATION) {
+          try {
+            setSubjects(JSON.parse(cachedSubjects));
+            return; // Use cached data
+          } catch (e) {
+            // Cache corrupted, fetch fresh data
+            localStorage.removeItem('subjects_cache');
+            localStorage.removeItem('subjects_cache_timestamp');
+          }
+        }
+      }
+
+      // Fetch fresh data if no cache or cache expired
       const { data } = await supabase
         .from('subjects')
         .select('*')
@@ -124,6 +144,10 @@ export default function Browse() {
             seen.add(nameLower);
             return true;
           });
+        
+        // Cache the cleaned subjects
+        localStorage.setItem('subjects_cache', JSON.stringify(cleanedSubjects));
+        localStorage.setItem('subjects_cache_timestamp', Date.now().toString());
         
         setSubjects(cleanedSubjects);
       }
@@ -258,8 +282,9 @@ export default function Browse() {
           filters.boards.length > 0 || filters.classSize.length > 0 ||
           filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-        // Fetch all teachers (up to 200) for infinite scroll
-        const limit = 200;
+        // Optimize fetch: Use smaller limit when no filters, full when filtering
+        // This improves initial page load significantly
+        const limit = hasFiltersOrSearch ? 200 : 50;
         
         let query = supabase
           .from('teachers_list')
@@ -288,8 +313,9 @@ export default function Browse() {
         let allShikshaqData = null;
         if (teachersData && teachersData.length > 0 && (searchQuery || hasFiltersOrSearch)) {
           const teacherSlugs = teachersData.map(t => t.slug);
-          // Split into chunks if too many slugs to avoid query size limits
-          const chunkSize = 100;
+          // Optimize chunk size: smaller chunks = faster parallel queries
+          // 50 is optimal balance between parallel requests and query efficiency
+          const chunkSize = 50;
           const chunks = [];
           for (let i = 0; i < teacherSlugs.length; i += chunkSize) {
             chunks.push(teacherSlugs.slice(i, i + chunkSize));
