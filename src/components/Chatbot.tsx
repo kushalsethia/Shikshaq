@@ -100,8 +100,37 @@ export function Chatbot() {
   }, [messages]);
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+    // Save current viewport scale before opening
+    const savedViewport = document.querySelector('meta[name="viewport"]')?.getAttribute('content') || '';
+    const viewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement;
+
+    if (isOpen) {
+      // Prevent horizontal scroll on mobile
+      document.body.style.overflowX = 'hidden';
+      
+      // Prevent zoom by setting maximum-scale and user-scalable=no temporarily
+      if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+      }
+
+      // Delay focus to reduce zoom effect
+      const focusTimeout = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 300);
+
+      return () => {
+        clearTimeout(focusTimeout);
+      };
+    } else {
+      // Restore viewport settings and overflow when closed
+      if (viewport && savedViewport) {
+        viewport.setAttribute('content', savedViewport);
+      } else if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+      }
+      document.body.style.overflowX = '';
     }
   }, [isOpen]);
 
@@ -224,7 +253,7 @@ export function Chatbot() {
 
       {/* Chat Window - Uses part of screen, smaller on mobile */}
       {isOpen && (
-        <div className="fixed bottom-24 right-3 md:right-6 w-[calc(100vw-1.5rem)] md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col transition-all duration-300">
+        <div className="fixed bottom-24 left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col transition-all duration-300">
           {/* Header - Mobile: Larger, Desktop: Compact */}
           <div className="flex items-center justify-between p-3 md:p-4 border-b border-border flex-shrink-0">
             <div className="flex items-center gap-2 md:gap-3">
@@ -307,7 +336,8 @@ export function Chatbot() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask a question..."
-                className="flex-1 px-3 py-2.5 md:px-4 md:py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px] md:min-h-0"
+                className="flex-1 px-3 py-2.5 md:px-4 md:py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-base md:text-sm min-h-[44px] md:min-h-0"
+                style={{ fontSize: '16px' }}
                 disabled={loading}
               />
               <Button
