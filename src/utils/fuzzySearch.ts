@@ -560,15 +560,29 @@ export function fuzzySearch<T extends SearchableRecord>(
           : createNameFuseInstance(remainingRecords);
         const fuzzyResults = fuse.search(trimmedQuery);
         
-        // For name-like queries, filter to only include results where name matches
+        // For name-like queries, filter to only include results where name field has a match
+        // This allows fuzzy matching (typos) but ensures relevance
         if (isLikelyName) {
           const nameFuzzyMatches = fuzzyResults
-            .map(result => result.item)
-            .filter(record => 
-              record.name?.toLowerCase().includes(trimmedQuery) ||
-              record.name?.toLowerCase().startsWith(trimmedQuery) ||
-              record.name?.toLowerCase().split(/\s+/).some(word => word.startsWith(trimmedQuery))
-            );
+            .map(result => ({ item: result.item, score: result.score || 1 }))
+            .filter(({ item }) => {
+              const name = item.name?.toLowerCase() || '';
+              // Check if name contains the query or any word in name starts with query
+              // This allows fuzzy matching while ensuring name relevance
+              return name.includes(trimmedQuery) ||
+                     name.split(/\s+/).some(word => word.startsWith(trimmedQuery)) ||
+                     trimmedQuery.split('').every(char => name.includes(char)); // Allow character-based fuzzy
+            })
+            .sort((a, b) => {
+              // Sort by name match quality first, then by fuzzy score
+              const aName = a.item.name?.toLowerCase() || '';
+              const bName = b.item.name?.toLowerCase() || '';
+              const aStartsWith = aName.startsWith(trimmedQuery) ? 1 : 0;
+              const bStartsWith = bName.startsWith(trimmedQuery) ? 1 : 0;
+              if (aStartsWith !== bStartsWith) return bStartsWith - aStartsWith;
+              return (a.score || 1) - (b.score || 1);
+            })
+            .map(({ item }) => item);
           fuzzyMatches.push(...nameFuzzyMatches);
         } else {
           fuzzyMatches.push(...fuzzyResults.map(result => result.item));
@@ -587,15 +601,29 @@ export function fuzzySearch<T extends SearchableRecord>(
     : createNameFuseInstance(records);
   const results = fuse.search(trimmedQuery);
   
-  // For name-like queries, filter to only include results where name matches
+  // For name-like queries, filter to only include results where name field has a match
+  // This allows fuzzy matching (typos) but ensures relevance
   if (isLikelyName) {
     const nameMatches = results
-      .map(result => result.item)
-      .filter(record => 
-        record.name?.toLowerCase().includes(trimmedQuery) ||
-        record.name?.toLowerCase().startsWith(trimmedQuery) ||
-        record.name?.toLowerCase().split(/\s+/).some(word => word.startsWith(trimmedQuery))
-      );
+      .map(result => ({ item: result.item, score: result.score || 1 }))
+      .filter(({ item }) => {
+        const name = item.name?.toLowerCase() || '';
+        // Check if name contains the query or any word in name starts with query
+        // This allows fuzzy matching while ensuring name relevance
+        return name.includes(trimmedQuery) ||
+               name.split(/\s+/).some(word => word.startsWith(trimmedQuery)) ||
+               trimmedQuery.split('').every(char => name.includes(char)); // Allow character-based fuzzy
+      })
+      .sort((a, b) => {
+        // Sort by name match quality first, then by fuzzy score
+        const aName = a.item.name?.toLowerCase() || '';
+        const bName = b.item.name?.toLowerCase() || '';
+        const aStartsWith = aName.startsWith(trimmedQuery) ? 1 : 0;
+        const bStartsWith = bName.startsWith(trimmedQuery) ? 1 : 0;
+        if (aStartsWith !== bStartsWith) return bStartsWith - aStartsWith;
+        return (a.score || 1) - (b.score || 1);
+      })
+      .map(({ item }) => item);
     return nameMatches;
   }
   
