@@ -217,16 +217,21 @@ export function fuzzySearch<T extends SearchableRecord>(
 
     // If we have exact matches, use them
     if (exactMatches.length > 0) {
-      // For fuzzy matches, search each word individually and find intersection
+      // For fuzzy matches, search each word individually with fuzzy search and find intersection
       if (exactMatches.length < 20) {
         const exactSlugs = new Set(exactMatches.map((r: any) => r.Slug));
         const remainingRecords = records.filter((r: any) => !exactSlugs.has(r.Slug));
         
-        // Search for each word and find records that match all words
+        // Search for each word with fuzzy search and find records that match all words
         const wordMatches: Map<string, Set<T>> = new Map();
         
         words.forEach(word => {
-          const fuse = createNameFuseInstance(remainingRecords);
+          // Determine if word is likely a subject or name/class
+          const isLikelySubject = word.length > 3 && !/^\d+$/.test(word);
+          const fuse = isLikelySubject 
+            ? createSubjectFuseInstance(remainingRecords)
+            : createNameFuseInstance(remainingRecords);
+          
           const results = fuse.search(word);
           const matchedRecords = new Set(results.map(result => result.item));
           wordMatches.set(word, matchedRecords);
@@ -253,7 +258,13 @@ export function fuzzySearch<T extends SearchableRecord>(
     const wordMatches: Map<string, Set<T>> = new Map();
     
     words.forEach(word => {
-      const fuse = createNameFuseInstance(records);
+      // Determine if word is likely a subject or name/class
+      // Subjects are usually longer words, classes are numbers
+      const isLikelySubject = word.length > 3 && !/^\d+$/.test(word);
+      const fuse = isLikelySubject 
+        ? createSubjectFuseInstance(records)
+        : createNameFuseInstance(records);
+      
       const results = fuse.search(word);
       const matchedRecords = new Set(results.map(result => result.item));
       wordMatches.set(word, matchedRecords);
