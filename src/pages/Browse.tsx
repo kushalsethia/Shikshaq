@@ -321,18 +321,29 @@ export default function Browse() {
         // Now filter based on Shikshaqmine table data
         let filteredTeachers = teachersData;
 
+        // Read ALL filters from searchParams for consistency (source of truth)
+        // This ensures filters persist even when state might be temporarily out of sync
+        const urlFilters = {
+          subjects: parseArrayParam(searchParams.get('filter_subjects')),
+          classes: parseArrayParam(searchParams.get('filter_classes')),
+          boards: parseArrayParam(searchParams.get('filter_boards')),
+          classSize: parseArrayParam(searchParams.get('filter_classSize')),
+          areas: parseArrayParam(searchParams.get('filter_areas')),
+          modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
+        };
+
         // Include class from dropdown in filters (combine URL param and filter panel selections)
         const classFromDropdown = (selectedClass && selectedClass !== 'all') ? selectedClass : null;
         const classFromUrl = (classFilter && classFilter !== 'all') ? classFilter : null;
         const allClassFilters = new Set([
-          ...filters.classes,
+          ...urlFilters.classes,
           ...(classFromDropdown ? [classFromDropdown] : []),
           ...(classFromUrl ? [classFromUrl] : [])
         ]);
         const effectiveClassFilters = Array.from(allClassFilters);
 
         // Include subject from dropdown in filters (combine URL param and filter panel selections)
-        let effectiveSubjectFilters = [...filters.subjects];
+        let effectiveSubjectFilters = [...urlFilters.subjects];
         if (subjectFilter && subjectFilter !== 'all') {
           // Find the subject name from the subjects list to match against Shikshaqmine data
           const selectedSubject = subjects.find(s => s.slug === subjectFilter);
@@ -349,8 +360,8 @@ export default function Browse() {
         }
 
         const hasActiveFilters = effectiveSubjectFilters.length > 0 || effectiveClassFilters.length > 0 || 
-            filters.boards.length > 0 || filters.classSize.length > 0 || 
-            filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
+            urlFilters.boards.length > 0 || urlFilters.classSize.length > 0 || 
+            urlFilters.areas.length > 0 || urlFilters.modeOfTeaching.length > 0;
 
         // Apply search query if present - use fuzzy search across name, subjects, areas, and classes
         // This should be combined with other filters
