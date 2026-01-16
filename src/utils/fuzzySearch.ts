@@ -71,11 +71,11 @@ function cleanSearchQuery(query: string): string[] {
 export function createNameFuseInstance<T extends SearchableRecord>(records: T[]) {
   return new Fuse(records, {
     keys: [
-      { name: 'name', weight: 0.5 }, // Teacher name has highest weight
-      { name: 'subjects', weight: 0.3 }, // Subjects are important
-      { name: 'area', weight: 0.15 }, // Areas are moderately important
-      { name: 'classesBackend', weight: 0.025 }, // Classes backend
-      { name: 'classesDisplay', weight: 0.025 }, // Classes display
+      { name: 'name', weight: 0.4 }, // Teacher name has high weight
+      { name: 'subjects', weight: 0.25 }, // Subjects are important
+      { name: 'area', weight: 0.25 }, // Areas are equally important
+      { name: 'classesBackend', weight: 0.05 }, // Classes backend
+      { name: 'classesDisplay', weight: 0.05 }, // Classes display
     ],
     threshold: 0.2, // Stricter for name searches
     includeScore: true,
@@ -94,11 +94,11 @@ export function createNameFuseInstance<T extends SearchableRecord>(records: T[])
 export function createSubjectFuseInstance<T extends SearchableRecord>(records: T[]) {
   return new Fuse(records, {
     keys: [
-      { name: 'subjects', weight: 0.6 }, // Subjects have highest weight for subject searches
-      { name: 'name', weight: 0.2 }, // Name is less important
-      { name: 'area', weight: 0.1 }, // Areas are moderately important
-      { name: 'classesBackend', weight: 0.05 }, // Classes backend
-      { name: 'classesDisplay', weight: 0.05 }, // Classes display
+      { name: 'subjects', weight: 0.4 }, // Subjects have high weight for subject searches
+      { name: 'area', weight: 0.3 }, // Areas are very important
+      { name: 'name', weight: 0.15 }, // Name is less important
+      { name: 'classesBackend', weight: 0.075 }, // Classes backend
+      { name: 'classesDisplay', weight: 0.075 }, // Classes display
     ],
     threshold: 0.4, // More lenient for subject searches
     includeScore: true,
@@ -226,9 +226,10 @@ export function fuzzySearch<T extends SearchableRecord>(
         const wordMatches: Map<string, Set<T>> = new Map();
         
         words.forEach(word => {
-          // Determine if word is likely a subject or name/class
-          const isLikelySubject = word.length > 3 && !/^\d+$/.test(word);
-          const fuse = isLikelySubject 
+          // Determine if word is likely a subject/area or name/class
+          // Areas and subjects are usually longer words, classes are numbers
+          const isLikelySubjectOrArea = word.length > 3 && !/^\d+$/.test(word);
+          const fuse = isLikelySubjectOrArea 
             ? createSubjectFuseInstance(remainingRecords)
             : createNameFuseInstance(remainingRecords);
           
@@ -258,10 +259,10 @@ export function fuzzySearch<T extends SearchableRecord>(
     const wordMatches: Map<string, Set<T>> = new Map();
     
     words.forEach(word => {
-      // Determine if word is likely a subject or name/class
-      // Subjects are usually longer words, classes are numbers
-      const isLikelySubject = word.length > 3 && !/^\d+$/.test(word);
-      const fuse = isLikelySubject 
+      // Determine if word is likely a subject/area or name/class
+      // Areas and subjects are usually longer words, classes are numbers
+      const isLikelySubjectOrArea = word.length > 3 && !/^\d+$/.test(word);
+      const fuse = isLikelySubjectOrArea 
         ? createSubjectFuseInstance(records)
         : createNameFuseInstance(records);
       
