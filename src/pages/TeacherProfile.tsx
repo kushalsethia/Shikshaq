@@ -196,17 +196,17 @@ export default function TeacherProfile() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container py-8">
+      <main className="container py-8 md:py-12">
         {/* Back Button */}
         <Link
           to="/browse"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 md:mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to all teachers
         </Link>
 
-        <div className="grid md:grid-cols-2 gap-8 lg:gap-16">
+        <div className="grid md:grid-cols-2 gap-8 lg:gap-12 xl:gap-16">
           {/* Image */}
           <div className="relative">
             <div className="sticky top-24">
@@ -255,12 +255,12 @@ export default function TeacherProfile() {
           </div>
 
           {/* Info */}
-          <div className="py-4">
+          <div className="space-y-6 md:space-y-8">
             {/* Subject Badge */}
             {teacher.subjects && (
               <Link
                 to={`/browse?subject=${teacher.subjects.slug}`}
-                className="inline-block mb-4"
+                className="inline-block"
               >
                 <span className="px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
                   {teacher.subjects.name}
@@ -268,7 +268,7 @@ export default function TeacherProfile() {
               </Link>
             )}
 
-            <h1 className="text-3xl md:text-4xl font-serif text-foreground mb-4">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-foreground">
               {(() => {
                 const sirMaam = teacher.sir_maam;
                 if (!sirMaam) return teacher.name;
@@ -284,7 +284,7 @@ export default function TeacherProfile() {
             </h1>
 
             {/* Quick Info */}
-            <div className="flex flex-wrap gap-4 mb-6">
+            <div className="flex flex-wrap gap-4 md:gap-6">
               {teacher.location && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="w-4 h-4" />
@@ -300,7 +300,7 @@ export default function TeacherProfile() {
             </div>
 
             {/* He/She teaches section */}
-            <div className="mb-6">
+            <div className="space-y-6">
               {(() => {
                 // Get gender from Shikshaqmine table (sir_maam field)
                 const sirMaam = teacher.sir_maam;
@@ -342,8 +342,8 @@ export default function TeacherProfile() {
                   <>
                     {subjectsList.length > 0 && (
                       <>
-                        <p className="text-sm text-muted-foreground mb-3">{pronoun} teaches</p>
-                        <div className="flex flex-wrap gap-2 mb-6">
+                        <p className="text-sm font-medium text-muted-foreground mb-3">{pronoun} teaches</p>
+                        <div className="flex flex-wrap gap-2">
                           {subjectsList.map((subject: string, index: number) => (
                             <span
                               key={index}
@@ -370,8 +370,8 @@ export default function TeacherProfile() {
                   if (classesList.length > 0) {
                     return (
                       <>
-                        <p className="text-sm text-muted-foreground mb-3">to students of</p>
-                        <div className="flex flex-wrap gap-2 mb-6">
+                        <p className="text-sm font-medium text-muted-foreground mb-3">to students of</p>
+                        <div className="flex flex-wrap gap-2">
                           {classesList.map((cls: string, index: number) => (
                             <span
                               key={index}
@@ -444,11 +444,11 @@ export default function TeacherProfile() {
               }
 
               return (
-                <div className="mb-8 space-y-6">
+                <div className="space-y-6">
                   {/* Students home tutoring section */}
                   {(isStudentsHomeOnly || isBothOptions) && studentsAreas.length > 0 && (
                     <div>
-                      <p className="text-sm text-foreground mb-3">
+                      <p className="text-sm font-medium text-foreground mb-3">
                         <span className="font-serif">{pronoun}</span> provides home to home tutoring to students in
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -467,7 +467,7 @@ export default function TeacherProfile() {
                   {/* Teacher's home tutoring section */}
                   {(isTeachersHomeOnly || isBothOptions) && tutorsAreas.length > 0 && (
                     <div>
-                      <p className="text-sm text-foreground mb-3">
+                      <p className="text-sm font-medium text-foreground mb-3">
                         <span className="font-serif">{possessive}</span> tuition centre's are located in
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -487,7 +487,7 @@ export default function TeacherProfile() {
             })()}
 
             {/* CTA - Contact via WhatsApp */}
-            <div className="bg-card rounded-2xl p-6 border border-border mb-8">
+            <div className="bg-card rounded-2xl p-6 md:p-8 border border-border">
               <h3 className="font-medium text-foreground mb-2">Interested in classes?</h3>
               <p className="text-muted-foreground text-sm mb-4">
                 Reach out directly to discuss class timings, fees, and more.
@@ -516,14 +516,14 @@ export default function TeacherProfile() {
 
             {/* Additional Details Section */}
             {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching) && (
-              <div className="mb-8">
-                <h3 className="text-lg font-serif text-foreground mb-6">Here are some more details:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-xl md:text-2xl font-serif font-semibold text-foreground mb-4 md:mb-6">Here are some more details:</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   {/* Boards taught */}
                   {teacher.boards_taught && (
                     <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-2">Boards taught</h4>
-                      <div className="px-4 py-3 rounded-lg bg-muted text-foreground border border-border">
+                      <h4 className="text-sm font-semibold text-muted-foreground mb-2">Boards taught</h4>
+                      <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground border border-border">
                         {teacher.boards_taught}
                       </div>
                     </div>
@@ -532,8 +532,8 @@ export default function TeacherProfile() {
                   {/* Class Size */}
                   {teacher.class_size && (
                     <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-2">Class Size</h4>
-                      <div className="px-4 py-3 rounded-lg bg-muted text-foreground border border-border">
+                      <h4 className="text-sm font-semibold text-muted-foreground mb-2">Class Size</h4>
+                      <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground border border-border">
                         {teacher.class_size}
                       </div>
                     </div>
@@ -542,8 +542,8 @@ export default function TeacherProfile() {
                   {/* Mode of teaching */}
                   {teacher.mode_of_teaching && (
                     <div className="md:col-span-2">
-                      <h4 className="text-sm font-medium text-muted-foreground mb-2">Mode of teaching</h4>
-                      <div className="px-4 py-3 rounded-lg bg-muted text-foreground border border-border">
+                      <h4 className="text-sm font-semibold text-muted-foreground mb-2">Mode of teaching</h4>
+                      <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground border border-border">
                         {teacher.mode_of_teaching}
                       </div>
                     </div>
