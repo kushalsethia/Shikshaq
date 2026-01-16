@@ -484,12 +484,26 @@ export function fuzzySearch<T extends SearchableRecord>(
     }
   });
 
-  // Determine if this is primarily a subject search or name search
-  // Check if query matches any subject names in the records
-  const isSubjectSearch = exactMatches.some(record => 
-    record.subjects?.toLowerCase().includes(trimmedQuery)
+  // Determine search type: area > subject > name
+  // Check if query matches any area names in the records
+  const isAreaSearch = exactMatches.some(record => 
+    record.area?.toLowerCase().includes(trimmedQuery)
   ) || records.some(record => 
-    record.subjects?.toLowerCase().includes(trimmedQuery)
+    record.area?.toLowerCase().includes(trimmedQuery)
+  ) || (
+    trimmedQuery.includes('lake') || trimmedQuery.includes('town') || trimmedQuery.includes('street') ||
+    trimmedQuery.includes('road') || trimmedQuery.includes('avenue') || trimmedQuery.includes('park') ||
+    trimmedQuery.includes('howrah') || trimmedQuery.includes('behala') || trimmedQuery.includes('salt') ||
+    trimmedQuery.includes('new') || trimmedQuery.includes('old') || trimmedQuery.length > 5
+  );
+  
+  // Check if query matches any subject names in the records
+  const isSubjectSearch = !isAreaSearch && (
+    exactMatches.some(record => 
+      record.subjects?.toLowerCase().includes(trimmedQuery)
+    ) || records.some(record => 
+      record.subjects?.toLowerCase().includes(trimmedQuery)
+    )
   );
 
   // If we have exact matches, prioritize them
@@ -504,6 +518,10 @@ export function fuzzySearch<T extends SearchableRecord>(
       const bSubjectMatch = b.subjects?.includes(trimmedQuery) ? 1 : 0;
       if (aSubjectMatch !== bSubjectMatch) return bSubjectMatch - aSubjectMatch;
       
+      const aAreaMatch = a.area?.toLowerCase().includes(trimmedQuery) ? 1 : 0;
+      const bAreaMatch = b.area?.toLowerCase().includes(trimmedQuery) ? 1 : 0;
+      if (aAreaMatch !== bAreaMatch) return bAreaMatch - aAreaMatch;
+      
       return 0;
     });
     
@@ -514,7 +532,9 @@ export function fuzzySearch<T extends SearchableRecord>(
       
       if (remainingRecords.length > 0) {
         // Use appropriate fuse instance based on search type
-        const fuse = isSubjectSearch 
+        const fuse = isAreaSearch
+          ? createAreaFuseInstance(remainingRecords)
+          : isSubjectSearch 
           ? createSubjectFuseInstance(remainingRecords)
           : createNameFuseInstance(remainingRecords);
         const fuzzyResults = fuse.search(trimmedQuery);
@@ -526,7 +546,9 @@ export function fuzzySearch<T extends SearchableRecord>(
   }
 
   // If no exact matches, use fuzzy search with appropriate threshold
-  const fuse = isSubjectSearch 
+  const fuse = isAreaSearch
+    ? createAreaFuseInstance(records)
+    : isSubjectSearch 
     ? createSubjectFuseInstance(records)
     : createNameFuseInstance(records);
   const results = fuse.search(trimmedQuery);
