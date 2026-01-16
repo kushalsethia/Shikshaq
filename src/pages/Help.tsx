@@ -46,7 +46,7 @@ export default function Help() {
           </a>
 
           <a
-            href="https://www.instagram.com/shikshaq.in"
+            href="https://instagram.com/shikshaq.in"
             target="_blank"
             rel="noopener noreferrer"
             className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-all hover:-translate-y-1 border border-border"

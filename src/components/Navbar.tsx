@@ -228,7 +228,7 @@ export function Navbar() {
                 Gmail
               </a>
               <a
-                href="https://www.instagram.com/shikshaq.in"
+                href="https://instagram.com/shikshaq.in"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setMobileMenuOpen(false)}
