@@ -128,27 +128,29 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
           />
         </button>
 
-        {/* Upvote Button */}
-        <button
-          onClick={handleUpvoteClick}
-          className="absolute bottom-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10 flex items-center gap-1"
-          aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
-        >
-          <ThumbsUp
-            className={`w-4 h-4 transition-colors ${
-              upvoted
-                ? 'fill-blue-500 text-blue-500'
-                : 'text-foreground/70 hover:text-blue-500'
-            }`}
-          />
-          {upvoteCount > 0 && (
-            <span className={`text-xs font-medium ${
-              upvoted ? 'text-blue-500' : 'text-foreground/70'
-            }`}>
-              {upvoteCount}
-            </span>
-          )}
-        </button>
+        {/* Upvote Button - Only show if not featured */}
+        {!isFeatured && (
+          <button
+            onClick={handleUpvoteClick}
+            className="absolute bottom-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10 flex items-center gap-1"
+            aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
+          >
+            <ThumbsUp
+              className={`w-4 h-4 transition-colors ${
+                upvoted
+                  ? 'fill-blue-500 text-blue-500'
+                  : 'text-foreground/70 hover:text-blue-500'
+              }`}
+            />
+            {upvoteCount > 0 && (
+              <span className={`text-xs font-medium ${
+                upvoted ? 'text-blue-500' : 'text-foreground/70'
+              }`}>
+                {upvoteCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
       
       <div className="p-3">

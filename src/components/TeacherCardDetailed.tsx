@@ -78,6 +78,28 @@ export function TeacherCardDetailed({
             </span>
           </div>
         )}
+        
+        {/* Upvote Button - On image for mobile, hidden on desktop (shown in right section) */}
+        <button
+          onClick={handleUpvoteClick}
+          className="md:hidden absolute bottom-2 right-2 p-1.5 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background transition-colors z-10 flex items-center gap-1"
+          aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
+        >
+          <ThumbsUp
+            className={`w-3.5 h-3.5 transition-colors ${
+              upvoted
+                ? 'fill-blue-500 text-blue-500'
+                : 'text-foreground/70 hover:text-blue-500'
+            }`}
+          />
+          {upvoteCount > 0 && (
+            <span className={`text-xs font-medium ${
+              upvoted ? 'text-blue-500' : 'text-foreground/70'
+            }`}>
+              {upvoteCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Teacher Info */}
@@ -110,10 +132,10 @@ export function TeacherCardDetailed({
 
       {/* View More Arrow and Upvote Button */}
       <div className="flex items-center gap-4 flex-shrink-0">
-        {/* Upvote Button */}
+        {/* Upvote Button - Hidden on mobile (shown on image), visible on desktop */}
         <button
           onClick={handleUpvoteClick}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background/80 hover:bg-background transition-colors z-10"
+          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background/80 hover:bg-background transition-colors z-10"
           aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
         >
           <ThumbsUp
