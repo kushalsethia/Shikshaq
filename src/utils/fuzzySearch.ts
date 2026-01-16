@@ -10,6 +10,51 @@ export interface SearchableRecord {
 }
 
 /**
+ * Common prepositions and non-essential words to ignore in search
+ */
+const STOP_WORDS = new Set([
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
+  'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
+  'to', 'was', 'will', 'with', 'the', 'this', 'these', 'those',
+  'teachers', 'teacher', 'tuition', 'tutor', 'tutors', 'class', 'classes'
+]);
+
+/**
+ * Normalize search terms (e.g., "grade" -> "class")
+ */
+function normalizeSearchTerm(term: string): string {
+  const lower = term.toLowerCase().trim();
+  
+  // Map "grade" to "class" for class searches
+  if (lower === 'grade' || lower.startsWith('grade ')) {
+    return lower.replace(/^grade\s*/, 'class ');
+  }
+  
+  // Map "std" to "class"
+  if (lower === 'std' || lower.startsWith('std ')) {
+    return lower.replace(/^std\s*/, 'class ');
+  }
+  
+  return lower;
+}
+
+/**
+ * Clean and normalize search query by removing stop words and normalizing terms
+ */
+function cleanSearchQuery(query: string): string[] {
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .map(word => word.trim())
+    .filter(word => word.length > 0)
+    .filter(word => !STOP_WORDS.has(word))
+    .map(word => normalizeSearchTerm(word))
+    .filter(word => word.length > 0);
+  
+  return words;
+}
+
+/**
  * Fuzzy search configuration for teacher name search
  * Uses threshold 0.2 for name searches (stricter matching)
  */
@@ -57,17 +102,35 @@ export function createSubjectFuseInstance<T extends SearchableRecord>(records: T
 
 /**
  * Check if a record matches all words in a query (AND search)
+ * Also checks for normalized terms (e.g., "grade" matches "class")
  */
 function matchesAllWords<T extends SearchableRecord>(record: T, words: string[]): boolean {
   return words.every(word => {
     const wordLower = word.toLowerCase();
-    return (
+    const normalizedWord = normalizeSearchTerm(word);
+    
+    // Check original word
+    const matchesOriginal = (
       record.name?.toLowerCase().includes(wordLower) ||
       record.subjects?.toLowerCase().includes(wordLower) ||
       record.area?.toLowerCase().includes(wordLower) ||
       record.classesBackend?.toLowerCase().includes(wordLower) ||
       record.classesDisplay?.toLowerCase().includes(wordLower)
     );
+    
+    // Also check normalized version (e.g., "grade 9" should match "class 9")
+    if (normalizedWord !== wordLower) {
+      const matchesNormalized = (
+        record.name?.toLowerCase().includes(normalizedWord) ||
+        record.subjects?.toLowerCase().includes(normalizedWord) ||
+        record.area?.toLowerCase().includes(normalizedWord) ||
+        record.classesBackend?.toLowerCase().includes(normalizedWord) ||
+        record.classesDisplay?.toLowerCase().includes(normalizedWord)
+      );
+      return matchesOriginal || matchesNormalized;
+    }
+    
+    return matchesOriginal;
   });
 }
 
@@ -85,8 +148,15 @@ export function fuzzySearch<T extends SearchableRecord>(
     return records; // Return all records if query is too short
   }
 
-  const trimmedQuery = query.trim().toLowerCase();
-  const words = trimmedQuery.split(/\s+/).filter(word => word.length > 0);
+  // Clean query: remove stop words and normalize terms
+  const cleanedWords = cleanSearchQuery(query);
+  
+  if (cleanedWords.length === 0) {
+    return records; // If all words were stop words, return all records
+  }
+
+  const trimmedQuery = cleanedWords.join(' ').toLowerCase();
+  const words = cleanedWords;
   const isMultiWord = words.length > 1;
 
   // For multi-word queries, use AND logic
