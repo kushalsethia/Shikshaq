@@ -601,18 +601,26 @@ export function fuzzySearch<T extends SearchableRecord>(
     : createNameFuseInstance(records);
   const results = fuse.search(trimmedQuery);
   
-  // For name-like queries, filter to only include results where name field has a match
-  // This allows fuzzy matching (typos) but ensures relevance
+  // For name-like queries, prioritize results where name field matches
+  // But still allow fuzzy search to work (handles typos)
   if (isLikelyName) {
     const nameMatches = results
       .map(result => ({ item: result.item, score: result.score || 1 }))
-      .filter(({ item }) => {
+      .filter(({ item, score }) => {
         const name = item.name?.toLowerCase() || '';
-        // Check if name contains the query or any word in name starts with query
-        // This allows fuzzy matching while ensuring name relevance
-        return name.includes(trimmedQuery) ||
-               name.split(/\s+/).some(word => word.startsWith(trimmedQuery)) ||
-               trimmedQuery.split('').every(char => name.includes(char)); // Allow character-based fuzzy
+        // Trust fuzzy search results but ensure name field has some relevance
+        // Allow fuzzy matches (score < 0.3 means good match) or if name contains query
+        const hasNameMatch = name.includes(trimmedQuery) ||
+                             name.split(/\s+/).some(word => 
+                               word.startsWith(trimmedQuery) || 
+                               trimmedQuery.startsWith(word) ||
+                               // Allow fuzzy character matching (most chars match)
+                               (word.length >= trimmedQuery.length - 1 && 
+                                word.length <= trimmedQuery.length + 2 &&
+                                word.split('').filter(c => trimmedQuery.includes(c)).length >= trimmedQuery.length - 1)
+                             );
+        // Include if name matches OR if fuzzy score is very good (likely name match)
+        return hasNameMatch || (score < 0.3);
       })
       .sort((a, b) => {
         // Sort by name match quality first, then by fuzzy score
@@ -621,6 +629,9 @@ export function fuzzySearch<T extends SearchableRecord>(
         const aStartsWith = aName.startsWith(trimmedQuery) ? 1 : 0;
         const bStartsWith = bName.startsWith(trimmedQuery) ? 1 : 0;
         if (aStartsWith !== bStartsWith) return bStartsWith - aStartsWith;
+        const aContains = aName.includes(trimmedQuery) ? 1 : 0;
+        const bContains = bName.includes(trimmedQuery) ? 1 : 0;
+        if (aContains !== bContains) return bContains - aContains;
         return (a.score || 1) - (b.score || 1);
       })
       .map(({ item }) => item);
