@@ -69,6 +69,7 @@ export function TeacherCardDetailed({
             src={imageUrl}
             alt={name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            style={{ objectFit: 'cover', width: '100%', height: '100%' }}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center">

@@ -132,7 +132,7 @@ export function Footer() {
                 <Mail className="w-5 h-5 text-foreground" />
               </a>
               <a
-                href="https://www.instagram.com/shikshaq.in"
+                href="https://instagram.com/shikshaq.in"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-full bg-muted hover:bg-accent transition-colors"
