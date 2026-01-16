@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { HelpCircle, X, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Message {
@@ -212,60 +212,59 @@ export function Chatbot() {
 
   return (
     <>
-      {/* Chatbot Button - Fixed beside WhatsApp */}
+      {/* Floating Button with ? icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-[9rem] md:right-40 z-50 flex items-center gap-3 bg-primary text-primary-foreground px-4 md:px-5 py-3.5 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 group"
-        aria-label="Open AI Chatbot"
+        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
+        aria-label="Ask AI"
       >
-        <MessageCircle className="w-6 h-6" />
-        <span className="hidden md:block text-sm font-bold">Ask AI</span>
+        <HelpCircle className="w-6 h-6" />
       </button>
 
-      {/* Chat Window */}
+      {/* Chat Window - Uses part of screen, not full screen */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 md:right-32 w-[calc(100vw-3rem)] md:w-[28rem] h-[calc(100vh-8rem)] max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                <MessageCircle className="w-5 h-5 text-primary" />
+        <div className="fixed bottom-24 right-6 w-[calc(100vw-3rem)] md:w-[28rem] h-[calc(100vh-8rem)] max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col transition-all duration-300">
+          {/* Header - Mobile: Larger, Desktop: Compact */}
+          <div className="flex items-center justify-between p-3 md:p-4 border-b border-border flex-shrink-0">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="w-9 h-9 md:w-10 md:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                <HelpCircle className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               </div>
-              <div>
-                <h3 className="font-semibold text-foreground">ShikshAq Assistant</h3>
-                <p className="text-xs text-muted-foreground">AI-powered FAQ helper</p>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-foreground text-sm md:text-base truncate">ShikshAq Assistant</h3>
+                <p className="text-xs text-muted-foreground hidden md:block">AI-powered FAQ helper</p>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-2 hover:bg-muted rounded-full transition-colors"
+              className="p-2 md:p-2 hover:bg-muted active:bg-muted rounded-full transition-colors flex-shrink-0 -mr-1 md:mr-0"
               aria-label="Close chat"
             >
-              <X className="w-5 h-5 text-muted-foreground" />
+              <X className="w-5 h-5 md:w-5 md:h-5 text-muted-foreground" />
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Messages - Mobile: Better padding and spacing */}
+          <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 overscroll-contain">
             {messages.map((message, index) => (
               <div
                 key={index}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
+                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-3 py-2 md:px-4 md:py-2.5 ${
                     message.role === 'user'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground'
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                 </div>
               </div>
             ))}
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-muted rounded-2xl px-4 py-2.5">
+                <div className="bg-muted rounded-2xl px-3 py-2 md:px-4 md:py-2.5">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
               </div>
@@ -273,9 +272,9 @@ export function Chatbot() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <div className="p-4 border-t border-border">
-            <div className="flex gap-2">
+          {/* Input - Mobile: Better touch targets and padding */}
+          <div className="p-3 md:p-4 border-t border-border flex-shrink-0 bg-card safe-area-pb">
+            <div className="flex gap-2 items-end">
               <input
                 ref={inputRef}
                 type="text"
@@ -283,14 +282,14 @@ export function Chatbot() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask a question..."
-                className="flex-1 px-4 py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                className="flex-1 px-3 py-2.5 md:px-4 md:py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-sm min-h-[44px] md:min-h-0"
                 disabled={loading}
               />
               <Button
                 onClick={handleSend}
                 disabled={!input.trim() || loading}
                 size="icon"
-                className="flex-shrink-0"
+                className="flex-shrink-0 h-[44px] w-[44px] md:h-auto md:w-auto"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -299,7 +298,7 @@ export function Chatbot() {
                 )}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
+            <p className="text-xs text-muted-foreground mt-2 text-center hidden md:block">
               Powered by Google Gemini AI
             </p>
           </div>

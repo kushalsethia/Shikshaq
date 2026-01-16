@@ -7,7 +7,6 @@ import { AuthProvider } from "@/lib/auth-context";
 import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
-import { FloatingWhatsAppButton } from "@/components/FloatingWhatsAppButton";
 import { Chatbot } from "@/components/Chatbot";
 import Index from "./pages/Index";
 import Browse from "./pages/Browse";
@@ -39,7 +38,6 @@ const App = () => (
             <Sonner />
           <BrowserRouter>
             <ScrollToTop />
-            <FloatingWhatsAppButton />
             <Chatbot />
             <Routes>
               <Route path="/" element={<Index />} />
