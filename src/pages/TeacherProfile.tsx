@@ -300,7 +300,7 @@ export default function TeacherProfile() {
             </div>
 
             {/* He/She teaches section */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               {(() => {
                 // Get gender from Shikshaqmine table (sir_maam field)
                 const sirMaam = teacher.sir_maam;
@@ -342,7 +342,7 @@ export default function TeacherProfile() {
                   <>
                     {subjectsList.length > 0 && (
                       <>
-                        <p className="text-sm font-medium text-muted-foreground mb-3">{pronoun} teaches</p>
+                        <p className="text-sm font-semibold text-muted-foreground mb-3">{pronoun} teaches</p>
                         <div className="flex flex-wrap gap-2">
                           {subjectsList.map((subject: string, index: number) => (
                             <span
@@ -370,7 +370,7 @@ export default function TeacherProfile() {
                   if (classesList.length > 0) {
                     return (
                       <>
-                        <p className="text-sm font-medium text-muted-foreground mb-3">to students of</p>
+                        <p className="text-sm font-semibold text-muted-foreground mb-3">to students of</p>
                         <div className="flex flex-wrap gap-2">
                           {classesList.map((cls: string, index: number) => (
                             <span
