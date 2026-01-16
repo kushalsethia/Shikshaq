@@ -128,6 +128,8 @@ export default function Browse() {
         return;
       }
       
+      // Reset "View more" when filters/search change
+      setShowAllTeachers(false);
       setLoading(true);
       try {
         // First, get teachers from teachers_list with a reasonable limit
