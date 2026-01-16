@@ -107,7 +107,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         )}
         
         {/* Subject Badge - Moved closer to top-left */}
-        <div className="absolute top-2 left-2">
+        <div className="absolute top-1 left-1">
           <span className={`subject-badge ${badgeColor}`}>
             {subject}
           </span>
