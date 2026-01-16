@@ -111,6 +111,29 @@ export function createSubjectFuseInstance<T extends SearchableRecord>(records: T
 }
 
 /**
+ * Fuzzy search configuration for area search
+ * Uses threshold 0.5 for area searches (very lenient matching for area names)
+ */
+export function createAreaFuseInstance<T extends SearchableRecord>(records: T[]) {
+  return new Fuse(records, {
+    keys: [
+      { name: 'area', weight: 0.6 }, // Areas have highest weight
+      { name: 'subjects', weight: 0.2 }, // Subjects are moderately important
+      { name: 'name', weight: 0.1 }, // Name is less important
+      { name: 'classesBackend', weight: 0.05 }, // Classes backend
+      { name: 'classesDisplay', weight: 0.05 }, // Classes display
+    ],
+    threshold: 0.5, // Very lenient for area searches (handles typos better)
+    includeScore: true,
+    minMatchCharLength: 2,
+    ignoreLocation: false,
+    findAllMatches: false,
+    distance: 100,
+    shouldSort: true,
+  });
+}
+
+/**
  * Check if a record matches all words in a query (AND search)
  * Also checks for normalized terms (e.g., "grade" matches "class")
  */
@@ -226,10 +249,21 @@ export function fuzzySearch<T extends SearchableRecord>(
         const wordMatches: Map<string, Set<T>> = new Map();
         
         words.forEach(word => {
-          // Determine if word is likely a subject/area or name/class
+          // Determine if word is likely an area, subject, or name/class
           // Areas and subjects are usually longer words, classes are numbers
           const isLikelySubjectOrArea = word.length > 3 && !/^\d+$/.test(word);
-          const fuse = isLikelySubjectOrArea 
+          
+          // Check if word might be an area name (common area patterns)
+          const isLikelyArea = isLikelySubjectOrArea && (
+            word.includes('lake') || word.includes('town') || word.includes('street') ||
+            word.includes('road') || word.includes('avenue') || word.includes('park') ||
+            word.includes('howrah') || word.includes('behala') || word.includes('salt') ||
+            word.includes('new') || word.includes('old') || word.length > 5
+          );
+          
+          const fuse = isLikelyArea
+            ? createAreaFuseInstance(remainingRecords)
+            : isLikelySubjectOrArea
             ? createSubjectFuseInstance(remainingRecords)
             : createNameFuseInstance(remainingRecords);
           
@@ -259,10 +293,21 @@ export function fuzzySearch<T extends SearchableRecord>(
     const wordMatches: Map<string, Set<T>> = new Map();
     
     words.forEach(word => {
-      // Determine if word is likely a subject/area or name/class
+      // Determine if word is likely an area, subject, or name/class
       // Areas and subjects are usually longer words, classes are numbers
       const isLikelySubjectOrArea = word.length > 3 && !/^\d+$/.test(word);
-      const fuse = isLikelySubjectOrArea 
+      
+      // Check if word might be an area name (common area patterns)
+      const isLikelyArea = isLikelySubjectOrArea && (
+        word.includes('lake') || word.includes('town') || word.includes('street') ||
+        word.includes('road') || word.includes('avenue') || word.includes('park') ||
+        word.includes('howrah') || word.includes('behala') || word.includes('salt') ||
+        word.includes('new') || word.includes('old') || word.length > 5
+      );
+      
+      const fuse = isLikelyArea
+        ? createAreaFuseInstance(records)
+        : isLikelySubjectOrArea
         ? createSubjectFuseInstance(records)
         : createNameFuseInstance(records);
       
