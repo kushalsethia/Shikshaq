@@ -133,20 +133,14 @@ export default function Browse() {
         const subjectFilter = searchParams.get('subject');
         const classFilter = searchParams.get('class');
 
-        // Only fetch teachers if we have filters or search - otherwise show empty
+        // Check if we have active filters or search (for conditional Shikshaqmine fetch)
         const hasFiltersOrSearch = searchQuery || subjectFilter || classFilter || 
           filters.subjects.length > 0 || filters.classes.length > 0 ||
           filters.boards.length > 0 || filters.classSize.length > 0 ||
           filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
-        // If no filters/search, don't fetch at all (show empty state)
-        if (!hasFiltersOrSearch) {
-          setTeachers([]);
-          setLoading(false);
-          return;
-        }
-
-        // Reduced limit from 500 to 200
+        // Reduced limit from 500 to 200 for better performance
+        // Always fetch teachers (show all by default)
         const limit = 200;
         
         let query = supabase
