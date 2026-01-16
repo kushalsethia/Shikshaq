@@ -67,9 +67,9 @@ Q: What if I can't find a tutor? A: Contact us and we'll help find a match.`;
       });
     }
 
-    // Try gemini-2.0-flash first (faster, may be available on free tier)
-    // Fallback to gemini-pro (stable and reliable on free tier)
-    const modelsToTry = ['gemini-2.0-flash', 'gemini-pro'];
+    // Use gemini-pro only (available on free tier)
+    // Note: gemini-2.0-flash is NOT available on free tier (quota limit: 0)
+    const modelsToTry = ['gemini-pro'];
     let lastError: Error | null = null;
     let result: { response: { text: () => string } } | null = null;
 
