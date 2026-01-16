@@ -11,7 +11,7 @@ export interface SearchableRecord {
 
 /**
  * Fuzzy search configuration for teacher name search
- * Uses threshold 0.3 for name searches (stricter matching)
+ * Uses threshold 0.2 for name searches (stricter matching)
  */
 export function createNameFuseInstance<T extends SearchableRecord>(records: T[]) {
   return new Fuse(records, {
@@ -22,7 +22,7 @@ export function createNameFuseInstance<T extends SearchableRecord>(records: T[])
       { name: 'classesBackend', weight: 0.025 }, // Classes backend
       { name: 'classesDisplay', weight: 0.025 }, // Classes display
     ],
-    threshold: 0.3, // Stricter for name searches
+    threshold: 0.2, // Stricter for name searches
     includeScore: true,
     minMatchCharLength: 2,
     ignoreLocation: false,
