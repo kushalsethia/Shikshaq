@@ -11,6 +11,7 @@ export function ScrollToTop() {
   const scrollGuardIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollBlockedRef = useRef(false);
   const lastScrollTimeRef = useRef<number>(0);
+  const scrollListenerRef = useRef<((e: Event) => void) | null>(null);
 
   // Disable browser's automatic scroll restoration
   useEffect(() => {
@@ -58,25 +59,63 @@ export function ScrollToTop() {
           targetScrollPositionRef.current = targetPosition;
           lastScrollTimeRef.current = Date.now();
           
+          // Block all scroll events for 5 seconds
+          const blockScroll = (e: Event) => {
+            // Only block if it's been less than 5 seconds since our scroll
+            if (Date.now() - lastScrollTimeRef.current < 5000) {
+              const currentScroll = window.pageYOffset;
+              const expectedPosition = targetScrollPositionRef.current;
+              
+              // If we've scrolled away from target (more than 30px), restore position
+              if (targetScrollPositionRef.current !== null && Math.abs(currentScroll - expectedPosition) > 30) {
+                // Only restore if it's been more than 1.5 seconds since our intentional scroll
+                if (Date.now() - lastScrollTimeRef.current > 1500) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.scrollTo({
+                    top: expectedPosition,
+                    behavior: 'auto'
+                  });
+                  lastScrollTimeRef.current = Date.now();
+                  return false;
+                }
+              }
+            } else {
+              // Remove listener after 5 seconds
+              if (scrollListenerRef.current) {
+                window.removeEventListener('scroll', scrollListenerRef.current, { capture: true, passive: false });
+                window.removeEventListener('touchmove', scrollListenerRef.current, { capture: true, passive: false });
+                scrollListenerRef.current = null;
+              }
+              scrollBlockedRef.current = false;
+              targetScrollPositionRef.current = null;
+            }
+          };
+          
+          scrollListenerRef.current = blockScroll;
+          
+          // Add scroll blocking listeners
+          window.addEventListener('scroll', blockScroll, { capture: true, passive: false });
+          window.addEventListener('touchmove', blockScroll, { capture: true, passive: false });
+          
           // Use smooth scroll with proper offset
           window.scrollTo({
             top: targetPosition,
             behavior: 'smooth'
           });
           
-          // Set up scroll guard immediately to prevent unwanted scrolling
+          // Set up scroll guard to continuously monitor and correct
           scrollGuardIntervalRef.current = setInterval(() => {
             const now = Date.now();
-            // Only guard if it's been less than 4 seconds since our scroll
-            if (now - lastScrollTimeRef.current < 4000 && targetScrollPositionRef.current !== null) {
+            // Only guard if it's been less than 5 seconds since our scroll
+            if (now - lastScrollTimeRef.current < 5000 && targetScrollPositionRef.current !== null) {
               const currentScroll = window.pageYOffset;
               const expectedPosition = targetScrollPositionRef.current;
               
-              // If we've scrolled significantly away from target (more than 50px), restore position
-              if (Math.abs(currentScroll - expectedPosition) > 50) {
-                // Only restore if it's been more than 1 second since our intentional scroll
-                // This prevents interfering with the smooth scroll animation
-                if (now - lastScrollTimeRef.current > 1000) {
+              // If we've scrolled significantly away from target (more than 30px), restore position
+              if (Math.abs(currentScroll - expectedPosition) > 30) {
+                // Only restore if it's been more than 1.5 seconds since our intentional scroll
+                if (now - lastScrollTimeRef.current > 1500) {
                   window.scrollTo({
                     top: expectedPosition,
                     behavior: 'auto'
@@ -85,15 +124,20 @@ export function ScrollToTop() {
                 }
               }
             } else {
-              // Clear guard after 4 seconds
+              // Clear guard after 5 seconds
               if (scrollGuardIntervalRef.current) {
                 clearInterval(scrollGuardIntervalRef.current);
                 scrollGuardIntervalRef.current = null;
               }
+              if (scrollListenerRef.current) {
+                window.removeEventListener('scroll', scrollListenerRef.current, { capture: true });
+                window.removeEventListener('touchmove', scrollListenerRef.current, { capture: true });
+                scrollListenerRef.current = null;
+              }
               scrollBlockedRef.current = false;
               targetScrollPositionRef.current = null;
             }
-          }, 200); // Check every 200ms
+          }, 100); // Check every 100ms for more responsive correction
         }
       };
       
@@ -170,6 +214,11 @@ export function ScrollToTop() {
       }
       if (scrollGuardIntervalRef.current) {
         clearInterval(scrollGuardIntervalRef.current);
+      }
+      if (scrollListenerRef.current) {
+        window.removeEventListener('scroll', scrollListenerRef.current, { capture: true });
+        window.removeEventListener('touchmove', scrollListenerRef.current, { capture: true });
+        scrollListenerRef.current = null;
       }
     };
   }, [pathname, hash]);
