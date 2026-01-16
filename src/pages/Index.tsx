@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
@@ -37,25 +37,11 @@ interface Subject {
 }
 
 export default function Index() {
-  const location = useLocation();
   const [featuredTeachers, setFeaturedTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   // Pre-initialize likes hook for fast initial render (shared state)
   const { isLiked } = useLikes();
-
-  // Handle hash navigation (e.g., /#faq)
-  useEffect(() => {
-    if (location.hash) {
-      // Small delay to ensure DOM is ready
-      setTimeout(() => {
-        const element = document.querySelector(location.hash);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 100);
-    }
-  }, [location.hash]);
 
   useEffect(() => {
     async function fetchData() {
