@@ -466,7 +466,7 @@ export default function AdminComments() {
                             </p>
                           )}
                           <Link
-                            to={`/teacher/${comment.teachers_list?.slug || comment.teacher_id}`}
+                            to={`/tuition-teachers/${comment.teachers_list?.slug || comment.teacher_id}`}
                             className="text-sm text-primary hover:underline"
                           >
                             {comment.teachers_list?.name || `Teacher ${comment.teacher_id}`}

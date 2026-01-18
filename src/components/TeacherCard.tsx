@@ -90,7 +90,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
   };
 
   return (
-    <Link to={`/teacher/${slug}`} className="teacher-card group">
+    <Link to={`/tuition-teachers/${slug}`} className="teacher-card group">
       <div className="relative aspect-[4/5] overflow-hidden rounded-2xl">
         {imageUrl ? (
           <img

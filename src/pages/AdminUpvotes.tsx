@@ -217,7 +217,7 @@ export default function AdminUpvotes() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <Link to={`/teacher/${stat.teacher_slug}`}>
+                        <Link to={`/tuition-teachers/${stat.teacher_slug}`}>
                           <Button variant="ghost" size="sm">
                             View Profile
                           </Button>

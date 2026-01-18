@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth-context";
 import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
@@ -29,6 +29,12 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Component to redirect old /teacher/:slug routes to new /tuition-teachers/:slug
+const TeacherRedirect = () => {
+  const { slug } = useParams<{ slug: string }>();
+  return <Navigate to={`/tuition-teachers/${slug}`} replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -45,7 +51,8 @@ const App = () => (
               <Route path="/all-tuition-teachers-in-kolkata" element={<Browse />} />
               <Route path="/browse" element={<Navigate to="/all-tuition-teachers-in-kolkata" replace />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/teacher/:slug" element={<TeacherProfile />} />
+              <Route path="/tuition-teachers/:slug" element={<TeacherProfile />} />
+              <Route path="/teacher/:slug" element={<TeacherRedirect />} />
               <Route path="/liked-teachers" element={<LikedTeachers />} />
               <Route path="/help" element={<Help />} />
               <Route path="/faq" element={<FAQ />} />
