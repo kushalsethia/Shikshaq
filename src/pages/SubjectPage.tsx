@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react';
+import { useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import Browse from './Browse';
 import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
@@ -7,9 +7,8 @@ export default function SubjectPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Use useLayoutEffect to set filter synchronously before Browse renders
-  // This prevents flicker and ensures the filter is set immediately
-  useLayoutEffect(() => {
+  // Set filter in URL params immediately when component mounts
+  useEffect(() => {
     const pathname = location.pathname;
     const filterValue = SUBJECT_PATH_TO_FILTER[pathname];
 
@@ -26,7 +25,7 @@ export default function SubjectPage() {
         currentSet.size === expectedSet.size && 
         [...currentSet].every(subj => expectedSet.has(subj));
       
-      // If filter is not set correctly, update it synchronously
+      // If filter is not set correctly, update it
       if (!isMatch) {
         const newSearchParams = new URLSearchParams(searchParams);
         // Set the subject filter (replace any existing subject filters for this page)
@@ -35,11 +34,11 @@ export default function SubjectPage() {
         setSearchParams(newSearchParams, { replace: true });
       }
     }
-    // Only run on mount/pathname change, not on every searchParams change
+    // Only run on mount/pathname change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
-  // Render Browse page (which will automatically use the filter_subjects param)
+  // Render Browse page (which will automatically sync filters from filter_subjects param via its useEffect)
   return <Browse />;
 }
 
