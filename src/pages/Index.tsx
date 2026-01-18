@@ -253,7 +253,7 @@ export default function Index() {
               </Carousel>
               {/* View more button below carousel */}
               <div className="flex justify-end mt-6">
-                <Link to="/browse" className="view-more-link font-bold md:font-normal">
+                <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link font-bold md:font-normal">
                   View more teachers
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -275,7 +275,7 @@ export default function Index() {
         <div className="container">
           <div className="flex items-center justify-between mb-6">
             <h2 className="section-title">Explore tuition teachers via subjects</h2>
-            <Link to="/browse" className="view-more-link">
+            <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link">
               View more subjects
               <ArrowRight className="w-4 h-4" />
             </Link>

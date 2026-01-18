@@ -42,7 +42,8 @@ const App = () => (
             <Chatbot />
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/browse" element={<Browse />} />
+              <Route path="/all-tuition-teachers-in-kolkata" element={<Browse />} />
+              <Route path="/browse" element={<Navigate to="/all-tuition-teachers-in-kolkata" replace />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/teacher/:slug" element={<TeacherProfile />} />
               <Route path="/liked-teachers" element={<LikedTeachers />} />

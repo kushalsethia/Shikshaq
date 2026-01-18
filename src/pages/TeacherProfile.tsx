@@ -183,7 +183,7 @@ export default function TeacherProfile() {
           <p className="text-muted-foreground mb-6">
             The teacher you're looking for doesn't exist or has been removed.
           </p>
-          <Link to="/browse">
+          <Link to="/all-tuition-teachers-in-kolkata">
             <Button>Browse all teachers</Button>
           </Link>
         </div>
@@ -199,7 +199,7 @@ export default function TeacherProfile() {
       <main className="container py-8 md:py-12">
         {/* Back Button */}
         <Link
-          to="/browse"
+          to="/all-tuition-teachers-in-kolkata"
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 md:mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -259,7 +259,7 @@ export default function TeacherProfile() {
             {/* Subject Badge */}
             {teacher.subjects && (
               <Link
-                to={`/browse?subject=${teacher.subjects.slug}`}
+                to={`/all-tuition-teachers-in-kolkata?subject=${teacher.subjects.slug}`}
                 className="inline-block"
               >
                 <span className="px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
