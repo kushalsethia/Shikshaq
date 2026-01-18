@@ -1,4 +1,3 @@
-import { useMemo, useLayoutEffect } from 'react';
 import { useLocation, useSearchParams, Navigate } from 'react-router-dom';
 import Browse from './Browse';
 import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
@@ -10,29 +9,18 @@ export default function SubjectPage() {
   const pathname = location.pathname;
   const filterValue = SUBJECT_PATH_TO_FILTER[pathname];
 
-  // Check if filter is already in URL
-  const currentFilter = searchParams.get('filter_subjects') || '';
-  const currentSubjects = currentFilter.split(',').map(s => s.trim()).filter(Boolean);
-  const expectedSubjects = filterValue ? filterValue.split(',').map(s => s.trim()).filter(Boolean) : [];
-  
-  // Check if filters match (order-independent comparison)
-  const currentSet = new Set(currentSubjects);
-  const expectedSet = new Set(expectedSubjects);
-  const isMatch = 
-    expectedSubjects.length > 0 &&
-    currentSet.size === expectedSet.size && 
-    [...currentSet].every(subj => expectedSet.has(subj));
-
-  // If filter is not set, redirect to the same URL with filter added
-  // This ensures the filter is in the URL before Browse initializes
-  if (filterValue && !isMatch) {
+  // Only set the initial filter if filter_subjects param is completely missing
+  // If it exists (even if different), it means the user has already interacted with filters
+  // This ensures SEO on first load while allowing full filter functionality afterward
+  if (filterValue && !searchParams.has('filter_subjects')) {
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.set('filter_subjects', filterValue);
     const newUrl = `${pathname}?${newSearchParams.toString()}`;
     return <Navigate to={newUrl} replace />;
   }
 
-  // Render Browse page with filter already in URL
+  // Render Browse page - users can now change filters freely
+  // If filter_subjects param exists (even if changed), we don't redirect
   return <Browse />;
 }
 
