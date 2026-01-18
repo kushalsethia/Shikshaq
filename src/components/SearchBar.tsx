@@ -15,7 +15,7 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
 
   // Sync with URL parameter if on Browse page
   useEffect(() => {
-    if (location.pathname === '/browse') {
+    if (location.pathname === '/all-tuition-teachers-in-kolkata') {
       const urlQuery = searchParams.get('q') || '';
       setQuery(urlQuery);
     }
@@ -24,7 +24,7 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      navigate(`/browse?q=${encodeURIComponent(query.trim())}`);
+      navigate(`/all-tuition-teachers-in-kolkata?q=${encodeURIComponent(query.trim())}`);
     }
   };
 
@@ -33,7 +33,7 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
     // Remove search query from URL
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.delete('q');
-    navigate(newSearchParams.toString() ? `/browse?${newSearchParams.toString()}` : '/browse');
+    navigate(newSearchParams.toString() ? `/all-tuition-teachers-in-kolkata?${newSearchParams.toString()}` : '/all-tuition-teachers-in-kolkata');
   };
 
   return (

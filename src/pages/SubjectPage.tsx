@@ -1,47 +1,15 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import Browse from './Browse';
-
-// Map of subject path slugs to subject filter values
-// Special cases:
-// - Science maps to Physics, Chemistry, Biology (comma-separated = OR logic)
-// - Commercial Studies maps to Commerce
-const SUBJECT_PATH_TO_FILTER: Record<string, string> = {
-  '/maths-tuition-teachers-in-kolkata': 'Maths',
-  '/english-tuition-teachers-in-kolkata': 'English',
-  '/science-tuition-teachers-in-kolkata': 'Physics,Chemistry,Biology', // Science = Physics OR Chemistry OR Biology
-  '/commercial-studies-tuition-teachers-in-kolkata': 'Commerce', // Commercial Studies = Commerce
-  '/physics-tuition-teachers-in-kolkata': 'Physics',
-  '/chemistry-tuition-teachers-in-kolkata': 'Chemistry',
-  '/biology-tuition-teachers-in-kolkata': 'Biology',
-  '/computer-tuition-teachers-in-kolkata': 'Computer',
-  '/hindi-tuition-teachers-in-kolkata': 'Hindi',
-  '/history-tuition-teachers-in-kolkata': 'History & Civics', // Note: FilterPanel uses 'History & Civics'
-  '/geography-tuition-teachers-in-kolkata': 'Geography',
-  '/economics-tuition-teachers-in-kolkata': 'Economics',
-  '/accounts-tuition-teachers-in-kolkata': 'Accounts',
-  '/business-studies-tuition-teachers-in-kolkata': 'Business Studies',
-  '/commerce-tuition-teachers-in-kolkata': 'Commerce',
-  '/psychology-tuition-teachers-in-kolkata': 'Psychology',
-  '/sociology-tuition-teachers-in-kolkata': 'Sociology',
-  '/political-science-tuition-teachers-in-kolkata': 'Political Science',
-  '/environmental-science-tuition-teachers-in-kolkata': 'Environmental Science',
-  '/bengali-tuition-teachers-in-kolkata': 'Bengali',
-  '/drawing-tuition-teachers-in-kolkata': 'Drawing',
-  '/sat-tuition-teachers-in-kolkata': 'SAT',
-  '/act-tuition-teachers-in-kolkata': 'ACT',
-  '/cat-tuition-teachers-in-kolkata': 'CAT',
-  '/nmat-tuition-teachers-in-kolkata': 'NMAT',
-  '/gmat-tuition-teachers-in-kolkata': 'GMAT',
-  '/ca-tuition-teachers-in-kolkata': 'CA',
-  '/cfa-tuition-teachers-in-kolkata': 'CFA',
-};
+import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
 
 export default function SubjectPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  useEffect(() => {
+  // Use useLayoutEffect to set filter synchronously before Browse renders
+  // This prevents flicker and ensures the filter is set immediately
+  useLayoutEffect(() => {
     const pathname = location.pathname;
     const filterValue = SUBJECT_PATH_TO_FILTER[pathname];
 
@@ -58,16 +26,18 @@ export default function SubjectPage() {
         currentSet.size === expectedSet.size && 
         [...currentSet].every(subj => expectedSet.has(subj));
       
-      // If filter is not set correctly, update it
+      // If filter is not set correctly, update it synchronously
       if (!isMatch) {
         const newSearchParams = new URLSearchParams(searchParams);
         // Set the subject filter (replace any existing subject filters for this page)
         newSearchParams.set('filter_subjects', filterValue);
-        // Preserve other filters if needed
+        // Use replace: true to avoid adding to history and keep URL clean
         setSearchParams(newSearchParams, { replace: true });
       }
     }
-  }, [location.pathname, searchParams, setSearchParams]);
+    // Only run on mount/pathname change, not on every searchParams change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   // Render Browse page (which will automatically use the filter_subjects param)
   return <Browse />;

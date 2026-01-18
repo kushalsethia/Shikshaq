@@ -124,7 +124,7 @@ export default function LikedTeachers() {
       <main className="container py-8">
         {/* Back Button */}
         <Link
-          to="/browse"
+          to="/all-tuition-teachers-in-kolkata"
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -152,7 +152,7 @@ export default function LikedTeachers() {
             <p className="text-muted-foreground mb-6">
               Start exploring teachers and favourite the ones you're interested in!
             </p>
-            <Link to="/browse">
+            <Link to="/all-tuition-teachers-in-kolkata">
               <Button>Browse Teachers</Button>
             </Link>
           </div>

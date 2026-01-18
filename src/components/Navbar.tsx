@@ -75,7 +75,7 @@ export function Navbar() {
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
-    { path: '/browse', label: 'Browse', icon: Search },
+    { path: '/all-tuition-teachers-in-kolkata', label: 'Browse', icon: Search },
     { path: '/help', label: 'Help', icon: HelpCircle },
   ];
 

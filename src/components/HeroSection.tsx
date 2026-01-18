@@ -17,7 +17,7 @@ export function HeroSection() {
         </p>
 
         <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
-          <Link to="/browse" className="hero-cta">
+          <Link to="/all-tuition-teachers-in-kolkata" className="hero-cta">
             Explore tuition teachers
             <ArrowRight className="w-4 h-4" />
           </Link>

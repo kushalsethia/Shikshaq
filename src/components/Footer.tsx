@@ -102,7 +102,7 @@ export function Footer() {
               <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
                 Home
               </Link>
-              <Link to="/browse" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/all-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
                 Browse Teachers
               </Link>
               <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors">
