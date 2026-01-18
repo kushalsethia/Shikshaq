@@ -147,6 +147,128 @@ export function Footer() {
           </div>
         </div>
       </div>
+
+      {/* SEO Subject Links Section */}
+      <div className="border-t border-border bg-muted/30">
+        <div className="container py-6">
+          <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+            Find via SUBJECT
+          </h3>
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs">
+            <Link to="/accounts-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Accounts in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/act-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for ACT in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/bengali-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Bengali in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/biology-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Biology in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/business-studies-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Business Studies in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/ca-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for CA in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/cat-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for CAT in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/cfa-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for CFA in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/chemistry-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Chemistry in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/commerce-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Commerce in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/commercial-studies-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Commercial Studies in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/computer-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Computer in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/drawing-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Drawing in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/economics-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Economics in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/english-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for English in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/environmental-science-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Environmental Science in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/geography-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Geography in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/gmat-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for GMAT in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/hindi-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Hindi in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/history-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for History in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/maths-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Maths in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/nmat-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for NMAT in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/physics-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Physics in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/political-science-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Political Science in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/psychology-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Psychology in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/sat-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for SAT in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/science-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Science in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/sociology-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for Sociology in Kolkata
+            </Link>
+          </div>
+        </div>
+      </div>
     </footer>
   );
 }
