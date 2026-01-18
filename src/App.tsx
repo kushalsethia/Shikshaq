@@ -11,6 +11,7 @@ import { Chatbot } from "@/components/Chatbot";
 import Index from "./pages/Index";
 import Browse from "./pages/Browse";
 import SubjectPage from "./pages/SubjectPage";
+import BoardPage from "./pages/BoardPage";
 import Auth from "./pages/Auth";
 import TeacherProfile from "./pages/TeacherProfile";
 import Help from "./pages/Help";
@@ -95,6 +96,12 @@ const App = () => (
               <Route path="/gmat-tuition-teachers-in-kolkata" element={<SubjectPage />} />
               <Route path="/ca-tuition-teachers-in-kolkata" element={<SubjectPage />} />
               <Route path="/cfa-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              {/* Board-specific pages */}
+              <Route path="/cbse-ncert-tuition-teachers-in-kolkata" element={<BoardPage />} />
+              <Route path="/icse-tuition-teachers-in-kolkata" element={<BoardPage />} />
+              <Route path="/igcse-tuition-teachers-in-kolkata" element={<BoardPage />} />
+              <Route path="/international-board-tuition-teachers-in-kolkata" element={<BoardPage />} />
+              <Route path="/state-board-tuition-teachers-in-kolkata" element={<BoardPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

@@ -269,6 +269,40 @@ export function Footer() {
           </div>
         </div>
       </div>
+
+      {/* SEO Board Links Section */}
+      <div className="border-t border-border bg-muted/30">
+        <div className="container py-6">
+          <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+            Find via BOARD
+          </h3>
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs">
+            <Link to="/all-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for All teachers in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/cbse-ncert-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for CBSE/NCERT in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/icse-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for ICSE in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/igcse-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for IGCSE in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/international-board-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for International Board in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
+            <Link to="/state-board-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              Tuition teachers for State Board in Kolkata
+            </Link>
+          </div>
+        </div>
+      </div>
     </footer>
   );
 }
