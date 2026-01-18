@@ -59,7 +59,7 @@ export function TeacherCardDetailed({
 
   return (
     <Link 
-      to={`/teacher/${slug}`} 
+      to={`/tuition-teachers/${slug}`} 
       className="group flex gap-4 bg-card rounded-2xl p-4 border border-border hover:shadow-lg transition-all duration-300"
     >
       {/* Teacher Image */}
