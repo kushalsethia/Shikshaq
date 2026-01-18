@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useLocation, useSearchParams, Navigate } from 'react-router-dom';
 import Browse from './Browse';
 import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
@@ -5,6 +6,7 @@ import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
 export default function SubjectPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const hasSetInitialFilterRef = useRef(false);
   
   const pathname = location.pathname;
   const filterValue = SUBJECT_PATH_TO_FILTER[pathname];
@@ -14,33 +16,38 @@ export default function SubjectPage() {
     return <Browse />;
   }
 
+  // Track if we've already set the initial filter during this component's lifecycle
+  // This helps us distinguish between "initial load" vs "filters were cleared"
+  const filterSubjectsExists = searchParams.has('filter_subjects');
+  const hasAnyParams = filterSubjectsExists || 
+                       searchParams.has('filter_classes') || 
+                       searchParams.has('filter_boards') ||
+                       searchParams.has('filter_classSize') ||
+                       searchParams.has('filter_areas') ||
+                       searchParams.has('filter_modeOfTeaching') ||
+                       searchParams.has('q') ||
+                       searchParams.has('subject') ||
+                       searchParams.has('class');
+
+  // If user cleared all filters (we had set initial filter before, but now all params are gone)
+  // Redirect to browse page
+  if (hasSetInitialFilterRef.current && !hasAnyParams) {
+    return <Navigate to="/all-tuition-teachers-in-kolkata" replace />;
+  }
+
   // First, set the initial filter if filter_subjects param is completely missing
   // This handles the initial load from footer links (SEO)
-  if (!searchParams.has('filter_subjects')) {
+  if (!filterSubjectsExists) {
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.set('filter_subjects', filterValue);
     const newUrl = `${pathname}?${newSearchParams.toString()}`;
+    hasSetInitialFilterRef.current = true;
     return <Navigate to={newUrl} replace />;
   }
 
-  // After initial filter is set, check if user has cleared all filters
-  // This handles the "clear filters" button case - redirect to browse page
-  const hasAnyOtherFilters = searchParams.has('filter_classes') || 
-                             searchParams.has('filter_boards') ||
-                             searchParams.has('filter_classSize') ||
-                             searchParams.has('filter_areas') ||
-                             searchParams.has('filter_modeOfTeaching') ||
-                             searchParams.has('q') ||
-                             searchParams.has('subject') ||
-                             searchParams.has('class');
-
-  // If filter_subjects was removed (user cleared it) and no other filters exist,
-  // redirect to main browse page for better UX
-  const currentSubjects = searchParams.get('filter_subjects');
-  if (!currentSubjects || currentSubjects.trim() === '') {
-    if (!hasAnyOtherFilters) {
-      return <Navigate to="/all-tuition-teachers-in-kolkata" replace />;
-    }
+  // Mark that we've set the initial filter (either just now or it was already there)
+  if (!hasSetInitialFilterRef.current) {
+    hasSetInitialFilterRef.current = true;
   }
 
   // Render Browse page - users can now change filters freely
