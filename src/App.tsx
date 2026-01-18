@@ -10,6 +10,7 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { Chatbot } from "@/components/Chatbot";
 import Index from "./pages/Index";
 import Browse from "./pages/Browse";
+import SubjectPage from "./pages/SubjectPage";
 import Auth from "./pages/Auth";
 import TeacherProfile from "./pages/TeacherProfile";
 import Help from "./pages/Help";
@@ -57,6 +58,35 @@ const App = () => (
               <Route path="/signup-success" element={<SignUpSuccess />} />
               <Route path="/dashboard/student" element={<StudentDashboard />} />
               <Route path="/dashboard/guardian" element={<GuardianDashboard />} />
+              {/* Subject-specific pages */}
+              <Route path="/maths-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/english-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/science-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/commercial-studies-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/physics-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/chemistry-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/biology-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/computer-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/hindi-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/history-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/geography-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/economics-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/accounts-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/business-studies-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/commerce-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/psychology-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/sociology-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/political-science-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/environmental-science-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/bengali-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/drawing-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/sat-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/act-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/cat-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/nmat-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/gmat-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/ca-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/cfa-tuition-teachers-in-kolkata" element={<SubjectPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
