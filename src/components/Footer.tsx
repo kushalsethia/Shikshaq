@@ -1,9 +1,186 @@
-import { Link } from 'react-router-dom';
-import { Instagram, MessageCircle, Mail } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Instagram, MessageCircle, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+
+interface PageContent {
+  id: string;
+  page_type: 'general' | 'subject' | 'board' | 'subject_board';
+  subject_slug: string | null;
+  board_slug: string | null;
+  heading: string;
+  short_content: string | null;
+  full_content: string;
+}
 
 export function Footer() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [pageContent, setPageContent] = useState<PageContent | null>(null);
+  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    async function fetchPageContent() {
+      try {
+        setLoading(true);
+        
+        // Extract subject/board slug from pathname
+        const pathname = location.pathname;
+        let subjectSlug: string | null = null;
+        let boardSlug: string | null = null;
+        
+        // Known board slugs from boardMapping
+        const boardPathSlugs: Record<string, string> = {
+          '/cbse-ncert-tuition-teachers-in-kolkata': 'cbse',
+          '/icse-tuition-teachers-in-kolkata': 'icse',
+          '/igcse-tuition-teachers-in-kolkata': 'igcse',
+          '/international-board-tuition-teachers-in-kolkata': 'ib',
+          '/state-board-tuition-teachers-in-kolkata': 'state',
+        };
+        
+        // Check if it's a board page first
+        if (boardPathSlugs[pathname]) {
+          boardSlug = boardPathSlugs[pathname];
+        } 
+        // Check if it's a subject page (pattern: /{subject}-tuition-teachers-in-kolkata)
+        // But exclude /all-tuition-teachers-in-kolkata
+        else if (pathname !== '/all-tuition-teachers-in-kolkata') {
+          const subjectMatch = pathname.match(/^\/([^-]+)-tuition-teachers-in-kolkata/);
+          if (subjectMatch) {
+            subjectSlug = subjectMatch[1].toLowerCase();
+          }
+        }
+        
+        // Extract board from URL params (e.g., filter_boards=ICSE -> icse)
+        // This takes precedence if both pathname and params have board info
+        const boardFromUrl = searchParams.get('filter_boards')?.split(',')[0]?.trim();
+        if (boardFromUrl) {
+          boardSlug = boardFromUrl.toLowerCase();
+        }
+        
+        // Determine page type and build query
+        let query = supabase
+          .from('page_content')
+          .select('*')
+          .eq('is_active', true)
+          .order('display_order', { ascending: true })
+          .limit(1);
+
+        if (subjectSlug && boardSlug) {
+          // Both subject and board - try subject_board first
+          query = query
+            .eq('page_type', 'subject_board')
+            .eq('subject_slug', subjectSlug)
+            .eq('board_slug', boardSlug);
+        } else if (boardSlug) {
+          // Only board
+          query = query
+            .eq('page_type', 'board')
+            .eq('board_slug', boardSlug);
+        } else if (subjectSlug) {
+          // Only subject
+          query = query
+            .eq('page_type', 'subject')
+            .eq('subject_slug', subjectSlug);
+        } else {
+          // General page (no filters)
+          query = query
+            .eq('page_type', 'general')
+            .is('subject_slug', null)
+            .is('board_slug', null);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error('Error fetching page content:', error);
+          // Fallback to default content
+          setPageContent({
+            id: 'default',
+            page_type: 'general',
+            subject_slug: null,
+            board_slug: null,
+            heading: 'Find the best teachers for you',
+            short_content: null,
+            full_content: 'Whether you need help with Mathematics, Science, English, Commerce, or any other subject, our verified teachers are here to help you succeed. All teachers on our platform have been verified and come with student reviews to help you make an informed decision.'
+          });
+          return;
+        }
+
+        // If no exact match found, try fallback
+        if (!data || data.length === 0) {
+          if (subjectSlug && boardSlug) {
+            // Try subject-only fallback
+            const { data: subjectData } = await supabase
+              .from('page_content')
+              .select('*')
+              .eq('is_active', true)
+              .eq('page_type', 'subject')
+              .eq('subject_slug', subjectSlug)
+              .order('display_order', { ascending: true })
+              .limit(1);
+            
+            if (subjectData && subjectData.length > 0) {
+              setPageContent(subjectData[0] as PageContent);
+              return;
+            }
+          }
+          
+          // Fallback to general content
+          const { data: generalData } = await supabase
+            .from('page_content')
+            .select('*')
+            .eq('is_active', true)
+            .eq('page_type', 'general')
+            .is('subject_slug', null)
+            .is('board_slug', null)
+            .order('display_order', { ascending: true })
+            .limit(1);
+          
+          if (generalData && generalData.length > 0) {
+            setPageContent(generalData[0] as PageContent);
+            return;
+          }
+          
+          // Ultimate fallback
+          setPageContent({
+            id: 'default',
+            page_type: 'general',
+            subject_slug: null,
+            board_slug: null,
+            heading: 'Find the best teachers for you',
+            short_content: null,
+            full_content: 'Whether you need help with Mathematics, Science, English, Commerce, or any other subject, our verified teachers are here to help you succeed. All teachers on our platform have been verified and come with student reviews to help you make an informed decision.'
+          });
+        } else {
+          setPageContent(data[0] as PageContent);
+        }
+      } catch (error) {
+        console.error('Error fetching page content:', error);
+        // Fallback to default content
+        setPageContent({
+          id: 'default',
+          page_type: 'general',
+          subject_slug: null,
+          board_slug: null,
+          heading: 'Find the best teachers for you',
+          short_content: null,
+          full_content: 'Whether you need help with Mathematics, Science, English, Commerce, or any other subject, our verified teachers are here to help you succeed. All teachers on our platform have been verified and come with student reviews to help you make an informed decision.'
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPageContent();
+    // Reset expanded state when content changes
+    setIsExpanded(false);
+  }, [location.pathname, searchParams]);
+
   return (
     <footer className="bg-card border-t border-border">
       {/* CTA Section */}
@@ -91,6 +268,55 @@ export function Footer() {
           </div>
         </div>
       </div>
+
+      {/* Find the best teachers section */}
+      {!loading && pageContent && (
+        <div className="container pb-6">
+          <div className="max-w-4xl">
+            <h3 className="text-sm font-normal text-foreground mb-2">
+              {pageContent.heading}
+            </h3>
+            {(isExpanded || pageContent.short_content) && (
+              <div 
+                className="text-sm text-muted-foreground mb-2 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ 
+                  __html: (() => {
+                    const content = isExpanded 
+                      ? pageContent.full_content 
+                      : (pageContent.short_content || pageContent.full_content);
+                    // If content contains HTML tags, render as-is
+                    // Otherwise, convert line breaks to <br /> tags
+                    if (/<[a-z][\s\S]*>/i.test(content)) {
+                      return content;
+                    }
+                    return content.replace(/\n/g, '<br />');
+                  })()
+                }}
+              />
+            )}
+            {pageContent.full_content && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="mt-2 p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
+              >
+                {isExpanded ? (
+                  <>
+                    Read less
+                    <ChevronUp className="w-3 h-3 ml-1" />
+                  </>
+                ) : (
+                  <>
+                    Read more
+                    <ChevronDown className="w-3 h-3 ml-1" />
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Links */}
       <div className="border-t border-border">
