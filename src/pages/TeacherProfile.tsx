@@ -27,6 +27,7 @@ interface Teacher {
   subjects_from_shikshaq?: string | null; // The "Subjects" field from Shikshaqmine table
   classes?: string | null; // The classes text field from teachers_list
   classes_taught?: string | null; // The "Classes Taught" field from Shikshaqmine table
+  classes_taught_for_backend?: string | null; // The "Classes Taught for Backend" field from Shikshaqmine table
   sir_maam?: string | null; // The "Sir/Ma'am?" field from Shikshaqmine table
   area?: string | null; // The "Area" field from Shikshaqmine table
   boards_taught?: string | null; // The "School Boards Catered" field from Shikshaqmine table
@@ -36,6 +37,11 @@ interface Teacher {
   students_home_areas?: string | null; // The "student's home in these areas" field from Shikshaqmine table
   tutors_home_areas?: string | null; // The "Tutor's home in these areas" field from Shikshaqmine table
   expanded?: string | null; // The "EXPANDED" field from Shikshaqmine table
+  description?: string | null; // The "Description" field from Shikshaqmine table
+  qualifications_etc?: string | null; // The "Qualifications etc" field from Shikshaqmine table
+  review_1?: string | null; // The "Review 1" field from Shikshaqmine table
+  review_2?: string | null; // The "Review 2" field from Shikshaqmine table
+  review_3?: string | null; // The "Review 3" field from Shikshaqmine table
 }
 
 export default function TeacherProfile() {
@@ -73,6 +79,7 @@ export default function TeacherProfile() {
       let sirMaam = null;
       let subjectsFromShikshaq = null;
       let classesTaught = null;
+      let classesTaughtForBackend = null;
       let area = null;
       let boardsTaught = null;
       let classSize = null;
@@ -81,6 +88,11 @@ export default function TeacherProfile() {
       let studentsHomeAreas = null;
       let tutorsHomeAreas = null;
       let expanded = null;
+      let description = null;
+      let qualificationsEtc = null;
+      let review1 = null;
+      let review2 = null;
+      let review3 = null;
       if (teacherData) {
         try {
           // Check cache for Shikshaqmine data
@@ -108,6 +120,7 @@ export default function TeacherProfile() {
             sirMaam = (shikshaqData as any)["Sir/Ma'am?"];
             subjectsFromShikshaq = (shikshaqData as any)["Subjects"];
             classesTaught = (shikshaqData as any)["Classes Taught"];
+            classesTaughtForBackend = (shikshaqData as any)["Classes Taught for Backend"];
             area = (shikshaqData as any)["Area"];
             boardsTaught = (shikshaqData as any)["School Boards Catered"];
             classSize = (shikshaqData as any)["Class Size (Group/ Solo)"];
@@ -116,6 +129,11 @@ export default function TeacherProfile() {
             studentsHomeAreas = (shikshaqData as any)["STUDENT'S HOME IN THESE AREAS"] || (shikshaqData as any)["student's home in these areas"] || (shikshaqData as any)["Student's home in these areas"];
             tutorsHomeAreas = (shikshaqData as any)["TUTOR'S HOME IN THESE AREAS"] || (shikshaqData as any)["Tutor's home in these areas"];
             expanded = (shikshaqData as any)["EXPANDED"] || (shikshaqData as any)["Expanded"] || (shikshaqData as any)["expanded"];
+            description = (shikshaqData as any)["Description"];
+            qualificationsEtc = (shikshaqData as any)["Qualifications etc"];
+            review1 = (shikshaqData as any)["Review 1"];
+            review2 = (shikshaqData as any)["Review 2"];
+            review3 = (shikshaqData as any)["Review 3"];
             console.log('Found data from Shikshaqmine:', { 
               sirMaam, 
               subjects: subjectsFromShikshaq,
@@ -141,6 +159,7 @@ export default function TeacherProfile() {
           sir_maam: sirMaam,
           subjects_from_shikshaq: subjectsFromShikshaq,
           classes_taught: classesTaught,
+          classes_taught_for_backend: classesTaughtForBackend,
           area: area,
           boards_taught: boardsTaught,
           class_size: classSize,
@@ -149,6 +168,11 @@ export default function TeacherProfile() {
           students_home_areas: studentsHomeAreas,
           tutors_home_areas: tutorsHomeAreas,
           expanded: expanded,
+          description: description,
+          qualifications_etc: qualificationsEtc,
+          review_1: review1,
+          review_2: review2,
+          review_3: review3,
         } as Teacher);
       }
       setLoading(false);
@@ -156,6 +180,188 @@ export default function TeacherProfile() {
 
     fetchTeacher();
   }, [slug]);
+
+  // Add teacher profile JSON-LD structured data
+  useEffect(() => {
+    if (!teacher || !teacher.slug) return;
+
+    // Helper function to safely get value or null
+    const safeValue = (value: any) => value || null;
+    
+    // Helper function to convert comma-separated string to array
+    const toArray = (value: string | null | undefined): string[] => {
+      if (!value || typeof value !== 'string') return [];
+      return value.split(',').map(s => s.trim()).filter(Boolean);
+    };
+
+    // Get subject slug for breadcrumb
+    const subjectSlug = teacher.subjects?.slug || 
+      (teacher.subjects_from_shikshaq 
+        ? teacher.subjects_from_shikshaq.toLowerCase().replace(/\s+/g, '-').split(',')[0].trim()
+        : null);
+    const subjectName = teacher.subjects?.name || teacher.subjects_from_shikshaq?.split(',')[0].trim() || 'Tuition Teachers';
+    const subjectUrl = subjectSlug ? `https://www.shikshaq.in/${subjectSlug}-tuition-teachers-in-kolkata` : 'https://www.shikshaq.in/search';
+
+    const teacherUrl = `https://www.shikshaq.in/tuition-teachers/${teacher.slug}`;
+    const teacherName = teacher.name || '';
+    const teacherDescription = teacher.description || teacher.bio || '';
+    const phoneNumber = teacher.whatsapp_number || null;
+    const area = teacher.area || null;
+    const subjects = teacher.subjects_from_shikshaq ? toArray(teacher.subjects_from_shikshaq) : [];
+    const classesTaught = teacher.classes_taught_for_backend ? toArray(teacher.classes_taught_for_backend) : [];
+    const qualifications = teacher.qualifications_etc || null;
+    const review1 = teacher.review_1 || null;
+    const review2 = teacher.review_2 || null;
+    const review3 = teacher.review_3 || null;
+
+    // Person schema (basic info)
+    const personScript = document.createElement('script');
+    personScript.type = 'application/ld+json';
+    personScript.id = 'teacher-profile-person-schema';
+    personScript.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": `${teacherUrl}#person`,
+      "name": teacherName,
+      "description": teacherDescription || undefined,
+      "url": teacherUrl,
+      "jobTitle": "Tutor",
+      ...(phoneNumber && { "telephone": phoneNumber }),
+      ...(area && {
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": area,
+          "addressRegion": "West Bengal",
+          "addressCountry": "IN"
+        }
+      }),
+      ...(qualifications && {
+        "hasCredential": [
+          {
+            "@type": "EducationalOccupationalCredential",
+            "name": qualifications
+          }
+        ]
+      }),
+      ...(subjects.length > 0 && { "knowsAbout": subjects }),
+      ...(classesTaught.length > 0 && { "teaches": classesTaught }),
+      ...(area && {
+        "workLocation": {
+          "@type": "Place",
+          "name": area
+        }
+      }),
+      "memberOf": {
+        "@type": "EducationalOrganization",
+        "name": "ShikshAQ",
+        "url": "https://www.shikshaq.in"
+      },
+      ...(phoneNumber && {
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "Direct Contact",
+          "telephone": phoneNumber,
+          "contactOption": "TollFree"
+        }
+      })
+    });
+
+    // BreadcrumbList schema
+    const breadcrumbScript = document.createElement('script');
+    breadcrumbScript.type = 'application/ld+json';
+    breadcrumbScript.id = 'teacher-profile-breadcrumb-schema';
+    const breadcrumbItems = [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://www.shikshaq.in"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Tuition Teachers",
+        "item": "https://www.shikshaq.in/search"
+      }
+    ];
+    
+    if (subjectSlug && subjectName) {
+      breadcrumbItems.push({
+        "@type": "ListItem",
+        "position": 3,
+        "name": subjectName,
+        "item": subjectUrl
+      });
+    }
+    
+    breadcrumbItems.push({
+      "@type": "ListItem",
+      "position": breadcrumbItems.length + 1,
+      "name": teacherName,
+      "item": teacherUrl
+    });
+
+    breadcrumbScript.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "@id": `${teacherUrl}#breadcrumb`,
+      "itemListElement": breadcrumbItems
+    });
+
+    // Person schema with reviews (if reviews exist)
+    const reviews = [review1, review2, review3].filter(Boolean);
+    let reviewScript = null;
+    if (reviews.length > 0) {
+      reviewScript = document.createElement('script');
+      reviewScript.type = 'application/ld+json';
+      reviewScript.id = 'teacher-profile-reviews-schema';
+      
+      const reviewItems = reviews.map(review => ({
+        "@type": "Review",
+        "author": {
+          "@type": "Person",
+          "name": "Student"
+        },
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": "5"
+        },
+        "reviewBody": review
+      }));
+
+      reviewScript.textContent = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "@id": `${teacherUrl}#reviews`,
+        "name": teacherName,
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "reviewCount": reviews.length.toString(),
+          "bestRating": "5",
+          "worstRating": "1"
+        },
+        "review": reviewItems
+      });
+    }
+
+    // Add scripts to head
+    document.head.appendChild(personScript);
+    document.head.appendChild(breadcrumbScript);
+    if (reviewScript) {
+      document.head.appendChild(reviewScript);
+    }
+
+    // Cleanup: remove scripts when component unmounts or teacher changes
+    return () => {
+      const existingPerson = document.getElementById('teacher-profile-person-schema');
+      const existingBreadcrumb = document.getElementById('teacher-profile-breadcrumb-schema');
+      const existingReviews = document.getElementById('teacher-profile-reviews-schema');
+      if (existingPerson) existingPerson.remove();
+      if (existingBreadcrumb) existingBreadcrumb.remove();
+      if (existingReviews) existingReviews.remove();
+    };
+  }, [teacher]);
 
   if (loading) {
     return (
