@@ -16,8 +16,13 @@ interface PageContent {
   full_content: string;
 }
 
-export function Footer() {
+interface FooterProps {
+  expandedContent?: string | null; // EXPANDED content from Shikshaqmine for teacher profiles
+}
+
+export function Footer({ expandedContent }: FooterProps = {}) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpandedContentExpanded, setIsExpandedContentExpanded] = useState(false);
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
@@ -275,6 +280,53 @@ export function Footer() {
           </div>
         </div>
       </div>
+
+      {/* Find the best teachers section - EXPANDED content from teacher profiles */}
+      {expandedContent && (
+        <div className="container pb-6">
+          <div className="max-w-4xl">
+            <h1 className="text-sm font-normal text-foreground mb-2">
+              Find the best teachers for you
+            </h1>
+            {isExpandedContentExpanded && (
+              <div 
+                className="text-sm text-muted-foreground mb-2 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ 
+                  __html: (() => {
+                    const content = expandedContent || '';
+                    // If content contains HTML tags, render as-is
+                    // Otherwise, convert line breaks to <br /> tags
+                    if (/<[a-z][\s\S]*>/i.test(content)) {
+                      return content;
+                    }
+                    return content.replace(/\n/g, '<br />');
+                  })()
+                }}
+              />
+            )}
+            {expandedContent && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpandedContentExpanded(!isExpandedContentExpanded)}
+                className="mt-2 p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
+              >
+                {isExpandedContentExpanded ? (
+                  <>
+                    Read less
+                    <ChevronUp className="w-3 h-3 ml-1" />
+                  </>
+                ) : (
+                  <>
+                    Read more
+                    <ChevronDown className="w-3 h-3 ml-1" />
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Find the best teachers section */}
       {!loading && pageContent && (
