@@ -363,6 +363,102 @@ export default function TeacherProfile() {
     };
   }, [teacher]);
 
+  // Update document title and meta tags for SEO
+  useEffect(() => {
+    if (!teacher) return;
+
+    // Helper function to get display value or fallback
+    const getValue = (value: string | null | undefined, fallback: string = '') => value || fallback;
+    
+    const teacherName = getValue(teacher.name);
+    const subjects = getValue(teacher.subjects_from_shikshaq || teacher.subjects?.name, 'subjects');
+    const classesTaught = getValue(teacher.classes_taught || teacher.classes_taught_for_backend, 'classes');
+    const area = getValue(teacher.area, 'Kolkata');
+    const modeOfTeaching = getValue(teacher.mode_of_teaching, 'online/offline');
+    const expanded = getValue(teacher.expanded, '');
+
+    // Build title: {{Title}} teaches {{Subjects}} for Classes {{Classes Taught}} in {{Area}} via {{Mode of Teaching}} on ShikshAq by AquaTerra
+    const title = `${teacherName} teaches ${subjects} for Classes ${classesTaught} in ${area} via ${modeOfTeaching} on ShikshAq by AquaTerra`;
+    
+    // Build description: {{Subjects}} tuition classes for {{Classes Taught}} in {{Area}} via {{Mode of Teaching}} {{EXPANDED}}
+    let description = `${subjects} tuition classes for ${classesTaught} in ${area} via ${modeOfTeaching}`;
+    if (expanded) {
+      // Strip HTML tags and limit to ~150 characters for meta description
+      const expandedText = expanded.replace(/<[^>]*>/g, '').trim();
+      const expandedPreview = expandedText.length > 150 
+        ? expandedText.substring(0, 147) + '...' 
+        : expandedText;
+      description = `${description}. ${expandedPreview}`;
+    }
+
+    // Update document title
+    document.title = title;
+
+    // Update or create meta description
+    let metaDescription = document.querySelector('meta[name="description"]');
+    if (!metaDescription) {
+      metaDescription = document.createElement('meta');
+      metaDescription.setAttribute('name', 'description');
+      document.head.appendChild(metaDescription);
+    }
+    metaDescription.setAttribute('content', description);
+
+    // Update or create Open Graph tags
+    let ogTitle = document.querySelector('meta[property="og:title"]');
+    if (!ogTitle) {
+      ogTitle = document.createElement('meta');
+      ogTitle.setAttribute('property', 'og:title');
+      document.head.appendChild(ogTitle);
+    }
+    ogTitle.setAttribute('content', title);
+
+    let ogDescription = document.querySelector('meta[property="og:description"]');
+    if (!ogDescription) {
+      ogDescription = document.createElement('meta');
+      ogDescription.setAttribute('property', 'og:description');
+      document.head.appendChild(ogDescription);
+    }
+    ogDescription.setAttribute('content', description);
+
+    // Update or create Twitter tags
+    let twitterTitle = document.querySelector('meta[name="twitter:title"]');
+    if (!twitterTitle) {
+      twitterTitle = document.createElement('meta');
+      twitterTitle.setAttribute('name', 'twitter:title');
+      document.head.appendChild(twitterTitle);
+    }
+    twitterTitle.setAttribute('content', title);
+
+    let twitterDescription = document.querySelector('meta[name="twitter:description"]');
+    if (!twitterDescription) {
+      twitterDescription = document.createElement('meta');
+      twitterDescription.setAttribute('name', 'twitter:description');
+      document.head.appendChild(twitterDescription);
+    }
+    twitterDescription.setAttribute('content', description);
+
+    // Cleanup: restore default title and meta tags when component unmounts
+    return () => {
+      document.title = 'ShikshAq - by AquaTerra';
+      const defaultDescription = 'ShikshAq connects students with real local tuition teachers for free. Discover trusted, verified educators near you for school subjects and exams- simple, genuine, and community-driven learning with no hidden costs.';
+      
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) metaDesc.setAttribute('content', defaultDescription);
+      
+      const ogTitleEl = document.querySelector('meta[property="og:title"]');
+      if (ogTitleEl) ogTitleEl.setAttribute('content', 'ShikshAq - by AquaTerra');
+      
+      const ogDescEl = document.querySelector('meta[property="og:description"]');
+      if (ogDescEl) ogDescEl.setAttribute('content', defaultDescription);
+      
+      const twitterTitleEl = document.querySelector('meta[name="twitter:title"]');
+      if (twitterTitleEl) twitterTitleEl.setAttribute('content', 'ShikshAq - by AquaTerra');
+      
+      const twitterDescEl = document.querySelector('meta[name="twitter:description"]');
+      if (twitterDescEl) twitterDescEl.setAttribute('content', defaultDescription);
+    };
+  }, [teacher]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
