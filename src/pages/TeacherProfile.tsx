@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MapPin, Clock, MessageCircle, BadgeCheck, Heart } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, MessageCircle, BadgeCheck, Heart, ChevronDown, ChevronUp } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useAuth } from '@/lib/auth-context';
 import { getWhatsAppLink } from '@/utils/whatsapp';
@@ -35,12 +35,14 @@ interface Teacher {
   location_v2?: string | null; // The "Location V2" field from Shikshaqmine table
   students_home_areas?: string | null; // The "student's home in these areas" field from Shikshaqmine table
   tutors_home_areas?: string | null; // The "Tutor's home in these areas" field from Shikshaqmine table
+  expanded?: string | null; // The "EXPANDED" field from Shikshaqmine table
 }
 
 export default function TeacherProfile() {
   const { slug } = useParams<{ slug: string }>();
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { user } = useAuth();
   const { isLiked, toggleLike } = useLikes();
   const navigate = useNavigate();
@@ -79,6 +81,7 @@ export default function TeacherProfile() {
       let locationV2 = null;
       let studentsHomeAreas = null;
       let tutorsHomeAreas = null;
+      let expanded = null;
       if (teacherData) {
         try {
           // Check cache for Shikshaqmine data
@@ -113,6 +116,7 @@ export default function TeacherProfile() {
             locationV2 = (shikshaqData as any)["LOCATION V2"] || (shikshaqData as any)["Location V2"] || (shikshaqData as any)["location_v2"];
             studentsHomeAreas = (shikshaqData as any)["STUDENT'S HOME IN THESE AREAS"] || (shikshaqData as any)["student's home in these areas"] || (shikshaqData as any)["Student's home in these areas"];
             tutorsHomeAreas = (shikshaqData as any)["TUTOR'S HOME IN THESE AREAS"] || (shikshaqData as any)["Tutor's home in these areas"];
+            expanded = (shikshaqData as any)["EXPANDED"] || (shikshaqData as any)["Expanded"] || (shikshaqData as any)["expanded"];
             console.log('Found data from Shikshaqmine:', { 
               sirMaam, 
               subjects: subjectsFromShikshaq,
@@ -145,6 +149,7 @@ export default function TeacherProfile() {
           location_v2: locationV2,
           students_home_areas: studentsHomeAreas,
           tutors_home_areas: tutorsHomeAreas,
+          expanded: expanded,
         } as Teacher);
       }
       setLoading(false);
@@ -558,6 +563,53 @@ export default function TeacherProfile() {
         {/* Comments Section */}
         {teacher && <TeacherComments teacherId={teacher.id} />}
       </main>
+
+      {/* Find the best teachers section - using EXPANDED from Shikshaqmine */}
+      {teacher && teacher.expanded && (
+        <div className="container pb-6">
+          <div className="max-w-4xl">
+            <h1 className="text-sm font-normal text-foreground mb-2">
+              Find the best teachers for you
+            </h1>
+            {isExpanded && (
+              <div 
+                className="text-sm text-muted-foreground mb-2 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ 
+                  __html: (() => {
+                    const content = teacher.expanded || '';
+                    // If content contains HTML tags, render as-is
+                    // Otherwise, convert line breaks to <br /> tags
+                    if (/<[a-z][\s\S]*>/i.test(content)) {
+                      return content;
+                    }
+                    return content.replace(/\n/g, '<br />');
+                  })()
+                }}
+              />
+            )}
+            {teacher.expanded && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="mt-2 p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
+              >
+                {isExpanded ? (
+                  <>
+                    Read less
+                    <ChevronUp className="w-3 h-3 ml-1" />
+                  </>
+                ) : (
+                  <>
+                    Read more
+                    <ChevronDown className="w-3 h-3 ml-1" />
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
