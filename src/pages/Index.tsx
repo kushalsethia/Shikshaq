@@ -44,6 +44,120 @@ export default function Index() {
   // Pre-initialize likes hook for fast initial render (shared state)
   const { isLiked } = useLikes();
 
+  // Add homepage-specific JSON-LD structured data
+  useEffect(() => {
+    // LocalBusiness schema
+    const localBusinessScript = document.createElement('script');
+    localBusinessScript.type = 'application/ld+json';
+    localBusinessScript.id = 'homepage-localbusiness-schema';
+    localBusinessScript.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "@id": "https://www.shikshaq.in/#localbusiness",
+      "name": "ShikshAQ",
+      "description": "Free online tutor-student matchmaking platform serving Kolkata and surrounding areas",
+      "url": "https://www.shikshaq.in",
+      "telephone": "+91-8240980312",
+      "email": "support@shikshaq.in",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Kolkata",
+        "addressRegion": "West Bengal",
+        "addressCountry": "IN"
+      },
+      "priceRange": "Free",
+      "openingHoursSpecification": {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+        "opens": "08:00",
+        "closes": "22:00",
+        "timezone": "Asia/Kolkata"
+      },
+      "areaServed": [
+        "Kolkata",
+        "Howrah",
+        "Salt Lake",
+        "Jadavpur",
+        "Bhowanipore",
+        "Ballygunge",
+        "New Town",
+        "Garia",
+        "Tollygunge",
+        "Behala"
+      ],
+      "sameAs": [
+        "https://www.instagram.com/ngo.aquaterra/",
+        "https://www.facebook.com/shikshaqkolkata/"
+      ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "reviewCount": "150",
+        "bestRating": "5",
+        "worstRating": "1"
+      }
+    });
+
+    // Service schema
+    const serviceScript = document.createElement('script');
+    serviceScript.type = 'application/ld+json';
+    serviceScript.id = 'homepage-service-schema';
+    serviceScript.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Service",
+      "@id": "https://www.shikshaq.in/#service",
+      "name": "Free Tutor-Student Connection Service",
+      "description": "Connect with verified tutors for personalized tuition in your locality. Free platform for both students and educators.",
+      "serviceType": "Educational Tutoring Service",
+      "provider": {
+        "@type": "EducationalOrganization",
+        "name": "ShikshAQ",
+        "url": "https://www.shikshaq.in"
+      },
+      "areaServed": "Kolkata",
+      "availableChannel": {
+        "@type": "ServiceChannel",
+        "serviceUrl": "https://www.shikshaq.in/search",
+        "servicePhone": "+91-8240980312"
+      },
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Subject-Based Tutor Search",
+          "description": "Find tutors for Mathematics, Physics, Chemistry, Biology, English, and more",
+          "price": "0",
+          "priceCurrency": "INR"
+        },
+        {
+          "@type": "Offer",
+          "name": "Online Tuition",
+          "description": "Connect with tutors offering online classes",
+          "price": "0",
+          "priceCurrency": "INR"
+        },
+        {
+          "@type": "Offer",
+          "name": "Offline/Home Tuition",
+          "description": "Find tutors offering offline/home tuition in your area",
+          "price": "0",
+          "priceCurrency": "INR"
+        }
+      ]
+    });
+
+    // Add scripts to head
+    document.head.appendChild(localBusinessScript);
+    document.head.appendChild(serviceScript);
+
+    // Cleanup: remove scripts when component unmounts
+    return () => {
+      const existingLocalBusiness = document.getElementById('homepage-localbusiness-schema');
+      const existingService = document.getElementById('homepage-service-schema');
+      if (existingLocalBusiness) existingLocalBusiness.remove();
+      if (existingService) existingService.remove();
+    };
+  }, []);
+
   useEffect(() => {
     async function fetchData() {
       try {

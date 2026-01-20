@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { FAQ } from '@/components/FAQ';
@@ -5,6 +6,69 @@ import { MessageCircle, Mail, Instagram } from 'lucide-react';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 
 export default function Help() {
+  // Add FAQPage JSON-LD structured data
+  useEffect(() => {
+    const faqPageScript = document.createElement('script');
+    faqPageScript.type = 'application/ld+json';
+    faqPageScript.id = 'helppage-faqpage-schema';
+    faqPageScript.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "@id": "https://www.shikshaq.in/faq#faqpage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is ShikshAQ completely free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, ShikshAQ is completely free for both students and tutors. There are no registration fees, subscription charges, or hidden costs."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I find a tutor on ShikshAQ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Simply visit shikshaq.in and use our search filters to find tutors by subject, board, class, location, and teaching mode. Browse verified tutor profiles and contact them directly."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does ShikshAQ handle payments?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No, ShikshAQ does not handle any payments. All fees are negotiated directly between students and tutors. We are a connection-only platform."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How are tutors verified on ShikshAQ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "All tutors undergo a verification process that includes educational qualification verification and identity verification."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which areas does ShikshAQ serve?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "ShikshAQ currently serves Kolkata and surrounding areas including Howrah, Salt Lake, Jadavpur, Bhowanipore, Ballygunge, and many other localities."
+          }
+        }
+      ]
+    });
+
+    // Add script to head
+    document.head.appendChild(faqPageScript);
+
+    // Cleanup: remove script when component unmounts
+    return () => {
+      const existingFaqPage = document.getElementById('helppage-faqpage-schema');
+      if (existingFaqPage) existingFaqPage.remove();
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
