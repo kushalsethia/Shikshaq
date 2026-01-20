@@ -273,9 +273,9 @@ export function Footer() {
       {!loading && pageContent && (
         <div className="container pb-6">
           <div className="max-w-4xl">
-            <h3 className="text-sm font-normal text-foreground mb-2">
+            <h1 className="text-sm font-normal text-foreground mb-2">
               {pageContent.heading}
-            </h3>
+            </h1>
             {(isExpanded || pageContent.short_content) && (
               <div 
                 className="text-sm text-muted-foreground mb-2 prose prose-sm max-w-none"
