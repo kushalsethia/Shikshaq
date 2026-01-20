@@ -390,7 +390,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               <Link to="/all-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
                 Browse Teachers
               </Link>
-              <Link to="/help" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/more" className="text-muted-foreground hover:text-foreground transition-colors">
                 Help
               </Link>
               <Link to="/terms" className="text-muted-foreground hover:text-foreground transition-colors">

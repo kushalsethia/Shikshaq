@@ -55,7 +55,8 @@ const App = () => (
               <Route path="/tuition-teachers/:slug" element={<TeacherProfile />} />
               <Route path="/teacher/:slug" element={<TeacherRedirect />} />
               <Route path="/liked-teachers" element={<LikedTeachers />} />
-              <Route path="/help" element={<Help />} />
+              <Route path="/more" element={<Help />} />
+              <Route path="/help" element={<Navigate to="/more" replace />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/join" element={<Join />} />
               <Route path="/recommend-teacher" element={<RecommendTeacher />} />
@@ -102,7 +103,8 @@ const App = () => (
               <Route path="/igcse-tuition-teachers-in-kolkata" element={<BoardPage />} />
               <Route path="/international-board-tuition-teachers-in-kolkata" element={<BoardPage />} />
               <Route path="/state-board-tuition-teachers-in-kolkata" element={<BoardPage />} />
-              <Route path="*" element={<NotFound />} />
+              <Route path="/404" element={<NotFound />} />
+              <Route path="*" element={<Navigate to="/404" replace />} />
             </Routes>
           </BrowserRouter>
           </UpvotesProvider>
