@@ -30,6 +30,13 @@ export function Footer() {
         
         // Extract subject/board slug from pathname
         const pathname = location.pathname;
+        
+        // Don't show Footer content on teacher profile pages (they have their own EXPANDED section)
+        if (pathname.startsWith('/tuition-teachers/')) {
+          setLoading(false);
+          return;
+        }
+        
         let subjectSlug: string | null = null;
         let boardSlug: string | null = null;
         
