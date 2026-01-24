@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,31 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
   const [comment, setComment] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  // Preload all emoji images when modal opens
+  useEffect(() => {
+    if (open) {
+      const imagePromises: Promise<void>[] = [];
+      
+      emojiOptions.forEach((option) => {
+        // Preload both selected and unselected versions
+        ['selected', 'unselected'].forEach((state) => {
+          const img = new Image();
+          const promise = new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve(); // Resolve even on error to not block
+            img.src = `${option.image}-${state}.png`;
+          });
+          imagePromises.push(promise);
+        });
+      });
+
+      Promise.all(imagePromises).then(() => {
+        setImagesLoaded(true);
+      });
+    }
+  }, [open]);
 
   const handleSubmit = async () => {
     if (!selectedEmoji) {
@@ -109,24 +134,41 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                   <button
                     key={option.id}
                     onClick={() => setSelectedEmoji(option.id)}
-                    className="flex flex-col items-center transition-all flex-1 relative"
-                    style={{ minHeight: '85px' }}
+                    className="flex flex-col items-center flex-1 relative"
+                    style={{ 
+                      minHeight: '85px',
+                      transition: 'none',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
                   >
                     <div
-                      className="rounded-full transition-all relative flex items-center justify-center"
+                      className="rounded-full relative flex items-center justify-center"
                       style={{
                         width: 'clamp(3rem, 15vw, 5rem)',
                         height: 'clamp(3rem, 15vw, 5rem)',
                         transform: isSelected ? 'scale(1.1)' : 'scale(0.7)',
                         opacity: isSelected ? 1 : 0.6,
                         zIndex: isSelected ? 20 : 10,
+                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        willChange: 'transform, opacity',
                       }}
                     >
                       <img
                         src={`${option.image}-${isSelected ? 'selected' : 'unselected'}.png`}
                         alt={option.emoji}
-                        className="w-full h-full object-contain transition-all"
-                        style={{ margin: 0, padding: 0, display: 'block' }}
+                        className="w-full h-full object-contain"
+                        style={{ 
+                          margin: 0, 
+                          padding: 0, 
+                          display: 'block',
+                          transition: 'opacity 0.2s ease-in-out',
+                          opacity: imagesLoaded ? 1 : 0,
+                        }}
+                        loading="eager"
+                        onLoad={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          img.style.opacity = '1';
+                        }}
                         onError={(e) => {
                           const img = e.target as HTMLImageElement;
                           img.style.display = 'none';
@@ -140,15 +182,15 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                       />
                     </div>
                     <div className="h-4 sm:h-5 mt-0.5 sm:mt-1 flex items-center justify-center">
-                      {isSelected ? (
-                        <span className="text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap text-center">
-                          {option.label}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] sm:text-xs font-medium text-transparent whitespace-nowrap text-center">
-                          {option.label}
-                        </span>
-                      )}
+                      <span 
+                        className="text-[10px] sm:text-xs font-medium whitespace-nowrap text-center"
+                        style={{
+                          color: isSelected ? 'inherit' : 'transparent',
+                          transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        }}
+                      >
+                        {option.label}
+                      </span>
                     </div>
                   </button>
                 );
