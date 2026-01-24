@@ -6,6 +6,7 @@ import { getWhatsAppLink } from '@/utils/whatsapp';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
+import { FeedbackModal } from '@/components/FeedbackModal';
 
 interface PageContent {
   id: string;
@@ -26,6 +27,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
   const [isExpandedContentExpanded, setIsExpandedContentExpanded] = useState(false);
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
@@ -196,8 +198,76 @@ export function Footer({ expandedContent }: FooterProps = {}) {
 
   return (
     <footer className="bg-card border-t border-border">
+      {/* Feedback Section - Orange Pill */}
+      <div className="container pt-16 pb-8">
+        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-orange-200 via-orange-300 to-orange-400 p-12 md:p-16 text-center">
+          {/* Background Images - Overlapping and semi-transparent */}
+          <div className="absolute inset-0 opacity-20 pointer-events-none">
+            {/* Decorative blur circles */}
+            <div 
+              className="absolute top-0 left-0 w-48 h-48 md:w-64 md:h-64 bg-orange-500 rounded-full blur-3xl"
+              style={{
+                backgroundImage: 'radial-gradient(circle, rgba(249, 115, 22, 0.4) 0%, transparent 70%)',
+                transform: 'translate(-20%, -20%)',
+              }}
+            />
+            <div 
+              className="absolute top-1/4 left-0 w-40 h-40 md:w-56 md:h-56 bg-orange-400 rounded-full blur-3xl"
+              style={{
+                backgroundImage: 'radial-gradient(circle, rgba(251, 146, 60, 0.3) 0%, transparent 70%)',
+                transform: 'translate(-15%, -10%)',
+              }}
+            />
+            <div 
+              className="absolute bottom-0 left-0 w-44 h-44 md:w-60 md:h-60 bg-orange-500 rounded-full blur-3xl"
+              style={{
+                backgroundImage: 'radial-gradient(circle, rgba(249, 115, 22, 0.35) 0%, transparent 70%)',
+                transform: 'translate(-25%, 20%)',
+              }}
+            />
+            <div 
+              className="absolute top-0 right-0 w-52 h-52 md:w-72 md:h-72 bg-orange-400 rounded-full blur-3xl"
+              style={{
+                backgroundImage: 'radial-gradient(circle, rgba(251, 146, 60, 0.4) 0%, transparent 70%)',
+                transform: 'translate(20%, -25%)',
+              }}
+            />
+            <div 
+              className="absolute bottom-0 right-0 w-36 h-36 md:w-48 md:h-48 bg-orange-300 rounded-full blur-3xl"
+              style={{
+                backgroundImage: 'radial-gradient(circle, rgba(253, 186, 116, 0.4) 0%, transparent 70%)',
+                transform: 'translate(15%, 25%)',
+              }}
+            />
+            <div 
+              className="absolute top-1/3 right-1/4 w-40 h-40 md:w-56 md:h-56 bg-orange-500 rounded-full blur-3xl"
+              style={{
+                backgroundImage: 'radial-gradient(circle, rgba(249, 115, 22, 0.3) 0%, transparent 70%)',
+                transform: 'translate(10%, -5%)',
+              }}
+            />
+          </div>
+
+          {/* Content */}
+          <div className="relative z-10">
+            <p className="text-orange-50 mb-2 text-sm md:text-base">Every review matters</p>
+            <h2 className="text-2xl md:text-4xl lg:text-5xl font-serif text-white mb-6">
+              We want to hear what you think!
+            </h2>
+            <div className="flex justify-center">
+              <button
+                onClick={() => setFeedbackModalOpen(true)}
+                className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-900 hover:scale-105 transition-all duration-200 text-center"
+              >
+                Share feedback
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* CTA Section */}
-      <div className="container py-16">
+      <div className="container pt-8 pb-16">
         <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-purple-200 via-purple-300 to-purple-400 p-12 md:p-16 text-center">
           {/* Background Images - Overlapping and semi-transparent */}
           <div className="absolute inset-0 opacity-20 pointer-events-none">
@@ -262,20 +332,14 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             <h2 className="text-2xl md:text-4xl lg:text-5xl font-serif text-white mb-6">
               We're always on the lookout for the best tuition teachers!
             </h2>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link 
-                to="/recommend-teacher" 
-                className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-900 hover:scale-105 transition-all duration-200 text-center"
-              >
-                Recommend a Teacher
-              </Link>
+            <div className="flex justify-center">
               <a
                 href="https://forms.gle/6ks9bpsz2EojgfrQA"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-900 hover:scale-105 transition-all duration-200 text-center"
               >
-                I am a Teacher
+                Sign up
               </a>
             </div>
           </div>
@@ -589,6 +653,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           </div>
         </div>
       </div>
+
+      {/* Feedback Modal */}
+      <FeedbackModal open={feedbackModalOpen} onOpenChange={setFeedbackModalOpen} />
     </footer>
   );
 }
