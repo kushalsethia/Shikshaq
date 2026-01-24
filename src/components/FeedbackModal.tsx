@@ -8,14 +8,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-  type CarouselApi,
-} from '@/components/ui/carousel';
 
 interface FeedbackModalProps {
   open: boolean;
@@ -36,8 +28,6 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
-  const isCarouselScrollingRef = useRef(false);
 
   const checkScrollability = () => {
     if (scrollContainerRef.current) {
@@ -79,36 +69,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
         }
       }
     }
-    // Also scroll carousel on mobile (only if not already scrolling from carousel)
-    if (carouselApi && selectedEmoji && !isCarouselScrollingRef.current) {
-      const selectedIndex = emojiOptions.findIndex(e => e.id === selectedEmoji);
-      if (selectedIndex >= 0) {
-        carouselApi.scrollTo(selectedIndex);
-      }
-    }
-  }, [selectedEmoji, carouselApi]); // Only run when selection changes
-
-  // Auto-select emoji when carousel slide changes
-  useEffect(() => {
-    if (!carouselApi) return;
-
-    const handleSelect = () => {
-      isCarouselScrollingRef.current = true;
-      const selectedIndex = carouselApi.selectedScrollSnap();
-      if (selectedIndex >= 0 && selectedIndex < emojiOptions.length) {
-        setSelectedEmoji(emojiOptions[selectedIndex].id);
-      }
-      // Reset flag after a short delay
-      setTimeout(() => {
-        isCarouselScrollingRef.current = false;
-      }, 300);
-    };
-
-    carouselApi.on('select', handleSelect);
-    return () => {
-      carouselApi.off('select', handleSelect);
-    };
-  }, [carouselApi]);
+  }, [selectedEmoji]); // Only run when selection changes
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -150,9 +111,8 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             </p>
           </div>
 
-          {/* Emoji Selection - Desktop: Scroll, Mobile: Carousel */}
-          {/* Desktop Scroll View */}
-          <div className="hidden md:block relative w-full overflow-hidden">
+          {/* Emoji Selection Slider */}
+          <div className="relative w-full overflow-hidden">
             {/* Left scroll button */}
             {canScrollLeft && (
               <button
@@ -168,7 +128,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             <div
               ref={scrollContainerRef}
               onScroll={checkScrollability}
-              className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-8 py-2"
+              className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-4 md:px-8 py-2 pb-4"
             >
               {emojiOptions.map((option) => {
                 const isSelected = selectedEmoji === option.id;
@@ -227,69 +187,6 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                 <ChevronRight className="h-4 w-4 text-foreground" />
               </button>
             )}
-          </div>
-
-          {/* Mobile Carousel View */}
-          <div className="md:hidden relative w-full overflow-hidden">
-            <Carousel
-              setApi={setCarouselApi}
-              opts={{
-                align: 'center',
-                loop: false,
-              }}
-              className="w-full max-w-full"
-            >
-              <CarouselContent className="-ml-2 md:-ml-4">
-                {emojiOptions.map((option) => {
-                  const isSelected = selectedEmoji === option.id;
-                  return (
-                    <CarouselItem key={option.id} className="pl-2 md:pl-4 basis-auto">
-                      <button
-                        onClick={() => setSelectedEmoji(option.id)}
-                        className={`flex flex-col items-center transition-all relative ${
-                          isSelected ? 'scale-110 z-20' : 'scale-90 opacity-60 z-10'
-                        }`}
-                      >
-                        <div
-                          className={`rounded-full transition-all relative ${
-                            isSelected
-                              ? 'w-20 h-20 bg-transparent'
-                              : 'w-14 h-14 bg-gray-100 flex items-center justify-center'
-                          }`}
-                          style={isSelected ? { padding: 0, margin: 0, display: 'block' } : {}}
-                        >
-                          <img
-                            src={`${option.image}-${isSelected ? 'selected' : 'unselected'}.png`}
-                            alt={option.emoji}
-                            className={`transition-all ${
-                              isSelected ? 'w-[80px] h-[80px] object-contain block' : 'w-10 h-10 object-contain'
-                            }`}
-                            style={isSelected ? { margin: 0, padding: 0, display: 'block', width: '100%', height: '100%' } : {}}
-                            onError={(e) => {
-                              const img = e.target as HTMLImageElement;
-                              img.style.display = 'none';
-                              if (!img.parentElement?.querySelector('.emoji-fallback')) {
-                                const fallback = document.createElement('span');
-                                fallback.className = 'emoji-fallback text-2xl';
-                                fallback.textContent = option.emoji;
-                                img.parentElement?.appendChild(fallback);
-                              }
-                            }}
-                          />
-                        </div>
-                        {isSelected && (
-                          <span className="text-xs font-medium text-foreground whitespace-nowrap -mt-2">
-                            {option.label}
-                          </span>
-                        )}
-                      </button>
-                    </CarouselItem>
-                  );
-                })}
-              </CarouselContent>
-              <CarouselPrevious className="left-0 h-8 w-8" />
-              <CarouselNext className="right-0 h-8 w-8" />
-            </Carousel>
           </div>
 
           {/* Comment Input */}
