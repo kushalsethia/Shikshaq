@@ -177,12 +177,16 @@ export default function Index() {
         }
         
         // Fetch teachers by upvotes (top 16) and subjects in parallel
+        // Fetch specific subjects: Bengali, Maths, Drawing, Psychology, Computer, Accounts, Biology, Economics
+        // Exclude "Drawing and Painting"
+        const desiredSubjects = ['Bengali', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computer', 'Accounts', 'Biology', 'Economics'];
         const [subjectsRes, upvotesRes] = await Promise.all([
           cachedSubjects ? Promise.resolve({ data: cachedSubjects, error: null }) :
           supabase
             .from('subjects')
             .select('*')
-            .limit(8),
+            .in('name', desiredSubjects)
+            .limit(10), // Fetch a few extra in case we need to filter
           supabase
             .from('teacher_upvotes')
             .select('teacher_id')
@@ -284,9 +288,26 @@ export default function Index() {
         }
 
         if (subjectsRes.data) {
-          setSubjects(subjectsRes.data);
+          // Order by desired sequence
+          const desiredOrder = ['Bengali', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computer', 'Accounts', 'Biology', 'Economics'];
+          const filteredSubjects = subjectsRes.data
+            .filter((subject: any) => desiredOrder.includes(subject.name))
+            .sort((a: any, b: any) => {
+              const indexA = desiredOrder.indexOf(a.name);
+              const indexB = desiredOrder.indexOf(b.name);
+              // If both are in desired order, sort by index
+              if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+              // If only one is in desired order, prioritize it
+              if (indexA !== -1) return -1;
+              if (indexB !== -1) return 1;
+              // Otherwise maintain original order
+              return 0;
+            })
+            .slice(0, 8);
+          
+          setSubjects(filteredSubjects);
           // Cache subjects
-          setCache(subjectsCacheKey, subjectsRes.data, CACHE_TTL.SUBJECTS);
+          setCache(subjectsCacheKey, filteredSubjects, CACHE_TTL.SUBJECTS);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -374,7 +395,7 @@ export default function Index() {
                 <CarouselNext className="right-0 md:right-4" />
               </Carousel>
               {/* View more button below carousel */}
-              <div className="flex justify-end mt-2">
+              <div className="flex justify-end mt-2 sm:mt-6">
                 <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link font-bold md:font-normal">
                   View more teachers
                   <ArrowRight className="w-4 h-4" />
