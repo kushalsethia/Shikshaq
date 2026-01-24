@@ -82,39 +82,41 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md rounded-2xl p-3 sm:p-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-left text-xl font-bold text-foreground">
+          <DialogTitle className="text-left text-lg sm:text-xl font-bold text-foreground">
             Feedback
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 mt-4 overflow-x-hidden w-full">
+        <div className="space-y-4 sm:space-y-6 mt-2 sm:mt-4 overflow-x-hidden w-full">
           {/* Heading */}
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-foreground mb-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1 sm:mb-2">
               Give us a feedback!
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Your input is important for us. We take customer feedback very seriously.
             </p>
           </div>
 
           {/* Emoji Selection */}
-          <div className="w-full flex justify-center px-1">
-            <div className="flex gap-0 md:gap-1 items-center justify-center w-full max-w-full">
+          <div className="w-full flex justify-center px-0.5 sm:px-1">
+            <div className="flex gap-0 sm:gap-0.5 md:gap-1 items-center justify-center w-full max-w-full">
               {emojiOptions.map((option) => {
                 const isSelected = selectedEmoji === option.id;
                 return (
                   <button
                     key={option.id}
                     onClick={() => setSelectedEmoji(option.id)}
-                    className="flex flex-col items-center transition-all flex-shrink-0 relative"
-                    style={{ minHeight: '100px' }}
+                    className="flex flex-col items-center transition-all flex-1 relative"
+                    style={{ minHeight: '85px' }}
                   >
                     <div
-                      className="rounded-full transition-all relative w-20 h-20 flex items-center justify-center"
+                      className="rounded-full transition-all relative flex items-center justify-center"
                       style={{
+                        width: 'clamp(3rem, 15vw, 5rem)',
+                        height: 'clamp(3rem, 15vw, 5rem)',
                         transform: isSelected ? 'scale(1.1)' : 'scale(0.7)',
                         opacity: isSelected ? 1 : 0.6,
                         zIndex: isSelected ? 20 : 10,
@@ -137,13 +139,13 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                         }}
                       />
                     </div>
-                    <div className="h-5 mt-1 flex items-center justify-center">
+                    <div className="h-4 sm:h-5 mt-0.5 sm:mt-1 flex items-center justify-center">
                       {isSelected ? (
-                        <span className="text-xs font-medium text-foreground whitespace-nowrap">
+                        <span className="text-[10px] sm:text-xs font-medium text-foreground whitespace-nowrap text-center">
                           {option.label}
                         </span>
                       ) : (
-                        <span className="text-xs font-medium text-transparent whitespace-nowrap">
+                        <span className="text-[10px] sm:text-xs font-medium text-transparent whitespace-nowrap text-center">
                           {option.label}
                         </span>
                       )}
@@ -157,16 +159,16 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
           {/* Guest Email Input (only for non-logged-in users) */}
           {!user && (
             <div className="w-full space-y-2">
-              <Label htmlFor="guest-email">Email (Optional)</Label>
+              <Label htmlFor="guest-email" className="text-sm">Email (Optional)</Label>
               <Input
                 id="guest-email"
                 type="email"
                 placeholder="your.email@example.com"
                 value={guestEmail}
                 onChange={(e) => setGuestEmail(e.target.value)}
-                className="w-full"
+                className="w-full text-sm"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 Optional: Provide your email if you'd like us to follow up on your feedback
               </p>
             </div>
@@ -174,13 +176,13 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
 
           {/* Comment Input */}
           <div className="w-full">
-            <Label htmlFor="comment">Comment (Optional)</Label>
+            <Label htmlFor="comment" className="text-sm">Comment (Optional)</Label>
             <Textarea
               id="comment"
               placeholder="Add a comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="min-h-[100px] resize-none border-gray-300 rounded-lg w-full max-w-full mt-2"
+              className="min-h-[80px] sm:min-h-[100px] resize-none border-gray-300 rounded-lg w-full max-w-full mt-2 text-sm"
             />
           </div>
 
@@ -189,7 +191,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             <Button
               onClick={handleSubmit}
               disabled={submitting || !selectedEmoji}
-              className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-2.5 sm:py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
             >
               {submitting ? 'Submitting...' : 'Submit Feedback'}
             </Button>
