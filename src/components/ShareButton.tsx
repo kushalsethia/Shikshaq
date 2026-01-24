@@ -21,14 +21,58 @@ export function ShareButton({ url, title, description, className = '', iconSize 
     ? `${title} - ${description}`
     : `Check out ${title} on ShikshAq`;
 
-  const copyToClipboard = async () => {
+  const copyToClipboard = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     try {
-      await navigator.clipboard.writeText(fullUrl);
+      // Clear any existing text selection
+      if (window.getSelection) {
+        window.getSelection()?.removeAllRanges();
+      }
+      
+      // Use clipboard API if available
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(fullUrl);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = fullUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+      
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       setShowMenu(false);
     } catch (err) {
       console.error('Failed to copy:', err);
+      // Try fallback method
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = fullUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        setShowMenu(false);
+      } catch (fallbackErr) {
+        console.error('Fallback copy also failed:', fallbackErr);
+      }
     }
   };
 
@@ -118,12 +162,28 @@ export function ShareButton({ url, title, description, className = '', iconSize 
           />
           
           {/* Menu */}
-          <div className={`absolute right-0 top-full mt-2 ${menuWidthClasses[menuWidth]} bg-card border border-border rounded-lg shadow-lg z-50 p-2`}>
+          <div 
+            className={`absolute right-0 top-full mt-2 ${menuWidthClasses[menuWidth]} bg-card border border-border rounded-lg shadow-lg z-50 p-2 select-none`}
+            onMouseDown={(e) => e.preventDefault()}
+            onTouchStart={(e) => e.preventDefault()}
+          >
             <div className="space-y-1">
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-2"
-                onClick={copyToClipboard}
+                className="w-full justify-start gap-2 select-none"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  copyToClipboard(e);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
               >
                 {copied ? (
                   <>
