@@ -7,6 +7,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth-context';
+import { toast } from 'sonner';
 
 interface FeedbackModalProps {
   open: boolean;
@@ -22,17 +27,57 @@ const emojiOptions = [
 ];
 
 export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
+  const { user } = useAuth();
   const [selectedEmoji, setSelectedEmoji] = useState<number | null>(3); // Default to "Average"
   const [comment, setComment] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    // TODO: Implement feedback submission logic
-    console.log('Feedback submitted:', { emoji: selectedEmoji, comment });
-    // Close modal after submission
-    onOpenChange(false);
-    // Reset form
-    setSelectedEmoji(3);
-    setComment('');
+  const handleSubmit = async () => {
+    if (!selectedEmoji) {
+      toast.error('Please select a rating');
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const feedbackData: {
+        user_id: string | null;
+        rating: number;
+        comment: string | null;
+        is_guest: boolean;
+        guest_email?: string | null;
+      } = {
+        user_id: user?.id || null,
+        rating: selectedEmoji,
+        comment: comment.trim() || null,
+        is_guest: !user,
+        ...(user ? {} : { guest_email: guestEmail.trim() || null }),
+      };
+
+      const { error } = await supabase
+        .from('feedback')
+        .insert([feedbackData]);
+
+      if (error) {
+        console.error('Error submitting feedback:', error);
+        toast.error('Failed to submit feedback. Please try again.');
+        return;
+      }
+
+      toast.success('Thank you for your feedback!');
+      onOpenChange(false);
+      // Reset form
+      setSelectedEmoji(3);
+      setComment('');
+      setGuestEmail('');
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      toast.error('Failed to submit feedback. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -106,13 +151,33 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             </div>
           </div>
 
+          {/* Guest Email Input (only for non-logged-in users) */}
+          {!user && (
+            <div className="w-full space-y-2">
+              <Label htmlFor="guest-email">Email (Optional)</Label>
+              <Input
+                id="guest-email"
+                type="email"
+                placeholder="your.email@example.com"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Optional: Provide your email if you'd like us to follow up on your feedback
+              </p>
+            </div>
+          )}
+
           {/* Comment Input */}
           <div className="w-full">
+            <Label htmlFor="comment">Comment (Optional)</Label>
             <Textarea
+              id="comment"
               placeholder="Add a comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="min-h-[100px] resize-none border-gray-300 rounded-lg w-full max-w-full"
+              className="min-h-[100px] resize-none border-gray-300 rounded-lg w-full max-w-full mt-2"
             />
           </div>
 
@@ -120,9 +185,10 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
           <div className="w-full">
             <Button
               onClick={handleSubmit}
-              className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-3 rounded-lg"
+              disabled={submitting || !selectedEmoji}
+              className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Submit Feedback
+              {submitting ? 'Submitting...' : 'Submit Feedback'}
             </Button>
           </div>
         </div>
