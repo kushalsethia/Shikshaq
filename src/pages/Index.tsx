@@ -10,7 +10,6 @@ import { HowItWorks } from '@/components/HowItWorks';
 import { FAQ } from '@/components/FAQ';
 import { Testimonials } from '@/components/Testimonials';
 import { Footer } from '@/components/Footer';
-import { HeroSection } from '@/components/HeroSection';
 import { useLikes } from '@/lib/likes-context';
 import {
   Carousel,
@@ -305,15 +304,24 @@ export default function Index() {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      {/* Search Section */}
-      <section className="pt-8 pb-4">
+      {/* Search Section - Combined with spacing */}
+      <section className="pt-24 sm:pt-12 pb-24 sm:pb-16">
         <div className="container">
-          <SearchBar />
+          <div className="flex flex-col items-center px-4 sm:px-0">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-center mb-8 sm:mb-10 text-foreground leading-tight">
+              Your ideal teacher,
+              <br />
+              one search away.
+            </h1>
+            <div className="w-full max-w-2xl">
+              <SearchBar />
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Featured Teachers */}
-      <section className="py-8">
+      <section className="pt-0 sm:pt-0 pb-4">
         <div className="container">
           <div className="mb-6">
             <h2 className="section-title">Featured tuition teachers on ShikshAq</h2>
@@ -366,7 +374,7 @@ export default function Index() {
                 <CarouselNext className="right-0 md:right-4" />
               </Carousel>
               {/* View more button below carousel */}
-              <div className="flex justify-end mt-6">
+              <div className="flex justify-end mt-2">
                 <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link font-bold md:font-normal">
                   View more teachers
                   <ArrowRight className="w-4 h-4" />
@@ -381,18 +389,11 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Hero CTA */}
-      <HeroSection />
-
       {/* Subjects */}
-      <section className="py-8">
+      <section className="py-4">
         <div className="container">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6">
             <h2 className="section-title">Explore tuition teachers via subjects</h2>
-            <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link">
-              View more subjects
-              <ArrowRight className="w-4 h-4" />
-            </Link>
           </div>
 
           {loading ? (
@@ -404,16 +405,25 @@ export default function Index() {
               ))}
             </div>
           ) : subjects.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-              {subjects.map((subject) => (
-                <SubjectCard
-                  key={subject.id}
-                  name={subject.name}
-                  slug={subject.slug}
-                  imageUrl={subject.image_url}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                {subjects.map((subject) => (
+                  <SubjectCard
+                    key={subject.id}
+                    name={subject.name}
+                    slug={subject.slug}
+                    imageUrl={subject.image_url}
+                  />
+                ))}
+              </div>
+              {/* View more button below grid */}
+              <div className="flex justify-end mt-6">
+                <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link font-bold md:font-normal">
+                  View more subjects
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <p>No subjects found. Please add subjects to your Supabase database.</p>
