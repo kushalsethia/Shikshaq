@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -25,61 +24,6 @@ const emojiOptions = [
 export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
   const [selectedEmoji, setSelectedEmoji] = useState<number | null>(3); // Default to "Average"
   const [comment, setComment] = useState('');
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-
-  const checkScrollability = () => {
-    if (scrollContainerRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-      setCanScrollLeft(scrollLeft > 0);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
-    }
-  };
-
-  useEffect(() => {
-    if (open && scrollContainerRef.current) {
-      // Scroll to selected emoji on open only
-      const selectedIndex = emojiOptions.findIndex(e => e.id === selectedEmoji);
-      if (selectedIndex >= 0 && scrollContainerRef.current) {
-        const emojiElement = scrollContainerRef.current.children[selectedIndex] as HTMLElement;
-        if (emojiElement) {
-          // Use setTimeout to ensure DOM is ready
-          setTimeout(() => {
-            emojiElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-          }, 100);
-        }
-      }
-      checkScrollability();
-    }
-  }, [open]); // Only run when modal opens, not on selection change
-
-  // Separate effect to scroll when selection changes (but not on initial open)
-  useEffect(() => {
-    if (open && scrollContainerRef.current) {
-      const selectedIndex = emojiOptions.findIndex(e => e.id === selectedEmoji);
-      if (selectedIndex >= 0 && scrollContainerRef.current) {
-        const emojiElement = scrollContainerRef.current.children[selectedIndex] as HTMLElement;
-        if (emojiElement) {
-          // Small delay to allow size transition
-          setTimeout(() => {
-            emojiElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-            checkScrollability();
-          }, 150);
-        }
-      }
-    }
-  }, [selectedEmoji]); // Only run when selection changes
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const scrollAmount = 120; // Adjust based on emoji width + gap
-      scrollContainerRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth',
-      });
-    }
-  };
 
   const handleSubmit = () => {
     // TODO: Implement feedback submission logic
@@ -111,25 +55,9 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             </p>
           </div>
 
-          {/* Emoji Selection Slider */}
-          <div className="relative w-full overflow-hidden">
-            {/* Left scroll button */}
-            {canScrollLeft && (
-              <button
-                onClick={() => scroll('left')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background border border-border shadow-sm"
-                aria-label="Scroll left"
-              >
-                <ChevronLeft className="h-4 w-4 text-foreground" />
-              </button>
-            )}
-            
-            {/* Scrollable emoji container */}
-            <div
-              ref={scrollContainerRef}
-              onScroll={checkScrollability}
-              className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth px-4 md:px-8 py-2 pb-4"
-            >
+          {/* Emoji Selection */}
+          <div className="w-full flex justify-center">
+            <div className="flex gap-1 md:gap-4 items-center justify-center w-full max-w-full">
               {emojiOptions.map((option) => {
                 const isSelected = selectedEmoji === option.id;
                 return (
@@ -176,17 +104,6 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                 );
               })}
             </div>
-
-            {/* Right scroll button */}
-            {canScrollRight && (
-              <button
-                onClick={() => scroll('right')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background border border-border shadow-sm"
-                aria-label="Scroll right"
-              >
-                <ChevronRight className="h-4 w-4 text-foreground" />
-              </button>
-            )}
           </div>
 
           {/* Comment Input */}
