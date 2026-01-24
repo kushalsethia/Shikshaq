@@ -60,7 +60,7 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
   {
     keywords: ['contact', 'help', 'support', 'reach', 'email', 'whatsapp'],
-    response: `You can reach us via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. Our team is always ready to help you with any questions or concerns you might have.\n\n<a href="${getWhatsAppLink('8240980312')}" target="_blank" rel="noopener noreferrer" class="text-primary underline font-medium">Contact us on WhatsApp →</a>`,
+    response: `You can reach us via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. Our team is always ready to help you with any questions or concerns you might have.`,
   },
 ];
 
@@ -294,16 +294,21 @@ export function Chatbot() {
                       __html: (() => {
                         let content = message.content;
                         
+                        // Strip out any HTML tags that the AI might have generated (safety measure)
+                        // This prevents malformed HTML from being displayed as raw text
+                        content = content.replace(/<[^>]+>/g, '');
+                        
                         // Convert WhatsApp links (https://wa.me/...) to clickable links
                         content = content.replace(
                           /(https:\/\/wa\.me\/[\d]+)/g, 
-                          '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+                          '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-primary underline font-medium">Contact us on WhatsApp →</a>'
                         );
                         
                         // If contact info is mentioned but no link present, add a WhatsApp link
-                        if ((content.includes('8240980312') || content.includes('WhatsApp') || content.includes('contact')) && !content.includes('wa.me')) {
+                        // Only add if there's no existing WhatsApp link
+                        if ((content.includes('8240980312') || content.includes('WhatsApp') || content.toLowerCase().includes('contact')) && !content.includes('wa.me') && !content.includes('<a href')) {
                           const whatsappLink = getWhatsAppLink('8240980312');
-                          content += `\n\n<a href="${whatsappLink}" target="_blank" rel="noopener noreferrer">Contact us on WhatsApp →</a>`;
+                          content += `\n\n<a href="${whatsappLink}" target="_blank" rel="noopener noreferrer" class="text-primary underline font-medium">Contact us on WhatsApp →</a>`;
                         }
                         
                         // Convert line breaks to <br> for proper rendering

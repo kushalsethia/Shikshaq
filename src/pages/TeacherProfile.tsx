@@ -587,7 +587,7 @@ export default function TeacherProfile() {
             </h1>
 
             {/* Quick Info */}
-            <div className="flex flex-wrap gap-4 md:gap-6">
+            <div className="flex flex-wrap items-center gap-4 md:gap-6 mb-6">
               {teacher.location && (
                 <div className="flex items-center gap-2 text-foreground/80">
                   <MapPin className="w-4 h-4" />
@@ -603,7 +603,7 @@ export default function TeacherProfile() {
             </div>
 
             {/* He/She teaches section */}
-            <div className="space-y-4">
+            <div className="space-y-6">
               {(() => {
                 // Get gender from Shikshaqmine table (sir_maam field)
                 const sirMaam = teacher.sir_maam;
@@ -644,8 +644,8 @@ export default function TeacherProfile() {
                 return (
                   <>
                     {subjectsList.length > 0 && (
-                      <>
-                        <p className="text-sm font-medium text-foreground/90 mb-3">{pronoun} teaches</p>
+                      <div>
+                        <p className="text-sm font-medium text-foreground mb-0.5 pb-0.5 leading-tight">{pronoun} teaches</p>
                         <div className="flex flex-wrap gap-2">
                           {subjectsList.map((subject: string, index: number) => (
                             <span
@@ -656,7 +656,7 @@ export default function TeacherProfile() {
                             </span>
                           ))}
                         </div>
-                      </>
+                      </div>
                     )}
                   </>
                 );
@@ -672,8 +672,8 @@ export default function TeacherProfile() {
                   
                   if (classesList.length > 0) {
                     return (
-                      <>
-                        <p className="text-sm font-medium text-foreground/90 mb-3">to students of</p>
+                      <div>
+                        <p className="text-sm font-medium text-foreground mb-0.5 pb-0.5 leading-tight">to students of</p>
                         <div className="flex flex-wrap gap-2">
                           {classesList.map((cls: string, index: number) => (
                             <span
@@ -684,7 +684,7 @@ export default function TeacherProfile() {
                             </span>
                           ))}
                         </div>
-                      </>
+                      </div>
                     );
                   }
                 }
@@ -693,6 +693,7 @@ export default function TeacherProfile() {
             </div>
 
             {/* Location V2 section - Home tutoring locations */}
+            <div className="mt-6">
             {(() => {
               const locationV2 = teacher.location_v2;
               if (!locationV2) return null;
@@ -751,7 +752,7 @@ export default function TeacherProfile() {
                   {/* Students home tutoring section */}
                   {(isStudentsHomeOnly || isBothOptions) && studentsAreas.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium text-foreground mb-3">
+                      <p className="text-sm font-medium text-foreground mb-0.5 pb-0.5 leading-tight">
                         <span>{pronoun}</span> provides home to home tutoring to students in
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -770,7 +771,7 @@ export default function TeacherProfile() {
                   {/* Teacher's home tutoring section */}
                   {(isTeachersHomeOnly || isBothOptions) && tutorsAreas.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium text-foreground mb-3">
+                      <p className="text-sm font-medium text-foreground mb-0.5 pb-0.5 leading-tight">
                         <span>{possessive}</span> tuition centre's are located in
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -788,6 +789,7 @@ export default function TeacherProfile() {
                 </div>
               );
             })()}
+            </div>
 
             {/* CTA - Contact via WhatsApp */}
             <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-card rounded-2xl p-6 md:p-8 border-2 border-primary/20 shadow-lg">
@@ -828,7 +830,7 @@ export default function TeacherProfile() {
               Little more about {teacher.name}
             </h3>
             <div 
-              className="px-4 py-3 rounded-lg bg-muted/50 text-foreground/90 border border-border prose prose-sm max-w-none inline-block"
+              className="px-4 py-3 rounded-lg bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 prose prose-sm max-w-none inline-block"
               dangerouslySetInnerHTML={{ 
                 __html: (() => {
                   const content = teacher.description || '';
@@ -853,7 +855,7 @@ export default function TeacherProfile() {
               {teacher.boards_taught && (
                 <div className="flex-shrink-0">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Boards taught</h4>
-                  <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground/90 border border-border inline-block">
+                  <div className="px-4 py-3 rounded-lg bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-200 border border-cyan-200 dark:border-cyan-800 inline-block">
                     {teacher.boards_taught}
                   </div>
                 </div>
@@ -863,7 +865,7 @@ export default function TeacherProfile() {
               {teacher.class_size && (
                 <div className="flex-shrink-0">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Class Size</h4>
-                  <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground/90 border border-border inline-block">
+                  <div className="px-4 py-3 rounded-lg bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-200 border border-pink-200 dark:border-pink-800 inline-block">
                     {teacher.class_size}
                   </div>
                 </div>
@@ -873,7 +875,7 @@ export default function TeacherProfile() {
               {teacher.mode_of_teaching && (
                 <div className="flex-shrink-0 w-full md:w-auto">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Mode of teaching</h4>
-                  <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground/90 border border-border inline-block">
+                  <div className="px-4 py-3 rounded-lg bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-200 border border-teal-200 dark:border-teal-800 inline-block">
                     {teacher.mode_of_teaching}
                   </div>
                 </div>
@@ -883,7 +885,7 @@ export default function TeacherProfile() {
               {teacher.qualifications_etc && (
                 <div className="flex-shrink-0 w-full md:w-auto">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Experience/Qualifications</h4>
-                  <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground/90 border border-border inline-block">
+                  <div className="px-4 py-3 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 border border-amber-200 dark:border-amber-800 inline-block">
                     {teacher.qualifications_etc}
                   </div>
                 </div>
