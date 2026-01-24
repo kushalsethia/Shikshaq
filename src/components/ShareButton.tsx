@@ -27,27 +27,57 @@ export function ShareButton({ url, title, description, className = '', iconSize 
       e.stopPropagation();
     }
     
+    // Ensure we only copy the URL, nothing else
+    const urlToCopy = fullUrl.trim();
+    
     try {
-      // Clear any existing text selection
+      // Clear any existing text selection multiple times to be sure
       if (window.getSelection) {
-        window.getSelection()?.removeAllRanges();
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+        }
+      }
+      
+      // Also clear selection using document selection
+      if (document.getSelection) {
+        const docSelection = document.getSelection();
+        if (docSelection) {
+          docSelection.removeAllRanges();
+        }
       }
       
       // Use clipboard API if available
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(fullUrl);
+        // Write only the URL, nothing else
+        await navigator.clipboard.writeText(urlToCopy);
       } else {
-        // Fallback for older browsers
+        // Fallback for older browsers - use textarea method
         const textArea = document.createElement('textarea');
-        textArea.value = fullUrl;
+        textArea.value = urlToCopy; // Only the URL, nothing else
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         textArea.style.top = '-999999px';
+        textArea.style.opacity = '0';
+        textArea.style.pointerEvents = 'none';
+        textArea.setAttribute('readonly', '');
         document.body.appendChild(textArea);
+        
+        // Clear any selection before selecting
+        if (window.getSelection) {
+          window.getSelection()?.removeAllRanges();
+        }
+        
         textArea.focus();
         textArea.select();
-        document.execCommand('copy');
-        textArea.remove();
+        textArea.setSelectionRange(0, urlToCopy.length);
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (!successful) {
+          throw new Error('execCommand copy failed');
+        }
       }
       
       setCopied(true);
@@ -55,18 +85,28 @@ export function ShareButton({ url, title, description, className = '', iconSize 
       setShowMenu(false);
     } catch (err) {
       console.error('Failed to copy:', err);
-      // Try fallback method
+      // Try simpler fallback method
       try {
         const textArea = document.createElement('textarea');
-        textArea.value = fullUrl;
+        textArea.value = urlToCopy; // Only the URL
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         textArea.style.top = '-999999px';
+        textArea.style.opacity = '0';
+        textArea.setAttribute('readonly', '');
         document.body.appendChild(textArea);
-        textArea.focus();
+        
+        // Clear selection
+        if (window.getSelection) {
+          window.getSelection()?.removeAllRanges();
+        }
+        
         textArea.select();
+        textArea.setSelectionRange(0, urlToCopy.length);
+        
         document.execCommand('copy');
-        textArea.remove();
+        document.body.removeChild(textArea);
+        
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
         setShowMenu(false);
