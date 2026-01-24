@@ -18,7 +18,7 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section className="py-16">
+    <section className="py-8">
       <div className="container">
         <div className="text-center mb-12">
           <p className="text-muted-foreground mb-2">Looking for a tutor? Just ShikshAq it!</p>
