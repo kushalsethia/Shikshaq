@@ -23,7 +23,9 @@ export function SubjectCard({ name, slug, imageUrl }: SubjectCardProps) {
             <img
               src={displayImage}
               alt={name}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-accent to-muted flex items-center justify-center">

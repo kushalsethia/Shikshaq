@@ -215,9 +215,22 @@ export function Navbar() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link to="/all-tuition-teachers-in-kolkata" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                    <Search className="w-4 h-4" />
+                    Browse
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link to="/faq" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
                     <HelpCircle className="w-4 h-4" />
                     FAQ
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/join" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4" />
+                    Join as a teacher
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -253,19 +266,6 @@ export function Navbar() {
                     </a>
                   </div>
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/join" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
-                    <ExternalLink className="w-4 h-4" />
-                    Join as a teacher
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/recommend-teacher" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
-                    <ExternalLink className="w-4 h-4" />
-                    Recommend a teacher
-                  </Link>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
