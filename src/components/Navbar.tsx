@@ -173,6 +173,12 @@ export function Navbar() {
                           Upvotes
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/feedback" className="flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4" />
+                          Feedback
+                        </Link>
+                      </DropdownMenuItem>
                     </>
                   )}
                   <DropdownMenuSeparator />
