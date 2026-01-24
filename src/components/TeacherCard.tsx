@@ -5,6 +5,7 @@ import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
 import { useNavigate } from 'react-router-dom';
 import { memo } from 'react';
+import { ShareButton } from '@/components/ShareButton';
 
 interface TeacherCardProps {
   id: string;
@@ -91,7 +92,8 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
 
   return (
     <Link to={`/tuition-teachers/${slug}`} className="teacher-card group">
-      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl">
+      <div className="rounded-2xl border-4 border-white overflow-hidden">
+        <div className="relative aspect-[4/5] overflow-hidden">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -106,8 +108,8 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
           </div>
         )}
         
-        {/* Subject Badge - Moved closer to top-left */}
-        <div className="absolute top-1 left-1">
+        {/* Subject Badge - Top-left corner */}
+        <div className="absolute top-1 left-1 z-10">
           <span className={`subject-badge ${badgeColor}`}>
             {subject}
           </span>
@@ -151,12 +153,27 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
             )}
           </button>
         )}
-      </div>
-      
-      <div className="pt-3">
-        <h3 className="font-semibold text-foreground group-hover:text-foreground/80 transition-colors">
-          {displayName}
-        </h3>
+
+        {/* Share Button - Only show if featured */}
+        {isFeatured && (
+          <div className="absolute bottom-3 right-3 z-10">
+            <ShareButton
+              url={`/tuition-teachers/${slug}`}
+              title={displayName}
+              description={`${subject} Tuition Teacher`}
+              className=""
+              iconSize="md"
+            />
+          </div>
+        )}
+        </div>
+        
+        {/* Teacher Name - Inside the bordered card */}
+        <div className="py-2.5 bg-white">
+          <h3 className="font-semibold text-foreground text-sm group-hover:text-foreground/80 transition-colors px-3">
+            {displayName}
+          </h3>
+        </div>
       </div>
     </Link>
   );

@@ -104,7 +104,7 @@ export function TeacherCardDetailed({
 
       {/* Teacher Info */}
       <div className="flex-1 min-w-0">
-        <h3 className="text-xl md:text-2xl font-serif font-bold text-foreground mb-2 group-hover:text-foreground/80 transition-colors">
+        <h3 className="text-xl md:text-2xl font-serif text-foreground mb-2 group-hover:text-foreground/80 transition-colors">
           {displayName}
         </h3>
 

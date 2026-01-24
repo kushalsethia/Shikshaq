@@ -5,6 +5,7 @@ import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 
 interface PageContent {
   id: string;
@@ -258,7 +259,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           {/* Content */}
           <div className="relative z-10">
             <p className="text-purple-50 mb-2 text-sm md:text-base">Free of charge, no commissions!</p>
-            <h2 className="text-2xl md:text-4xl lg:text-5xl font-serif font-bold text-white mb-6">
+            <h2 className="text-2xl md:text-4xl lg:text-5xl font-serif text-white mb-6">
               We're always on the lookout for the best tuition teachers!
             </h2>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -384,19 +385,19 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             <Logo size="md" />
 
             <nav className="flex flex-wrap justify-center gap-6 text-sm">
-              <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/" className="text-foreground/80 hover:text-foreground transition-colors">
                 Home
               </Link>
-              <Link to="/all-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/all-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
                 Browse Teachers
               </Link>
-              <Link to="/more" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/more" className="text-foreground/80 hover:text-foreground transition-colors">
                 Help
               </Link>
-              <Link to="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/terms" className="text-foreground/80 hover:text-foreground transition-colors">
                 Terms & Conditions
               </Link>
-              <Link to="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link to="/privacy" className="text-foreground/80 hover:text-foreground transition-colors">
                 Privacy Policy
               </Link>
             </nav>
@@ -408,7 +409,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 rel="noopener noreferrer"
                 className="p-2 rounded-full bg-muted hover:bg-accent transition-colors"
               >
-                <MessageCircle className="w-5 h-5 text-foreground" />
+                <WhatsAppIcon className="w-5 h-5 text-foreground" />
               </a>
               <a
                 href="mailto:join.shikshaq@gmail.com"
@@ -422,7 +423,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 rel="noopener noreferrer"
                 className="p-2 rounded-full bg-muted hover:bg-accent transition-colors"
               >
-                <Instagram className="w-5 h-5 text-foreground" />
+                <InstagramIcon className="w-5 h-5 text-foreground" />
               </a>
             </div>
           </div>
@@ -440,115 +441,115 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             Find via SUBJECT
           </h3>
           <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs">
-            <Link to="/accounts-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/accounts-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Accounts in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/act-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/act-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for ACT in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/bengali-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/bengali-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Bengali in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/biology-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/biology-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Biology in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/business-studies-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/business-studies-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Business Studies in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/ca-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/ca-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for CA in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/cat-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/cat-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for CAT in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/cfa-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/cfa-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for CFA in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/chemistry-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/chemistry-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Chemistry in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/commerce-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/commerce-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Commerce in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/commercial-studies-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/commercial-studies-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Commercial Studies in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/computer-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/computer-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Computer in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/drawing-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/drawing-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Drawing in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/economics-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/economics-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Economics in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/english-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/english-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for English in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/environmental-science-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/environmental-science-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Environmental Science in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/geography-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/geography-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Geography in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/gmat-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/gmat-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for GMAT in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/hindi-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/hindi-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Hindi in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/history-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/history-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for History in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/maths-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/maths-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Maths in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/nmat-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/nmat-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for NMAT in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/physics-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/physics-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Physics in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/political-science-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/political-science-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Political Science in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/psychology-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/psychology-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Psychology in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/sat-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/sat-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for SAT in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/science-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/science-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Science in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/sociology-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/sociology-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Sociology in Kolkata
             </Link>
           </div>
@@ -562,27 +563,27 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             Find via BOARD
           </h3>
           <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs">
-            <Link to="/all-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/all-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for All teachers in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/cbse-ncert-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/cbse-ncert-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for CBSE/NCERT in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/icse-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/icse-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for ICSE in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/igcse-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/igcse-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for IGCSE in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/international-board-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/international-board-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for International Board in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
-            <Link to="/state-board-tuition-teachers-in-kolkata" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/state-board-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for State Board in Kolkata
             </Link>
           </div>

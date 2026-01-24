@@ -4,11 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MapPin, Clock, MessageCircle, BadgeCheck, Heart } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useAuth } from '@/lib/auth-context';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { TeacherComments } from '@/components/TeacherComments';
+import { ShareButton } from '@/components/ShareButton';
+import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey, clearExpiredCache } from '@/utils/cache';
 
 
@@ -134,18 +136,6 @@ export default function TeacherProfile() {
             review1 = (shikshaqData as any)["Review 1"];
             review2 = (shikshaqData as any)["Review 2"];
             review3 = (shikshaqData as any)["Review 3"];
-            console.log('Found data from Shikshaqmine:', { 
-              sirMaam, 
-              subjects: subjectsFromShikshaq,
-              classesTaught: classesTaught,
-              area: area,
-              boardsTaught: boardsTaught,
-              classSize: classSize,
-              modeOfTeaching: modeOfTeaching,
-              locationV2: locationV2,
-              studentsHomeAreas: studentsHomeAreas,
-              tutorsHomeAreas: tutorsHomeAreas
-            });
           }
         } catch (err) {
           console.warn('Error accessing Shikshaqmine table:', err);
@@ -485,8 +475,8 @@ export default function TeacherProfile() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="container py-16 text-center">
-          <h1 className="text-2xl font-serif text-foreground mb-4">Teacher not found</h1>
-          <p className="text-muted-foreground mb-6">
+          <h1 className="text-2xl font-serif font-normal text-foreground mb-4">Teacher not found</h1>
+          <p className="text-foreground/80 mb-6">
             The teacher you're looking for doesn't exist or has been removed.
           </p>
           <Link to="/all-tuition-teachers-in-kolkata">
@@ -506,7 +496,7 @@ export default function TeacherProfile() {
         {/* Back Button */}
         <Link
           to="/all-tuition-teachers-in-kolkata"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-6 md:mb-8"
+          className="inline-flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors mb-6 md:mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to all teachers
@@ -556,6 +546,13 @@ export default function TeacherProfile() {
                     }`}
                   />
                 </button>
+                <ShareButton
+                  url={`/tuition-teachers/${teacher.slug}`}
+                  title={`${teacher.name}${teacher.sir_maam ? ` ${teacher.sir_maam}` : ''}`}
+                  description={teacher.subjects_from_shikshaq || teacher.subjects?.name || 'Tuition Teacher'}
+                  className=""
+                  iconSize="lg"
+                />
               </div>
             </div>
           </div>
@@ -574,7 +571,7 @@ export default function TeacherProfile() {
               </Link>
             )}
 
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-foreground">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif font-normal text-foreground">
               {(() => {
                 const sirMaam = teacher.sir_maam;
                 if (!sirMaam) return teacher.name;
@@ -592,13 +589,13 @@ export default function TeacherProfile() {
             {/* Quick Info */}
             <div className="flex flex-wrap gap-4 md:gap-6">
               {teacher.location && (
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="flex items-center gap-2 text-foreground/80">
                   <MapPin className="w-4 h-4" />
                   <span>{teacher.location}</span>
                 </div>
               )}
               {teacher.experience_years && (
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="flex items-center gap-2 text-foreground/80">
                   <Clock className="w-4 h-4" />
                   <span>{teacher.experience_years}+ years experience</span>
                 </div>
@@ -648,7 +645,7 @@ export default function TeacherProfile() {
                   <>
                     {subjectsList.length > 0 && (
                       <>
-                        <p className="text-sm font-semibold text-muted-foreground mb-3">{pronoun} teaches</p>
+                        <p className="text-sm font-medium text-foreground/90 mb-3">{pronoun} teaches</p>
                         <div className="flex flex-wrap gap-2">
                           {subjectsList.map((subject: string, index: number) => (
                             <span
@@ -676,7 +673,7 @@ export default function TeacherProfile() {
                   if (classesList.length > 0) {
                     return (
                       <>
-                        <p className="text-sm font-semibold text-muted-foreground mb-3">to students of</p>
+                        <p className="text-sm font-medium text-foreground/90 mb-3">to students of</p>
                         <div className="flex flex-wrap gap-2">
                           {classesList.map((cls: string, index: number) => (
                             <span
@@ -755,7 +752,7 @@ export default function TeacherProfile() {
                   {(isStudentsHomeOnly || isBothOptions) && studentsAreas.length > 0 && (
                     <div>
                       <p className="text-sm font-medium text-foreground mb-3">
-                        <span className="font-serif">{pronoun}</span> provides home to home tutoring to students in
+                        <span>{pronoun}</span> provides home to home tutoring to students in
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {studentsAreas.map((area, index) => (
@@ -774,7 +771,7 @@ export default function TeacherProfile() {
                   {(isTeachersHomeOnly || isBothOptions) && tutorsAreas.length > 0 && (
                     <div>
                       <p className="text-sm font-medium text-foreground mb-3">
-                        <span className="font-serif">{possessive}</span> tuition centre's are located in
+                        <span>{possessive}</span> tuition centre's are located in
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {tutorsAreas.map((area, index) => (
@@ -793,9 +790,9 @@ export default function TeacherProfile() {
             })()}
 
             {/* CTA - Contact via WhatsApp */}
-            <div className="bg-card rounded-2xl p-6 md:p-8 border border-border">
-              <h3 className="font-medium text-foreground mb-2">Interested in classes?</h3>
-              <p className="text-muted-foreground text-sm mb-4">
+            <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-card rounded-2xl p-6 md:p-8 border-2 border-primary/20 shadow-lg">
+              <h3 className="font-medium text-foreground mb-2 text-lg">Interested in classes?</h3>
+              <p className="text-foreground/80 text-sm mb-6">
                 Reach out directly to discuss class timings, fees, and more.
               </p>
               {user ? (
@@ -803,63 +800,97 @@ export default function TeacherProfile() {
                   href={getWhatsAppLink(teacher.whatsapp_number)}
                   target="_blank"
                   rel="noopener noreferrer"
+                  className="block"
                 >
-                  <Button className="w-full gap-2">
-                    <MessageCircle className="w-4 h-4" />
+                  <Button className="w-full gap-2 py-6 text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all">
+                    <WhatsAppIcon className="w-5 h-5" />
                     Contact via WhatsApp
                   </Button>
                 </a>
               ) : (
                 <Button 
-                  className="w-full gap-2" 
+                  className="w-full gap-2 py-6 text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all" 
                   onClick={() => navigate('/auth')}
                 >
-                  <MessageCircle className="w-4 h-4" />
+                  <WhatsAppIcon className="w-5 h-5" />
                   Sign in to contact
                 </Button>
               )}
             </div>
 
-            {/* Additional Details Section */}
-            {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching) && (
-              <div>
-                <h3 className="text-xl md:text-2xl font-serif font-semibold text-foreground mb-4 md:mb-6">Here are some more details:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                  {/* Boards taught */}
-                  {teacher.boards_taught && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-muted-foreground mb-2">Boards taught</h4>
-                      <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground border border-border">
-                        {teacher.boards_taught}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Class Size */}
-                  {teacher.class_size && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-muted-foreground mb-2">Class Size</h4>
-                      <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground border border-border">
-                        {teacher.class_size}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Mode of teaching */}
-                  {teacher.mode_of_teaching && (
-                    <div className="md:col-span-2">
-                      <h4 className="text-sm font-semibold text-muted-foreground mb-2">Mode of teaching</h4>
-                      <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground border border-border">
-                        {teacher.mode_of_teaching}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
           </div>
         </div>
+
+        {/* Little more about teacher section */}
+        {teacher.description && (
+          <div className="mt-8 md:mt-12">
+            <h3 className="text-xl md:text-2xl font-serif font-normal text-foreground mb-4">
+              Little more about {teacher.name}
+            </h3>
+            <div 
+              className="px-4 py-3 rounded-lg bg-muted/50 text-foreground/90 border border-border prose prose-sm max-w-none inline-block"
+              dangerouslySetInnerHTML={{ 
+                __html: (() => {
+                  const content = teacher.description || '';
+                  // If content contains HTML tags, render as-is
+                  // Otherwise, convert line breaks to <br /> tags
+                  if (/<[a-z][\s\S]*>/i.test(content)) {
+                    return content;
+                  }
+                  return content.replace(/\n/g, '<br />');
+                })()
+              }}
+            />
+          </div>
+        )}
+
+        {/* Additional Details Section */}
+        {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.qualifications_etc) && (
+          <div className="mt-8 md:mt-12">
+            <h3 className="text-xl md:text-2xl font-serif font-normal text-foreground mb-4 md:mb-6">Here are some more details:</h3>
+            <div className="flex flex-wrap gap-4 md:gap-6">
+              {/* Boards taught */}
+              {teacher.boards_taught && (
+                <div className="flex-shrink-0">
+                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Boards taught</h4>
+                  <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground/90 border border-border inline-block">
+                    {teacher.boards_taught}
+                  </div>
+                </div>
+              )}
+
+              {/* Class Size */}
+              {teacher.class_size && (
+                <div className="flex-shrink-0">
+                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Class Size</h4>
+                  <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground/90 border border-border inline-block">
+                    {teacher.class_size}
+                  </div>
+                </div>
+              )}
+
+              {/* Mode of teaching */}
+              {teacher.mode_of_teaching && (
+                <div className="flex-shrink-0 w-full md:w-auto">
+                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Mode of teaching</h4>
+                  <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground/90 border border-border inline-block">
+                    {teacher.mode_of_teaching}
+                  </div>
+                </div>
+              )}
+
+              {/* Experience/Qualifications */}
+              {teacher.qualifications_etc && (
+                <div className="flex-shrink-0 w-full md:w-auto">
+                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Experience/Qualifications</h4>
+                  <div className="px-4 py-3 rounded-lg bg-muted/50 text-foreground/90 border border-border inline-block">
+                    {teacher.qualifications_etc}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Comments Section */}
         {teacher && <TeacherComments teacherId={teacher.id} />}
