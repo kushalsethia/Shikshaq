@@ -2,8 +2,9 @@ import { useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { FAQ } from '@/components/FAQ';
-import { MessageCircle, Mail, Instagram } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { getWhatsAppLink } from '@/utils/whatsapp';
+import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 
 export default function Help() {
   // Add FAQPage JSON-LD structured data
@@ -92,7 +93,7 @@ export default function Help() {
             className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-all hover:-translate-y-1 border border-border"
           >
             <div className="w-12 h-12 bg-badge-science/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <MessageCircle className="w-6 h-6 text-badge-science" />
+              <WhatsAppIcon className="w-6 h-6 text-badge-science" />
             </div>
             <h3 className="font-medium text-foreground mb-2">WhatsApp</h3>
             <p className="text-sm text-muted-foreground">Quick responses on chat</p>
@@ -116,7 +117,7 @@ export default function Help() {
             className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-all hover:-translate-y-1 border border-border"
           >
             <div className="w-12 h-12 bg-badge-hindi/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Instagram className="w-6 h-6 text-badge-hindi" />
+              <InstagramIcon className="w-6 h-6 text-badge-hindi" />
             </div>
             <h3 className="font-medium text-foreground mb-2">Instagram</h3>
             <p className="text-sm text-muted-foreground">@shikshaq.in</p>

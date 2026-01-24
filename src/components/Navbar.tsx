@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, Instagram, MessageCircle, ExternalLink } from 'lucide-react';
+import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, ExternalLink } from 'lucide-react';
+import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -232,7 +233,7 @@ export function Navbar() {
                       className="p-2 rounded-lg hover:bg-muted transition-colors"
                       aria-label="Instagram"
                     >
-                      <Instagram className="w-5 h-5" />
+                      <InstagramIcon className="w-5 h-5" />
                     </a>
                     <a
                       href={getWhatsAppLink('8240980312')}
@@ -242,7 +243,7 @@ export function Navbar() {
                       className="p-2 rounded-lg hover:bg-muted transition-colors"
                       aria-label="WhatsApp"
                     >
-                      <MessageCircle className="w-5 h-5" />
+                      <WhatsAppIcon className="w-5 h-5" />
                     </a>
                   </div>
                 </div>
