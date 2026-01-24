@@ -407,3 +407,44 @@ input[type="date"].date-input-left {
     height: 2.5rem !important;
   }
 }
+
+/* Performance optimizations for low-end devices */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Optimize for low-end devices - reduce animations and transitions on mobile */
+@media (max-width: 768px) {
+  /* Reduce transform animations on mobile */
+  .teacher-card:hover {
+    transform: none !important;
+  }
+  
+  /* Reduce shadow transitions */
+  * {
+    transition-property: opacity, color, background-color !important;
+  }
+  
+  /* Disable hover effects on touch devices */
+  @media (hover: none) {
+    .teacher-card:hover {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+  }
+}
+
+/* GPU acceleration for better performance on low-end devices */
+.teacher-card,
+img,
+button {
+  will-change: auto;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}

@@ -15,14 +15,30 @@ export default defineConfig({
     },
   },
   build: {
-    // Ensure fresh builds by not relying on cache
+    // Optimize for mobile devices
+    target: 'es2015', // Support older devices
+    minify: 'esbuild', // Faster than terser
+    cssMinify: true,
     rollupOptions: {
       output: {
         // Add hash to filenames for cache busting
         entryFileNames: `assets/[name]-[hash].js`,
         chunkFileNames: `assets/[name]-[hash].js`,
         assetFileNames: `assets/[name]-[hash].[ext]`,
+        // Manual chunk splitting for better code splitting
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-select',
+            '@radix-ui/react-toast',
+          ],
+          'supabase-vendor': ['@supabase/supabase-js'],
+        },
       },
     },
+    // Optimize chunk size warnings
+    chunkSizeWarningLimit: 1000,
   },
 });

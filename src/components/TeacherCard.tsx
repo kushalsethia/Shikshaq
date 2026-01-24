@@ -98,7 +98,9 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
           <img
             src={imageUrl}
             alt={name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 md:group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center">
