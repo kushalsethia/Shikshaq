@@ -106,7 +106,7 @@ export default function StudentDashboard() {
             school_board: profileData.school_board || '',
             address: profileData.address || '',
             guardian_email: profileData.guardian_email || '',
-            date_of_birth: profileData.date_of_birth || '',
+            date_of_birth: formatDateForDisplay(profileData.date_of_birth),
           });
         }
 
@@ -139,6 +139,73 @@ export default function StudentDashboard() {
     fetchData();
   }, [user]);
 
+  // Helper function to convert yyyy-mm-dd to dd-mm-yyyy
+  const formatDateForDisplay = (dateStr: string | null): string => {
+    if (!dateStr) return '';
+    // If already in dd-mm-yyyy format, return as is
+    if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
+    // If in yyyy-mm-dd format, convert to dd-mm-yyyy
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateStr.split('-');
+      return `${day}-${month}-${year}`;
+    }
+    return dateStr;
+  };
+
+  // Helper function to convert dd-mm-yyyy to yyyy-mm-dd for database
+  const formatDateForDatabase = (dateStr: string): string | null => {
+    if (!dateStr || !dateStr.trim()) return null;
+    // If in dd-mm-yyyy format, convert to yyyy-mm-dd
+    const match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (match) {
+      const [, day, month, year] = match;
+      return `${year}-${month}-${day}`;
+    }
+    // If already in yyyy-mm-dd format, return as is
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
+    return null;
+  };
+
+  // Helper function to validate dd-mm-yyyy date format
+  const isValidDateFormat = (dateStr: string): boolean => {
+    if (!dateStr) return false;
+    const match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (!match) return false;
+    
+    const [, day, month, year] = match;
+    const dayNum = parseInt(day, 10);
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
+    
+    // Basic validation
+    if (monthNum < 1 || monthNum > 12) return false;
+    if (dayNum < 1 || dayNum > 31) return false;
+    if (yearNum < 1900 || yearNum > 2100) return false;
+    
+    // Check if date is valid (e.g., not 31 Feb)
+    const date = new Date(yearNum, monthNum - 1, dayNum);
+    return (
+      date.getFullYear() === yearNum &&
+      date.getMonth() === monthNum - 1 &&
+      date.getDate() === dayNum
+    );
+  };
+
+  // Helper function to format date input as user types (dd-mm-yyyy)
+  const formatDateInput = (value: string): string => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '');
+    
+    // Limit to 8 digits (ddmmyyyy)
+    const limitedDigits = digits.slice(0, 8);
+    
+    // Format as dd-mm-yyyy
+    if (limitedDigits.length === 0) return '';
+    if (limitedDigits.length <= 2) return limitedDigits;
+    if (limitedDigits.length <= 4) return `${limitedDigits.slice(0, 2)}-${limitedDigits.slice(2)}`;
+    return `${limitedDigits.slice(0, 2)}-${limitedDigits.slice(2, 4)}-${limitedDigits.slice(4)}`;
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
@@ -146,6 +213,10 @@ export default function StudentDashboard() {
     if (name === 'phone') {
       const numericValue = value.replace(/\D/g, ''); // Remove all non-digit characters
       setFormData({ ...formData, [name]: numericValue });
+    } else if (name === 'date_of_birth') {
+      // Format date input as dd-mm-yyyy
+      const formatted = formatDateInput(value);
+      setFormData({ ...formData, [name]: formatted });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -173,6 +244,13 @@ export default function StudentDashboard() {
       toast.error('Please fill in all required fields: Phone, Date of Birth, School/College, and Grade');
       return false;
     }
+
+    // Validate date format
+    if (!isValidDateFormat(required.date_of_birth)) {
+      toast.error('Please enter a valid date in DD-MM-YYYY format (e.g., 15-03-2010)');
+      return false;
+    }
+
     return true;
   };
 
@@ -197,7 +275,7 @@ export default function StudentDashboard() {
           school_board: formData.school_board || null,
           address: formData.address || null,
           guardian_email: formData.guardian_email || null,
-          date_of_birth: formData.date_of_birth || null,
+          date_of_birth: formatDateForDatabase(formData.date_of_birth),
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
@@ -382,12 +460,16 @@ export default function StudentDashboard() {
                   <Input
                     id="date_of_birth"
                     name="date_of_birth"
-                    type="date"
+                    type="text"
+                    placeholder="DD-MM-YYYY (e.g., 15-03-2010)"
                     value={formData.date_of_birth}
                     onChange={handleInputChange}
-                    className="w-full date-input-left date-input-mobile"
-                    style={{ textAlign: 'left', direction: 'ltr' }}
+                    maxLength={10}
+                    className="w-full"
                   />
+                  {formData.date_of_birth && !isValidDateFormat(formData.date_of_birth) && (
+                    <p className="text-xs text-red-500">Please enter a valid date in DD-MM-YYYY format</p>
+                  )}
                   {profile.age && (
                     <p className="text-xs text-muted-foreground">Age: {profile.age} years</p>
                   )}
