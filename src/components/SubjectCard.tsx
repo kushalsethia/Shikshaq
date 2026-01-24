@@ -15,25 +15,31 @@ export function SubjectCard({ name, slug, imageUrl }: SubjectCardProps) {
   return (
     <Link
       to={`/all-tuition-teachers-in-kolkata?subject=${slug}`}
-      className="group relative overflow-hidden rounded-2xl bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+      className="group"
     >
-      <div className="aspect-square overflow-hidden">
-        {displayImage ? (
-          <img
-            src={displayImage}
-            alt={name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-accent to-muted flex items-center justify-center">
-            <span className="text-3xl font-serif text-muted-foreground">
-              {name.charAt(0)}
-            </span>
-          </div>
-        )}
-      </div>
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/80 to-transparent p-4">
-        <h3 className="font-medium text-primary-foreground">{name}</h3>
+      <div className="rounded-2xl border-4 border-white overflow-hidden">
+        <div className="aspect-square overflow-hidden">
+          {displayImage ? (
+            <img
+              src={displayImage}
+              alt={name}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-accent to-muted flex items-center justify-center">
+              <span className="text-3xl font-serif text-muted-foreground">
+                {name.charAt(0)}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        {/* Subject Name - Inside the bordered card */}
+        <div className="py-2.5 bg-white">
+          <h3 className="font-semibold text-foreground text-sm group-hover:text-foreground/80 transition-colors px-3">
+            {name}
+          </h3>
+        </div>
       </div>
     </Link>
   );
