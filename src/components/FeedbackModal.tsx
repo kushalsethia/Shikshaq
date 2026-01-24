@@ -101,33 +101,30 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
           </div>
 
           {/* Emoji Selection */}
-          <div className="w-full flex justify-center">
-            <div className="flex gap-1 md:gap-4 items-center justify-center w-full max-w-full">
+          <div className="w-full flex justify-center px-1">
+            <div className="flex gap-0 md:gap-1 items-center justify-center w-full max-w-full">
               {emojiOptions.map((option) => {
                 const isSelected = selectedEmoji === option.id;
                 return (
                   <button
                     key={option.id}
                     onClick={() => setSelectedEmoji(option.id)}
-                    className={`flex flex-col items-center transition-all flex-shrink-0 relative ${
-                      isSelected ? 'scale-110 z-20' : 'scale-90 opacity-60 z-10'
-                    }`}
+                    className="flex flex-col items-center transition-all flex-shrink-0 relative"
+                    style={{ minHeight: '100px' }}
                   >
                     <div
-                      className={`rounded-full transition-all relative ${
-                        isSelected
-                          ? 'w-20 h-20 bg-transparent'
-                          : 'w-14 h-14 bg-gray-100 flex items-center justify-center'
-                      }`}
-                      style={isSelected ? { padding: 0, margin: 0, display: 'block' } : {}}
+                      className="rounded-full transition-all relative w-20 h-20 flex items-center justify-center"
+                      style={{
+                        transform: isSelected ? 'scale(1.1)' : 'scale(0.7)',
+                        opacity: isSelected ? 1 : 0.6,
+                        zIndex: isSelected ? 20 : 10,
+                      }}
                     >
                       <img
                         src={`${option.image}-${isSelected ? 'selected' : 'unselected'}.png`}
                         alt={option.emoji}
-                        className={`transition-all ${
-                          isSelected ? 'w-[80px] h-[80px] object-contain block' : 'w-10 h-10 object-contain'
-                        }`}
-                        style={isSelected ? { margin: 0, padding: 0, display: 'block', width: '100%', height: '100%' } : {}}
+                        className="w-full h-full object-contain transition-all"
+                        style={{ margin: 0, padding: 0, display: 'block' }}
                         onError={(e) => {
                           const img = e.target as HTMLImageElement;
                           img.style.display = 'none';
@@ -140,11 +137,17 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                         }}
                       />
                     </div>
-                    {isSelected && (
-                      <span className="text-xs font-medium text-foreground whitespace-nowrap -mt-2">
-                        {option.label}
-                      </span>
-                    )}
+                    <div className="h-5 mt-1 flex items-center justify-center">
+                      {isSelected ? (
+                        <span className="text-xs font-medium text-foreground whitespace-nowrap">
+                          {option.label}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-medium text-transparent whitespace-nowrap">
+                          {option.label}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}
