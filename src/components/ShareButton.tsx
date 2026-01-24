@@ -9,9 +9,10 @@ interface ShareButtonProps {
   description?: string;
   className?: string;
   iconSize?: 'sm' | 'md' | 'lg';
+  menuWidth?: 'sm' | 'md' | 'lg';
 }
 
-export function ShareButton({ url, title, description, className = '', iconSize = 'md' }: ShareButtonProps) {
+export function ShareButton({ url, title, description, className = '', iconSize = 'md', menuWidth = 'lg' }: ShareButtonProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -92,6 +93,12 @@ export function ShareButton({ url, title, description, className = '', iconSize 
     lg: 'w-6 h-6',
   };
 
+  const menuWidthClasses = {
+    sm: 'w-44',
+    md: 'w-48',
+    lg: 'w-56',
+  };
+
   return (
     <div className={`relative ${className}`}>
       <button
@@ -111,7 +118,7 @@ export function ShareButton({ url, title, description, className = '', iconSize 
           />
           
           {/* Menu */}
-          <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-lg shadow-lg z-50 p-2">
+          <div className={`absolute right-0 top-full mt-2 ${menuWidthClasses[menuWidth]} bg-card border border-border rounded-lg shadow-lg z-50 p-2`}>
             <div className="space-y-1">
               <Button
                 variant="ghost"

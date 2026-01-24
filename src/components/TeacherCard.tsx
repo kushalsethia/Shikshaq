@@ -115,20 +115,35 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
           </span>
         </div>
 
-        {/* Heart Icon (Favourite) */}
-        <button
-          onClick={handleHeartClick}
-          className="absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
-          aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
-        >
-          <Heart
-            className={`w-5 h-5 transition-colors ${
-              liked
-                ? 'fill-red-500 text-red-500'
-                : 'text-foreground/70 hover:text-red-500'
-            }`}
-          />
-        </button>
+        {/* Top-right buttons container */}
+        <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+          {/* Heart Icon (Favourite) */}
+          <button
+            onClick={handleHeartClick}
+            className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
+            aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
+          >
+            <Heart
+              className={`w-5 h-5 transition-colors ${
+                liked
+                  ? 'fill-red-500 text-red-500'
+                  : 'text-foreground/70 hover:text-red-500'
+              }`}
+            />
+          </button>
+
+          {/* Share Button - Only show if featured */}
+          {isFeatured && (
+            <ShareButton
+              url={`/tuition-teachers/${slug}`}
+              title={displayName}
+              description={`${subject} Tuition Teacher`}
+              className=""
+              iconSize="md"
+              menuWidth="md"
+            />
+          )}
+        </div>
 
         {/* Upvote Button - Only show if not featured */}
         {!isFeatured && (
@@ -152,19 +167,6 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
               </span>
             )}
           </button>
-        )}
-
-        {/* Share Button - Only show if featured */}
-        {isFeatured && (
-          <div className="absolute bottom-3 right-3 z-10">
-            <ShareButton
-              url={`/tuition-teachers/${slug}`}
-              title={displayName}
-              description={`${subject} Tuition Teacher`}
-              className=""
-              iconSize="md"
-            />
-          </div>
         )}
         </div>
         
