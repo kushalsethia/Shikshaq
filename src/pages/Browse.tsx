@@ -787,6 +787,43 @@ export default function Browse() {
     filters.boards.length > 0 || filters.classSize.length > 0 ||
     filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
 
+  // Generate dynamic heading based on filters
+  const getHeading = () => {
+    // Priority: search query > subject/class/board filters
+    if (searchParams.get('q')) {
+      return `Search results for "${searchParams.get('q')}"`;
+    }
+
+    // Get active filters
+    const subjectFromUrl = selectedSubject || null;
+    const subjectFromFilters = filters.subjects[0] || null;
+    const activeClass = selectedClass || filters.classes[0] || null;
+    const activeBoard = filters.boards[0] || null;
+
+    // Find subject name - check URL param first (slug), then advanced filters (direct name)
+    let subjectName = null;
+    if (subjectFromUrl) {
+      // Subject from URL is a slug, need to look it up
+      const subject = subjects.find(s => s.slug === subjectFromUrl);
+      subjectName = subject?.name || subjectFromUrl.charAt(0).toUpperCase() + subjectFromUrl.slice(1);
+    } else if (subjectFromFilters) {
+      // Subject from advanced filters is already a name
+      subjectName = subjectFromFilters;
+    }
+
+    // Build heading based on filters
+    if (subjectName && activeClass && activeBoard) {
+      return `All Class ${activeClass} ${subjectName} teachers in Kolkata for ${activeBoard}`;
+    } else if (subjectName && activeClass) {
+      return `All Class ${activeClass} ${subjectName} teachers in Kolkata`;
+    } else if (subjectName) {
+      return `All ${subjectName} teachers in Kolkata`;
+    }
+
+    // Default heading
+    return 'All Tuition Teachers in Kolkata';
+  };
+
   // Infinite scroll handler
   useEffect(() => {
     if (!hasMore || loading || allTeachersData.length === 0) return;
@@ -827,10 +864,65 @@ export default function Browse() {
 
       <main className="container py-8">
         {/* Search and Filters */}
-        <div className="mb-8">
-          <SearchBar className="mb-4" />
-          
-          <div className="flex flex-wrap items-center gap-4">
+        <div className="mb-3 sm:mb-4">
+          {/* Search Bar and Filter Button - Same Row on Mobile */}
+          <div className="flex items-center gap-2 mb-3 sm:mb-4 sm:flex-col">
+            <div className="flex-1 sm:w-full">
+              <SearchBar />
+            </div>
+            
+            {/* Small Filter Button - Mobile */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFilterPanelOpen(true)}
+              className="h-9 sm:hidden w-9 p-0 flex-shrink-0 relative"
+            >
+              <Filter className="w-4 h-4" />
+              {(filters.subjects.length > 0 || filters.classes.length > 0 ||
+                filters.boards.length > 0 || filters.classSize.length > 0 ||
+                filters.areas.length > 0 || filters.modeOfTeaching.length > 0) && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[8px]">
+                  {filters.subjects.length + filters.classes.length + filters.boards.length +
+                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length}
+                </span>
+              )}
+            </Button>
+          </div>
+
+          {/* Subject and Class Filters - Mobile: One row */}
+          <div className="flex items-center gap-2 sm:hidden mb-3">
+            <Select value={selectedSubject} onValueChange={handleSubjectChange}>
+              <SelectTrigger className="flex-1 h-9 text-sm">
+                <SelectValue placeholder="Subject" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Subjects</SelectItem>
+                {subjects.map((subject) => (
+                  <SelectItem key={subject.id} value={subject.slug}>
+                    {subject.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedClass} onValueChange={handleClassChange}>
+              <SelectTrigger className="flex-1 h-9 text-sm">
+                <SelectValue placeholder="Class" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Classes</SelectItem>
+                {CLASSES.map((cls) => (
+                  <SelectItem key={cls} value={cls}>
+                    Class {cls}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Desktop Filters */}
+          <div className="hidden sm:flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Filter by:</span>
@@ -891,14 +983,9 @@ export default function Browse() {
         </div>
 
         {/* Results Header */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <h1 className="text-2xl font-serif text-foreground">
-            {searchParams.get('q') 
-              ? `Search results for "${searchParams.get('q')}"`
-              : searchParams.get('subject')
-              ? `${subjects.find(s => s.slug === searchParams.get('subject'))?.name || 'Subject'} Teachers`
-              : 'All Tuition Teachers in Kolkata'
-            }
+            {getHeading()}
           </h1>
           <p className="text-muted-foreground mt-1">
             {loading ? 'Loading...' : `${teachers.length} teachers found`}
