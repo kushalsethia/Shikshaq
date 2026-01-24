@@ -239,7 +239,7 @@ export default function GuardianDashboard() {
       const formatted = formatDateInput(value);
       setFormData({ ...formData, [name]: formatted });
     } else {
-      setFormData({ ...formData, [name]: value });
+    setFormData({ ...formData, [name]: value });
     }
   };
 
