@@ -115,8 +115,8 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
           </span>
         </div>
 
-        {/* Top-right buttons container */}
-        <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+        {/* Top-right buttons container - Desktop only */}
+        <div className="hidden md:flex absolute top-3 right-3 items-center gap-2 z-10">
           {/* Heart Icon (Favourite) */}
           <button
             onClick={handleHeartClick}
@@ -132,7 +132,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
             />
           </button>
 
-          {/* Share Button - Only show if featured */}
+          {/* Share Button - Only show if featured (Desktop) */}
           {isFeatured && (
             <ShareButton
               url={`/tuition-teachers/${slug}`}
@@ -144,6 +144,35 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
             />
           )}
         </div>
+
+        {/* Heart Icon (Favourite) - Mobile only */}
+        <button
+          onClick={handleHeartClick}
+          className="md:hidden absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
+          aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
+        >
+          <Heart
+            className={`w-5 h-5 transition-colors ${
+              liked
+                ? 'fill-red-500 text-red-500'
+                : 'text-foreground/70 hover:text-red-500'
+            }`}
+          />
+        </button>
+
+        {/* Share Button - Mobile only, bottom-right */}
+        {isFeatured && (
+          <div className="md:hidden absolute bottom-3 right-3 z-10">
+            <ShareButton
+              url={`/tuition-teachers/${slug}`}
+              title={displayName}
+              description={`${subject} Tuition Teacher`}
+              className=""
+              iconSize="md"
+              menuWidth="md"
+            />
+          </div>
+        )}
 
         {/* Upvote Button - Only show if not featured */}
         {!isFeatured && (
