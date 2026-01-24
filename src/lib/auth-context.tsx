@@ -80,8 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth`,
+        scopes: 'openid email profile', // Explicitly request only required scopes for Google OAuth compliance
         queryParams: {
-          access_type: 'offline',
+          access_type: 'offline', // Used by Supabase server-side to obtain refresh tokens (handled securely on backend)
           prompt: 'consent',
         },
       },
