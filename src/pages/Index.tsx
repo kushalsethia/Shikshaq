@@ -326,7 +326,7 @@ export default function Index() {
       <Navbar />
       
       {/* Search Section - Combined with spacing */}
-      <section className="pt-24 sm:pt-12 pb-24 sm:pb-16">
+      <section className="pt-32 sm:pt-12 pb-24 sm:pb-16 md:pt-12">
         <div className="container">
           <div className="flex flex-col items-center px-4 sm:px-0">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-center mb-8 sm:mb-10 text-foreground leading-tight">
@@ -369,13 +369,13 @@ export default function Index() {
                   slidesToScroll: "auto",
                   watchDrag: true, // Enable mouse drag
                 }}
-                className="w-full"
+                className="w-full overflow-visible"
               >
-                <CarouselContent className="-ml-2 md:-ml-4">
+                <CarouselContent className="-ml-2 md:-ml-4 pr-2 md:pr-0">
                   {featuredTeachers.map((teacher) => (
                     <CarouselItem 
                       key={teacher.id} 
-                      className="pl-2 md:pl-4 basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/6"
+                      className="pl-2 md:pl-4 basis-2/3 md:basis-1/3 lg:basis-1/4 xl:basis-1/6 flex-shrink-0"
                     >
                       <TeacherCard
                         id={teacher.id}
@@ -385,14 +385,15 @@ export default function Index() {
                         subjectSlug={teacher.subjects?.slug}
                         imageUrl={teacher.image_url}
                         isFeatured={true}
+                        showShareOnMobile={false}
                         sirMaam={(teacher as any).sir_maam}
                         isLiked={isLiked(teacher.id)}
                       />
                     </CarouselItem>
                   ))}
                 </CarouselContent>
-                <CarouselPrevious className="left-0 md:left-4" />
-                <CarouselNext className="right-0 md:right-4" />
+                <CarouselPrevious className="hidden md:flex left-0 md:left-4" />
+                <CarouselNext className="hidden md:flex right-0 md:right-4" />
               </Carousel>
               {/* View more button below carousel */}
               <div className="flex justify-end mt-2 sm:mt-6">
