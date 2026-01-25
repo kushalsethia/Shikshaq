@@ -461,7 +461,11 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               <Link to="/terms" className="text-foreground/80 hover:text-foreground transition-colors">
                 Terms & Conditions
               </Link>
-              <Link to="/privacy" className="text-foreground/80 hover:text-foreground transition-colors">
+              <Link 
+                to="/privacy-policy" 
+                className="text-foreground/80 hover:text-foreground transition-colors"
+                onClick={() => window.scrollTo(0, 0)}
+              >
                 Privacy Policy
               </Link>
             </nav>

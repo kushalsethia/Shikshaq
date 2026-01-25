@@ -17,6 +17,7 @@ import Help from "./pages/Help";
 import FAQ from "./pages/FAQ";
 import Join from "./pages/Join";
 import NotFound from "./pages/NotFound";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 // Lazy load heavy components for better performance on mobile
 const SubjectPage = lazy(() => import("./pages/SubjectPage"));
@@ -87,6 +88,7 @@ const App = () => (
               <Route path="/help" element={<Navigate to="/more" replace />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/join" element={<Join />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/recommend-teacher" element={
                 <Suspense fallback={<PageLoader />}>
                   <RecommendTeacher />
