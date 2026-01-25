@@ -19,6 +19,7 @@ import { getWhatsAppLink } from '@/utils/whatsapp';
 export function Navbar() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const { user, signOut } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState<'student' | 'guardian' | 'teacher' | null>(null);
@@ -74,6 +75,20 @@ export function Navbar() {
     checkAdminStatusAndRole();
   }, [user]);
 
+  // Handle scroll detection for collapsing main navbar on mobile
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      setIsScrolled(scrollPosition > 1); // Trigger after 1px scroll
+    };
+
+    // Check initial scroll position
+    handleScroll();
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/all-tuition-teachers-in-kolkata', label: 'Browse', icon: Search },
@@ -84,7 +99,9 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
+      <header className={`${isScrolled ? 'md:sticky fixed' : 'sticky'} top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 transition-transform duration-300 ${
+        isScrolled ? 'md:translate-y-0 -translate-y-full' : ''
+      }`}>
         <div className="container mx-auto px-4">
           <nav className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -273,8 +290,10 @@ export function Navbar() {
       </div>
     </header>
 
-    {/* Mobile Sticky Navigation Bar - Below Main Navbar */}
-    <div className="md:hidden sticky top-16 z-40 bg-background border-b border-border/50">
+    {/* Mobile Floating Navigation Bar - Below Main Navbar */}
+    <div className={`md:hidden fixed left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-all duration-300 ${
+      isScrolled ? 'top-0' : 'top-16'
+    }`}>
       <div className="container mx-auto px-4">
         <nav className="flex items-center justify-around h-14">
           {navItems.map((item) => (
@@ -283,7 +302,7 @@ export function Navbar() {
               to={item.path}
               className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
                 isActive(item.path)
-                  ? 'text-foreground border-b-2 border-foreground'
+                  ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
