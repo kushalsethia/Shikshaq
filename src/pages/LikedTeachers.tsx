@@ -103,7 +103,7 @@ export default function LikedTeachers() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container py-8">
+        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
           <div className="animate-pulse">
             <div className="h-8 w-48 bg-muted rounded mb-8" />
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -121,7 +121,7 @@ export default function LikedTeachers() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container py-8">
+      <main className="container pt-32 sm:pt-30 pb-8 md:pt-8">
         {/* Back Button */}
         <Link
           to="/all-tuition-teachers-in-kolkata"

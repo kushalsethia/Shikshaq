@@ -65,7 +65,7 @@ export default function SelectRole() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container py-16 text-center">
+        <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
           <p className="text-muted-foreground mb-4">You must be signed in to continue.</p>
           <Button onClick={() => navigate('/auth')}>Sign In</Button>
         </div>

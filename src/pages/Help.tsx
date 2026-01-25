@@ -74,7 +74,7 @@ export default function Help() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container py-16">
+      <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h1 className="text-3xl md:text-4xl font-serif text-foreground mb-4">
             How can we help you?

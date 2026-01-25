@@ -11,7 +11,7 @@ import { getWhatsAppLink } from '@/utils/whatsapp';
 import { TeacherComments } from '@/components/TeacherComments';
 import { ShareButton } from '@/components/ShareButton';
 import { WhatsAppIcon } from '@/components/BrandIcons';
-import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey, clearExpiredCache } from '@/utils/cache';
+import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey } from '@/utils/cache';
 
 
 interface Teacher {
@@ -453,7 +453,7 @@ export default function TeacherProfile() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container py-8">
+        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
           <div className="animate-pulse">
             <div className="h-8 w-32 bg-muted rounded mb-8" />
             <div className="grid md:grid-cols-2 gap-8">
@@ -474,7 +474,7 @@ export default function TeacherProfile() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container py-16 text-center">
+        <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
           <h1 className="text-2xl font-serif font-normal text-foreground mb-4">Teacher not found</h1>
           <p className="text-foreground/80 mb-6">
             The teacher you're looking for doesn't exist or has been removed.
@@ -492,7 +492,7 @@ export default function TeacherProfile() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container py-8 md:py-12">
+      <main className="container pt-32 sm:pt-[120px] pb-8 md:pt-12 md:pb-12">
         {/* Back Button */}
         <Link
           to="/all-tuition-teachers-in-kolkata"
@@ -846,40 +846,40 @@ export default function TeacherProfile() {
           </div>
         )}
 
-        {/* Additional Details Section */}
+            {/* Additional Details Section */}
         {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.qualifications_etc) && (
           <div className="mt-8 md:mt-12">
             <h3 className="text-xl md:text-2xl font-serif font-normal text-foreground mb-4 md:mb-6">Here are some more details:</h3>
             <div className="flex flex-wrap gap-4 md:gap-6">
-              {/* Boards taught */}
-              {teacher.boards_taught && (
+                  {/* Boards taught */}
+                  {teacher.boards_taught && (
                 <div className="flex-shrink-0">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Boards taught</h4>
                   <div className="px-4 py-3 rounded-lg bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-200 border border-cyan-200 dark:border-cyan-800 inline-block">
-                    {teacher.boards_taught}
-                  </div>
-                </div>
-              )}
+                        {teacher.boards_taught}
+                      </div>
+                    </div>
+                  )}
 
-              {/* Class Size */}
-              {teacher.class_size && (
+                  {/* Class Size */}
+                  {teacher.class_size && (
                 <div className="flex-shrink-0">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Class Size</h4>
                   <div className="px-4 py-3 rounded-lg bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-200 border border-pink-200 dark:border-pink-800 inline-block">
-                    {teacher.class_size}
-                  </div>
-                </div>
-              )}
+                        {teacher.class_size}
+                      </div>
+                    </div>
+                  )}
 
-              {/* Mode of teaching */}
-              {teacher.mode_of_teaching && (
+                  {/* Mode of teaching */}
+                  {teacher.mode_of_teaching && (
                 <div className="flex-shrink-0 w-full md:w-auto">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Mode of teaching</h4>
                   <div className="px-4 py-3 rounded-lg bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-200 border border-teal-200 dark:border-teal-800 inline-block">
-                    {teacher.mode_of_teaching}
-                  </div>
-                </div>
-              )}
+                        {teacher.mode_of_teaching}
+                      </div>
+                    </div>
+                  )}
 
               {/* Experience/Qualifications */}
               {teacher.qualifications_etc && (
@@ -890,9 +890,9 @@ export default function TeacherProfile() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        )}
+                </div>
+              </div>
+            )}
 
         {/* Comments Section */}
         {teacher && <TeacherComments teacherId={teacher.id} />}

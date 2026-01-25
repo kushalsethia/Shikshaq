@@ -136,7 +136,7 @@ export default function AdminUpvotes() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container py-16 text-center">
+        <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
           <div className="animate-pulse">
             <div className="h-8 w-64 bg-muted rounded mx-auto mb-4" />
             <div className="h-4 w-48 bg-muted rounded mx-auto" />
@@ -151,7 +151,7 @@ export default function AdminUpvotes() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container py-16 text-center">
+        <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
           <Lock className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h1 className="text-2xl font-serif text-foreground mb-4">Access Denied</h1>
           <p className="text-muted-foreground mb-6">
@@ -169,7 +169,7 @@ export default function AdminUpvotes() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container py-8">
+      <main className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
         <div className="flex items-center gap-4 mb-8">
           <Link to="/admin">
             <Button variant="ghost" size="icon">

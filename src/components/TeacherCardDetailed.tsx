@@ -60,16 +60,15 @@ export function TeacherCardDetailed({
   return (
     <Link 
       to={`/tuition-teachers/${slug}`} 
-      className="group flex gap-4 bg-card rounded-2xl p-4 border border-border hover:shadow-lg transition-all duration-300"
+      className="group flex gap-3 bg-card rounded-2xl p-1.5 border border-border hover:shadow-lg transition-all duration-300"
     >
       {/* Teacher Image */}
-      <div className="relative w-32 h-32 md:w-40 md:h-40 flex-shrink-0 overflow-hidden rounded-xl">
+      <div className="relative w-32 h-32 md:w-40 md:h-40 flex-shrink-0 overflow-hidden rounded-xl aspect-square">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={name}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            style={{ minWidth: '100%', minHeight: '100%' }}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center">
@@ -104,7 +103,7 @@ export function TeacherCardDetailed({
 
       {/* Teacher Info */}
       <div className="flex-1 min-w-0">
-        <h3 className="text-xl md:text-2xl font-serif text-foreground mb-2 group-hover:text-foreground/80 transition-colors">
+        <h3 className="text-xl md:text-2xl font-serif text-foreground mb-0.5 group-hover:text-foreground/80 transition-colors">
           {displayName}
         </h3>
 

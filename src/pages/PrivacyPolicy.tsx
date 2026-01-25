@@ -12,7 +12,7 @@ export default function PrivacyPolicy() {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <main className="container max-w-4xl mx-auto px-4 py-12">
+      <main className="container max-w-4xl mx-auto px-4 pt-32 sm:pt-[120px] pb-12 md:pt-12">
         <div className="prose prose-slate max-w-none">
           <h1 className="text-4xl font-serif mb-8">Privacy Policy</h1>
           
