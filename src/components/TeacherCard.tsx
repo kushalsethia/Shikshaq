@@ -15,6 +15,7 @@ interface TeacherCardProps {
   imageUrl?: string;
   subjectSlug?: string;
   isFeatured?: boolean; // Optional prop to indicate if this is a featured teacher
+  showShareOnMobile?: boolean; // Optional prop to show/hide share button on mobile
   sirMaam?: string | null; // Sir/Ma'am from Shikshaqmine
   isLiked?: boolean; // Optional: pass liked state directly to avoid hook call
 }
@@ -47,7 +48,7 @@ const subjectColors: Record<string, string> = {
   economics: 'bg-badge-commerce',
 };
 
-function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, sirMaam, isLiked: isLikedProp }: TeacherCardProps) {
+function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, showShareOnMobile = true, sirMaam, isLiked: isLikedProp }: TeacherCardProps) {
   // If featured, always use green; otherwise use subject-specific colors
   const badgeColor = isFeatured 
     ? 'bg-badge-science' // Green color for featured teachers
@@ -163,7 +164,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         </button>
 
         {/* Share Button - Mobile only, bottom-right */}
-        {isFeatured && (
+        {isFeatured && showShareOnMobile && (
           <div className="md:hidden absolute bottom-3 right-3 z-10">
             <ShareButton
               url={`/tuition-teachers/${slug}`}
