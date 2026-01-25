@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { SearchBar } from '@/components/SearchBar';
@@ -40,6 +40,9 @@ export default function Index() {
   const [featuredTeachers, setFeaturedTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSearchBarScrolled, setIsSearchBarScrolled] = useState(false);
+  const searchBarRef = useRef<HTMLDivElement>(null);
+  const searchBarElementRef = useRef<HTMLDivElement>(null);
   // Pre-initialize likes hook for fast initial render (shared state)
   const { isLiked } = useLikes();
 
@@ -187,7 +190,7 @@ export default function Index() {
             .select('*')
             .in('name', desiredSubjects)
             .limit(10), // Fetch a few extra in case we need to filter
-          supabase
+          (supabase as any)
             .from('teacher_upvotes')
             .select('teacher_id')
         ]);
@@ -210,7 +213,7 @@ export default function Index() {
             .map(([teacherId]) => teacherId);
 
           if (topTeacherIds.length > 0) {
-            const { data: topTeachers } = await supabase
+            const { data: topTeachers } = await (supabase as any)
               .from('teachers_list')
               .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
               .in('id', topTeacherIds);
@@ -228,7 +231,7 @@ export default function Index() {
         // If we have less than 16 teachers, fill with random teachers
         if (teachersData.length < 16) {
           const existingIds = new Set(teachersData.map((t: any) => t.id));
-          const { data: allTeachers } = await supabase
+          const { data: allTeachers } = await (supabase as any)
             .from('teachers_list')
             .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
             .limit(100);
@@ -242,10 +245,10 @@ export default function Index() {
         }
 
         // Fetch Sir/Ma'am data from Shikshaqmine table
-        let sirMaamMap = new Map();
+        const sirMaamMap = new Map();
         if (teachersData.length > 0) {
           const teacherSlugs = teachersData.map((t: any) => t.slug);
-          const { data: shikshaqData } = await supabase
+          const { data: shikshaqData } = await (supabase as any)
             .from('Shikshaqmine')
             .select('Slug, "Sir/Ma\'am?"')
             .in('Slug', teacherSlugs);
@@ -321,12 +324,39 @@ export default function Index() {
     clearExpiredCache();
   }, []);
 
+  // Handle scroll detection for making search bar sticky
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!searchBarRef.current) return;
+      
+      const searchBarRect = searchBarRef.current.getBoundingClientRect();
+      // When search bar section is scrolled past (its top is above the mobile nav bar area)
+      // Use a higher threshold on mobile to account for heading height
+      const threshold = window.innerWidth < 768 ? 300 : 150;
+      setIsSearchBarScrolled(searchBarRect.top < threshold);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    // Check initial position - ensure heading is visible initially
+    // Only set to scrolled if we're actually scrolled past
+    const initialCheck = () => {
+      if (!searchBarRef.current) return;
+      const searchBarRect = searchBarRef.current.getBoundingClientRect();
+      const threshold = window.innerWidth < 768 ? 300 : 150;
+      // Only set to true if significantly scrolled past (not just slightly)
+      setIsSearchBarScrolled(searchBarRect.top < threshold && window.scrollY > 50);
+    };
+    initialCheck();
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       
       {/* Search Section - Combined with spacing */}
-      <section className="pt-32 sm:pt-12 pb-24 sm:pb-16 md:pt-12">
+      <section ref={searchBarRef} className="pt-32 sm:pt-[120px] pb-24 sm:pb-16 md:pt-12">
         <div className="container">
           <div className="flex flex-col items-center px-4 sm:px-0">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-center mb-8 sm:mb-10 text-foreground leading-tight">
@@ -334,12 +364,23 @@ export default function Index() {
               <br />
               one search away.
             </h1>
-            <div className="w-full max-w-2xl">
+            <div ref={searchBarElementRef} className="w-full max-w-2xl">
               <SearchBar />
             </div>
           </div>
         </div>
       </section>
+
+      {/* Sticky Search Bar - Only visible when scrolled past original */}
+      {isSearchBarScrolled && (
+        <div className="md:hidden fixed top-14 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 py-3 transition-all duration-300 ease-in-out">
+          <div className="container mx-auto px-4">
+            <div className="w-full max-w-2xl mx-auto">
+              <SearchBar />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Featured Teachers */}
       <section className="pt-0 sm:pt-0 pb-4">

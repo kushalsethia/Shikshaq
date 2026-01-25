@@ -341,7 +341,7 @@ export default function StudentDashboard() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container py-8">
+        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
           <div className="animate-pulse">
             <div className="h-8 w-48 bg-muted rounded mb-8" />
             <div className="space-y-4">
@@ -371,7 +371,7 @@ export default function StudentDashboard() {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <main className="container py-8">
+      <main className="container pt-32 sm:pt-30 pb-8 md:pt-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">

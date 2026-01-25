@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, ExternalLink } from 'lucide-react';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ export function Navbar() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const lastScrollY = useRef(0);
   const { user, signOut } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState<'student' | 'guardian' | 'teacher' | null>(null);
@@ -78,11 +79,26 @@ export function Navbar() {
   // Handle scroll detection for collapsing main navbar on mobile
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPosition = window.scrollY;
-      setIsScrolled(scrollPosition > 1); // Trigger after 1px scroll
+      const scrollPosition = Math.max(0, window.scrollY); // Prevent negative values
+      const previousScrollY = lastScrollY.current;
+      
+      // Use hysteresis with smoother thresholds
+      // Scrolling down: trigger at 10px (slightly higher to prevent immediate jump)
+      // Scrolling up: hide when back at top (0px) but keep state until fully at top
+      if (scrollPosition > previousScrollY) {
+        // Scrolling down
+        setIsScrolled(scrollPosition > 10);
+      } else if (scrollPosition < previousScrollY) {
+        // Scrolling up - only hide when fully at top
+        setIsScrolled(scrollPosition > 0);
+      }
+      // If scrollPosition === previousScrollY, keep current state
+      
+      lastScrollY.current = scrollPosition;
     };
 
     // Check initial scroll position
+    lastScrollY.current = Math.max(0, window.scrollY);
     handleScroll();
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -96,11 +112,14 @@ export function Navbar() {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+  const isBrowsePage = location.pathname === '/all-tuition-teachers-in-kolkata';
+  // Check if we're on a subject page (pattern: /{subject}-tuition-teachers-in-kolkata)
+  const isSubjectPage = /^\/[^\/]+-tuition-teachers-in-kolkata$/.test(location.pathname);
 
   return (
     <>
-      <header className={`${isScrolled ? 'md:sticky fixed' : 'sticky'} top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 transition-transform duration-300 ${
-        isScrolled ? 'md:translate-y-0 -translate-y-full' : ''
+      <header className={`${isScrolled && !isBrowsePage && !isSubjectPage ? 'md:sticky fixed' : 'sticky'} top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 transition-transform duration-300 ease-in-out ${
+        isScrolled && !isBrowsePage && !isSubjectPage ? 'md:translate-y-0 -translate-y-full' : ''
       }`}>
         <div className="container mx-auto px-4">
           <nav className="flex items-center justify-between h-16">
@@ -291,28 +310,51 @@ export function Navbar() {
     </header>
 
     {/* Mobile Floating Navigation Bar - Below Main Navbar */}
-    <div className={`md:hidden fixed left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-all duration-300 ${
-      isScrolled ? 'top-0' : 'top-16'
-    }`}>
-      <div className="container mx-auto px-4">
-        <nav className="flex items-center justify-around h-14">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-                isActive(item.path)
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              <span className="text-xs font-medium">{item.label}</span>
-            </Link>
-          ))}
-        </nav>
+    {isBrowsePage || isSubjectPage ? (
+      <div className="md:hidden sticky top-16 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
+        <div className="container mx-auto px-4">
+          <nav className="flex items-center justify-around h-14">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+                  isActive(item.path)
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="text-xs font-medium">{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
       </div>
-    </div>
+    ) : (
+      <div className={`md:hidden fixed left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-all duration-300 ease-in-out ${
+        isScrolled ? 'top-0' : 'top-16'
+      }`}>
+        <div className="container mx-auto px-4">
+          <nav className="flex items-center justify-around h-14">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+                  isActive(item.path)
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="text-xs font-medium">{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </div>
+    )}
     </>
   );
 }

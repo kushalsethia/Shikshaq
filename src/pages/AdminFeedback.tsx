@@ -212,7 +212,7 @@ export default function AdminFeedback() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container py-8">
+        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
           <div className="animate-pulse">
             <div className="h-8 w-48 bg-muted rounded mb-8" />
             <div className="space-y-4">
@@ -231,7 +231,7 @@ export default function AdminFeedback() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container py-8">
+        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
           <div className="max-w-2xl mx-auto text-center">
             <h1 className="text-3xl font-serif text-foreground mb-4">Access Denied</h1>
             <p className="text-muted-foreground mb-6">
