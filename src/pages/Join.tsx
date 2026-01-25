@@ -9,7 +9,7 @@ export default function Join() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container py-16">
+      <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
         <div className="max-w-2xl mx-auto text-center">
           <span className="text-muted-foreground mb-2 block">Free of charge, no commissions!</span>
           

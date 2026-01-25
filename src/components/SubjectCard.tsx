@@ -18,23 +18,23 @@ export function SubjectCard({ name, slug, imageUrl }: SubjectCardProps) {
       className="group"
     >
       <div className="rounded-2xl border-4 border-white overflow-hidden">
-        <div className="aspect-square overflow-hidden">
-          {displayImage ? (
-            <img
-              src={displayImage}
-              alt={name}
+      <div className="aspect-square overflow-hidden">
+        {displayImage ? (
+          <img
+            src={displayImage}
+            alt={name}
               loading="lazy"
               decoding="async"
               className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-accent to-muted flex items-center justify-center">
-              <span className="text-3xl font-serif text-muted-foreground">
-                {name.charAt(0)}
-              </span>
-            </div>
-          )}
-        </div>
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-accent to-muted flex items-center justify-center">
+            <span className="text-3xl font-serif text-muted-foreground">
+              {name.charAt(0)}
+            </span>
+          </div>
+        )}
+      </div>
         
         {/* Subject Name - Inside the bordered card */}
         <div className="py-2.5 bg-white">

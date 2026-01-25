@@ -7,7 +7,7 @@ import { TeacherCardDetailed } from '@/components/TeacherCardDetailed';
 import { TeacherCard } from '@/components/TeacherCard';
 import { Footer } from '@/components/Footer';
 import { FilterPanel, FilterState } from '@/components/FilterPanel';
-import { Filter, X, ArrowRight } from 'lucide-react';
+import { Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -334,7 +334,7 @@ export default function Browse() {
           teachersData = data;
           
           // Cache the teachers list (only if no filters/search - we want fresh data when filtering)
-          if (!hasFiltersOrSearch) {
+                  if (!hasFiltersOrSearch) {
             const cacheKey = getTeachersListCacheKey(limit);
             setCache(cacheKey, teachersData, CACHE_TTL.TEACHERS_LIST);
           }
@@ -862,7 +862,7 @@ export default function Browse() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container py-8">
+      <main className="container pt-6 sm:pt-[120px] pb-8 md:pt-8">
         {/* Search and Filters */}
         <div className="mb-3 sm:mb-4">
           {/* Search Bar and Filter Button - Same Row on Mobile */}

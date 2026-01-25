@@ -118,7 +118,7 @@ export default function RecommendTeacher() {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <main className="container py-8 md:py-16">
+      <main className="container pt-32 sm:pt-[120px] pb-8 md:pt-16 md:pb-16">
         {/* Back Button */}
         <Link 
           to="/" 
