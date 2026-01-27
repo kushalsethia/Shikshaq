@@ -298,9 +298,9 @@ export default function Browse() {
         setLoading(true);
       } else {
         // For filter-only changes, use a delay to prevent flickering on fast filters
-        loadingTimeoutRef.current = setTimeout(() => {
-          setLoading(true);
-        }, 150);
+      loadingTimeoutRef.current = setTimeout(() => {
+        setLoading(true);
+      }, 150);
       }
       
       try {
@@ -475,7 +475,7 @@ export default function Browse() {
         // Extract filters from search query if present (apply immediately, don't wait for state update)
         // If there's a search query, REPLACE all filters with extracted ones (clear previous search)
         let extractedFilters: Partial<FilterState> = {};
-        if (searchQuery && searchQuery.trim().length >= 2) {
+          if (searchQuery && searchQuery.trim().length >= 2) {
           extractedFilters = extractFiltersFromQuery(searchQuery);
           // Replace all filters with extracted ones (don't merge with previous search)
           effectiveFilters = {
@@ -657,7 +657,7 @@ export default function Browse() {
               const nameScore = nameScoreMap.get(teacher.slug);
               if (nameScore !== undefined) {
                 nameMatches.push({ teacher, score: nameScore });
-              } else {
+          } else {
                 nonNameMatches.push(teacher);
               }
             });

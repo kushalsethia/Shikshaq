@@ -41,6 +41,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [visibleCommentsCount, setVisibleCommentsCount] = useState(5);
   const [currentUserProfile, setCurrentUserProfile] = useState<{
     full_name: string | null;
     role: string | null;
@@ -187,6 +188,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       setIsAnonymous(false);
       toast.success('Your comment has been submitted and is pending approval');
       await fetchComments(); // Refresh comments
+      setVisibleCommentsCount(5); // Reset to show first 5 comments
     } catch (err: any) {
       console.error('Error submitting comment:', err);
       setError(err.message || 'Failed to submit comment');
@@ -420,7 +422,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
         </div>
       ) : (
         <div className="space-y-6">
-          {comments.map((comment) => {
+          {comments.slice(0, visibleCommentsCount).map((comment) => {
             const avatarUrl = getCommentAvatar(comment);
             const initials = getCommentInitials(comment);
             
@@ -491,6 +493,19 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
               </div>
             );
           })}
+          
+          {/* Load More Comments Button */}
+          {comments.length > visibleCommentsCount && (
+            <div className="flex justify-center pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setVisibleCommentsCount(prev => prev + 5)}
+                className="gap-2"
+              >
+                Load more comments ({comments.length - visibleCommentsCount} remaining)
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

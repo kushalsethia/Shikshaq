@@ -495,7 +495,6 @@ export default function TeacherProfile() {
       <Navbar />
 
       <main className="container pt-20 sm:pt-[120px] pb-8 md:pt-12 md:pb-12">
-        {/* Back Button */}
         <Link
           to="/all-tuition-teachers-in-kolkata"
           className="inline-flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors mb-6 md:mb-8"

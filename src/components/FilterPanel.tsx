@@ -7,6 +7,7 @@ import {
   SheetClose,
 } from '@/components/ui/sheet';
 import { X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 
 interface FilterPanelProps {
   open: boolean;
@@ -48,6 +49,64 @@ const AREAS = [
 const MODE_OF_TEACHING = ['Online', 'Offline'];
 
 export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onClearFilters }: FilterPanelProps) {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const lastScrollY = useRef(0);
+  const sheetContentRef = useRef<HTMLDivElement>(null);
+
+  // Handle scroll detection for sticky header - similar to navbar behavior
+  useEffect(() => {
+    if (!open) {
+      // Reset scroll state when panel closes
+      setIsScrolled(false);
+      lastScrollY.current = 0;
+      return;
+    }
+
+    let cleanup: (() => void) | null = null;
+
+    // Small delay to ensure ref is available
+    const timeoutId = setTimeout(() => {
+      const sheetContent = sheetContentRef.current;
+      if (!sheetContent) return;
+
+      const handleScroll = () => {
+        const scrollPosition = Math.max(0, sheetContent.scrollTop);
+        const previousScrollY = lastScrollY.current;
+        
+        // Use hysteresis with different thresholds to prevent jumping
+        // Scrolling down: trigger at 50px (higher threshold)
+        // Scrolling up: return to original when at top (0px)
+        if (scrollPosition > previousScrollY) {
+          // Scrolling down - make sticky when past 50px
+          setIsScrolled(scrollPosition > 50);
+        } else if (scrollPosition < previousScrollY) {
+          // Scrolling up - return to original position when at top
+          setIsScrolled(scrollPosition > 0);
+        } else {
+          // Same position - maintain current state based on scroll position
+          setIsScrolled(scrollPosition > 50);
+        }
+        
+        lastScrollY.current = scrollPosition;
+      };
+
+      // Check initial scroll position
+      lastScrollY.current = Math.max(0, sheetContent.scrollTop);
+      handleScroll();
+      
+      sheetContent.addEventListener('scroll', handleScroll, { passive: true });
+      
+      cleanup = () => {
+        sheetContent.removeEventListener('scroll', handleScroll);
+      };
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (cleanup) cleanup();
+    };
+  }, [open]);
+
   const toggleFilter = (category: keyof FilterState, value: string) => {
     const currentValues = filters[category];
     const newValues = currentValues.includes(value)
@@ -75,18 +134,28 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
+        ref={sheetContentRef}
         side="right" 
         className="w-full sm:max-w-lg overflow-y-auto [&>button:last-child]:hidden"
+        style={{
+          paddingTop: isScrolled ? 0 : undefined,
+          transition: 'padding-top 0.3s ease-in-out'
+        }}
       >
-        {/* Custom larger close button */}
-        <SheetClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none z-50 p-2">
+        {/* Sticky header with Advanced Filters title and X button - sticky when scrolling down, returns to original position when at top */}
+        <div className={`sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 -mx-6 px-6 pb-4 mb-6 transition-all duration-300 ease-in-out ${
+          isScrolled ? 'pt-[7px]' : 'pt-6'
+        }`}>
+          <div className="flex items-center justify-between">
+            <SheetHeader className="flex-1">
+              <SheetTitle className="text-2xl font-serif">Advanced Filters</SheetTitle>
+            </SheetHeader>
+            <SheetClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none p-2">
           <X className="h-6 w-6 stroke-[2.5]" />
           <span className="sr-only">Close</span>
         </SheetClose>
-        
-        <SheetHeader>
-          <SheetTitle className="text-2xl font-serif">Filter your search</SheetTitle>
-        </SheetHeader>
+          </div>
+        </div>
 
         <div className="mt-6 space-y-8">
           {/* Subjects taught */}

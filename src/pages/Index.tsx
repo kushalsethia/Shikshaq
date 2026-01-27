@@ -365,7 +365,7 @@ export default function Index() {
               one search away.
             </h1>
             <div ref={searchBarElementRef} className="w-full max-w-2xl">
-              <SearchBar />
+          <SearchBar />
             </div>
           </div>
         </div>
@@ -469,16 +469,16 @@ export default function Index() {
             </div>
           ) : subjects.length > 0 ? (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                {subjects.map((subject) => (
-                  <SubjectCard
-                    key={subject.id}
-                    name={subject.name}
-                    slug={subject.slug}
-                    imageUrl={subject.image_url}
-                  />
-                ))}
-              </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+              {subjects.map((subject) => (
+                <SubjectCard
+                  key={subject.id}
+                  name={subject.name}
+                  slug={subject.slug}
+                  imageUrl={subject.image_url}
+                />
+              ))}
+            </div>
               {/* View more button below grid */}
               <div className="flex justify-end mt-6">
                 <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link font-bold md:font-normal">
