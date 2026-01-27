@@ -17,7 +17,7 @@ The admin panel at `/admin/recommendations` is not working on Vercel because the
 1. Click **Add New**
 2. Fill in:
    - **Name:** `VITE_ADMIN_PASSWORD`
-   - **Value:** `Kushal123` (or your chosen password)
+   - **Value:** `YOUR_PASSWORD` (or your chosen password)
    - **Environment:** Select all three:
      - ✅ Production
      - ✅ Preview
@@ -38,7 +38,7 @@ After adding the environment variable, you need to redeploy:
 1. Wait for deployment to complete
 2. Visit `https://shikshaq.vercel.app/admin/recommendations`
 3. You should see the password prompt
-4. Enter your password (`Kushal123`)
+4. Enter your password (`YOUR_PASSWORD`)
 
 ## Alternative: Quick Redeploy via Git
 

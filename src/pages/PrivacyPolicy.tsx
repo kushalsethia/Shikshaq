@@ -105,12 +105,12 @@ export default function PrivacyPolicy() {
             <p>
               We implement appropriate technical and organizational security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. These measures include:
             </p>
-            <ul>
-              <li>Encryption of data in transit using HTTPS/TLS</li>
-              <li>Secure authentication through Supabase Auth</li>
-              <li>Row-level security policies in our database</li>
-              <li>Regular security assessments and updates</li>
-              <li>Limited access to personal data on a need-to-know basis</li>
+            <ul className="list-none space-y-2">
+              <li>a) Encryption of data in transit using HTTPS/TLS</li>
+              <li>b) Secure authentication through Supabase Auth</li>
+              <li>c) Row-level security policies in our database</li>
+              <li>d) Regular security assessments and updates</li>
+              <li>e) Limited access to personal data on a need-to-know basis</li>
             </ul>
             <p>
               However, no method of transmission over the Internet or electronic storage is 100% secure. While we strive to use commercially acceptable means to protect your information, we cannot guarantee absolute security.
@@ -236,12 +236,14 @@ export default function PrivacyPolicy() {
               <li>Any other grievances related to data protection or privacy</li>
             </ul>
             <p>
-              <strong>Grievance Officer Details:</strong>
+              <strong>Grievance Officer:</strong>
             </p>
             <ul>
-              <li><strong>Name/Designation:</strong> Privacy Officer / Grievance Officer</li>
-              <li><strong>Email:</strong> <a href="mailto:grievance@shikshaq.in" className="text-primary underline">grievance@shikshaq.in</a> (or <a href="mailto:join.shikshaq@gmail.com" className="text-primary underline">join.shikshaq@gmail.com</a>)</li>
-              <li><strong>Address:</strong> [Your Physical Address in Kolkata, West Bengal, India]</li>
+              <li><strong>Name:</strong> Krish Goenka</li>
+              <li><strong>Designation:</strong> Grievance Officer</li>
+              <li><strong>Email:</strong> <a href="mailto:krishgoenka96749@gmail.com" className="text-primary underline">krishgoenka96749@gmail.com</a></li>
+              <li><strong>Phone/WhatsApp:</strong> <a href="https://wa.me/918240980312" target="_blank" rel="noopener noreferrer" className="text-primary underline">+91 8240980312</a></li>
+              <li><strong>Official Correspondence Address:</strong> Madhuvan, 17/1G, Alipore Road, Kolkata - 700027, West Bengal, India.</li>
             </ul>
             <p>
               <strong>Response Time:</strong> We will acknowledge your grievance within 24 hours and resolve it within 15 days from the date of receipt, in accordance with applicable Indian laws.

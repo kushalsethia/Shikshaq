@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
 
 interface SearchBarProps {
   className?: string;
@@ -13,27 +14,41 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  // Sync with URL parameter if on Browse page
+  // Check if we're on a subject page or browse page
+  const isSubjectPage = SUBJECT_PATH_TO_FILTER.hasOwnProperty(location.pathname);
+  const isBrowsePage = location.pathname === '/all-tuition-teachers-in-kolkata';
+  const isSearchablePage = isSubjectPage || isBrowsePage;
+
+  // Sync with URL parameter if on Browse or Subject page
   useEffect(() => {
-    if (location.pathname === '/all-tuition-teachers-in-kolkata') {
+    if (isSearchablePage) {
       const urlQuery = searchParams.get('q') || '';
       setQuery(urlQuery);
     }
-  }, [searchParams, location.pathname]);
+  }, [searchParams, location.pathname, isSearchablePage]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      navigate(`/all-tuition-teachers-in-kolkata?q=${encodeURIComponent(query.trim())}`);
+      // Use window.location.href to force a full page refresh
+      // This ensures filters are properly synced from URL params on page load
+      // Preserve the current path (subject page or browse page)
+      const currentPath = isSubjectPage ? location.pathname : '/all-tuition-teachers-in-kolkata';
+      const url = `${currentPath}?q=${encodeURIComponent(query.trim())}`;
+      window.location.href = url;
     }
   };
 
   const handleClear = () => {
     setQuery('');
-    // Remove search query from URL
+    // Remove search query from URL, preserve current path
+    const currentPath = isSubjectPage ? location.pathname : '/all-tuition-teachers-in-kolkata';
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.delete('q');
-    navigate(newSearchParams.toString() ? `/all-tuition-teachers-in-kolkata?${newSearchParams.toString()}` : '/all-tuition-teachers-in-kolkata');
+    const newUrl = newSearchParams.toString() 
+      ? `${currentPath}?${newSearchParams.toString()}` 
+      : currentPath;
+    navigate(newUrl);
   };
 
   return (

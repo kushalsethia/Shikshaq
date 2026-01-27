@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { fuzzySearch, prepareRecordForSearch } from '@/utils/fuzzySearch';
+import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKeywordExtractor';
+import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { useLikes } from '@/lib/likes-context';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
 import {
@@ -90,12 +91,16 @@ export default function Browse() {
   const [displayedTeachers, setDisplayedTeachers] = useState<Teacher[]>([]);
   const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
   const [hasMore, setHasMore] = useState(true);
+  const [isSearchBarScrolled, setIsSearchBarScrolled] = useState(false);
   const { isLiked } = useLikes();
   
   // Ref to track if we're updating URL ourselves (to prevent circular updates)
   const isUpdatingUrlRef = useRef(false);
   // Ref to track loading timeout
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Refs for floating search bar
+  const searchBarRef = useRef<HTMLDivElement>(null);
+  const searchBarElementRef = useRef<HTMLDivElement>(null);
 
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
@@ -162,7 +167,7 @@ export default function Browse() {
 
     const newParams = new URLSearchParams(searchParams);
     
-    // Update filter params
+    // Update filter params - ensure ALL filters are synced to URL
     const subjectsParam = serializeArrayParam(filters.subjects);
     if (subjectsParam) {
       newParams.set('filter_subjects', subjectsParam);
@@ -218,8 +223,7 @@ export default function Browse() {
     }
   }, [filters, searchParams, setSearchParams]);
 
-  // Sync filters from URL when URL changes (e.g., browser back/forward)
-  // Only sync if filters in URL are different from current filters
+  // Extract filters from search query and merge with URL filters
   useEffect(() => {
     // Skip if we just updated the URL ourselves
     if (isUpdatingUrlRef.current) {
@@ -235,22 +239,41 @@ export default function Browse() {
       modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
     };
 
+    // Extract filters from search query (q parameter)
+    const searchQuery = searchParams.get('q');
+    let extractedFilters: Partial<FilterState> = {};
+    if (searchQuery && searchQuery.trim().length >= 2) {
+      extractedFilters = extractFiltersFromQuery(searchQuery);
+    }
+
+    // If there's a search query, use ONLY the extracted filters (clear previous search filters)
+    // If no search query, use URL filters (from filter panel selections)
+    // Always create new arrays to ensure React detects the change
+    const mergedFilters: FilterState = {
+      subjects: searchQuery ? [...(extractedFilters.subjects || [])] : [...urlFilters.subjects],
+      classes: searchQuery ? [...(extractedFilters.classes || [])] : [...urlFilters.classes],
+      boards: searchQuery ? [...(extractedFilters.boards || [])] : [...urlFilters.boards],
+      classSize: searchQuery ? [...(extractedFilters.classSize || [])] : [...urlFilters.classSize],
+      areas: searchQuery ? [...(extractedFilters.areas || [])] : [...urlFilters.areas],
+      modeOfTeaching: searchQuery ? [...(extractedFilters.modeOfTeaching || [])] : [...urlFilters.modeOfTeaching],
+    };
+
     // Only update if filters actually differ (prevent unnecessary updates)
     // Sort arrays before comparing to handle order differences
     const filtersChanged = 
-      JSON.stringify([...urlFilters.subjects].sort()) !== JSON.stringify([...filters.subjects].sort()) ||
-      JSON.stringify([...urlFilters.classes].sort()) !== JSON.stringify([...filters.classes].sort()) ||
-      JSON.stringify([...urlFilters.boards].sort()) !== JSON.stringify([...filters.boards].sort()) ||
-      JSON.stringify([...urlFilters.classSize].sort()) !== JSON.stringify([...filters.classSize].sort()) ||
-      JSON.stringify([...urlFilters.areas].sort()) !== JSON.stringify([...filters.areas].sort()) ||
-      JSON.stringify([...urlFilters.modeOfTeaching].sort()) !== JSON.stringify([...filters.modeOfTeaching].sort());
+      JSON.stringify([...mergedFilters.subjects].sort()) !== JSON.stringify([...filters.subjects].sort()) ||
+      JSON.stringify([...mergedFilters.classes].sort()) !== JSON.stringify([...filters.classes].sort()) ||
+      JSON.stringify([...mergedFilters.boards].sort()) !== JSON.stringify([...filters.boards].sort()) ||
+      JSON.stringify([...mergedFilters.classSize].sort()) !== JSON.stringify([...filters.classSize].sort()) ||
+      JSON.stringify([...mergedFilters.areas].sort()) !== JSON.stringify([...filters.areas].sort()) ||
+      JSON.stringify([...mergedFilters.modeOfTeaching].sort()) !== JSON.stringify([...filters.modeOfTeaching].sort());
 
     if (filtersChanged) {
-      // Use a ref to prevent recursive updates
-      isUpdatingUrlRef.current = false; // Allow this update
-      setFilters(urlFilters);
+      // Update filters - the URL sync effect will handle updating the URL
+      // Don't block URL sync - let it run normally to update the URL with all filters
+      setFilters(mergedFilters);
     }
-  }, [searchParams]); // Don't include filters in deps to prevent loops
+  }, [searchParams]); // Don't include filters to prevent loops - only run when searchParams change
 
   useEffect(() => {
     async function fetchTeachers() {
@@ -269,11 +292,16 @@ export default function Browse() {
         clearTimeout(loadingTimeoutRef.current);
       }
       
-      // Use a delay before showing loading state to prevent flickering on fast filters
-      // Only show loading if filtering takes more than 150ms (fast filters won't show loading screen)
-      loadingTimeoutRef.current = setTimeout(() => {
+      // If there's a search query, show loading immediately to prevent flash of all teachers
+      const searchQuery = searchParams.get('q');
+      if (searchQuery && searchQuery.trim().length >= 2) {
         setLoading(true);
-      }, 150);
+      } else {
+        // For filter-only changes, use a delay to prevent flickering on fast filters
+        loadingTimeoutRef.current = setTimeout(() => {
+          setLoading(true);
+        }, 150);
+      }
       
       try {
         // First, get teachers from teachers_list with a reasonable limit
@@ -432,39 +460,82 @@ export default function Browse() {
             urlFilters.boards.length > 0 || urlFilters.classSize.length > 0 || 
             urlFilters.areas.length > 0 || urlFilters.modeOfTeaching.length > 0;
 
-        // Apply search query if present - use fuzzy search across name, subjects, areas, and classes
-        // This should be combined with other filters
-        // Filter if we have a search query OR active filters
-        if (allShikshaqData && (searchQuery || hasActiveFilters)) {
-          let recordsToFilter = allShikshaqData;
-          
-          // Apply fuzzy search if we have a search query
-          if (searchQuery && searchQuery.trim().length >= 2) {
-            // Prepare records for fuzzy search
-            const searchableRecords = allShikshaqData.map((record: any) => {
-              const teacher = teachersData.find(t => t.slug === record.Slug);
-              return prepareRecordForSearch(record, teacher?.name);
-            });
-            
-            // Perform fuzzy search
-            const fuzzyResults = fuzzySearch(searchableRecords, searchQuery);
-            
-            // Get the slugs from fuzzy search results
-            const fuzzySlugs = new Set(fuzzyResults.map((r: any) => r.Slug));
-            
-            // Filter records to only include those that matched fuzzy search
-            recordsToFilter = allShikshaqData.filter((record: any) => 
-              fuzzySlugs.has(record.Slug)
-            );
+        // Apply filters (extracted from search query or URL params)
+        // If we have a search query, extract filters directly to ensure they're applied immediately
+        // This prevents showing all teachers before filters are applied
+        let effectiveFilters = {
+          subjects: effectiveSubjectFilters,
+          classes: effectiveClassFilters,
+          boards: urlFilters.boards,
+          classSize: urlFilters.classSize,
+          areas: urlFilters.areas,
+          modeOfTeaching: urlFilters.modeOfTeaching,
+        };
+
+        // Extract filters from search query if present (apply immediately, don't wait for state update)
+        // If there's a search query, REPLACE all filters with extracted ones (clear previous search)
+        let extractedFilters: Partial<FilterState> = {};
+        if (searchQuery && searchQuery.trim().length >= 2) {
+          extractedFilters = extractFiltersFromQuery(searchQuery);
+          // Replace all filters with extracted ones (don't merge with previous search)
+          effectiveFilters = {
+            subjects: extractedFilters.subjects || [],
+            classes: extractedFilters.classes || [],
+            boards: extractedFilters.boards || [],
+            classSize: extractedFilters.classSize || [],
+            areas: extractedFilters.areas || [],
+            modeOfTeaching: extractedFilters.modeOfTeaching || [],
+          };
+        }
+
+        // Check if we have any active filters after extraction
+        const hasActiveFiltersAfterExtraction = 
+          effectiveFilters.subjects.length > 0 || 
+          effectiveFilters.classes.length > 0 ||
+          effectiveFilters.boards.length > 0 || 
+          effectiveFilters.classSize.length > 0 || 
+          effectiveFilters.areas.length > 0 || 
+          effectiveFilters.modeOfTeaching.length > 0;
+
+        // Smart Search Logic: Handle both Name Search and Filters
+        // Strategy: 
+        // 1. If filters found, extract name part from remaining query
+        // 2. If no filters found, treat entire query as name search
+        // 3. When both present, prioritize name matches but apply filters
+        let namePart = '';
+        let nameSearchResults: Teacher[] = [];
+        let nameSearchResultsWithScores: Array<{ item: Teacher; score: number }> = [];
+        
+        if (searchQuery && searchQuery.trim().length >= 3) {
+          if (hasActiveFiltersAfterExtraction) {
+            // Extract name part from query (e.g., "aparna chemistry" -> "aparna")
+            namePart = extractNameFromQuery(searchQuery, extractedFilters);
+            if (namePart.length >= 3) {
+              // Both name and filters present - search with scores for prioritization
+              nameSearchResultsWithScores = searchByNameWithScores(teachersData, namePart);
+              nameSearchResults = nameSearchResultsWithScores.map(r => r.item);
+            }
+          } else {
+            // No filters found - treat entire query as name search
+            nameSearchResults = searchByName(teachersData, searchQuery.trim());
           }
+        }
+
+        // Apply search logic: Name Search OR Filters OR Both
+        if (nameSearchResults.length > 0 && !hasActiveFiltersAfterExtraction) {
+          // B. Pure Name Search! Show these specific teachers directly
+          filteredTeachers = nameSearchResults;
+        } else if (allShikshaqData && hasActiveFiltersAfterExtraction) {
+          // A. Apply the extracted filters (existing filter logic)
+          const recordsToFilter = allShikshaqData;
           
           // Pre-compute lowercase filter values once (outside loop for performance)
-          const subjectFiltersLower = effectiveSubjectFilters.map(s => s.toLowerCase());
-          const classFiltersLower = effectiveClassFilters.map(c => c.toLowerCase());
-          const boardFiltersLower = urlFilters.boards.map(b => b.toLowerCase());
-          const classSizeFiltersLower = urlFilters.classSize.map(s => s.toLowerCase());
-          const areaFiltersLower = urlFilters.areas.map(a => a.toLowerCase());
-          const modeFiltersLower = urlFilters.modeOfTeaching.map(m => m.toLowerCase());
+          const subjectFiltersLower = effectiveFilters.subjects.map(s => s.toLowerCase());
+          const classFiltersLower = effectiveFilters.classes.map(c => c.toLowerCase());
+          const boardFiltersLower = effectiveFilters.boards.map(b => b.toLowerCase());
+          const classSizeFiltersLower = effectiveFilters.classSize.map(s => s.toLowerCase());
+          const areaFiltersLower = effectiveFilters.areas.map(a => a.toLowerCase());
+          const modeFiltersLower = effectiveFilters.modeOfTeaching.map(m => m.toLowerCase());
           
           const matchingSlugs = recordsToFilter
             .filter((record: any) => {
@@ -478,7 +549,7 @@ export default function Browse() {
               const mode = (record["Mode of Teaching"] || '').toLowerCase();
 
               // Check subjects (includes both dropdown and advanced filter selections)
-              if (effectiveSubjectFilters.length > 0) {
+              if (effectiveFilters.subjects.length > 0) {
                 const hasSubject = subjectFiltersLower.some(subjLower => {
                   // Handle "Accountancy" matching "Accounts" in database for backward compatibility
                   if (subjLower === 'accountancy') {
@@ -492,7 +563,7 @@ export default function Browse() {
               }
 
               // Check classes - optimized with pre-computed values
-              if (effectiveClassFilters.length > 0) {
+              if (effectiveFilters.classes.length > 0) {
                 const hasClass = classFiltersLower.some(classLower => {
                   // Check backend column (numeric values like "5,6,7,8")
                   if (classesBackend) {
@@ -519,7 +590,7 @@ export default function Browse() {
               }
 
               // Check boards - optimized
-              if (urlFilters.boards.length > 0) {
+              if (effectiveFilters.boards.length > 0) {
                 const hasBoard = boardFiltersLower.some(boardLower => 
                   boards.includes(boardLower)
                 );
@@ -529,7 +600,7 @@ export default function Browse() {
               }
 
               // Check class size - optimized
-              if (urlFilters.classSize.length > 0) {
+              if (effectiveFilters.classSize.length > 0) {
                 const hasSize = classSizeFiltersLower.some(sizeLower => 
                   classSize.includes(sizeLower)
                 );
@@ -539,7 +610,7 @@ export default function Browse() {
               }
 
               // Check areas - optimized
-              if (urlFilters.areas.length > 0) {
+              if (effectiveFilters.areas.length > 0) {
                 const hasArea = areaFiltersLower.some(areaLower => 
                   areaData.includes(areaLower)
                 );
@@ -549,7 +620,7 @@ export default function Browse() {
               }
 
               // Check mode of teaching - optimized
-              if (urlFilters.modeOfTeaching.length > 0) {
+              if (effectiveFilters.modeOfTeaching.length > 0) {
                 const hasMode = modeFiltersLower.some(modeLower => 
                   mode.includes(modeLower) || 
                   mode.includes(modeLower + ' /') ||
@@ -569,18 +640,53 @@ export default function Browse() {
           filteredTeachers = teachersData.filter(teacher => 
             matchingSlugs.includes(teacher.slug)
           );
+
+          // If we also have name search results, prioritize name matches
+          if (nameSearchResultsWithScores.length > 0) {
+            // Create a map of name match scores for quick lookup
+            const nameScoreMap = new Map<string, number>();
+            nameSearchResultsWithScores.forEach(({ item, score }) => {
+              nameScoreMap.set(item.slug, score);
+            });
+
+            // Separate teachers into: name matches (with scores) and non-name matches
+            const nameMatches: Array<{ teacher: Teacher; score: number }> = [];
+            const nonNameMatches: Teacher[] = [];
+
+            filteredTeachers.forEach(teacher => {
+              const nameScore = nameScoreMap.get(teacher.slug);
+              if (nameScore !== undefined) {
+                nameMatches.push({ teacher, score: nameScore });
+              } else {
+                nonNameMatches.push(teacher);
+              }
+            });
+
+            // Sort name matches by score (lower = better match)
+            nameMatches.sort((a, b) => a.score - b.score);
+
+            // Combine: name matches first (sorted by relevance), then non-name matches
+            filteredTeachers = [
+              ...nameMatches.map(m => m.teacher),
+              ...nonNameMatches
+            ];
+          }
         } else if ((searchQuery || hasActiveFilters) && !allShikshaqData) {
-          // If we have search query or filters but no Shikshaqmine data, fall back to name-only search
-          if (searchQuery) {
-            const searchLower = searchQuery.toLowerCase().trim();
-            filteredTeachers = teachersData.filter(teacher => 
-              teacher.name?.toLowerCase().includes(searchLower)
-            );
-          } else {
+          // If we have search query or filters but no Shikshaqmine data
+          if (searchQuery && !hasActiveFiltersAfterExtraction) {
+            // Fall back to fuzzy name search if no filters found
+            filteredTeachers = searchByName(teachersData, searchQuery.trim());
+          } else if (hasActiveFiltersAfterExtraction) {
             // If we have filters but no Shikshaqmine data, show empty results
             // (can't filter without Shikshaqmine data)
             filteredTeachers = [];
+          } else {
+            // No search query and no filters - show all teachers
+            filteredTeachers = teachersData;
           }
+        } else if (searchQuery && !hasActiveFiltersAfterExtraction && nameSearchResults.length === 0) {
+          // C. No filters found AND no names found - show empty results
+          filteredTeachers = [];
         }
 
         // Create a map of slug to Shikshaqmine data for enrichment
@@ -608,7 +714,6 @@ export default function Browse() {
           };
         });
 
-        console.log('Fetched and filtered teachers:', enrichedTeachers.length);
         // Store all teachers
         setAllTeachersData(enrichedTeachers);
         // Show first 20 teachers initially for infinite scroll
@@ -746,6 +851,45 @@ export default function Browse() {
     fetchFeaturedTeachers();
   }, [searchParams.get('q'), teachers.length]);
 
+  // Handle scroll detection for making search bar sticky
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!searchBarRef.current) return;
+      
+      const searchBarRect = searchBarRef.current.getBoundingClientRect();
+      // Show sticky bar when original search bar is scrolled past
+      // Once shown, keep it visible until we're back near the top
+      const threshold = window.innerWidth < 768 ? 200 : 100;
+      const scrollY = window.scrollY;
+      
+      // Show sticky bar if original is scrolled past OR if we're scrolled down significantly
+      // Hide only when we're back near the top (scrollY < 100) so original is visible
+      if (scrollY < 100) {
+        setIsSearchBarScrolled(false);
+      } else if (searchBarRect.top < threshold) {
+        setIsSearchBarScrolled(true);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    // Check initial position
+    const initialCheck = () => {
+      if (!searchBarRef.current) return;
+      const searchBarRect = searchBarRef.current.getBoundingClientRect();
+      const threshold = window.innerWidth < 768 ? 200 : 100;
+      const scrollY = window.scrollY;
+      
+      if (scrollY < 100) {
+        setIsSearchBarScrolled(false);
+      } else if (searchBarRect.top < threshold) {
+        setIsSearchBarScrolled(true);
+      }
+    };
+    initialCheck();
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const handleSubjectChange = (value: string) => {
     setSelectedSubject(value);
     if (value && value !== 'all') {
@@ -864,10 +1008,10 @@ export default function Browse() {
 
       <main className="container pt-6 sm:pt-[120px] pb-8 md:pt-8">
         {/* Search and Filters */}
-        <div className="mb-3 sm:mb-4">
+        <div ref={searchBarRef} className="mb-3 sm:mb-4">
           {/* Search Bar and Filter Button - Same Row on Mobile */}
           <div className="flex items-center gap-2 mb-3 sm:mb-4 sm:flex-col">
-            <div className="flex-1 sm:w-full">
+            <div ref={searchBarElementRef} className="flex-1 sm:w-full">
               <SearchBar />
             </div>
             
@@ -981,6 +1125,17 @@ export default function Browse() {
             )}
           </div>
         </div>
+
+        {/* Sticky Search Bar - Only visible when scrolled past original */}
+        {isSearchBarScrolled && (
+          <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 py-3 transition-all duration-300 ease-in-out">
+            <div className="container mx-auto px-4">
+              <div className="w-full">
+                <SearchBar />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Results Header */}
         <div className="mb-4 sm:mb-6">
@@ -1141,6 +1296,7 @@ export default function Browse() {
       </main>
 
       <FilterPanel
+        key={JSON.stringify(filters)} // Force re-render when filters change
         open={filterPanelOpen}
         onOpenChange={setFilterPanelOpen}
         filters={filters}

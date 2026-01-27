@@ -4,8 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, ThumbsUp } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
+import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { TeacherComments } from '@/components/TeacherComments';
@@ -52,6 +53,7 @@ export default function TeacherProfile() {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { isLiked, toggleLike } = useLikes();
+  const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -492,7 +494,7 @@ export default function TeacherProfile() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container pt-32 sm:pt-[120px] pb-8 md:pt-12 md:pb-12">
+      <main className="container pt-20 sm:pt-[120px] pb-8 md:pt-12 md:pb-12">
         {/* Back Button */}
         <Link
           to="/all-tuition-teachers-in-kolkata"
@@ -535,7 +537,7 @@ export default function TeacherProfile() {
                     }
                     await toggleLike(teacher.id);
                   }}
-                  className="p-3 rounded-full bg-card/90 backdrop-blur-sm hover:bg-card transition-colors"
+                  className="p-2 rounded-full bg-card/90 backdrop-blur-sm hover:bg-card transition-colors"
                   aria-label={isLiked(teacher.id) ? 'Remove from favourites' : 'Add to favourites'}
                 >
                   <Heart
@@ -553,6 +555,34 @@ export default function TeacherProfile() {
                   className=""
                   iconSize="lg"
                 />
+              </div>
+              {/* Mobile Upvote Button - Bottom Right of Image */}
+              <div className="absolute bottom-4 right-4 md:hidden">
+                <button
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (!user) {
+                      navigate('/auth');
+                      return;
+                    }
+                    await toggleUpvote(teacher.id);
+                  }}
+                  className="p-3 rounded-full bg-card/90 backdrop-blur-sm hover:bg-card transition-colors flex items-center gap-2"
+                  aria-label={isUpvoted(teacher.id) ? 'Remove upvote' : 'Upvote teacher'}
+                >
+                  <ThumbsUp
+                    className={`w-6 h-6 transition-colors ${
+                      isUpvoted(teacher.id)
+                        ? 'fill-primary text-primary-foreground'
+                        : 'text-foreground/70 hover:text-primary'
+                    }`}
+                  />
+                  {getUpvoteCount(teacher.id) > 0 && (
+                    <span className="text-sm font-medium text-foreground">
+                      {getUpvoteCount(teacher.id)}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -804,14 +834,14 @@ export default function TeacherProfile() {
                   rel="noopener noreferrer"
                   className="block"
                 >
-                  <Button className="w-full gap-2 py-6 text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all">
+                  <Button className="w-full gap-2 py-6 text-base font-medium bg-[#25D366] hover:bg-[#20BA5A] text-white shadow-md hover:shadow-lg transition-all">
                     <WhatsAppIcon className="w-5 h-5" />
                     Contact via WhatsApp
                   </Button>
                 </a>
               ) : (
                 <Button 
-                  className="w-full gap-2 py-6 text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all" 
+                  className="w-full gap-2 py-6 text-base font-medium bg-[#25D366] hover:bg-[#20BA5A] text-white shadow-md hover:shadow-lg transition-all" 
                   onClick={() => navigate('/auth')}
                 >
                   <WhatsAppIcon className="w-5 h-5" />

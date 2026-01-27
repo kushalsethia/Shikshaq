@@ -187,7 +187,7 @@ export function ShareButton({ url, title, description, className = '', iconSize 
     <div className={`relative ${className}`}>
       <button
         onClick={handleShareClick}
-        className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
+        className="p-2 rounded-full bg-card/90 backdrop-blur-sm hover:bg-card transition-colors z-10"
         aria-label="Share"
       >
         <Share2 className={`${iconSizeClasses[iconSize]} text-foreground/70 hover:text-foreground transition-colors`} />
