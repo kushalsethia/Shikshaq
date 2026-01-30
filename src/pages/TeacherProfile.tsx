@@ -45,6 +45,7 @@ interface Teacher {
   review_1?: string | null; // The "Review 1" field from Shikshaqmine table
   review_2?: string | null; // The "Review 2" field from Shikshaqmine table
   review_3?: string | null; // The "Review 3" field from Shikshaqmine table
+  whatsapp_link?: string | null; // The "Link" field from Shikshaqmine table
 }
 
 export default function TeacherProfile() {
@@ -97,6 +98,7 @@ export default function TeacherProfile() {
       let review1 = null;
       let review2 = null;
       let review3 = null;
+      let whatsappLink = null;
       if (teacherData) {
         try {
           // Check cache for Shikshaqmine data
@@ -138,6 +140,7 @@ export default function TeacherProfile() {
             review1 = (shikshaqData as any)["Review 1"];
             review2 = (shikshaqData as any)["Review 2"];
             review3 = (shikshaqData as any)["Review 3"];
+            whatsappLink = (shikshaqData as any)["Link"] || (shikshaqData as any)["link"];
           }
         } catch (err) {
           console.warn('Error accessing Shikshaqmine table:', err);
@@ -165,6 +168,7 @@ export default function TeacherProfile() {
           review_1: review1,
           review_2: review2,
           review_3: review3,
+          whatsapp_link: whatsappLink,
         } as Teacher);
       }
       setLoading(false);
@@ -828,7 +832,13 @@ export default function TeacherProfile() {
               </p>
               {user ? (
                 <a
-                  href={getWhatsAppLink(teacher.whatsapp_number)}
+                  href={
+                    teacher.whatsapp_link 
+                      ? (teacher.whatsapp_link.startsWith('http') 
+                          ? teacher.whatsapp_link 
+                          : getWhatsAppLink(teacher.whatsapp_link))
+                      : getWhatsAppLink(null, '8240980312')
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block"

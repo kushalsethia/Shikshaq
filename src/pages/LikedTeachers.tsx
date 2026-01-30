@@ -62,26 +62,61 @@ export default function LikedTeachers() {
           return;
         }
 
-        // Extract all slugs and fetch Sir/Ma'am data in a single query
+        // Extract all slugs and fetch Sir/Ma'am and Subjects data in a single query
         const slugs = teachersData.map(t => t.slug);
-        const { data: sirMaamData } = await supabase
+        const { data: shikshaqData } = await supabase
           .from('Shikshaqmine')
-          .select('Slug, "Sir/Ma\'am?"')
+          .select('Slug, "Sir/Ma\'am?", Subjects')
           .in('Slug', slugs);
 
-        // Create a map of slug -> sirMaam for fast lookup
+        // Create maps for fast lookup
         const sirMaamMap = new Map<string, string | null>();
-        if (sirMaamData) {
-          sirMaamData.forEach((record: any) => {
+        const subjectsMap = new Map<string, string>(); // slug -> first subject name
+        if (shikshaqData) {
+          shikshaqData.forEach((record: any) => {
             sirMaamMap.set(record.Slug, record["Sir/Ma'am?"] || null);
+            // Extract first subject from comma-separated Subjects field
+            if (record.Subjects) {
+              const firstSubject = record.Subjects.split(',')[0].trim();
+              if (firstSubject) {
+                subjectsMap.set(record.Slug, firstSubject);
+              }
+            }
           });
         }
 
-        // Combine teachers with Sir/Ma'am data
-        const teachersWithSirMaam = teachersData.map((teacher) => ({
-          ...teacher,
-          sirMaam: sirMaamMap.get(teacher.slug) || null,
-        }));
+        // Fetch subjects table for matching
+        const { data: subjectsData } = await supabase
+          .from('subjects')
+          .select('name, slug');
+
+        // Combine teachers with Sir/Ma'am data and add subjects if missing
+        const teachersWithSirMaam = teachersData.map((teacher) => {
+          // If no subject from relationship, try to get from Shikshaqmine
+          if (!teacher.subjects) {
+            const firstSubjectName = subjectsMap.get(teacher.slug);
+            if (firstSubjectName && subjectsData) {
+              // Try to find matching subject in subjects table
+              const matchingSubject = subjectsData.find((s: any) => 
+                s.name.toLowerCase() === firstSubjectName.toLowerCase()
+              );
+              if (matchingSubject) {
+                teacher.subjects = { name: matchingSubject.name, slug: matchingSubject.slug };
+              } else {
+                // If no match found, use the name from Shikshaqmine directly
+                teacher.subjects = { 
+                  name: firstSubjectName, 
+                  slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-') 
+                };
+              }
+            }
+          }
+          
+          return {
+            ...teacher,
+            sirMaam: sirMaamMap.get(teacher.slug) || null,
+          };
+        });
 
         setLikedTeachers(teachersWithSirMaam);
       } catch (error) {
@@ -164,7 +199,7 @@ export default function LikedTeachers() {
                 id={teacher.id}
                 name={teacher.name}
                 slug={teacher.slug}
-                subject={teacher.subjects?.name || 'Unknown'}
+                subject={teacher.subjects?.name || 'Tuition Teacher'}
                 imageUrl={teacher.image_url || undefined}
                 subjectSlug={teacher.subjects?.slug}
                 sirMaam={teacher.sirMaam}

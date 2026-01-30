@@ -244,18 +244,26 @@ export default function Index() {
           }
         }
 
-        // Fetch Sir/Ma'am data from Shikshaqmine table
+        // Fetch Sir/Ma'am and Subjects data from Shikshaqmine table
         const sirMaamMap = new Map();
+        const subjectsMap = new Map<string, string>(); // slug -> first subject name
         if (teachersData.length > 0) {
           const teacherSlugs = teachersData.map((t: any) => t.slug);
           const { data: shikshaqData } = await (supabase as any)
             .from('Shikshaqmine')
-            .select('Slug, "Sir/Ma\'am?"')
+            .select('Slug, "Sir/Ma\'am?", Subjects')
             .in('Slug', teacherSlugs);
           
           if (shikshaqData) {
             shikshaqData.forEach((record: any) => {
               sirMaamMap.set(record.Slug, record["Sir/Ma'am?"]);
+              // Extract first subject from comma-separated Subjects field
+              if (record.Subjects) {
+                const firstSubject = record.Subjects.split(',')[0].trim();
+                if (firstSubject) {
+                  subjectsMap.set(record.Slug, firstSubject);
+                }
+              }
             });
           }
         }
@@ -274,7 +282,28 @@ export default function Index() {
                   subjects: subject ? { name: subject.name, slug: subject.slug } : null
                 };
               } else {
-                teacherWithSubject = { ...teacher, subjects: null };
+                // If no subject_id, try to get first subject from Shikshaqmine
+                const firstSubjectName = subjectsMap.get(teacher.slug);
+                if (firstSubjectName && subjectsRes.data) {
+                  // Try to find matching subject in subjects table
+                  const matchingSubject = subjectsRes.data.find((s: any) => 
+                    s.name.toLowerCase() === firstSubjectName.toLowerCase()
+                  );
+                  if (matchingSubject) {
+                    teacherWithSubject = {
+                      ...teacher,
+                      subjects: { name: matchingSubject.name, slug: matchingSubject.slug }
+                    };
+                  } else {
+                    // If no match found, use the name from Shikshaqmine directly
+                    teacherWithSubject = {
+                      ...teacher,
+                      subjects: { name: firstSubjectName, slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-') }
+                    };
+                  }
+                } else {
+                  teacherWithSubject = { ...teacher, subjects: null };
+                }
               }
             }
             
@@ -422,7 +451,7 @@ export default function Index() {
                         id={teacher.id}
                         name={teacher.name}
                         slug={teacher.slug}
-                        subject={teacher.subjects?.name || 'General'}
+                        subject={teacher.subjects?.name || 'Tuition Teacher'}
                         subjectSlug={teacher.subjects?.slug}
                         imageUrl={teacher.image_url}
                         isFeatured={true}
