@@ -104,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, fullName: string, role: 'student' | 'guardian', termsAgreed: boolean = false) => {
+    // Standard Supabase sign-up - this will automatically send verification email
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -111,6 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: `${window.location.origin}/`,
         data: {
           full_name: fullName,
+          role: role, // Store in metadata for later use
+          terms_agreement: termsAgreed, // Store in metadata for later use
         },
       },
     });
@@ -119,20 +122,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: signUpError as Error };
     }
 
-    // Create profile record after successful sign-up
+    // Profile will be created by the handle_new_user trigger
+    // Role and terms_agreement will be set after email verification
+    // We store them in user metadata so they can be retrieved later
     if (data.user) {
+      // Update profile with role and terms_agreement if it exists
+      // (It should be created by the trigger, but we update it here to ensure role/terms are set)
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
-          id: data.user.id,
+        .update({
           role: role,
           terms_agreement: termsAgreed,
           has_password: true, // User signed up with password
-        });
+        })
+        .eq('id', data.user.id);
 
       if (profileError) {
-        console.error('Error creating profile:', profileError);
-        // Don't fail sign-up if profile creation fails, but log it
+        // If profile doesn't exist yet (trigger hasn't run), try to insert
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            email: data.user.email || email,
+            full_name: fullName,
+            role: role,
+            terms_agreement: termsAgreed,
+            has_password: true,
+          });
+
+        if (insertError) {
+          console.error('Error creating/updating profile:', insertError);
+          // Don't fail sign-up if profile creation fails, but log it
+        }
       }
     }
 

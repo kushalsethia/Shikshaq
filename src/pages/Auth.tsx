@@ -586,7 +586,8 @@ export default function Auth() {
         }
         setLoading(false);
       } else {
-        toast.success('Account created successfully!');
+        // Sign-up successful - Supabase will send verification email automatically
+        toast.success('Account created! Please check your email to verify your account.');
         setTimeout(() => {
           navigate('/signup-success', { replace: true });
         }, 500);
