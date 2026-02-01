@@ -14,6 +14,7 @@ import { TeacherComments } from '@/components/TeacherComments';
 import { ShareButton } from '@/components/ShareButton';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey } from '@/utils/cache';
+import DOMPurify from 'dompurify';
 
 
 interface Teacher {
