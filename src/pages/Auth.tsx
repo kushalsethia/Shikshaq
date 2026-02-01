@@ -64,7 +64,8 @@ export default function Auth() {
       if (user?.email) {
         const { hasPassword } = await checkUserHasPassword(user.email);
         setUserHasPassword(hasPassword);
-        if (!hasPassword) {
+        // Show set password form if user doesn't have password and is on auth page
+        if (!hasPassword && window.location.pathname === '/auth') {
           setShowSetPassword(true);
         }
       }
@@ -72,6 +73,10 @@ export default function Auth() {
     
     if (user && !authLoading) {
       checkPassword();
+    } else if (!user) {
+      // Reset when user signs out
+      setShowSetPassword(false);
+      setUserHasPassword(null);
     }
   }, [user, authLoading, checkUserHasPassword]);
 
@@ -117,6 +122,17 @@ export default function Auth() {
 
           if (error) {
             console.error('Error checking profile:', error);
+          }
+
+          // Check if user has password - if not, show set password form instead of redirecting
+          const { hasPassword } = await checkUserHasPassword(user.email || '');
+          setUserHasPassword(hasPassword);
+          
+          if (!hasPassword) {
+            // User doesn't have password - show set password form
+            setShowSetPassword(true);
+            setProcessingOAuth(false);
+            return; // Don't redirect, let them set password
           }
 
           if (!profile || !profile.role) {

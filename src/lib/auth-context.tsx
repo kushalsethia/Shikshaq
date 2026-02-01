@@ -101,8 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: new Error('An account with this email already exists. Please sign in instead.') };
     } else {
       // User exists but no password - it's a Google Auth user
-      // Suggest they sign in with Google and set password there
-      return { error: new Error('An account with this email already exists. Please sign in with Google, then you can set a password in your account settings.') };
+      // Suggest they sign in with Google first, then set password
+      return { error: new Error('An account with this email already exists from Google sign-in. Please use the "Continue with Google" button above to sign in, then you can set a password.') };
     }
 
     // Proceed with sign-up
