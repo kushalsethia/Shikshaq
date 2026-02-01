@@ -236,8 +236,10 @@ export function Navbar() {
                     onClick={async () => {
                       try {
                         await signOut();
-                        // Redirect to home after logout
-                        window.location.href = '/';
+                        // Small delay to ensure state is cleared before redirect
+                        setTimeout(() => {
+                          window.location.href = '/';
+                        }, 100);
                       } catch (error) {
                         // Even if signOut throws, redirect to home
                         window.location.href = '/';

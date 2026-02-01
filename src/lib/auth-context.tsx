@@ -56,6 +56,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Handle SIGNED_OUT event explicitly
+        if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          // Clear localStorage completely
+          if (typeof window !== 'undefined') {
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+              if (key.startsWith('sb-') || key.includes('supabase')) {
+                localStorage.removeItem(key);
+              }
+            });
+          }
+          return;
+        }
+        
+        // For other events, update state normally
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -279,45 +297,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear local state first
+      // Clear local state first to prevent any UI flicker
       setUser(null);
       setSession(null);
       
-      // Try to sign out from Supabase
-      // Use scope: 'local' instead of 'global' to avoid 403 errors
-      const { error } = await supabase.auth.signOut({ scope: 'local' });
-      
-      // If there's an error but we're already logged out locally, that's okay
-      if (error && error.message?.includes('session')) {
-        // Session already invalid/expired, which is fine
-        return;
+      // Sign out from Supabase - this will trigger SIGNED_OUT event
+      // Try global first, fallback to local if it fails
+      let error;
+      try {
+        const result = await supabase.auth.signOut({ scope: 'global' });
+        error = result.error;
+      } catch (globalError) {
+        // If global fails (403), try local
+        const result = await supabase.auth.signOut({ scope: 'local' });
+        error = result.error;
       }
       
-      // Clear localStorage manually as fallback
+      // Clear localStorage completely regardless of API response
       if (typeof window !== 'undefined') {
         const keys = Object.keys(localStorage);
         keys.forEach(key => {
-          if (key.startsWith('sb-') || key.includes('supabase')) {
+          if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth')) {
             localStorage.removeItem(key);
           }
         });
+        
+        // Also clear sessionStorage
+        const sessionKeys = Object.keys(sessionStorage);
+        sessionKeys.forEach(key => {
+          if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth')) {
+            sessionStorage.removeItem(key);
+          }
+        });
+      }
+      
+      // Force state update to ensure we're logged out
+      setUser(null);
+      setSession(null);
+      
+      // If there's an error but we've cleared everything, that's okay
+      if (error && import.meta.env.DEV) {
+        console.warn('Error during sign out (but state cleared):', error);
       }
     } catch (error) {
-      // Even if signOut fails, clear local state
+      // Even if signOut fails completely, clear everything
       setUser(null);
       setSession(null);
       
-      // Clear localStorage as fallback
+      // Clear all storage as fallback
       if (typeof window !== 'undefined') {
         const keys = Object.keys(localStorage);
         keys.forEach(key => {
-          if (key.startsWith('sb-') || key.includes('supabase')) {
+          if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth')) {
             localStorage.removeItem(key);
+          }
+        });
+        
+        const sessionKeys = Object.keys(sessionStorage);
+        sessionKeys.forEach(key => {
+          if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth')) {
+            sessionStorage.removeItem(key);
           }
         });
       }
       
-      // Don't throw - user is logged out locally even if API call failed
       if (import.meta.env.DEV) {
         console.error('Error during sign out:', error);
       }
