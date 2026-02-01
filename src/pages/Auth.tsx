@@ -576,21 +576,11 @@ export default function Auth() {
       return;
     }
 
-    // Check if email already exists
-    try {
-      const { exists } = await checkEmailExists(formData.email);
-      if (exists) {
-        setErrors({ 
-          email: 'An account already exists with this email. Please use a different email or use forgot password.' 
-        });
-        setLoading(false);
-        return;
-      }
-    } catch (error: any) {
-      // If check fails, proceed with signup (Supabase will handle duplicate email error)
-      console.warn('Email check failed, proceeding with signup:', error);
-    }
-
+    // Note: We don't pre-check email existence because:
+    // 1. Supabase Auth uses soft deletes - deleted users still reserve their email
+    // 2. We let Supabase handle the validation and show appropriate errors
+    // 3. This allows proper handling of soft-deleted vs active users
+    
     try {
       const { error } = await signUpWithEmail(
         formData.email,
@@ -600,8 +590,14 @@ export default function Auth() {
         true // terms_agreement
       );
       if (error) {
-        if (error.message.includes('already registered') || error.message.includes('already exists')) {
-          setErrors({ email: 'An account already exists with this email. Please use a different email or use forgot password.' });
+        // Supabase will return specific errors for duplicate emails
+        if (error.message.includes('already registered') || 
+            error.message.includes('already exists') ||
+            error.message.includes('User already registered') ||
+            error.message.includes('email address has already been registered')) {
+          setErrors({ 
+            email: 'An account already exists with this email. Please use a different email or use forgot password.' 
+          });
         } else {
           toast.error(error.message);
         }
