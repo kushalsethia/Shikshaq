@@ -57,6 +57,35 @@ export default function TeacherProfile() {
   const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
   const navigate = useNavigate();
 
+  // Check if authenticated user has a role, redirect to select-role if not
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (!user) return; // Allow unauthenticated users to view the page
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error checking profile:', error);
+          return;
+        }
+
+        // If user is authenticated but has no role, redirect to select-role
+        if (!profile || !profile.role) {
+          navigate('/select-role', { replace: true });
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+
+    checkUserRole();
+  }, [user, navigate]);
+
   useEffect(() => {
     async function fetchTeacher() {
       if (!slug) return;

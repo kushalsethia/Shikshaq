@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,44 @@ export default function SelectRole() {
   const [role, setRole] = useState<'student' | 'guardian' | ''>('');
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingRole, setCheckingRole] = useState(true);
+
+  // Check if user already has a role set
+  useEffect(() => {
+    const checkExistingRole = async () => {
+      if (!user) {
+        setCheckingRole(false);
+        return;
+      }
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error checking profile:', error);
+          setCheckingRole(false);
+          return;
+        }
+
+        // If user already has a role, redirect to home
+        if (profile && profile.role) {
+          navigate('/', { replace: true });
+          return;
+        }
+
+        setCheckingRole(false);
+      } catch (error) {
+        console.error('Error:', error);
+        setCheckingRole(false);
+      }
+    };
+
+    checkExistingRole();
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +106,17 @@ export default function SelectRole() {
       setLoading(false);
     }
   };
+
+  if (checkingRole) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
