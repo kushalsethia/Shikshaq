@@ -155,7 +155,24 @@ export function StudiesWithProvider({ children }: { children: ReactNode }) {
               teacher_id: teacherId,
             });
 
-          if (error) throw error;
+          // Handle duplicate entry (409 Conflict) - treat as success since relationship already exists
+          if (error) {
+            // 23505 is PostgreSQL unique constraint violation
+            // 409 is HTTP conflict status
+            if (error.code === '23505' || error.code === 'PGRST409' || 
+                error.message?.includes('duplicate') || 
+                error.message?.includes('already exists') ||
+                error.message?.includes('unique constraint')) {
+              // Relationship already exists, treat as success
+              const newSet = new Set(studiesWithTeacherIds);
+              newSet.add(teacherId);
+              setStudiesWithTeacherIds(newSet);
+              setStudiesWithCount(newSet.size);
+              setCachedStudiesWith(user.id, newSet);
+              return true;
+            }
+            throw error;
+          }
 
           const newSet = new Set(studiesWithTeacherIds);
           newSet.add(teacherId);

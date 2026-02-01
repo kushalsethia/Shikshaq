@@ -304,12 +304,17 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
             return next;
           });
 
-          if (error.code === '23505') { // Unique constraint violation
+          // Handle duplicate entry (409 Conflict) - treat as success
+          if (error.code === '23505' || error.code === 'PGRST409' || 
+              error.message?.includes('duplicate') || 
+              error.message?.includes('already exists') ||
+              error.message?.includes('unique constraint')) {
+            // Already upvoted, treat as success
             toast.error('You have already upvoted this teacher');
-          } else {
-            throw error;
+            return true;
           }
-          return currentlyUpvoted;
+          
+          throw error;
         }
 
         toast.success('Teacher upvoted!');
