@@ -24,7 +24,7 @@ const signupSchema = z.object({
   }),
 });
 
-type SignInStep = 'email' | 'password' | 'otp' | 'setPassword' | 'role';
+type SignInStep = 'email' | 'password' | 'otp' | 'setPassword' | 'role' | 'magicLinkSent';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -204,9 +204,8 @@ export default function Auth() {
               hasPassword = true;
               setShowPasswordReset(false);
             } else {
-              // Might not have password set - need to verify with OTP first
+              // Might not have password set - will send magic link to set password
               hasPassword = false;
-              setShowPasswordReset(true);
             }
           } else {
             // Unlikely but if it works, password exists
@@ -214,30 +213,29 @@ export default function Auth() {
             setShowPasswordReset(false);
           }
         } catch {
-          // On error, assume no password - need OTP verification
+          // On error, assume no password - will send magic link to set password
           hasPassword = false;
-          setShowPasswordReset(true);
         }
         
         if (hasPassword) {
           // Password exists - show normal login
           setSignInStep('password');
         } else {
-          // No password - send OTP first to verify email
+          // No password - send magic link to set password
           setLoading(true);
           try {
-            const { error: otpError } = await sendOTP(formData.email);
-            if (otpError) {
-              setErrors({ email: otpError.message || 'Failed to send OTP' });
+            const { error: magicLinkError } = await resetPasswordForEmail(formData.email);
+            if (magicLinkError) {
+              setErrors({ email: magicLinkError.message || 'Failed to send password setup link' });
               setLoading(false);
             } else {
-              setOtpSent(true);
-              setSignInStep('otp');
-              toast.success('OTP sent to your email! Please verify to continue.');
+              setResetEmailSent(true);
+              setSignInStep('magicLinkSent');
+              toast.success('Password setup link sent to your email!');
               setLoading(false);
             }
           } catch (error: any) {
-            setErrors({ email: error.message || 'Failed to send OTP' });
+            setErrors({ email: error.message || 'Failed to send password setup link' });
             setLoading(false);
           }
         }
@@ -470,6 +468,7 @@ export default function Auth() {
     setOtpVerified(false);
     setTermsAgreed(false);
     setOtpValue('');
+    setResetEmailSent(false);
     setFormData({ ...formData, newPassword: '', confirmPassword: '' });
     setErrors({});
   };
@@ -537,17 +536,39 @@ export default function Auth() {
       const { error } = await updatePassword(formData.newPassword);
       if (error) {
         setErrors({ newPassword: error.message || 'Failed to update password' });
+        setLoading(false);
       } else {
-        toast.success('Password updated successfully! Please sign in.');
-        setIsResetPassword(false);
-        setIsLogin(true);
-        resetSignInFlow();
-        setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '', role: '' });
-        setErrors({});
+        toast.success('Password set successfully!');
+        
+        // Check if user is authenticated (they should be after clicking magic link)
+        setTimeout(async () => {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser) {
+            // User is authenticated, check role and redirect
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', currentUser.id)
+              .maybeSingle();
+
+            if (!profile || !profile.role) {
+              navigate('/select-role', { replace: true });
+            } else {
+              navigate('/', { replace: true });
+            }
+          } else {
+            // Not authenticated, ask them to sign in
+            toast.success('Password set successfully! Please sign in.');
+            setIsResetPassword(false);
+            setIsLogin(true);
+            resetSignInFlow();
+            setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '', role: '' });
+            setErrors({});
+          }
+        }, 500);
       }
     } catch (error: any) {
       setErrors({ newPassword: error.message || 'Failed to update password' });
-    } finally {
       setLoading(false);
     }
   };
@@ -665,6 +686,8 @@ export default function Auth() {
                   ? 'Verify your email'
                   : signInStep === 'setPassword'
                   ? 'Set your password'
+                  : signInStep === 'magicLinkSent'
+                  ? 'Check your email'
                   : 'Complete your profile'
                 : 'Create your account'
               }
@@ -679,6 +702,8 @@ export default function Auth() {
                   ? 'Enter the OTP sent to your email to verify your identity'
                   : signInStep === 'setPassword'
                   ? 'Set a new password for your account'
+                  : signInStep === 'magicLinkSent'
+                  ? 'We already have a login with your account. Please use the link sent to your email to create your password.'
                   : 'Select your role to continue'
                 : 'Join ShikshAq to find the best tutors'
               }
@@ -743,7 +768,7 @@ export default function Auth() {
                   : isLogin
                   ? signInStep === 'email'
                     ? handleEmailCheck
-                    : signInStep === 'otp'
+                    : signInStep === 'otp' && showPasswordReset
                     ? handleVerifyOTP
                     : signInStep === 'setPassword'
                     ? handleSetPasswordAndCompleteLogin
@@ -922,91 +947,23 @@ export default function Auth() {
                         <button
                           type="button"
                           onClick={() => {
-                            // Switch to password reset form
-                            setShowPasswordReset(true);
-                            setFormData({ ...formData, password: '', newPassword: '', confirmPassword: '' });
+                            // Switch to forgot password flow
+                            setIsForgotPassword(true);
+                            setIsLogin(true);
+                            resetSignInFlow();
                             setErrors({});
                           }}
                           className="text-foreground font-medium hover:underline"
                         >
-                          Forgot password or need to set a new one?
+                          Forgot password?
                         </button>
                       </p>
                     </>
                   )}
 
-                  {/* Step 2b: Set New Password (if no password exists or user clicked forgot password) */}
-                  {signInStep === 'password' && emailExists && showPasswordReset && !otpSent && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="newPassword">New Password</Label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            id="newPassword"
-                            name="newPassword"
-                            type={showPassword ? 'text' : 'password'}
-                            placeholder="Enter new password"
-                            value={formData.newPassword}
-                            onChange={handleInputChange}
-                            className={`pl-10 pr-10 ${errors.newPassword ? 'border-destructive' : ''}`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                        {errors.newPassword && (
-                          <p className="text-sm text-destructive">{errors.newPassword}</p>
-                        )}
-                      </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="confirmPassword">Confirm Password</Label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            id="confirmPassword"
-                            name="confirmPassword"
-                            type={showPassword ? 'text' : 'password'}
-                            placeholder="Confirm new password"
-                            value={formData.confirmPassword}
-                            onChange={handleInputChange}
-                            className={`pl-10 pr-10 ${errors.confirmPassword ? 'border-destructive' : ''}`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                        {errors.confirmPassword && (
-                          <p className="text-sm text-destructive">{errors.confirmPassword}</p>
-                        )}
-                      </div>
-
-                      <Button type="submit" className="w-full h-12" disabled={loading}>
-                        {loading ? 'Sending...' : 'Set Password & Send OTP'}
-                      </Button>
-
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="w-full"
-                        onClick={resetSignInFlow}
-                      >
-                        Back
-                      </Button>
-                    </>
-                  )}
-
-                  {/* Step 3: OTP Verification */}
-                  {signInStep === 'otp' && (
+                  {/* Step 3: OTP Verification (only for forgot password flow) */}
+                  {signInStep === 'otp' && showPasswordReset && (
                     <>
                       <div className="space-y-2">
                         <Label htmlFor="otp">Enter OTP</Label>
@@ -1044,14 +1001,7 @@ export default function Auth() {
                         variant="ghost"
                         className="w-full"
                         onClick={() => {
-                          if (showPasswordReset) {
-                            // If this is for password reset, go back to email step
-                            resetSignInFlow();
-                          } else {
-                            setSignInStep('password');
-                            setOtpValue('');
-                            setErrors({ ...errors, otp: '' });
-                          }
+                          resetSignInFlow();
                         }}
                       >
                         Back
@@ -1075,8 +1025,55 @@ export default function Auth() {
                     </>
                   )}
 
-                  {/* Step 4: Set New Password (after OTP verification) */}
-                  {signInStep === 'setPassword' && otpVerified && (
+                  {/* Magic Link Sent Message (for Google Auth users) */}
+                  {signInStep === 'magicLinkSent' && (
+                    <>
+                      <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                        <p className="text-sm text-foreground text-center">
+                          <strong>Check your email!</strong> We've sent a password setup link to <strong>{formData.email}</strong>
+                        </p>
+                        <p className="text-xs text-muted-foreground text-center mt-2">
+                          Click the link in the email to set your password and complete your login.
+                        </p>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={async () => {
+                          setLoading(true);
+                          try {
+                            const { error: resendError } = await resetPasswordForEmail(formData.email);
+                            if (resendError) {
+                              toast.error('Failed to resend link');
+                            } else {
+                              toast.success('Password setup link resent!');
+                            }
+                          } catch (error) {
+                            toast.error('Failed to resend link');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading}
+                      >
+                        {loading ? 'Sending...' : 'Resend Link'}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full"
+                        onClick={resetSignInFlow}
+                      >
+                        Back
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Step 4: Set New Password (after OTP verification or magic link) */}
+                  {signInStep === 'setPassword' && (otpVerified || isResetPassword) && (
                     <>
                       <div className="space-y-2">
                         <Label htmlFor="newPassword">New Password</Label>
