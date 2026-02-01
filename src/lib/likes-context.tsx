@@ -283,6 +283,15 @@ export function LikesProvider({ children }: { children: ReactNode }) {
             });
           }
           
+          // Handle duplicate entry (409 Conflict) - treat as success
+          if (error.code === '23505' || error.code === 'PGRST409' || 
+              error.message?.includes('duplicate') || 
+              error.message?.includes('already exists') ||
+              error.message?.includes('unique constraint')) {
+            // Already liked, treat as success
+            return true;
+          }
+          
           // If table doesn't exist, show helpful message
           if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('404')) {
             toast.error('Table not found. Check if liked_teachers table exists in Supabase.');
