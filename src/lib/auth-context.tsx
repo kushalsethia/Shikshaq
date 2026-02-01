@@ -93,20 +93,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {
-    // First check if email already exists and has password
-    const { hasPassword: initialHasPassword, error: checkError } = await checkUserHasPassword(email);
+    // First check if user already exists
+    const { exists: userExists } = await checkUserExists(email);
     
-    if (checkError) {
-      // If check fails, proceed with sign-up (Supabase will handle duplicate email error)
-    } else if (initialHasPassword) {
-      // User exists and has password - they already signed up with email/password
-      return { error: new Error('An account with this email already exists. Please sign in instead.') };
+    if (userExists) {
+      // User exists - check if they have a password
+      const { hasPassword } = await checkUserHasPassword(email);
+      if (hasPassword) {
+        // User exists and has password - they already signed up with email/password
+        return { error: new Error('An account with this email already exists. Please sign in instead.') };
+      } else {
+        // User exists but no password - it's a Google Auth user
+        return { error: new Error('An account with this email already exists. Please use Google sign-in or use a different email.') };
+      }
     }
-    // If initialHasPassword is false, it could mean:
-    // 1. User doesn't exist (good - can sign up)
-    // 2. User exists but no password (Google Auth user - will be caught after sign-up)
 
-    // Proceed with sign-up
+    // User doesn't exist - proceed with sign-up
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -119,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (signUpError) {
-      // Check if error is due to existing email
+      // Check if error is due to existing email (shouldn't happen if checkUserExists worked, but handle it anyway)
       if (signUpError.message.includes('already registered') || 
           signUpError.message.includes('already exists') ||
           signUpError.message.includes('User already registered')) {
@@ -135,30 +137,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Check if user was actually created
     if (!signUpData.user) {
-      // User was not created - likely email already exists
-      // Double-check by trying to see if user exists
-      const { hasPassword: hasPwd } = await checkUserHasPassword(email);
-      if (!hasPwd) {
-        return { error: new Error('An account with this email already exists. Please use Google sign-in or use a different email.') };
-      }
-      return { error: new Error('An account with this email already exists. Please sign in instead.') };
+      // User was not created - this shouldn't happen if checkUserExists worked
+      // But handle it gracefully
+      return { error: new Error('Failed to create account. Please try again.') };
     }
 
-    // Check if user is authenticated (has session)
-    // If email confirmation is required, user won't be authenticated yet
+    // User was created successfully
+    // If email confirmation is required, user won't be authenticated yet (no session)
+    // This is normal and expected behavior
     const { data: { session } } = await supabase.auth.getSession();
-    
-    // IMPORTANT: If user object exists but there's no session AND initialHasPassword was false,
-    // it likely means Supabase returned an existing Google Auth user instead of creating a new one
-    // A newly created user would either have a session OR be waiting for email confirmation
-    // But if the user already existed (Google Auth user), Supabase might return the user object
-    // without creating a new one and without a session
-    if (!session && signUpData.user && !initialHasPassword) {
-      // We know from initial check that user exists but has no password (Google Auth user)
-      // If sign-up "succeeded" with user object but no session, it means Supabase returned
-      // the existing user instead of creating a new one
-      return { error: new Error('An account with this email already exists. Please use Google sign-in or use a different email.') };
-    }
     
     // Only create/update profile if user is authenticated
     // The trigger handle_new_user() should create the profile automatically when user is created
