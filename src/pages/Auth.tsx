@@ -521,7 +521,7 @@ export default function Auth() {
           </div>
 
           {/* Set Password Section - Show for authenticated users without password */}
-          {user && !userHasPassword && showSetPassword && (
+          {user && userHasPassword === false && showSetPassword && (
             <div className="bg-card rounded-3xl p-8 shadow-sm border border-border mt-6">
               <h2 className="text-xl font-serif text-foreground text-center mb-2">
                 Set a Password
