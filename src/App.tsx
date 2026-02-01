@@ -70,8 +70,8 @@ const App = () => (
         <LikesProvider>
           <UpvotesProvider>
             <StudiesWithProvider>
-              <Toaster />
-              <Sonner />
+            <Toaster />
+            <Sonner />
           <BrowserRouter>
             <ScrollToTop />
             <Chatbot />

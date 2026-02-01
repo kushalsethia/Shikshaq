@@ -8,7 +8,6 @@ import { TeacherCard } from '@/components/TeacherCard';
 import { SubjectCard } from '@/components/SubjectCard';
 import { HowItWorks } from '@/components/HowItWorks';
 import { FAQ } from '@/components/FAQ';
-import { Testimonials } from '@/components/Testimonials';
 import { Footer } from '@/components/Footer';
 import { useLikes } from '@/lib/likes-context';
 import { useAuth } from '@/lib/auth-context';
@@ -553,9 +552,6 @@ export default function Index() {
 
       {/* FAQ */}
       <FAQ />
-
-      {/* Testimonials */}
-      <Testimonials />
 
       {/* Footer */}
       <Footer />
