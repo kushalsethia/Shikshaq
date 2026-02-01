@@ -221,21 +221,45 @@ export default function Auth() {
           // Password exists - show normal login
           setSignInStep('password');
         } else {
-          // No password - send magic link to set password
+          // No password - For OAuth users, we need to verify identity first with OTP
+          // Then they can set their password
           setLoading(true);
           try {
-            const { error: magicLinkError } = await resetPasswordForEmail(formData.email);
-            if (magicLinkError) {
-              setErrors({ email: magicLinkError.message || 'Failed to send password setup link' });
-              setLoading(false);
+            // Try resetPasswordForEmail first (works for users who had passwords)
+            const { error: resetError } = await resetPasswordForEmail(formData.email);
+            
+            if (resetError) {
+              // resetPasswordForEmail likely failed because user is OAuth-only (no password)
+              // Fall back to OTP verification, then password setup
+              console.log('resetPasswordForEmail failed (likely OAuth user):', resetError.message);
+              
+              const { error: otpError } = await sendOTP(formData.email);
+              if (otpError) {
+                console.error('sendOTP error:', otpError);
+                setErrors({ 
+                  email: `Unable to send password setup link. Error: ${otpError.message}. Please try using "Forgot password" or contact support.` 
+                });
+                setLoading(false);
+              } else {
+                // OTP sent successfully - show OTP verification step
+                setOtpSent(true);
+                setSignInStep('otp');
+                setShowPasswordReset(true); // Flag that this is for password setup
+                toast.success('Verification code sent to your email! Please verify to set your password.');
+                setLoading(false);
+              }
             } else {
+              // resetPasswordForEmail succeeded - magic link sent
               setResetEmailSent(true);
               setSignInStep('magicLinkSent');
               toast.success('Password setup link sent to your email!');
               setLoading(false);
             }
           } catch (error: any) {
-            setErrors({ email: error.message || 'Failed to send password setup link' });
+            console.error('Error in password setup flow:', error);
+            setErrors({ 
+              email: error.message || 'Failed to send password setup link. Please try "Forgot password" or contact support.' 
+            });
             setLoading(false);
           }
         }
@@ -768,7 +792,7 @@ export default function Auth() {
                   : isLogin
                   ? signInStep === 'email'
                     ? handleEmailCheck
-                    : signInStep === 'otp' && showPasswordReset
+                    : signInStep === 'otp'
                     ? handleVerifyOTP
                     : signInStep === 'setPassword'
                     ? handleSetPasswordAndCompleteLogin
@@ -962,8 +986,8 @@ export default function Auth() {
                   )}
 
 
-                  {/* Step 3: OTP Verification (only for forgot password flow) */}
-                  {signInStep === 'otp' && showPasswordReset && (
+                  {/* Step 3: OTP Verification (for password setup flow) */}
+                  {signInStep === 'otp' && (
                     <>
                       <div className="space-y-2">
                         <Label htmlFor="otp">Enter OTP</Label>
@@ -988,7 +1012,10 @@ export default function Auth() {
                           <p className="text-sm text-destructive">{errors.otp}</p>
                         )}
                         <p className="text-xs text-muted-foreground text-center mt-2">
-                          OTP sent to {formData.email}
+                          Verification code sent to {formData.email}
+                          {showPasswordReset && (
+                            <span className="block mt-1">After verification, you'll set your password.</span>
+                          )}
                         </p>
                       </div>
 
