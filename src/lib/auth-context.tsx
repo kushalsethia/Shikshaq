@@ -91,17 +91,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithEmail = async (email: string, password: string, fullName: string) => {
     // First check if email already exists and has password
-    const { hasPassword, error: checkError } = await checkUserHasPassword(email);
+    const { hasPassword: initialHasPassword, error: checkError } = await checkUserHasPassword(email);
     
     if (checkError) {
       // If check fails, proceed with sign-up (Supabase will handle duplicate email error)
-    } else if (hasPassword) {
+    } else if (initialHasPassword) {
       // User exists and has password - they already signed up with email/password
       return { error: new Error('An account with this email already exists. Please sign in instead.') };
-    } else {
-      // User exists but no password - likely a Google Auth user
-      // We'll let Supabase handle the duplicate email check and catch it in the error handling below
     }
+    // If initialHasPassword is false, it could mean:
+    // 1. User doesn't exist (good - can sign up)
+    // 2. User exists but no password (Google Auth user - will be caught after sign-up)
 
     // Proceed with sign-up
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -145,6 +145,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // If email confirmation is required, user won't be authenticated yet
     const { data: { session } } = await supabase.auth.getSession();
     
+    // IMPORTANT: If user object exists but there's no session AND initialHasPassword was false,
+    // it likely means Supabase returned an existing Google Auth user instead of creating a new one
+    // A newly created user would either have a session OR be waiting for email confirmation
+    // But if the user already existed (Google Auth user), Supabase might return the user object
+    // without creating a new one and without a session
+    if (!session && signUpData.user && !initialHasPassword) {
+      // We know from initial check that user exists but has no password (Google Auth user)
+      // If sign-up "succeeded" with user object but no session, it means Supabase returned
+      // the existing user instead of creating a new one
+      return { error: new Error('An account with this email already exists. Please use Google sign-in or use a different email.') };
+    }
+    
     // Only create/update profile if user is authenticated
     // The trigger handle_new_user() should create the profile automatically when user is created
     // But if user is authenticated, we can safely update it
@@ -176,25 +188,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithEmail = async (email: string, password: string) => {
-    // First check if user has a password
-    const { hasPassword, error: checkError } = await checkUserHasPassword(email);
-    
-    if (checkError) {
-      return { error: checkError };
-    }
-    
-    // If user exists but doesn't have a password, it's a Google Auth user
-    if (!hasPassword) {
-      return { error: new Error('You previously signed in with Google. Please use the "Continue with Google" button to sign in.') };
-    }
-
-    // User has password - proceed with sign-in
-    const { error } = await supabase.auth.signInWithPassword({
+    // Try to sign in first - this is the most reliable way to check
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     
-    return { error: error as Error | null };
+    // If sign-in succeeds, we're done
+    if (!signInError) {
+      return { error: null };
+    }
+    
+    // Sign-in failed - check the error type
+    if (signInError.message.includes('Invalid login credentials') || 
+        signInError.message.includes('Email not confirmed') ||
+        signInError.message.includes('Invalid login')) {
+      // User exists but password is wrong OR user exists but no password (Google Auth)
+      // Check if user has a password to distinguish
+      const { hasPassword } = await checkUserHasPassword(email);
+      
+      if (!hasPassword) {
+        // User exists but has no password - it's a Google Auth user
+        return { error: new Error('You previously signed in with Google. Please use the "Continue with Google" button to sign in.') };
+      }
+      // User has password but it's wrong
+      return { error: new Error('Invalid email or password') };
+    }
+    
+    // Other errors (user not found, network error, etc.)
+    // Show generic error to prevent email enumeration
+    return { error: new Error('Invalid email or password') };
   };
 
   const checkUserHasPassword = async (email: string) => {
