@@ -3,13 +3,52 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { z } from 'zod';
 import { Logo } from '@/components/Logo';
 
+const emailSchema = z.string().email('Please enter a valid email');
+const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+
+const signupSchema = z.object({
+  fullName: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+
+const signinSchema = z.object({
+  email: z.string().email('Please enter a valid email'),
+  password: z.string().min(1, 'Password is required'),
+});
+
 export default function Auth() {
+  const [isLogin, setIsLogin] = useState(true);
   const [processingOAuth, setProcessingOAuth] = useState(false);
-  const { signInWithGoogle, user, loading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { 
+    signInWithGoogle, 
+    signUpWithEmail, 
+    signInWithEmail, 
+    user, 
+    loading: authLoading 
+  } = useAuth();
   const navigate = useNavigate();
 
   // Handle OAuth callback and redirect if authenticated
@@ -34,7 +73,7 @@ export default function Auth() {
       return;
     }
     
-    // If user becomes authenticated (from OAuth)
+    // If user becomes authenticated (from OAuth or email/password)
     if (!authLoading && user) {
       setProcessingOAuth(false);
       
@@ -88,6 +127,96 @@ export default function Auth() {
     }
   }, [user, authLoading, navigate]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setErrors({ ...errors, [e.target.name]: '' });
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+
+    const result = signupSchema.safeParse(formData);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          fieldErrors[err.path[0] as string] = err.message;
+        }
+      });
+      setErrors(fieldErrors);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await signUpWithEmail(
+        formData.email,
+        formData.password,
+        formData.fullName
+      );
+
+      if (error) {
+        if (error.message.includes('already exists')) {
+          setErrors({ email: error.message });
+        } else {
+          toast.error(error.message);
+        }
+        setLoading(false);
+      } else {
+        toast.success('Account created successfully! Please check your email to verify your account.');
+        // Reset form
+        setFormData({ fullName: '', email: '', password: '', confirmPassword: '' });
+        setErrors({});
+        setLoading(false);
+      }
+    } catch (error: any) {
+      toast.error('Something went wrong. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+
+    const result = signinSchema.safeParse(formData);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          fieldErrors[err.path[0] as string] = err.message;
+        }
+      });
+      setErrors(fieldErrors);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await signInWithEmail(formData.email, formData.password);
+
+      if (error) {
+        if (error.message.includes('Google')) {
+          setErrors({ email: error.message });
+        } else if (error.message.includes('Invalid login credentials')) {
+          setErrors({ password: 'Invalid email or password' });
+        } else {
+          setErrors({ email: error.message });
+        }
+        setLoading(false);
+      } else {
+        toast.success('Welcome back!');
+        // User will be redirected by useEffect
+      }
+    } catch (error: any) {
+      toast.error('Something went wrong. Please try again.');
+      setLoading(false);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
@@ -129,10 +258,13 @@ export default function Auth() {
           {/* Form Card */}
           <div className="bg-card rounded-3xl p-8 shadow-sm border border-border">
             <h1 className="text-2xl font-serif text-foreground text-center mb-2">
-              Welcome to ShikshAq
+              {isLogin ? 'Welcome back' : 'Create your account'}
             </h1>
             <p className="text-muted-foreground text-center mb-8">
-              Sign in with Google to continue
+              {isLogin 
+                ? 'Sign in to continue to ShikshAq' 
+                : 'Join ShikshAq to find the best tutors'
+              }
             </p>
 
             {/* Google Button */}
@@ -161,6 +293,136 @@ export default function Auth() {
               </svg>
               Continue with Google
             </Button>
+
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={isLogin ? handleSignIn : handleSignUp} className="space-y-4">
+              {/* Full Name - Only for Sign Up */}
+              {!isLogin && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="fullName"
+                      name="fullName"
+                      type="text"
+                      placeholder="Enter your name"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      className={`pl-10 ${errors.fullName ? 'border-destructive' : ''}`}
+                    />
+                  </div>
+                  {errors.fullName && (
+                    <p className="text-sm text-destructive">{errors.fullName}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Email */}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
+                  />
+                </div>
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
+                )}
+              </div>
+
+              {/* Password */}
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={isLogin ? 'Enter your password' : 'Create a password'}
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password}</p>
+                )}
+              </div>
+
+              {/* Confirm Password - Only for Sign Up */}
+              {!isLogin && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Confirm your password"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      className={`pl-10 pr-10 ${errors.confirmPassword ? 'border-destructive' : ''}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                  )}
+                </div>
+              )}
+
+              <Button type="submit" className="w-full h-12" disabled={loading}>
+                {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
+              </Button>
+            </form>
+
+            {/* Toggle between Sign In and Sign Up */}
+            <p className="text-center text-sm text-muted-foreground mt-6">
+              {isLogin ? "Don't have an account? " : 'Already have an account? '}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setErrors({});
+                  setFormData({ fullName: '', email: '', password: '', confirmPassword: '' });
+                }}
+                className="text-foreground font-medium hover:underline"
+              >
+                {isLogin ? 'Sign up' : 'Sign in'}
+              </button>
+            </p>
           </div>
         </div>
       </main>
