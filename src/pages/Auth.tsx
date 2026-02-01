@@ -24,7 +24,7 @@ const signupSchema = z.object({
   }),
 });
 
-type SignInStep = 'email' | 'password' | 'otp' | 'setPassword' | 'role' | 'magicLinkSent';
+type SignInStep = 'email' | 'password' | 'otp' | 'setPassword' | 'role' | 'magicLinkSent' | 'googleAuthMessage';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -175,25 +175,12 @@ export default function Auth() {
     }
 
     try {
-      // First check if email exists
-      const { exists, error: emailError } = await checkEmailExists(formData.email);
-      if (emailError) {
-        setErrors({ email: 'Error checking email. Please try again.' });
-        setLoading(false);
-        return;
-      }
-
-      if (!exists) {
-        setErrors({ email: 'No account found with this email. Please sign up instead.' });
-        setLoading(false);
-        return;
-      }
-
-      // Email exists, now check if user has a password
+      // Check if user has a password (this also confirms email exists)
       const { hasPassword, error: passwordCheckError } = await checkHasPassword(formData.email);
       
       if (passwordCheckError) {
-        setErrors({ email: 'Error checking account. Please try again.' });
+        // If function returns error, email likely doesn't exist
+        setErrors({ email: 'No account found with this email. Please sign up instead.' });
         setLoading(false);
         return;
       }
@@ -201,22 +188,9 @@ export default function Auth() {
       setEmailExists(true);
 
       if (!hasPassword) {
-        // User doesn't have a password (OAuth user) - send OTP to verify identity
-        setLoading(true);
-        const { error: otpError } = await sendOTP(formData.email);
-        if (otpError) {
-          setErrors({ 
-            email: `Unable to send verification code. Error: ${otpError.message}. Please try again.` 
-          });
-          setLoading(false);
-        } else {
-          // OTP sent successfully - show OTP verification step
-          setOtpSent(true);
-          setSignInStep('otp');
-          setShowPasswordReset(true); // Flag that this is for password setup
-          toast.success('Verification code sent to your email! Please verify to set your password.');
-          setLoading(false);
-        }
+        // User doesn't have a password (Google Auth user) - show simple message
+        setSignInStep('googleAuthMessage');
+        setLoading(false);
       } else {
         // User has a password - show password field for normal login
         setSignInStep('password');
@@ -667,6 +641,8 @@ export default function Auth() {
                   ? 'Welcome back' 
                   : signInStep === 'password'
                   ? 'Sign in'
+                  : signInStep === 'googleAuthMessage'
+                  ? 'Account Found'
                   : signInStep === 'otp'
                   ? 'Verify your email'
                   : signInStep === 'setPassword'
@@ -683,6 +659,8 @@ export default function Auth() {
                   ? 'Sign in to continue to ShikshAq'
                   : signInStep === 'password'
                   ? 'Enter your password to sign in'
+                  : signInStep === 'googleAuthMessage'
+                  ? 'You previously signed in with Google. Please use Google sign-in or sign up with a different email.'
                   : signInStep === 'otp'
                   ? 'Enter the OTP sent to your email to verify your identity'
                   : signInStep === 'setPassword'
@@ -694,8 +672,8 @@ export default function Auth() {
               }
             </p>
 
-            {/* Google Button - Hide for forgot/reset password and OTP/role steps */}
-            {!isForgotPassword && !isResetPassword && signInStep === 'email' && (
+            {/* Google Button - Show on email step and googleAuthMessage step */}
+            {!isForgotPassword && !isResetPassword && (signInStep === 'email' || signInStep === 'googleAuthMessage') && (
               <>
                 <Button
                   variant="outline"
@@ -873,6 +851,45 @@ export default function Auth() {
                       <Button type="submit" className="w-full h-12" disabled={loading}>
                         {loading ? 'Checking...' : 'Continue'}
                       </Button>
+                    </>
+                  )}
+
+                  {/* Google Auth User Message */}
+                  {signInStep === 'googleAuthMessage' && (
+                    <>
+                      <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                        <p className="text-sm text-foreground text-center">
+                          <strong>You previously signed in with Google.</strong>
+                        </p>
+                        <p className="text-xs text-muted-foreground text-center mt-2">
+                          Please use the "Continue with Google" button above to sign in, or sign up with a different email address.
+                        </p>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full"
+                        onClick={resetSignInFlow}
+                      >
+                        Back
+                      </Button>
+
+                      <p className="text-center text-sm mt-4">
+                        Don't have an account?{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsLogin(false);
+                            resetSignInFlow();
+                            setErrors({});
+                            setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '', role: '' });
+                          }}
+                          className="text-foreground font-medium hover:underline"
+                        >
+                          Sign up
+                        </button>
+                      </p>
                     </>
                   )}
 
