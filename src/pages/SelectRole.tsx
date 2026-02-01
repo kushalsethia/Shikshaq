@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { GraduationCap, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navbar } from '@/components/Navbar';
@@ -15,7 +14,6 @@ export default function SelectRole() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState<'student' | 'guardian' | ''>('');
-  const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,11 +21,6 @@ export default function SelectRole() {
 
     if (!role) {
       toast.error('Please select whether you are a student or guardian');
-      return;
-    }
-
-    if (!termsAgreed) {
-      toast.error('Please agree to the Terms and Privacy Policy to continue');
       return;
     }
 
@@ -40,13 +33,12 @@ export default function SelectRole() {
     setLoading(true);
 
     try {
-      // Update profile with role and terms agreement (use upsert in case profile already exists from Google Auth)
+      // Update profile with role (use upsert in case profile already exists from Google Auth)
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
           role: role,
-          terms_agreement: true,
         }, {
           onConflict: 'id'
         });
@@ -129,40 +121,7 @@ export default function SelectRole() {
               </div>
             </div>
 
-            <div className="flex items-start space-x-2">
-              <Checkbox
-                id="terms-agreement"
-                checked={termsAgreed}
-                onCheckedChange={(checked) => setTermsAgreed(checked === true)}
-                className="mt-1"
-              />
-              <Label
-                htmlFor="terms-agreement"
-                className="text-sm font-normal leading-relaxed cursor-pointer"
-              >
-                I agree to the{' '}
-                <Link
-                  to="/privacy-policy"
-                  target="_blank"
-                  className="text-primary hover:underline font-medium"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Terms
-                </Link>
-                {' '}and{' '}
-                <Link
-                  to="/privacy-policy"
-                  target="_blank"
-                  className="text-primary hover:underline font-medium"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Privacy Policy
-                </Link>
-                {' '}to connect with teachers.
-              </Label>
-            </div>
-
-            <Button type="submit" className="w-full h-12" disabled={loading || !role || !termsAgreed}>
+            <Button type="submit" className="w-full h-12" disabled={loading || !role}>
               {loading ? 'Creating Profile...' : 'Continue'}
             </Button>
           </form>

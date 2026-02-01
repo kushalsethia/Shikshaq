@@ -8,13 +8,9 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUpWithEmail: (email: string, password: string, fullName: string, role: 'student' | 'guardian', termsAgreed?: boolean) => Promise<{ error: Error | null }>;
+  signUpWithEmail: (email: string, password: string, fullName: string, role: 'student' | 'guardian') => Promise<{ error: Error | null }>;
   resetPasswordForEmail: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
-  checkEmailExists: (email: string) => Promise<{ exists: boolean; error: Error | null }>;
-  checkPasswordExists: (email: string, password: string) => Promise<{ hasPassword: boolean; error: Error | null }>;
-  sendOTP: (email: string) => Promise<{ error: Error | null }>;
-  verifyOTP: (email: string, token: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -102,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signUpWithEmail = async (email: string, password: string, fullName: string, role: 'student' | 'guardian', termsAgreed: boolean = false) => {
+  const signUpWithEmail = async (email: string, password: string, fullName: string, role: 'student' | 'guardian') => {
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -125,7 +121,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .insert({
           id: data.user.id,
           role: role,
-          terms_agreement: termsAgreed,
         });
 
       if (profileError) {
@@ -151,136 +146,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const checkEmailExists = async (email: string) => {
-    try {
-      // Use signInWithOtp with shouldCreateUser: false to check if email exists
-      // If email doesn't exist, it will return an error
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: false,
-        },
-      });
-
-      // If no error, email exists and OTP was sent
-      if (!error) {
-        return { exists: true, error: null };
-      }
-
-      // Check error message to determine if email exists
-      if (error.message.includes('User not found') || 
-          error.message.includes('does not exist')) {
-        return { exists: false, error: null };
-      }
-
-      // For other errors (like rate limiting), assume email exists
-      // We'll also check by trying to send a password reset
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?type=reset-password`,
-      });
-
-      if (resetError) {
-        if (resetError.message.includes('User not found') || 
-            resetError.message.includes('does not exist')) {
-          return { exists: false, error: null };
-        }
-      }
-
-      // If reset email was sent successfully or error suggests user exists, return true
-      return { exists: true, error: null };
-    } catch (error) {
-      // On any error, try the password reset method as fallback
-      try {
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth?type=reset-password`,
-        });
-        if (resetError && (resetError.message.includes('User not found') || 
-            resetError.message.includes('does not exist'))) {
-          return { exists: false, error: null };
-        }
-        return { exists: true, error: null };
-      } catch {
-        // If all checks fail, assume email exists to be safe
-        return { exists: true, error: error as Error };
-      }
-    }
-  };
-
-  const checkPasswordExists = async (email: string, password: string) => {
-    try {
-      // Try to sign in with the provided password
-      // If successful, password exists and is correct
-      // If error is "Invalid login credentials", password might be wrong but user exists
-      // If error is "Email not confirmed", user exists but needs confirmation
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (!error) {
-        // Password is correct and user is signed in
-        return { hasPassword: true, error: null };
-      }
-
-      // Check error message
-      if (error.message.includes('Invalid login credentials')) {
-        // User exists, password might be wrong, but they have a password set
-        // We'll return true here - the password check will happen in the actual login
-        return { hasPassword: true, error: null };
-      }
-
-      if (error.message.includes('Email not confirmed')) {
-        // User exists but email not confirmed - they likely have a password
-        return { hasPassword: true, error: null };
-      }
-
-      // For other errors, assume password doesn't exist or user doesn't exist
-      return { hasPassword: false, error: null };
-    } catch (error) {
-      return { hasPassword: false, error: error as Error };
-    }
-  };
-
-  const sendOTP = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false, // Don't create user if they don't exist
-      },
-    });
-    return { error: error as Error | null };
-  };
-
-  const verifyOTP = async (email: string, token: string) => {
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email',
-    });
-    return { error: error as Error | null };
-  };
-
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      loading, 
-      signInWithGoogle, 
-      signInWithEmail, 
-      signUpWithEmail, 
-      resetPasswordForEmail, 
-      updatePassword,
-      checkEmailExists,
-      checkPasswordExists,
-      sendOTP,
-      verifyOTP,
-      signOut 
-    }}>
+    <AuthContext.Provider value={{ user, session, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPasswordForEmail, updatePassword, signOut }}>
       {children}
     </AuthContext.Provider>
   );
