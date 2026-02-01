@@ -99,9 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // User exists and has password - they already signed up with email/password
       return { error: new Error('An account with this email already exists. Please sign in instead.') };
     } else {
-      // Check if user exists at all (even without password - Google Auth user)
-      // Try to sign up - Supabase will return error if email exists
-      // We'll catch that and show appropriate message
+      // User exists but no password - likely a Google Auth user
+      // We'll let Supabase handle the duplicate email check and catch it in the error handling below
     }
 
     // Proceed with sign-up
@@ -131,8 +130,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: signUpError as Error };
     }
 
-    // Create profile record after successful sign-up
-    if (signUpData.user) {
+    // Check if user was actually created
+    if (!signUpData.user) {
+      // User was not created - likely email already exists
+      // Double-check by trying to see if user exists
+      const { hasPassword: hasPwd } = await checkUserHasPassword(email);
+      if (!hasPwd) {
+        return { error: new Error('An account with this email already exists. Please use Google sign-in or use a different email.') };
+      }
+      return { error: new Error('An account with this email already exists. Please sign in instead.') };
+    }
+
+    // Check if user is authenticated (has session)
+    // If email confirmation is required, user won't be authenticated yet
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    // Only create/update profile if user is authenticated
+    // The trigger handle_new_user() should create the profile automatically when user is created
+    // But if user is authenticated, we can safely update it
+    if (session && session.user && session.user.id === signUpData.user.id) {
+      // User is authenticated - we can upsert the profile
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -145,8 +162,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profileError) {
         console.error('Error creating profile:', profileError);
-        // Don't fail sign-up if profile creation fails, but log it
+        // If profile creation fails, log it but don't fail sign-up
+        // The trigger might have already created it, or it will be created after email confirmation
       }
+    } else {
+      // User is not authenticated yet (email confirmation required)
+      // The trigger handle_new_user() will create the profile automatically when user confirms email
+      // We don't need to do anything here - attempting to upsert would fail with 401
+      console.log('User created but not authenticated yet. Profile will be created by trigger after email confirmation.');
     }
 
     return { error: null };
