@@ -54,6 +54,26 @@ export default function Auth() {
     loading: authLoading 
   } = useAuth();
   const navigate = useNavigate();
+  
+  const [showSetPassword, setShowSetPassword] = useState(false);
+  const [userHasPassword, setUserHasPassword] = useState<boolean | null>(null);
+
+  // Check if authenticated user has password
+  useEffect(() => {
+    const checkPassword = async () => {
+      if (user?.email) {
+        const { hasPassword } = await checkUserHasPassword(user.email);
+        setUserHasPassword(hasPassword);
+        if (!hasPassword) {
+          setShowSetPassword(true);
+        }
+      }
+    };
+    
+    if (user && !authLoading) {
+      checkPassword();
+    }
+  }, [user, authLoading, checkUserHasPassword]);
 
   // Handle OAuth callback and redirect if authenticated
   useEffect(() => {
