@@ -587,7 +587,8 @@ export default function Auth() {
         setLoading(false);
       } else {
         // Sign-up successful - Supabase will send verification email automatically
-        toast.success('Account created! Please check your email to verify your account.');
+        // For existing unverified users, a password reset email is sent as a workaround
+        toast.success('Please check your email to verify your account. If you already have an account, use the link in the email to verify.');
         setTimeout(() => {
           navigate('/signup-success', { replace: true });
         }, 500);

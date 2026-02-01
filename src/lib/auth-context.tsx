@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, fullName: string, role: 'student' | 'guardian', termsAgreed: boolean = false) => {
-    // Standard Supabase sign-up - this will automatically send verification email
+    // Standard Supabase sign-up - this will automatically send verification email for new users
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -120,6 +120,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (signUpError) {
       return { error: signUpError as Error };
+    }
+
+    // If user exists but no session, user is unverified - Supabase doesn't send email for repeated signups
+    // We need to manually trigger a confirmation email
+    // Note: Supabase doesn't have a client-side method to resend confirmation emails
+    // So we use resetPasswordForEmail as a workaround - this sends an email that allows verification
+    if (data.user && !data.session) {
+      // User exists but is unverified - send password reset email which also verifies the email
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?type=reset-password`,
+      });
+
+      if (resetError) {
+        console.error('Error sending verification email:', resetError);
+        // Continue anyway - the user was created, just email might not have been sent
+      }
     }
 
     // Profile will be created by the handle_new_user trigger
