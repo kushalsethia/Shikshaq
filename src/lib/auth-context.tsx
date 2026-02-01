@@ -173,36 +173,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { exists: false, error: null };
       }
 
-      // For other errors, assume email exists
-      // We'll also check by trying to send a password reset
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?type=reset-password`,
-      });
-
-      if (resetError) {
-        if (resetError.message.includes('User not found') || 
-            resetError.message.includes('does not exist')) {
-          return { exists: false, error: null };
-        }
-      }
-
-      // If reset email was sent successfully or error suggests user exists, return true
+      // For other errors (rate limiting, network issues, etc.), assume email exists
+      // This is safer than assuming it doesn't exist
       return { exists: true, error: null };
     } catch (error) {
-      // On any error, try the password reset method as fallback
-      try {
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth?type=reset-password`,
-        });
-        if (resetError && (resetError.message.includes('User not found') || 
-            resetError.message.includes('does not exist'))) {
-          return { exists: false, error: null };
-        }
-        return { exists: true, error: null };
-      } catch {
-        // If all checks fail, assume email exists to be safe
-        return { exists: true, error: error as Error };
-      }
+      // On any error, assume email exists to be safe
+      // This prevents false negatives (saying email doesn't exist when it does)
+      return { exists: true, error: error as Error };
     }
   };
 

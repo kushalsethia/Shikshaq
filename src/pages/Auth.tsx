@@ -160,7 +160,7 @@ export default function Auth() {
     setErrors({ ...errors, [e.target.name]: '' });
   };
 
-  // Step 1: Check email for sign-in
+  // Step 1: Check email for sign-in (just validate format, don't check existence)
   const handleEmailCheck = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -173,27 +173,11 @@ export default function Auth() {
       return;
     }
 
-    try {
-      const { exists, error } = await checkEmailExists(formData.email);
-      if (error) {
-        setErrors({ email: 'Error checking email. Please try again.' });
-        setLoading(false);
-        return;
-      }
-
-      if (exists) {
-        setEmailExists(true);
-        // Always show password field first - let user try to login
-        // If login fails, we'll offer password setup option
-        setSignInStep('password');
-      } else {
-        setErrors({ email: 'No account found with this email. Please sign up instead.' });
-      }
-    } catch (error: any) {
-      setErrors({ email: error.message || 'Error checking email' });
-    } finally {
-      setLoading(false);
-    }
+    // Don't check if email exists - just show password field
+    // We'll find out if email exists when they try to login
+    setEmailExists(true);
+    setSignInStep('password');
+    setLoading(false);
   };
 
   // Normal email/password login (when user has password set)
@@ -224,6 +208,11 @@ export default function Auth() {
           // Show error but also offer password setup option
           setErrors({ password: 'Invalid email or password' });
           setShowPasswordReset(true); // Show "Set password" option
+        } else if (error.message.includes('User not found') || 
+                   error.message.includes('does not exist')) {
+          // Email doesn't exist - redirect to sign up
+          setErrors({ email: 'No account found with this email. Please sign up instead.' });
+          setSignInStep('email'); // Go back to email step
         } else if (error.message.includes('Email not confirmed')) {
           setErrors({ email: 'Please verify your email before signing in' });
         } else {
