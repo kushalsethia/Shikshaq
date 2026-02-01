@@ -10,6 +10,7 @@ interface AuthContextType {
   signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   checkUserHasPassword: (email: string) => Promise<{ hasPassword: boolean; error: Error | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -99,9 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // User exists and has password - they already signed up with email/password
       return { error: new Error('An account with this email already exists. Please sign in instead.') };
     } else {
-      // Check if user exists at all (even without password - Google Auth user)
-      // Try to sign up - Supabase will return error if email exists
-      // We'll catch that and show appropriate message
+      // User exists but no password - it's a Google Auth user
+      // Suggest they sign in with Google and set password there
+      return { error: new Error('An account with this email already exists. Please sign in with Google, then you can set a password in your account settings.') };
     }
 
     // Proceed with sign-up
@@ -160,12 +161,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: checkError };
     }
     
-    // If user exists but doesn't have a password, it's a Google Auth user
+    // If user exists but doesn't have a password, it's a Google Auth user who hasn't set password yet
     if (!hasPassword) {
-      return { error: new Error('You previously signed in with Google. Please use the "Continue with Google" button to sign in.') };
+      return { error: new Error('You previously signed in with Google. Please use the "Continue with Google" button to sign in, then you can set a password in your account settings.') };
     }
 
-    // User has password - proceed with sign-in
+    // User has password - proceed with sign-in (works for both email/password users and Google Auth users who set password)
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -192,6 +193,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updatePassword = async (newPassword: string) => {
+    // User must be authenticated to update password
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    return { error: error as Error | null };
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -206,6 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUpWithEmail, 
       signInWithEmail, 
       checkUserHasPassword,
+      updatePassword,
       signOut 
     }}>
       {children}

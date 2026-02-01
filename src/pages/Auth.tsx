@@ -39,6 +39,8 @@ export default function Auth() {
     email: '',
     password: '',
     confirmPassword: '',
+    newPassword: '',
+    confirmNewPassword: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -46,6 +48,8 @@ export default function Auth() {
     signInWithGoogle, 
     signUpWithEmail, 
     signInWithEmail, 
+    updatePassword,
+    checkUserHasPassword,
     user, 
     loading: authLoading 
   } = useAuth();
@@ -222,6 +226,52 @@ export default function Auth() {
       await signInWithGoogle();
     } catch (error) {
       toast.error('Failed to sign in with Google');
+    }
+  };
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+
+    if (!formData.newPassword || !formData.confirmNewPassword) {
+      setErrors({ 
+        newPassword: !formData.newPassword ? 'Please enter a new password' : '',
+        confirmNewPassword: !formData.confirmNewPassword ? 'Please confirm your password' : '',
+      });
+      setLoading(false);
+      return;
+    }
+
+    const passwordResult = passwordSchema.safeParse(formData.newPassword);
+    if (!passwordResult.success) {
+      setErrors({ newPassword: passwordResult.error.errors[0].message });
+      setLoading(false);
+      return;
+    }
+
+    if (formData.newPassword !== formData.confirmNewPassword) {
+      setErrors({ confirmNewPassword: 'Passwords do not match' });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await updatePassword(formData.newPassword);
+      if (error) {
+        setErrors({ newPassword: error.message || 'Failed to set password' });
+        setLoading(false);
+      } else {
+        toast.success('Password set successfully! You can now sign in with email and password.');
+        setShowSetPassword(false);
+        setUserHasPassword(true);
+        setFormData({ ...formData, newPassword: '', confirmNewPassword: '' });
+        setErrors({});
+        setLoading(false);
+      }
+    } catch (error: any) {
+      setErrors({ newPassword: error.message || 'Failed to set password' });
+      setLoading(false);
     }
   };
 
@@ -416,7 +466,7 @@ export default function Auth() {
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setErrors({});
-                  setFormData({ fullName: '', email: '', password: '', confirmPassword: '' });
+                  setFormData({ ...formData, fullName: '', email: '', password: '', confirmPassword: '' });
                 }}
                 className="text-foreground font-medium hover:underline"
               >
@@ -424,6 +474,85 @@ export default function Auth() {
               </button>
             </p>
           </div>
+
+          {/* Set Password Section - Show for authenticated users without password */}
+          {user && !userHasPassword && showSetPassword && (
+            <div className="bg-card rounded-3xl p-8 shadow-sm border border-border mt-6">
+              <h2 className="text-xl font-serif text-foreground text-center mb-2">
+                Set a Password
+              </h2>
+              <p className="text-muted-foreground text-center mb-6 text-sm">
+                Set a password to sign in with email and password in the future
+              </p>
+
+              <form onSubmit={handleSetPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="newPassword"
+                      name="newPassword"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter new password"
+                      value={formData.newPassword}
+                      onChange={handleInputChange}
+                      className={`pl-10 pr-10 ${errors.newPassword ? 'border-destructive' : ''}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {errors.newPassword && (
+                    <p className="text-sm text-destructive">{errors.newPassword}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmNewPassword">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="confirmNewPassword"
+                      name="confirmNewPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Confirm new password"
+                      value={formData.confirmNewPassword}
+                      onChange={handleInputChange}
+                      className={`pl-10 pr-10 ${errors.confirmNewPassword ? 'border-destructive' : ''}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {errors.confirmNewPassword && (
+                    <p className="text-sm text-destructive">{errors.confirmNewPassword}</p>
+                  )}
+                </div>
+
+                <Button type="submit" className="w-full h-12" disabled={loading}>
+                  {loading ? 'Setting password...' : 'Set Password'}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setShowSetPassword(false)}
+                >
+                  Skip for now
+                </Button>
+              </form>
+            </div>
+          )}
         </div>
       </main>
     </div>
