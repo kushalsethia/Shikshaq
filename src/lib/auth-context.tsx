@@ -7,10 +7,6 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUpWithEmail: (email: string, password: string, fullName: string, role: 'student' | 'guardian') => Promise<{ error: Error | null }>;
-  resetPasswordForEmail: (email: string) => Promise<{ error: Error | null }>;
-  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -80,70 +76,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/auth`,
-        scopes: 'openid email profile', // Explicitly request only required scopes for Google OAuth compliance
+        scopes: 'openid email profile',
         queryParams: {
-          access_type: 'offline', // Used by Supabase server-side to obtain refresh tokens (handled securely on backend)
+          access_type: 'offline',
           prompt: 'consent',
         },
       },
     });
     if (error) throw error;
-  };
-
-  const signInWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error: error as Error | null };
-  };
-
-  const signUpWithEmail = async (email: string, password: string, fullName: string, role: 'student' | 'guardian') => {
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-
-    if (signUpError) {
-      return { error: signUpError as Error };
-    }
-
-    // Create profile record after successful sign-up
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          role: role,
-        });
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        // Don't fail sign-up if profile creation fails, but log it
-      }
-    }
-
-    return { error: null };
-  };
-
-  const resetPasswordForEmail = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth?type=reset-password`,
-    });
-    return { error: error as Error | null };
-  };
-
-  const updatePassword = async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-    return { error: error as Error | null };
   };
 
   const signOut = async () => {
@@ -152,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPasswordForEmail, updatePassword, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

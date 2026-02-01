@@ -1,68 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, GraduationCap, Users } from 'lucide-react';
-import { z } from 'zod';
+import { ArrowLeft } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 
-const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-});
-
-const signupSchema = z.object({
-  fullName: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.enum(['student', 'guardian'], {
-    required_error: 'Please select whether you are a student or guardian',
-  }),
-});
-
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [processingOAuth, setProcessingOAuth] = useState(false);
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [isResetPassword, setIsResetPassword] = useState(false);
-  const [resetEmailSent, setResetEmailSent] = useState(false);
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    password: '',
-    newPassword: '',
-    confirmPassword: '',
-    role: '' as 'student' | 'guardian' | '',
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, resetPasswordForEmail, updatePassword, user, loading: authLoading } = useAuth();
+  const { signInWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  // Check for password reset token in URL
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const type = searchParams.get('type');
-    if (type === 'reset-password') {
-      // Check if we have a password reset token in the hash
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      const typeParam = hashParams.get('type');
-      
-      if (accessToken && typeParam === 'recovery') {
-        setIsResetPassword(true);
-        setIsLogin(false);
-        setIsForgotPassword(false);
-      }
-    }
-  }, [location]);
 
   // Handle OAuth callback and redirect if authenticated
   useEffect(() => {
@@ -70,12 +18,6 @@ export default function Auth() {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const hasAccessToken = hashParams.get('access_token');
     const hasError = hashParams.get('error');
-    const typeParam = hashParams.get('type');
-    
-    // Skip OAuth processing if this is a password reset
-    if (isResetPassword || typeParam === 'recovery') {
-      return;
-    }
     
     // Set processing state if we have an OAuth callback
     if (hasAccessToken) {
@@ -85,14 +27,14 @@ export default function Auth() {
     // If there's an error in the hash, show it
     if (hasError) {
       const errorDescription = hashParams.get('error_description') || 'Authentication failed';
-      toast.error(`OAuth Error: ${errorDescription}`);
+      toast.error(`Authentication Error: ${errorDescription}`);
       setProcessingOAuth(false);
       // Clean up the hash
       window.history.replaceState(null, '', '/auth');
       return;
     }
     
-    // If user becomes authenticated (either from OAuth or regular login)
+    // If user becomes authenticated (from OAuth)
     if (!authLoading && user) {
       setProcessingOAuth(false);
       
@@ -146,166 +88,6 @@ export default function Auth() {
     }
   }, [user, authLoading, navigate]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: '' });
-  };
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrors({});
-
-    if (!formData.email) {
-      setErrors({ email: 'Please enter your email address' });
-      setLoading(false);
-      return;
-    }
-
-    const emailSchema = z.string().email('Please enter a valid email');
-    const emailResult = emailSchema.safeParse(formData.email);
-    
-    if (!emailResult.success) {
-      setErrors({ email: emailResult.error.errors[0].message });
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { error } = await resetPasswordForEmail(formData.email);
-      if (error) {
-        setErrors({ email: error.message || 'Failed to send reset email' });
-      } else {
-        setResetEmailSent(true);
-      }
-    } catch (error: any) {
-      setErrors({ email: error.message || 'Failed to send reset email' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrors({});
-
-    if (!formData.newPassword || !formData.confirmPassword) {
-      setErrors({ 
-        newPassword: !formData.newPassword ? 'Please enter a new password' : '',
-        confirmPassword: !formData.confirmPassword ? 'Please confirm your password' : '',
-      });
-      setLoading(false);
-      return;
-    }
-
-    if (formData.newPassword.length < 6) {
-      setErrors({ newPassword: 'Password must be at least 6 characters' });
-      setLoading(false);
-      return;
-    }
-
-    if (formData.newPassword !== formData.confirmPassword) {
-      setErrors({ confirmPassword: 'Passwords do not match' });
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { error } = await updatePassword(formData.newPassword);
-      if (error) {
-        setErrors({ newPassword: error.message || 'Failed to update password' });
-      } else {
-        toast.success('Password updated successfully! Please sign in.');
-        setIsResetPassword(false);
-        setIsLogin(true);
-        setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '' });
-        setErrors({});
-      }
-    } catch (error: any) {
-      setErrors({ newPassword: error.message || 'Failed to update password' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrors({});
-
-    try {
-      if (isLogin) {
-        const result = loginSchema.safeParse(formData);
-        if (!result.success) {
-          const fieldErrors: Record<string, string> = {};
-          result.error.errors.forEach((err) => {
-            if (err.path[0]) {
-              fieldErrors[err.path[0] as string] = err.message;
-            }
-          });
-          setErrors(fieldErrors);
-          setLoading(false);
-          return;
-        }
-
-        const { error } = await signInWithEmail(formData.email, formData.password);
-        if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            toast.error('Invalid email or password');
-          } else {
-            toast.error(error.message);
-          }
-          setLoading(false);
-        } else {
-          toast.success('Welcome back!');
-          // Wait a moment for auth state to update, then navigate
-          setTimeout(() => {
-            navigate('/', { replace: true });
-          }, 100);
-        }
-      } else {
-        const result = signupSchema.safeParse(formData);
-        if (!result.success) {
-          const fieldErrors: Record<string, string> = {};
-          result.error.errors.forEach((err) => {
-            if (err.path[0]) {
-              fieldErrors[err.path[0] as string] = err.message;
-            }
-          });
-          setErrors(fieldErrors);
-          setLoading(false);
-          return;
-        }
-
-        const { error } = await signUpWithEmail(
-          formData.email,
-          formData.password,
-          formData.fullName,
-          formData.role as 'student' | 'guardian'
-        );
-        if (error) {
-          if (error.message.includes('already registered')) {
-            toast.error('This email is already registered. Please sign in instead.');
-          } else {
-            toast.error(error.message);
-          }
-          setLoading(false);
-        } else {
-          toast.success('Account created successfully!');
-          // Redirect to sign-up success page
-          setTimeout(() => {
-            navigate('/signup-success', { replace: true });
-          }, 500);
-        }
-      }
-    } catch (error) {
-      toast.error('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
@@ -347,22 +129,18 @@ export default function Auth() {
           {/* Form Card */}
           <div className="bg-card rounded-3xl p-8 shadow-sm border border-border">
             <h1 className="text-2xl font-serif text-foreground text-center mb-2">
-              {isLogin ? 'Welcome back' : 'Create your account'}
+              Welcome to ShikshAq
             </h1>
             <p className="text-muted-foreground text-center mb-8">
-              {isLogin 
-                ? 'Sign in to continue to ShikshAq' 
-                : 'Join ShikshAq to find the best tutors'
-              }
+              Sign in with Google to continue
             </p>
 
-            {/* Google Button - Hide for forgot/reset password */}
-            {!isForgotPassword && !isResetPassword && (
-              <Button
-                variant="outline"
-                className="w-full mb-6 h-12 gap-3"
-                onClick={handleGoogleSignIn}
-              >
+            {/* Google Button */}
+            <Button
+              variant="outline"
+              className="w-full mb-6 h-12 gap-3"
+              onClick={handleGoogleSignIn}
+            >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="currentColor"
@@ -381,300 +159,8 @@ export default function Auth() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-                Continue with Google
-              </Button>
-            )}
-
-            {!isForgotPassword && !isResetPassword && (
-              <div className="relative mb-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">or</span>
-                </div>
-              </div>
-            )}
-
-            {/* Forgot Password Success Message */}
-            {resetEmailSent && (
-              <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
-                <p className="text-sm text-foreground text-center">
-                  <strong>Check your email!</strong> We've sent a password reset link to {formData.email}
-                </p>
-              </div>
-            )}
-
-            {/* Form */}
-            <form onSubmit={isResetPassword ? handleResetPassword : isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-4">
-              {/* Reset Password Form */}
-              {isResetPassword ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="newPassword"
-                        name="newPassword"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Enter new password"
-                        value={formData.newPassword}
-                        onChange={handleInputChange}
-                        className={`pl-10 pr-10 ${errors.newPassword ? 'border-destructive' : ''}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    {errors.newPassword && (
-                      <p className="text-sm text-destructive">{errors.newPassword}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Confirm new password"
-                        value={formData.confirmPassword}
-                        onChange={handleInputChange}
-                        className={`pl-10 pr-10 ${errors.confirmPassword ? 'border-destructive' : ''}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    {errors.confirmPassword && (
-                      <p className="text-sm text-destructive">{errors.confirmPassword}</p>
-                    )}
-                  </div>
-
-                  <Button type="submit" className="w-full h-12" disabled={loading}>
-                    {loading ? 'Updating...' : 'Update Password'}
-                  </Button>
-                </>
-              ) : isForgotPassword ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        placeholder="Enter your email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
-                      />
-                    </div>
-                    {errors.email && (
-                      <p className="text-sm text-destructive">{errors.email}</p>
-                    )}
-                  </div>
-
-                  <Button type="submit" className="w-full h-12" disabled={loading || resetEmailSent}>
-                    {loading ? 'Sending...' : resetEmailSent ? 'Email Sent!' : 'Send Reset Link'}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  {!isLogin && (
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName">Full Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="fullName"
-                          name="fullName"
-                          type="text"
-                          placeholder="Enter your name"
-                          value={formData.fullName}
-                          onChange={handleInputChange}
-                          className={`pl-10 ${errors.fullName ? 'border-destructive' : ''}`}
-                        />
-                      </div>
-                      {errors.fullName && (
-                        <p className="text-sm text-destructive">{errors.fullName}</p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        placeholder="Enter your email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
-                      />
-                    </div>
-                    {errors.email && (
-                      <p className="text-sm text-destructive">{errors.email}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="password"
-                        name="password"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Enter your password"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    {errors.password && (
-                      <p className="text-sm text-destructive">{errors.password}</p>
-                    )}
-                  </div>
-
-                  {/* Role Selection - Only for Sign Up */}
-                  {!isLogin && (
-                    <div className="space-y-3">
-                      <Label>I am a...</Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormData({ ...formData, role: 'student' });
-                            setErrors({ ...errors, role: '' });
-                          }}
-                          className={`flex flex-col items-center justify-center rounded-lg border-2 p-4 transition-all ${
-                            formData.role === 'student'
-                              ? 'border-primary bg-primary/10'
-                              : 'border-border hover:border-primary/50'
-                          } ${errors.role ? 'border-destructive' : ''}`}
-                        >
-                          <GraduationCap className="w-6 h-6 mb-2" />
-                          <span className="font-medium">Student</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFormData({ ...formData, role: 'guardian' });
-                            setErrors({ ...errors, role: '' });
-                          }}
-                          className={`flex flex-col items-center justify-center rounded-lg border-2 p-4 transition-all ${
-                            formData.role === 'guardian'
-                              ? 'border-primary bg-primary/10'
-                              : 'border-border hover:border-primary/50'
-                          } ${errors.role ? 'border-destructive' : ''}`}
-                        >
-                          <Users className="w-6 h-6 mb-2" />
-                          <span className="font-medium">Guardian</span>
-                        </button>
-                      </div>
-                      {errors.role && (
-                        <p className="text-sm text-destructive">{errors.role}</p>
-                      )}
-                    </div>
-                  )}
-
-                  <Button type="submit" className="w-full h-12" disabled={loading}>
-                    {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
-                  </Button>
-                </>
-              )}
-            </form>
-
-            {/* Toggle / Forgot Password Link */}
-            {isResetPassword ? (
-              <p className="text-center text-sm text-muted-foreground mt-6">
-                Remember your password?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsResetPassword(false);
-                    setIsLogin(true);
-                    setErrors({});
-                    setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '' });
-                    window.history.replaceState(null, '', '/auth');
-                  }}
-                  className="text-foreground font-medium hover:underline"
-                >
-                  Sign in
-                </button>
-              </p>
-            ) : isForgotPassword ? (
-              <p className="text-center text-sm text-muted-foreground mt-6">
-                Remember your password?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsForgotPassword(false);
-                    setIsLogin(true);
-                    setResetEmailSent(false);
-                    setErrors({});
-                    setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '' });
-                  }}
-                  className="text-foreground font-medium hover:underline"
-                >
-                  Sign in
-                </button>
-              </p>
-            ) : (
-              <>
-                {isLogin && (
-                  <p className="text-center text-sm mt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsForgotPassword(true);
-                        setErrors({});
-                      }}
-                      className="text-foreground font-medium hover:underline"
-                    >
-                      Forgot password?
-                    </button>
-                  </p>
-                )}
-                <p className="text-center text-sm text-muted-foreground mt-6">
-                  {isLogin ? "Don't have an account? " : 'Already have an account? '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsLogin(!isLogin);
-                      setErrors({});
-                      setFormData({ fullName: '', email: '', password: '', newPassword: '', confirmPassword: '', role: '' });
-                    }}
-                    className="text-foreground font-medium hover:underline"
-                  >
-                    {isLogin ? 'Sign up' : 'Sign in'}
-                  </button>
-                </p>
-              </>
-            )}
+              Continue with Google
+            </Button>
           </div>
         </div>
       </main>
