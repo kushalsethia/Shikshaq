@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
@@ -11,6 +11,7 @@ import { FAQ } from '@/components/FAQ';
 import { Testimonials } from '@/components/Testimonials';
 import { Footer } from '@/components/Footer';
 import { useLikes } from '@/lib/likes-context';
+import { useAuth } from '@/lib/auth-context';
 import {
   Carousel,
   CarouselContent,
@@ -45,6 +46,29 @@ export default function Index() {
   const searchBarElementRef = useRef<HTMLDivElement>(null);
   // Pre-initialize likes hook for fast initial render (shared state)
   const { isLiked } = useLikes();
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // Check if user has a role - redirect to role selection if not
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (authLoading) return;
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (!profile || !profile.role) {
+          navigate('/select-role', { replace: true });
+        }
+      }
+    };
+
+    checkUserRole();
+  }, [user, authLoading, navigate]);
 
   // Add homepage-specific JSON-LD structured data
   useEffect(() => {

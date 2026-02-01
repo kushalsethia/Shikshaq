@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { GraduationCap, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navbar } from '@/components/Navbar';
@@ -14,13 +15,38 @@ export default function SelectRole() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState<'student' | 'guardian' | ''>('');
+  const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Redirect if user already has a role
+  useEffect(() => {
+    const checkExistingRole = async () => {
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile && profile.role) {
+        navigate('/', { replace: true });
+      }
+    };
+
+    checkExistingRole();
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!role) {
       toast.error('Please select whether you are a student or guardian');
+      return;
+    }
+
+    if (!termsAgreed) {
+      toast.error('Please agree to the Terms and Privacy Policy to continue');
       return;
     }
 
@@ -33,12 +59,13 @@ export default function SelectRole() {
     setLoading(true);
 
     try {
-      // Update profile with role (use upsert in case profile already exists from Google Auth)
+      // Update profile with role and terms agreement (use upsert in case profile already exists from Google Auth)
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
           role: role,
+          terms_agreement: termsAgreed,
         }, {
           onConflict: 'id'
         });
@@ -121,7 +148,28 @@ export default function SelectRole() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full h-12" disabled={loading || !role}>
+            {/* Terms and Privacy Policy Checkbox */}
+            <div className="flex items-start space-x-2">
+              <Checkbox
+                id="terms"
+                checked={termsAgreed}
+                onCheckedChange={(checked) => setTermsAgreed(checked === true)}
+                className="mt-1"
+              />
+              <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
+                I agree to the{' '}
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Terms
+                </a>
+                {' '}and{' '}
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Privacy Policy
+                </a>
+                {' '}to connect with teachers.
+              </Label>
+            </div>
+
+            <Button type="submit" className="w-full h-12" disabled={loading || !role || !termsAgreed}>
               {loading ? 'Creating Profile...' : 'Continue'}
             </Button>
           </form>

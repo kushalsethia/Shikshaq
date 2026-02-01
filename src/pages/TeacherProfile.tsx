@@ -52,10 +52,31 @@ export default function TeacherProfile() {
   const { slug } = useParams<{ slug: string }>();
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { isLiked, toggleLike } = useLikes();
   const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
   const navigate = useNavigate();
+
+  // Check if user has a role - redirect to role selection if not
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (authLoading) return;
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (!profile || !profile.role) {
+          navigate('/select-role', { replace: true });
+        }
+      }
+    };
+
+    checkUserRole();
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
     async function fetchTeacher() {

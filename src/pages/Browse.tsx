@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth-context';
 import { Navbar } from '@/components/Navbar';
 import { SearchBar } from '@/components/SearchBar';
 import { TeacherCardDetailed } from '@/components/TeacherCardDetailed';
@@ -65,6 +66,29 @@ export default function Browse() {
   const [selectedSubject, setSelectedSubject] = useState(searchParams.get('subject') || '');
   const [selectedClass, setSelectedClass] = useState(searchParams.get('class') || '');
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // Check if user has a role - redirect to role selection if not
+  useEffect(() => {
+    const checkUserRole = async () => {
+      if (authLoading) return;
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (!profile || !profile.role) {
+          navigate('/select-role', { replace: true });
+        }
+      }
+    };
+
+    checkUserRole();
+  }, [user, authLoading, navigate]);
   
   // Helper function to parse array from URL params
   const parseArrayParam = (param: string | null): string[] => {
