@@ -183,65 +183,9 @@ export default function Auth() {
 
       if (exists) {
         setEmailExists(true);
-        
-        // Try resetPasswordForEmail first - this works for users who have passwords
-        // If it fails, we'll assume it's an OAuth user and use OTP instead
-        setLoading(true);
-        try {
-          const { error: resetError } = await resetPasswordForEmail(formData.email);
-          
-          if (resetError) {
-            // Check if it's a rate limiting error
-            if (resetError.message.includes('429') || resetError.message.includes('rate limit') || resetError.message.includes('too many')) {
-              setErrors({ 
-                email: 'Too many requests. Please wait a few minutes and try again, or use "Forgot password" instead.' 
-              });
-              setLoading(false);
-              return;
-            }
-            
-            // resetPasswordForEmail likely failed because user is OAuth-only (no password)
-            // or user doesn't exist (but checkEmailExists said they do, so likely OAuth)
-            console.log('resetPasswordForEmail failed, trying OTP fallback:', resetError.message);
-            
-            // Fall back to OTP verification for OAuth users
-            const { error: otpError } = await sendOTP(formData.email);
-            if (otpError) {
-              // Check for rate limiting on OTP too
-              if (otpError.message.includes('429') || otpError.message.includes('rate limit') || otpError.message.includes('too many')) {
-                setErrors({ 
-                  email: 'Too many verification requests. Please wait a few minutes before trying again.' 
-                });
-              } else {
-                console.error('sendOTP error:', otpError);
-                setErrors({ 
-                  email: `Unable to send verification code. Error: ${otpError.message}. Please try using "Forgot password" or contact support.` 
-                });
-              }
-              setLoading(false);
-            } else {
-              // OTP sent successfully - show OTP verification step
-              setOtpSent(true);
-              setSignInStep('otp');
-              setShowPasswordReset(true); // Flag that this is for password setup
-              toast.success('Verification code sent to your email! Please verify to set your password.');
-              setLoading(false);
-            }
-          } else {
-            // resetPasswordForEmail succeeded - magic link sent
-            // User likely has a password, show password field for normal login
-            // They can also use the magic link if they forgot their password
-            setSignInStep('password');
-            toast.success('You can sign in with your password. A reset link was also sent to your email if needed.');
-            setLoading(false);
-          }
-        } catch (error: any) {
-          console.error('Error in password setup flow:', error);
-          setErrors({ 
-            email: error.message || 'Failed to send password setup link. Please try "Forgot password" or contact support.' 
-          });
-          setLoading(false);
-        }
+        // Always show password field first - let user try to login
+        // If login fails, we'll offer password setup option
+        setSignInStep('password');
       } else {
         setErrors({ email: 'No account found with this email. Please sign up instead.' });
       }
@@ -276,7 +220,10 @@ export default function Auth() {
       const { error } = await signInWithEmail(formData.email, formData.password);
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
+          // Could be wrong password OR user doesn't have a password
+          // Show error but also offer password setup option
           setErrors({ password: 'Invalid email or password' });
+          setShowPasswordReset(true); // Show "Set password" option
         } else if (error.message.includes('Email not confirmed')) {
           setErrors({ email: 'Please verify your email before signing in' });
         } else {
@@ -309,6 +256,34 @@ export default function Auth() {
       }
     } catch (error: any) {
       setErrors({ password: error.message || 'Failed to sign in' });
+      setLoading(false);
+    }
+  };
+
+  // Handle password setup flow (for OAuth users without passwords)
+  const handleSetPasswordFlow = async () => {
+    setLoading(true);
+    setErrors({});
+    
+    try {
+      // Send OTP to verify identity
+      const { error: otpError } = await sendOTP(formData.email);
+      if (otpError) {
+        setErrors({ 
+          email: `Unable to send verification code. Error: ${otpError.message}. Please try again.` 
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // OTP sent successfully - show OTP verification step
+      setOtpSent(true);
+      setSignInStep('otp');
+      setShowPasswordReset(true); // Flag that this is for password setup
+      toast.success('Verification code sent to your email! Please verify to set your password.');
+      setLoading(false);
+    } catch (error: any) {
+      setErrors({ email: error.message || 'Failed to send verification code' });
       setLoading(false);
     }
   };
@@ -894,8 +869,8 @@ export default function Auth() {
                     </>
                   )}
 
-                  {/* Step 2a: Normal Password Login (if password exists) */}
-                  {signInStep === 'password' && emailExists && !showPasswordReset && !otpSent && (
+                  {/* Step 2a: Normal Password Login */}
+                  {signInStep === 'password' && emailExists && !otpSent && (
                     <>
                       <div className="space-y-2">
                         <Label htmlFor="password">Password</Label>
@@ -946,21 +921,34 @@ export default function Auth() {
                         Back
                       </Button>
 
-                      <p className="text-center text-sm mt-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            // Switch to forgot password flow
-                            setIsForgotPassword(true);
-                            setIsLogin(true);
-                            resetSignInFlow();
-                            setErrors({});
-                          }}
-                          className="text-foreground font-medium hover:underline"
-                        >
-                          Forgot password?
-                        </button>
-                      </p>
+                      <div className="text-center text-sm mt-2 space-y-1">
+                        {showPasswordReset && (
+                          <p>
+                            <button
+                              type="button"
+                              onClick={handleSetPasswordFlow}
+                              className="text-primary font-medium hover:underline"
+                            >
+                              Don't have a password? Set one
+                            </button>
+                          </p>
+                        )}
+                        <p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Switch to forgot password flow
+                              setIsForgotPassword(true);
+                              setIsLogin(true);
+                              resetSignInFlow();
+                              setErrors({});
+                            }}
+                            className="text-foreground font-medium hover:underline"
+                          >
+                            Forgot password?
+                          </button>
+                        </p>
+                      </div>
                     </>
                   )}
 

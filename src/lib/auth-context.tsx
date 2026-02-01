@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { exists: false, error: null };
       }
 
-      // For other errors (like rate limiting), assume email exists
+      // For other errors, assume email exists
       // We'll also check by trying to send a password reset
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth?type=reset-password`,
