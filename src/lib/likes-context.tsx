@@ -37,7 +37,9 @@ const getCachedLikes = (userId: string): Set<string> | null => {
     const likedIds = JSON.parse(cached) as string[];
     return new Set(likedIds);
   } catch (error) {
-    console.warn('Error reading likes from cache:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Error reading likes from cache:', error);
+    }
     return null;
   }
 };
@@ -47,7 +49,9 @@ const setCachedLikes = (userId: string, likedIds: Set<string>) => {
     localStorage.setItem(getCacheKey(userId), JSON.stringify(Array.from(likedIds)));
     localStorage.setItem(getTimestampKey(userId), Date.now().toString());
   } catch (error) {
-    console.warn('Error writing likes to cache:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Error writing likes to cache:', error);
+    }
     // localStorage might be full or disabled, continue without caching
   }
 };
@@ -57,7 +61,9 @@ const clearCachedLikes = (userId: string) => {
     localStorage.removeItem(getCacheKey(userId));
     localStorage.removeItem(getTimestampKey(userId));
   } catch (error) {
-    console.warn('Error clearing likes cache:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Error clearing likes cache:', error);
+    }
   }
 };
 
@@ -94,16 +100,20 @@ export function LikesProvider({ children }: { children: ReactNode }) {
 
         if (error) {
           // Log the full error for debugging
-          console.error('Error fetching likes:', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-          });
+          if (import.meta.env.DEV) {
+            console.error('Error fetching likes:', {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+            });
+          }
           
           // If table doesn't exist (404), just return empty set
           if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('404')) {
-            console.warn('liked_teachers table does not exist or RLS policy issue. Please check your Supabase setup.');
+            if (import.meta.env.DEV) {
+              console.warn('liked_teachers table does not exist or RLS policy issue. Please check your Supabase setup.');
+            }
             setLikedTeacherIds(new Set());
             setLoading(false);
             setIsInitialized(true);
@@ -112,7 +122,9 @@ export function LikesProvider({ children }: { children: ReactNode }) {
           
           // If it's a permission error, it might be RLS
           if (error.code === '42501' || error.message?.includes('permission denied')) {
-            console.error('RLS Policy Error: User may not have permission to read liked_teachers. Check RLS policies in Supabase.');
+            if (import.meta.env.DEV) {
+              console.error('RLS Policy Error: User may not have permission to read liked_teachers. Check RLS policies in Supabase.');
+            }
             setLikedTeacherIds(new Set());
             setLoading(false);
             setIsInitialized(true);
@@ -131,7 +143,9 @@ export function LikesProvider({ children }: { children: ReactNode }) {
         setLikedTeacherIds(likedIds);
         setCachedLikes(user.id, likedIds); // Update cache with fresh data
       } catch (error) {
-        console.error('Error fetching likes:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching likes:', error);
+        }
         // If we don't have cached data, set empty set
         if (!cachedLikes) {
           setLikedTeacherIds(new Set());
@@ -218,12 +232,14 @@ export function LikesProvider({ children }: { children: ReactNode }) {
           });
 
           // Log the full error for debugging
-          console.error('Error toggling like (delete):', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-          });
+          if (import.meta.env.DEV) {
+            console.error('Error toggling like (delete):', {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+            });
+          }
           
           // If table doesn't exist, show helpful message
           if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('404')) {
@@ -258,12 +274,14 @@ export function LikesProvider({ children }: { children: ReactNode }) {
           });
 
           // Log the full error for debugging
-          console.error('Error toggling like (insert):', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-          });
+          if (import.meta.env.DEV) {
+            console.error('Error toggling like (insert):', {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+            });
+          }
           
           // If table doesn't exist, show helpful message
           if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('404')) {
@@ -284,7 +302,9 @@ export function LikesProvider({ children }: { children: ReactNode }) {
         return true;
       }
     } catch (error: any) {
-      console.error('Error toggling like:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error toggling like:', error);
+      }
       // Check for 404 or table not found errors
       if (error.code === 'PGRST116' || error.message?.includes('does not exist') || error.message?.includes('404')) {
         toast.error('Database table not found. Please run the migration in Supabase.');

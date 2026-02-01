@@ -32,7 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Supabase will automatically process the hash and set the session
           const { data: { session }, error } = await supabase.auth.getSession();
           if (error) {
-            console.error('Error getting session from OAuth callback:', error);
+            if (import.meta.env.DEV) {
+              console.error('Error getting session from OAuth callback:', error);
+            }
             setLoading(false);
             return;
           }
@@ -40,7 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session?.user ?? null);
           setLoading(false);
         } catch (error) {
-          console.error('Error processing OAuth callback:', error);
+          if (import.meta.env.DEV) {
+            console.error('Error processing OAuth callback:', error);
+          }
           setLoading(false);
         }
       }
@@ -132,7 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return { error: new Error('An account with this email already exists. Please sign in instead.') };
       }
-      return { error: signUpError as Error };
+      // Return generic error to prevent information disclosure
+      return { error: new Error('Failed to create account. Please try again.') };
     }
 
     // Check if user was actually created
@@ -163,7 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
       if (profileError) {
-        console.error('Error creating profile:', profileError);
+        if (import.meta.env.DEV) {
+          console.error('Error creating profile:', profileError);
+        }
         // If profile creation fails, log it but don't fail sign-up
         // The trigger might have already created it, or it will be created after email confirmation
       }
@@ -171,7 +178,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // User is not authenticated yet (email confirmation required)
       // The trigger handle_new_user() will create the profile automatically when user confirms email
       // We don't need to do anything here - attempting to upsert would fail with 401
-      console.log('User created but not authenticated yet. Profile will be created by trigger after email confirmation.');
+      if (import.meta.env.DEV) {
+        console.log('User created but not authenticated yet. Profile will be created by trigger after email confirmation.');
+      }
     }
 
     return { error: null };

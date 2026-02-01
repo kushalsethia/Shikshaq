@@ -90,7 +90,9 @@ export default function StudentDashboard() {
           .single();
 
         if (profileError) {
-          console.error('Error fetching profile:', profileError);
+          if (import.meta.env.DEV) {
+            console.error('Error fetching profile:', profileError);
+          }
           setLoading(false);
           return;
         }
@@ -130,7 +132,9 @@ export default function StudentDashboard() {
           setStudentSubjects(studentSubjectsData.map(s => s.subject_id));
         }
       } catch (error) {
-        console.error('Error:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error:', error);
+        }
       } finally {
         setLoading(false);
       }
@@ -281,7 +285,9 @@ export default function StudentDashboard() {
         .eq('id', user.id);
 
       if (profileError) {
-        console.error('Error updating profile:', profileError);
+        if (import.meta.env.DEV) {
+          console.error('Error updating profile:', profileError);
+        }
         toast.error('Failed to update profile');
         setSaving(false);
         return;
@@ -295,7 +301,9 @@ export default function StudentDashboard() {
         .eq('student_id', user.id);
 
       if (deleteError) {
-        console.error('Error deleting subjects:', deleteError);
+        if (import.meta.env.DEV) {
+          console.error('Error deleting subjects:', deleteError);
+        }
       }
 
       // Insert new subjects
@@ -310,7 +318,9 @@ export default function StudentDashboard() {
           );
 
         if (insertError) {
-          console.error('Error inserting subjects:', insertError);
+          if (import.meta.env.DEV) {
+            console.error('Error inserting subjects:', insertError);
+          }
           toast.error('Failed to update subjects');
           setSaving(false);
           return;
@@ -330,7 +340,9 @@ export default function StudentDashboard() {
 
       toast.success('Profile updated successfully');
     } catch (error) {
-      console.error('Error saving:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error saving:', error);
+      }
       toast.error('Failed to update profile');
     } finally {
       setSaving(false);

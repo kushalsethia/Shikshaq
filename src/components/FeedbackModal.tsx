@@ -86,7 +86,9 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
         .insert([feedbackData]);
 
       if (error) {
-        console.error('Error submitting feedback:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error submitting feedback:', error);
+        }
         toast.error('Failed to submit feedback. Please try again.');
         return;
       }
@@ -98,7 +100,9 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
       setComment('');
       setGuestEmail('');
     } catch (error) {
-      console.error('Error submitting feedback:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error submitting feedback:', error);
+      }
       toast.error('Failed to submit feedback. Please try again.');
     } finally {
       setSubmitting(false);

@@ -39,7 +39,9 @@ const getCachedUpvotes = (userId: string): Set<string> | null => {
     const upvotedIds = JSON.parse(cached) as string[];
     return new Set(upvotedIds);
   } catch (error) {
-    console.warn('Error reading upvotes from cache:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Error reading upvotes from cache:', error);
+    }
     return null;
   }
 };
@@ -49,7 +51,9 @@ const setCachedUpvotes = (userId: string, upvotedIds: Set<string>) => {
     localStorage.setItem(getCacheKey(userId), JSON.stringify(Array.from(upvotedIds)));
     localStorage.setItem(getTimestampKey(userId), Date.now().toString());
   } catch (error) {
-    console.warn('Error writing upvotes to cache:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Error writing upvotes to cache:', error);
+    }
   }
 };
 
@@ -70,7 +74,9 @@ const getCachedCounts = (): Map<string, number> | null => {
     const counts = JSON.parse(cached) as Record<string, number>;
     return new Map(Object.entries(counts));
   } catch (error) {
-    console.warn('Error reading upvote counts from cache:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Error reading upvote counts from cache:', error);
+    }
     return null;
   }
 };
@@ -81,7 +87,9 @@ const setCachedCounts = (counts: Map<string, number>) => {
     localStorage.setItem(getCountsCacheKey(), JSON.stringify(countsObj));
     localStorage.setItem(`${getCountsCacheKey()}_timestamp`, Date.now().toString());
   } catch (error) {
-    console.warn('Error writing upvote counts to cache:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Error writing upvote counts to cache:', error);
+    }
   }
 };
 
@@ -113,7 +121,9 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
           .eq('user_id', user.id);
 
         if (error) {
-          console.error('Error fetching upvotes:', error);
+          if (import.meta.env.DEV) {
+            console.error('Error fetching upvotes:', error);
+          }
           if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
             setUpvotedTeacherIds(new Set());
             setLoading(false);
@@ -127,7 +137,9 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
         setUpvotedTeacherIds(upvotedIds);
         setCachedUpvotes(user.id, upvotedIds);
       } catch (error) {
-        console.error('Error fetching upvotes:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching upvotes:', error);
+        }
         if (!cachedUpvotes) {
           setUpvotedTeacherIds(new Set());
         }
@@ -167,7 +179,9 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
           .select('teacher_id');
 
         if (error) {
-          console.error('Error fetching upvote counts:', error);
+          if (import.meta.env.DEV) {
+            console.error('Error fetching upvote counts:', error);
+          }
           if (cachedCounts) return;
           return;
         }
@@ -182,7 +196,9 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
         setUpvoteCounts(counts);
         setCachedCounts(counts);
       } catch (error) {
-        console.error('Error fetching upvote counts:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching upvote counts:', error);
+        }
       }
     }
 
@@ -300,7 +316,9 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
         return true;
       }
     } catch (error: any) {
-      console.error('Error toggling upvote:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error toggling upvote:', error);
+      }
       toast.error(error.message || 'Failed to update upvote');
       return currentlyUpvoted;
     }

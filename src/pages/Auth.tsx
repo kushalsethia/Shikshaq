@@ -11,12 +11,18 @@ import { z } from 'zod';
 import { Logo } from '@/components/Logo';
 
 const emailSchema = z.string().email('Please enter a valid email');
-const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const passwordSchema = z.string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[a-zA-Z]/, 'Password must contain at least one letter')
+  .regex(/[0-9]/, 'Password must contain at least one digit');
 
 const signupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[a-zA-Z]/, 'Password must contain at least one letter')
+    .regex(/[0-9]/, 'Password must contain at least one digit'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
@@ -111,7 +117,9 @@ export default function Auth() {
           }
 
           if (error) {
-            console.error('Error checking profile:', error);
+            if (import.meta.env.DEV) {
+              console.error('Error checking profile:', error);
+            }
           }
 
           if (!profile || !profile.role) {
@@ -122,7 +130,9 @@ export default function Auth() {
             navigate('/', { replace: true });
           }
         } catch (error) {
-          console.error('Error checking profile:', error);
+          if (import.meta.env.DEV) {
+            console.error('Error checking profile:', error);
+          }
           // On error, redirect to role selection to be safe
           navigate('/select-role', { replace: true });
         }
@@ -177,10 +187,11 @@ export default function Auth() {
       );
 
       if (error) {
-        if (error.message.includes('already exists')) {
-          setErrors({ email: error.message });
+        // Use generic error messages to prevent information disclosure
+        if (error.message.includes('already exists') || error.message.includes('already registered')) {
+          setErrors({ email: 'An account with this email already exists. Please sign in or use a different email.' });
         } else {
-          toast.error(error.message);
+          toast.error('Failed to create account. Please try again.');
         }
         setLoading(false);
       } else {
@@ -218,12 +229,12 @@ export default function Auth() {
       const { error } = await signInWithEmail(formData.email, formData.password);
 
       if (error) {
+        // Use generic error messages to prevent information disclosure
         if (error.message.includes('Google')) {
-          setErrors({ email: error.message });
-        } else if (error.message.includes('Invalid login credentials')) {
-          setErrors({ password: 'Invalid email or password' });
+          setErrors({ email: 'You previously signed in with Google. Please use the "Continue with Google" button.' });
         } else {
-          setErrors({ email: error.message });
+          // Always show generic error for sign-in failures
+          setErrors({ password: 'Invalid email or password' });
         }
         setLoading(false);
       } else {

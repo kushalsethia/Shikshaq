@@ -120,7 +120,9 @@ export default function MyTeachers() {
 
         setMyTeachers(teachersWithSirMaam);
       } catch (error) {
-        console.error('Error fetching my teachers:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching my teachers:', error);
+        }
       } finally {
         setLoading(false);
       }

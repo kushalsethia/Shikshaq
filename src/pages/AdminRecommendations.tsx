@@ -49,14 +49,18 @@ export default function AdminRecommendations() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching recommendations:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching recommendations:', error);
+        }
         toast.error('Failed to load recommendations');
         return;
       }
 
       setRecommendations(data || []);
     } catch (error) {
-      console.error('Error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
       toast.error('Failed to load recommendations');
     } finally {
       setLoading(false);
@@ -82,7 +86,9 @@ export default function AdminRecommendations() {
 
         if (error) {
           // Error querying (table might not exist or RLS issue)
-          console.error('Error checking admin status:', error);
+          if (import.meta.env.DEV) {
+            console.error('Error checking admin status:', error);
+          }
           setIsAdmin(false);
         } else if (data && data.id === user.id) {
           // User is an admin
@@ -90,11 +96,15 @@ export default function AdminRecommendations() {
           fetchRecommendations();
         } else {
           // User is not an admin
-          console.log('User is not an admin');
+          if (import.meta.env.DEV) {
+            console.log('User is not an admin');
+          }
           setIsAdmin(false);
         }
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error checking admin status:', error);
+        }
         setIsAdmin(false);
       } finally {
         setCheckingAdmin(false);
@@ -134,7 +144,9 @@ export default function AdminRecommendations() {
       setEditingId(null);
       fetchRecommendations();
     } catch (error) {
-      console.error('Error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
       toast.error('Failed to update recommendation');
     }
   };

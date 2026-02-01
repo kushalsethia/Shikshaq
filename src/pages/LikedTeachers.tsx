@@ -120,7 +120,9 @@ export default function LikedTeachers() {
 
         setLikedTeachers(teachersWithSirMaam);
       } catch (error) {
-        console.error('Error fetching liked teachers:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching liked teachers:', error);
+        }
       } finally {
         setLoading(false);
       }

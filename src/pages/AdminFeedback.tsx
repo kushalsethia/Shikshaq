@@ -78,7 +78,9 @@ export default function AdminFeedback() {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching feedback:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching feedback:', error);
+        }
         toast.error('Failed to load feedback');
         return;
       }
@@ -105,7 +107,9 @@ export default function AdminFeedback() {
 
       setFeedback(feedbackWithData);
     } catch (error) {
-      console.error('Error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
       toast.error('Failed to load feedback');
     } finally {
       setLoading(false);
@@ -130,7 +134,9 @@ export default function AdminFeedback() {
           .maybeSingle();
 
         if (error) {
-          console.error('Error checking admin status:', error);
+          if (import.meta.env.DEV) {
+            console.error('Error checking admin status:', error);
+          }
           setIsAdmin(false);
         } else if (data && data.id === user.id) {
           setIsAdmin(true);
@@ -139,7 +145,9 @@ export default function AdminFeedback() {
           setIsAdmin(false);
         }
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error checking admin status:', error);
+        }
         setIsAdmin(false);
       } finally {
         setCheckingAdmin(false);
@@ -171,7 +179,9 @@ export default function AdminFeedback() {
         .eq('id', feedbackId);
 
       if (error) {
-        console.error('Error deleting feedback:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error deleting feedback:', error);
+        }
         toast.error('Failed to delete feedback');
         return;
       }
@@ -179,7 +189,9 @@ export default function AdminFeedback() {
       toast.success('Feedback deleted successfully');
       fetchFeedback();
     } catch (error) {
-      console.error('Error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
       toast.error('Failed to delete feedback');
     }
   };

@@ -88,7 +88,9 @@ export default function RecommendTeacher() {
         });
 
       if (error) {
-        console.error('Error submitting recommendation:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error submitting recommendation:', error);
+        }
         throw new Error(error.message || 'Failed to submit recommendation');
       }
       

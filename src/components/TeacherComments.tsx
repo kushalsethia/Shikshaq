@@ -74,7 +74,9 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
         .maybeSingle();
       
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching profile:', error);
+        }
       }
       
       setCurrentUserProfile({
@@ -85,7 +87,9 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
         avatar_url: googleAvatar, // Always use Google auth metadata for current user
       });
     } catch (err) {
-      console.error('Error fetching user profile:', err);
+      if (import.meta.env.DEV) {
+        console.error('Error fetching user profile:', err);
+      }
     }
   }
 
@@ -105,7 +109,9 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
         .order('created_at', { ascending: false });
 
       if (commentsError) {
-        console.error('Comments fetch error:', commentsError);
+        if (import.meta.env.DEV) {
+          console.error('Comments fetch error:', commentsError);
+        }
         throw commentsError;
       }
 
@@ -140,7 +146,9 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
         .in('id', userIds);
       
       if (profilesError) {
-        console.error('Profiles fetch error:', profilesError);
+        if (import.meta.env.DEV) {
+          console.error('Profiles fetch error:', profilesError);
+        }
         // Continue without profiles if there's an error
       }
 
@@ -157,7 +165,9 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
 
       setComments(commentsWithProfiles);
     } catch (err: any) {
-      console.error('Error fetching comments:', err);
+      if (import.meta.env.DEV) {
+        console.error('Error fetching comments:', err);
+      }
       setError(err.message || 'Failed to load comments');
     } finally {
       setLoading(false);
@@ -190,7 +200,9 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       await fetchComments(); // Refresh comments
       setVisibleCommentsCount(5); // Reset to show first 5 comments
     } catch (err: any) {
-      console.error('Error submitting comment:', err);
+      if (import.meta.env.DEV) {
+        console.error('Error submitting comment:', err);
+      }
       setError(err.message || 'Failed to submit comment');
     } finally {
       setSubmitting(false);
@@ -220,7 +232,9 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       toast.success('Comment deleted successfully');
       await fetchComments(); // Refresh comments
     } catch (err: any) {
-      console.error('Error deleting comment:', err);
+      if (import.meta.env.DEV) {
+        console.error('Error deleting comment:', err);
+      }
       toast.error(err.message || 'Failed to delete comment');
     } finally {
       setDeletingCommentId(null);

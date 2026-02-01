@@ -43,7 +43,9 @@ export function Navbar() {
           .maybeSingle();
 
         if (adminError) {
-          console.log('Error checking admin status:', adminError.message);
+          if (import.meta.env.DEV) {
+            console.log('Error checking admin status:', adminError.message);
+          }
           setIsAdmin(false);
         } else if (adminData && adminData.id === user.id) {
           setIsAdmin(true);
@@ -59,7 +61,9 @@ export function Navbar() {
           .maybeSingle();
 
         if (profileError) {
-          console.log('Error fetching profile:', profileError.message);
+          if (import.meta.env.DEV) {
+            console.log('Error fetching profile:', profileError.message);
+          }
           setUserRole(null);
         } else if (profileData) {
           setUserRole(profileData.role as 'student' | 'guardian' | 'teacher');
@@ -67,7 +71,9 @@ export function Navbar() {
           setUserRole(null);
         }
       } catch (error) {
-        console.error('Error:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error:', error);
+        }
         setIsAdmin(false);
         setUserRole(null);
       }

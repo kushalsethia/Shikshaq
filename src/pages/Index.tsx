@@ -365,7 +365,9 @@ export default function Index() {
           setCache(subjectsCacheKey, filteredSubjects, CACHE_TTL.SUBJECTS);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching data:', error);
+        }
       } finally {
         setLoading(false);
       }

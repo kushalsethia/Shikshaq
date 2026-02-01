@@ -155,7 +155,9 @@ export default function GuardianDashboard() {
           setStudentSubjects(guardianSubjectsData.map(s => s.subject_id));
         }
       } catch (error) {
-        console.error('Error:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error:', error);
+        }
       } finally {
         setLoading(false);
       }
@@ -281,7 +283,9 @@ export default function GuardianDashboard() {
         .eq('id', user.id);
 
       if (profileError) {
-        console.error('Error updating profile:', profileError);
+        if (import.meta.env.DEV) {
+          console.error('Error updating profile:', profileError);
+        }
         toast.error('Failed to update profile');
         setSaving(false);
         return;
@@ -295,7 +299,9 @@ export default function GuardianDashboard() {
         .eq('guardian_id', user.id);
 
       if (deleteError) {
-        console.error('Error deleting subjects:', deleteError);
+        if (import.meta.env.DEV) {
+          console.error('Error deleting subjects:', deleteError);
+        }
       }
 
       // Insert new subjects
@@ -310,7 +316,9 @@ export default function GuardianDashboard() {
           );
 
         if (insertError) {
-          console.error('Error inserting subjects:', insertError);
+          if (import.meta.env.DEV) {
+            console.error('Error inserting subjects:', insertError);
+          }
           toast.error('Failed to update subjects');
           setSaving(false);
           return;
@@ -330,7 +338,9 @@ export default function GuardianDashboard() {
 
       toast.success('Profile updated successfully');
     } catch (error) {
-      console.error('Error saving:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error saving:', error);
+      }
       toast.error('Failed to update profile');
     } finally {
       setSaving(false);

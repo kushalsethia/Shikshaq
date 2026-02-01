@@ -36,7 +36,9 @@ const getCachedStudiesWith = (userId: string): Set<string> | null => {
     const teacherIds = JSON.parse(cached) as string[];
     return new Set(teacherIds);
   } catch (error) {
-    console.warn('Error reading studies-with from cache:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Error reading studies-with from cache:', error);
+    }
     return null;
   }
 };
@@ -46,7 +48,9 @@ const setCachedStudiesWith = (userId: string, teacherIds: Set<string>) => {
     localStorage.setItem(getCacheKey(userId), JSON.stringify(Array.from(teacherIds)));
     localStorage.setItem(getTimestampKey(userId), Date.now().toString());
   } catch (error) {
-    console.warn('Error writing studies-with to cache:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Error writing studies-with to cache:', error);
+    }
   }
 };
 
@@ -85,7 +89,9 @@ export function StudiesWithProvider({ children }: { children: ReactNode }) {
       setStudiesWithCount(teacherIds.size);
       setCachedStudiesWith(user.id, teacherIds);
     } catch (error) {
-      console.error('Error loading studies-with:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error loading studies-with:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -161,7 +167,9 @@ export function StudiesWithProvider({ children }: { children: ReactNode }) {
 
         return !currentlyStudying;
       } catch (error: any) {
-        console.error('Error toggling studies-with:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error toggling studies-with:', error);
+        }
         toast.error(error.message || 'Failed to update. Please try again.');
         return currentlyStudying;
       }

@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
+import DOMPurify from 'dompurify';
 
 import { cn } from "@/lib/utils";
 
@@ -65,12 +66,10 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
+  // Generate CSS content (this is safe as it's generated from controlled data)
+  const cssContent = Object.entries(THEMES)
+    .map(
+      ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
@@ -80,8 +79,20 @@ ${colorConfig
   .join("\n")}
 }
 `,
-          )
-          .join("\n"),
+    )
+    .join("\n");
+
+  // Sanitize CSS content (DOMPurify can sanitize CSS in style tags)
+  // This is a defense-in-depth measure even though the content is controlled
+  const sanitizedCss = DOMPurify.sanitize(cssContent, {
+    ALLOWED_TAGS: [],
+    KEEP_CONTENT: true,
+  });
+
+  return (
+    <style
+      dangerouslySetInnerHTML={{
+        __html: sanitizedCss,
       }}
     />
   );

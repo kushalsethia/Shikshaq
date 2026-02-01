@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { HelpCircle, X, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getWhatsAppLink } from '@/utils/whatsapp';
+import DOMPurify from 'dompurify';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -209,7 +210,9 @@ export function Chatbot() {
 
       setMessages((prev) => [...prev, { role: 'assistant', content: data.response }]);
     } catch (error: any) {
-      console.error('Chat error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Chat error:', error);
+      }
       
       let errorMessage = "Sorry, I'm having trouble right now. ";
       
@@ -313,6 +316,14 @@ export function Chatbot() {
                         
                         // Convert line breaks to <br> for proper rendering
                         content = content.replace(/\n/g, '<br>');
+                        
+                        // Sanitize the content to prevent XSS attacks
+                        // Allow only safe tags: <a> with href, target, rel attributes, and <br>
+                        content = DOMPurify.sanitize(content, {
+                          ALLOWED_TAGS: ['a', 'br', 'p', 'strong', 'em'],
+                          ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+                          ALLOWED_URI_REGEXP: /^(https?|mailto):/i,
+                        });
                         
                         return content;
                       })()

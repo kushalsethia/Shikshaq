@@ -6,11 +6,15 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 // Validate environment variables
 if (!SUPABASE_URL) {
-  console.error('Missing VITE_SUPABASE_URL environment variable');
+  if (import.meta.env.DEV) {
+    console.error('Missing VITE_SUPABASE_URL environment variable');
+  }
 }
 
 if (!SUPABASE_PUBLISHABLE_KEY) {
-  console.error('Missing VITE_SUPABASE_PUBLISHABLE_KEY environment variable');
+  if (import.meta.env.DEV) {
+    console.error('Missing VITE_SUPABASE_PUBLISHABLE_KEY environment variable');
+  }
 }
 
 // Import the supabase client like this:

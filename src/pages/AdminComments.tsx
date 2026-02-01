@@ -76,7 +76,9 @@ export default function AdminComments() {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching comments:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching comments:', error);
+        }
         toast.error('Failed to load comments');
         return;
       }
@@ -108,7 +110,9 @@ export default function AdminComments() {
 
       setComments(commentsWithData);
     } catch (error) {
-      console.error('Error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
       toast.error('Failed to load comments');
     } finally {
       setLoading(false);
@@ -133,7 +137,9 @@ export default function AdminComments() {
           .maybeSingle();
 
         if (error) {
-          console.error('Error checking admin status:', error);
+          if (import.meta.env.DEV) {
+            console.error('Error checking admin status:', error);
+          }
           setIsAdmin(false);
         } else if (data && data.id === user.id) {
           setIsAdmin(true);
@@ -142,7 +148,9 @@ export default function AdminComments() {
           setIsAdmin(false);
         }
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error checking admin status:', error);
+        }
         setIsAdmin(false);
       } finally {
         setCheckingAdmin(false);
@@ -170,7 +178,9 @@ export default function AdminComments() {
         .eq('id', commentId);
 
       if (error) {
-        console.error('Error approving comment:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error approving comment:', error);
+        }
         toast.error('Failed to approve comment');
         return;
       }
@@ -178,7 +188,9 @@ export default function AdminComments() {
       toast.success('Comment approved successfully');
       fetchComments();
     } catch (error) {
-      console.error('Error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
       toast.error('Failed to approve comment');
     }
   };
@@ -193,7 +205,9 @@ export default function AdminComments() {
         .eq('id', commentId);
 
       if (error) {
-        console.error('Error rejecting comment:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error rejecting comment:', error);
+        }
         toast.error('Failed to reject comment');
         return;
       }
@@ -201,7 +215,9 @@ export default function AdminComments() {
       toast.success('Comment rejected and deleted');
       fetchComments();
     } catch (error) {
-      console.error('Error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
       toast.error('Failed to reject comment');
     }
   };

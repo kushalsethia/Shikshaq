@@ -82,7 +82,9 @@ export default function SelectRole() {
       // Redirect to home page
       navigate('/', { replace: true });
     } catch (error) {
-      console.error('Error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
       toast.error('Something went wrong. Please try again.');
       setLoading(false);
     }

@@ -42,7 +42,9 @@ export function getCache<T>(key: string): T | null {
 
     return entry.data;
   } catch (error) {
-    console.warn('Cache read error:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Cache read error:', error);
+    }
     return null;
   }
 }
@@ -70,10 +72,14 @@ export function setCache<T>(key: string, data: T, ttl: number): void {
         };
         localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(entry));
       } catch (retryError) {
-        console.warn('Cache write error after cleanup:', retryError);
+        if (import.meta.env.DEV) {
+          console.warn('Cache write error after cleanup:', retryError);
+        }
       }
     } else {
-      console.warn('Cache write error:', error);
+      if (import.meta.env.DEV) {
+        console.warn('Cache write error:', error);
+      }
     }
   }
 }
@@ -85,7 +91,9 @@ export function removeCache(key: string): void {
   try {
     localStorage.removeItem(CACHE_PREFIX + key);
   } catch (error) {
-    console.warn('Cache remove error:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Cache remove error:', error);
+    }
   }
 }
 
@@ -114,7 +122,9 @@ export function clearExpiredCache(): void {
       }
     });
   } catch (error) {
-    console.warn('Cache cleanup error:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Cache cleanup error:', error);
+    }
   }
 }
 
@@ -130,7 +140,9 @@ export function clearAllCache(): void {
       }
     });
   } catch (error) {
-    console.warn('Cache clear error:', error);
+    if (import.meta.env.DEV) {
+      console.warn('Cache clear error:', error);
+    }
   }
 }
 

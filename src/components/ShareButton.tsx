@@ -84,7 +84,9 @@ export function ShareButton({ url, title, description, className = '', iconSize 
       setTimeout(() => setCopied(false), 2000);
       setShowMenu(false);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      if (import.meta.env.DEV) {
+        console.error('Failed to copy:', err);
+      }
       // Try simpler fallback method
       try {
         const textArea = document.createElement('textarea');
@@ -111,7 +113,9 @@ export function ShareButton({ url, title, description, className = '', iconSize 
         setTimeout(() => setCopied(false), 2000);
         setShowMenu(false);
       } catch (fallbackErr) {
-        console.error('Fallback copy also failed:', fallbackErr);
+        if (import.meta.env.DEV) {
+          console.error('Fallback copy also failed:', fallbackErr);
+        }
       }
     }
   };
@@ -153,7 +157,9 @@ export function ShareButton({ url, title, description, className = '', iconSize 
       } catch (err) {
         // User cancelled or error occurred
         if ((err as Error).name !== 'AbortError') {
-          console.error('Error sharing:', err);
+          if (import.meta.env.DEV) {
+            console.error('Error sharing:', err);
+          }
         }
       }
     }

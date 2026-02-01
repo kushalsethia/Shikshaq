@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import { FeedbackModal } from '@/components/FeedbackModal';
+import DOMPurify from 'dompurify';
 
 interface PageContent {
   id: string;
@@ -112,7 +113,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
         const { data, error } = await query;
 
         if (error) {
-          console.error('Error fetching page content:', error);
+          if (import.meta.env.DEV) {
+            console.error('Error fetching page content:', error);
+          }
           // Fallback to default content
           setPageContent({
             id: 'default',
@@ -175,7 +178,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           setPageContent(data[0] as PageContent);
         }
       } catch (error) {
-        console.error('Error fetching page content:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching page content:', error);
+        }
         // Fallback to default content
         setPageContent({
           id: 'default',
@@ -359,12 +364,21 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 dangerouslySetInnerHTML={{ 
                   __html: (() => {
                     const content = expandedContent || '';
-                    // If content contains HTML tags, render as-is
-                    // Otherwise, convert line breaks to <br /> tags
+                    // Sanitize content to prevent XSS attacks
+                    let sanitizedContent: string;
+                    // If content contains HTML tags, sanitize it
+                    // Otherwise, convert line breaks to <br /> tags and sanitize
                     if (/<[a-z][\s\S]*>/i.test(content)) {
-                      return content;
+                      sanitizedContent = DOMPurify.sanitize(content, {
+                        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+                        ALLOWED_ATTR: ['href', 'target', 'rel'],
+                      });
+                    } else {
+                      sanitizedContent = DOMPurify.sanitize(content.replace(/\n/g, '<br />'), {
+                        ALLOWED_TAGS: ['br'],
+                      });
                     }
-                    return content.replace(/\n/g, '<br />');
+                    return sanitizedContent;
                   })()
                 }}
               />

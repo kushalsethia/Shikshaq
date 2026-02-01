@@ -366,7 +366,9 @@ export default function Browse() {
           const { data, error } = await query;
           
           if (error) {
-            console.error('Error fetching teachers:', error);
+            if (import.meta.env.DEV) {
+              console.error('Error fetching teachers:', error);
+            }
             if (loadingTimeoutRef.current) {
               clearTimeout(loadingTimeoutRef.current);
             }
@@ -435,7 +437,9 @@ export default function Browse() {
           allShikshaqData = shikshaqResults.flatMap(result => result.data || []);
           
           if (shikshaqResults.some(result => result.error)) {
-            console.error('Error fetching some Shikshaqmine data');
+            if (import.meta.env.DEV) {
+              console.error('Error fetching some Shikshaqmine data');
+            }
           }
         }
 
@@ -476,7 +480,9 @@ export default function Browse() {
           } else {
             // If subject not found in subjects list, try to use the slug as a fallback
             // This handles cases where subjects haven't loaded yet
-            console.warn('Subject not found in subjects list:', subjectFilter);
+            if (import.meta.env.DEV) {
+              console.warn('Subject not found in subjects list:', subjectFilter);
+            }
           }
         }
 
@@ -746,7 +752,9 @@ export default function Browse() {
         setTeachers(enrichedTeachers); // Keep for count display
         setHasMore(enrichedTeachers.length > initialDisplay);
       } catch (error) {
-        console.error('Error fetching teachers:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching teachers:', error);
+        }
       } finally {
         // Clear loading timeout and set loading to false
         if (loadingTimeoutRef.current) {
@@ -894,7 +902,9 @@ export default function Browse() {
           setCache(cacheKey, processedTeachers, CACHE_TTL.FEATURED_TEACHERS);
         }
       } catch (error) {
-        console.error('Error fetching featured teachers:', error);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching featured teachers:', error);
+        }
       } finally {
         setFeaturedLoading(false);
       }
