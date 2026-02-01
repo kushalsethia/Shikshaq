@@ -7,10 +7,6 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
-  signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-  checkUserHasPassword: (email: string) => Promise<{ hasPassword: boolean; error: Error | null }>;
-  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -90,158 +86,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const signUpWithEmail = async (email: string, password: string, fullName: string) => {
-    // First check if email already exists and has password
-    const { hasPassword, error: checkError } = await checkUserHasPassword(email);
-    
-    if (checkError) {
-      // If check fails, proceed with sign-up (Supabase will handle duplicate email error)
-    } else if (hasPassword) {
-      // User exists and has password - they already signed up with email/password
-      return { error: new Error('An account with this email already exists. Please sign in instead.') };
-    } else {
-      // User exists but no password - it's a Google Auth user
-      // Suggest they sign in with Google first, then set password
-      return { error: new Error('An account with this email already exists from Google sign-in. Please use the "Continue with Google" button above to sign in, then you can set a password.') };
-    }
-
-    // Proceed with sign-up
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth`,
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-
-    if (signUpError) {
-      // Check if error is due to existing email
-      if (signUpError.message.includes('already registered') || 
-          signUpError.message.includes('already exists') ||
-          signUpError.message.includes('User already registered')) {
-        // Email exists - check if it's Google Auth user
-        const { hasPassword: hasPwd } = await checkUserHasPassword(email);
-        if (!hasPwd) {
-          return { error: new Error('An account with this email already exists. Please use Google sign-in or use a different email.') };
-        }
-        return { error: new Error('An account with this email already exists. Please sign in instead.') };
-      }
-      return { error: signUpError as Error };
-    }
-
-    // Create profile record after successful sign-up
-    if (signUpData.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: signUpData.user.id,
-          email: signUpData.user.email || email,
-          full_name: fullName,
-        }, {
-          onConflict: 'id'
-        });
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        // Don't fail sign-up if profile creation fails, but log it
-      }
-    }
-
-    return { error: null };
-  };
-
-  const signInWithEmail = async (email: string, password: string) => {
-    // First check if user has a password
-    const { hasPassword, error: checkError } = await checkUserHasPassword(email);
-    
-    if (checkError) {
-      return { error: checkError };
-    }
-    
-    // If user exists but doesn't have a password, it's a Google Auth user who hasn't set password yet
-    if (!hasPassword) {
-      return { error: new Error('You previously signed in with Google. Please use the "Continue with Google" button to sign in, then you can set a password in your account settings.') };
-    }
-
-    // User has password - proceed with sign-in (works for both email/password users and Google Auth users who set password)
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    return { error: error as Error | null };
-  };
-
-  const checkUserHasPassword = async (email: string) => {
-    try {
-      // Try using RPC function first
-      const { data, error } = await supabase.rpc('check_user_has_password', {
-        user_email: email
-      });
-
-      if (!error && data !== undefined) {
-        return { hasPassword: data === true, error: null };
-      }
-
-      // If RPC fails, use fallback: try to sign in with dummy password
-      // This is safe because we use a clearly fake password that won't match
-      console.warn('RPC function not available, using fallback method');
-      
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password: '__DUMMY_PASSWORD_CHECK__' + Date.now(),
-      });
-
-      if (signInError) {
-        // "Invalid login credentials" means user exists and has password (wrong password)
-        if (signInError.message.includes('Invalid login credentials')) {
-          return { hasPassword: true, error: null };
-        }
-        // "Email not confirmed" also means user exists and has password
-        if (signInError.message.includes('Email not confirmed')) {
-          return { hasPassword: true, error: null };
-        }
-        // Other errors (User not found, etc.) - user doesn't exist or doesn't have password
-        return { hasPassword: false, error: null };
-      }
-
-      // This shouldn't happen with dummy password, but if it does, assume no password
-      return { hasPassword: false, error: null };
-    } catch (error) {
-      console.error('Error checking password:', error);
-      // On any error, assume no password to allow flow to continue
-      return { hasPassword: false, error: null };
-    }
-  };
-
-  const updatePassword = async (newPassword: string) => {
-    // User must be authenticated to update password
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-    return { error: error as Error | null };
-  };
-
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      loading, 
-      signInWithGoogle, 
-      signUpWithEmail, 
-      signInWithEmail, 
-      checkUserHasPassword,
-      updatePassword,
-      signOut 
-    }}>
+    <AuthContext.Provider value={{ user, session, loading, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

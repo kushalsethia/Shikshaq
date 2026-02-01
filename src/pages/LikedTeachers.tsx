@@ -113,8 +113,8 @@ export default function LikedTeachers() {
           }
           
           return {
-          ...teacher,
-          sirMaam: sirMaamMap.get(teacher.slug) || null,
+            ...teacher,
+            sirMaam: sirMaamMap.get(teacher.slug) || null,
           };
         });
 
