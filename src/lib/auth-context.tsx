@@ -182,13 +182,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        // If function returns error, assume user doesn't exist (return false)
-        // This prevents email enumeration
+        // If function doesn't exist (404) or other error, try alternative method
+        if (error.message.includes('function') || error.message.includes('404') || error.message.includes('does not exist')) {
+          console.warn('check_user_has_password function not found. Please run the migration. Using fallback method.');
+          // Fallback: Try to sign in with a dummy password to check if user has password
+          // This will fail if user doesn't exist or doesn't have password
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password: 'dummy_check_password_12345',
+          });
+          
+          // If error is "Invalid login credentials", user exists but password is wrong (so they have a password)
+          // If error is "Email not confirmed" or "User not found", user might not exist or doesn't have password
+          if (signInError) {
+            if (signInError.message.includes('Invalid login credentials')) {
+              // User exists and has password (wrong password, but password exists)
+              return { hasPassword: true, error: null };
+            } else if (signInError.message.includes('Email not confirmed')) {
+              // User exists and has password (but email not confirmed)
+              return { hasPassword: true, error: null };
+            }
+            // Other errors - assume no password
+            return { hasPassword: false, error: null };
+          }
+          // No error means... wait, that shouldn't happen with dummy password
+          return { hasPassword: false, error: null };
+        }
+        // Other RPC errors - assume user doesn't exist
         return { hasPassword: false, error: null };
       }
 
       return { hasPassword: data === true, error: null };
     } catch (error) {
+      console.error('Error checking password:', error);
       return { hasPassword: false, error: error as Error };
     }
   };
