@@ -184,84 +184,63 @@ export default function Auth() {
       if (exists) {
         setEmailExists(true);
         
-        // Check if user has a password set by trying to sign in with a dummy password
-        // If we get "Invalid login credentials", password exists
-        // If we get other errors, password might not exist
-        let hasPassword = false;
+        // Try resetPasswordForEmail first - this works for users who have passwords
+        // If it fails, we'll assume it's an OAuth user and use OTP instead
+        setLoading(true);
         try {
-          const { error: passwordCheckError } = await signInWithEmail(
-            formData.email, 
-            'dummy_check_password_12345!@#$%'
-          );
+          const { error: resetError } = await resetPasswordForEmail(formData.email);
           
-          if (passwordCheckError) {
-            if (passwordCheckError.message.includes('Invalid login credentials')) {
-              // Password exists (just wrong password)
-              hasPassword = true;
-              setShowPasswordReset(false);
-            } else if (passwordCheckError.message.includes('Email not confirmed')) {
-              // User exists but email not confirmed - assume password exists
-              hasPassword = true;
-              setShowPasswordReset(false);
-            } else {
-              // Might not have password set - will send magic link to set password
-              hasPassword = false;
+          if (resetError) {
+            // Check if it's a rate limiting error
+            if (resetError.message.includes('429') || resetError.message.includes('rate limit') || resetError.message.includes('too many')) {
+              setErrors({ 
+                email: 'Too many requests. Please wait a few minutes and try again, or use "Forgot password" instead.' 
+              });
+              setLoading(false);
+              return;
             }
-          } else {
-            // Unlikely but if it works, password exists
-            hasPassword = true;
-            setShowPasswordReset(false);
-          }
-        } catch {
-          // On error, assume no password - will send magic link to set password
-          hasPassword = false;
-        }
-        
-        if (hasPassword) {
-          // Password exists - show normal login
-          setSignInStep('password');
-        } else {
-          // No password - For OAuth users, we need to verify identity first with OTP
-          // Then they can set their password
-          setLoading(true);
-          try {
-            // Try resetPasswordForEmail first (works for users who had passwords)
-            const { error: resetError } = await resetPasswordForEmail(formData.email);
             
-            if (resetError) {
-              // resetPasswordForEmail likely failed because user is OAuth-only (no password)
-              // Fall back to OTP verification, then password setup
-              console.log('resetPasswordForEmail failed (likely OAuth user):', resetError.message);
-              
-              const { error: otpError } = await sendOTP(formData.email);
-              if (otpError) {
+            // resetPasswordForEmail likely failed because user is OAuth-only (no password)
+            // or user doesn't exist (but checkEmailExists said they do, so likely OAuth)
+            console.log('resetPasswordForEmail failed, trying OTP fallback:', resetError.message);
+            
+            // Fall back to OTP verification for OAuth users
+            const { error: otpError } = await sendOTP(formData.email);
+            if (otpError) {
+              // Check for rate limiting on OTP too
+              if (otpError.message.includes('429') || otpError.message.includes('rate limit') || otpError.message.includes('too many')) {
+                setErrors({ 
+                  email: 'Too many verification requests. Please wait a few minutes before trying again.' 
+                });
+              } else {
                 console.error('sendOTP error:', otpError);
                 setErrors({ 
-                  email: `Unable to send password setup link. Error: ${otpError.message}. Please try using "Forgot password" or contact support.` 
+                  email: `Unable to send verification code. Error: ${otpError.message}. Please try using "Forgot password" or contact support.` 
                 });
-                setLoading(false);
-              } else {
-                // OTP sent successfully - show OTP verification step
-                setOtpSent(true);
-                setSignInStep('otp');
-                setShowPasswordReset(true); // Flag that this is for password setup
-                toast.success('Verification code sent to your email! Please verify to set your password.');
-                setLoading(false);
               }
+              setLoading(false);
             } else {
-              // resetPasswordForEmail succeeded - magic link sent
-              setResetEmailSent(true);
-              setSignInStep('magicLinkSent');
-              toast.success('Password setup link sent to your email!');
+              // OTP sent successfully - show OTP verification step
+              setOtpSent(true);
+              setSignInStep('otp');
+              setShowPasswordReset(true); // Flag that this is for password setup
+              toast.success('Verification code sent to your email! Please verify to set your password.');
               setLoading(false);
             }
-          } catch (error: any) {
-            console.error('Error in password setup flow:', error);
-            setErrors({ 
-              email: error.message || 'Failed to send password setup link. Please try "Forgot password" or contact support.' 
-            });
+          } else {
+            // resetPasswordForEmail succeeded - magic link sent
+            // User likely has a password, show password field for normal login
+            // They can also use the magic link if they forgot their password
+            setSignInStep('password');
+            toast.success('You can sign in with your password. A reset link was also sent to your email if needed.');
             setLoading(false);
           }
+        } catch (error: any) {
+          console.error('Error in password setup flow:', error);
+          setErrors({ 
+            email: error.message || 'Failed to send password setup link. Please try "Forgot password" or contact support.' 
+          });
+          setLoading(false);
         }
       } else {
         setErrors({ email: 'No account found with this email. Please sign up instead.' });

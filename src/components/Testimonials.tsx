@@ -14,10 +14,16 @@ export function Testimonials() {
 
   useEffect(() => {
     async function fetchTestimonials() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('testimonials')
         .select('*')
         .order('created_at', { ascending: true });
+      
+      if (error) {
+        // Silently handle errors - table might not exist or RLS might block it
+        console.warn('Could not fetch testimonials:', error.message);
+        return;
+      }
       
       if (data) {
         setTestimonials(data);
