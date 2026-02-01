@@ -58,27 +58,29 @@ export default function Auth() {
   const [showSetPassword, setShowSetPassword] = useState(false);
   const [userHasPassword, setUserHasPassword] = useState<boolean | null>(null);
 
-  // Check if authenticated user has password
+  // Check if authenticated user has password (for when user is already on auth page)
   useEffect(() => {
     const checkPassword = async () => {
-      if (user?.email) {
+      if (user?.email && window.location.pathname === '/auth') {
         const { hasPassword } = await checkUserHasPassword(user.email);
         setUserHasPassword(hasPassword);
         // Show set password form if user doesn't have password and is on auth page
-        if (!hasPassword && window.location.pathname === '/auth') {
+        if (!hasPassword) {
           setShowSetPassword(true);
         }
       }
     };
     
-    if (user && !authLoading) {
+    // Only check if user is authenticated and we're on auth page
+    // Don't check during OAuth callback processing (handled in other useEffect)
+    if (user && !authLoading && !processingOAuth && window.location.pathname === '/auth') {
       checkPassword();
     } else if (!user) {
       // Reset when user signs out
       setShowSetPassword(false);
       setUserHasPassword(null);
     }
-  }, [user, authLoading, checkUserHasPassword]);
+  }, [user, authLoading, processingOAuth, checkUserHasPassword]);
 
   // Handle OAuth callback and redirect if authenticated
   useEffect(() => {
@@ -106,33 +108,34 @@ export default function Auth() {
     if (!authLoading && user) {
       setProcessingOAuth(false);
       
-      // Check if user has a profile
+      // Check if user has a profile and password
       const checkProfile = async () => {
         try {
+          // Clean up hash if present
+          if (window.location.hash) {
+            window.history.replaceState(null, '', '/auth');
+          }
+
+          // First check if user has password
+          const { hasPassword } = await checkUserHasPassword(user.email || '');
+          setUserHasPassword(hasPassword);
+          
+          if (!hasPassword) {
+            // User doesn't have password - show set password form and don't redirect
+            setShowSetPassword(true);
+            setProcessingOAuth(false);
+            return; // Don't redirect, let them set password
+          }
+
+          // User has password - check profile and redirect accordingly
           const { data: profile, error } = await supabase
             .from('profiles')
             .select('id, role')
             .eq('id', user.id)
             .maybeSingle();
 
-          // Clean up hash if present
-          if (window.location.hash) {
-            window.history.replaceState(null, '', '/auth');
-          }
-
           if (error) {
             console.error('Error checking profile:', error);
-          }
-
-          // Check if user has password - if not, show set password form instead of redirecting
-          const { hasPassword } = await checkUserHasPassword(user.email || '');
-          setUserHasPassword(hasPassword);
-          
-          if (!hasPassword) {
-            // User doesn't have password - show set password form
-            setShowSetPassword(true);
-            setProcessingOAuth(false);
-            return; // Don't redirect, let them set password
           }
 
           if (!profile || !profile.role) {
@@ -144,8 +147,14 @@ export default function Auth() {
           }
         } catch (error) {
           console.error('Error checking profile:', error);
-          // On error, redirect to role selection to be safe
-          navigate('/select-role', { replace: true });
+          // On error, check password first - if no password, show form
+          const { hasPassword } = await checkUserHasPassword(user.email || '');
+          if (!hasPassword) {
+            setShowSetPassword(true);
+            setProcessingOAuth(false);
+          } else {
+            navigate('/select-role', { replace: true });
+          }
         }
       };
 
