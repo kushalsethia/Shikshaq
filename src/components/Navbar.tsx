@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, ExternalLink } from 'lucide-react';
+import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, ExternalLink, BookMarked } from 'lucide-react';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
@@ -188,6 +188,14 @@ export function Navbar() {
                       Favourite Teachers
                     </Link>
                   </DropdownMenuItem>
+                  {userRole === 'student' && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/my-teachers" className="flex items-center gap-2">
+                        <BookMarked className="w-4 h-4" />
+                        My Teachers
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   {isAdmin && (
                     <>
                       <DropdownMenuSeparator />

@@ -4,9 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, ThumbsUp } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, ThumbsUp, GraduationCap } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
+import { useStudiesWith } from '@/lib/studies-with-context';
 import { useAuth } from '@/lib/auth-context';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { TeacherComments } from '@/components/TeacherComments';
@@ -55,6 +56,8 @@ export default function TeacherProfile() {
   const { user, loading: authLoading } = useAuth();
   const { isLiked, toggleLike } = useLikes();
   const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
+  const { isStudyingWith, toggleStudiesWith } = useStudiesWith();
+  const [userRole, setUserRole] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Check if user has a role - redirect to role selection if not
@@ -71,7 +74,11 @@ export default function TeacherProfile() {
 
         if (!profile || !profile.role) {
           navigate('/select-role', { replace: true });
+        } else {
+          setUserRole(profile.role);
         }
+      } else {
+        setUserRole(null);
       }
     };
 
@@ -639,6 +646,27 @@ export default function TeacherProfile() {
                 return teacher.name;
               })()}
             </h1>
+
+            {/* Studies With Button - Only for authenticated students */}
+            {user && userRole === 'student' && (
+              <div className="mb-4">
+                <button
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    await toggleStudiesWith(teacher.id);
+                  }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
+                    isStudyingWith(teacher.id)
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'bg-muted text-foreground hover:bg-muted/80'
+                  }`}
+                  aria-label={isStudyingWith(teacher.id) ? 'Remove from my teachers' : 'I study with this teacher'}
+                >
+                  <GraduationCap className={`w-4 h-4 ${isStudyingWith(teacher.id) ? 'fill-current' : ''}`} />
+                  <span>{isStudyingWith(teacher.id) ? 'Studying here ✓' : 'I study here'}</span>
+                </button>
+              </div>
+            )}
 
             {/* Quick Info */}
             <div className="flex flex-wrap items-center gap-4 md:gap-6 mb-6">

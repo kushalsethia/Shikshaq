@@ -7,6 +7,7 @@ import { lazy, Suspense } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
+import { StudiesWithProvider } from "@/lib/studies-with-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { Chatbot } from "@/components/Chatbot";
 import Index from "./pages/Index";
@@ -28,6 +29,7 @@ const AdminComments = lazy(() => import("./pages/AdminComments"));
 const AdminUpvotes = lazy(() => import("./pages/AdminUpvotes"));
 const AdminFeedback = lazy(() => import("./pages/AdminFeedback"));
 const LikedTeachers = lazy(() => import("./pages/LikedTeachers"));
+const MyTeachers = lazy(() => import("./pages/MyTeachers"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
 const SignUpSuccess = lazy(() => import("./pages/SignUpSuccess"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
@@ -67,8 +69,9 @@ const App = () => (
       <AuthProvider>
         <LikesProvider>
           <UpvotesProvider>
-            <Toaster />
-            <Sonner />
+            <StudiesWithProvider>
+              <Toaster />
+              <Sonner />
           <BrowserRouter>
             <ScrollToTop />
             <Chatbot />
@@ -82,6 +85,11 @@ const App = () => (
               <Route path="/liked-teachers" element={
                 <Suspense fallback={<PageLoader />}>
                   <LikedTeachers />
+                </Suspense>
+              } />
+              <Route path="/my-teachers" element={
+                <Suspense fallback={<PageLoader />}>
+                  <MyTeachers />
                 </Suspense>
               } />
               <Route path="/more" element={<Help />} />
@@ -306,6 +314,7 @@ const App = () => (
               <Route path="*" element={<Navigate to="/404" replace />} />
             </Routes>
           </BrowserRouter>
+            </StudiesWithProvider>
           </UpvotesProvider>
         </LikesProvider>
       </AuthProvider>
