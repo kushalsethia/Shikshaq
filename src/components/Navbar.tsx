@@ -232,7 +232,19 @@ export function Navbar() {
                     </>
                   )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => signOut()} className="text-destructive">
+                  <DropdownMenuItem 
+                    onClick={async () => {
+                      try {
+                        await signOut();
+                        // Redirect to home after logout
+                        window.location.href = '/';
+                      } catch (error) {
+                        // Even if signOut throws, redirect to home
+                        window.location.href = '/';
+                      }
+                    }} 
+                    className="text-destructive"
+                  >
                     Sign out
                   </DropdownMenuItem>
                 </DropdownMenuContent>

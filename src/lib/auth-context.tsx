@@ -278,8 +278,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      // Clear local state first
+      setUser(null);
+      setSession(null);
+      
+      // Try to sign out from Supabase
+      // Use scope: 'local' instead of 'global' to avoid 403 errors
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      
+      // If there's an error but we're already logged out locally, that's okay
+      if (error && error.message?.includes('session')) {
+        // Session already invalid/expired, which is fine
+        return;
+      }
+      
+      // Clear localStorage manually as fallback
+      if (typeof window !== 'undefined') {
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.startsWith('sb-') || key.includes('supabase')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+    } catch (error) {
+      // Even if signOut fails, clear local state
+      setUser(null);
+      setSession(null);
+      
+      // Clear localStorage as fallback
+      if (typeof window !== 'undefined') {
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.startsWith('sb-') || key.includes('supabase')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+      
+      // Don't throw - user is logged out locally even if API call failed
+      if (import.meta.env.DEV) {
+        console.error('Error during sign out:', error);
+      }
+    }
   };
 
   return (
