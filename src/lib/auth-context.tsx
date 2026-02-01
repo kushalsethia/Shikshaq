@@ -10,6 +10,7 @@ interface AuthContextType {
   signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   checkUserHasPassword: (email: string) => Promise<{ hasPassword: boolean; error: Error | null }>;
+  checkUserExists: (email: string) => Promise<{ exists: boolean; error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -204,14 +205,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInError.message.includes('Email not confirmed') ||
         signInError.message.includes('Invalid login')) {
       // User exists but password is wrong OR user exists but no password (Google Auth)
-      // Check if user has a password to distinguish
+      // First check if user exists
+      const { exists: userExists } = await checkUserExists(email);
+      
+      if (!userExists) {
+        // User doesn't exist - show generic error
+        return { error: new Error('Invalid email or password') };
+      }
+      
+      // User exists - check if they have a password
       const { hasPassword } = await checkUserHasPassword(email);
       
       if (!hasPassword) {
         // User exists but has no password - it's a Google Auth user
         return { error: new Error('You previously signed in with Google. Please use the "Continue with Google" button to sign in.') };
       }
-      // User has password but it's wrong
+      // User exists and has password but it's wrong
       return { error: new Error('Invalid email or password') };
     }
     
@@ -238,6 +247,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const checkUserExists = async (email: string) => {
+    try {
+      const { data, error } = await supabase.rpc('check_user_exists', {
+        user_email: email
+      });
+
+      if (error) {
+        // If function returns error, assume user doesn't exist (return false)
+        // This prevents email enumeration
+        return { exists: false, error: null };
+      }
+
+      return { exists: data === true, error: null };
+    } catch (error) {
+      return { exists: false, error: error as Error };
+    }
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -252,6 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUpWithEmail, 
       signInWithEmail, 
       checkUserHasPassword,
+      checkUserExists,
       signOut 
     }}>
       {children}
