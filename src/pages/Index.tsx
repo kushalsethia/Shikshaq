@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
@@ -11,7 +11,6 @@ import { FAQ } from '@/components/FAQ';
 import { Testimonials } from '@/components/Testimonials';
 import { Footer } from '@/components/Footer';
 import { useLikes } from '@/lib/likes-context';
-import { useAuth } from '@/lib/auth-context';
 import {
   Carousel,
   CarouselContent,
@@ -38,8 +37,6 @@ interface Subject {
 }
 
 export default function Index() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const [featuredTeachers, setFeaturedTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,35 +45,6 @@ export default function Index() {
   const searchBarElementRef = useRef<HTMLDivElement>(null);
   // Pre-initialize likes hook for fast initial render (shared state)
   const { isLiked } = useLikes();
-
-  // Check if authenticated user has a role, redirect to select-role if not
-  useEffect(() => {
-    const checkUserRole = async () => {
-      if (!user) return; // Allow unauthenticated users to view the page
-
-      try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Error checking profile:', error);
-          return;
-        }
-
-        // If user is authenticated but has no role, redirect to select-role
-        if (!profile || !profile.role) {
-          navigate('/select-role', { replace: true });
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      }
-    };
-
-    checkUserRole();
-  }, [user, navigate]);
 
   // Add homepage-specific JSON-LD structured data
   useEffect(() => {

@@ -13,7 +13,6 @@ interface AuthContextType {
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   checkEmailExists: (email: string) => Promise<{ exists: boolean; error: Error | null }>;
   checkPasswordExists: (email: string, password: string) => Promise<{ hasPassword: boolean; error: Error | null }>;
-  checkHasPassword: (email: string) => Promise<{ hasPassword: boolean; error: Error | null }>;
   sendOTP: (email: string) => Promise<{ error: Error | null }>;
   verifyOTP: (email: string, token: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -104,7 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, fullName: string, role: 'student' | 'guardian', termsAgreed: boolean = false) => {
-    // Standard Supabase sign-up - this will automatically send verification email for new users
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -112,8 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: `${window.location.origin}/`,
         data: {
           full_name: fullName,
-          role: role, // Store in metadata for later use
-          terms_agreement: termsAgreed, // Store in metadata for later use
         },
       },
     });
@@ -122,54 +118,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: signUpError as Error };
     }
 
-    // If user exists but no session, user is unverified - Supabase doesn't send email for repeated signups
-    // We need to manually trigger a confirmation email
-    // Note: Supabase doesn't have a client-side method to resend confirmation emails
-    // So we use resetPasswordForEmail as a workaround - this sends an email that allows verification
-    if (data.user && !data.session) {
-      // User exists but is unverified - send password reset email which also verifies the email
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?type=reset-password`,
-      });
-
-      if (resetError) {
-        console.error('Error sending verification email:', resetError);
-        // Continue anyway - the user was created, just email might not have been sent
-      }
-    }
-
-    // Profile will be created by the handle_new_user trigger
-    // Role and terms_agreement will be set after email verification
-    // We store them in user metadata so they can be retrieved later
+    // Create profile record after successful sign-up
     if (data.user) {
-      // Update profile with role and terms_agreement if it exists
-      // (It should be created by the trigger, but we update it here to ensure role/terms are set)
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
+        .insert({
+          id: data.user.id,
           role: role,
           terms_agreement: termsAgreed,
-          has_password: true, // User signed up with password
-        })
-        .eq('id', data.user.id);
+        });
 
       if (profileError) {
-        // If profile doesn't exist yet (trigger hasn't run), try to insert
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            email: data.user.email || email,
-            full_name: fullName,
-            role: role,
-            terms_agreement: termsAgreed,
-            has_password: true,
-          });
-
-        if (insertError) {
-          console.error('Error creating/updating profile:', insertError);
-          // Don't fail sign-up if profile creation fails, but log it
-        }
+        console.error('Error creating profile:', profileError);
+        // Don't fail sign-up if profile creation fails, but log it
       }
     }
 
@@ -187,18 +148,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
-    
-    // Update has_password in profiles after password is set
-    if (!error) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from('profiles')
-          .update({ has_password: true })
-          .eq('id', user.id);
-      }
-    }
-    
     return { error: error as Error | null };
   };
 
@@ -224,13 +173,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { exists: false, error: null };
       }
 
-      // For other errors (rate limiting, network issues, etc.), assume email exists
-      // This is safer than assuming it doesn't exist
+      // For other errors (like rate limiting), assume email exists
+      // We'll also check by trying to send a password reset
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?type=reset-password`,
+      });
+
+      if (resetError) {
+        if (resetError.message.includes('User not found') || 
+            resetError.message.includes('does not exist')) {
+          return { exists: false, error: null };
+        }
+      }
+
+      // If reset email was sent successfully or error suggests user exists, return true
       return { exists: true, error: null };
     } catch (error) {
-      // On any error, assume email exists to be safe
-      // This prevents false negatives (saying email doesn't exist when it does)
-      return { exists: true, error: error as Error };
+      // On any error, try the password reset method as fallback
+      try {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth?type=reset-password`,
+        });
+        if (resetError && (resetError.message.includes('User not found') || 
+            resetError.message.includes('does not exist'))) {
+          return { exists: false, error: null };
+        }
+        return { exists: true, error: null };
+      } catch {
+        // If all checks fail, assume email exists to be safe
+        return { exists: true, error: error as Error };
+      }
     }
   };
 
@@ -264,24 +236,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // For other errors, assume password doesn't exist or user doesn't exist
       return { hasPassword: false, error: null };
-    } catch (error) {
-      return { hasPassword: false, error: error as Error };
-    }
-  };
-
-  const checkHasPassword = async (email: string) => {
-    try {
-      // Use database function to check has_password by email
-      const { data, error } = await supabase.rpc('check_has_password_by_email', {
-        user_email: email
-      });
-
-      if (error) {
-        return { hasPassword: false, error: error as Error };
-      }
-
-      // Function returns boolean
-      return { hasPassword: data || false, error: null };
     } catch (error) {
       return { hasPassword: false, error: error as Error };
     }
@@ -323,7 +277,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updatePassword,
       checkEmailExists,
       checkPasswordExists,
-      checkHasPassword,
       sendOTP,
       verifyOTP,
       signOut 
