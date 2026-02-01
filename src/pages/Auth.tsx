@@ -187,13 +187,16 @@ export default function Auth() {
 
       setEmailExists(true);
 
-      if (!hasPassword) {
-        // User doesn't have a password (Google Auth user) - show simple message
-        setSignInStep('googleAuthMessage');
-        setLoading(false);
-      } else {
+      // IMPORTANT: Only show Google Auth message if user has NO password
+      // If password exists (hasPassword === true), go directly to password field
+      if (hasPassword === true) {
         // User has a password - show password field for normal login
         setSignInStep('password');
+        setLoading(false);
+      } else {
+        // User doesn't have a password (Google Auth user) - show simple message
+        // This includes hasPassword === false, null, or undefined
+        setSignInStep('googleAuthMessage');
         setLoading(false);
       }
     } catch (error: any) {
