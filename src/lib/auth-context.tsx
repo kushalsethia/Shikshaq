@@ -177,29 +177,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkUserHasPassword = async (email: string) => {
     try {
+      // Try using RPC function first
       const { data, error } = await supabase.rpc('check_user_has_password', {
         user_email: email
       });
 
-      if (error) {
-        console.error('RPC error:', error);
-        // If function doesn't exist (404) or other error, use fallback
-        if (error.message?.includes('function') || 
-            error.message?.includes('404') || 
-            error.message?.includes('does not exist') ||
-            error.code === 'P0001' ||
-            error.code === '42883') {
-          console.warn('check_user_has_password function not accessible. Using fallback method.');
-          // Fallback: For now, assume user doesn't have password if we can't check
-          // This allows the flow to continue - user can still set password
-          return { hasPassword: false, error: null };
+      if (!error && data !== undefined) {
+        return { hasPassword: data === true, error: null };
+      }
+
+      // If RPC fails, use fallback: try to sign in with dummy password
+      // This is safe because we use a clearly fake password that won't match
+      console.warn('RPC function not available, using fallback method');
+      
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: '__DUMMY_PASSWORD_CHECK__' + Date.now(),
+      });
+
+      if (signInError) {
+        // "Invalid login credentials" means user exists and has password (wrong password)
+        if (signInError.message.includes('Invalid login credentials')) {
+          return { hasPassword: true, error: null };
         }
-        // Other RPC errors - log and assume no password
-        console.error('Unexpected RPC error:', error);
+        // "Email not confirmed" also means user exists and has password
+        if (signInError.message.includes('Email not confirmed')) {
+          return { hasPassword: true, error: null };
+        }
+        // Other errors (User not found, etc.) - user doesn't exist or doesn't have password
         return { hasPassword: false, error: null };
       }
 
-      return { hasPassword: data === true, error: null };
+      // This shouldn't happen with dummy password, but if it does, assume no password
+      return { hasPassword: false, error: null };
     } catch (error) {
       console.error('Error checking password:', error);
       // On any error, assume no password to allow flow to continue
