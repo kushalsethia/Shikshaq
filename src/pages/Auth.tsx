@@ -62,6 +62,7 @@ export default function Auth() {
     updatePassword,
     checkEmailExists,
     checkPasswordExists,
+    checkHasPassword,
     sendOTP,
     verifyOTP,
     user, 
@@ -160,7 +161,7 @@ export default function Auth() {
     setErrors({ ...errors, [e.target.name]: '' });
   };
 
-  // Step 1: Check email for sign-in (just validate format, don't check existence)
+  // Step 1: Check email and has_password for sign-in
   const handleEmailCheck = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -173,11 +174,58 @@ export default function Auth() {
       return;
     }
 
-    // Don't check if email exists - just show password field
-    // We'll find out if email exists when they try to login
-    setEmailExists(true);
-    setSignInStep('password');
-    setLoading(false);
+    try {
+      // First check if email exists
+      const { exists, error: emailError } = await checkEmailExists(formData.email);
+      if (emailError) {
+        setErrors({ email: 'Error checking email. Please try again.' });
+        setLoading(false);
+        return;
+      }
+
+      if (!exists) {
+        setErrors({ email: 'No account found with this email. Please sign up instead.' });
+        setLoading(false);
+        return;
+      }
+
+      // Email exists, now check if user has a password
+      const { hasPassword, error: passwordCheckError } = await checkHasPassword(formData.email);
+      
+      if (passwordCheckError) {
+        setErrors({ email: 'Error checking account. Please try again.' });
+        setLoading(false);
+        return;
+      }
+
+      setEmailExists(true);
+
+      if (!hasPassword) {
+        // User doesn't have a password (OAuth user) - send OTP to verify identity
+        setLoading(true);
+        const { error: otpError } = await sendOTP(formData.email);
+        if (otpError) {
+          setErrors({ 
+            email: `Unable to send verification code. Error: ${otpError.message}. Please try again.` 
+          });
+          setLoading(false);
+        } else {
+          // OTP sent successfully - show OTP verification step
+          setOtpSent(true);
+          setSignInStep('otp');
+          setShowPasswordReset(true); // Flag that this is for password setup
+          toast.success('Verification code sent to your email! Please verify to set your password.');
+          setLoading(false);
+        }
+      } else {
+        // User has a password - show password field for normal login
+        setSignInStep('password');
+        setLoading(false);
+      }
+    } catch (error: any) {
+      setErrors({ email: error.message || 'Error checking email' });
+      setLoading(false);
+    }
   };
 
   // Normal email/password login (when user has password set)
@@ -204,10 +252,7 @@ export default function Auth() {
       const { error } = await signInWithEmail(formData.email, formData.password);
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
-          // Could be wrong password OR user doesn't have a password
-          // Show error but also offer password setup option
           setErrors({ password: 'Invalid email or password' });
-          setShowPasswordReset(true); // Show "Set password" option
         } else if (error.message.includes('User not found') || 
                    error.message.includes('does not exist')) {
           // Email doesn't exist - redirect to sign up
@@ -249,33 +294,6 @@ export default function Auth() {
     }
   };
 
-  // Handle password setup flow (for OAuth users without passwords)
-  const handleSetPasswordFlow = async () => {
-    setLoading(true);
-    setErrors({});
-    
-    try {
-      // Send OTP to verify identity
-      const { error: otpError } = await sendOTP(formData.email);
-      if (otpError) {
-        setErrors({ 
-          email: `Unable to send verification code. Error: ${otpError.message}. Please try again.` 
-        });
-        setLoading(false);
-        return;
-      }
-      
-      // OTP sent successfully - show OTP verification step
-      setOtpSent(true);
-      setSignInStep('otp');
-      setShowPasswordReset(true); // Flag that this is for password setup
-      toast.success('Verification code sent to your email! Please verify to set your password.');
-      setLoading(false);
-    } catch (error: any) {
-      setErrors({ email: error.message || 'Failed to send verification code' });
-      setLoading(false);
-    }
-  };
 
   // Step 4: Set new password (after OTP verification)
   const handleSetPasswordAndCompleteLogin = async (e?: React.FormEvent) => {
@@ -910,34 +928,21 @@ export default function Auth() {
                         Back
                       </Button>
 
-                      <div className="text-center text-sm mt-2 space-y-1">
-                        {showPasswordReset && (
-                          <p>
-                            <button
-                              type="button"
-                              onClick={handleSetPasswordFlow}
-                              className="text-primary font-medium hover:underline"
-                            >
-                              Don't have a password? Set one
-                            </button>
-                          </p>
-                        )}
-                        <p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              // Switch to forgot password flow
-                              setIsForgotPassword(true);
-                              setIsLogin(true);
-                              resetSignInFlow();
-                              setErrors({});
-                            }}
-                            className="text-foreground font-medium hover:underline"
-                          >
-                            Forgot password?
-                          </button>
-                        </p>
-                      </div>
+                      <p className="text-center text-sm mt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Switch to forgot password flow
+                            setIsForgotPassword(true);
+                            setIsLogin(true);
+                            resetSignInFlow();
+                            setErrors({});
+                          }}
+                          className="text-foreground font-medium hover:underline"
+                        >
+                          Forgot password?
+                        </button>
+                      </p>
                     </>
                   )}
 

@@ -13,6 +13,7 @@ interface AuthContextType {
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   checkEmailExists: (email: string) => Promise<{ exists: boolean; error: Error | null }>;
   checkPasswordExists: (email: string, password: string) => Promise<{ hasPassword: boolean; error: Error | null }>;
+  checkHasPassword: (email: string) => Promise<{ hasPassword: boolean; error: Error | null }>;
   sendOTP: (email: string) => Promise<{ error: Error | null }>;
   verifyOTP: (email: string, token: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -126,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: data.user.id,
           role: role,
           terms_agreement: termsAgreed,
+          has_password: true, // User signed up with password
         });
 
       if (profileError) {
@@ -148,6 +150,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
+    
+    // Update has_password in profiles after password is set
+    if (!error) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('profiles')
+          .update({ has_password: true })
+          .eq('id', user.id);
+      }
+    }
+    
     return { error: error as Error | null };
   };
 
@@ -218,6 +232,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const checkHasPassword = async (email: string) => {
+    try {
+      // Use database function to check has_password by email
+      const { data, error } = await supabase.rpc('check_has_password_by_email', {
+        user_email: email
+      });
+
+      if (error) {
+        return { hasPassword: false, error: error as Error };
+      }
+
+      // Function returns boolean
+      return { hasPassword: data || false, error: null };
+    } catch (error) {
+      return { hasPassword: false, error: error as Error };
+    }
+  };
+
   const sendOTP = async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -254,6 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updatePassword,
       checkEmailExists,
       checkPasswordExists,
+      checkHasPassword,
       sendOTP,
       verifyOTP,
       signOut 
