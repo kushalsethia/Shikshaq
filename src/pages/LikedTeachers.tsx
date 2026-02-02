@@ -6,6 +6,7 @@ import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { useAuth } from '@/lib/auth-context';
 import { useLikes } from '@/lib/likes-context';
+import { useRequireRole } from '@/hooks/use-require-role';
 import { Button } from '@/components/ui/button';
 import { Heart, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -25,6 +26,9 @@ export default function LikedTeachers() {
   const { likedTeacherIds, loading: likesLoading, isLiked } = useLikes();
   const [likedTeachers, setLikedTeachers] = useState<LikedTeacher[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Ensure user has selected a role
+  useRequireRole();
 
   useEffect(() => {
     if (!user) {

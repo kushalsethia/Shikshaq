@@ -6,6 +6,7 @@ import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { useAuth } from '@/lib/auth-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
+import { useRequireRole } from '@/hooks/use-require-role';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -25,6 +26,9 @@ export default function MyTeachers() {
   const { studiesWithTeacherIds, loading: studiesWithLoading, isStudyingWith } = useStudiesWith();
   const [myTeachers, setMyTeachers] = useState<MyTeacher[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Ensure user has selected a role
+  useRequireRole();
 
   useEffect(() => {
     if (!user) {
