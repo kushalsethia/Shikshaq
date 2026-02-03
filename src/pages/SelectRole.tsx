@@ -160,8 +160,8 @@ export default function SelectRole() {
               />
               <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
                 I agree to the{' '}
-                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  Terms
+                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Terms of Service
                 </a>
                 {' '}and{' '}
                 <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">

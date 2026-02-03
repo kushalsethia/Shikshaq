@@ -19,6 +19,7 @@ import FAQ from "./pages/FAQ";
 import Join from "./pages/Join";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 // Lazy load heavy components for better performance on mobile
 const SubjectPage = lazy(() => import("./pages/SubjectPage"));
@@ -97,6 +98,7 @@ const App = () => (
               <Route path="/faq" element={<FAQ />} />
               <Route path="/join" element={<Join />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/recommend-teacher" element={
                 <Suspense fallback={<PageLoader />}>
                   <RecommendTeacher />
