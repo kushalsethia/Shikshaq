@@ -957,7 +957,7 @@ export default function TeacherProfile() {
                   {teacher.boards_taught && (
                 <div className="flex-shrink-0">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Boards taught</h4>
-                  <div className="px-4 py-3 rounded-lg bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-200 border border-cyan-200 dark:border-cyan-800 inline-block">
+                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
                         {teacher.boards_taught}
                       </div>
                     </div>
@@ -967,7 +967,7 @@ export default function TeacherProfile() {
                   {teacher.class_size && (
                 <div className="flex-shrink-0">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Class Size</h4>
-                  <div className="px-4 py-3 rounded-lg bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-200 border border-pink-200 dark:border-pink-800 inline-block">
+                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
                         {teacher.class_size}
                       </div>
                     </div>
@@ -977,7 +977,7 @@ export default function TeacherProfile() {
                   {teacher.mode_of_teaching && (
                 <div className="flex-shrink-0 w-full md:w-auto">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Mode of teaching</h4>
-                  <div className="px-4 py-3 rounded-lg bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-200 border border-teal-200 dark:border-teal-800 inline-block">
+                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
                         {teacher.mode_of_teaching}
                       </div>
                     </div>
@@ -987,7 +987,7 @@ export default function TeacherProfile() {
               {teacher.qualifications_etc && (
                 <div className="flex-shrink-0 w-full md:w-auto">
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Experience/Qualifications</h4>
-                  <div className="px-4 py-3 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 border border-amber-200 dark:border-amber-800 inline-block">
+                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
                     {teacher.qualifications_etc}
                   </div>
                 </div>
