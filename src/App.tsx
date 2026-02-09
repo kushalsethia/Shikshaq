@@ -17,6 +17,7 @@ import TeacherProfile from "./pages/TeacherProfile";
 import Help from "./pages/Help";
 import FAQ from "./pages/FAQ";
 import Join from "./pages/Join";
+import PastPapers from "./pages/PastPapers";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
@@ -97,6 +98,7 @@ const App = () => (
               <Route path="/help" element={<Navigate to="/more" replace />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/join" element={<Join />} />
+              <Route path="/past-papers" element={<PastPapers />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/recommend-teacher" element={

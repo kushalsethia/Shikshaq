@@ -18,6 +18,7 @@ export const CACHE_TTL = {
   FEATURED_TEACHERS: 10 * 60 * 1000, // 10 minutes - featured teachers update more frequently
   UPVOTES: 5 * 60 * 1000, // 5 minutes - upvote counts change frequently
   SHIKSHAQMINE_CHUNK: 30 * 60 * 1000, // 30 minutes - for chunked Shikshaqmine fetches
+  USER_PROFILE: 10 * 60 * 1000, // 10 minutes - user profile data (role, name) changes infrequently
 } as const;
 
 const CACHE_PREFIX = 'shikshaq_cache_';
@@ -177,6 +178,13 @@ export function getShikshaqmineBySlugCacheKey(slug: string): string {
 }
 
 /**
+ * Generate cache key for user profile
+ */
+export function getUserProfileCacheKey(userId: string): string {
+  return `user_profile_${userId}`;
+}
+
+/**
  * Invalidate cache for a specific teacher (when teacher data is updated)
  */
 export function invalidateTeacherCache(slug: string): void {
@@ -190,6 +198,13 @@ export function invalidateTeacherCache(slug: string): void {
       localStorage.removeItem(key);
     }
   });
+}
+
+/**
+ * Invalidate cache for a specific user profile (when profile is updated)
+ */
+export function invalidateUserProfileCache(userId: string): void {
+  removeCache(getUserProfileCacheKey(userId));
 }
 
 /**

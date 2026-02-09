@@ -18,7 +18,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache';
+import { getCache, setCache, CACHE_TTL, clearExpiredCache, getUserProfileCacheKey } from '@/utils/cache';
 
 
 interface Teacher {
@@ -55,11 +55,40 @@ export default function Index() {
       if (authLoading) return;
       
       if (user) {
+        // Check cache first
+        const cacheKey = getUserProfileCacheKey(user.id);
+        const cachedProfile = getCache<{ role: string; full_name: string | null }>(cacheKey);
+        
+        if (cachedProfile) {
+          // Use cached data
+          if (!cachedProfile.role) {
+            navigate('/select-role', { replace: true });
+          } else {
+            // Extract first name from cached full_name or user metadata
+            const fullName = cachedProfile.full_name || 
+                            user.user_metadata?.full_name || 
+                            user.user_metadata?.name || 
+                            null;
+            
+            if (fullName) {
+              const firstName = fullName.split(' ')[0];
+              setUserFirstName(firstName);
+            }
+          }
+          return;
+        }
+
+        // Cache miss - fetch from database
         const { data: profile } = await supabase
           .from('profiles')
           .select('role, full_name')
           .eq('id', user.id)
           .maybeSingle();
+
+        // Cache the result
+        if (profile) {
+          setCache(cacheKey, { role: profile.role, full_name: profile.full_name }, CACHE_TTL.USER_PROFILE);
+        }
 
         if (!profile || !profile.role) {
           navigate('/select-role', { replace: true });

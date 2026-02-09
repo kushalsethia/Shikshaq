@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, ExternalLink, BookMarked } from 'lucide-react';
+import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, ExternalLink, BookMarked, FileText } from 'lucide-react';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
+import { getCache, setCache, CACHE_TTL, getUserProfileCacheKey } from '@/utils/cache';
 
 export function Navbar() {
   const location = useLocation();
@@ -53,22 +54,33 @@ export function Navbar() {
           setIsAdmin(false);
         }
 
-        // Get user role from profiles
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (profileError) {
-          if (import.meta.env.DEV) {
-            console.log('Error fetching profile:', profileError.message);
-          }
-          setUserRole(null);
-        } else if (profileData) {
-          setUserRole(profileData.role as 'student' | 'guardian' | 'teacher');
+        // Get user role from profiles - check cache first
+        const cacheKey = getUserProfileCacheKey(user.id);
+        const cachedProfile = getCache<{ role: string; full_name: string | null }>(cacheKey);
+        
+        if (cachedProfile) {
+          // Use cached role
+          setUserRole(cachedProfile.role as 'student' | 'guardian' | 'teacher');
         } else {
-          setUserRole(null);
+          // Cache miss - fetch from database
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('role, full_name')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (profileError) {
+            if (import.meta.env.DEV) {
+              console.log('Error fetching profile:', profileError.message);
+            }
+            setUserRole(null);
+          } else if (profileData) {
+            // Cache the result
+            setCache(cacheKey, { role: profileData.role, full_name: profileData.full_name }, CACHE_TTL.USER_PROFILE);
+            setUserRole(profileData.role as 'student' | 'guardian' | 'teacher');
+          } else {
+            setUserRole(null);
+          }
         }
       } catch (error) {
         if (import.meta.env.DEV) {
@@ -114,7 +126,7 @@ export function Navbar() {
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/all-tuition-teachers-in-kolkata', label: 'Browse', icon: Search },
-    { path: '/more', label: 'Help', icon: HelpCircle },
+    { path: '/past-papers', label: 'PYQs', icon: FileText },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -282,6 +294,18 @@ export function Navbar() {
                   <Link to="/all-tuition-teachers-in-kolkata" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
                     <Search className="w-4 h-4" />
                     Browse
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/past-papers" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    PYQs
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/more" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                    <HelpCircle className="w-4 h-4" />
+                    Help
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
