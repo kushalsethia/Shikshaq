@@ -1,12 +1,93 @@
 import { FilterState } from '@/components/FilterPanel';
 
-// --- CONSTANTS (Must match FilterPanel.tsx exactly) ---
-const SUBJECTS = [
-  'Maths', 'English', 'Physics', 'Chemistry', 'Biology', 'Computer', 'Hindi',
-  'History & Civics', 'Geography', 'Economics', 'Accounts', 'Business Studies',
-  'Commerce', 'Psychology', 'Sociology', 'Political Science', 'Environmental Science',
-  'Bengali', 'Drawing', 'SAT', 'ACT', 'CAT', 'NMAT', 'GMAT', 'CA', 'CFA', 'JEE'
-];
+// Base normalization for common subjects (always available)
+const BASE_SUBJECT_NORMALIZATION: Record<string, string> = {
+  'math': 'Maths', 'mathematics': 'Maths', 'maths': 'Maths',
+  'bio': 'Biology', 'biology': 'Biology', 'biol': 'Biology',
+  'chem': 'Chemistry', 'chemistry': 'Chemistry',
+  'phy': 'Physics', 'physics': 'Physics',
+  'eng': 'English', 'english': 'English',
+  'comp': 'Computers', 'computer': 'Computers', 'computers': 'Computers', 'cs': 'Computers', 'it': 'Computers', 'coding': 'Computers',
+  'hist': 'History & Civics', 'history': 'History & Civics', 'civics': 'History & Civics', 'history civics': 'History & Civics',
+  'geo': 'Geography', 'geography': 'Geography',
+  'eco': 'Economics', 'economics': 'Economics', 'econ': 'Economics',
+  'acc': 'Accounts', 'accounts': 'Accounts', 'accountancy': 'Accounts', 'accounting': 'Accounts',
+  'bst': 'Business Studies', 'business studies': 'Business Studies', 'business': 'Business Studies', 'bs': 'Business Studies',
+  'pol sc': 'Political Science', 'political science': 'Political Science', 'pol science': 'Political Science', 'political': 'Political Science',
+  'evs': 'Environmental Science', 'env science': 'Environmental Science', 'environmental': 'Environmental Science', 'environmental science': 'Environmental Science',
+  'beng': 'Bengali', 'bengali': 'Bengali', 'bangla': 'Bengali',
+  'draw': 'Drawing & Painting', 'drawing': 'Drawing & Painting', 'art': 'Drawing & Painting', 'painting': 'Drawing & Painting', 'drawing painting': 'Drawing & Painting', 'drawing & painting': 'Drawing & Painting',
+  'science': 'Science', 'sci': 'Science',
+  'sst': 'Social Studies', 'social studies': 'Social Studies', 'social': 'Social Studies',
+  'soc': 'Sociology', 'sociology': 'Sociology',
+  'psy': 'Psychology', 'psychology': 'Psychology', 'psych': 'Psychology',
+  'hindi': 'Hindi',
+  'sanskrit': 'Sanskrit', 'sansk': 'Sanskrit',
+  'legal': 'Legal Studies', 'legal studies': 'Legal Studies', 'law': 'Legal Studies',
+  'home': 'Home Science', 'home science': 'Home Science', 'home sci': 'Home Science',
+  'act': 'ACT',
+  'ap': 'AP', 'advanced placement': 'AP',
+  'ca': 'CA', 'chartered accountant': 'CA', 'chartered accountancy': 'CA',
+  'cat': 'CAT', 'common admission test': 'CAT',
+  'jee': 'JEE', 'joint entrance exam': 'JEE', 'joint entrance examination': 'JEE',
+  'neet': 'NEET', 'national eligibility cum entrance test': 'NEET',
+  'nmat': 'NMAT',
+  'sat': 'SAT', 'scholastic assessment test': 'SAT'
+};
+
+// Function to build dynamic subject normalization from database subjects
+function buildSubjectNormalization(subjects: { name: string; slug: string }[]): Record<string, string> {
+  // Start with both base normalization and static normalization
+  const normalization: Record<string, string> = { ...BASE_SUBJECT_NORMALIZATION, ...SUBJECT_NORMALIZATION };
+  
+  subjects.forEach(subject => {
+    const name = subject.name;
+    const nameLower = name.toLowerCase();
+    const slug = subject.slug.toLowerCase();
+    
+    // Add exact name match
+    normalization[nameLower] = name;
+    
+    // Add slug match
+    if (slug !== nameLower) {
+      normalization[slug] = name;
+    }
+    
+    // Generate common variations for new subjects
+    // Remove common words and create variations
+    const words = nameLower.split(/\s+/);
+    
+    // Add first word as abbreviation if it's a multi-word subject
+    if (words.length > 1) {
+      const firstWord = words[0];
+      if (firstWord.length >= 3) {
+        normalization[firstWord] = name;
+      }
+    }
+    
+    // Add acronym if subject has multiple words
+    if (words.length > 1) {
+      const acronym = words.map(w => w[0]).join('');
+      if (acronym.length >= 2) {
+        normalization[acronym] = name;
+      }
+    }
+    
+    // Add variations without spaces
+    const noSpace = nameLower.replace(/\s+/g, '');
+    if (noSpace !== nameLower) {
+      normalization[noSpace] = name;
+    }
+    
+    // Add variations with hyphens
+    const withHyphen = nameLower.replace(/\s+/g, '-');
+    if (withHyphen !== nameLower && withHyphen !== noSpace) {
+      normalization[withHyphen] = name;
+    }
+  });
+  
+  return normalization;
+}
 
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 const BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'];
@@ -53,22 +134,100 @@ const AREA_NORMALIZATION: Record<string, string> = {
   'sealdah': 'Sealdah', 'sialdah': 'Sealdah'
 };
 
+// Static subject normalization (merged with dynamic normalization)
 const SUBJECT_NORMALIZATION: Record<string, string> = {
+  // Maths variations
   'math': 'Maths', 'mathematics': 'Maths', 'maths': 'Maths',
+  
+  // Biology variations
   'bio': 'Biology', 'biology': 'Biology', 'biol': 'Biology',
+  
+  // Chemistry variations
   'chem': 'Chemistry', 'chemistry': 'Chemistry',
+  
+  // Physics variations
   'phy': 'Physics', 'physics': 'Physics',
+  
+  // English variations
   'eng': 'English', 'english': 'English',
-  'comp': 'Computer', 'computer': 'Computer', 'cs': 'Computer', 'it': 'Computer', 'coding': 'Computer',
-  'hist': 'History & Civics', 'history': 'History & Civics', 'civics': 'History & Civics',
+  
+  // Computers variations
+  'comp': 'Computers', 'computer': 'Computers', 'computers': 'Computers', 'cs': 'Computers', 'it': 'Computers', 'coding': 'Computers',
+  
+  // History & Civics variations
+  'hist': 'History & Civics', 'history': 'History & Civics', 'civics': 'History & Civics', 'history civics': 'History & Civics',
+  
+  // Geography variations
   'geo': 'Geography', 'geography': 'Geography',
+  
+  // Economics variations
   'eco': 'Economics', 'economics': 'Economics', 'econ': 'Economics',
-  'acc': 'Accounts', 'accounts': 'Accounts', 'accountancy': 'Accounts',
-  'bst': 'Business Studies', 'business studies': 'Business Studies', 'business': 'Business Studies',
-  'pol sc': 'Political Science', 'political science': 'Political Science', 'pol science': 'Political Science',
-  'evs': 'Environmental Science', 'env science': 'Environmental Science', 'environmental': 'Environmental Science',
+  
+  // Accounts variations
+  'acc': 'Accounts', 'accounts': 'Accounts', 'accountancy': 'Accounts', 'accounting': 'Accounts',
+  
+  // Business Studies variations
+  'bst': 'Business Studies', 'business studies': 'Business Studies', 'business': 'Business Studies', 'bs': 'Business Studies',
+  
+  // Political Science variations
+  'pol sc': 'Political Science', 'political science': 'Political Science', 'pol science': 'Political Science', 'political': 'Political Science',
+  
+  // Environmental Science variations
+  'evs': 'Environmental Science', 'env science': 'Environmental Science', 'environmental': 'Environmental Science', 'environmental science': 'Environmental Science',
+  
+  // Bengali variations
   'beng': 'Bengali', 'bengali': 'Bengali', 'bangla': 'Bengali',
-  'draw': 'Drawing', 'drawing': 'Drawing', 'art': 'Drawing', 'painting': 'Drawing'
+  
+  // Drawing & Painting variations
+  'draw': 'Drawing & Painting', 'drawing': 'Drawing & Painting', 'art': 'Drawing & Painting', 'painting': 'Drawing & Painting', 'drawing painting': 'Drawing & Painting', 'drawing & painting': 'Drawing & Painting',
+  
+  // Science variations (maps to Science subject)
+  'science': 'Science', 'sci': 'Science',
+  
+  // Social Studies variations
+  'sst': 'Social Studies', 'social studies': 'Social Studies', 'social': 'Social Studies',
+  
+  // Sociology variations
+  'soc': 'Sociology', 'sociology': 'Sociology',
+  
+  // Psychology variations
+  'psy': 'Psychology', 'psychology': 'Psychology', 'psych': 'Psychology',
+  
+  // Hindi variations
+  'hindi': 'Hindi',
+  
+  // Sanskrit variations
+  'sanskrit': 'Sanskrit', 'sansk': 'Sanskrit',
+  
+  // Legal Studies variations
+  'legal': 'Legal Studies', 'legal studies': 'Legal Studies', 'law': 'Legal Studies',
+  
+  // Home Science variations
+  'home': 'Home Science', 'home science': 'Home Science', 'home sci': 'Home Science',
+  
+  // Competitive exams - ACT
+  'act': 'ACT',
+  
+  // Competitive exams - AP
+  'ap': 'AP', 'advanced placement': 'AP',
+  
+  // Competitive exams - CA
+  'ca': 'CA', 'chartered accountant': 'CA', 'chartered accountancy': 'CA',
+  
+  // Competitive exams - CAT
+  'cat': 'CAT', 'common admission test': 'CAT',
+  
+  // Competitive exams - JEE
+  'jee': 'JEE', 'joint entrance exam': 'JEE', 'joint entrance examination': 'JEE',
+  
+  // Competitive exams - NEET
+  'neet': 'NEET', 'national eligibility cum entrance test': 'NEET',
+  
+  // Competitive exams - NMAT
+  'nmat': 'NMAT',
+  
+  // Competitive exams - SAT
+  'sat': 'SAT', 'scholastic assessment test': 'SAT'
 };
 
 const STOP_WORDS = new Set([
@@ -83,10 +242,13 @@ function normalizeText(text: string): string {
   return text.toLowerCase().trim();
 }
 
-export function extractFiltersFromQuery(query: string): Partial<FilterState> {
+export function extractFiltersFromQuery(query: string, subjects?: { name: string; slug: string }[]): Partial<FilterState> {
   if (!query || query.trim().length < 2) return {};
 
   const normalizedQuery = normalizeText(query);
+  
+  // Build subject normalization dynamically if subjects are provided
+  const SUBJECT_NORMALIZATION = subjects ? buildSubjectNormalization(subjects) : BASE_SUBJECT_NORMALIZATION;
   
   const extractedFilters: Partial<FilterState> = {
     subjects: [], classes: [], boards: [], classSize: [], areas: [], modeOfTeaching: [],
@@ -121,9 +283,15 @@ export function extractFiltersFromQuery(query: string): Partial<FilterState> {
   // Handle composite subjects as standalone words (after multi-word matches to avoid conflicts)
   // This ensures "environmental science" is handled first, then standalone "science"
   
-  // Science → Physics, Chemistry, Biology
+  // Science can mean either the subject "Science" OR the composite (Physics, Chemistry, Biology)
+  // We'll add both "Science" subject and the composite subjects
   if (remainingQuery.includes('science') && !remainingQuery.includes('environmental science') && 
-      !remainingQuery.includes('political science')) {
+      !remainingQuery.includes('political science') && !remainingQuery.includes('home science')) {
+    // Add "Science" as a subject
+    if (!extractedFilters.subjects!.includes('Science')) {
+      extractedFilters.subjects!.push('Science');
+    }
+    // Also add composite science subjects
     const scienceSubjects = ['Physics', 'Chemistry', 'Biology'];
     scienceSubjects.forEach(subj => {
       if (!extractedFilters.subjects!.includes(subj)) {
@@ -237,8 +405,14 @@ export function extractFiltersFromQuery(query: string): Partial<FilterState> {
             // B. Subject Matching
             // Special handling for composite subjects
             
-            // Science → Physics, Chemistry, Biology
+            // Science can mean either the subject "Science" OR the composite (Physics, Chemistry, Biology)
+            // We'll add both "Science" subject and the composite subjects
             if (word === 'science' || word === 'sci') {
+              // Add "Science" as a subject
+              if (!extractedFilters.subjects!.includes('Science')) {
+                extractedFilters.subjects!.push('Science');
+              }
+              // Also add composite science subjects
               const scienceSubjects = ['Physics', 'Chemistry', 'Biology'];
               scienceSubjects.forEach(subj => {
                 if (!extractedFilters.subjects!.includes(subj)) extractedFilters.subjects!.push(subj);
@@ -288,10 +462,24 @@ export function extractFiltersFromQuery(query: string): Partial<FilterState> {
               continue;
             }
             
+            // Check normalization map (built dynamically)
             if (SUBJECT_NORMALIZATION[word]) {
               const subject = SUBJECT_NORMALIZATION[word];
               if (!extractedFilters.subjects!.includes(subject)) extractedFilters.subjects!.push(subject);
               continue;
+            }
+            
+            // Also check direct subject name matches from database
+            if (subjects) {
+              const directSubjectMatch = subjects.find(s => {
+                const nameLower = s.name.toLowerCase();
+                const slug = s.slug.toLowerCase();
+                return nameLower === word || slug === word || nameLower.includes(word) || word.includes(nameLower);
+              });
+              if (directSubjectMatch && !extractedFilters.subjects!.includes(directSubjectMatch.name)) {
+                extractedFilters.subjects!.push(directSubjectMatch.name);
+                continue;
+              }
             }
 
     // C. Area Matching
@@ -344,10 +532,13 @@ export function extractFiltersFromQuery(query: string): Partial<FilterState> {
  * @param extractedFilters The filters that were extracted from the query
  * @returns The remaining query text that likely contains a name
  */
-export function extractNameFromQuery(query: string, extractedFilters: Partial<FilterState>): string {
+export function extractNameFromQuery(query: string, extractedFilters: Partial<FilterState>, subjects?: { name: string; slug: string }[]): string {
   if (!query || query.trim().length < 3) {
     return '';
   }
+
+  // Build subject normalization dynamically if subjects are provided
+  const SUBJECT_NORMALIZATION = subjects ? buildSubjectNormalization(subjects) : BASE_SUBJECT_NORMALIZATION;
 
   let remainingQuery = query.toLowerCase().trim();
   

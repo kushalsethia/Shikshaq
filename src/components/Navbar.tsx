@@ -241,6 +241,12 @@ export function Navbar() {
                           Feedback
                         </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/teachers" className="flex items-center gap-2">
+                          <GraduationCap className="w-4 h-4" />
+                          Teachers
+                        </Link>
+                      </DropdownMenuItem>
                     </>
                   )}
                   <DropdownMenuSeparator />

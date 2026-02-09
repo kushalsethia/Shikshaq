@@ -30,6 +30,7 @@ const AdminRecommendations = lazy(() => import("./pages/AdminRecommendations"));
 const AdminComments = lazy(() => import("./pages/AdminComments"));
 const AdminUpvotes = lazy(() => import("./pages/AdminUpvotes"));
 const AdminFeedback = lazy(() => import("./pages/AdminFeedback"));
+const AdminTeachers = lazy(() => import("./pages/AdminTeachers"));
 const LikedTeachers = lazy(() => import("./pages/LikedTeachers"));
 const MyTeachers = lazy(() => import("./pages/MyTeachers"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
@@ -125,6 +126,11 @@ const App = () => (
               <Route path="/admin/feedback" element={
                 <Suspense fallback={<PageLoader />}>
                   <AdminFeedback />
+                </Suspense>
+              } />
+              <Route path="/admin/teachers" element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminTeachers />
                 </Suspense>
               } />
               <Route path="/select-role" element={

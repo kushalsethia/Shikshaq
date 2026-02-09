@@ -267,7 +267,7 @@ export default function Browse() {
     const searchQuery = searchParams.get('q');
     let extractedFilters: Partial<FilterState> = {};
     if (searchQuery && searchQuery.trim().length >= 2) {
-      extractedFilters = extractFiltersFromQuery(searchQuery);
+      extractedFilters = extractFiltersFromQuery(searchQuery, subjects);
     }
 
     // If there's a search query, use ONLY the extracted filters (clear previous search filters)
@@ -506,7 +506,7 @@ export default function Browse() {
         // If there's a search query, REPLACE all filters with extracted ones (clear previous search)
         let extractedFilters: Partial<FilterState> = {};
           if (searchQuery && searchQuery.trim().length >= 2) {
-          extractedFilters = extractFiltersFromQuery(searchQuery);
+          extractedFilters = extractFiltersFromQuery(searchQuery, subjects);
           // Replace all filters with extracted ones (don't merge with previous search)
           effectiveFilters = {
             subjects: extractedFilters.subjects || [],
@@ -539,7 +539,7 @@ export default function Browse() {
         if (searchQuery && searchQuery.trim().length >= 3) {
           if (hasActiveFiltersAfterExtraction) {
             // Extract name part from query (e.g., "aparna chemistry" -> "aparna")
-            namePart = extractNameFromQuery(searchQuery, extractedFilters);
+            namePart = extractNameFromQuery(searchQuery, extractedFilters, subjects);
             if (namePart.length >= 3) {
               // Both name and filters present - search with scores for prioritization
               nameSearchResultsWithScores = searchByNameWithScores(teachersData, namePart);
@@ -1358,7 +1358,6 @@ export default function Browse() {
       </main>
 
       <FilterPanel
-        key={JSON.stringify(filters)} // Force re-render when filters change
         open={filterPanelOpen}
         onOpenChange={setFilterPanelOpen}
         filters={filters}

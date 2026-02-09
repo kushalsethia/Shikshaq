@@ -26,13 +26,6 @@ export interface FilterState {
   modeOfTeaching: string[];
 }
 
-const SUBJECTS = [
-  'Maths', 'English', 'Physics', 'Chemistry', 'Biology', 'Computer', 'Hindi',
-  'History & Civics', 'Geography', 'Economics', 'Accounts', 'Business Studies',
-  'Commerce', 'Psychology', 'Sociology', 'Political Science', 'Environmental Science',
-  'Bengali', 'Drawing', 'SAT', 'ACT', 'CAT', 'NMAT', 'GMAT', 'CA', 'CFA', 'JEE'
-];
-
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
 const BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'];
@@ -47,6 +40,15 @@ const AREAS = [
 ];
 
 const MODE_OF_TEACHING = ['Online', 'Offline'];
+
+// Hardcoded subjects list (sorted alphabetically) - matches subjects table
+const SUBJECTS = [
+  'Accounts', 'ACT', 'AP', 'Bengali', 'Biology', 'Business Studies', 'CA', 'CAT', 'Chemistry',
+  'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
+  'Geography', 'Hindi', 'History & Civics', 'Home Science', 'JEE', 'Legal Studies', 'Maths',
+  'NEET', 'NMAT', 'Physics', 'Political Science', 'Psychology', 'SAT', 'Science',
+  'Sanskrit', 'Social Studies', 'Sociology'
+];
 
 export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onClearFilters }: FilterPanelProps) {
   const [isScrolled, setIsScrolled] = useState(false);

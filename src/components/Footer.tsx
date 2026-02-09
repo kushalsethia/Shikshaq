@@ -207,7 +207,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
       <div className="container pt-16 pb-16">
         <div className="space-y-0">
           {/* Feedback Section - Blue to Purple Gradient */}
-          <div className="relative rounded-t-3xl overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 p-12 md:p-16">
+          <div className="relative rounded-t-3xl overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 p-9">
             {/* Content */}
             <div className="relative z-10 max-w-2xl">
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif text-white mb-4 md:mb-6 leading-tight">
@@ -229,7 +229,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           </div>
 
           {/* Join as Teacher Section - Orange Gradient */}
-          <div className="relative rounded-b-3xl overflow-hidden bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 p-12 md:p-16">
+          <div className="relative rounded-b-3xl overflow-hidden bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 p-9">
             {/* Content */}
             <div className="relative z-10 max-w-2xl">
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif text-white mb-4 md:mb-6 leading-tight">
