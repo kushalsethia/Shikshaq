@@ -177,6 +177,37 @@
 
   .search-input {
     @apply w-full bg-card border border-border rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 transition-all duration-200;
+    min-height: 3.5rem;
+    cursor: text;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    caret-color: hsl(var(--foreground));
+  }
+  
+  .search-input::placeholder {
+    color: hsl(var(--muted-foreground));
+  }
+  
+  .search-input:hover:not(:focus) {
+    border-color: hsl(var(--ring) / 0.5);
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
+    background-color: hsl(var(--card) / 0.95);
+  }
+  
+  .search-input:focus {
+    border-color: hsl(var(--ring));
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 0 0 2px hsl(var(--ring) / 0.2);
+    transform: translateY(-1px);
+    background-color: hsl(var(--card));
+  }
+  
+  .search-input:focus::placeholder {
+    color: hsl(var(--muted-foreground) / 0.7);
+  }
+  
+  @media (min-width: 640px) {
+    .search-input {
+      min-height: 4rem;
+    }
   }
 
   .teacher-card {
@@ -188,7 +219,7 @@
   }
 
   .section-title {
-    @apply text-lg font-medium text-foreground;
+    @apply text-lg font-medium text-foreground tracking-tight;
   }
 
   .view-more-link {

@@ -53,19 +53,21 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
 
   return (
     <form onSubmit={handleSubmit} className={`relative ${className}`}>
-      <Search className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+      <Search className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground pointer-events-none transition-colors duration-200" />
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
-        className="search-input pl-10 sm:pl-14 pr-10 sm:pr-12 py-2.5 sm:py-4 text-sm sm:text-base"
+        className="search-input pl-10 sm:pl-14 pr-10 sm:pr-12 py-3 sm:py-5 text-sm sm:text-base"
+        autoComplete="off"
+        spellCheck="false"
       />
       {query && (
         <button
           type="button"
           onClick={handleClear}
-          className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+          className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted active:bg-muted/80 transition-all duration-200"
           aria-label="Clear search"
         >
           <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground hover:text-foreground" />

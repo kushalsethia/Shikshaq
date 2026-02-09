@@ -482,9 +482,6 @@ export default function StudentDashboard() {
                   {formData.date_of_birth && !isValidDateFormat(formData.date_of_birth) && (
                     <p className="text-xs text-red-500">Please enter a valid date in DD-MM-YYYY format</p>
                   )}
-                  {profile.age && (
-                    <p className="text-xs text-muted-foreground">Age: {profile.age} years</p>
-                  )}
                 </div>
 
                 <div className="space-y-2">

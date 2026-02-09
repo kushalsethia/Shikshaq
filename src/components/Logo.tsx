@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import logoImage from '@/assets/logo_no_background.png';
+import logoImage from '@/assets/shikshaq-logo.svg';
 
 interface LogoProps {
   className?: string;
@@ -7,30 +7,23 @@ interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function Logo({ className = '', showText = true, size = 'md' }: LogoProps) {
+export function Logo({ className = '', showText = false, size = 'md' }: LogoProps) {
+  // SVG is 252x92, so aspect ratio is ~2.74:1 (wider than tall)
   const sizeClasses = {
-    sm: 'w-6 h-6',
-    md: 'w-8 h-8',
-    lg: 'w-10 h-10',
-  };
-
-  const textSizeClasses = {
-    sm: 'text-lg',
-    md: 'text-2xl',
-    lg: 'text-3xl',
+    sm: 'h-7 w-auto', // ~28px height, auto width to maintain aspect
+    md: 'h-10 w-auto', // ~40px height
+    lg: 'h-14 w-auto', // ~56px height
   };
 
   return (
     <Link to="/" className={`flex items-center gap-2 ${className}`}>
-      <div className={`${sizeClasses[size]} relative flex-shrink-0`}>
-        <img
-          src={logoImage}
-          alt="ShikshAq Logo"
-          className="w-full h-full object-contain"
-        />
-      </div>
+      <img
+        src={logoImage}
+        alt="ShikshAQ Logo"
+        className={`${sizeClasses[size]} object-contain flex-shrink-0`}
+      />
       {showText && (
-        <span className={`font-serif ${textSizeClasses[size]} text-foreground leading-none`}>
+        <span className="font-serif text-foreground leading-none">
           ShikshAq.in
         </span>
       )}

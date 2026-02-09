@@ -204,7 +204,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         
         {/* Teacher Name - Inside the bordered card */}
         <div className="py-2.5 bg-white rounded-b-2xl">
-          <h3 className="font-semibold text-foreground text-sm group-hover:text-foreground/80 transition-colors px-3">
+          <h3 className="font-semibold text-foreground text-sm group-hover:text-foreground/80 transition-colors pl-0.5 pr-3">
             {displayName}
           </h3>
         </div>

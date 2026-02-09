@@ -41,6 +41,7 @@ export default function Index() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSearchBarScrolled, setIsSearchBarScrolled] = useState(false);
+  const [userFirstName, setUserFirstName] = useState<string | null>(null);
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchBarElementRef = useRef<HTMLDivElement>(null);
   // Pre-initialize likes hook for fast initial render (shared state)
@@ -56,13 +57,26 @@ export default function Index() {
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, full_name')
           .eq('id', user.id)
           .maybeSingle();
 
         if (!profile || !profile.role) {
           navigate('/select-role', { replace: true });
+        } else {
+          // Extract first name from full_name or user metadata
+          const fullName = profile.full_name || 
+                          user.user_metadata?.full_name || 
+                          user.user_metadata?.name || 
+                          null;
+          
+          if (fullName) {
+            const firstName = fullName.split(' ')[0];
+            setUserFirstName(firstName);
+          }
         }
+      } else {
+        setUserFirstName(null);
       }
     };
 
@@ -410,15 +424,20 @@ export default function Index() {
       <Navbar />
       
       {/* Search Section - Combined with spacing */}
-      <section ref={searchBarRef} className="pt-32 sm:pt-[120px] pb-24 sm:pb-16 md:pt-12">
+      <section ref={searchBarRef} className="pt-32 sm:pt-[120px] pb-24 sm:pb-16 md:pt-12 bg-gradient-to-b from-orange-200/50 via-orange-100/30 to-background">
         <div className="container">
           <div className="flex flex-col items-center px-4 sm:px-0">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-center mb-8 sm:mb-10 text-foreground leading-tight">
+            <div className="text-left w-full max-w-3xl mb-4">
+              <p className="text-lg sm:text-xl text-foreground font-medium">
+                Welcome back{userFirstName ? `, ${userFirstName}` : ''}! 👋
+              </p>
+            </div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-center mb-8 sm:mb-10 text-foreground leading-tight tracking-tighter">
               Your ideal teacher,
               <br />
               one search away.
             </h1>
-            <div ref={searchBarElementRef} className="w-full max-w-2xl">
+            <div ref={searchBarElementRef} className="w-full max-w-3xl">
           <SearchBar />
             </div>
           </div>
@@ -429,7 +448,7 @@ export default function Index() {
       {isSearchBarScrolled && (
         <div className="md:hidden fixed top-14 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 py-3 transition-all duration-300 ease-in-out">
           <div className="container mx-auto px-4">
-            <div className="w-full max-w-2xl mx-auto">
+            <div className="w-full max-w-3xl mx-auto">
               <SearchBar />
             </div>
           </div>
