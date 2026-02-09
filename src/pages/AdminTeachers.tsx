@@ -453,14 +453,14 @@ export default function AdminTeachers() {
                   <div>
                     <Label htmlFor="featuredSubject">Featured Subject</Label>
                     <Select
-                      value={formData["Featured Subject"] || ''}
-                      onValueChange={(value) => handleInputChange("Featured Subject", value || null)}
+                      value={formData["Featured Subject"] ? formData["Featured Subject"] : "none"}
+                      onValueChange={(value) => handleInputChange("Featured Subject", value === "none" ? null : value)}
                     >
                       <SelectTrigger id="featuredSubject">
                         <SelectValue placeholder="Select featured subject" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {SUBJECTS.map((subject) => (
                           <SelectItem key={subject} value={subject}>
                             {subject}
@@ -499,14 +499,14 @@ export default function AdminTeachers() {
                   <div>
                     <Label htmlFor="placeOfTeaching">Place of Teaching</Label>
                     <Select
-                      value={formData["Place of Teaching"] || ''}
-                      onValueChange={(value) => handleInputChange("Place of Teaching", value || null)}
+                      value={formData["Place of Teaching"] ? formData["Place of Teaching"] : "none"}
+                      onValueChange={(value) => handleInputChange("Place of Teaching", value === "none" ? null : value)}
                     >
                       <SelectTrigger id="placeOfTeaching">
                         <SelectValue placeholder="Select place of teaching" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {PLACE_OF_TEACHING.map((place) => (
                           <SelectItem key={place} value={place}>
                             {place}
