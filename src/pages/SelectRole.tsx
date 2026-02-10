@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
+import { invalidateUserProfileCache } from '@/utils/cache';
 
 export default function SelectRole() {
   const { user, loading: authLoading } = useAuth();
@@ -110,10 +111,17 @@ export default function SelectRole() {
         return;
       }
 
+      // Invalidate cache to ensure fresh data on next page load
+      if (user) {
+        invalidateUserProfileCache(user.id);
+      }
+
       toast.success('Profile created successfully!');
       
-      // Redirect to home page
-      navigate('/', { replace: true });
+      // Small delay to ensure cache is cleared, then redirect
+      setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 100);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);

@@ -44,17 +44,41 @@ export default function Index() {
   const [userFirstName, setUserFirstName] = useState<string | null>(null);
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchBarElementRef = useRef<HTMLDivElement>(null);
+  const roleCheckRef = useRef<{ userId: string | null; hasChecked: boolean }>({ userId: null, hasChecked: false });
   // Pre-initialize likes hook for fast initial render (shared state)
   const { isLiked } = useLikes();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Check if user has a role - redirect to role selection if not
+  // Only check once per user ID, not constantly
   useEffect(() => {
+    let isMounted = true;
+
     const checkUserRole = async () => {
       if (authLoading) return;
       
-      if (user) {
+      // If we've already checked this user ID, don't check again
+      if (roleCheckRef.current.hasChecked && roleCheckRef.current.userId === user?.id) {
+        return;
+      }
+      
+      // If user changed, reset the check flag
+      if (roleCheckRef.current.userId !== user?.id) {
+        roleCheckRef.current.hasChecked = false;
+        roleCheckRef.current.userId = user?.id || null;
+      }
+      
+      if (!user) {
+        if (isMounted) {
+          setUserFirstName(null);
+          roleCheckRef.current.hasChecked = true;
+        }
+        return;
+      }
+
+      roleCheckRef.current.hasChecked = true;
+        
         // Check cache first
         const cacheKey = getUserProfileCacheKey(user.id);
         const cachedProfile = getCache<{ role: string; full_name: string | null }>(cacheKey);
@@ -62,10 +86,57 @@ export default function Index() {
         if (cachedProfile) {
           // Use cached data
           if (!cachedProfile.role) {
-            navigate('/select-role', { replace: true });
+            if (isMounted && window.location.pathname !== '/select-role') {
+              navigate('/select-role', { replace: true });
+            }
           } else {
             // Extract first name from cached full_name or user metadata
-            const fullName = cachedProfile.full_name || 
+            if (isMounted) {
+              const fullName = cachedProfile.full_name || 
+                              user.user_metadata?.full_name || 
+                              user.user_metadata?.name || 
+                              null;
+              
+              if (fullName) {
+                const firstName = fullName.split(' ')[0];
+                setUserFirstName(firstName);
+              }
+            }
+          }
+          return;
+        }
+
+        // Cache miss - fetch from database
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role, full_name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (!isMounted) return;
+
+        // Handle error case - don't redirect on error, just log it
+        if (error) {
+          if (import.meta.env.DEV) {
+            console.error('Error fetching profile:', error);
+          }
+          return;
+        }
+
+        // Cache the result
+        if (profile) {
+          setCache(cacheKey, { role: profile.role, full_name: profile.full_name }, CACHE_TTL.USER_PROFILE);
+        }
+
+        if (!profile || !profile.role) {
+          // Only redirect if we're not already on select-role page
+          if (isMounted && window.location.pathname !== '/select-role') {
+            navigate('/select-role', { replace: true });
+          }
+        } else {
+          // Extract first name from full_name or user metadata
+          if (isMounted) {
+            const fullName = profile.full_name || 
                             user.user_metadata?.full_name || 
                             user.user_metadata?.name || 
                             null;
@@ -75,41 +146,15 @@ export default function Index() {
               setUserFirstName(firstName);
             }
           }
-          return;
         }
-
-        // Cache miss - fetch from database
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, full_name')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        // Cache the result
-        if (profile) {
-          setCache(cacheKey, { role: profile.role, full_name: profile.full_name }, CACHE_TTL.USER_PROFILE);
-        }
-
-        if (!profile || !profile.role) {
-          navigate('/select-role', { replace: true });
-        } else {
-          // Extract first name from full_name or user metadata
-          const fullName = profile.full_name || 
-                          user.user_metadata?.full_name || 
-                          user.user_metadata?.name || 
-                          null;
-          
-          if (fullName) {
-            const firstName = fullName.split(' ')[0];
-            setUserFirstName(firstName);
-          }
-        }
-      } else {
-        setUserFirstName(null);
       }
     };
 
     checkUserRole();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user, authLoading, navigate]);
 
   // Add homepage-specific JSON-LD structured data
