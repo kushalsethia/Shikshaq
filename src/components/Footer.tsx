@@ -418,7 +418,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           </div>
 
           <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-            <p>© {new Date().getFullYear()} ShikshAq. An Aquaterra Start-up.</p>
+            <p>© {new Date().getFullYear()} ShikshAq. An AquaTerra Start-up.</p>
           </div>
         </div>
       </div>
