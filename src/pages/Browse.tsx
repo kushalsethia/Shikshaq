@@ -412,26 +412,29 @@ export default function Browse() {
           // Fetch data in parallel chunks - only fetch needed columns
           // Note: This fetches all Shikshaqmine data because filtering logic is complex (includes() checks)
           // Check cache for each chunk first
-          const shikshaqPromises = chunks.map(async (chunk) => {
-            const cacheKey = getShikshaqmineChunkCacheKey(chunk);
-            const cached = getCache<any[]>(cacheKey);
-            if (cached) {
-              return { data: cached, error: null };
-            }
-            
-            // Fetch from API if not in cache
-            const result = await supabase
-              .from('Shikshaqmine')
-              .select('Slug, Subjects, "Classes Taught", "Classes Taught for Backend", Area, "AREAS FOR FILTERING", "Mode of Teaching", "School Boards Catered", "Class Size (Group/ Solo)", "Sir/Ma\'am?"')
-              .in('Slug', chunk);
-            
-            // Cache the result if successful
-            if (result.data && !result.error) {
-              setCache(cacheKey, result.data, CACHE_TTL.SHIKSHAQMINE_CHUNK);
-            }
-            
-            return result;
-          });
+          const shikshaqPromises = chunks
+            .filter(chunk => chunk.length > 0) // Filter out empty chunks
+            .map(async (chunk) => {
+              const cacheKey = getShikshaqmineChunkCacheKey(chunk);
+              const cached = getCache<any[]>(cacheKey);
+              if (cached) {
+                return { data: cached, error: null };
+              }
+              
+              // Fetch from API if not in cache
+              // Note: Column name "Sir/Ma'am?" needs to be properly quoted for PostgREST
+              const result = await supabase
+                .from('Shikshaqmine')
+                .select(`Slug, Subjects, "Classes Taught", "Classes Taught for Backend", Area, "AREAS FOR FILTERING", "Mode of Teaching", "School Boards Catered", "Class Size (Group/ Solo)", "Sir/Ma'am?"`)
+                .in('Slug', chunk);
+              
+              // Cache the result if successful
+              if (result.data && !result.error) {
+                setCache(cacheKey, result.data, CACHE_TTL.SHIKSHAQMINE_CHUNK);
+              }
+              
+              return result;
+            });
           
           const shikshaqResults = await Promise.all(shikshaqPromises);
           allShikshaqData = shikshaqResults.flatMap(result => result.data || []);
@@ -847,23 +850,25 @@ export default function Browse() {
         let sirMaamMap = new Map();
         const subjectsMap = new Map<string, string>(); // slug -> first subject name
         if (teachersData.length > 0) {
-          const teacherSlugs = teachersData.map((t: any) => t.slug);
-          const { data: shikshaqData } = await supabase
-            .from('Shikshaqmine')
-            .select('Slug, "Sir/Ma\'am?", Subjects')
-            .in('Slug', teacherSlugs);
+          const teacherSlugs = teachersData.map((t: any) => t.slug).filter(Boolean);
+          if (teacherSlugs.length > 0) {
+            const { data: shikshaqData } = await supabase
+              .from('Shikshaqmine')
+              .select(`Slug, "Sir/Ma'am?", Subjects`)
+              .in('Slug', teacherSlugs);
           
-          if (shikshaqData) {
-            shikshaqData.forEach((record: any) => {
-              sirMaamMap.set(record.Slug, record["Sir/Ma'am?"]);
-              // Extract first subject from comma-separated Subjects field
-              if (record.Subjects) {
-                const firstSubject = record.Subjects.split(',')[0].trim();
-                if (firstSubject) {
-                  subjectsMap.set(record.Slug, firstSubject);
+            if (shikshaqData) {
+              shikshaqData.forEach((record: any) => {
+                sirMaamMap.set(record.Slug, record["Sir/Ma'am?"]);
+                // Extract first subject from comma-separated Subjects field
+                if (record.Subjects) {
+                  const firstSubject = record.Subjects.split(',')[0].trim();
+                  if (firstSubject) {
+                    subjectsMap.set(record.Slug, firstSubject);
+                  }
                 }
-              }
-            });
+              });
+            }
           }
         }
 

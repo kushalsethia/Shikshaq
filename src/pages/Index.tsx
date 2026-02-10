@@ -314,23 +314,25 @@ export default function Index() {
         const sirMaamMap = new Map();
         const subjectsMap = new Map<string, string>(); // slug -> first subject name
         if (teachersData.length > 0) {
-          const teacherSlugs = teachersData.map((t: any) => t.slug);
-          const { data: shikshaqData } = await (supabase as any)
-            .from('Shikshaqmine')
-            .select('Slug, "Sir/Ma\'am?", Subjects')
-            .in('Slug', teacherSlugs);
+          const teacherSlugs = teachersData.map((t: any) => t.slug).filter(Boolean);
+          if (teacherSlugs.length > 0) {
+            const { data: shikshaqData } = await (supabase as any)
+              .from('Shikshaqmine')
+              .select(`Slug, "Sir/Ma'am?", Subjects`)
+              .in('Slug', teacherSlugs);
           
-          if (shikshaqData) {
-            shikshaqData.forEach((record: any) => {
-              sirMaamMap.set(record.Slug, record["Sir/Ma'am?"]);
-              // Extract first subject from comma-separated Subjects field
-              if (record.Subjects) {
-                const firstSubject = record.Subjects.split(',')[0].trim();
-                if (firstSubject) {
-                  subjectsMap.set(record.Slug, firstSubject);
+            if (shikshaqData) {
+              shikshaqData.forEach((record: any) => {
+                sirMaamMap.set(record.Slug, record["Sir/Ma'am?"]);
+                // Extract first subject from comma-separated Subjects field
+                if (record.Subjects) {
+                  const firstSubject = record.Subjects.split(',')[0].trim();
+                  if (firstSubject) {
+                    subjectsMap.set(record.Slug, firstSubject);
+                  }
                 }
-              }
-            });
+              });
+            }
           }
         }
 
