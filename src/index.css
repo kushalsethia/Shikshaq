@@ -182,6 +182,30 @@
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
     caret-color: hsl(var(--foreground));
   }
+
+  .search-input-sticky {
+    @apply w-full bg-card border border-border rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring/20 transition-all duration-200;
+    min-height: 2.5rem;
+    cursor: text;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    caret-color: hsl(var(--foreground));
+  }
+  
+  .search-input-sticky:hover:not(:focus) {
+    border-color: hsl(var(--ring) / 0.5);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
+    background-color: hsl(var(--card) / 0.95);
+  }
+  
+  .search-input-sticky:focus {
+    border-color: hsl(var(--ring));
+    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+    background-color: hsl(var(--card));
+  }
+  
+  .search-input-sticky:focus::placeholder {
+    color: hsl(var(--muted-foreground) / 0.7);
+  }
   
   .search-input::placeholder {
     color: hsl(var(--muted-foreground));
