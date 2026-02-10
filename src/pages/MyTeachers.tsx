@@ -68,10 +68,10 @@ export default function MyTeachers() {
 
         // Extract all slugs and fetch Sir/Ma'am and Subjects data in a single query
         const slugs = teachersData.map(t => t.slug);
-        const { data: shikshaqData } = await supabase
-          .from('Shikshaqmine')
-          .select('Slug, "Sir/Ma\'am?", Subjects')
-          .in('Slug', slugs);
+          const { data: shikshaqData } = await supabase
+            .from('Shikshaqmine')
+            .select('*')
+            .in('Slug', slugs);
 
         // Create maps for fast lookup
         const sirMaamMap = new Map<string, string | null>();

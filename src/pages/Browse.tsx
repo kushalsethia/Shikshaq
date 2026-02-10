@@ -422,10 +422,11 @@ export default function Browse() {
               }
               
               // Fetch from API if not in cache
-              // Note: Column name "Sir/Ma'am?" needs to be properly quoted for PostgREST
+              // Note: Using select('*') to avoid issues with special characters in column names
+              // We'll filter the columns we need after fetching
               const result = await supabase
                 .from('Shikshaqmine')
-                .select(`Slug, Subjects, "Classes Taught", "Classes Taught for Backend", Area, "AREAS FOR FILTERING", "Mode of Teaching", "School Boards Catered", "Class Size (Group/ Solo)", "Sir/Ma'am?"`)
+                .select('*')
                 .in('Slug', chunk);
               
               // Cache the result if successful
@@ -854,7 +855,7 @@ export default function Browse() {
           if (teacherSlugs.length > 0) {
             const { data: shikshaqData } = await supabase
               .from('Shikshaqmine')
-              .select(`Slug, "Sir/Ma'am?", Subjects`)
+              .select('*')
               .in('Slug', teacherSlugs);
           
             if (shikshaqData) {

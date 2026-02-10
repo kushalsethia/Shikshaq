@@ -318,7 +318,7 @@ export default function Index() {
           if (teacherSlugs.length > 0) {
             const { data: shikshaqData } = await (supabase as any)
               .from('Shikshaqmine')
-              .select(`Slug, "Sir/Ma'am?", Subjects`)
+              .select('*')
               .in('Slug', teacherSlugs);
           
             if (shikshaqData) {
