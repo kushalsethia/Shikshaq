@@ -540,7 +540,7 @@ export default function Index() {
               </Carousel>
               {/* View more button below carousel */}
               <div className="flex justify-end mt-2 sm:mt-6">
-                <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link font-bold md:font-normal pt-2.5">
+                <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link font-bold md:font-normal">
                   View more teachers
                   <ArrowRight className="w-4 h-4" />
                 </Link>
