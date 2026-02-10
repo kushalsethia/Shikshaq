@@ -12,30 +12,63 @@ import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 
 export default function SelectRole() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState<'student' | 'guardian' | ''>('');
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingRole, setCheckingRole] = useState(true);
+  const [hasRole, setHasRole] = useState(false);
 
-  // Redirect if user already has a role
+  // Check once on mount if user already has a role - only run once
   useEffect(() => {
+    let isMounted = true;
+
     const checkExistingRole = async () => {
-      if (!user) return;
+      // Wait for auth to finish loading
+      if (authLoading) return;
+      
+      // If no user, allow them to see the sign-in message
+      if (!user) {
+        if (isMounted) {
+          setCheckingRole(false);
+        }
+        return;
+      }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      if (profile && profile.role) {
-        navigate('/', { replace: true });
+        if (isMounted) {
+          if (profile && profile.role) {
+            // User already has a role - redirect and mark as having role
+            setHasRole(true);
+            navigate('/', { replace: true });
+          } else {
+            // User doesn't have a role - show the form (guarded)
+            setCheckingRole(false);
+          }
+        }
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error checking role:', error);
+        }
+        if (isMounted) {
+          setCheckingRole(false);
+        }
       }
     };
 
     checkExistingRole();
-  }, [user, navigate]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, authLoading, navigate]); // Only run when user or authLoading changes
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +123,28 @@ export default function SelectRole() {
     }
   };
 
+  // Show loading state only while checking auth or initial role check
+  if (authLoading || checkingRole) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // If user already has a role, don't render (they should be redirected)
+  if (hasRole) {
+    return null;
+  }
+
+  // If no user, show sign-in prompt
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
@@ -160,11 +215,11 @@ export default function SelectRole() {
               />
               <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
                 I agree to the{' '}
-                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline underline">
                   Terms of Service
                 </a>
                 {' '}and{' '}
-                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline underline">
                   Privacy Policy
                 </a>
                 {' '}to connect with teachers.
