@@ -78,65 +78,21 @@ export default function Index() {
       }
 
       roleCheckRef.current.hasChecked = true;
-        
-        // Check cache first
-        const cacheKey = getUserProfileCacheKey(user.id);
-        const cachedProfile = getCache<{ role: string; full_name: string | null }>(cacheKey);
-        
-        if (cachedProfile) {
-          // Use cached data
-          if (!cachedProfile.role) {
-            if (isMounted && window.location.pathname !== '/select-role') {
-              navigate('/select-role', { replace: true });
-            }
-          } else {
-            // Extract first name from cached full_name or user metadata
-            if (isMounted) {
-              const fullName = cachedProfile.full_name || 
-                              user.user_metadata?.full_name || 
-                              user.user_metadata?.name || 
-                              null;
-              
-              if (fullName) {
-                const firstName = fullName.split(' ')[0];
-                setUserFirstName(firstName);
-              }
-            }
-          }
-          return;
-        }
-
-        // Cache miss - fetch from database
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('role, full_name')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (!isMounted) return;
-
-        // Handle error case - don't redirect on error, just log it
-        if (error) {
-          if (import.meta.env.DEV) {
-            console.error('Error fetching profile:', error);
-          }
-          return;
-        }
-
-        // Cache the result
-        if (profile) {
-          setCache(cacheKey, { role: profile.role, full_name: profile.full_name }, CACHE_TTL.USER_PROFILE);
-        }
-
-        if (!profile || !profile.role) {
-          // Only redirect if we're not already on select-role page
+      
+      // Check cache first
+      const cacheKey = getUserProfileCacheKey(user.id);
+      const cachedProfile = getCache<{ role: string; full_name: string | null }>(cacheKey);
+      
+      if (cachedProfile) {
+        // Use cached data
+        if (!cachedProfile.role) {
           if (isMounted && window.location.pathname !== '/select-role') {
             navigate('/select-role', { replace: true });
           }
         } else {
-          // Extract first name from full_name or user metadata
+          // Extract first name from cached full_name or user metadata
           if (isMounted) {
-            const fullName = profile.full_name || 
+            const fullName = cachedProfile.full_name || 
                             user.user_metadata?.full_name || 
                             user.user_metadata?.name || 
                             null;
@@ -145,6 +101,49 @@ export default function Index() {
               const firstName = fullName.split(' ')[0];
               setUserFirstName(firstName);
             }
+          }
+        }
+        return;
+      }
+
+      // Cache miss - fetch from database
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role, full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      // Handle error case - don't redirect on error, just log it
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error fetching profile:', error);
+        }
+        return;
+      }
+
+      // Cache the result
+      if (profile) {
+        setCache(cacheKey, { role: profile.role, full_name: profile.full_name }, CACHE_TTL.USER_PROFILE);
+      }
+
+      if (!profile || !profile.role) {
+        // Only redirect if we're not already on select-role page
+        if (isMounted && window.location.pathname !== '/select-role') {
+          navigate('/select-role', { replace: true });
+        }
+      } else {
+        // Extract first name from full_name or user metadata
+        if (isMounted) {
+          const fullName = profile.full_name || 
+                          user.user_metadata?.full_name || 
+                          user.user_metadata?.name || 
+                          null;
+          
+          if (fullName) {
+            const firstName = fullName.split(' ')[0];
+            setUserFirstName(firstName);
           }
         }
       }
