@@ -30,7 +30,7 @@ const SUBJECTS = [
 
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
-const BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State', 'College'];
+const BOARDS = ['ICSE/ISC', 'CBSE', 'IGCSE', 'IB', 'State', 'College'];
 
 const AREAS = [
   'Behala', 'Tollygunge', 'New Town', 'Howrah', 'Liluah', 'Beliaghata', 'Sealdah', 'Alipore',
@@ -41,7 +41,7 @@ const AREAS = [
 
 const MODE_OF_TEACHING = ['Online', 'Offline'];
 
-const PLACE_OF_TEACHING = ["Teacher's place", "Student's Home", 'Both'];
+const PLACE_OF_TEACHING = ["Teacher's place", "Student's Home"];
 
 interface TeacherData {
   id: number;
@@ -184,11 +184,63 @@ export default function AdminTeachers() {
     setFilteredTeachers(filtered);
   }, [searchQuery, teachers]);
 
+  // Helper function to normalize multi-select values for comparison
+  const normalizeValue = (value: string): string => {
+    return value.trim().toLowerCase();
+  };
+
+  // Helper function to check if a value exists in a comma-separated string (case-insensitive)
+  const valueExistsInString = (str: string | null, value: string): boolean => {
+    if (!str) return false;
+    const values = str.split(',').map(v => normalizeValue(v));
+    return values.includes(normalizeValue(value));
+  };
+
   // Initialize form data when teacher is selected
   useEffect(() => {
     if (selectedTeacher) {
+      // Handle "Place of Teaching" - if it contains "Both", split it into both options
+      let placeOfTeaching = selectedTeacher["Place of Teaching"];
+      if (placeOfTeaching) {
+        const normalized = placeOfTeaching.toLowerCase();
+        // If it says "Both" (case-insensitive), replace with both options
+        if (normalized.includes('both') && !normalized.includes("teacher's place") && !normalized.includes("student's home")) {
+          placeOfTeaching = "Teacher's place, Student's Home";
+        }
+        // Normalize existing values to match our constants exactly
+        const parts: string[] = [];
+        if (normalized.includes("teacher's place") || normalized.includes("teacher place")) {
+          parts.push("Teacher's place");
+        }
+        if (normalized.includes("student's home") || normalized.includes("student home")) {
+          parts.push("Student's Home");
+        }
+        if (parts.length > 0) {
+          placeOfTeaching = parts.join(', ');
+        }
+      }
+
+      // Handle "School Boards Catered" - normalize "ICSE" to "ICSE/ISC"
+      let schoolBoards = selectedTeacher["School Boards Catered"];
+      if (schoolBoards) {
+        // Replace "ICSE" (standalone or as part of comma-separated list) with "ICSE/ISC"
+        schoolBoards = schoolBoards
+          .split(',')
+          .map(board => {
+            const trimmed = board.trim();
+            // Match "ICSE" but not "ICSE/ISC" (case-insensitive)
+            if (trimmed.toLowerCase() === 'icse' && trimmed.toLowerCase() !== 'icse/isc') {
+              return 'ICSE/ISC';
+            }
+            return trimmed;
+          })
+          .join(', ');
+      }
+      
       setFormData({
         ...selectedTeacher,
+        "Place of Teaching": placeOfTeaching,
+        "School Boards Catered": schoolBoards,
       });
       setImagePreview(selectedTeacher["Hero Image"] || null);
     } else {
@@ -476,7 +528,7 @@ export default function AdminTeachers() {
                     <div className="flex flex-wrap gap-2 mt-2">
                       {CLASSES.map((cls) => {
                         const currentValue = formData["Classes Taught for Backend"] as string | null;
-                        const selected = currentValue?.split(',').map((v) => v.trim()).includes(cls) || false;
+                        const selected = valueExistsInString(currentValue, cls);
                         return (
                           <div key={cls} className="flex items-center space-x-2">
                             <Checkbox
@@ -497,23 +549,27 @@ export default function AdminTeachers() {
 
                   {/* Place of Teaching */}
                   <div>
-                    <Label htmlFor="placeOfTeaching">Place of Teaching</Label>
-                    <Select
-                      value={formData["Place of Teaching"] ? formData["Place of Teaching"] : "none"}
-                      onValueChange={(value) => handleInputChange("Place of Teaching", value === "none" ? null : value)}
-                    >
-                      <SelectTrigger id="placeOfTeaching">
-                        <SelectValue placeholder="Select place of teaching" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {PLACE_OF_TEACHING.map((place) => (
-                          <SelectItem key={place} value={place}>
-                            {place}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Place of Teaching</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {PLACE_OF_TEACHING.map((place) => {
+                        const currentValue = formData["Place of Teaching"] as string | null;
+                        const selected = valueExistsInString(currentValue, place);
+                        return (
+                          <div key={place} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`place-${place}`}
+                              checked={selected}
+                              onCheckedChange={(checked) =>
+                                handleMultiSelectChange("Place of Teaching", place, checked as boolean)
+                              }
+                            />
+                            <Label htmlFor={`place-${place}`} className="cursor-pointer">
+                              {place}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* School Boards Catered */}
@@ -522,7 +578,7 @@ export default function AdminTeachers() {
                     <div className="flex flex-wrap gap-2 mt-2">
                       {BOARDS.map((board) => {
                         const currentValue = formData["School Boards Catered"] as string | null;
-                        const selected = currentValue?.split(',').map((v) => v.trim()).includes(board) || false;
+                        const selected = valueExistsInString(currentValue, board);
                         return (
                           <div key={board} className="flex items-center space-x-2">
                             <Checkbox
@@ -547,7 +603,7 @@ export default function AdminTeachers() {
                     <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto">
                       {AREAS.map((area) => {
                         const currentValue = formData.Area as string | null;
-                        const selected = currentValue?.split(',').map((v) => v.trim()).includes(area) || false;
+                        const selected = valueExistsInString(currentValue, area);
                         return (
                           <div key={area} className="flex items-center space-x-2">
                             <Checkbox
@@ -572,7 +628,7 @@ export default function AdminTeachers() {
                     <div className="flex flex-wrap gap-2 mt-2">
                       {MODE_OF_TEACHING.map((mode) => {
                         const currentValue = formData["Mode of Teaching"] as string | null;
-                        const selected = currentValue?.split(',').map((v) => v.trim()).includes(mode) || false;
+                        const selected = valueExistsInString(currentValue, mode);
                         return (
                           <div key={mode} className="flex items-center space-x-2">
                             <Checkbox
@@ -597,7 +653,7 @@ export default function AdminTeachers() {
                     <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto">
                       {SUBJECTS.map((subject) => {
                         const currentValue = formData.Subjects as string | null;
-                        const selected = currentValue?.split(',').map((v) => v.trim()).includes(subject) || false;
+                        const selected = valueExistsInString(currentValue, subject);
                         return (
                           <div key={subject} className="flex items-center space-x-2">
                             <Checkbox
