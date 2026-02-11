@@ -329,6 +329,27 @@ export default function AdminTeachers() {
     }
   };
 
+  // Validate image URL to prevent XSS attacks
+  const isValidImageUrl = (url: string): boolean => {
+    if (!url || typeof url !== 'string') return false;
+    // Allow only http/https URLs or data URIs with image types
+    try {
+      const urlObj = new URL(url);
+      // Allow http/https URLs
+      if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
+        return true;
+      }
+    } catch {
+      // If URL parsing fails, check if it's a safe data URI
+      if (url.startsWith('data:image/')) {
+        // Validate data URI format: data:image/[type];base64,[data]
+        const dataUriMatch = url.match(/^data:image\/(jpeg|jpg|png|gif|webp);base64,/i);
+        return !!dataUriMatch;
+      }
+    }
+    return false;
+  };
+
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -752,13 +773,14 @@ export default function AdminTeachers() {
                     <Label htmlFor="heroImage">Hero Image</Label>
                     <div className="space-y-3">
                       {/* Image Preview */}
-                      {imagePreview && (
+                      {imagePreview && isValidImageUrl(imagePreview) && (
                         <div className="relative w-full max-w-md">
                           <img
                             src={imagePreview}
                             alt="Hero preview"
                             className="w-full h-48 object-cover rounded-lg border"
                             onError={() => setImagePreview(null)}
+                            crossOrigin="anonymous"
                           />
                           <Button
                             type="button"
@@ -801,8 +823,14 @@ export default function AdminTeachers() {
                         placeholder="Or enter image URL"
                         value={formData["Hero Image"] || ''}
                         onChange={(e) => {
-                          handleInputChange("Hero Image", e.target.value);
-                          setImagePreview(e.target.value || null);
+                          const url = e.target.value;
+                          // Validate URL before setting
+                          if (!url || isValidImageUrl(url)) {
+                            handleInputChange("Hero Image", url);
+                            setImagePreview(url || null);
+                          } else {
+                            toast.error('Please enter a valid image URL (http:// or https://)');
+                          }
                         }}
                       />
                       <p className="text-xs text-muted-foreground">

@@ -412,8 +412,8 @@ export default function TeacherProfile() {
     // Build description: {{Subjects}} tuition classes for {{Classes Taught}} in {{Area}} via {{Mode of Teaching}} {{EXPANDED}}
     let description = `${subjects} tuition classes for ${classesTaught} in ${area} via ${modeOfTeaching}`;
     if (expanded) {
-      // Strip HTML tags and limit to ~150 characters for meta description
-      const expandedText = expanded.replace(/<[^>]*>/g, '').trim();
+      // Strip HTML tags using DOMPurify for complete sanitization and limit to ~150 characters for meta description
+      const expandedText = DOMPurify.sanitize(expanded, { ALLOWED_TAGS: [] }).trim();
       const expandedPreview = expandedText.length > 150 
         ? expandedText.substring(0, 147) + '...' 
         : expandedText;

@@ -297,9 +297,12 @@ export function Chatbot() {
                       __html: (() => {
                         let content = message.content;
                         
-                        // Strip out any HTML tags that the AI might have generated (safety measure)
-                        // This prevents malformed HTML from being displayed as raw text
-                        content = content.replace(/<[^>]+>/g, '');
+                        // First, sanitize to remove any potentially malicious HTML
+                        // This prevents XSS attacks and malformed HTML
+                        content = DOMPurify.sanitize(content, { 
+                          ALLOWED_TAGS: [],
+                          KEEP_CONTENT: true 
+                        });
                         
                         // Convert WhatsApp links (https://wa.me/...) to clickable links
                         content = content.replace(
@@ -317,7 +320,7 @@ export function Chatbot() {
                         // Convert line breaks to <br> for proper rendering
                         content = content.replace(/\n/g, '<br>');
                         
-                        // Sanitize the content to prevent XSS attacks
+                        // Final sanitization with allowed tags to prevent XSS attacks
                         // Allow only safe tags: <a> with href, target, rel attributes, and <br>
                         content = DOMPurify.sanitize(content, {
                           ALLOWED_TAGS: ['a', 'br', 'p', 'strong', 'em'],
