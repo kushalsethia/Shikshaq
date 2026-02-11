@@ -290,9 +290,9 @@ export default function Index() {
         }
         
         // Fetch teachers by upvotes (top 16) and subjects in parallel
-        // Fetch specific subjects: Bengali, Maths, Drawing, Psychology, Computer, Accounts, Biology, Economics
+        // Fetch specific subjects: Bengali, Maths, Drawing, Psychology, Computers, Accounts, Biology, Economics
         // Exclude "Drawing and Painting"
-        const desiredSubjects = ['Bengali', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computer', 'Accounts', 'Biology', 'Economics'];
+        const desiredSubjects = ['Bengali', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computers', 'Accounts', 'Biology', 'Economics'];
         const [subjectsRes, upvotesRes] = await Promise.all([
           cachedSubjects ? Promise.resolve({ data: cachedSubjects, error: null }) :
           supabase
@@ -433,7 +433,7 @@ export default function Index() {
 
         if (subjectsRes.data) {
           // Order by desired sequence
-          const desiredOrder = ['Bengali', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computer', 'Accounts', 'Biology', 'Economics'];
+          const desiredOrder = ['Bengali', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computers', 'Accounts', 'Biology', 'Economics'];
           const filteredSubjects = subjectsRes.data
             .filter((subject: any) => desiredOrder.includes(subject.name))
             .sort((a: any, b: any) => {
