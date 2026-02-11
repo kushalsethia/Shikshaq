@@ -822,23 +822,21 @@ export default function AdminTeachers() {
                               onError={() => setImagePreview(null)}
                               crossOrigin="anonymous"
                             />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute top-2 right-2"
+                              onClick={() => {
+                                handleInputChange("Hero Image", null);
+                                setImagePreview(null);
+                              }}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
                           </div>
                         );
                       })()}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute top-2 right-2"
-                            onClick={() => {
-                              handleInputChange("Hero Image", null);
-                              setImagePreview(null);
-                            }}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
                       
                       {/* Upload Button */}
                       <div className="flex gap-2 items-center">
