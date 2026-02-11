@@ -367,7 +367,9 @@ export default function AdminTeachers() {
       // If URL parsing fails, check if it's a safe data URI
       if (sanitizedString.startsWith('data:image/')) {
         // Validate data URI format: data:image/[type];base64,[data]
-        const dataUriMatch = sanitizedString.match(/^data:image\/(jpeg|jpg|png|gif|webp);base64,[A-Za-z0-9+/=]+$/i);
+        // Use RegExp constructor to avoid potential parsing issues with forward slashes
+        const dataUriPattern = new RegExp('^data:image/(jpeg|jpg|png|gif|webp);base64,[A-Za-z0-9+/=]+$', 'i');
+        const dataUriMatch = sanitizedString.match(dataUriPattern);
         if (dataUriMatch) {
           return sanitizedString;
         }
