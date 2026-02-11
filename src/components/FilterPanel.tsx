@@ -26,18 +26,29 @@ export interface FilterState {
   modeOfTeaching: string[];
 }
 
-const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
 const BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'];
 
 const CLASS_SIZE = ['Group', 'Solo'];
 
 const AREAS = [
-  'Behala', 'Tollygunge', 'New Town', 'Howrah', 'Liluah', 'Beliaghata', 'Sealdah', 'Alipore',
-  'New Alipore', 'Chetla', 'Bhowanipore', 'Park Street', 'Ruby', 'Bypass', 'Southern Avenue',
-  'Gariahat', 'Hazra', 'Kankurgachi', 'Ultadanga', 'Baguihati', 'Salt Lake', 'Lake Town', 'Dum Dum',
-  'Keshtopur', 'Ballygunge', 'Kasba', 'Jadavpur'
-];
+  // Group 1
+  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba', 
+  'New Alipore', 'Southern Avenue', 'Tollygunge', 'Hazra',
+  // Group 2
+  'Baguihati', 'Belur', 'Howrah', 'Joka', 'Newtown', 'Rajarhat', 'Salt Lake', 'Science City',
+  // Group 3
+  'Dum Dum', 'Entally', 'Girish Park', 'Nagarbazar', 'Sealdah', 'Shyam Bazar', 'Tangra',
+  // Group 4
+  'Camac Street', 'College Street', 'Elgin', 'Minto Park', 'Park Street', 'Park Circus',
+  // Group 5
+  'Kankurgachi', 'Laketown', 'Phoolbagan', 'Ultadanga',
+  // Group 6
+  'Anandapur', 'Parnasree', 'Rabindra Nagar',
+  // Group 7
+  'Hooghly'
+].sort();
 
 const MODE_OF_TEACHING = ['Online', 'Offline'];
 

@@ -126,7 +126,7 @@ export default function Browse() {
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchBarElementRef = useRef<HTMLDivElement>(null);
 
-  const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+  const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
   useEffect(() => {
     async function fetchSubjects() {
@@ -1126,7 +1126,7 @@ export default function Browse() {
                 <SelectItem value="all">All Classes</SelectItem>
                 {CLASSES.map((cls) => (
                   <SelectItem key={cls} value={cls}>
-                    Class {cls}
+                    {cls === 'UG' ? 'UG' : `Class ${cls}`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1179,7 +1179,7 @@ export default function Browse() {
                 <SelectItem value="all">All Classes</SelectItem>
                 {CLASSES.map((cls) => (
                   <SelectItem key={cls} value={cls}>
-                    Class {cls}
+                    {cls === 'UG' ? 'UG' : `Class ${cls}`}
                   </SelectItem>
                 ))}
               </SelectContent>
