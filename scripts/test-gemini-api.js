@@ -73,12 +73,8 @@ async function testGeminiAPI() {
     logWarning('API key seems too short - it might be invalid');
   }
 
-  // Mask API key for security (only show first 4 and last 4 characters)
-  const maskedKey = apiKey.length > 8 
-    ? `${apiKey.substring(0, 4)}${'*'.repeat(Math.max(0, apiKey.length - 8))}${apiKey.substring(apiKey.length - 4)}`
-    : '****';
-  
-  logSuccess(`API key found (length: ${apiKey.length} chars, masked: ${maskedKey})`);
+  // Confirm that an API key is present without logging its value
+  logSuccess('API key found and loaded from environment variables');
   if (process.env.GEMINI_API_KEY) {
     logInfo('Using GEMINI_API_KEY (server-side)');
   } else {

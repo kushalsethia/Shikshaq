@@ -253,7 +253,10 @@ export default function AdminTeachers() {
         "Place of Teaching": placeOfTeaching,
         "School Boards Catered": schoolBoards,
       });
-      setImagePreview(selectedTeacher["Hero Image"] || null);
+      // Sanitize image URL when loading from database
+      const heroImage = selectedTeacher["Hero Image"];
+      const sanitizedHeroImage = heroImage ? sanitizeImageUrl(heroImage) : null;
+      setImagePreview(sanitizedHeroImage);
     } else {
       setFormData({});
       setImagePreview(null);
@@ -315,9 +318,15 @@ export default function AdminTeachers() {
         .from('hero-images')
         .getPublicUrl(data.path);
 
-      // Update form data with the new URL
-      handleInputChange("Hero Image", publicUrl);
-      setImagePreview(publicUrl);
+      // Sanitize the URL before setting (Supabase URLs are safe, but we sanitize for consistency)
+      const sanitizedUrl = sanitizeImageUrl(publicUrl);
+      if (sanitizedUrl) {
+        // Update form data with the sanitized URL
+        handleInputChange("Hero Image", sanitizedUrl);
+        setImagePreview(sanitizedUrl);
+      } else {
+        toast.error('Failed to generate valid image URL');
+      }
       toast.success('Image uploaded successfully');
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -329,25 +338,33 @@ export default function AdminTeachers() {
     }
   };
 
-  // Validate image URL to prevent XSS attacks
-  const isValidImageUrl = (url: string): boolean => {
-    if (!url || typeof url !== 'string') return false;
+  // Validate and sanitize image URL to prevent XSS attacks
+  const sanitizeImageUrl = (url: string): string | null => {
+    if (!url || typeof url !== 'string') return null;
+    
+    // Trim whitespace
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return null;
+    
     // Allow only http/https URLs or data URIs with image types
     try {
-      const urlObj = new URL(url);
-      // Allow http/https URLs
+      const urlObj = new URL(trimmedUrl);
+      // Allow http/https URLs only
       if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
-        return true;
+        // Return the validated URL
+        return trimmedUrl;
       }
     } catch {
       // If URL parsing fails, check if it's a safe data URI
-      if (url.startsWith('data:image/')) {
+      if (trimmedUrl.startsWith('data:image/')) {
         // Validate data URI format: data:image/[type];base64,[data]
-        const dataUriMatch = url.match(/^data:image\/(jpeg|jpg|png|gif|webp);base64,/i);
-        return !!dataUriMatch;
+        const dataUriMatch = trimmedUrl.match(/^data:image\/(jpeg|jpg|png|gif|webp);base64,[A-Za-z0-9+/=]+$/i);
+        if (dataUriMatch) {
+          return trimmedUrl;
+        }
       }
     }
-    return false;
+    return null;
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -773,7 +790,7 @@ export default function AdminTeachers() {
                     <Label htmlFor="heroImage">Hero Image</Label>
                     <div className="space-y-3">
                       {/* Image Preview */}
-                      {imagePreview && isValidImageUrl(imagePreview) && (
+                      {imagePreview && (
                         <div className="relative w-full max-w-md">
                           <img
                             src={imagePreview}
@@ -823,11 +840,12 @@ export default function AdminTeachers() {
                         placeholder="Or enter image URL"
                         value={formData["Hero Image"] || ''}
                         onChange={(e) => {
-                          const url = e.target.value;
-                          // Validate URL before setting
-                          if (!url || isValidImageUrl(url)) {
-                            handleInputChange("Hero Image", url);
-                            setImagePreview(url || null);
+                          const inputValue = e.target.value;
+                          // Sanitize and validate URL before setting
+                          const sanitizedUrl = inputValue ? sanitizeImageUrl(inputValue) : null;
+                          if (sanitizedUrl !== null || !inputValue) {
+                            handleInputChange("Hero Image", sanitizedUrl || '');
+                            setImagePreview(sanitizedUrl);
                           } else {
                             toast.error('Please enter a valid image URL (http:// or https://)');
                           }
