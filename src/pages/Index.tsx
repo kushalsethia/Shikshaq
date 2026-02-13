@@ -507,7 +507,7 @@ export default function Index() {
                 Welcome back{userFirstName ? `, ${userFirstName}` : ''}! 👋
               </p>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-center mb-8 sm:mb-10 text-foreground leading-tight tracking-tighter uppercase">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-center mb-8 sm:mb-10 text-foreground leading-tight tracking-tighter">
               Your ideal teacher,
               <br />
               one search away.
