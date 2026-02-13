@@ -55,6 +55,8 @@ const MODE_OF_TEACHING = ['Online', 'Offline'];
 
 const PLACE_OF_TEACHING = ["Teacher's place", "Student's Home"];
 
+const CLASS_SIZE = ['Group', 'Solo'];
+
 interface TeacherData {
   id: number;
   Slug: string | null;
@@ -788,12 +790,27 @@ export default function AdminTeachers() {
 
                   {/* Class Size */}
                   <div>
-                    <Label htmlFor="classSize">Class Size (Group/ Solo)</Label>
-                    <Input
-                      id="classSize"
-                      value={formData["Class Size (Group/ Solo)"] || ''}
-                      onChange={(e) => handleInputChange("Class Size (Group/ Solo)", e.target.value)}
-                    />
+                    <Label>Class Size (Group/ Solo)</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {CLASS_SIZE.map((size) => {
+                        const currentValue = formData["Class Size (Group/ Solo)"] as string | null;
+                        const selected = valueExistsInString(currentValue, size);
+                        return (
+                          <div key={size} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`classSize-${size}`}
+                              checked={selected}
+                              onCheckedChange={(checked) =>
+                                handleMultiSelectChange("Class Size (Group/ Solo)", size, checked as boolean)
+                              }
+                            />
+                            <Label htmlFor={`classSize-${size}`} className="cursor-pointer">
+                              {size}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Hero Image */}
