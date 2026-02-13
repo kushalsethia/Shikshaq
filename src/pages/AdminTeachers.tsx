@@ -57,6 +57,8 @@ const PLACE_OF_TEACHING = ["Teacher's place", "Student's Home"];
 
 const CLASS_SIZE = ['Group', 'Solo'];
 
+const SIR_MAAM = ['Sir', "Ma'am"];
+
 interface TeacherData {
   id: number;
   Slug: string | null;
@@ -770,12 +772,22 @@ export default function AdminTeachers() {
                   {/* Sir/Ma'am? */}
                   <div>
                     <Label htmlFor="sirMaam">Sir/Ma'am?</Label>
-                    <Input
-                      id="sirMaam"
-                      value={formData["Sir/Ma'am?"] || ''}
-                      onChange={(e) => handleInputChange("Sir/Ma'am?", e.target.value)}
-                      placeholder="Sir or Ma'am"
-                    />
+                    <Select
+                      value={formData["Sir/Ma'am?"] || "none"}
+                      onValueChange={(value) => handleInputChange("Sir/Ma'am?", value === "none" ? null : value)}
+                    >
+                      <SelectTrigger id="sirMaam">
+                        <SelectValue placeholder="Select Sir or Ma'am" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {SIR_MAAM.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Classes Taught */}
