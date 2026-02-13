@@ -914,33 +914,70 @@ export default function AdminTeachers() {
                   {/* Location V2 */}
                   <div>
                     <Label htmlFor="locationV2">Location V2</Label>
-                    <Input
-                      id="locationV2"
-                      value={formData["LOCATION V2"] || ''}
-                      onChange={(e) => handleInputChange("LOCATION V2", e.target.value)}
-                    />
+                    <Select
+                      value={formData["LOCATION V2"] || "none"}
+                      onValueChange={(value) => handleInputChange("LOCATION V2", value === "none" ? null : value)}
+                    >
+                      <SelectTrigger id="locationV2">
+                        <SelectValue placeholder="Select location option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="TEACHER'S HOME TUTORING">TEACHER'S HOME TUTORING</SelectItem>
+                        <SelectItem value="STUDENT'S HOME TUTORING ONLY">STUDENT'S HOME TUTORING ONLY</SelectItem>
+                        <SelectItem value="BOTH OPTIONS LISTED">BOTH OPTIONS LISTED</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Student's Home Areas */}
                   <div>
-                    <Label htmlFor="studentsHomeAreas">Student's Home in These Areas</Label>
-                    <Textarea
-                      id="studentsHomeAreas"
-                      value={formData["STUDENT'S HOME IN THESE AREAS"] || ''}
-                      onChange={(e) => handleInputChange("STUDENT'S HOME IN THESE AREAS", e.target.value)}
-                      rows={3}
-                    />
+                    <Label>Student's Home in These Areas</Label>
+                    <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto">
+                      {AREAS.map((area) => {
+                        const currentValue = formData["STUDENT'S HOME IN THESE AREAS"] as string | null;
+                        const selected = valueExistsInString(currentValue, area);
+                        return (
+                          <div key={area} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`student-area-${area}`}
+                              checked={selected}
+                              onCheckedChange={(checked) =>
+                                handleMultiSelectChange("STUDENT'S HOME IN THESE AREAS", area, checked as boolean)
+                              }
+                            />
+                            <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm">
+                              {area}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Tutor's Home Areas */}
                   <div>
-                    <Label htmlFor="tutorsHomeAreas">Tutor's Home in These Areas</Label>
-                    <Textarea
-                      id="tutorsHomeAreas"
-                      value={formData["TUTOR'S HOME IN THESE AREAS"] || ''}
-                      onChange={(e) => handleInputChange("TUTOR'S HOME IN THESE AREAS", e.target.value)}
-                      rows={3}
-                    />
+                    <Label>Tutor's Home in These Areas</Label>
+                    <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto">
+                      {AREAS.map((area) => {
+                        const currentValue = formData["TUTOR'S HOME IN THESE AREAS"] as string | null;
+                        const selected = valueExistsInString(currentValue, area);
+                        return (
+                          <div key={area} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`tutor-area-${area}`}
+                              checked={selected}
+                              onCheckedChange={(checked) =>
+                                handleMultiSelectChange("TUTOR'S HOME IN THESE AREAS", area, checked as boolean)
+                              }
+                            />
+                            <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm">
+                              {area}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Description */}
