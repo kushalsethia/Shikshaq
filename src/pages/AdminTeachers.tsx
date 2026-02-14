@@ -407,10 +407,10 @@ export default function AdminTeachers() {
     try {
       setSaving(true);
 
-      // Prepare update data (exclude EXPANDED and Slug)
+      // Prepare update data (exclude EXPANDED, Slug, and Area - Area is auto-computed)
       const updateData: any = {};
       Object.keys(formData).forEach((key) => {
-        if (key !== 'EXPANDED' && key !== 'Slug' && key !== 'id') {
+        if (key !== 'EXPANDED' && key !== 'Slug' && key !== 'id' && key !== 'Area') {
           updateData[key] = formData[key as keyof TeacherData] ?? null;
         }
       });
@@ -661,30 +661,9 @@ export default function AdminTeachers() {
                     </div>
                   </div>
 
-                  {/* Area */}
-                  <div>
-                    <Label>Areas</Label>
-                    <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto">
-                      {AREAS.map((area) => {
-                        const currentValue = formData.Area as string | null;
-                        const selected = valueExistsInString(currentValue, area);
-                        return (
-                          <div key={area} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`area-${area}`}
-                              checked={selected}
-                              onCheckedChange={(checked) =>
-                                handleMultiSelectChange("Area", area, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`area-${area}`} className="cursor-pointer text-sm">
-                              {area}
-                            </Label>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  {/* Area - Auto-computed from Student's Home Areas and Tutor's Home Areas */}
+                  {/* Note: Area field is automatically computed as union of the two area fields */}
+                  {/* It is not editable directly - update Student's Home Areas or Tutor's Home Areas instead */}
 
                   {/* Mode of Teaching */}
                   <div>
