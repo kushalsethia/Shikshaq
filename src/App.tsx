@@ -34,6 +34,7 @@ const AdminTeachers = lazy(() => import("./pages/AdminTeachers"));
 const LikedTeachers = lazy(() => import("./pages/LikedTeachers"));
 const MyTeachers = lazy(() => import("./pages/MyTeachers"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
+const TeacherTermsAgreement = lazy(() => import("./pages/TeacherTermsAgreement"));
 const SignUpSuccess = lazy(() => import("./pages/SignUpSuccess"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const GuardianDashboard = lazy(() => import("./pages/GuardianDashboard"));
@@ -136,6 +137,11 @@ const App = () => (
               <Route path="/select-role" element={
                 <Suspense fallback={<PageLoader />}>
                   <SelectRole />
+                </Suspense>
+              } />
+              <Route path="/teacher-terms-agreement" element={
+                <Suspense fallback={<PageLoader />}>
+                  <TeacherTermsAgreement />
                 </Suspense>
               } />
               <Route path="/signup-success" element={

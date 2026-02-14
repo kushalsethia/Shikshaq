@@ -5,34 +5,34 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { GraduationCap, Users } from 'lucide-react';
+import { UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
 
-export default function SelectRole() {
+export default function TeacherTermsAgreement() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [role, setRole] = useState<'student' | 'guardian' | ''>('');
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [checkingRole, setCheckingRole] = useState(true);
-  const [hasRole, setHasRole] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [isTeacher, setIsTeacher] = useState(false);
+  const [hasAgreed, setHasAgreed] = useState(false);
 
-  // Check once on mount if user already has a role - only run once
+  // Check if user is a teacher and if they've already agreed
   useEffect(() => {
     let isMounted = true;
 
-    const checkExistingRole = async () => {
+    const checkTeacherStatus = async () => {
       // Wait for auth to finish loading
       if (authLoading) return;
       
-      // If no user, allow them to see the sign-in message
+      // If no user, redirect to auth
       if (!user) {
         if (isMounted) {
-          setCheckingRole(false);
+          navigate('/auth', { replace: true });
         }
         return;
       }
@@ -45,50 +45,49 @@ export default function SelectRole() {
           .maybeSingle();
 
         if (isMounted) {
-          if (profile && profile.role) {
-            // User already has a role
-            if (profile.role === 'teacher') {
-              // If teacher hasn't agreed to terms, redirect to teacher terms agreement
-              if (profile.terms_agreement !== true) {
-                navigate('/teacher-terms-agreement', { replace: true });
-                return;
-              }
-              // If teacher has agreed, redirect to teacher dashboard (when it exists) or home
-              navigate('/', { replace: true });
-            } else {
-              // Student or guardian - redirect to home
-              navigate('/', { replace: true });
-            }
-            setHasRole(true);
+          if (!profile) {
+            // No profile - redirect to select role
+            navigate('/select-role', { replace: true });
+            return;
+          }
+
+          if (profile.role !== 'teacher') {
+            // Not a teacher - redirect to home
+            navigate('/', { replace: true });
+            return;
+          }
+
+          // User is a teacher
+          setIsTeacher(true);
+
+          if (profile.terms_agreement === true) {
+            // Already agreed - redirect to dashboard
+            setHasAgreed(true);
+            navigate('/dashboard/teacher', { replace: true });
           } else {
-            // User doesn't have a role - show the form (guarded)
-            setCheckingRole(false);
+            // Needs to agree - show form
+            setChecking(false);
           }
         }
       } catch (error) {
         if (import.meta.env.DEV) {
-          console.error('Error checking role:', error);
+          console.error('Error checking teacher status:', error);
         }
         if (isMounted) {
-          setCheckingRole(false);
+          setChecking(false);
         }
       }
     };
 
-    checkExistingRole();
+    checkTeacherStatus();
 
     return () => {
       isMounted = false;
     };
-  }, [user, authLoading, navigate]); // Only run when user or authLoading changes
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!role) {
-      toast.error('Please select whether you are a student or guardian');
-      return;
-    }
 
     if (!termsAgreed) {
       toast.error('Please agree to the Terms and Privacy Policy to continue');
@@ -104,16 +103,13 @@ export default function SelectRole() {
     setLoading(true);
 
     try {
-      // Update profile with role and terms agreement (use upsert in case profile already exists from Google Auth)
+      // Update profile with terms agreement
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          role: role,
-          terms_agreement: termsAgreed,
-        }, {
-          onConflict: 'id'
-        });
+        .update({
+          terms_agreement: true,
+        })
+        .eq('id', user.id);
 
       if (error) {
         console.error('Error updating profile:', error);
@@ -127,11 +123,11 @@ export default function SelectRole() {
         invalidateUserProfileCache(user.id);
       }
 
-      toast.success('Profile created successfully!');
+      toast.success('Thank you for verifying your consent!');
       
       // Small delay to ensure cache is cleared, then redirect
       setTimeout(() => {
-        navigate('/', { replace: true });
+        navigate('/dashboard/teacher', { replace: true });
       }, 100);
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -142,8 +138,8 @@ export default function SelectRole() {
     }
   };
 
-  // Show loading state only while checking auth or initial role check
-  if (authLoading || checkingRole) {
+  // Show loading state while checking
+  if (authLoading || checking) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
@@ -158,23 +154,9 @@ export default function SelectRole() {
     );
   }
 
-  // If user already has a role, don't render (they should be redirected)
-  if (hasRole) {
+  // If already agreed or not a teacher, don't render (they should be redirected)
+  if (hasAgreed || !isTeacher) {
     return null;
-  }
-
-  // If no user, show sign-in prompt
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
-          <p className="text-muted-foreground mb-4">You must be signed in to continue.</p>
-          <Button onClick={() => navigate('/auth')}>Sign In</Button>
-        </div>
-        <Footer />
-      </div>
-    );
   }
 
   return (
@@ -185,43 +167,28 @@ export default function SelectRole() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Logo size="lg" className="mx-auto mb-4" />
+            <div className="flex justify-center mb-4">
+              <UserCheck className="w-12 h-12 text-primary" />
+            </div>
             <h1 className="text-3xl font-serif text-foreground mb-2">
-              Complete Your Profile
+              Verify Your Consent
             </h1>
             <p className="text-muted-foreground">
-              Please select whether you are a student or guardian
+              We've detected that you're a teacher on our platform. Please verify your consent to continue.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-3">
-              <Label className="text-base">I am a...</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setRole('student')}
-                  className={`flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-all ${
-                    role === 'student'
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <GraduationCap className="w-8 h-8 mb-3" />
-                  <span className="font-medium text-lg">Student</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('guardian')}
-                  className={`flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-all ${
-                    role === 'guardian'
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <Users className="w-8 h-8 mb-3" />
-                  <span className="font-medium text-lg">Guardian</span>
-                </button>
-              </div>
+            <div className="bg-muted/50 p-4 rounded-lg border">
+              <p className="text-sm text-foreground mb-3">
+                As a teacher on ShikshAq, you agree to:
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside">
+                <li>Provide accurate information about your qualifications and teaching experience</li>
+                <li>Maintain professional conduct when interacting with students and parents</li>
+                <li>Respect student privacy and confidentiality</li>
+                <li>Follow all applicable laws and regulations</li>
+              </ul>
             </div>
 
             {/* Terms and Privacy Policy Checkbox */}
@@ -241,12 +208,12 @@ export default function SelectRole() {
                 <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline underline">
                   Privacy Policy
                 </a>
-                {' '}to connect with teachers.
+                {' '}and consent to be listed as a teacher on ShikshAq.
               </Label>
             </div>
 
-            <Button type="submit" className="w-full h-12" disabled={loading || !role || !termsAgreed}>
-              {loading ? 'Creating Profile...' : 'Continue'}
+            <Button type="submit" className="w-full h-12" disabled={loading || !termsAgreed}>
+              {loading ? 'Verifying...' : 'Verify Consent & Continue'}
             </Button>
           </form>
         </div>
