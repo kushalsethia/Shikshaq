@@ -109,7 +109,7 @@ export default function Auth() {
         try {
           const { data: profile, error } = await supabase
             .from('profiles')
-            .select('id, role')
+            .select('id, role, terms_agreement')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -127,8 +127,11 @@ export default function Auth() {
           if (!profile || !profile.role) {
             // No profile found or no role set - redirect to role selection
             navigate('/select-role', { replace: true });
+          } else if (profile.role === 'teacher' && profile.terms_agreement !== true) {
+            // Teacher needs to agree to terms
+            navigate('/teacher-terms-agreement', { replace: true });
           } else {
-            // Profile exists with role - redirect to home
+            // Profile exists with role and terms agreed (if teacher) - redirect to home
             navigate('/', { replace: true });
           }
         } catch (error) {

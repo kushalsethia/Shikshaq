@@ -62,6 +62,7 @@ export default function TeacherProfile() {
   const navigate = useNavigate();
 
   // Check if user has a role - redirect to role selection if not
+  // Also check if teacher has agreed to terms
   useEffect(() => {
     const checkUserRole = async () => {
       if (authLoading) return;
@@ -69,15 +70,22 @@ export default function TeacherProfile() {
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, terms_agreement')
           .eq('id', user.id)
           .maybeSingle();
 
         if (!profile || !profile.role) {
           navigate('/select-role', { replace: true });
-        } else {
-          setUserRole(profile.role);
+          return;
         }
+
+        // If user is a teacher but hasn't agreed to terms, redirect to teacher terms agreement
+        if (profile.role === 'teacher' && profile.terms_agreement !== true) {
+          navigate('/teacher-terms-agreement', { replace: true });
+          return;
+        }
+
+        setUserRole(profile.role);
       } else {
         setUserRole(null);
       }

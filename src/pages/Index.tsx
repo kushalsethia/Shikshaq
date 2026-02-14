@@ -79,7 +79,7 @@ export default function Index() {
       
       // Check cache first
       const cacheKey = getUserProfileCacheKey(user.id);
-      const cachedProfile = getCache<{ role: string; full_name: string | null }>(cacheKey);
+      const cachedProfile = getCache<{ role: string; full_name: string | null; terms_agreement?: boolean }>(cacheKey);
       
       if (cachedProfile) {
         // Use cached data
@@ -87,18 +87,25 @@ export default function Index() {
           if (isMounted && window.location.pathname !== '/select-role') {
             navigate('/select-role', { replace: true });
           }
-        } else {
-          // Extract first name from cached full_name or user metadata
-          if (isMounted) {
-            const fullName = cachedProfile.full_name || 
-                            user.user_metadata?.full_name || 
-                            user.user_metadata?.name || 
-                            null;
-            
-            if (fullName) {
-              const firstName = fullName.split(' ')[0];
-              setUserFirstName(firstName);
-            }
+          return;
+        }
+        // Check if teacher needs to agree to terms
+        if (cachedProfile.role === 'teacher' && cachedProfile.terms_agreement !== true) {
+          if (isMounted && window.location.pathname !== '/teacher-terms-agreement') {
+            navigate('/teacher-terms-agreement', { replace: true });
+          }
+          return;
+        }
+        // Extract first name from cached full_name or user metadata
+        if (isMounted) {
+          const fullName = cachedProfile.full_name || 
+                          user.user_metadata?.full_name || 
+                          user.user_metadata?.name || 
+                          null;
+          
+          if (fullName) {
+            const firstName = fullName.split(' ')[0];
+            setUserFirstName(firstName);
           }
         }
         return;
@@ -107,7 +114,7 @@ export default function Index() {
       // Cache miss - fetch from database
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('role, full_name')
+        .select('role, full_name, terms_agreement')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -123,13 +130,18 @@ export default function Index() {
 
       // Cache the result
       if (profile) {
-        setCache(cacheKey, { role: profile.role, full_name: profile.full_name }, CACHE_TTL.USER_PROFILE);
+        setCache(cacheKey, { role: profile.role, full_name: profile.full_name, terms_agreement: profile.terms_agreement }, CACHE_TTL.USER_PROFILE);
       }
 
       if (!profile || !profile.role) {
         // Only redirect if we're not already on select-role page
         if (isMounted && window.location.pathname !== '/select-role') {
           navigate('/select-role', { replace: true });
+        }
+      } else if (profile.role === 'teacher' && profile.terms_agreement !== true) {
+        // Teacher needs to agree to terms
+        if (isMounted && window.location.pathname !== '/teacher-terms-agreement') {
+          navigate('/teacher-terms-agreement', { replace: true });
         }
       } else {
         // Extract first name from full_name or user metadata
