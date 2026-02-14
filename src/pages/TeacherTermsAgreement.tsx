@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -15,15 +15,20 @@ import { invalidateUserProfileCache } from '@/utils/cache';
 export default function TeacherTermsAgreement() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [isTeacher, setIsTeacher] = useState(false);
   const [hasAgreed, setHasAgreed] = useState(false);
   const hasRedirectedRef = useRef(false); // Track if we've already redirected
+  const hasCheckedRef = useRef(false); // Track if we've already checked
 
   // Check if user is a teacher and if they've already agreed
   useEffect(() => {
+    // Only check once
+    if (hasCheckedRef.current) return;
+    
     let isMounted = true;
 
     const checkTeacherStatus = async () => {
@@ -35,9 +40,10 @@ export default function TeacherTermsAgreement() {
       
       // If no user, redirect to auth
       if (!user) {
-        if (isMounted && !hasRedirectedRef.current) {
+        if (isMounted && !hasRedirectedRef.current && location.pathname === '/teacher-terms-agreement') {
           hasRedirectedRef.current = true;
-          navigate('/auth', { replace: true });
+          hasCheckedRef.current = true;
+          window.location.href = '/auth';
         }
         return;
       }
@@ -49,18 +55,20 @@ export default function TeacherTermsAgreement() {
           .eq('id', user.id)
           .maybeSingle();
 
-        if (isMounted && !hasRedirectedRef.current) {
+        if (isMounted && !hasRedirectedRef.current && location.pathname === '/teacher-terms-agreement') {
+          hasCheckedRef.current = true;
+          
           if (!profile) {
             // No profile - redirect to select role
             hasRedirectedRef.current = true;
-            navigate('/select-role', { replace: true });
+            window.location.href = '/select-role';
             return;
           }
 
           if (profile.role !== 'teacher') {
             // Not a teacher - redirect to home
             hasRedirectedRef.current = true;
-            navigate('/', { replace: true });
+            window.location.href = '/';
             return;
           }
 
@@ -68,10 +76,10 @@ export default function TeacherTermsAgreement() {
           setIsTeacher(true);
 
           if (profile.terms_agreement === true) {
-            // Already agreed - redirect to home (not dashboard, let them browse)
+            // Already agreed - use hard redirect to break any loops
             hasRedirectedRef.current = true;
             setHasAgreed(true);
-            navigate('/', { replace: true });
+            window.location.href = '/';
             return;
           } else {
             // Needs to agree - show form
@@ -84,6 +92,7 @@ export default function TeacherTermsAgreement() {
         }
         if (isMounted) {
           setChecking(false);
+          hasCheckedRef.current = true;
         }
       }
     };
@@ -93,7 +102,7 @@ export default function TeacherTermsAgreement() {
     return () => {
       isMounted = false;
     };
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, location.pathname]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,10 +143,10 @@ export default function TeacherTermsAgreement() {
 
       toast.success('Thank you for verifying your consent!');
       
-      // Small delay to ensure cache is cleared, then redirect to home
-      // Teachers can access their dashboard via the dropdown menu
+      // Use hard redirect to break any potential loops
+      // Small delay to ensure cache is cleared
       setTimeout(() => {
-        navigate('/', { replace: true });
+        window.location.href = '/';
       }, 100);
     } catch (error) {
       if (import.meta.env.DEV) {
