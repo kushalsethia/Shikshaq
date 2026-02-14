@@ -90,11 +90,20 @@ export default function Index() {
           return;
         }
         // Check if teacher needs to agree to terms
-        if (cachedProfile.role === 'teacher' && cachedProfile.terms_agreement !== true) {
-          if (isMounted && window.location.pathname !== '/teacher-terms-agreement') {
-            navigate('/teacher-terms-agreement', { replace: true });
+        // If cache has terms_agreement, use it. Otherwise fetch from database.
+        if (cachedProfile.role === 'teacher') {
+          if (cachedProfile.terms_agreement === true) {
+            // Already agreed - continue normally
+          } else if (cachedProfile.terms_agreement === false || cachedProfile.terms_agreement === null) {
+            // Not agreed (false or null) - redirect to terms agreement
+            if (isMounted && window.location.pathname !== '/teacher-terms-agreement') {
+              navigate('/teacher-terms-agreement', { replace: true });
+            }
+            return;
+          } else {
+            // Cache doesn't have terms_agreement field - fetch from database to be sure
+            // Don't return, let it fall through to database fetch
           }
-          return;
         }
         // Extract first name from cached full_name or user metadata
         if (isMounted) {
@@ -108,7 +117,10 @@ export default function Index() {
             setUserFirstName(firstName);
           }
         }
-        return;
+        // If cache has terms_agreement, we're done. Otherwise, continue to database fetch
+        if (cachedProfile.terms_agreement !== undefined && cachedProfile.terms_agreement !== null) {
+          return;
+        }
       }
 
       // Cache miss - fetch from database
@@ -139,7 +151,7 @@ export default function Index() {
           navigate('/select-role', { replace: true });
         }
       } else if (profile.role === 'teacher' && profile.terms_agreement !== true) {
-        // Teacher needs to agree to terms
+        // Teacher needs to agree to terms (if false or null)
         if (isMounted && window.location.pathname !== '/teacher-terms-agreement') {
           navigate('/teacher-terms-agreement', { replace: true });
         }
