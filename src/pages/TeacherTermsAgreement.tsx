@@ -61,9 +61,9 @@ export default function TeacherTermsAgreement() {
           setIsTeacher(true);
 
           if (profile.terms_agreement === true) {
-            // Already agreed - redirect to dashboard
+            // Already agreed - redirect to home (not dashboard, let them browse)
             setHasAgreed(true);
-            navigate('/dashboard/teacher', { replace: true });
+            navigate('/', { replace: true });
           } else {
             // Needs to agree - show form
             setChecking(false);
@@ -125,9 +125,10 @@ export default function TeacherTermsAgreement() {
 
       toast.success('Thank you for verifying your consent!');
       
-      // Small delay to ensure cache is cleared, then redirect
+      // Small delay to ensure cache is cleared, then redirect to home
+      // Teachers can access their dashboard via the dropdown menu
       setTimeout(() => {
-        navigate('/dashboard/teacher', { replace: true });
+        navigate('/', { replace: true });
       }, 100);
     } catch (error) {
       if (import.meta.env.DEV) {
