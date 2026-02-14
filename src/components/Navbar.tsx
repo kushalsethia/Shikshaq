@@ -200,6 +200,14 @@ export function Navbar() {
                       </Link>
                     </DropdownMenuItem>
                   )}
+                  {userRole === 'teacher' && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard/teacher" className="flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4" />
+                        Teacher's Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link to="/liked-teachers" className="flex items-center gap-2">
                       <Heart className="w-4 h-4" />

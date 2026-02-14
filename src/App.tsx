@@ -35,6 +35,7 @@ const LikedTeachers = lazy(() => import("./pages/LikedTeachers"));
 const MyTeachers = lazy(() => import("./pages/MyTeachers"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
 const TeacherTermsAgreement = lazy(() => import("./pages/TeacherTermsAgreement"));
+const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const SignUpSuccess = lazy(() => import("./pages/SignUpSuccess"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const GuardianDashboard = lazy(() => import("./pages/GuardianDashboard"));
@@ -152,6 +153,11 @@ const App = () => (
               <Route path="/dashboard/student" element={
                 <Suspense fallback={<PageLoader />}>
                   <StudentDashboard />
+                </Suspense>
+              } />
+              <Route path="/dashboard/teacher" element={
+                <Suspense fallback={<PageLoader />}>
+                  <TeacherDashboard />
                 </Suspense>
               } />
               <Route path="/dashboard/guardian" element={
