@@ -175,8 +175,63 @@
     @apply bg-card shadow-sm border border-border;
   }
 
+  /* Search bar gradient shadow box */
+  .search-bar-glow-wrapper {
+    position: relative;
+  }
+
+  /* Sharp gradient box offset behind the search bar */
+  .search-bar-glow-sharp {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    right: -3px;
+    bottom: -3px;
+    border-radius: 14px;
+    background: linear-gradient(90deg, #F4800E, #505CF7);
+    background-size: 200% 100%;
+    z-index: 0;
+    animation: glowShift 4s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+
+  /* Blurred duplicate of the gradient box */
+  .search-bar-glow-blur {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: -6px;
+    bottom: -6px;
+    border-radius: 14px;
+    background: linear-gradient(90deg, #F4800E, #505CF7);
+    background-size: 200% 100%;
+    z-index: 0;
+    filter: blur(12px);
+    opacity: 0.6;
+    animation: glowShift 4s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+
+  @media (min-width: 640px) {
+    .search-bar-glow-sharp,
+    .search-bar-glow-blur {
+      border-radius: 16px;
+    }
+  }
+
+  @keyframes glowShift {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 100% 50%;
+    }
+  }
+
   .search-input {
-    @apply w-full bg-card border border-border rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 transition-all duration-200;
+    @apply w-full bg-card border-2 border-black rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 transition-all duration-200;
+    position: relative;
+    z-index: 1;
     min-height: 3.5rem;
     cursor: text;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
@@ -184,7 +239,7 @@
   }
 
   .search-input-sticky {
-    @apply w-full bg-card border border-border rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring/20 transition-all duration-200;
+    @apply w-full bg-card border-2 border-black rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring/20 transition-all duration-200;
     min-height: 2.5rem;
     cursor: text;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);

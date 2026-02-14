@@ -542,7 +542,7 @@ export default function TeacherProfile() {
 
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 xl:gap-16">
           {/* Image */}
-          <div className="relative">
+          <div className="relative md:max-w-[600px]">
             <div className="sticky top-24">
               {teacher.image_url ? (
                 <img
@@ -564,67 +564,48 @@ export default function TeacherProfile() {
                     <span className="text-sm font-medium">Verified</span>
                   </div>
                 )}
-                <button
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    if (!user) {
-                      navigate('/auth');
-                      return;
-                    }
-                    await toggleLike(teacher.id);
-                  }}
-                  className="p-2 rounded-full bg-card/90 backdrop-blur-sm hover:bg-card transition-colors"
-                  aria-label={isLiked(teacher.id) ? 'Remove from favourites' : 'Add to favourites'}
-                >
-                  <Heart
-                    className={`w-6 h-6 transition-colors ${
-                      isLiked(teacher.id)
-                        ? 'fill-red-500 text-red-500'
-                        : 'text-foreground/70 hover:text-red-500'
-                    }`}
-                  />
-                </button>
-                <ShareButton
-                  url={`/tuition-teachers/${teacher.slug}`}
-                  title={`${teacher.name}${teacher.sir_maam ? ` ${teacher.sir_maam}` : ''}`}
-                  description={teacher.subjects_from_shikshaq || teacher.subjects?.name || 'Tuition Teacher'}
-                  className=""
-                  iconSize="lg"
-                />
               </div>
-              {/* Mobile Upvote Button - Bottom Right of Image */}
-              <div className="absolute bottom-4 right-4 md:hidden">
-                <button
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    if (!user) {
-                      navigate('/auth');
-                      return;
-                    }
-                    await toggleUpvote(teacher.id);
-                  }}
-                  className="p-3 rounded-full bg-card/90 backdrop-blur-sm hover:bg-card transition-colors flex items-center gap-2"
-                  aria-label={isUpvoted(teacher.id) ? 'Remove upvote' : 'Upvote teacher'}
-                >
-                  <ThumbsUp
-                    className={`w-6 h-6 transition-colors ${
-                      isUpvoted(teacher.id)
-                        ? 'fill-primary text-primary-foreground'
-                        : 'text-foreground/70 hover:text-primary'
-                    }`}
-                  />
-                  {getUpvoteCount(teacher.id) > 0 && (
-                    <span className="text-sm font-medium text-foreground">
-                      {getUpvoteCount(teacher.id)}
-                    </span>
-                  )}
-                </button>
+              {/* Combined Heart and Share Buttons - Bottom Right of Image */}
+              <div className="absolute bottom-4 right-4">
+                <div className="inline-flex items-center rounded-full border-2 border-border bg-card/90 backdrop-blur-sm overflow-hidden">
+                  <div className="p-2 hover:bg-muted/80 transition-colors flex items-center">
+                    <ShareButton
+                      url={`/tuition-teachers/${teacher.slug}`}
+                      title={`${teacher.name}${teacher.sir_maam ? ` ${teacher.sir_maam}` : ''}`}
+                      description={teacher.subjects_from_shikshaq || teacher.subjects?.name || 'Tuition Teacher'}
+                      className="[&>button]:!p-0 [&>button]:!bg-transparent [&>button]:hover:!bg-transparent [&>button]:!backdrop-blur-none"
+                      iconSize="md"
+                      menuWidth="md"
+                    />
+                  </div>
+
+                  <button
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      if (!user) {
+                        navigate('/auth');
+                        return;
+                      }
+                      await toggleLike(teacher.id);
+                    }}
+                    className="p-2 hover:bg-muted/80 transition-colors flex items-center border-l border-border"
+                    aria-label={isLiked(teacher.id) ? 'Remove from favourites' : 'Add to favourites'}
+                  >
+                    <Heart
+                      className={`w-5 h-5 transition-colors ${
+                        isLiked(teacher.id)
+                          ? 'fill-red-500 text-red-500'
+                          : 'text-foreground/70'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Info */}
-          <div className="space-y-6 md:space-y-8">
+          <div className="space-y-4">
             {/* Subject Badge */}
             {teacher.subjects && (
               <Link
@@ -637,24 +618,59 @@ export default function TeacherProfile() {
               </Link>
             )}
 
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif font-normal text-foreground">
-              {(() => {
-                const sirMaam = teacher.sir_maam;
-                if (!sirMaam) return teacher.name;
-                
-                const sirMaamLower = String(sirMaam).toLowerCase().trim();
-                if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
-                  return `${teacher.name} Sir`;
-                } else if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
-                  return `${teacher.name} Ma'am`;
-                }
-                return teacher.name;
-              })()}
-            </h1>
+            {/* Teacher Name and Upvote Button - Inline */}
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="flex-1 text-3xl md:text-4xl lg:text-5xl font-serif font-normal text-foreground">
+                {(() => {
+                  const sirMaam = teacher.sir_maam;
+                  if (!sirMaam) return teacher.name;
+
+                  const sirMaamLower = String(sirMaam).toLowerCase().trim();
+                  if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
+                    return `${teacher.name} Sir`;
+                  } else if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
+                    return `${teacher.name} Ma'am`;
+                  }
+                  return teacher.name;
+                })()}
+              </h1>
+
+              {/* Upvote Button */}
+              <button
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (!user) {
+                    navigate('/auth');
+                    return;
+                  }
+                  await toggleUpvote(teacher.id);
+                }}
+                className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border-2 border-border bg-card hover:bg-muted transition-colors"
+                aria-label={isUpvoted(teacher.id) ? 'Remove upvote' : 'Upvote teacher'}
+              >
+                <ThumbsUp
+                  className={`w-4 h-4 transition-colors ${
+                    isUpvoted(teacher.id)
+                      ? 'fill-primary text-primary'
+                      : 'text-foreground/70'
+                  }`}
+                />
+                <span className="text-sm font-medium text-foreground">
+                  {isUpvoted(teacher.id) ? 'Upvoted' : 'Upvote'}
+                </span>
+                {getUpvoteCount(teacher.id) > 0 && (
+                  <span className={`text-sm font-medium ${
+                    isUpvoted(teacher.id) ? 'text-primary' : 'text-foreground/70'
+                  }`}>
+                    {getUpvoteCount(teacher.id)}
+                  </span>
+                )}
+              </button>
+            </div>
 
             {/* Studies With Button - Only for authenticated students */}
             {user && userRole === 'student' && (
-              <div className="mb-4">
+              <div>
                 <button
                   onClick={async (e) => {
                     e.preventDefault();
@@ -674,10 +690,10 @@ export default function TeacherProfile() {
             )}
 
             {/* Quick Info */}
-            <div className="flex flex-wrap items-center gap-4 md:gap-6 mb-6">
+            <div className="flex flex-wrap items-center gap-4 md:gap-6">
               {teacher.location && (
-                <div className="flex items-center gap-2 text-foreground/80">
-                  <MapPin className="w-4 h-4" />
+                <div className="flex items-start gap-2 text-foreground/80">
+                  <MapPin className="w-4 h-4 mt-0.5" />
                   <span>{teacher.location}</span>
                 </div>
               )}
@@ -690,7 +706,7 @@ export default function TeacherProfile() {
             </div>
 
             {/* He/She teaches section */}
-            <div className="space-y-6">
+            <div className="space-y-2">
               {(() => {
                 // Get gender from Shikshaqmine table (sir_maam field)
                 const sirMaam = teacher.sir_maam;
@@ -732,7 +748,7 @@ export default function TeacherProfile() {
                   <>
                     {subjectsList.length > 0 && (
                       <div>
-                        <p className="text-sm font-medium text-foreground mb-0.5 pb-0.5 leading-tight">{pronoun} teaches</p>
+                        <p className="text-sm font-medium text-foreground leading-tight mb-2">{pronoun} teaches</p>
                         <div className="flex flex-wrap gap-2">
                           {subjectsList.map((subject: string, index: number) => (
                             <span
@@ -760,7 +776,7 @@ export default function TeacherProfile() {
                   if (classesList.length > 0) {
                     return (
                       <div>
-                        <p className="text-sm font-medium text-foreground mb-0.5 pb-0.5 leading-tight">to students of</p>
+                        <p className="text-sm font-medium text-foreground leading-tight mb-2">to students of</p>
                         <div className="flex flex-wrap gap-2">
                           {classesList.map((cls: string, index: number) => (
                             <span
@@ -780,7 +796,7 @@ export default function TeacherProfile() {
             </div>
 
             {/* Location V2 section - Home tutoring locations */}
-            <div className="mt-6">
+            <div>
             {(() => {
               const locationV2 = teacher.location_v2;
               if (!locationV2) return null;
@@ -835,7 +851,7 @@ export default function TeacherProfile() {
               }
 
               return (
-                <div className="space-y-6">
+                <div className="space-y-2">
                   {/* Students home tutoring section */}
                   {(isStudentsHomeOnly || isBothOptions) && studentsAreas.length > 0 && (
                     <div>
@@ -879,7 +895,7 @@ export default function TeacherProfile() {
             </div>
 
             {/* CTA - Contact via WhatsApp */}
-            <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-card rounded-2xl p-6 md:p-8 border-2 border-primary/20 shadow-lg">
+            <div className="mt-6 md:mt-8 bg-gradient-to-br from-primary/10 via-primary/5 to-card rounded-2xl p-6 md:p-8 border-2 border-black shadow-lg">
               <h3 className="font-medium text-foreground mb-2 text-lg">Interested in classes?</h3>
               <p className="text-foreground/80 text-sm mb-6">
                 Reach out directly to discuss class timings, fees, and more.
