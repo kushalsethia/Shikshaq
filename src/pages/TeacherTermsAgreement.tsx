@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,18 +20,23 @@ export default function TeacherTermsAgreement() {
   const [checking, setChecking] = useState(true);
   const [isTeacher, setIsTeacher] = useState(false);
   const [hasAgreed, setHasAgreed] = useState(false);
+  const hasRedirectedRef = useRef(false); // Track if we've already redirected
 
   // Check if user is a teacher and if they've already agreed
   useEffect(() => {
     let isMounted = true;
 
     const checkTeacherStatus = async () => {
+      // Prevent multiple redirects
+      if (hasRedirectedRef.current) return;
+      
       // Wait for auth to finish loading
       if (authLoading) return;
       
       // If no user, redirect to auth
       if (!user) {
-        if (isMounted) {
+        if (isMounted && !hasRedirectedRef.current) {
+          hasRedirectedRef.current = true;
           navigate('/auth', { replace: true });
         }
         return;
@@ -44,15 +49,17 @@ export default function TeacherTermsAgreement() {
           .eq('id', user.id)
           .maybeSingle();
 
-        if (isMounted) {
+        if (isMounted && !hasRedirectedRef.current) {
           if (!profile) {
             // No profile - redirect to select role
+            hasRedirectedRef.current = true;
             navigate('/select-role', { replace: true });
             return;
           }
 
           if (profile.role !== 'teacher') {
             // Not a teacher - redirect to home
+            hasRedirectedRef.current = true;
             navigate('/', { replace: true });
             return;
           }
@@ -62,8 +69,10 @@ export default function TeacherTermsAgreement() {
 
           if (profile.terms_agreement === true) {
             // Already agreed - redirect to home (not dashboard, let them browse)
+            hasRedirectedRef.current = true;
             setHasAgreed(true);
             navigate('/', { replace: true });
+            return;
           } else {
             // Needs to agree - show form
             setChecking(false);
