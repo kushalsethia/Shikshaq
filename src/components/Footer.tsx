@@ -203,14 +203,13 @@ export function Footer({ expandedContent }: FooterProps = {}) {
 
   return (
     <footer className="bg-card border-t border-border">
-      {/* Feedback and Join Sections - Combined */}
+      {/* Feedback and Join Sections - Side by side on desktop, stacked on mobile */}
       <div className="container pt-16 pb-16">
-        <div className="space-y-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Feedback Section - Blue to Purple Gradient */}
-          <div className="relative rounded-t-3xl overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 p-9">
-            {/* Content */}
-            <div className="relative z-10 max-w-2xl">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif text-white mb-4 md:mb-6 leading-tight">
+          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 p-9">
+            <div className="relative z-10">
+              <h2 className="text-3xl md:text-4xl font-serif text-white mb-4 md:mb-6 leading-tight">
                 Share Your Feedback
               </h2>
               <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
@@ -229,14 +228,13 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           </div>
 
           {/* Join as Teacher Section - Orange Gradient */}
-          <div className="relative rounded-b-3xl overflow-hidden bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 p-9">
-            {/* Content */}
-            <div className="relative z-10 max-w-2xl">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif text-white mb-4 md:mb-6 leading-tight">
+          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 p-9">
+            <div className="relative z-10">
+              <h2 className="text-3xl md:text-4xl font-serif text-white mb-4 md:mb-6 leading-tight">
                 Join as a Teacher
               </h2>
               <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
-                Are you a tutor? List yourself for free and connect with students across Kolkata. No fees, no commissions!
+                Are you a tuition teacher? List yourself for free and connect with students across Kolkata. No fees, no commissions!
               </p>
               <div>
                 <a
@@ -363,7 +361,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
       <div className="border-t border-border">
         <div className="container py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <Logo size="md" />
+            <Logo size="lg" />
 
             <nav className="flex flex-wrap justify-center gap-6 text-sm">
               <Link to="/" className="text-foreground/80 hover:text-foreground transition-colors">
@@ -419,6 +417,14 @@ export function Footer({ expandedContent }: FooterProps = {}) {
 
           <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
             <p>© {new Date().getFullYear()} ShikshAq. An AquaTerra Start-up.</p>
+            <p className="mt-4 text-xs">brought to you by</p>
+            <div className="mt-2 flex justify-center">
+              <img
+                src="/aquaterra-logo.svg"
+                alt="AquaTerra"
+                className="h-8 w-auto object-contain"
+              />
+            </div>
           </div>
         </div>
       </div>

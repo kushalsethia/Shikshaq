@@ -15,8 +15,6 @@ import {
   Carousel,
   CarouselContent,
   CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
 } from '@/components/ui/carousel';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache, getUserProfileCacheKey } from '@/utils/cache';
 
@@ -292,7 +290,7 @@ export default function Index() {
         // Fetch teachers by upvotes (top 16) and subjects in parallel
         // Fetch specific subjects: Bengali, Maths, Drawing, Psychology, Computers, Accounts, Biology, Economics
         // Exclude "Drawing and Painting"
-        const desiredSubjects = ['Bengali', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computers', 'Accounts', 'Biology', 'Economics'];
+        const desiredSubjects = ['Bengali', 'English', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computers', 'Accounts', 'Biology', 'Economics'];
         const [subjectsRes, upvotesRes] = await Promise.all([
           cachedSubjects ? Promise.resolve({ data: cachedSubjects, error: null }) :
           supabase
@@ -433,7 +431,7 @@ export default function Index() {
 
         if (subjectsRes.data) {
           // Order by desired sequence
-          const desiredOrder = ['Bengali', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computers', 'Accounts', 'Biology', 'Economics'];
+          const desiredOrder = ['Bengali', 'English', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computers', 'Accounts', 'Biology', 'Economics'];
           const filteredSubjects = subjectsRes.data
             .filter((subject: any) => desiredOrder.includes(subject.name))
             .sort((a: any, b: any) => {
@@ -447,7 +445,7 @@ export default function Index() {
               // Otherwise maintain original order
               return 0;
             })
-            .slice(0, 8);
+            .slice(0, 9);
           
           setSubjects(filteredSubjects);
           // Cache subjects
@@ -499,19 +497,19 @@ export default function Index() {
       <Navbar />
       
       {/* Search Section - Combined with spacing */}
-      <section ref={searchBarRef} className="pt-32 sm:pt-[120px] pb-24 sm:pb-16 md:pt-12 bg-gradient-to-b from-orange-200/50 via-orange-100/30 to-background">
+      <section ref={searchBarRef} className="pt-[141px] sm:pt-[132px] pb-[106px] sm:pb-[70px] md:pt-[100px] md:pb-[120px] bg-background">
         <div className="container">
           <div className="flex flex-col items-center px-4 sm:px-0">
-            <div className="text-left w-full max-w-3xl mb-4">
-              <p className="text-lg sm:text-xl text-foreground font-medium">
-                Welcome back{userFirstName ? `, ${userFirstName}` : ''}! 👋
+            <div className="text-center w-full max-w-3xl mb-[35px] sm:mb-[44px]">
+              <p className="text-lg sm:text-xl text-foreground font-medium mb-3">
+                {user ? `Welcome back${userFirstName ? `, ${userFirstName}` : ''}! 👋` : 'Welcome to Shikshaq! 👋'}
               </p>
-            </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-center mb-8 sm:mb-10 text-foreground leading-tight tracking-tighter">
+              <h1 className="text-[9.5vw] sm:text-4xl md:text-5xl font-serif text-foreground leading-none tracking-tighter">
               Your ideal teacher,
               <br />
               one search away.
             </h1>
+            </div>
             <div ref={searchBarElementRef} className="w-full max-w-3xl">
           <SearchBar />
             </div>
@@ -533,7 +531,7 @@ export default function Index() {
       {/* Featured Teachers */}
       <section className="pt-0 sm:pt-0 pb-4">
         <div className="container">
-          <div className="mb-6">
+          <div className="mb-2">
             <h2 className="section-title">Featured tuition teachers on ShikshAq</h2>
           </div>
 
@@ -564,7 +562,7 @@ export default function Index() {
                   {featuredTeachers.map((teacher) => (
                     <CarouselItem 
                       key={teacher.id} 
-                      className="pl-2 md:pl-4 basis-2/3 md:basis-1/3 lg:basis-1/4 xl:basis-1/6 flex-shrink-0"
+                      className="pl-2 md:pl-4 basis-[45vw] md:basis-1/3 lg:basis-1/4 xl:basis-1/6 flex-shrink-0"
                     >
                       <TeacherCard
                         id={teacher.id}
@@ -577,12 +575,12 @@ export default function Index() {
                         showShareOnMobile={false}
                         sirMaam={(teacher as any).sir_maam}
                         isLiked={isLiked(teacher.id)}
+                        hideFavourite={true}
+                        hideShare={true}
                       />
                     </CarouselItem>
                   ))}
                 </CarouselContent>
-                <CarouselPrevious className="hidden md:flex left-0 md:left-4" />
-                <CarouselNext className="hidden md:flex right-0 md:right-4" />
               </Carousel>
               {/* View more button below carousel */}
               <div className="flex justify-end mt-2 sm:mt-6">
@@ -603,13 +601,13 @@ export default function Index() {
       {/* Subjects */}
       <section className="py-4">
         <div className="container">
-          <div className="mb-6">
+          <div className="mb-2">
             <h2 className="section-title">Explore tuition teachers via subjects</h2>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-              {[...Array(8)].map((_, i) => (
+            <div className="grid grid-cols-3 md:grid-cols-9 gap-2">
+              {[...Array(9)].map((_, i) => (
                 <div key={i} className="animate-pulse">
                   <div className="aspect-square bg-muted rounded-2xl" />
                 </div>
@@ -617,7 +615,7 @@ export default function Index() {
             </div>
           ) : subjects.length > 0 ? (
             <>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+            <div className="grid grid-cols-3 md:grid-cols-9 gap-2">
               {subjects.map((subject) => (
                 <SubjectCard
                   key={subject.id}

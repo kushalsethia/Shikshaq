@@ -18,6 +18,8 @@ interface TeacherCardProps {
   showShareOnMobile?: boolean; // Optional prop to show/hide share button on mobile
   sirMaam?: string | null; // Sir/Ma'am from Shikshaqmine
   isLiked?: boolean; // Optional: pass liked state directly to avoid hook call
+  hideFavourite?: boolean; // Hide heart/favourite button
+  hideShare?: boolean; // Hide share button
 }
 
 // Helper function to format name with Sir/Ma'am
@@ -48,7 +50,7 @@ const subjectColors: Record<string, string> = {
   economics: 'bg-badge-commerce',
 };
 
-function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, showShareOnMobile = true, sirMaam, isLiked: isLikedProp }: TeacherCardProps) {
+function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, showShareOnMobile = true, sirMaam, isLiked: isLikedProp, hideFavourite = false, hideShare = false }: TeacherCardProps) {
   // If featured, always use green; otherwise use subject-specific colors
   const badgeColor = isFeatured 
     ? 'bg-badge-science' // Green color for featured teachers
@@ -121,22 +123,24 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         {/* Top-right buttons container - Desktop only */}
         <div className="hidden md:flex absolute top-3 right-3 items-center gap-2 z-10">
           {/* Heart Icon (Favourite) */}
-          <button
-            onClick={handleHeartClick}
-            className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
-            aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
-          >
-            <Heart
-              className={`w-5 h-5 transition-colors ${
-                liked
-                  ? 'fill-red-500 text-red-500'
-                  : 'text-foreground/70 hover:text-red-500'
-              }`}
-            />
-          </button>
+          {!hideFavourite && (
+            <button
+              onClick={handleHeartClick}
+              className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
+              aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
+            >
+              <Heart
+                className={`w-5 h-5 transition-colors ${
+                  liked
+                    ? 'fill-red-500 text-red-500'
+                    : 'text-foreground/70 hover:text-red-500'
+                }`}
+              />
+            </button>
+          )}
 
           {/* Share Button - Only show if featured (Desktop) */}
-          {isFeatured && (
+          {isFeatured && !hideShare && (
             <ShareButton
               url={`/tuition-teachers/${slug}`}
               title={displayName}
@@ -149,22 +153,24 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         </div>
 
         {/* Heart Icon (Favourite) - Mobile only */}
-        <button
-          onClick={handleHeartClick}
-          className="md:hidden absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
-          aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
-        >
-          <Heart
-            className={`w-5 h-5 transition-colors ${
-              liked
-                ? 'fill-red-500 text-red-500'
-                : 'text-foreground/70 hover:text-red-500'
-            }`}
-          />
-        </button>
+        {!hideFavourite && (
+          <button
+            onClick={handleHeartClick}
+            className="md:hidden absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
+            aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
+          >
+            <Heart
+              className={`w-5 h-5 transition-colors ${
+                liked
+                  ? 'fill-red-500 text-red-500'
+                  : 'text-foreground/70 hover:text-red-500'
+              }`}
+            />
+          </button>
+        )}
 
         {/* Share Button - Mobile only, bottom-right */}
-        {isFeatured && showShareOnMobile && (
+        {isFeatured && showShareOnMobile && !hideShare && (
           <div className="md:hidden absolute bottom-3 right-3 z-10">
             <ShareButton
               url={`/tuition-teachers/${slug}`}

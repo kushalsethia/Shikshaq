@@ -110,12 +110,12 @@ export default function Browse() {
     areas: parseArrayParam(searchParams.get('filter_areas')),
     modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
   }));
-  const [featuredTeachers, setFeaturedTeachers] = useState<FeaturedTeacher[]>([]);
-  const [featuredLoading, setFeaturedLoading] = useState(true);
   const [displayedTeachers, setDisplayedTeachers] = useState<Teacher[]>([]);
   const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [isSearchBarScrolled, setIsSearchBarScrolled] = useState(false);
+  const [featuredTeachers, setFeaturedTeachers] = useState<FeaturedTeacher[]>([]);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
   const { isLiked } = useLikes();
   
   // Ref to track if we're updating URL ourselves (to prevent circular updates)
@@ -780,20 +780,12 @@ export default function Browse() {
     };
   }, [searchParams, subjects]); // Remove filters from deps - filters are already in searchParams
 
-  // Fetch featured teachers for "Other recommended" section - only when needed
+  // Fetch featured teachers for bottom section
   useEffect(() => {
-    // Only fetch if we have search results or search query
-    const shouldFetchFeatured = searchParams.get('q') || teachers.length > 0;
-    if (!shouldFetchFeatured) {
-      setFeaturedLoading(false);
-      setFeaturedTeachers([]);
-      return;
-    }
-
     async function fetchFeaturedTeachers() {
       try {
         setFeaturedLoading(true);
-        
+
         // Check cache for featured teachers
         const cacheKey = 'featured_teachers_browse';
         const cached = getCache<any[]>(cacheKey);
@@ -802,7 +794,7 @@ export default function Browse() {
           setFeaturedLoading(false);
           return;
         }
-        
+
         // Use the view to get top teachers efficiently
         const { data: upvoteStats } = await supabase
           .from('teacher_upvote_stats')
@@ -811,7 +803,7 @@ export default function Browse() {
           .limit(16);
 
         let teachersData: any[] = [];
-        
+
         if (upvoteStats && upvoteStats.length > 0) {
           const topTeacherIds = upvoteStats.map((stat: any) => stat.teacher_id);
 
@@ -822,7 +814,6 @@ export default function Browse() {
               .in('id', topTeacherIds);
 
             if (topTeachers) {
-              // Sort teachers to match upvote order
               const teacherMap = new Map(topTeachers.map((t: any) => [t.id, t]));
               teachersData = topTeacherIds
                 .map(id => teacherMap.get(id))
@@ -838,7 +829,7 @@ export default function Browse() {
             .from('teachers_list')
             .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
             .limit(100);
-          
+
           if (allTeachers && allTeachers.length > 0) {
             const availableTeachers = allTeachers.filter((t: any) => !existingIds.has(t.id));
             const shuffled = [...availableTeachers].sort(() => Math.random() - 0.5);
@@ -849,7 +840,7 @@ export default function Browse() {
 
         // Fetch Sir/Ma'am and Subjects data from Shikshaqmine table
         let sirMaamMap = new Map();
-        const subjectsMap = new Map<string, string>(); // slug -> first subject name
+        const subjectsMap = new Map<string, string>();
         if (teachersData.length > 0) {
           const teacherSlugs = teachersData.map((t: any) => t.slug).filter(Boolean);
           if (teacherSlugs.length > 0) {
@@ -857,11 +848,10 @@ export default function Browse() {
               .from('Shikshaqmine')
               .select('*')
               .in('Slug', teacherSlugs);
-          
+
             if (shikshaqData) {
               shikshaqData.forEach((record: any) => {
                 sirMaamMap.set(record.Slug, record["Sir/Ma'am?"]);
-                // Extract first subject from comma-separated Subjects field
                 if (record.Subjects) {
                   const firstSubject = record.Subjects.split(',')[0].trim();
                   if (firstSubject) {
@@ -873,30 +863,26 @@ export default function Browse() {
           }
         }
 
-        // Process teachers data - add subjects from Shikshaqmine if missing
+        // Process teachers data
         if (teachersData.length > 0) {
           const processedTeachers = teachersData.map((teacher: any) => {
-            // If no subject from relationship, try to get from Shikshaqmine
             if (!teacher.subjects) {
               const firstSubjectName = subjectsMap.get(teacher.slug);
               if (firstSubjectName) {
-                // Try to find matching subject in subjects table
-                const matchingSubject = subjects.find((s: any) => 
+                const matchingSubject = subjects.find((s: any) =>
                   s.name.toLowerCase() === firstSubjectName.toLowerCase()
                 );
                 if (matchingSubject) {
                   teacher.subjects = { name: matchingSubject.name, slug: matchingSubject.slug };
                 } else {
-                  // If no match found, use the name from Shikshaqmine directly
-                  teacher.subjects = { 
-                    name: firstSubjectName, 
-                    slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-') 
+                  teacher.subjects = {
+                    name: firstSubjectName,
+                    slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-')
                   };
                 }
               }
             }
-            
-            // Add Sir/Ma'am data
+
             return {
               ...teacher,
               sir_maam: sirMaamMap.get(teacher.slug) || null
@@ -904,7 +890,6 @@ export default function Browse() {
           });
 
           setFeaturedTeachers(processedTeachers);
-          // Cache featured teachers
           setCache(cacheKey, processedTeachers, CACHE_TTL.FEATURED_TEACHERS);
         }
       } catch (error) {
@@ -917,7 +902,7 @@ export default function Browse() {
     }
 
     fetchFeaturedTeachers();
-  }, [searchParams.get('q'), teachers.length]);
+  }, []);
 
   // Handle scroll detection for making search bar sticky
   useEffect(() => {
@@ -1080,7 +1065,7 @@ export default function Browse() {
           {/* Search Bar and Filter Button - Same Row on Mobile */}
           <div className="flex items-center gap-2 mb-3 sm:mb-4 sm:flex-col">
             <div ref={searchBarElementRef} className="flex-1 sm:w-full">
-              <SearchBar />
+              <SearchBar showGlow={false} />
             </div>
             
             {/* Small Filter Button - Mobile */}
@@ -1088,13 +1073,13 @@ export default function Browse() {
               variant="outline"
               size="sm"
               onClick={() => setFilterPanelOpen(true)}
-              className="h-9 sm:hidden w-9 p-0 flex-shrink-0 relative"
+              className="h-14 sm:hidden w-14 p-0 flex-shrink-0 relative"
             >
-              <Filter className="w-4 h-4" />
+              <Filter className="w-5 h-5" />
               {(filters.subjects.length > 0 || filters.classes.length > 0 ||
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
                 filters.areas.length > 0 || filters.modeOfTeaching.length > 0) && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[8px]">
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px]">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
                    filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length}
                 </span>
@@ -1143,7 +1128,7 @@ export default function Browse() {
             <Button
               variant="outline"
               onClick={() => setFilterPanelOpen(true)}
-              className="gap-2"
+              className="gap-2 h-14"
             >
               <Filter className="w-4 h-4" />
               Advanced Filters
@@ -1199,7 +1184,7 @@ export default function Browse() {
           <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 py-3 transition-all duration-300 ease-in-out">
             <div className="container mx-auto px-4">
               <div className="w-full">
-                <SearchBar />
+                <SearchBar showGlow={false} />
               </div>
             </div>
           </div>
@@ -1305,62 +1290,62 @@ export default function Browse() {
           </div>
         )}
 
-        {/* Other Recommended Tuition Teachers Section - Show after any search or when there are results */}
-        {!loading && (searchParams.get('q') || teachers.length > 0) && (
-          <section className="mt-16">
-            <div className="mb-6">
-              <h2 className="section-title">Other recommended tuition teachers</h2>
-            </div>
+        {/* Featured Teachers Section */}
+        <section className="mt-16">
+          <div className="mb-6">
+            <h2 className="section-title">Featured tuition teachers on ShikshAq</h2>
+          </div>
 
-            {featuredLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {[...Array(16)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="aspect-[4/5] bg-muted rounded-2xl" />
-                    <div className="mt-3 h-4 bg-muted rounded w-3/4" />
-                  </div>
-                ))}
-              </div>
-            ) : featuredTeachers.length > 0 ? (
-              <div className="relative">
-                <Carousel
-                  opts={{
-                    align: "start",
-                    loop: true,
-                    dragFree: true,
-                    containScroll: "trimSnaps",
-                    slidesToScroll: "auto",
-                    watchDrag: true,
-                  }}
-                  className="w-full"
-                >
-                  <CarouselContent className="-ml-2 md:-ml-4">
-                    {featuredTeachers.map((teacher) => (
-                      <CarouselItem 
-                        key={teacher.id} 
-                        className="pl-2 md:pl-4 basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/6"
-                      >
-                        <TeacherCard
-                          id={teacher.id}
-                          name={teacher.name}
-                          slug={teacher.slug}
-                          subject={teacher.subjects?.name || 'Tuition Teacher'}
-                          subjectSlug={teacher.subjects?.slug}
-                          imageUrl={teacher.image_url}
-                          isFeatured={true}
-                          sirMaam={teacher.sir_maam}
-                          isLiked={isLiked(teacher.id)}
-                        />
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  <CarouselPrevious className="left-0 md:left-4" />
-                  <CarouselNext className="right-0 md:right-4" />
-                </Carousel>
-              </div>
-            ) : null}
-          </section>
-        )}
+          {featuredLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {[...Array(16)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="aspect-[4/5] bg-muted rounded-2xl" />
+                  <div className="mt-3 h-4 bg-muted rounded w-3/4" />
+                </div>
+              ))}
+            </div>
+          ) : featuredTeachers.length > 0 ? (
+            <div className="relative">
+              <Carousel
+                opts={{
+                  align: "start",
+                  loop: true,
+                  dragFree: true,
+                  containScroll: "trimSnaps",
+                  slidesToScroll: "auto",
+                  watchDrag: true,
+                }}
+                className="w-full overflow-visible"
+              >
+                <CarouselContent className="-ml-2 md:-ml-4 pr-2 md:pr-0">
+                  {featuredTeachers.map((teacher) => (
+                    <CarouselItem
+                      key={teacher.id}
+                      className="pl-2 md:pl-4 basis-[45vw] md:basis-1/3 lg:basis-1/4 xl:basis-1/6 flex-shrink-0"
+                    >
+                      <TeacherCard
+                        id={teacher.id}
+                        name={teacher.name}
+                        slug={teacher.slug}
+                        subject={teacher.subjects?.name || 'Tuition Teacher'}
+                        subjectSlug={teacher.subjects?.slug}
+                        imageUrl={teacher.image_url}
+                        isFeatured={true}
+                        showShareOnMobile={false}
+                        sirMaam={teacher.sir_maam}
+                        isLiked={isLiked(teacher.id)}
+                        hideFavourite={true}
+                        hideShare={true}
+                      />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+            </div>
+          ) : null}
+        </section>
+
       </main>
 
       <FilterPanel

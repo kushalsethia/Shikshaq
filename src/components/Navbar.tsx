@@ -142,7 +142,7 @@ export function Navbar() {
         <div className="container mx-auto px-4">
           <nav className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Logo size="md" />
+            <Logo size="md" desktopSize="lg" />
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1 bg-muted/50 rounded-full p-1">
@@ -162,7 +162,7 @@ export function Navbar() {
           <div className="flex items-center gap-3">
             <Link
               to="/join"
-              className="hidden md:block text-sm font-medium text-foreground hover:text-muted-foreground transition-colors"
+              className="hidden md:block text-sm font-medium text-foreground/60 hover:text-foreground"
             >
               Join as a teacher
             </Link>
@@ -291,19 +291,31 @@ export function Navbar() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 md:hidden">
                 <DropdownMenuItem asChild>
-                  <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                  <Link
+                    to="/"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2 ${location.pathname === '/' ? 'bg-primary/10 text-primary font-semibold' : ''}`}
+                  >
                     <Home className="w-4 h-4" />
                     Home
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/all-tuition-teachers-in-kolkata" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                  <Link
+                    to="/all-tuition-teachers-in-kolkata"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2 ${location.pathname === '/all-tuition-teachers-in-kolkata' ? 'bg-primary/10 text-primary font-semibold' : ''}`}
+                  >
                     <Search className="w-4 h-4" />
                     Browse
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/past-papers" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+                  <Link
+                    to="/past-papers"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2 ${location.pathname === '/past-papers' ? 'bg-primary/10 text-primary font-semibold' : ''}`}
+                  >
                     <FileText className="w-4 h-4" />
                     PYQs
                   </Link>

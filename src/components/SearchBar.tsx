@@ -7,9 +7,10 @@ interface SearchBarProps {
   className?: string;
   placeholder?: string;
   sticky?: boolean;
+  showGlow?: boolean;
 }
 
-export function SearchBar({ className = '', placeholder = 'Look for tuition teachers', sticky = false }: SearchBarProps) {
+export function SearchBar({ className = '', placeholder = 'Look for tuition teachers', sticky = false, showGlow = true }: SearchBarProps) {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,27 +54,36 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
   };
 
   return (
-    <form onSubmit={handleSubmit} className={`relative ${className}`}>
-      <Search className={`absolute ${sticky ? 'left-2.5 w-3.5 h-3.5' : 'left-3 sm:left-5 w-4 h-4 sm:w-5 sm:h-5'} top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none transition-colors duration-200`} />
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={placeholder}
-        className={sticky ? "search-input-sticky pl-9 pr-8" : "search-input pl-10 sm:pl-14 pr-10 sm:pr-12 py-3 sm:py-5 text-sm sm:text-base"}
-        autoComplete="off"
-        spellCheck="false"
-      />
-      {query && (
-        <button
-          type="button"
-          onClick={handleClear}
-          className={`absolute ${sticky ? 'right-2.5' : 'right-3 sm:right-4'} top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted active:bg-muted/80 transition-all duration-200`}
-          aria-label="Clear search"
-        >
-          <X className={`${sticky ? 'w-3 h-3' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'} text-muted-foreground hover:text-foreground`} />
-        </button>
+    <div className={`relative ${showGlow && !sticky ? 'search-bar-glow-wrapper' : ''} ${className}`}>
+      {/* Gradient glow behind the search bar (non-sticky only) */}
+      {showGlow && !sticky && (
+        <>
+          <div className="search-bar-glow-blur" aria-hidden="true" />
+          <div className="search-bar-glow-sharp" aria-hidden="true" />
+        </>
       )}
-    </form>
+      <form onSubmit={handleSubmit} className="relative">
+        <Search className={`absolute ${sticky ? 'left-2.5 w-3.5 h-3.5' : 'left-3 sm:left-5 w-4 h-4 sm:w-5 sm:h-5'} top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none transition-colors duration-200 z-[2]`} />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={placeholder}
+          className={sticky ? "search-input-sticky pl-9 pr-8" : "search-input pl-10 sm:pl-14 pr-10 sm:pr-12 py-3 sm:py-5 text-sm sm:text-base"}
+          autoComplete="off"
+          spellCheck="false"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className={`absolute ${sticky ? 'right-2.5' : 'right-3 sm:right-4'} top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted active:bg-muted/80 transition-all duration-200 z-[2]`}
+            aria-label="Clear search"
+          >
+            <X className={`${sticky ? 'w-3 h-3' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'} text-muted-foreground hover:text-foreground`} />
+          </button>
+        )}
+      </form>
+    </div>
   );
 }
