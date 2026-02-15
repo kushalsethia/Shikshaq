@@ -66,8 +66,9 @@ interface FormData {
   qualifications_etc: string;
   years_started_teaching: string;
   featured_subject: string;
-  whatsapp_link: string;
   hero_image_url: string;
+  reference_name: string;
+  reference_number: string;
   mou_consent: boolean;
 }
 
@@ -89,8 +90,9 @@ export default function JoinApply() {
     qualifications_etc: '',
     years_started_teaching: '',
     featured_subject: '',
-    whatsapp_link: '',
     hero_image_url: '',
+    reference_name: '',
+    reference_number: '',
     mou_consent: false,
   });
 
@@ -248,6 +250,12 @@ export default function JoinApply() {
       toast.error('Please enter your phone number');
       return false;
     }
+    // Validate phone number: must be exactly 10 digits
+    const phoneDigits = formData.phone_number.replace(/\D/g, '');
+    if (phoneDigits.length !== 10) {
+      toast.error('Phone number must be exactly 10 digits');
+      return false;
+    }
     if (!formData.sir_maam) {
       toast.error('Please select Sir or Ma\'am');
       return false;
@@ -282,7 +290,7 @@ export default function JoinApply() {
         .insert({
           name: formData.name.trim(),
           email: formData.email.trim().toLowerCase(),
-          phone_number: formData.phone_number.trim(),
+          phone_number: formData.phone_number.replace(/\D/g, ''), // Store only digits (10 digits)
           sir_maam: formData.sir_maam,
           subjects: formData.subjects.trim() || null,
           classes_taught_for_backend: formData.classes_taught_for_backend.trim() || null,
@@ -296,8 +304,9 @@ export default function JoinApply() {
           qualifications_etc: formData.qualifications_etc.trim() || null,
           years_started_teaching: formData.years_started_teaching.trim() || null,
           featured_subject: formData.featured_subject || null,
-          whatsapp_link: formData.whatsapp_link.trim() || null,
           hero_image_url: formData.hero_image_url || null,
+          reference_name: formData.reference_name.trim() || null,
+          reference_number: formData.reference_number.replace(/\D/g, '') || null, // Store only digits
           mou_consent: true,
           mou_consent_timestamp: new Date().toISOString(),
           status: 'pending',
@@ -402,9 +411,16 @@ export default function JoinApply() {
                     id="phone_number"
                     type="tel"
                     value={formData.phone_number}
-                    onChange={(e) => handleInputChange('phone_number', e.target.value)}
+                    onChange={(e) => {
+                      // Only allow digits, limit to 10 digits
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      handleInputChange('phone_number', digits);
+                    }}
+                    placeholder="10 digit number"
+                    maxLength={10}
                     required
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Enter 10 digit phone number (country code +91 will be added automatically)</p>
                 </div>
 
                 {/* Sir/Ma'am */}
@@ -689,14 +705,31 @@ export default function JoinApply() {
                   />
                 </div>
 
-                {/* WhatsApp Link */}
+                {/* Reference Name */}
                 <div>
-                  <Label htmlFor="whatsapp_link">WhatsApp Link</Label>
+                  <Label htmlFor="reference_name">Reference (Student's Name)</Label>
                   <Input
-                    id="whatsapp_link"
-                    value={formData.whatsapp_link}
-                    onChange={(e) => handleInputChange('whatsapp_link', e.target.value)}
-                    placeholder="https://wa.me/..."
+                    id="reference_name"
+                    value={formData.reference_name}
+                    onChange={(e) => handleInputChange('reference_name', e.target.value)}
+                    placeholder="Name of the student who referred you"
+                  />
+                </div>
+
+                {/* Reference Number */}
+                <div>
+                  <Label htmlFor="reference_number">Reference Number (Student's Number)</Label>
+                  <Input
+                    id="reference_number"
+                    type="tel"
+                    value={formData.reference_number}
+                    onChange={(e) => {
+                      // Only allow digits, limit to 10
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      handleInputChange('reference_number', digits);
+                    }}
+                    placeholder="10 digit number"
+                    maxLength={10}
                   />
                 </div>
 
