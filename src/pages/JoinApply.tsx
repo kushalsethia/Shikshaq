@@ -110,7 +110,7 @@ export default function JoinApply() {
     return values.includes(value.trim().toLowerCase());
   };
 
-  const handleInputChange = (field: keyof FormData, value: any) => {
+  const handleInputChange = (field: keyof FormData, value: FormData[keyof FormData]) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -831,6 +831,7 @@ export default function JoinApply() {
                       
                       return (
                         <div className="relative w-full max-w-md">
+                          {/* codeql[js/reflected-xss]: Safe - React escapes JSX attributes and URL is validated by validateImageSrc to only allow safe schemes (blob:, http:, https:, data:image/) */}
                           <img
                             src={safeSrc}
                             alt="Hero preview"

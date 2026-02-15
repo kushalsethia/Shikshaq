@@ -148,6 +148,110 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_applications: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          phone_number: string
+          sir_maam: string
+          subjects: string
+          classes_taught_for_backend: string
+          school_boards_catered: string | null
+          location_v2: string | null
+          students_home_areas: string | null
+          tutors_home_areas: string | null
+          mode_of_teaching: string | null
+          class_size: string | null
+          description: string | null
+          qualifications_etc: string | null
+          years_started_teaching: string | null
+          featured_subject: string | null
+          whatsapp_link: string | null
+          hero_image_url: string | null
+          mou_consent: boolean
+          mou_consent_timestamp: string | null
+          status: string
+          reviewed_by: string | null
+          reviewed_at: string | null
+          rejection_reason: string | null
+          created_at: string
+          updated_at: string
+          reference_name: string | null
+          reference_number: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          email: string
+          phone_number: string
+          sir_maam: string
+          subjects: string
+          classes_taught_for_backend: string
+          school_boards_catered?: string | null
+          location_v2?: string | null
+          students_home_areas?: string | null
+          tutors_home_areas?: string | null
+          mode_of_teaching?: string | null
+          class_size?: string | null
+          description?: string | null
+          qualifications_etc?: string | null
+          years_started_teaching?: string | null
+          featured_subject?: string | null
+          whatsapp_link?: string | null
+          hero_image_url?: string | null
+          mou_consent?: boolean
+          mou_consent_timestamp?: string | null
+          status?: string
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+          reference_name?: string | null
+          reference_number?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          phone_number?: string
+          sir_maam?: string
+          subjects?: string
+          classes_taught_for_backend?: string
+          school_boards_catered?: string | null
+          location_v2?: string | null
+          students_home_areas?: string | null
+          tutors_home_areas?: string | null
+          mode_of_teaching?: string | null
+          class_size?: string | null
+          description?: string | null
+          qualifications_etc?: string | null
+          years_started_teaching?: string | null
+          featured_subject?: string | null
+          whatsapp_link?: string | null
+          hero_image_url?: string | null
+          mou_consent?: boolean
+          mou_consent_timestamp?: string | null
+          status?: string
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+          reference_name?: string | null
+          reference_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_applications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
