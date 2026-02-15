@@ -23,27 +23,68 @@ export function numberToRoman(num: number): string {
 }
 
 /**
- * Convert a comma-separated string of numbers to Roman numerals
- * Example: "1,2,3" -> "I, II, III"
- * @param numbersStr - Comma-separated string of numbers
- * @returns Comma-separated string of Roman numerals
+ * Convert a comma-separated string of numbers to Roman numerals with ranges
+ * Example: "5,6,7" -> "V - VII"
+ * Example: "11,12,UG" -> "XI - XII, UG"
+ * @param numbersStr - Comma-separated string of numbers and other values (like UG)
+ * @returns Formatted string with ranges and Roman numerals
  */
 export function convertClassesToRoman(numbersStr: string | null): string | null {
   if (!numbersStr || numbersStr.trim() === '') {
     return null;
   }
 
-  const numbers = numbersStr
-    .split(',')
-    .map((n) => parseInt(n.trim(), 10))
-    .filter((n) => !isNaN(n) && n >= 1 && n <= 12)
-    .sort((a, b) => a - b); // Sort ascending
+  const parts = numbersStr.split(',').map((n) => n.trim()).filter((n) => n !== '');
+  const numbers: number[] = [];
+  const nonNumbers: string[] = [];
 
-  if (numbers.length === 0) {
-    return null;
+  // Separate numbers and non-numbers (like UG)
+  parts.forEach((part) => {
+    const num = parseInt(part, 10);
+    if (!isNaN(num) && num >= 1 && num <= 12) {
+      numbers.push(num);
+    } else {
+      nonNumbers.push(part);
+    }
+  });
+
+  // Sort numbers
+  numbers.sort((a, b) => a - b);
+
+  const result: string[] = [];
+
+  // Convert consecutive numbers to ranges
+  if (numbers.length > 0) {
+    let rangeStart = numbers[0];
+    let rangeEnd = numbers[0];
+
+    for (let i = 1; i < numbers.length; i++) {
+      if (numbers[i] === rangeEnd + 1) {
+        // Consecutive number, extend range
+        rangeEnd = numbers[i];
+      } else {
+        // Gap found, output current range and start new one
+        if (rangeStart === rangeEnd) {
+          result.push(numberToRoman(rangeStart));
+        } else {
+          result.push(`${numberToRoman(rangeStart)} - ${numberToRoman(rangeEnd)}`);
+        }
+        rangeStart = numbers[i];
+        rangeEnd = numbers[i];
+      }
+    }
+
+    // Output final range
+    if (rangeStart === rangeEnd) {
+      result.push(numberToRoman(rangeStart));
+    } else {
+      result.push(`${numberToRoman(rangeStart)} - ${numberToRoman(rangeEnd)}`);
+    }
   }
 
-  const romanNumerals = numbers.map((num) => numberToRoman(num));
-  return romanNumerals.join(', ');
+  // Add non-numeric values (like UG)
+  result.push(...nonNumbers);
+
+  return result.length > 0 ? result.join(', ') : null;
 }
 

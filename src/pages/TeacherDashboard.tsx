@@ -46,9 +46,9 @@ const LOCATION_V2_OPTIONS = [
   "BOTH OPTIONS LISTED"
 ];
 
-const SCHOOL_BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'];
+const SCHOOL_BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State', 'College'];
 
-const CLASS_NUMBERS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+const CLASS_NUMBERS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
 interface TeacherData {
   "Email ID": string | null;
