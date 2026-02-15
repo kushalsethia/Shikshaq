@@ -927,11 +927,11 @@ export default function TeacherProfile() {
                   </Button>
                 </a>
               ) : (
-                <Button 
-                  className="w-full gap-2 py-6 text-base font-medium bg-[#25D366] hover:bg-[#20BA5A] text-white shadow-md hover:shadow-lg transition-all" 
+                <Button
+                  className="w-full gap-2 py-6 text-base font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all"
                   onClick={() => navigate('/auth')}
                 >
-                  <WhatsAppIcon className="w-5 h-5" />
+                  <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
                   Sign in to contact
                 </Button>
               )}

@@ -552,10 +552,10 @@ export default function Index() {
               <p className="text-lg sm:text-xl text-foreground font-medium mb-3">
                 {user ? `Welcome${userFirstName ? `, ${userFirstName}` : ''}! 👋` : 'Welcome to Shikshaq! 👋'}
               </p>
-              <h1 className="text-[9.5vw] sm:text-4xl md:text-5xl font-serif text-foreground leading-none tracking-tighter">
-              Your ideal teacher,
+              <h1 className="text-[9.5vw] sm:text-4xl md:text-[3.6rem] font-serif text-foreground leading-none tracking-tighter">
+              Your ideal <span style={{ color: '#FF8B16' }}>teacher</span>,
               <br />
-              one search away.
+              one <span style={{ color: '#5864FF' }}>search</span> away.
             </h1>
             </div>
             <div ref={searchBarElementRef} className="w-full max-w-3xl">

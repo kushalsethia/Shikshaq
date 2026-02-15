@@ -38,7 +38,7 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <section id="faq" className="py-16 bg-card scroll-mt-20">
+    <section id="faq" className="py-16 scroll-mt-20">
       <div className="container max-w-3xl">
         <h2 className="text-2xl md:text-3xl font-serif text-foreground text-center mb-8">
           Common Queries Answered
@@ -49,7 +49,8 @@ export function FAQ() {
             <AccordionItem
               key={index}
               value={`item-${index}`}
-              className="bg-background rounded-xl px-6 border-none"
+              className="rounded-xl px-6 border-none"
+              style={{ backgroundColor: '#fcfbf8' }}
             >
               <AccordionTrigger className="faq-trigger hover:no-underline">
                 {faq.question}

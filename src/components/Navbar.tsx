@@ -150,10 +150,13 @@ export function Navbar() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`nav-link ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
+                className={`nav-link relative ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
               >
                 <item.icon className="w-4 h-4" />
                 {item.label}
+                {isActive(item.path) && (
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-1 rounded-full" style={{ backgroundColor: '#FF8B16' }} />
+                )}
               </Link>
             ))}
           </div>
@@ -402,7 +405,7 @@ export function Navbar() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+                className={`relative flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
                   isActive(item.path)
                     ? 'text-primary'
                     : 'text-muted-foreground hover:text-foreground'
@@ -410,6 +413,9 @@ export function Navbar() {
               >
                 <item.icon className="w-5 h-5" />
                 <span className="text-xs font-medium">{item.label}</span>
+                {isActive(item.path) && (
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-1 rounded-full" style={{ backgroundColor: '#FF8B16' }} />
+                )}
               </Link>
             ))}
           </nav>
@@ -425,7 +431,7 @@ export function Navbar() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
+                className={`relative flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
                   isActive(item.path)
                     ? 'text-primary'
                     : 'text-muted-foreground hover:text-foreground'
@@ -433,6 +439,9 @@ export function Navbar() {
               >
                 <item.icon className="w-5 h-5" />
                 <span className="text-xs font-medium">{item.label}</span>
+                {isActive(item.path) && (
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-1 rounded-full" style={{ backgroundColor: '#FF8B16' }} />
+                )}
               </Link>
             ))}
           </nav>
