@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
 import { sanitizeImageUrl } from '@/utils/imageSanitizer';
 import { invalidateTeacherCache, getShikshaqmineBySlugCacheKey, removeCache } from '@/utils/cache';
+import imageCompression from 'browser-image-compression';
 
 const AREAS = [
   // Group 1
@@ -249,16 +250,41 @@ export default function TeacherDashboard() {
       // Get old image URL before uploading new one
       const oldImageUrl = teacherData["Hero Image"];
 
-      // Create a unique filename
-      const fileExt = file.name.split('.').pop();
+      // Compress image before upload
+      const options = {
+        maxSizeMB: 1, // Maximum size in MB (1MB)
+        maxWidthOrHeight: 1920, // Maximum width or height
+        useWebWorker: true, // Use web worker for better performance
+        fileType: file.type, // Preserve original file type
+      };
+
+      let compressedFile: File;
+      try {
+        compressedFile = await imageCompression(file, options);
+        if (import.meta.env.DEV) {
+          const originalSize = (file.size / 1024 / 1024).toFixed(2);
+          const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
+          console.log(`Image compressed: ${originalSize}MB → ${compressedSize}MB`);
+        }
+      } catch (compressionError) {
+        if (import.meta.env.DEV) {
+          console.warn('Image compression failed, using original file:', compressionError);
+        }
+        // If compression fails, use original file
+        compressedFile = file;
+      }
+
+      // Create a unique filename (use .jpg for compressed images to ensure compatibility)
+      const fileExt = 'jpg'; // Use jpg for better compression
       const fileName = `hero-images/${user.id}-${Date.now()}.${fileExt}`;
 
-      // Upload to Supabase Storage
+      // Upload compressed image to Supabase Storage
       const { data, error } = await supabase.storage
         .from('hero-images')
-        .upload(fileName, file, {
+        .upload(fileName, compressedFile, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: 'image/jpeg' // Set content type for compressed images
         });
 
       if (error) {
@@ -362,9 +388,9 @@ export default function TeacherDashboard() {
         toast.error('Please select an image file');
         return;
       }
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size must be less than 5MB');
+      // Validate file size (10MB limit - will be compressed to ~1MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Image size must be less than 10MB');
         return;
       }
       handleImageUpload(file);
@@ -620,7 +646,7 @@ export default function TeacherDashboard() {
                   />
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  Upload an image file (max 5MB). Supported formats: JPG, PNG, GIF, WebP
+                  Upload an image file (max 10MB, will be compressed automatically). Supported formats: JPG, PNG, GIF, WebP
                 </p>
               </div>
 
