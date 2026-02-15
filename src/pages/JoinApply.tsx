@@ -157,6 +157,33 @@ export default function JoinApply() {
     return null;
   };
 
+  // Validate image URL for safe use in img src attribute
+  const validateImageSrc = (url: string | null): string => {
+    if (!url || typeof url !== 'string') return '';
+    
+    // Allow blob URLs (created from File objects)
+    if (url.startsWith('blob:')) {
+      return url;
+    }
+    
+    // Allow http/https URLs (sanitized)
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const sanitized = sanitizeImageUrl(url);
+      return sanitized || '';
+    }
+    
+    // Allow data URIs for images (with strict validation)
+    if (url.startsWith('data:image/')) {
+      const dataUriPattern = new RegExp('^data:image/(jpeg|jpg|png|gif|webp);base64,[A-Za-z0-9+/=]+$', 'i');
+      if (dataUriPattern.test(url)) {
+        return url;
+      }
+    }
+    
+    // Reject all other URLs (including javascript:, etc.)
+    return '';
+  };
+
   // Clean up object URL when component unmounts or file changes
   useEffect(() => {
     return () => {
@@ -188,8 +215,14 @@ export default function JoinApply() {
     // Store the file for later upload
     setSelectedImageFile(file);
 
-    // Create preview using object URL
+    // Create preview using object URL (blob URLs are safe for image src)
     const previewUrl = URL.createObjectURL(file);
+    
+    // Validate that the blob URL is properly formed
+    if (!previewUrl.startsWith('blob:')) {
+      toast.error('Failed to create image preview');
+      return;
+    }
     
     // Clean up previous preview URL if it exists
     if (imagePreview && imagePreview.startsWith('blob:')) {
@@ -836,7 +869,7 @@ export default function JoinApply() {
                     {imagePreview && (
                       <div className="relative w-full max-w-md">
                         <img
-                          src={imagePreview}
+                          src={validateImageSrc(imagePreview)}
                           alt="Hero preview"
                           className="w-full h-48 object-cover rounded-lg border"
                           onError={() => setImagePreview(null)}
