@@ -95,7 +95,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
 
   return (
     <Link to={`/tuition-teachers/${slug}`} className="teacher-card group">
-      <div className="rounded-2xl border-4 border-white overflow-hidden bg-white">
+      <div className="rounded-2xl border-4 overflow-hidden" style={{ backgroundColor: '#fcfbf8', borderColor: '#fcfbf8' }}>
         <div className="relative aspect-[4/5] overflow-hidden rounded-b-2xl">
         {imageUrl ? (
           <img
@@ -209,7 +209,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         </div>
         
         {/* Teacher Name - Inside the bordered card */}
-        <div className="py-2.5 bg-white rounded-b-2xl">
+        <div className="py-2.5 rounded-b-2xl">
           <h3 className="font-semibold text-foreground text-sm group-hover:text-foreground/80 transition-colors pl-0.5 pr-3">
             {displayName}
           </h3>

@@ -13,7 +13,7 @@ export function SubjectCard({ name, slug, icon }: SubjectCardProps) {
       to={`/all-tuition-teachers-in-kolkata?subject=${slug}`}
       className="group"
     >
-      <div className="rounded-2xl border-2 border-border bg-card py-4 px-2 flex flex-col items-center justify-center text-center gap-2 hover:bg-muted/30 transition-colors">
+      <div className="rounded-2xl border-2 border-transparent hover:border-border py-4 px-2 flex flex-col items-center justify-center text-center gap-2 transition-colors" style={{ backgroundColor: '#fcfbf8' }}>
         {icon && (
           <img src={icon} alt={name} className="w-10 h-10 object-contain" />
         )}
