@@ -182,6 +182,10 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       setSubmitting(true);
       setError(null);
 
+      // Only require approval for anonymous comments
+      // Non-anonymous comments are approved immediately
+      const approved = !isAnonymous;
+
       const { error } = await supabase
         .from('teacher_comments')
         .insert({
@@ -189,14 +193,20 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
           user_id: user.id,
           comment: newComment.trim(),
           is_anonymous: isAnonymous,
-          approved: false, // New comments are always pending approval
+          approved: approved, // Anonymous comments need approval, others are approved immediately
         });
 
       if (error) throw error;
 
       setNewComment('');
       setIsAnonymous(false);
-      toast.success('Your comment has been submitted and is pending approval');
+      
+      // Show different success messages based on approval status
+      if (approved) {
+        toast.success('Your comment has been posted successfully!');
+      } else {
+        toast.success('Your comment has been submitted and is pending approval');
+      }
       await fetchComments(); // Refresh comments
       setVisibleCommentsCount(5); // Reset to show first 5 comments
     } catch (err: any) {
@@ -372,7 +382,16 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
               <Checkbox
                 id="anonymous"
                 checked={isAnonymous}
-                onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+                onCheckedChange={(checked) => {
+                  const newValue = checked === true;
+                  setIsAnonymous(newValue);
+                  // Show popup when anonymous is checked
+                  if (newValue) {
+                    toast.info('Your comment will only be posted after a review from our admins. Thanks!', {
+                      duration: 5000,
+                    });
+                  }
+                }}
                 disabled={submitting}
               />
               <label
