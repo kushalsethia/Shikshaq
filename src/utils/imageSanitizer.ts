@@ -84,6 +84,23 @@ export function validateImageSrc(url: string | null | undefined): string {
     }
   }
   
+  // Allow relative/absolute paths - these are safe same-origin static assets
+  // Vite imports return paths like /src/assets/image.png, /assets/image.png, ./assets/image.png, or assets/image.png
+  // These are safe because they're from the same origin and bundled with the app
+  // First check: must not contain a colon (which would indicate a protocol like http:, javascript:, etc.)
+  // Second check: must not start with // (protocol-relative URL)
+  // Third check: must have a valid image file extension
+  if (!url.includes(':') && !url.startsWith('//')) {
+    const pathWithoutQuery = url.split('?')[0];
+    // Validate it's a simple path with image extension
+    // Allow paths starting with /, ./, or just a filename/path
+    // Pattern: optional ./ or /, then alphanumeric/slashes/dots/hyphens/underscores, then image extension
+    const pathPattern = /^(\.?\/)?[a-zA-Z0-9\/._-]+\.(png|jpg|jpeg|gif|webp|svg|ico)$/i;
+    if (pathPattern.test(pathWithoutQuery)) {
+      return String(url);
+    }
+  }
+  
   // Reject all other URLs (including javascript:, etc.)
   return '';
 }
