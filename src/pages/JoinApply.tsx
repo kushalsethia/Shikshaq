@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -96,8 +96,9 @@ export default function JoinApply() {
     mou_consent: false,
   });
 
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -156,7 +157,50 @@ export default function JoinApply() {
     return null;
   };
 
-  const handleImageUpload = async (file: File) => {
+  // Clean up object URL when component unmounts or file changes
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setSelectedImageFile(null);
+      setImagePreview(null);
+      handleInputChange('hero_image_url', '');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    // Store the file for later upload
+    setSelectedImageFile(file);
+
+    // Create preview using object URL
+    const previewUrl = URL.createObjectURL(file);
+    
+    // Clean up previous preview URL if it exists
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    
+    setImagePreview(previewUrl);
+    // Don't set hero_image_url yet - will be set after upload on submit
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
     try {
       setUploadingImage(true);
 
@@ -186,11 +230,10 @@ export default function JoinApply() {
         });
 
       if (error) {
-        toast.error('Image upload failed. Please try again.');
         if (import.meta.env.DEV) {
           console.error('Upload error:', error);
         }
-        return;
+        throw new Error('Image upload failed');
       }
 
       // Get public URL
@@ -199,38 +242,19 @@ export default function JoinApply() {
         .getPublicUrl(data.path);
 
       const sanitizedUrl = sanitizeImageUrl(publicUrl);
-      if (sanitizedUrl) {
-        handleInputChange('hero_image_url', sanitizedUrl);
-        setImagePreview(sanitizedUrl);
-        toast.success('Image uploaded successfully');
-      } else {
-        toast.error('Failed to generate valid image URL');
+      if (!sanitizedUrl) {
+        throw new Error('Failed to generate valid image URL');
       }
+
+      return sanitizedUrl;
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error uploading image:', error);
       }
-      toast.error('Failed to upload image. Please try again.');
+      throw error;
     } finally {
       setUploadingImage(false);
     }
-  };
-
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size must be less than 5MB');
-      return;
-    }
-
-    handleImageUpload(file);
   };
 
   const validateForm = (): boolean => {
@@ -336,6 +360,21 @@ export default function JoinApply() {
     try {
       setSubmitting(true);
 
+      // Upload image if one was selected
+      let heroImageUrl = formData.hero_image_url;
+      if (selectedImageFile) {
+        try {
+          heroImageUrl = await uploadImage(selectedImageFile);
+          if (!heroImageUrl) {
+            toast.error('Failed to upload image. Please try again.');
+            return;
+          }
+        } catch (error) {
+          toast.error('Failed to upload image. Please try again.');
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('teacher_applications')
         .insert({
@@ -355,7 +394,7 @@ export default function JoinApply() {
           qualifications_etc: formData.qualifications_etc.trim() || null,
           years_started_teaching: formData.years_started_teaching.trim() || null,
           featured_subject: formData.featured_subject || null,
-          hero_image_url: formData.hero_image_url || null,
+          hero_image_url: heroImageUrl || null,
           reference_name: formData.reference_name.trim() || null,
           reference_number: formData.reference_number.replace(/\D/g, '') || null, // Store only digits
           mou_consent: true,
@@ -808,8 +847,13 @@ export default function JoinApply() {
                           size="sm"
                           className="absolute top-2 right-2"
                           onClick={() => {
-                            handleInputChange('hero_image_url', '');
+                            // Clean up object URL if it's a blob URL
+                            if (imagePreview && imagePreview.startsWith('blob:')) {
+                              URL.revokeObjectURL(imagePreview);
+                            }
+                            setSelectedImageFile(null);
                             setImagePreview(null);
+                            handleInputChange('hero_image_url', '');
                           }}
                         >
                           <X className="w-4 h-4" />
@@ -821,18 +865,20 @@ export default function JoinApply() {
                       className="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors w-fit"
                     >
                       <Upload className="w-4 h-4" />
-                      {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                      {selectedImageFile ? 'Change Image' : 'Select Image'}
                       <input
                         id="heroImageUpload"
                         type="file"
                         accept="image/*"
                         className="hidden"
                         onChange={handleImageFileChange}
-                        disabled={uploadingImage}
+                        disabled={submitting}
                       />
                     </label>
                     <p className="text-xs text-muted-foreground">
-                      Upload a professional photo. Max file size: 5MB
+                      {selectedImageFile 
+                        ? 'Image will be uploaded when you submit the form. Max file size: 5MB'
+                        : 'Select a professional photo. Image will be uploaded on form submission. Max file size: 5MB'}
                     </p>
                   </div>
                 </div>
