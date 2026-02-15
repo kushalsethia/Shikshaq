@@ -287,28 +287,56 @@ export default function TeacherDashboard() {
           // Or: https://[project].supabase.co/storage/v1/object/sign/hero-images/[path]
           let oldFilePath: string | null = null;
           
-          // Try to extract path from public URL
-          const publicUrlMatch = oldImageUrl.match(/\/hero-images\/(.+?)(\?|$)/);
-          if (publicUrlMatch && publicUrlMatch[1]) {
-            oldFilePath = `hero-images/${publicUrlMatch[1]}`;
+          // Try multiple URL patterns
+          // Pattern 1: /hero-images/[filename]
+          const urlMatch1 = oldImageUrl.match(/\/hero-images\/([^?#]+)/);
+          if (urlMatch1 && urlMatch1[1]) {
+            oldFilePath = `hero-images/${urlMatch1[1]}`;
+          }
+          
+          // Pattern 2: If URL contains the full path already
+          if (!oldFilePath && oldImageUrl.includes('/storage/v1/object/public/hero-images/')) {
+            const parts = oldImageUrl.split('/hero-images/');
+            if (parts.length > 1) {
+              const filename = parts[1].split('?')[0].split('#')[0]; // Remove query params and hash
+              oldFilePath = `hero-images/${filename}`;
+            }
           }
           
           // Only delete if it's the teacher's own file (contains their user ID)
           if (oldFilePath && oldFilePath.includes(user.id)) {
             try {
+              // The remove function expects paths relative to the bucket root
+              // If oldFilePath is "hero-images/user-id-123.jpg", we need just "user-id-123.jpg"
+              // But if it's already just "user-id-123.jpg", use it as is
+              let pathToDelete = oldFilePath;
+              if (oldFilePath.startsWith('hero-images/')) {
+                pathToDelete = oldFilePath.replace('hero-images/', '');
+              }
+              
               const { error: deleteError } = await supabase.storage
                 .from('hero-images')
-                .remove([oldFilePath]);
+                .remove([pathToDelete]);
               
-              if (deleteError && import.meta.env.DEV) {
-                console.warn('Error deleting old image:', deleteError);
+              if (deleteError) {
+                if (import.meta.env.DEV) {
+                  console.warn('Error deleting old image:', deleteError);
+                  console.warn('Attempted to delete path:', pathToDelete);
+                  console.warn('Original URL:', oldImageUrl);
+                }
                 // Don't show error to user - old image deletion is not critical
+              } else if (import.meta.env.DEV) {
+                console.log('Successfully deleted old image:', pathToDelete);
               }
             } catch (deleteErr) {
               if (import.meta.env.DEV) {
                 console.warn('Error deleting old image:', deleteErr);
               }
             }
+          } else if (import.meta.env.DEV && oldImageUrl.includes('hero-images')) {
+            console.warn('Could not extract file path from URL or file does not belong to user:', oldImageUrl);
+            console.warn('Extracted path:', oldFilePath);
+            console.warn('User ID:', user.id);
           }
         }
         
