@@ -574,7 +574,7 @@ export default function TeacherProfile() {
                 )}
               </div>
               {/* Combined Heart and Share Buttons - Bottom Right of Image */}
-              <div className="absolute bottom-4 right-4">
+              <div className="absolute bottom-4 right-4 md:top-4 md:left-4 md:bottom-auto md:right-auto">
                 <div className="inline-flex items-center rounded-full border-2 border-border bg-card/90 backdrop-blur-sm overflow-hidden">
                   <div className="p-2 hover:bg-muted/80 transition-colors flex items-center">
                     <ShareButton

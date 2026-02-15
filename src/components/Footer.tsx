@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import { FeedbackModal } from '@/components/FeedbackModal';
 import DOMPurify from 'dompurify';
+import aquaterraLogo from '@/assets/Frame 48095868.png';
 
 interface PageContent {
   id: string;
@@ -418,7 +419,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             <p className="mt-4 text-xs">brought to you by</p>
             <div className="mt-2 flex justify-center">
               <img
-                src="/aquaterra-logo.svg"
+                src={aquaterraLogo}
                 alt="AquaTerra"
                 className="h-8 w-auto object-contain"
               />

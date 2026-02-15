@@ -1069,12 +1069,12 @@ export default function Browse() {
       <main className="container pt-6 sm:pt-[120px] pb-8 md:pt-8">
         {/* Search and Filters */}
         <div ref={searchBarRef} className="mb-3 sm:mb-4">
-          {/* Search Bar and Filter Button - Same Row on Mobile */}
-          <div className="flex items-center gap-2 mb-3 sm:mb-4 sm:flex-col">
-            <div ref={searchBarElementRef} className="flex-1 sm:w-full">
+          {/* Search Bar and Filter Button - Same Row on Mobile, Search + Advanced Filters on Desktop */}
+          <div className="flex items-center sm:items-stretch gap-2 mb-3 sm:mb-4">
+            <div ref={searchBarElementRef} className="flex-1">
               <SearchBar showGlow={false} />
             </div>
-            
+
             {/* Small Filter Button - Mobile */}
             <Button
               variant="outline"
@@ -1087,6 +1087,24 @@ export default function Browse() {
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
                 filters.areas.length > 0 || filters.modeOfTeaching.length > 0) && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px]">
+                  {filters.subjects.length + filters.classes.length + filters.boards.length +
+                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length}
+                </span>
+              )}
+            </Button>
+
+            {/* Advanced Filters Button - Desktop, beside search bar */}
+            <Button
+              variant="outline"
+              onClick={() => setFilterPanelOpen(true)}
+              className="hidden sm:flex gap-2 h-auto flex-shrink-0"
+            >
+              <Filter className="w-4 h-4" />
+              Advanced Filters
+              {(filters.subjects.length > 0 || filters.classes.length > 0 ||
+                filters.boards.length > 0 || filters.classSize.length > 0 ||
+                filters.areas.length > 0 || filters.modeOfTeaching.length > 0) && (
+                <span className="ml-1 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
                    filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length}
                 </span>
@@ -1124,66 +1142,6 @@ export default function Browse() {
               </SelectContent>
             </Select>
           </div>
-
-          {/* Desktop Filters */}
-          <div className="hidden sm:flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Filter by:</span>
-            </div>
-
-            <Button
-              variant="outline"
-              onClick={() => setFilterPanelOpen(true)}
-              className="gap-2 h-14"
-            >
-              <Filter className="w-4 h-4" />
-              Advanced Filters
-              {(filters.subjects.length > 0 || filters.classes.length > 0 ||
-                filters.boards.length > 0 || filters.classSize.length > 0 ||
-                filters.areas.length > 0 || filters.modeOfTeaching.length > 0) && (
-                <span className="ml-1 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
-                  {filters.subjects.length + filters.classes.length + filters.boards.length +
-                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length}
-                </span>
-              )}
-            </Button>
-
-            <Select value={selectedSubject} onValueChange={handleSubjectChange}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Subject" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Subjects</SelectItem>
-                {subjects.map((subject) => (
-                  <SelectItem key={subject.id} value={subject.slug}>
-                    {subject.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={selectedClass} onValueChange={handleClassChange}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                {CLASSES.map((cls) => (
-                  <SelectItem key={cls} value={cls}>
-                    {cls === 'UG' ? 'UG' : `Class ${cls}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
-                <X className="w-4 h-4" />
-                Clear filters
-              </Button>
-            )}
-          </div>
         </div>
 
         {/* Sticky Search Bar - Only visible when scrolled past original */}
@@ -1197,14 +1155,56 @@ export default function Browse() {
           </div>
         )}
 
-        {/* Results Header */}
+        {/* Results Header with Desktop Subject/Class dropdowns inline */}
         <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl font-serif text-foreground">
-            {getHeading()}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {loading ? 'Loading...' : `${teachers.length} teachers found`}
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div>
+              <h1 className="text-2xl font-serif text-foreground tracking-tight">
+                {getHeading()}
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {loading ? 'Loading...' : `${teachers.length} teachers found`}
+              </p>
+            </div>
+
+            {/* Desktop Subject/Class dropdowns - inline with heading */}
+            <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
+              <Select value={selectedSubject} onValueChange={handleSubjectChange}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subjects</SelectItem>
+                  {subjects.map((subject) => (
+                    <SelectItem key={subject.id} value={subject.slug}>
+                      {subject.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedClass} onValueChange={handleClassChange}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Class" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {CLASSES.map((cls) => (
+                    <SelectItem key={cls} value={cls}>
+                      {cls === 'UG' ? 'UG' : `Class ${cls}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {hasFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+                  <X className="w-4 h-4" />
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Teachers List */}
