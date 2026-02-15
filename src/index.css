@@ -263,7 +263,8 @@
   }
   
   .search-input::placeholder {
-    color: hsl(var(--muted-foreground));
+    color: hsl(var(--foreground) / 0.5);
+    font-weight: 600;
   }
   
   .search-input:hover:not(:focus) {
@@ -311,7 +312,7 @@
   }
 
   .step-number {
-    @apply text-7xl font-serif text-primary/10 leading-none;
+    @apply font-serif font-normal leading-none;
   }
 
   .faq-trigger {

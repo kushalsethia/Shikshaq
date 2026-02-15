@@ -63,7 +63,7 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
         </>
       )}
       <form onSubmit={handleSubmit} className="relative">
-        <Search className={`absolute ${sticky ? 'left-2.5 w-3.5 h-3.5' : 'left-3 sm:left-5 w-4 h-4 sm:w-5 sm:h-5'} top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none transition-colors duration-200 z-[2]`} />
+        <Search className={`absolute ${sticky ? 'left-2.5 w-3.5 h-3.5' : 'left-3 sm:left-5 w-4 h-4 sm:w-5 sm:h-5'} top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none transition-colors duration-200 z-[2]`} strokeWidth={sticky ? 2 : 2.5} />
         <input
           type="text"
           value={query}

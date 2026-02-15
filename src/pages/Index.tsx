@@ -18,6 +18,30 @@ import {
 } from '@/components/ui/carousel';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache, getUserProfileCacheKey } from '@/utils/cache';
 
+// Subject icon imports
+import iconPsychology from '@/assets/PSYCHOLOGY.png';
+import iconEconomics from '@/assets/ECONOMICS.png';
+import iconEnglish from '@/assets/ENGLISH.png';
+import iconBiology from '@/assets/BIOLOGY.png';
+import iconComputers from '@/assets/COMPUTERS.png';
+import iconDrawing from '@/assets/DRAWING.png';
+import iconAccounts from '@/assets/ACCOUNTS.png';
+import iconBengali from '@/assets/BENGALI.png';
+import iconMaths from '@/assets/MATHS.png';
+
+const subjectIconMap: Record<string, string> = {
+  'Psychology': iconPsychology,
+  'Economics': iconEconomics,
+  'English': iconEnglish,
+  'Biology': iconBiology,
+  'Computers': iconComputers,
+  'Drawing': iconDrawing,
+  'Accounts': iconAccounts,
+  'Bengali': iconBengali,
+  'Maths': iconMaths,
+  'Mathematics': iconMaths,
+};
+
 
 interface Teacher {
   id: string;
@@ -526,7 +550,7 @@ export default function Index() {
           <div className="flex flex-col items-center px-4 sm:px-0">
             <div className="text-center w-full max-w-3xl mb-[35px] sm:mb-[44px]">
               <p className="text-lg sm:text-xl text-foreground font-medium mb-3">
-                {user ? `Welcome back${userFirstName ? `, ${userFirstName}` : ''}! 👋` : 'Welcome to Shikshaq! 👋'}
+                {user ? `Welcome${userFirstName ? `, ${userFirstName}` : ''}! 👋` : 'Welcome to Shikshaq! 👋'}
               </p>
               <h1 className="text-[9.5vw] sm:text-4xl md:text-5xl font-serif text-foreground leading-none tracking-tighter">
               Your ideal teacher,
@@ -630,7 +654,7 @@ export default function Index() {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-3 md:grid-cols-9 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {[...Array(9)].map((_, i) => (
                 <div key={i} className="animate-pulse">
                   <div className="aspect-square bg-muted rounded-2xl" />
@@ -639,13 +663,13 @@ export default function Index() {
             </div>
           ) : subjects.length > 0 ? (
             <>
-            <div className="grid grid-cols-3 md:grid-cols-9 gap-2">
+            <div className="grid grid-cols-3 md:grid-cols-9 gap-3">
               {subjects.map((subject) => (
                 <SubjectCard
                   key={subject.id}
                   name={subject.name}
                   slug={subject.slug}
-                  imageUrl={subject.image_url}
+                  icon={subjectIconMap[subject.name]}
                 />
               ))}
             </div>

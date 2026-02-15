@@ -111,7 +111,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md rounded-2xl p-3 sm:p-6 max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md rounded-2xl p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-left text-lg sm:text-xl font-bold text-foreground">
             Feedback
