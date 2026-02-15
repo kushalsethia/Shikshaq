@@ -511,38 +511,24 @@ export default function TeacherDashboard() {
                   </div>
                 )}
                 
-                <div className="flex gap-2 items-center">
-                  <label
-                    htmlFor="heroImageUpload"
-                    className="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors"
-                  >
-                    <Upload className="w-4 h-4" />
-                    {uploadingImage ? 'Uploading...' : 'Upload Image'}
-                    <input
-                      id="heroImageUpload"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImageFileChange}
-                      disabled={uploadingImage}
-                    />
-                  </label>
-                  <span className="text-sm text-muted-foreground">or</span>
-                </div>
-                
-                <Input
-                  id="heroImage"
-                  placeholder="Or enter image URL"
-                  value={teacherData["Hero Image"] || ''}
-                  onChange={(e) => {
-                    const inputValue = e.target.value;
-                    const sanitizedUrl = sanitizeImageUrl(inputValue);
-                    if (sanitizedUrl || inputValue === '') {
-                      handleInputChange("Hero Image", sanitizedUrl || null);
-                      setImagePreview(sanitizedUrl);
-                    }
-                  }}
-                />
+                <label
+                  htmlFor="heroImageUpload"
+                  className="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors w-fit"
+                >
+                  <Upload className="w-4 h-4" />
+                  {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                  <input
+                    id="heroImageUpload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageFileChange}
+                    disabled={uploadingImage}
+                  />
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Upload an image file (max 5MB). Supported formats: JPG, PNG, GIF, WebP
+                </p>
               </div>
 
               {/* Description */}
