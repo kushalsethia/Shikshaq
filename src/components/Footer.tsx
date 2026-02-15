@@ -237,15 +237,13 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 Are you a tuition teacher? List yourself for free and connect with students across Kolkata. No fees, no commissions!
               </p>
               <div>
-                <a
-                  href="https://forms.gle/6ks9bpsz2EojgfrQA"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  to="/join"
                   className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-md"
                 >
                   <UserPlus className="w-5 h-5 text-black" />
                   Register Now
-                </a>
+                </Link>
               </div>
             </div>
           </div>
