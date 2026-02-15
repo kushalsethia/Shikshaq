@@ -22,6 +22,7 @@ import { ShareButton } from '@/components/ShareButton';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey } from '@/utils/cache';
 import DOMPurify from 'dompurify';
+import { toast } from 'sonner';
 
 
 interface Teacher {
@@ -750,53 +751,55 @@ export default function TeacherProfile() {
               </button>
             </div>
 
-            {/* Studies With Button - Show for all users */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={async (e) => {
-                  e.preventDefault();
-                  // If user is not authenticated, redirect to auth
-                  if (!user) {
-                    navigate('/auth');
-                    return;
-                  }
-                  // If user is authenticated but not a student, redirect to auth
-                  if (userRole !== 'student') {
-                    navigate('/auth');
-                    return;
-                  }
-                  // If user is authenticated student, toggle studies with
-                  await toggleStudiesWith(teacher.id);
-                }}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
-                  user && userRole === 'student' && isStudyingWith(teacher.id)
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-muted text-foreground hover:bg-muted/80'
-                }`}
-                aria-label={user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Remove from my teachers' : "I've studied with this teacher"}
-              >
-                <GraduationCap className={`w-4 h-4 ${user && userRole === 'student' && isStudyingWith(teacher.id) ? 'fill-current' : ''}`} />
-                <span>{user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Studying here ✓' : "I've studied here"}</span>
-              </button>
-              
-              {/* View Students Button - Compact badge style */}
-              <button
-                onClick={async (e) => {
-                  e.preventDefault();
-                  setStudentsDialogOpen(true);
-                  // Fetch students list when dialog opens
-                  if (studentsList.length === 0 && !loadingStudents) {
-                    await fetchStudentsList();
-                  }
-                }}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-background text-muted-foreground hover:text-foreground hover:bg-accent border border-border shadow-sm hover:shadow"
-                aria-label="View students who have studied here"
-                title="View students who have studied here"
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">View</span>
-              </button>
-            </div>
+            {/* Studies With Button - Show for students, guardians, and guests (hide for teachers) */}
+            {userRole !== 'teacher' && (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    // If user is not authenticated, redirect to auth
+                    if (!user) {
+                      navigate('/auth');
+                      return;
+                    }
+                    // If user is authenticated but not a student (e.g., guardian), show message
+                    if (userRole !== 'student') {
+                      toast.error('You need to be a student to use this feature. Please sign in with a student account.');
+                      return;
+                    }
+                    // If user is authenticated student, toggle studies with
+                    await toggleStudiesWith(teacher.id);
+                  }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
+                    user && userRole === 'student' && isStudyingWith(teacher.id)
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'bg-muted text-foreground hover:bg-muted/80'
+                  }`}
+                  aria-label={user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Remove from my teachers' : "I've studied with this teacher"}
+                >
+                  <GraduationCap className={`w-4 h-4 ${user && userRole === 'student' && isStudyingWith(teacher.id) ? 'fill-current' : ''}`} />
+                  <span>{user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Studying here ✓' : "I've studied here"}</span>
+                </button>
+                
+                {/* View Students Button - Compact badge style (hide for teachers) */}
+                <button
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    setStudentsDialogOpen(true);
+                    // Fetch students list when dialog opens
+                    if (studentsList.length === 0 && !loadingStudents) {
+                      await fetchStudentsList();
+                    }
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-background text-muted-foreground hover:text-foreground hover:bg-accent border border-border shadow-sm hover:shadow"
+                  aria-label="View students who have studied here"
+                  title="View students who have studied here"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">View</span>
+                </button>
+              </div>
+            )}
 
             {/* Quick Info */}
             <div className="flex flex-wrap items-center gap-4 md:gap-6">
