@@ -20,6 +20,7 @@ import { Save, Lock, GraduationCap, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
 import { sanitizeImageUrl } from '@/utils/imageSanitizer';
+import { invalidateTeacherCache, getShikshaqmineBySlugCacheKey, removeCache } from '@/utils/cache';
 
 const AREAS = [
   // Group 1
@@ -245,6 +246,9 @@ export default function TeacherDashboard() {
     try {
       setUploadingImage(true);
 
+      // Get old image URL before uploading new one
+      const oldImageUrl = teacherData["Hero Image"];
+
       // Create a unique filename
       const fileExt = file.name.split('.').pop();
       const fileName = `hero-images/${user.id}-${Date.now()}.${fileExt}`;
@@ -258,7 +262,7 @@ export default function TeacherDashboard() {
         });
 
       if (error) {
-        toast.error('Image upload failed. Please use a URL instead or check storage setup.');
+        toast.error('Image upload failed. Please check storage setup.');
         if (import.meta.env.DEV) {
           console.error('Upload error:', error);
         }
@@ -275,15 +279,48 @@ export default function TeacherDashboard() {
       if (sanitizedUrl) {
         handleInputChange("Hero Image", sanitizedUrl);
         setImagePreview(sanitizedUrl);
+        
+        // Delete old image from storage if it exists in the bucket
+        if (oldImageUrl && oldImageUrl.includes('hero-images')) {
+          // Extract the file path from the URL
+          // URL format: https://[project].supabase.co/storage/v1/object/public/hero-images/[path]
+          // Or: https://[project].supabase.co/storage/v1/object/sign/hero-images/[path]
+          let oldFilePath: string | null = null;
+          
+          // Try to extract path from public URL
+          const publicUrlMatch = oldImageUrl.match(/\/hero-images\/(.+?)(\?|$)/);
+          if (publicUrlMatch && publicUrlMatch[1]) {
+            oldFilePath = `hero-images/${publicUrlMatch[1]}`;
+          }
+          
+          // Only delete if it's the teacher's own file (contains their user ID)
+          if (oldFilePath && oldFilePath.includes(user.id)) {
+            try {
+              const { error: deleteError } = await supabase.storage
+                .from('hero-images')
+                .remove([oldFilePath]);
+              
+              if (deleteError && import.meta.env.DEV) {
+                console.warn('Error deleting old image:', deleteError);
+                // Don't show error to user - old image deletion is not critical
+              }
+            } catch (deleteErr) {
+              if (import.meta.env.DEV) {
+                console.warn('Error deleting old image:', deleteErr);
+              }
+            }
+          }
+        }
+        
+        toast.success('Image uploaded successfully');
       } else {
         toast.error('Failed to generate valid image URL');
       }
-      toast.success('Image uploaded successfully');
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error uploading image:', error);
       }
-      toast.error('Failed to upload image. Please use a URL instead.');
+      toast.error('Failed to upload image.');
     } finally {
       setUploadingImage(false);
     }
@@ -342,6 +379,13 @@ export default function TeacherDashboard() {
         "Classes Taught": teacherData["Classes Taught"] || null,
       };
 
+      // Get the teacher's slug before updating (for cache invalidation)
+      const { data: teacherRecord } = await supabase
+        .from('Shikshaqmine')
+        .select('Slug')
+        .eq('Email ID', profile.email)
+        .maybeSingle();
+
       const { error } = await supabase
         .from('Shikshaqmine')
         .update(updateData)
@@ -355,6 +399,27 @@ export default function TeacherDashboard() {
         setSaving(false);
         return;
       }
+
+      // Invalidate cache for this teacher's profile
+      if (teacherRecord?.Slug) {
+        invalidateTeacherCache(teacherRecord.Slug);
+      }
+      
+      // Also invalidate Shikshaqmine cache by email (if cached)
+      const shikshaqCacheKey = `shikshaqmine_email_${profile.email.toLowerCase().trim()}`;
+      removeCache(shikshaqCacheKey);
+      
+      // Invalidate featured teachers cache (they might appear on browse/home)
+      removeCache('featured_teachers_browse');
+      removeCache('featured_teachers_index');
+      
+      // Clear all Shikshaqmine chunk caches
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.includes('shikshaq_cache_') && key.includes('shikshaqmine')) {
+          localStorage.removeItem(key);
+        }
+      });
 
       toast.success('Profile updated successfully');
     } catch (error) {
