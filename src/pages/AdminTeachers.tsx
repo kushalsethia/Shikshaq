@@ -20,6 +20,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import imageCompression from 'browser-image-compression';
+import { validateImageSrc } from '@/utils/imageSanitizer';
 
 // Constants matching FilterPanel
 const SUBJECTS = [
@@ -850,7 +851,7 @@ export default function AdminTeachers() {
                         return (
                           <div className="relative w-full max-w-md">
                             <img
-                              src={safeUrl}
+                              src={safeUrl ? validateImageSrc(safeUrl) : ''}
                               alt="Hero preview"
                               className="w-full h-48 object-cover rounded-lg border"
                               onError={() => setImagePreview(null)}

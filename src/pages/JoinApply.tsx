@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { Loader2, Upload, X, CheckCircle2 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import DOMPurify from 'dompurify';
+import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 
 // Constants matching AdminTeachers
 const SUBJECTS = [
@@ -157,32 +158,6 @@ export default function JoinApply() {
     return null;
   };
 
-  // Validate image URL for safe use in img src attribute
-  const validateImageSrc = (url: string | null): string => {
-    if (!url || typeof url !== 'string') return '';
-    
-    // Allow blob URLs (created from File objects)
-    if (url.startsWith('blob:')) {
-      return url;
-    }
-    
-    // Allow http/https URLs (sanitized)
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      const sanitized = sanitizeImageUrl(url);
-      return sanitized || '';
-    }
-    
-    // Allow data URIs for images (with strict validation)
-    if (url.startsWith('data:image/')) {
-      const dataUriPattern = new RegExp('^data:image/(jpeg|jpg|png|gif|webp);base64,[A-Za-z0-9+/=]+$', 'i');
-      if (dataUriPattern.test(url)) {
-        return url;
-      }
-    }
-    
-    // Reject all other URLs (including javascript:, etc.)
-    return '';
-  };
 
   // Clean up object URL when component unmounts or file changes
   useEffect(() => {

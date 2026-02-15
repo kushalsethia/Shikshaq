@@ -19,7 +19,7 @@ import {
 import { Save, Lock, GraduationCap, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
-import { sanitizeImageUrl } from '@/utils/imageSanitizer';
+import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 import { invalidateTeacherCache, getShikshaqmineBySlugCacheKey, removeCache } from '@/utils/cache';
 import imageCompression from 'browser-image-compression';
 
@@ -773,7 +773,7 @@ export default function TeacherDashboard() {
                 <h2 className="text-xl font-serif text-foreground">Profile Information</h2>
                 <Button
                   onClick={handleSave}
-                  disabled={saving || !isFormValid()}
+                  disabled={saving}
                   className="gap-2"
                   size="lg"
                 >
@@ -816,7 +816,7 @@ export default function TeacherDashboard() {
                 {imagePreview && (
                   <div className="relative w-full max-w-md mb-4">
                     <img
-                      src={imagePreview}
+                      src={validateImageSrc(imagePreview)}
                       alt="Hero preview"
                       className="w-full h-48 object-cover rounded-lg border"
                     />

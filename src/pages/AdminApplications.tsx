@@ -9,6 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { validateImageSrc } from '@/utils/imageSanitizer';
 
 interface TeacherApplication {
   id: string;
@@ -449,7 +450,7 @@ export default function AdminApplications() {
                   <div className="md:col-span-2">
                     <h3 className="font-semibold mb-2">Hero Image</h3>
                     <img
-                      src={selectedApplication.hero_image_url}
+                      src={selectedApplication.hero_image_url ? validateImageSrc(selectedApplication.hero_image_url) : ''}
                       alt="Hero"
                       className="w-full max-w-md h-48 object-cover rounded-lg border"
                     />

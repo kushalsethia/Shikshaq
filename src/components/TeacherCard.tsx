@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useNavigate } from 'react-router-dom';
 import { memo } from 'react';
 import { ShareButton } from '@/components/ShareButton';
+import { validateImageSrc } from '@/utils/imageSanitizer';
 
 interface TeacherCardProps {
   id: string;
@@ -99,7 +100,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         <div className="relative aspect-[4/5] overflow-hidden rounded-b-2xl">
         {imageUrl ? (
           <img
-            src={imageUrl}
+            src={imageUrl ? validateImageSrc(imageUrl) : ''}
             alt={name}
             loading="lazy"
             decoding="async"

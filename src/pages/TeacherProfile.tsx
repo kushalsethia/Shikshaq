@@ -23,6 +23,7 @@ import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey } from '@/utils/cache';
 import DOMPurify from 'dompurify';
 import { toast } from 'sonner';
+import { validateImageSrc } from '@/utils/imageSanitizer';
 
 
 interface Teacher {
@@ -629,7 +630,7 @@ export default function TeacherProfile() {
             <div className="sticky top-24">
               {teacher.image_url ? (
                 <img
-                  src={teacher.image_url}
+                  src={teacher.image_url ? validateImageSrc(teacher.image_url) : ''}
                   alt={teacher.name}
                   className="w-full aspect-[4/5] object-cover rounded-3xl shadow-xl"
                 />

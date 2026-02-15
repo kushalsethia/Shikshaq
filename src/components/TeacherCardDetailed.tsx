@@ -3,6 +3,7 @@ import { ArrowRight, ThumbsUp } from 'lucide-react';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
 import { useNavigate } from 'react-router-dom';
+import { validateImageSrc } from '@/utils/imageSanitizer';
 
 interface TeacherCardDetailedProps {
   id: string;
@@ -66,7 +67,7 @@ export function TeacherCardDetailed({
       <div className="relative w-32 md:w-40 flex-shrink-0 overflow-hidden rounded-xl self-stretch">
         {imageUrl ? (
           <img
-            src={imageUrl}
+            src={imageUrl ? validateImageSrc(imageUrl) : ''}
             alt={name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />

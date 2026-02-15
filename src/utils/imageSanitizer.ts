@@ -41,3 +41,35 @@ export function sanitizeImageUrl(url: string): string | null {
   return null;
 }
 
+/**
+ * Validate image URL for safe use in img src attribute
+ * This function handles blob URLs (for file previews), http/https URLs, and data URIs
+ * Returns empty string if URL is unsafe, preventing XSS attacks
+ */
+export function validateImageSrc(url: string | null | undefined): string {
+  if (!url || typeof url !== 'string') return '';
+  
+  // Allow blob URLs (created from File objects via URL.createObjectURL)
+  // These are safe as they're created by the browser from user-selected files
+  if (url.startsWith('blob:')) {
+    return url;
+  }
+  
+  // Allow http/https URLs (sanitized)
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    const sanitized = sanitizeImageUrl(url);
+    return sanitized || '';
+  }
+  
+  // Allow data URIs for images (with strict validation)
+  if (url.startsWith('data:image/')) {
+    const dataUriPattern = new RegExp('^data:image/(jpeg|jpg|png|gif|webp);base64,[A-Za-z0-9+/=]+$', 'i');
+    if (dataUriPattern.test(url)) {
+      return url;
+    }
+  }
+  
+  // Reject all other URLs (including javascript:, etc.)
+  return '';
+}
+

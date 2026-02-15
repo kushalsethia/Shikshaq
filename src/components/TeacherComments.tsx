@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { MessageCircle, Send, User, Clock, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { validateImageSrc } from '@/utils/imageSanitizer';
 
 interface Comment {
   id: string;
@@ -341,7 +342,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                   ) : (
                     <>
                       <Avatar className="w-10 h-10">
-                        <AvatarImage src={currentUserProfile.avatar_url || undefined} alt={currentUserProfile.full_name || ''} />
+                        <AvatarImage src={currentUserProfile.avatar_url ? validateImageSrc(currentUserProfile.avatar_url) : undefined} alt={currentUserProfile.full_name || ''} />
                         <AvatarFallback className="bg-primary text-primary-foreground">
                           {currentUserProfile.full_name
                             ? currentUserProfile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -465,7 +466,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                 <div className="flex-shrink-0">
                   {avatarUrl ? (
                     <Avatar className="w-10 h-10">
-                      <AvatarImage src={avatarUrl} />
+                      <AvatarImage src={avatarUrl ? validateImageSrc(avatarUrl) : undefined} />
                       <AvatarFallback>{initials}</AvatarFallback>
                     </Avatar>
                   ) : (
