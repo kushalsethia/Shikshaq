@@ -131,34 +131,6 @@ export default function JoinApply() {
     handleInputChange(field, newArray.join(', ') || '');
   };
 
-  const sanitizeImageUrl = (url: string): string | null => {
-    if (!url || typeof url !== 'string') return null;
-    
-    const sanitizedString = DOMPurify.sanitize(url.trim(), { 
-      ALLOWED_TAGS: [],
-      ALLOWED_ATTR: [],
-      KEEP_CONTENT: true 
-    });
-    
-    if (!sanitizedString) return null;
-    
-    try {
-      const urlObj = new URL(sanitizedString);
-      if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
-        return urlObj.href;
-      }
-    } catch {
-      if (sanitizedString.startsWith('data:image/')) {
-        const dataUriPattern = new RegExp('^data:image/(jpeg|jpg|png|gif|webp);base64,[A-Za-z0-9+/=]+$', 'i');
-        if (dataUriPattern.test(sanitizedString)) {
-          return sanitizedString;
-        }
-      }
-    }
-    return null;
-  };
-
-
   // Clean up object URL when component unmounts or file changes
   useEffect(() => {
     return () => {
@@ -841,33 +813,40 @@ export default function JoinApply() {
                 <div className="md:col-span-2">
                   <Label htmlFor="hero_image">Hero Image</Label>
                   <div className="space-y-3">
-                    {imagePreview && (
-                      <div className="relative w-full max-w-md">
-                        <img
-                          src={validateImageSrc(imagePreview)}
-                          alt="Hero preview"
-                          className="w-full h-48 object-cover rounded-lg border"
-                          onError={() => setImagePreview(null)}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute top-2 right-2"
-                          onClick={() => {
-                            // Clean up object URL if it's a blob URL
-                            if (imagePreview && imagePreview.startsWith('blob:')) {
-                              URL.revokeObjectURL(imagePreview);
-                            }
-                            setSelectedImageFile(null);
-                            setImagePreview(null);
-                            handleInputChange('hero_image_url', '');
-                          }}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )}
+                    {imagePreview && (() => {
+                      // Sanitize user-controlled image URL to prevent XSS
+                      // validateImageSrc ensures only safe URLs (blob, http/https, data:image) are used
+                      const safeImageSrc = validateImageSrc(imagePreview);
+                      // Only render if URL is validated and safe
+                      if (!safeImageSrc) return null;
+                      return (
+                        <div className="relative w-full max-w-md">
+                          <img
+                            src={safeImageSrc}
+                            alt="Hero preview"
+                            className="w-full h-48 object-cover rounded-lg border"
+                            onError={() => setImagePreview(null)}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute top-2 right-2"
+                            onClick={() => {
+                              // Clean up object URL if it's a blob URL
+                              if (imagePreview && imagePreview.startsWith('blob:')) {
+                                URL.revokeObjectURL(imagePreview);
+                              }
+                              setSelectedImageFile(null);
+                              setImagePreview(null);
+                              handleInputChange('hero_image_url', '');
+                            }}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      );
+                    })()}
                     <label
                       htmlFor="heroImageUpload"
                       className="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors w-fit"
