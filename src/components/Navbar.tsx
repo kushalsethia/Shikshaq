@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, ExternalLink, BookMarked, FileText } from 'lucide-react';
+import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, ExternalLink, BookMarked, FileText, ClipboardList } from 'lucide-react';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
@@ -253,6 +253,12 @@ export function Navbar() {
                         <Link to="/admin/teachers" className="flex items-center gap-2">
                           <GraduationCap className="w-4 h-4" />
                           Teachers
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/applications" className="flex items-center gap-2">
+                          <ClipboardList className="w-4 h-4" />
+                          Applications
                         </Link>
                       </DropdownMenuItem>
                     </>
