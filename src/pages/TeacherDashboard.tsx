@@ -42,7 +42,6 @@ const AREAS = [
 ].sort();
 
 const LOCATION_V2_OPTIONS = [
-  "None",
   "TEACHER'S HOME TUTORING",
   "STUDENT'S HOME TUTORING ONLY",
   "BOTH OPTIONS LISTED"
@@ -51,6 +50,18 @@ const LOCATION_V2_OPTIONS = [
 const SCHOOL_BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State', 'College'];
 
 const CLASS_NUMBERS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
+
+const SUBJECTS = [
+  'Accounts', 'ACT', 'AP', 'Bengali', 'Biology', 'Business Studies', 'CA', 'CAT', 'Chemistry',
+  'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
+  'Geography', 'Hindi', 'History & Civics', 'Home Science', 'JEE', 'Legal Studies', 'Maths',
+  'NEET', 'NMAT', 'Physics', 'Political Science', 'Psychology', 'SAT', 'Science',
+  'Sanskrit', 'Social Studies', 'Sociology'
+];
+
+const MODE_OF_TEACHING = ['Online', 'Offline'];
+
+const CLASS_SIZE = ['Group', 'Solo'];
 
 interface TeacherData {
   "Email ID": string | null;
@@ -70,6 +81,9 @@ interface TeacherData {
   "Sir/Ma'am?": string | null;
   Area: string | null;
   "Link": string | null;
+  Subjects: string | null;
+  "Mode of Teaching": string | null;
+  "Class Size (Group/ Solo)": string | null;
 }
 
 export default function TeacherDashboard() {
@@ -185,6 +199,9 @@ export default function TeacherDashboard() {
           "Sir/Ma'am?": data["Sir/Ma'am?"] || null,
           Area: data["Area"] || null,
           "Link": data["Link"] || null,
+          Subjects: data["Subjects"] || null,
+          "Mode of Teaching": data["Mode of Teaching"] || null,
+          "Class Size (Group/ Solo)": data["Class Size (Group/ Solo)"] || null,
         };
 
         setTeacherData(teacher);
@@ -262,6 +279,19 @@ export default function TeacherDashboard() {
         }
       }
       
+      // Clear areas when Place of Teaching changes
+      if (field === "LOCATION V2") {
+        const locationV2 = value as string | null;
+        // If switching to "TEACHER'S HOME TUTORING", clear student's home areas
+        if (locationV2 === "TEACHER'S HOME TUTORING") {
+          updated["STUDENT'S HOME IN THESE AREAS"] = null;
+        }
+        // If switching to "STUDENT'S HOME TUTORING ONLY", clear tutor's home areas
+        if (locationV2 === "STUDENT'S HOME TUTORING ONLY") {
+          updated["TUTOR'S HOME IN THESE AREAS"] = null;
+        }
+      }
+      
       return updated;
     });
   };
@@ -280,6 +310,52 @@ export default function TeacherDashboard() {
     }
 
     handleInputChange(field, newArray.join(', ') || null);
+  };
+
+  // Helper function to check if form is valid
+  const isFormValid = (): boolean => {
+    if (!teacherData) return false;
+    
+    // Check phone number (must be 10 digits)
+    if (!teacherData["Phone Number"] || teacherData["Phone Number"].replace(/\D/g, '').length !== 10) {
+      return false;
+    }
+    
+    // Check Place of Teaching
+    if (!teacherData["LOCATION V2"]) {
+      return false;
+    }
+    
+    // Check areas based on Place of Teaching
+    const locationV2 = teacherData["LOCATION V2"];
+    if (locationV2 === "STUDENT'S HOME TUTORING ONLY" || locationV2 === "BOTH OPTIONS LISTED") {
+      if (!teacherData["STUDENT'S HOME IN THESE AREAS"] || !teacherData["STUDENT'S HOME IN THESE AREAS"].trim()) {
+        return false;
+      }
+    }
+    
+    if (locationV2 === "TEACHER'S HOME TUTORING" || locationV2 === "BOTH OPTIONS LISTED") {
+      if (!teacherData["TUTOR'S HOME IN THESE AREAS"] || !teacherData["TUTOR'S HOME IN THESE AREAS"].trim()) {
+        return false;
+      }
+    }
+    
+    // Check Subjects (required)
+    if (!teacherData.Subjects || !teacherData.Subjects.trim()) {
+      return false;
+    }
+    
+    // Check Mode of Teaching (required)
+    if (!teacherData["Mode of Teaching"] || !teacherData["Mode of Teaching"].trim()) {
+      return false;
+    }
+    
+    // Check Class Size (required)
+    if (!teacherData["Class Size (Group/ Solo)"] || !teacherData["Class Size (Group/ Solo)"].trim()) {
+      return false;
+    }
+    
+    return true;
   };
 
   const handleImageUpload = async (file: File) => {
@@ -441,6 +517,51 @@ export default function TeacherDashboard() {
   const handleSave = async () => {
     if (!user || !teacherData) return;
 
+    // Validate required fields
+    if (!teacherData["Phone Number"] || teacherData["Phone Number"].replace(/\D/g, '').length !== 10) {
+      toast.error('Phone number must be exactly 10 digits');
+      return;
+    }
+
+    if (!teacherData["LOCATION V2"]) {
+      toast.error('Place of Teaching is required');
+      return;
+    }
+
+    // Validate areas based on Place of Teaching
+    const locationV2 = teacherData["LOCATION V2"];
+    if (locationV2 === "STUDENT'S HOME TUTORING ONLY" || locationV2 === "BOTH OPTIONS LISTED") {
+      if (!teacherData["STUDENT'S HOME IN THESE AREAS"] || !teacherData["STUDENT'S HOME IN THESE AREAS"].trim()) {
+        toast.error('Student\'s Home in These Areas is required');
+        return;
+      }
+    }
+
+    if (locationV2 === "TEACHER'S HOME TUTORING" || locationV2 === "BOTH OPTIONS LISTED") {
+      if (!teacherData["TUTOR'S HOME IN THESE AREAS"] || !teacherData["TUTOR'S HOME IN THESE AREAS"].trim()) {
+        toast.error('Tutor\'s Home in These Areas is required');
+        return;
+      }
+    }
+
+    // Validate Subjects (required)
+    if (!teacherData.Subjects || !teacherData.Subjects.trim()) {
+      toast.error('Subjects is required');
+      return;
+    }
+
+    // Validate Mode of Teaching (required)
+    if (!teacherData["Mode of Teaching"] || !teacherData["Mode of Teaching"].trim()) {
+      toast.error('Mode of Teaching is required');
+      return;
+    }
+
+    // Validate Class Size (required)
+    if (!teacherData["Class Size (Group/ Solo)"] || !teacherData["Class Size (Group/ Solo)"].trim()) {
+      toast.error('Class Size is required');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -481,8 +602,9 @@ export default function TeacherDashboard() {
       }
 
       // Prepare update data
+      // Use profile email (locked field) instead of teacherData email
       const updateData: any = {
-        "Email ID": teacherData["Email ID"],
+        "Email ID": profile.email, // Use locked email from profile
         Description: teacherData["Description"] || null,
         "LOCATION V2": teacherData["LOCATION V2"] || null,
         "STUDENT'S HOME IN THESE AREAS": teacherData["STUDENT'S HOME IN THESE AREAS"] || null,
@@ -496,6 +618,9 @@ export default function TeacherDashboard() {
         "Classes Taught for Backend": teacherData["Classes Taught for Backend"] || null,
         "Classes Taught": teacherData["Classes Taught"] || null,
         "Link": whatsappLink,
+        Subjects: teacherData.Subjects || null,
+        "Mode of Teaching": teacherData["Mode of Teaching"] || null,
+        "Class Size (Group/ Solo)": teacherData["Class Size (Group/ Solo)"] || null,
       };
 
       // Get the teacher's slug before updating (for cache invalidation)
@@ -628,6 +753,17 @@ export default function TeacherDashboard() {
                     className="bg-muted cursor-not-allowed"
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <Label>
+                    Email ID <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={teacherData["Email ID"] || ''}
+                    disabled
+                    className="bg-muted cursor-not-allowed"
+                  />
+                </div>
               </div>
             </div>
 
@@ -637,7 +773,7 @@ export default function TeacherDashboard() {
                 <h2 className="text-xl font-serif text-foreground">Profile Information</h2>
                 <Button
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || !isFormValid()}
                   className="gap-2"
                   size="lg"
                 >
@@ -646,21 +782,11 @@ export default function TeacherDashboard() {
                 </Button>
               </div>
 
-              {/* Email ID */}
-              <div className="space-y-2">
-                <Label htmlFor="emailId">Email ID</Label>
-                <Input
-                  id="emailId"
-                  value={teacherData["Email ID"] || ''}
-                  onChange={(e) => handleInputChange("Email ID", e.target.value || null)}
-                  type="email"
-                  placeholder="your.email@example.com"
-                />
-              </div>
-
               {/* Phone Number */}
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Label htmlFor="phoneNumber">
+                  Phone Number <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="phoneNumber"
                   value={teacherData["Phone Number"] || ''}
@@ -672,6 +798,7 @@ export default function TeacherDashboard() {
                   type="tel"
                   placeholder="10 digit number"
                   maxLength={10}
+                  required
                 />
                 <p className="text-xs text-muted-foreground">
                   Enter 10 digit phone number. WhatsApp link will be auto-generated.
@@ -740,75 +867,167 @@ export default function TeacherDashboard() {
                 />
               </div>
 
-              {/* Location V2 */}
+              {/* Subjects (Multiple Select) */}
               <div className="space-y-2">
-                <Label htmlFor="locationV2">Location V2</Label>
+                <Label>
+                  Subjects <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
+                  {SUBJECTS.map((subject) => {
+                    const currentValue = teacherData.Subjects as string | null;
+                    const selected = valueExistsInString(currentValue, subject);
+                    return (
+                      <div key={subject} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`subject-${subject}`}
+                          checked={selected}
+                          onCheckedChange={(checked) =>
+                            handleMultiSelectChange("Subjects", subject, checked as boolean)
+                          }
+                        />
+                        <Label htmlFor={`subject-${subject}`} className="cursor-pointer text-sm">
+                          {subject}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Mode of Teaching */}
+              <div className="space-y-2">
+                <Label>
+                  Mode of Teaching <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {MODE_OF_TEACHING.map((mode) => {
+                    const currentValue = teacherData["Mode of Teaching"] as string | null;
+                    const selected = valueExistsInString(currentValue, mode);
+                    return (
+                      <div key={mode} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`mode-${mode}`}
+                          checked={selected}
+                          onCheckedChange={(checked) =>
+                            handleMultiSelectChange("Mode of Teaching", mode, checked as boolean)
+                          }
+                        />
+                        <Label htmlFor={`mode-${mode}`} className="cursor-pointer">
+                          {mode}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Class Size */}
+              <div className="space-y-2">
+                <Label>
+                  Class Size <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {CLASS_SIZE.map((size) => {
+                    const currentValue = teacherData["Class Size (Group/ Solo)"] as string | null;
+                    const selected = valueExistsInString(currentValue, size);
+                    return (
+                      <div key={size} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`classSize-${size}`}
+                          checked={selected}
+                          onCheckedChange={(checked) =>
+                            handleMultiSelectChange("Class Size (Group/ Solo)", size, checked as boolean)
+                          }
+                        />
+                        <Label htmlFor={`classSize-${size}`} className="cursor-pointer">
+                          {size}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Place of Teaching (Location V2) */}
+              <div className="space-y-2">
+                <Label htmlFor="locationV2">
+                  Place of Teaching <span className="text-red-500">*</span>
+                </Label>
                 <Select
-                  value={teacherData["LOCATION V2"] || "None"}
-                  onValueChange={(value) => handleInputChange("LOCATION V2", value === "None" ? null : value)}
+                  value={teacherData["LOCATION V2"] || ""}
+                  onValueChange={(value) => handleInputChange("LOCATION V2", value)}
+                  required
                 >
                   <SelectTrigger id="locationV2">
-                    <SelectValue placeholder="Select location option" />
+                    <SelectValue placeholder="Select place of teaching" />
                   </SelectTrigger>
                   <SelectContent>
-                    {LOCATION_V2_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="TEACHER'S HOME TUTORING">Teacher's Home Tutoring Only</SelectItem>
+                    <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's Home Tutoring Only</SelectItem>
+                    <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Student's Home Areas */}
-              <div className="space-y-2">
-                <Label>Student's Home in These Areas</Label>
-                <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
-                  {AREAS.map((area) => {
-                    const currentValue = teacherData["STUDENT'S HOME IN THESE AREAS"] as string | null;
-                    const selected = valueExistsInString(currentValue, area);
-                    return (
-                      <div key={area} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`student-area-${area}`}
-                          checked={selected}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange("STUDENT'S HOME IN THESE AREAS", area, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm">
-                          {area}
-                        </Label>
-                      </div>
-                    );
-                  })}
+              {/* Student's Home Areas - Show when Place of Teaching is "STUDENT'S HOME TUTORING ONLY" or "BOTH OPTIONS LISTED" */}
+              {(teacherData["LOCATION V2"] === "STUDENT'S HOME TUTORING ONLY" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED") && (
+                <div className="space-y-2">
+                  <Label>
+                    Student's Home in These Areas <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
+                    {AREAS.map((area) => {
+                      const currentValue = teacherData["STUDENT'S HOME IN THESE AREAS"] as string | null;
+                      const selected = valueExistsInString(currentValue, area);
+                      return (
+                        <div key={area} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`student-area-${area}`}
+                            checked={selected}
+                            onCheckedChange={(checked) =>
+                              handleMultiSelectChange("STUDENT'S HOME IN THESE AREAS", area, checked as boolean)
+                            }
+                            required={teacherData["LOCATION V2"] === "STUDENT'S HOME TUTORING ONLY" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED"}
+                          />
+                          <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm">
+                            {area}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Tutor's Home Areas */}
-              <div className="space-y-2">
-                <Label>Tutor's Home in These Areas</Label>
-                <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
-                  {AREAS.map((area) => {
-                    const currentValue = teacherData["TUTOR'S HOME IN THESE AREAS"] as string | null;
-                    const selected = valueExistsInString(currentValue, area);
-                    return (
-                      <div key={area} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`tutor-area-${area}`}
-                          checked={selected}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange("TUTOR'S HOME IN THESE AREAS", area, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm">
-                          {area}
-                        </Label>
-                      </div>
-                    );
-                  })}
+              {/* Tutor's Home Areas - Show when Place of Teaching is "TEACHER'S HOME TUTORING" or "BOTH OPTIONS LISTED" */}
+              {(teacherData["LOCATION V2"] === "TEACHER'S HOME TUTORING" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED") && (
+                <div className="space-y-2">
+                  <Label>
+                    Tutor's Home in These Areas <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
+                    {AREAS.map((area) => {
+                      const currentValue = teacherData["TUTOR'S HOME IN THESE AREAS"] as string | null;
+                      const selected = valueExistsInString(currentValue, area);
+                      return (
+                        <div key={area} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`tutor-area-${area}`}
+                            checked={selected}
+                            onCheckedChange={(checked) =>
+                              handleMultiSelectChange("TUTOR'S HOME IN THESE AREAS", area, checked as boolean)
+                            }
+                            required={teacherData["LOCATION V2"] === "TEACHER'S HOME TUTORING" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED"}
+                          />
+                          <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm">
+                            {area}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Area (read-only, auto-computed) */}
               <div className="space-y-2">
