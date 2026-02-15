@@ -268,6 +268,57 @@ export default function JoinApply() {
       toast.error('Please select at least one class');
       return false;
     }
+    if (!formData.school_boards_catered.trim()) {
+      toast.error('Please select at least one school board');
+      return false;
+    }
+    if (!formData.mode_of_teaching.trim()) {
+      toast.error('Please select at least one mode of teaching');
+      return false;
+    }
+    if (!formData.class_size.trim()) {
+      toast.error('Please select at least one class size option');
+      return false;
+    }
+    if (!formData.location_v2) {
+      toast.error('Please select a location option');
+      return false;
+    }
+    // Validate area fields based on location selection
+    if (formData.location_v2 === "STUDENT'S HOME TUTORING ONLY") {
+      if (!formData.students_home_areas.trim()) {
+        toast.error('Please select at least one area for Student\'s Home Tutoring');
+        return false;
+      }
+    } else if (formData.location_v2 === "TEACHER'S HOME TUTORING") {
+      if (!formData.tutors_home_areas.trim()) {
+        toast.error('Please select at least one area for Teacher\'s Home Tutoring');
+        return false;
+      }
+    } else if (formData.location_v2 === "BOTH OPTIONS LISTED") {
+      if (!formData.students_home_areas.trim()) {
+        toast.error('Please select at least one area for Student\'s Home Tutoring');
+        return false;
+      }
+      if (!formData.tutors_home_areas.trim()) {
+        toast.error('Please select at least one area for Teacher\'s Home Tutoring');
+        return false;
+      }
+    }
+    if (!formData.reference_name.trim()) {
+      toast.error('Please enter the reference student\'s name');
+      return false;
+    }
+    if (!formData.reference_number.trim()) {
+      toast.error('Please enter the reference student\'s phone number');
+      return false;
+    }
+    // Validate reference number: must be exactly 10 digits
+    const referenceDigits = formData.reference_number.replace(/\D/g, '');
+    if (referenceDigits.length !== 10) {
+      toast.error('Reference phone number must be exactly 10 digits');
+      return false;
+    }
     if (!formData.mou_consent) {
       toast.error('You must consent to the Memorandum of Understanding to proceed');
       return false;
@@ -503,7 +554,7 @@ export default function JoinApply() {
 
                 {/* School Boards Catered */}
                 <div className="md:col-span-2">
-                  <Label>School Boards Catered</Label>
+                  <Label>School Boards Catered *</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {BOARDS.map((board) => {
                       const selected = valueExistsInString(formData.school_boards_catered, board);
@@ -527,19 +578,19 @@ export default function JoinApply() {
 
                 {/* Location V2 */}
                 <div>
-                  <Label htmlFor="location_v2">Location</Label>
+                  <Label htmlFor="location_v2">Location *</Label>
                   <Select
-                    value={formData.location_v2 || "none"}
-                    onValueChange={(value) => handleInputChange('location_v2', value === "none" ? "" : value)}
+                    value={formData.location_v2 || ""}
+                    onValueChange={(value) => handleInputChange('location_v2', value)}
+                    required
                   >
                     <SelectTrigger id="location_v2">
                       <SelectValue placeholder="Select location option" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="TEACHER'S HOME TUTORING">TEACHER'S HOME TUTORING</SelectItem>
-                      <SelectItem value="STUDENT'S HOME TUTORING ONLY">STUDENT'S HOME TUTORING ONLY</SelectItem>
-                      <SelectItem value="BOTH OPTIONS LISTED">BOTH OPTIONS LISTED</SelectItem>
+                      <SelectItem value="TEACHER'S HOME TUTORING">Teacher's Home Tutoring Only</SelectItem>
+                      <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's Home Tutoring Only</SelectItem>
+                      <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -567,7 +618,7 @@ export default function JoinApply() {
 
                 {/* Mode of Teaching */}
                 <div>
-                  <Label>Mode of Teaching</Label>
+                  <Label>Mode of Teaching *</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {MODE_OF_TEACHING.map((mode) => {
                       const selected = valueExistsInString(formData.mode_of_teaching, mode);
@@ -591,7 +642,7 @@ export default function JoinApply() {
 
                 {/* Class Size */}
                 <div>
-                  <Label>Class Size</Label>
+                  <Label>Class Size *</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {CLASS_SIZE.map((size) => {
                       const selected = valueExistsInString(formData.class_size, size);
@@ -613,53 +664,57 @@ export default function JoinApply() {
                   </div>
                 </div>
 
-                {/* Student's Home Areas */}
-                <div className="md:col-span-2">
-                  <Label>Student's Home in These Areas</Label>
-                  <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4 border border-border rounded-lg">
-                    {AREAS.map((area) => {
-                      const selected = valueExistsInString(formData.students_home_areas, area);
-                      return (
-                        <div key={area} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`student-area-${area}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('students_home_areas', area, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm">
-                            {area}
-                          </Label>
-                        </div>
-                      );
-                    })}
+                {/* Student's Home Areas - Show when Location is "STUDENT'S HOME TUTORING ONLY" or "BOTH OPTIONS LISTED" */}
+                {(formData.location_v2 === "STUDENT'S HOME TUTORING ONLY" || formData.location_v2 === "BOTH OPTIONS LISTED") && (
+                  <div className="md:col-span-2">
+                    <Label>Student's Home in These Areas *</Label>
+                    <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4 border border-border rounded-lg">
+                      {AREAS.map((area) => {
+                        const selected = valueExistsInString(formData.students_home_areas, area);
+                        return (
+                          <div key={area} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`student-area-${area}`}
+                              checked={selected}
+                              onCheckedChange={(checked) =>
+                                handleMultiSelectChange('students_home_areas', area, checked as boolean)
+                              }
+                            />
+                            <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm">
+                              {area}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Tutor's Home Areas */}
-                <div className="md:col-span-2">
-                  <Label>Tutor's Home in These Areas</Label>
-                  <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4 border border-border rounded-lg">
-                    {AREAS.map((area) => {
-                      const selected = valueExistsInString(formData.tutors_home_areas, area);
-                      return (
-                        <div key={area} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`tutor-area-${area}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('tutors_home_areas', area, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm">
-                            {area}
-                          </Label>
-                        </div>
-                      );
-                    })}
+                {/* Tutor's Home Areas - Show when Location is "TEACHER'S HOME TUTORING" or "BOTH OPTIONS LISTED" */}
+                {(formData.location_v2 === "TEACHER'S HOME TUTORING" || formData.location_v2 === "BOTH OPTIONS LISTED") && (
+                  <div className="md:col-span-2">
+                    <Label>Tutor's Home in These Areas *</Label>
+                    <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4 border border-border rounded-lg">
+                      {AREAS.map((area) => {
+                        const selected = valueExistsInString(formData.tutors_home_areas, area);
+                        return (
+                          <div key={area} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`tutor-area-${area}`}
+                              checked={selected}
+                              onCheckedChange={(checked) =>
+                                handleMultiSelectChange('tutors_home_areas', area, checked as boolean)
+                              }
+                            />
+                            <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm">
+                              {area}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -707,18 +762,19 @@ export default function JoinApply() {
 
                 {/* Reference Name */}
                 <div>
-                  <Label htmlFor="reference_name">Reference (Student's Name)</Label>
+                  <Label htmlFor="reference_name">Reference (Student's Name) *</Label>
                   <Input
                     id="reference_name"
                     value={formData.reference_name}
                     onChange={(e) => handleInputChange('reference_name', e.target.value)}
                     placeholder="Name of the student who referred you"
+                    required
                   />
                 </div>
 
                 {/* Reference Number */}
                 <div>
-                  <Label htmlFor="reference_number">Reference Number (Student's Number)</Label>
+                  <Label htmlFor="reference_number">Reference Number (Student's Number) *</Label>
                   <Input
                     id="reference_number"
                     type="tel"
@@ -730,6 +786,7 @@ export default function JoinApply() {
                     }}
                     placeholder="10 digit number"
                     maxLength={10}
+                    required
                   />
                 </div>
 
@@ -815,7 +872,7 @@ export default function JoinApply() {
                     required
                   />
                   <Label htmlFor="mou_consent" className="cursor-pointer text-sm leading-relaxed">
-                    <span className="font-medium">I consent.</span> I do not consent (in this case, we will not be able to legally display your profile on ShikshAq).
+                    <span className="font-medium">I consent.</span>
                   </Label>
                 </div>
               </div>
