@@ -513,14 +513,14 @@ export default function JoinApply() {
                 <div>
                   <Label htmlFor="location_v2">Location</Label>
                   <Select
-                    value={formData.location_v2}
-                    onValueChange={(value) => handleInputChange('location_v2', value)}
+                    value={formData.location_v2 || "none"}
+                    onValueChange={(value) => handleInputChange('location_v2', value === "none" ? "" : value)}
                   >
                     <SelectTrigger id="location_v2">
                       <SelectValue placeholder="Select location option" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       <SelectItem value="TEACHER'S HOME TUTORING">TEACHER'S HOME TUTORING</SelectItem>
                       <SelectItem value="STUDENT'S HOME TUTORING ONLY">STUDENT'S HOME TUTORING ONLY</SelectItem>
                       <SelectItem value="BOTH OPTIONS LISTED">BOTH OPTIONS LISTED</SelectItem>
@@ -532,14 +532,14 @@ export default function JoinApply() {
                 <div>
                   <Label htmlFor="featured_subject">Featured Subject</Label>
                   <Select
-                    value={formData.featured_subject}
-                    onValueChange={(value) => handleInputChange('featured_subject', value)}
+                    value={formData.featured_subject || "none"}
+                    onValueChange={(value) => handleInputChange('featured_subject', value === "none" ? "" : value)}
                   >
                     <SelectTrigger id="featured_subject">
                       <SelectValue placeholder="Select featured subject" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {SUBJECTS.map((subject) => (
                         <SelectItem key={subject} value={subject}>
                           {subject}
