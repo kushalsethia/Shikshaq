@@ -4,7 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, ThumbsUp, GraduationCap } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, ThumbsUp, GraduationCap, Users } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
@@ -60,6 +67,9 @@ export default function TeacherProfile() {
   const { isStudyingWith, toggleStudiesWith } = useStudiesWith();
   const [userRole, setUserRole] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [studentsDialogOpen, setStudentsDialogOpen] = useState(false);
+  const [studentsList, setStudentsList] = useState<Array<{ id: string; full_name: string | null; school_college: string | null; grade: string | null }>>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
   // Check if user has a role - redirect to role selection if not
   // Also check if teacher has agreed to terms
@@ -517,6 +527,70 @@ export default function TeacherProfile() {
     );
   }
 
+  // Function to fetch students who have studied with this teacher
+  async function fetchStudentsList() {
+    if (!teacher) return;
+    
+    try {
+      setLoadingStudents(true);
+      
+      // Fetch students from student_teachers table
+      const { data: studentTeachers, error } = await supabase
+        .from('student_teachers')
+        .select('student_id')
+        .eq('teacher_id', teacher.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error fetching students list:', error);
+        }
+        return;
+      }
+
+      if (!studentTeachers || studentTeachers.length === 0) {
+        setStudentsList([]);
+        return;
+      }
+
+      // Fetch profiles for all students
+      const studentIds = studentTeachers.map((st: any) => st.student_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, school_college, grade')
+        .in('id', studentIds);
+
+      if (profilesError) {
+        if (import.meta.env.DEV) {
+          console.error('Error fetching student profiles:', profilesError);
+        }
+        return;
+      }
+
+      // Create a map for quick lookup
+      const profilesMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+
+      // Transform the data to match our state structure
+      const students = studentIds.map((studentId: string) => {
+        const profile = profilesMap.get(studentId);
+        return {
+          id: studentId,
+          full_name: profile?.full_name || null,
+          school_college: profile?.school_college || null,
+          grade: profile?.grade || null,
+        };
+      });
+
+      setStudentsList(students);
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error fetching students list:', error);
+      }
+    } finally {
+      setLoadingStudents(false);
+    }
+  }
+
   if (!teacher) {
     return (
       <div className="min-h-screen bg-background">
@@ -676,26 +750,53 @@ export default function TeacherProfile() {
               </button>
             </div>
 
-            {/* Studies With Button - Only for authenticated students */}
-            {user && userRole === 'student' && (
-              <div>
-                <button
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    await toggleStudiesWith(teacher.id);
-                  }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
-                    isStudyingWith(teacher.id)
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'bg-muted text-foreground hover:bg-muted/80'
-                  }`}
-                  aria-label={isStudyingWith(teacher.id) ? 'Remove from my teachers' : 'I study with this teacher'}
-                >
-                  <GraduationCap className={`w-4 h-4 ${isStudyingWith(teacher.id) ? 'fill-current' : ''}`} />
-                  <span>{isStudyingWith(teacher.id) ? 'Studying here ✓' : 'I study here'}</span>
-                </button>
-              </div>
-            )}
+            {/* Studies With Button - Show for all users */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={async (e) => {
+                  e.preventDefault();
+                  // If user is not authenticated, redirect to auth
+                  if (!user) {
+                    navigate('/auth');
+                    return;
+                  }
+                  // If user is authenticated but not a student, redirect to auth
+                  if (userRole !== 'student') {
+                    navigate('/auth');
+                    return;
+                  }
+                  // If user is authenticated student, toggle studies with
+                  await toggleStudiesWith(teacher.id);
+                }}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
+                  user && userRole === 'student' && isStudyingWith(teacher.id)
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-muted text-foreground hover:bg-muted/80'
+                }`}
+                aria-label={user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Remove from my teachers' : "I've studied with this teacher"}
+              >
+                <GraduationCap className={`w-4 h-4 ${user && userRole === 'student' && isStudyingWith(teacher.id) ? 'fill-current' : ''}`} />
+                <span>{user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Studying here ✓' : "I've studied here"}</span>
+              </button>
+              
+              {/* View Students Button - Compact badge style */}
+              <button
+                onClick={async (e) => {
+                  e.preventDefault();
+                  setStudentsDialogOpen(true);
+                  // Fetch students list when dialog opens
+                  if (studentsList.length === 0 && !loadingStudents) {
+                    await fetchStudentsList();
+                  }
+                }}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-background text-muted-foreground hover:text-foreground hover:bg-accent border border-border shadow-sm hover:shadow"
+                aria-label="View students who have studied here"
+                title="View students who have studied here"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">View</span>
+              </button>
+            </div>
 
             {/* Quick Info */}
             <div className="flex flex-wrap items-center gap-4 md:gap-6">
@@ -1025,6 +1126,52 @@ export default function TeacherProfile() {
       </main>
 
       <Footer expandedContent={teacher?.expanded || null} />
+
+      {/* Students Dialog */}
+      <Dialog open={studentsDialogOpen} onOpenChange={setStudentsDialogOpen}>
+        <DialogContent className="max-w-md max-h-[70vh] overflow-y-auto rounded-2xl w-[90%] sm:w-full">
+          <DialogHeader>
+            <DialogTitle>Students Who Have Studied Here</DialogTitle>
+            <DialogDescription>
+              These are the students who have indicated they study or have studied with {teacher.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            {loadingStudents ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Loading students...
+              </div>
+            ) : studentsList.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No students have indicated they study here yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {studentsList.map((student) => (
+                  <div
+                    key={student.id}
+                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border border-border"
+                  >
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <GraduationCap className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground">
+                        {student.full_name || 'Anonymous Student'}
+                      </p>
+                      {(student.school_college || student.grade) && (
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {[student.grade, student.school_college].filter(Boolean).join(' • ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -69,6 +69,7 @@ interface TeacherData {
   Title: string | null;
   "Sir/Ma'am?": string | null;
   Area: string | null;
+  "Link": string | null;
 }
 
 export default function TeacherDashboard() {
@@ -148,6 +149,23 @@ export default function TeacherDashboard() {
           return;
         }
 
+        // Normalize phone number to 10 digits (remove 91 prefix if present)
+        let phoneNumber = data["Phone Number"] || null;
+        if (phoneNumber) {
+          const digits = phoneNumber.replace(/\D/g, '');
+          if (digits.length === 12 && digits.startsWith('91')) {
+            // Remove 91 prefix, keep last 10 digits
+            phoneNumber = digits.slice(2);
+          } else if (digits.length > 10) {
+            // Take last 10 digits
+            phoneNumber = digits.slice(-10);
+          } else if (digits.length === 10) {
+            phoneNumber = digits;
+          } else {
+            phoneNumber = null;
+          }
+        }
+
         // Set teacher data
         const teacher: TeacherData = {
           "Email ID": data["Email ID"] || null,
@@ -159,13 +177,14 @@ export default function TeacherDashboard() {
           "Years they started teaching": data["Years they started teaching"] || null,
           "Featured Subject": data["Featured Subject"] || null,
           "School Boards Catered": data["School Boards Catered"] || null,
-          "Phone Number": data["Phone Number"] || null,
+          "Phone Number": phoneNumber,
           "Hero Image": data["Hero Image"] || null,
           "Classes Taught for Backend": data["Classes Taught for Backend"] || null,
           "Classes Taught": data["Classes Taught"] || null,
           Title: data["Title"] || null,
           "Sir/Ma'am?": data["Sir/Ma'am?"] || null,
           Area: data["Area"] || null,
+          "Link": data["Link"] || null,
         };
 
         setTeacherData(teacher);
@@ -219,6 +238,28 @@ export default function TeacherDashboard() {
       if (field === "Classes Taught for Backend") {
         const romanClasses = convertClassesToRoman(value);
         updated["Classes Taught"] = romanClasses;
+      }
+      
+      // Auto-generate WhatsApp link when Phone Number changes
+      if (field === "Phone Number") {
+        if (value && value.trim()) {
+          // Extract only digits from phone number
+          const phoneDigits = value.replace(/\D/g, '');
+          // If it's exactly 10 digits, generate WhatsApp link
+          if (phoneDigits.length === 10) {
+            updated["Link"] = `https://wa.me/91${phoneDigits}`;
+          } else if (phoneDigits.length > 10) {
+            // If more than 10 digits, take the last 10
+            const last10Digits = phoneDigits.slice(-10);
+            updated["Link"] = `https://wa.me/91${last10Digits}`;
+          } else {
+            // If less than 10 digits, clear the WhatsApp link
+            updated["Link"] = null;
+          }
+        } else {
+          // If phone number is cleared, clear WhatsApp link
+          updated["Link"] = null;
+        }
       }
       
       return updated;
@@ -416,6 +457,29 @@ export default function TeacherDashboard() {
         return;
       }
 
+      // Normalize phone number to 10 digits before saving
+      let normalizedPhoneNumber: string | null = null;
+      if (teacherData["Phone Number"]) {
+        const digits = teacherData["Phone Number"].replace(/\D/g, '');
+        if (digits.length === 10) {
+          normalizedPhoneNumber = digits;
+        } else if (digits.length > 10) {
+          // Take last 10 digits
+          normalizedPhoneNumber = digits.slice(-10);
+        } else if (digits.length === 12 && digits.startsWith('91')) {
+          // Remove 91 prefix
+          normalizedPhoneNumber = digits.slice(2);
+        }
+      }
+
+      // Auto-generate WhatsApp link if phone number is valid
+      let whatsappLink: string | null = teacherData["Link"] || null;
+      if (normalizedPhoneNumber && normalizedPhoneNumber.length === 10) {
+        whatsappLink = `https://wa.me/91${normalizedPhoneNumber}`;
+      } else if (!normalizedPhoneNumber) {
+        whatsappLink = null;
+      }
+
       // Prepare update data
       const updateData: any = {
         "Email ID": teacherData["Email ID"],
@@ -427,10 +491,11 @@ export default function TeacherDashboard() {
         "Years they started teaching": teacherData["Years they started teaching"] || null,
         "Featured Subject": teacherData["Featured Subject"] || null,
         "School Boards Catered": teacherData["School Boards Catered"] || null,
-        "Phone Number": teacherData["Phone Number"] || null,
+        "Phone Number": normalizedPhoneNumber,
         "Hero Image": teacherData["Hero Image"] || null,
         "Classes Taught for Backend": teacherData["Classes Taught for Backend"] || null,
         "Classes Taught": teacherData["Classes Taught"] || null,
+        "Link": whatsappLink,
       };
 
       // Get the teacher's slug before updating (for cache invalidation)
@@ -599,10 +664,23 @@ export default function TeacherDashboard() {
                 <Input
                   id="phoneNumber"
                   value={teacherData["Phone Number"] || ''}
-                  onChange={(e) => handleInputChange("Phone Number", e.target.value || null)}
+                  onChange={(e) => {
+                    // Only allow digits, limit to 10 digits
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    handleInputChange("Phone Number", digits || null);
+                  }}
                   type="tel"
-                  placeholder="+91XXXXXXXXXX"
+                  placeholder="10 digit number"
+                  maxLength={10}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Enter 10 digit phone number. WhatsApp link will be auto-generated.
+                </p>
+                {teacherData["Link"] && (
+                  <p className="text-xs text-primary">
+                    WhatsApp link: {teacherData["Link"]}
+                  </p>
+                )}
               </div>
 
               {/* Hero Image */}
