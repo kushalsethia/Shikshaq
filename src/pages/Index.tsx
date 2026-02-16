@@ -17,6 +17,7 @@ import {
   CarouselItem,
 } from '@/components/ui/carousel';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache, getUserProfileCacheKey } from '@/utils/cache';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 // Subject icon imports
 import iconPsychology from '@/assets/PSYCHOLOGY.png';
@@ -67,6 +68,12 @@ export default function Index() {
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchBarElementRef = useRef<HTMLDivElement>(null);
   const roleCheckRef = useRef<{ userId: string | null; hasChecked: boolean }>({ userId: null, hasChecked: false });
+  const subjectsRef = useRef<HTMLDivElement>(null);
+  const howItWorksRef = useRef<HTMLDivElement>(null);
+  const faqRef = useRef<HTMLDivElement>(null);
+  const subjectsVisible = useScrollReveal(subjectsRef);
+  const howItWorksVisible = useScrollReveal(howItWorksRef);
+  const faqVisible = useScrollReveal(faqRef);
   // Pre-initialize likes hook for fast initial render (shared state)
   const { isLiked } = useLikes();
   const { user, loading: authLoading } = useAuth();
@@ -549,16 +556,16 @@ export default function Index() {
         <div className="container">
           <div className="flex flex-col items-center px-4 sm:px-0">
             <div className="text-center w-full max-w-3xl mb-[35px] sm:mb-[44px]">
-              <p className="text-lg sm:text-xl text-foreground font-medium mb-3">
+              <p className="text-lg sm:text-xl text-foreground font-medium mb-3 opacity-0 animate-fade-slide-up" style={{ animationDelay: '100ms' }}>
                 {user ? `Welcome${userFirstName ? `, ${userFirstName}` : ''}! 👋` : 'Welcome to Shikshaq! 👋'}
               </p>
-              <h1 className="text-[9.5vw] sm:text-4xl md:text-[3.6rem] font-serif text-foreground leading-none tracking-tighter">
+              <h1 className="text-[9.5vw] sm:text-4xl md:text-[3.6rem] font-serif text-foreground leading-none tracking-tighter opacity-0 animate-fade-slide-up">
               Your ideal <span style={{ color: '#FF8B16' }}>teacher</span>,
               <br />
               one <span style={{ color: '#5864FF' }}>search</span> away.
             </h1>
             </div>
-            <div ref={searchBarElementRef} className="w-full max-w-3xl">
+            <div ref={searchBarElementRef} className="w-full max-w-3xl opacity-0 animate-scale-pop" style={{ animationDelay: '200ms' }}>
           <SearchBar />
             </div>
           </div>
@@ -580,7 +587,7 @@ export default function Index() {
       <section className="pt-0 sm:pt-0 pb-4">
         <div className="container">
           <div className="mb-2">
-            <h2 className="section-title">Featured tuition teachers on ShikshAq</h2>
+            <h2 className="section-title">Featured <span style={{ color: '#4351FF' }}>tuition teachers</span> on ShikshAq</h2>
           </div>
 
           {loading ? (
@@ -607,10 +614,11 @@ export default function Index() {
                 className="w-full overflow-visible"
               >
                 <CarouselContent className="-ml-2 md:-ml-4 pr-2 md:pr-0">
-                  {featuredTeachers.map((teacher) => (
-                    <CarouselItem 
-                      key={teacher.id} 
-                      className="pl-2 md:pl-4 basis-[45vw] md:basis-1/3 lg:basis-1/4 xl:basis-1/6 flex-shrink-0"
+                  {featuredTeachers.map((teacher, index) => (
+                    <CarouselItem
+                      key={teacher.id}
+                      className="pl-2 md:pl-4 basis-[45vw] md:basis-1/3 lg:basis-1/4 xl:basis-1/6 flex-shrink-0 opacity-0 animate-fade-slide-up"
+                      style={{ animationDelay: `${350 + index * 50}ms` }}
                     >
                       <TeacherCard
                         id={teacher.id}
@@ -647,10 +655,10 @@ export default function Index() {
       </section>
 
       {/* Subjects */}
-      <section className="py-4">
+      <section ref={subjectsRef} className={`py-4 transition-all duration-700 ease-out ${subjectsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
         <div className="container">
           <div className="mb-2">
-            <h2 className="section-title">Explore tuition teachers via subjects</h2>
+            <h2 className="section-title">Explore tuition teachers via <span style={{ color: '#4351FF' }}>subjects</span></h2>
           </div>
 
           {loading ? (
@@ -664,12 +672,14 @@ export default function Index() {
           ) : subjects.length > 0 ? (
             <>
             <div className="grid grid-cols-3 md:grid-cols-9 gap-3">
-              {subjects.map((subject) => (
+              {subjects.map((subject, index) => (
                 <SubjectCard
                   key={subject.id}
                   name={subject.name}
                   slug={subject.slug}
                   icon={subjectIconMap[subject.name]}
+                  index={index}
+                  isVisible={subjectsVisible}
                 />
               ))}
             </div>
@@ -690,10 +700,14 @@ export default function Index() {
       </section>
 
       {/* How It Works */}
-      <HowItWorks />
+      <div ref={howItWorksRef} className={`transition-all duration-700 ease-out ${howItWorksVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: '100ms' }}>
+        <HowItWorks />
+      </div>
 
       {/* FAQ */}
-      <FAQ />
+      <div ref={faqRef} className={`transition-all duration-700 ease-out ${faqVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: '200ms' }}>
+        <FAQ />
+      </div>
 
       {/* Footer */}
       <Footer />

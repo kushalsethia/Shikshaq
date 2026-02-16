@@ -1026,14 +1026,14 @@ export default function TeacherProfile() {
                   rel="noopener noreferrer"
                   className="block"
                 >
-                  <Button className="w-full gap-2 py-6 text-base font-medium bg-[#25D366] hover:bg-[#20BA5A] text-white shadow-md hover:shadow-lg transition-all">
+                  <Button className="w-full gap-2 py-6 text-base font-medium bg-[#25D366] hover:bg-[#20BA5A] text-white shadow-md hover:shadow-lg transition-all whatsapp-pulse-once">
                     <WhatsAppIcon className="w-5 h-5" />
                     Contact via WhatsApp
                   </Button>
                 </a>
               ) : (
                 <Button
-                  className="w-full gap-2 py-6 text-base font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all"
+                  className="w-full gap-2 py-6 text-base font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all whatsapp-pulse-once"
                   onClick={() => navigate('/auth')}
                 >
                   <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
@@ -1051,9 +1051,9 @@ export default function TeacherProfile() {
             <h3 className="text-xl md:text-2xl font-serif font-normal text-foreground mb-4">
               Little more about {teacher.name}
             </h3>
-            <div 
+            <div
               className="px-4 py-3 rounded-lg bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 prose prose-sm max-w-none inline-block"
-              dangerouslySetInnerHTML={{ 
+              dangerouslySetInnerHTML={{
                 __html: (() => {
                   const content = teacher.description || '';
                   // Sanitize content to prevent XSS attacks

@@ -14,6 +14,7 @@ interface TeacherCardDetailedProps {
   classes?: string; // Classes taught from Shikshaqmine
   modeOfTeaching?: string; // Mode of teaching from Shikshaqmine
   sirMaam?: string | null; // Sir/Ma'am from Shikshaqmine
+  index?: number; // For staggered entrance animation
 }
 
 // Helper function to format name with Sir/Ma'am
@@ -29,15 +30,16 @@ function formatTeacherName(name: string, sirMaam?: string | null): string {
   return name;
 }
 
-export function TeacherCardDetailed({ 
+export function TeacherCardDetailed({
   id,
-  name, 
-  slug, 
-  imageUrl, 
+  name,
+  slug,
+  imageUrl,
   subjects,
   classes,
   modeOfTeaching,
-  sirMaam
+  sirMaam,
+  index = 0
 }: TeacherCardDetailedProps) {
   const displayName = formatTeacherName(name, sirMaam);
   const { user } = useAuth();
@@ -58,10 +60,16 @@ export function TeacherCardDetailed({
     await toggleUpvote(id);
   };
 
+  // Mobile: 60ms stagger, Desktop: 80ms stagger, capped at 600ms
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const staggerMs = isMobile ? 60 : 80;
+  const delay = Math.min(index * staggerMs, 600);
+
   return (
-    <Link 
-      to={`/tuition-teachers/${slug}`} 
-      className="group flex gap-3 bg-card rounded-2xl p-1.5 border border-border hover:shadow-lg transition-all duration-300"
+    <Link
+      to={`/tuition-teachers/${slug}`}
+      className="group flex gap-3 bg-card rounded-2xl p-1.5 border border-border hover:shadow-lg transition-all duration-150 active:scale-[0.97] animate-card-reveal opacity-0"
+      style={{ animationDelay: `${delay}ms` }}
     >
       {/* Teacher Image */}
       <div className="relative w-32 md:w-40 flex-shrink-0 overflow-hidden rounded-xl self-stretch">
