@@ -88,7 +88,7 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={placeholder}
-          className={sticky ? "search-input-sticky pl-9 pr-8" : "search-input pl-10 sm:pl-14 pr-10 sm:pr-12 py-3 sm:py-5 text-sm sm:text-base"}
+          className={sticky ? "search-input-sticky pl-9 pr-8" : `search-input ${showGlow ? 'search-input-pulse' : ''} pl-10 sm:pl-14 pr-10 sm:pr-12 py-3 sm:py-5 text-sm sm:text-base`}
           autoComplete="off"
           spellCheck="false"
         />

@@ -222,7 +222,8 @@
   }
 
   .search-input {
-    @apply w-full bg-card border-2 border-[#FF8000] rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 transition-all duration-200;
+    @apply w-full bg-card border-black rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground focus:outline-none transition-all duration-200;
+    border-width: 4px;
     position: relative;
     z-index: 1;
     min-height: 3.5rem;
@@ -261,17 +262,27 @@
   }
   
   .search-input:hover:not(:focus) {
-    border-color: #FF8000;
+    border-color: black;
     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
     background-color: hsl(var(--card) / 0.95);
   }
-  
+
   .search-input:focus {
-    border-color: #FF8000;
+    border-color: black;
     border-width: 4px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     transform: translateY(-1px);
     background-color: hsl(var(--card));
+  }
+
+  .search-input-pulse {
+    border-width: 4px;
+    animation: search-border-pulse 5s ease-in-out infinite;
+  }
+
+  .search-input-pulse:hover:not(:focus),
+  .search-input-pulse:focus {
+    animation-play-state: paused;
   }
   
   .search-input:focus::placeholder {
@@ -281,6 +292,18 @@
   @media (min-width: 640px) {
     .search-input {
       min-height: 4rem;
+    }
+  }
+
+  @keyframes search-border-pulse {
+    0%, 75% {
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    }
+    87% {
+      box-shadow: 0 0 24px 8px rgba(255, 128, 0, 0.35), 0 0 48px 16px rgba(255, 128, 0, 0.12);
+    }
+    100% {
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
     }
   }
 
