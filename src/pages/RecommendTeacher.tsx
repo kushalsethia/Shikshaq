@@ -138,7 +138,7 @@ export default function RecommendTeacher() {
           <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
             {/* Left Side - Text */}
             <div className="text-left">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif text-foreground leading-tight">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-sans text-foreground leading-tight">
                 We'd love to have the best teachers out there, on-board with us
               </h1>
             </div>

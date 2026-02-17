@@ -1239,7 +1239,7 @@ export default function Browse() {
         <div className="mb-4 sm:mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div>
-              <h1 className="text-2xl font-serif text-foreground tracking-tight">
+              <h1 className="text-2xl font-sans text-foreground tracking-tight">
                 {getHeading()}
               </h1>
               <p className="text-muted-foreground mt-1">
@@ -1295,7 +1295,7 @@ export default function Browse() {
             <div className="flex flex-col items-center justify-center py-24 md:py-32 min-h-[60vh]">
               <div className="text-center space-y-6">
                 <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mb-6"></div>
-                <h2 className="text-3xl md:text-4xl font-serif text-foreground">
+                <h2 className="text-3xl md:text-4xl font-sans text-foreground">
                   Finding your favourite teachers
                 </h2>
                 <p className="text-muted-foreground text-lg">
@@ -1308,7 +1308,7 @@ export default function Browse() {
             <div className="flex flex-col items-center justify-center py-16 md:py-24">
               <div className="text-center space-y-4">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mb-4"></div>
-                <h2 className="text-2xl md:text-3xl font-serif text-foreground">
+                <h2 className="text-2xl md:text-3xl font-sans text-foreground">
                   We are searching for your perfect teacher
                 </h2>
                 <p className="text-muted-foreground text-lg">
@@ -1368,7 +1368,7 @@ export default function Browse() {
           </div>
         ) : (
           <div className="text-center py-16">
-            <h2 className="text-xl font-serif text-foreground mb-2">No teachers found</h2>
+            <h2 className="text-xl font-sans text-foreground mb-2">No teachers found</h2>
             <p className="text-muted-foreground mb-4">
               Try adjusting your search or filters
             </p>
@@ -1381,7 +1381,7 @@ export default function Browse() {
         {/* Featured Teachers Section */}
         <section className="mt-16">
           <div className="mb-6">
-            <h2 className="section-title">Featured tuition teachers on ShikshAq</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-foreground mb-6 sm:mb-8">Featured tuition teachers on ShikshAQ</h2>
           </div>
 
           {featuredLoading ? (

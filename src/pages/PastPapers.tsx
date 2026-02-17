@@ -7,7 +7,7 @@ export default function PastPapers() {
       <Navbar />
       <main className="flex-1 flex items-start justify-center px-4 pt-[40vh] pb-[40vh] sm:items-center sm:pt-40 sm:pb-40 md:pt-32 md:pb-32 lg:pt-40 lg:pb-40">
         <div className="text-center w-full max-w-2xl mx-auto">
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-serif font-normal text-foreground mb-4 sm:mb-6">
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-sans font-normal text-foreground mb-4 sm:mb-6">
             Past Papers
           </h1>
           <p className="text-xl sm:text-2xl md:text-3xl text-muted-foreground">

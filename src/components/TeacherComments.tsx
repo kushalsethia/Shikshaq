@@ -319,7 +319,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
     <div className="mt-12 border-t border-border pt-8">
       <div className="flex items-center gap-3 mb-6">
         <MessageCircle className="w-6 h-6 text-foreground" />
-        <h2 className="text-2xl font-serif text-foreground">Comments</h2>
+        <h2 className="text-2xl font-sans text-foreground">Comments</h2>
         <span className="text-muted-foreground">({comments.length})</span>
       </div>
 

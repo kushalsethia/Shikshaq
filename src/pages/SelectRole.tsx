@@ -185,7 +185,7 @@ export default function SelectRole() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Logo size="lg" className="mx-auto mb-4" />
-            <h1 className="text-3xl font-serif text-foreground mb-2">
+            <h1 className="text-3xl font-sans text-foreground mb-2">
               Complete Your Profile
             </h1>
             <p className="text-muted-foreground">

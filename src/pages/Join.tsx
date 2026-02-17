@@ -14,7 +14,7 @@ export default function Join() {
         <div className="max-w-2xl mx-auto text-center">
           <span className="text-muted-foreground mb-2 block">Free of charge, no commissions!</span>
           
-          <h1 className="text-3xl md:text-5xl font-serif text-foreground mb-6">
+          <h1 className="text-3xl md:text-5xl font-sans text-foreground mb-6">
             Join ShikshAQ as a teacher today!
           </h1>
           
@@ -25,7 +25,7 @@ export default function Join() {
           </p>
 
           <div className="bg-card rounded-3xl p-8 border border-border mb-12">
-            <h2 className="text-xl font-serif text-foreground mb-6">Why join ShikshAQ?</h2>
+            <h2 className="text-xl font-sans text-foreground mb-6">Why join ShikshAQ?</h2>
             
             <div className="grid md:grid-cols-2 gap-6 text-left mb-8">
               <div className="space-y-4">

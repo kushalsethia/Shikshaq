@@ -361,7 +361,7 @@ export default function Auth() {
 
           {/* Form Card */}
           <div className="bg-card rounded-3xl p-8 shadow-sm border border-border">
-            <h1 className="text-2xl font-serif text-foreground text-center mb-2">
+            <h1 className="text-2xl font-sans text-foreground text-center mb-2">
               {showResetPassword ? 'Reset your password' : isLogin ? 'Welcome back' : 'Create your account'}
             </h1>
             <p className="text-muted-foreground text-center mb-8">

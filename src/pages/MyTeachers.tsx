@@ -176,7 +176,7 @@ export default function MyTeachers() {
         <div className="flex items-center gap-3 mb-8">
           <GraduationCap className="w-8 h-8 text-primary fill-primary" />
           <div>
-            <h1 className="text-3xl font-serif text-foreground">My Teachers</h1>
+            <h1 className="text-3xl font-sans text-foreground">My Teachers</h1>
             <p className="text-muted-foreground">
               {myTeachers.length === 0
                 ? 'No teachers yet'
@@ -189,7 +189,7 @@ export default function MyTeachers() {
         {myTeachers.length === 0 ? (
           <div className="text-center py-16">
             <GraduationCap className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-            <h2 className="text-xl font-serif text-foreground mb-2">No teachers yet</h2>
+            <h2 className="text-xl font-sans text-foreground mb-2">No teachers yet</h2>
             <p className="text-muted-foreground mb-6">
               Start exploring teachers and indicate which ones you study with!
             </p>

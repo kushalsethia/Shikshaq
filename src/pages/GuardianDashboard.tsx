@@ -387,7 +387,7 @@ export default function GuardianDashboard() {
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-2">
               <Users className="w-8 h-8 text-primary" />
-              <h1 className="text-3xl md:text-4xl font-serif text-foreground">
+              <h1 className="text-3xl md:text-4xl font-sans text-foreground">
                 Guardian Dashboard
               </h1>
             </div>
@@ -400,7 +400,7 @@ export default function GuardianDashboard() {
           <div className="bg-card rounded-2xl p-6 md:p-8 border border-border space-y-6">
             {/* Locked Fields Section */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <h2 className="text-xl font-serif text-foreground flex items-center gap-2">
+              <h2 className="text-xl font-sans text-foreground flex items-center gap-2">
                 <Lock className="w-5 h-5 text-muted-foreground" />
                 Account Information (Not Changeable)
               </h2>
@@ -430,7 +430,7 @@ export default function GuardianDashboard() {
 
             {/* Guardian Information Section */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <h2 className="text-xl font-serif text-foreground">Guardian Information</h2>
+              <h2 className="text-xl font-sans text-foreground">Guardian Information</h2>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -480,7 +480,7 @@ export default function GuardianDashboard() {
 
             {/* Student Details Section */}
             <div className="space-y-4">
-              <h2 className="text-xl font-serif text-foreground">Student Details</h2>
+              <h2 className="text-xl font-sans text-foreground">Student Details</h2>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">

@@ -161,7 +161,7 @@ export default function AdminUpvotes() {
         <Navbar />
         <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
           <Lock className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-          <h1 className="text-2xl font-serif text-foreground mb-4">Access Denied</h1>
+          <h1 className="text-2xl font-sans text-foreground mb-4">Access Denied</h1>
           <p className="text-muted-foreground mb-6">
             This page is only accessible to administrators.
           </p>
@@ -185,7 +185,7 @@ export default function AdminUpvotes() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-serif text-foreground">Teacher Upvotes</h1>
+            <h1 className="text-3xl font-sans text-foreground">Teacher Upvotes</h1>
             <p className="text-muted-foreground mt-1">
               View upvote statistics for all teachers
             </p>

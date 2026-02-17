@@ -108,7 +108,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-b-2xl">
-            <span className="text-4xl font-serif text-muted-foreground">
+            <span className="text-4xl font-sans text-muted-foreground">
               {name.charAt(0)}
             </span>
           </div>

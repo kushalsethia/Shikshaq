@@ -17,10 +17,15 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['DM Sans', 'system-ui', 'sans-serif'],
-        serif: ['Instrument Serif', 'Georgia', 'serif'],
+        sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
+        serif: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
+        'shikshaq-beige': '#F9F5F1',
+        'shikshaq-orange-light': 'rgba(255, 128, 0, 0.08)',
+        'shikshaq-dark': '#1F1F1F',
+        'shikshaq-orange': '#FF8000',
+        'shikshaq-blue': '#4351FF',
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

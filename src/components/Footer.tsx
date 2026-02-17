@@ -203,14 +203,14 @@ export function Footer({ expandedContent }: FooterProps = {}) {
   }, [location.pathname, searchParams]);
 
   return (
-    <footer className="bg-card border-t border-border">
+    <footer className="bg-card">
       {/* Feedback and Join Sections - Side by side on desktop, stacked on mobile */}
       <div className="container pt-16 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Feedback Section - Blue to Purple Gradient */}
-          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 p-9">
+          <div className="relative rounded-3xl overflow-hidden bg-blue-600 p-9">
             <div className="relative z-10">
-              <h2 className="text-3xl md:text-4xl font-serif text-white mb-4 md:mb-6 leading-tight">
+              <h2 className="text-3xl md:text-4xl font-sans text-white mb-4 md:mb-6 leading-tight">
                 Share Your Feedback
               </h2>
               <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
@@ -229,9 +229,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           </div>
 
           {/* Join as Teacher Section - Orange Gradient */}
-          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 p-9">
+          <div className="relative rounded-3xl overflow-hidden bg-[#FF8000] p-9">
             <div className="relative z-10">
-              <h2 className="text-3xl md:text-4xl font-serif text-white mb-4 md:mb-6 leading-tight">
+              <h2 className="text-3xl md:text-4xl font-sans text-white mb-4 md:mb-6 leading-tight">
                 Join as a Teacher
               </h2>
               <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
@@ -371,26 +371,26 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <Logo size="lg" />
 
-            <nav className="flex flex-wrap justify-center gap-6 text-sm">
-              <Link to="/" className="text-foreground/80 hover:text-foreground transition-colors">
+            <nav className="flex flex-wrap justify-center gap-6">
+              <Link to="/" className="text-sm md:text-base font-sans font-normal text-foreground/80 hover:text-[#4351FF] transition-colors">
                 Home
               </Link>
-              <Link to="/all-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
+              <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-sans font-normal text-foreground/80 hover:text-[#4351FF] transition-colors">
                 Browse Teachers
               </Link>
-              <Link to="/more" className="text-foreground/80 hover:text-foreground transition-colors">
+              <Link to="/more" className="text-sm md:text-base font-sans font-normal text-foreground/80 hover:text-[#4351FF] transition-colors">
                 Help
               </Link>
-              <Link 
-                to="/terms-of-service" 
-                className="text-foreground/80 hover:text-foreground transition-colors"
+              <Link
+                to="/terms-of-service"
+                className="text-sm md:text-base font-sans font-normal text-foreground/80 hover:text-[#4351FF] transition-colors"
                 onClick={() => window.scrollTo(0, 0)}
               >
                 Terms of Service
               </Link>
-              <Link 
-                to="/privacy-policy" 
-                className="text-foreground/80 hover:text-foreground transition-colors"
+              <Link
+                to="/privacy-policy"
+                className="text-sm md:text-base font-sans font-normal text-foreground/80 hover:text-[#4351FF] transition-colors"
                 onClick={() => window.scrollTo(0, 0)}
               >
                 Privacy Policy
@@ -423,9 +423,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             </div>
           </div>
 
-          <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-            <p>© {new Date().getFullYear()} ShikshAq. An AquaTerra Start-up.</p>
-            <p className="mt-4 text-xs">brought to you by</p>
+          <div className="mt-8 pt-8 border-t border-border text-center">
+            <p className="text-xs sm:text-sm font-sans font-normal text-[#999999]">© {new Date().getFullYear()} ShikshAQ. An AquaTerra Start-up.</p>
+            <p className="mt-4 text-xs font-sans font-normal text-[#999999]">brought to you by</p>
             <div className="mt-2 flex justify-center">
               <img
                 src={aquaterraLogo}

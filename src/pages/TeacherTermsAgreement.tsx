@@ -189,7 +189,7 @@ export default function TeacherTermsAgreement() {
             <div className="flex justify-center mb-4">
               <UserCheck className="w-12 h-12 text-primary" />
             </div>
-            <h1 className="text-3xl font-serif text-foreground mb-2">
+            <h1 className="text-3xl font-sans text-foreground mb-2">
               Verify Your Consent
             </h1>
             <p className="text-muted-foreground">
