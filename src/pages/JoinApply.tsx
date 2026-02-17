@@ -70,6 +70,8 @@ interface FormData {
   hero_image_url: string;
   reference_name: string;
   reference_number: string;
+  min_fees: string;
+  max_fees: string;
   mou_consent: boolean;
 }
 
@@ -94,6 +96,8 @@ export default function JoinApply() {
     hero_image_url: '',
     reference_name: '',
     reference_number: '',
+    min_fees: '',
+    max_fees: '',
     mou_consent: false,
   });
 
@@ -377,6 +381,8 @@ export default function JoinApply() {
           hero_image_url: heroImageUrl || null,
           reference_name: formData.reference_name.trim() || null,
           reference_number: formData.reference_number.replace(/\D/g, '') || null, // Store only digits
+          min_fees: formData.min_fees ? parseInt(formData.min_fees.replace(/\D/g, '')) || null : null,
+          max_fees: formData.max_fees ? parseInt(formData.max_fees.replace(/\D/g, '')) || null : null,
           mou_consent: true,
           mou_consent_timestamp: new Date().toISOString(),
           status: 'pending',
@@ -807,6 +813,44 @@ export default function JoinApply() {
                     maxLength={10}
                     required
                   />
+                </div>
+
+                {/* Min Fees */}
+                <div>
+                  <Label htmlFor="min_fees">Minimum Fees per Month (₹)</Label>
+                  <Input
+                    id="min_fees"
+                    type="tel"
+                    value={formData.min_fees}
+                    onChange={(e) => {
+                      // Only allow digits, limit to 6 digits
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      handleInputChange('min_fees', digits);
+                    }}
+                    placeholder="e.g., 2000"
+                    maxLength={6}
+                    inputMode="numeric"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Optional - Enter minimum monthly fees</p>
+                </div>
+
+                {/* Max Fees */}
+                <div>
+                  <Label htmlFor="max_fees">Maximum Fees per Month (₹)</Label>
+                  <Input
+                    id="max_fees"
+                    type="tel"
+                    value={formData.max_fees}
+                    onChange={(e) => {
+                      // Only allow digits, limit to 6 digits
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      handleInputChange('max_fees', digits);
+                    }}
+                    placeholder="e.g., 5000"
+                    maxLength={6}
+                    inputMode="numeric"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Optional - Enter maximum monthly fees</p>
                 </div>
 
                 {/* Hero Image */}

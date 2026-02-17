@@ -179,6 +179,8 @@ export type Database = {
           updated_at: string
           reference_name: string | null
           reference_number: string | null
+          min_fees: number | null
+          max_fees: number | null
         }
         Insert: {
           id?: string
@@ -210,6 +212,8 @@ export type Database = {
           updated_at?: string
           reference_name?: string | null
           reference_number?: string | null
+          min_fees?: number | null
+          max_fees?: number | null
         }
         Update: {
           id?: string
@@ -241,6 +245,8 @@ export type Database = {
           updated_at?: string
           reference_name?: string | null
           reference_number?: string | null
+          min_fees?: number | null
+          max_fees?: number | null
         }
         Relationships: [
           {

@@ -84,6 +84,8 @@ interface TeacherData {
   Subjects: string | null;
   "Mode of Teaching": string | null;
   "Class Size (Group/ Solo)": string | null;
+  "Min Fees": number | null;
+  "Max Fees": number | null;
 }
 
 export default function TeacherDashboard() {
@@ -202,6 +204,8 @@ export default function TeacherDashboard() {
           Subjects: data["Subjects"] || null,
           "Mode of Teaching": data["Mode of Teaching"] || null,
           "Class Size (Group/ Solo)": data["Class Size (Group/ Solo)"] || null,
+          "Min Fees": (data as any)["Min Fees"] || null,
+          "Max Fees": (data as any)["Max Fees"] || null,
         };
 
         setTeacherData(teacher);
@@ -621,6 +625,8 @@ export default function TeacherDashboard() {
         Subjects: teacherData.Subjects || null,
         "Mode of Teaching": teacherData["Mode of Teaching"] || null,
         "Class Size (Group/ Solo)": teacherData["Class Size (Group/ Solo)"] || null,
+        "Min Fees": teacherData["Min Fees"] || null,
+        "Max Fees": teacherData["Max Fees"] || null,
       };
 
       // Get the teacher's slug before updating (for cache invalidation)
@@ -1064,6 +1070,44 @@ export default function TeacherDashboard() {
                   type="text"
                   placeholder="e.g., 2015"
                 />
+              </div>
+
+              {/* Min Fees */}
+              <div className="space-y-2">
+                <Label htmlFor="minFees">Minimum Fees per Month (₹)</Label>
+                <Input
+                  id="minFees"
+                  type="tel"
+                  value={teacherData["Min Fees"]?.toString() || ''}
+                  onChange={(e) => {
+                    // Only allow digits, limit to 6 digits
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    handleInputChange("Min Fees", digits ? parseInt(digits) : null);
+                  }}
+                  placeholder="e.g., 2000"
+                  maxLength={6}
+                  inputMode="numeric"
+                />
+                <p className="text-xs text-muted-foreground">Optional - Enter minimum monthly fees</p>
+              </div>
+
+              {/* Max Fees */}
+              <div className="space-y-2">
+                <Label htmlFor="maxFees">Maximum Fees per Month (₹)</Label>
+                <Input
+                  id="maxFees"
+                  type="tel"
+                  value={teacherData["Max Fees"]?.toString() || ''}
+                  onChange={(e) => {
+                    // Only allow digits, limit to 6 digits
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    handleInputChange("Max Fees", digits ? parseInt(digits) : null);
+                  }}
+                  placeholder="e.g., 5000"
+                  maxLength={6}
+                  inputMode="numeric"
+                />
+                <p className="text-xs text-muted-foreground">Optional - Enter maximum monthly fees</p>
               </div>
 
               {/* Featured Subject */}

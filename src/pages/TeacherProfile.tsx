@@ -57,6 +57,8 @@ interface Teacher {
   review_2?: string | null; // The "Review 2" field from Shikshaqmine table
   review_3?: string | null; // The "Review 3" field from Shikshaqmine table
   whatsapp_link?: string | null; // The "Link" field from Shikshaqmine table
+  min_fees?: number | null; // The "Min Fees" field from Shikshaqmine table
+  max_fees?: number | null; // The "Max Fees" field from Shikshaqmine table
 }
 
 export default function TeacherProfile() {
@@ -148,11 +150,14 @@ export default function TeacherProfile() {
       let review2 = null;
       let review3 = null;
       let whatsappLink = null;
+      let minFees = null;
+      let maxFees = null;
+      let shikshaqData: any = null;
       if (teacherData) {
         try {
           // Check cache for Shikshaqmine data
           const shikshaqCacheKey = getShikshaqmineBySlugCacheKey(slug);
-          let shikshaqData = getCache<any>(shikshaqCacheKey);
+          shikshaqData = getCache<any>(shikshaqCacheKey);
           
           if (!shikshaqData) {
             const { data, error } = await supabase
@@ -192,6 +197,9 @@ export default function TeacherProfile() {
             review2 = (shikshaqData as any)["Review 2"];
             review3 = (shikshaqData as any)["Review 3"];
             whatsappLink = (shikshaqData as any)["Link"] || (shikshaqData as any)["link"];
+            // Fees
+            minFees = (shikshaqData as any)["Min Fees"];
+            maxFees = (shikshaqData as any)["Max Fees"];
           }
         } catch (err) {
           if (import.meta.env.DEV) {
@@ -222,6 +230,8 @@ export default function TeacherProfile() {
           review_2: review2,
           review_3: review3,
           whatsapp_link: whatsappLink,
+          min_fees: minFees || null,
+          max_fees: maxFees || null,
         } as Teacher);
       }
       setLoading(false);
@@ -1078,7 +1088,7 @@ export default function TeacherProfile() {
         )}
 
             {/* Additional Details Section */}
-        {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.qualifications_etc) && (
+        {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.qualifications_etc || teacher.min_fees || teacher.max_fees) && (
           <div className="mt-8 md:mt-12">
             <h3 className="text-xl md:text-2xl font-serif font-normal text-foreground mb-4 md:mb-6">Here are some more details:</h3>
             <div className="flex flex-wrap gap-4 md:gap-6">
@@ -1118,6 +1128,22 @@ export default function TeacherProfile() {
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Experience/Qualifications</h4>
                   <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
                     {teacher.qualifications_etc}
+                  </div>
+                </div>
+              )}
+
+              {/* Approximate Fees per month - Only display if at least one fee is filled */}
+              {(teacher.min_fees != null || teacher.max_fees != null) && (
+                <div className="flex-shrink-0 w-full md:w-auto">
+                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Approximate Fees per month</h4>
+                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
+                    {teacher.min_fees != null && teacher.max_fees != null
+                      ? `₹${teacher.min_fees.toLocaleString()} - ₹${teacher.max_fees.toLocaleString()}`
+                      : teacher.min_fees != null
+                      ? `₹${teacher.min_fees.toLocaleString()}+`
+                      : teacher.max_fees != null
+                      ? `Up to ₹${teacher.max_fees.toLocaleString()}`
+                      : ''}
                   </div>
                 </div>
               )}

@@ -91,6 +91,8 @@ interface TeacherData {
   "TUTOR'S HOME IN THESE AREAS": string | null;
   "Qualifications etc": string | null;
   "Years they started teaching": string | null;
+  "Min Fees": number | null;
+  "Max Fees": number | null;
 }
 
 export default function AdminTeachers() {
@@ -1045,6 +1047,44 @@ export default function AdminTeachers() {
                       value={formData["Years they started teaching"] || ''}
                       onChange={(e) => handleInputChange("Years they started teaching", e.target.value)}
                     />
+                  </div>
+
+                  {/* Min Fees */}
+                  <div>
+                    <Label htmlFor="minFees">Minimum Fees per Month (₹)</Label>
+                    <Input
+                      id="minFees"
+                      type="tel"
+                      value={formData["Min Fees"]?.toString() || ''}
+                      onChange={(e) => {
+                        // Only allow digits, limit to 6 digits
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        handleInputChange("Min Fees", digits ? parseInt(digits) : null);
+                      }}
+                      placeholder="e.g., 2000"
+                      maxLength={6}
+                      inputMode="numeric"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Optional - Enter minimum monthly fees</p>
+                  </div>
+
+                  {/* Max Fees */}
+                  <div>
+                    <Label htmlFor="maxFees">Maximum Fees per Month (₹)</Label>
+                    <Input
+                      id="maxFees"
+                      type="tel"
+                      value={formData["Max Fees"]?.toString() || ''}
+                      onChange={(e) => {
+                        // Only allow digits, limit to 6 digits
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        handleInputChange("Max Fees", digits ? parseInt(digits) : null);
+                      }}
+                      placeholder="e.g., 5000"
+                      maxLength={6}
+                      inputMode="numeric"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Optional - Enter maximum monthly fees</p>
                   </div>
 
                   {/* Review 1 */}
