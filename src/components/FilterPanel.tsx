@@ -1,4 +1,6 @@
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Sheet,
   SheetContent,
@@ -24,6 +26,8 @@ export interface FilterState {
   classSize: string[];
   areas: string[];
   modeOfTeaching: string[];
+  minFees: number | null;
+  maxFees: number | null;
 }
 
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
@@ -138,7 +142,9 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
     filters.boards.length > 0 ||
     filters.classSize.length > 0 ||
     filters.areas.length > 0 ||
-    filters.modeOfTeaching.length > 0;
+    filters.modeOfTeaching.length > 0 ||
+    filters.minFees != null ||
+    filters.maxFees != null;
 
   const handleApplyFilters = () => {
     onOpenChange(false);
@@ -288,6 +294,58 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                   {mode}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Fees per month */}
+          <div>
+            <h3 className="text-lg font-medium mb-4">Fees per month (₹)</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="minFees">Minimum</Label>
+                  <Input
+                    id="minFees"
+                    type="tel"
+                    placeholder="e.g., 2000"
+                    value={filters.minFees?.toString() || ''}
+                    onChange={(e) => {
+                      // Only allow digits, limit to 6 digits
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      onFilterChange({
+                        ...filters,
+                        minFees: digits ? parseInt(digits) : null,
+                      });
+                    }}
+                    maxLength={6}
+                    inputMode="numeric"
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxFees">Maximum</Label>
+                  <Input
+                    id="maxFees"
+                    type="tel"
+                    placeholder="e.g., 5000"
+                    value={filters.maxFees?.toString() || ''}
+                    onChange={(e) => {
+                      // Only allow digits, limit to 6 digits
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      onFilterChange({
+                        ...filters,
+                        maxFees: digits ? parseInt(digits) : null,
+                      });
+                    }}
+                    maxLength={6}
+                    inputMode="numeric"
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Filter teachers by their monthly fee range. Leave empty to show all.
+              </p>
             </div>
           </div>
         </div>

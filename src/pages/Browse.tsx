@@ -109,14 +109,20 @@ export default function Browse() {
   };
 
   // Initialize filters from URL params
-  const [filters, setFilters] = useState<FilterState>(() => ({
-    subjects: parseArrayParam(searchParams.get('filter_subjects')),
-    classes: parseArrayParam(searchParams.get('filter_classes')),
-    boards: parseArrayParam(searchParams.get('filter_boards')),
-    classSize: parseArrayParam(searchParams.get('filter_classSize')),
-    areas: parseArrayParam(searchParams.get('filter_areas')),
-    modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
-  }));
+  const [filters, setFilters] = useState<FilterState>(() => {
+    const minFeesParam = searchParams.get('filter_minFees');
+    const maxFeesParam = searchParams.get('filter_maxFees');
+    return {
+      subjects: parseArrayParam(searchParams.get('filter_subjects')),
+      classes: parseArrayParam(searchParams.get('filter_classes')),
+      boards: parseArrayParam(searchParams.get('filter_boards')),
+      classSize: parseArrayParam(searchParams.get('filter_classSize')),
+      areas: parseArrayParam(searchParams.get('filter_areas')),
+      modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
+      minFees: minFeesParam ? parseInt(minFeesParam) : null,
+      maxFees: maxFeesParam ? parseInt(maxFeesParam) : null,
+    };
+  });
   const [displayedTeachers, setDisplayedTeachers] = useState<Teacher[]>([]);
   const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -239,6 +245,19 @@ export default function Browse() {
       newParams.set('filter_modeOfTeaching', modeParam);
     } else {
       newParams.delete('filter_modeOfTeaching');
+    }
+
+    // Handle fees filters
+    if (filters.minFees != null) {
+      newParams.set('filter_minFees', filters.minFees.toString());
+    } else {
+      newParams.delete('filter_minFees');
+    }
+
+    if (filters.maxFees != null) {
+      newParams.set('filter_maxFees', filters.maxFees.toString());
+    } else {
+      newParams.delete('filter_maxFees');
     }
 
     // Only update URL if params actually changed (avoid infinite loop)
@@ -499,7 +518,8 @@ export default function Browse() {
 
         const hasActiveFilters = effectiveSubjectFilters.length > 0 || effectiveClassFilters.length > 0 || 
             urlFilters.boards.length > 0 || urlFilters.classSize.length > 0 || 
-            urlFilters.areas.length > 0 || urlFilters.modeOfTeaching.length > 0;
+            urlFilters.areas.length > 0 || urlFilters.modeOfTeaching.length > 0 ||
+            urlFilters.minFees != null || urlFilters.maxFees != null;
 
         // Apply filters (extracted from search query or URL params)
         // If we have a search query, extract filters directly to ensure they're applied immediately
@@ -511,6 +531,8 @@ export default function Browse() {
           classSize: urlFilters.classSize,
           areas: urlFilters.areas,
           modeOfTeaching: urlFilters.modeOfTeaching,
+          minFees: urlFilters.minFees,
+          maxFees: urlFilters.maxFees,
         };
 
         // Extract filters from search query if present (apply immediately, don't wait for state update)
@@ -519,6 +541,7 @@ export default function Browse() {
           if (searchQuery && searchQuery.trim().length >= 2) {
           extractedFilters = extractFiltersFromQuery(searchQuery, subjects);
           // Replace all filters with extracted ones (don't merge with previous search)
+          // Note: Fees are not extracted from search query, keep URL fees
           effectiveFilters = {
             subjects: extractedFilters.subjects || [],
             classes: extractedFilters.classes || [],
@@ -526,6 +549,8 @@ export default function Browse() {
             classSize: extractedFilters.classSize || [],
             areas: extractedFilters.areas || [],
             modeOfTeaching: extractedFilters.modeOfTeaching || [],
+            minFees: urlFilters.minFees, // Keep fees from URL (not extracted from search)
+            maxFees: urlFilters.maxFees, // Keep fees from URL (not extracted from search)
           };
         }
 
@@ -536,7 +561,9 @@ export default function Browse() {
           effectiveFilters.boards.length > 0 || 
           effectiveFilters.classSize.length > 0 || 
           effectiveFilters.areas.length > 0 || 
-          effectiveFilters.modeOfTeaching.length > 0;
+          effectiveFilters.modeOfTeaching.length > 0 ||
+          effectiveFilters.minFees != null ||
+          effectiveFilters.maxFees != null;
 
         // Smart Search Logic: Handle both Name Search and Filters
         // Strategy: 
@@ -669,6 +696,59 @@ export default function Browse() {
                   mode.includes(modeLower + '/')
                 );
                 if (!hasMode) {
+                  return false;
+                }
+              }
+
+              // Check fees - filter by Min Fees and Max Fees from Shikshaqmine
+              const teacherMinFees = (record["Min Fees"] != null) ? Number(record["Min Fees"]) : null;
+              const teacherMaxFees = (record["Max Fees"] != null) ? Number(record["Max Fees"]) : null;
+              const filterMinFees = effectiveFilters.minFees;
+              const filterMaxFees = effectiveFilters.maxFees;
+
+              // Only filter if at least one fee filter is set
+              if (filterMinFees != null || filterMaxFees != null) {
+                // If teacher has no fees data, exclude them
+                if (teacherMinFees == null && teacherMaxFees == null) {
+                  return false;
+                }
+
+                // Check if fee ranges overlap
+                // Filter: [filterMinFees, filterMaxFees] - user wants teachers in this range
+                // Teacher: [teacherMinFees, teacherMaxFees] - teacher's actual fee range
+                // Match if ranges overlap (teacher's range intersects with filter range)
+                
+                let matches = true;
+
+                // If filter has minFees, check if teacher's range can include values >= filterMinFees
+                if (filterMinFees != null) {
+                  if (teacherMaxFees != null) {
+                    // Teacher has maxFees - check if their range goes high enough (maxFees >= filterMinFees)
+                    matches = matches && teacherMaxFees >= filterMinFees;
+                  } else if (teacherMinFees != null) {
+                    // Teacher only has minFees - check if their minimum is acceptable (minFees >= filterMinFees)
+                    // If teacher charges at least filterMinFees, they match
+                    matches = matches && teacherMinFees >= filterMinFees;
+                  } else {
+                    matches = false;
+                  }
+                }
+
+                // If filter has maxFees, check if teacher's range can include values <= filterMaxFees
+                if (filterMaxFees != null) {
+                  if (teacherMinFees != null) {
+                    // Teacher has minFees - check if their range goes low enough (minFees <= filterMaxFees)
+                    matches = matches && teacherMinFees <= filterMaxFees;
+                  } else if (teacherMaxFees != null) {
+                    // Teacher only has maxFees - check if their maximum is acceptable (maxFees <= filterMaxFees)
+                    // If teacher charges at most filterMaxFees, they match
+                    matches = matches && teacherMaxFees <= filterMaxFees;
+                  } else {
+                    matches = false;
+                  }
+                }
+
+                if (!matches) {
                   return false;
                 }
               }
