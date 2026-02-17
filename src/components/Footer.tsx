@@ -203,12 +203,12 @@ export function Footer({ expandedContent }: FooterProps = {}) {
   }, [location.pathname, searchParams]);
 
   return (
-    <footer className="bg-card border-t border-border">
+    <footer className="bg-card">
       {/* Feedback and Join Sections - Side by side on desktop, stacked on mobile */}
       <div className="container pt-16 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Feedback Section - Blue to Purple Gradient */}
-          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 p-9">
+          <div className="relative rounded-3xl overflow-hidden bg-blue-600 p-9">
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl font-sans text-white mb-4 md:mb-6 leading-tight">
                 Share Your Feedback
@@ -229,7 +229,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           </div>
 
           {/* Join as Teacher Section - Orange Gradient */}
-          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 p-9">
+          <div className="relative rounded-3xl overflow-hidden bg-[#FF8000] p-9">
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl font-sans text-white mb-4 md:mb-6 leading-tight">
                 Join as a Teacher

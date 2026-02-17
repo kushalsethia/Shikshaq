@@ -9,24 +9,32 @@ interface WaveDividerProps {
 export function WaveDivider({ fillColor, bgColor, inverted = false }: WaveDividerProps) {
   return (
     <div
-      className="w-full relative overflow-hidden"
       style={{
         backgroundColor: bgColor,
-        height: '60px'
+        height: '48px',
+        width: '100%',
+        overflow: 'hidden',
+        margin: '0',
+        padding: '0',
+        display: 'block',
+        lineHeight: '0'
       }}
     >
       <svg
-        viewBox="0 0 1200 40"
-        preserveAspectRatio="none"
+        viewBox="0 0 1200 48"
+        preserveAspectRatio="xMidYMid slice"
         style={{
           display: 'block',
           width: '100%',
           height: '100%',
-          transform: inverted ? 'scaleY(-1)' : 'none'
+          margin: '0',
+          padding: '0',
+          transform: inverted ? 'scaleY(-1)' : 'none',
+          verticalAlign: 'bottom'
         }}
       >
         <path
-          d="M 0 20 Q 10 10 20 20 T 40 20 T 60 20 T 80 20 T 100 20 T 120 20 T 140 20 T 160 20 T 180 20 T 200 20 T 220 20 T 240 20 T 260 20 T 280 20 T 300 20 T 320 20 T 340 20 T 360 20 T 380 20 T 400 20 T 420 20 T 440 20 T 460 20 T 480 20 T 500 20 T 520 20 T 540 20 T 560 20 T 580 20 T 600 20 T 620 20 T 640 20 T 660 20 T 680 20 T 700 20 T 720 20 T 740 20 T 760 20 T 780 20 T 800 20 T 820 20 T 840 20 T 860 20 T 880 20 T 900 20 T 920 20 T 940 20 T 960 20 T 980 20 T 1000 20 T 1020 20 T 1040 20 T 1060 20 T 1080 20 T 1100 20 T 1120 20 T 1140 20 T 1160 20 T 1180 20 T 1200 20 L 1200 40 L 0 40 Z"
+          d="M0,24 Q15,12 30,24 T60,24 T90,24 T120,24 T150,24 T180,24 T210,24 T240,24 T270,24 T300,24 T330,24 T360,24 T390,24 T420,24 T450,24 T480,24 T510,24 T540,24 T570,24 T600,24 T630,24 T660,24 T690,24 T720,24 T750,24 T780,24 T810,24 T840,24 T870,24 T900,24 T930,24 T960,24 T990,24 T1020,24 T1050,24 T1080,24 T1110,24 T1140,24 T1170,24 T1200,24 L1200,48 L0,48 Z"
           fill={fillColor}
         />
       </svg>

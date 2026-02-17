@@ -18,7 +18,6 @@ import {
   CarouselItem,
 } from '@/components/ui/carousel';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache, getUserProfileCacheKey } from '@/utils/cache';
-import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 // Subject icon imports
 import iconPsychology from '@/assets/PSYCHOLOGY.png';
@@ -69,12 +68,6 @@ export default function Index() {
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchBarElementRef = useRef<HTMLDivElement>(null);
   const roleCheckRef = useRef<{ userId: string | null; hasChecked: boolean }>({ userId: null, hasChecked: false });
-  const subjectsRef = useRef<HTMLDivElement>(null);
-  const howItWorksRef = useRef<HTMLDivElement>(null);
-  const faqRef = useRef<HTMLDivElement>(null);
-  const subjectsVisible = useScrollReveal(subjectsRef);
-  const howItWorksVisible = useScrollReveal(howItWorksRef);
-  const faqVisible = useScrollReveal(faqRef);
   // Pre-initialize likes hook for fast initial render (shared state)
   const { isLiked } = useLikes();
   const { user, loading: authLoading } = useAuth();
@@ -552,21 +545,21 @@ export default function Index() {
     <div className="min-h-screen bg-[#F9F5F1]">
       <Navbar />
       
-      {/* Hero Section — Orange */}
-      <section ref={searchBarRef} className="pt-20 sm:pt-24 md:pt-32 pb-16 sm:pb-20 md:pb-24 bg-[#FF8000]">
+      {/* Hero Section — Beige */}
+      <section ref={searchBarRef} className="pt-[140px] pb-[120px] bg-[#F9F5F1]">
         <div className="container">
           <div className="flex flex-col items-center px-4 sm:px-0">
             <div className="text-center w-full max-w-3xl mb-4 sm:mb-6">
-              <p className="text-sm sm:text-base md:text-lg text-white font-medium mb-3 opacity-0 animate-fade-slide-up" style={{ animationDelay: '100ms' }}>
+              <p className="text-sm sm:text-base md:text-lg text-[#666666] font-medium mb-2 sm:mb-3 opacity-0 animate-fade-slide-up" style={{ animationDelay: '100ms' }}>
                 {user ? `Welcome${userFirstName ? `, ${userFirstName}` : ''}! 👋` : 'Welcome to Shikshaq! 👋'}
               </p>
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-sans font-bold text-white leading-tight tracking-tight text-center opacity-0 animate-fade-slide-up" style={{ animationDelay: '200ms' }}>
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-sans font-bold text-[#1F1F1F] leading-none tracking-tight text-center opacity-0 animate-fade-slide-up" style={{ animationDelay: '200ms' }}>
                 Your ideal teacher,
                 <br />
                 one search away.
               </h1>
             </div>
-            <div ref={searchBarElementRef} className="w-full max-w-2xl sm:max-w-3xl mx-auto mt-6 sm:mt-8 md:mt-10 opacity-0 animate-scale-pop" style={{ animationDelay: '300ms' }}>
+            <div ref={searchBarElementRef} className="w-full max-w-2xl sm:max-w-3xl mx-auto mt-3 sm:mt-10 md:mt-6 opacity-0 animate-scale-pop" style={{ animationDelay: '300ms' }}>
               <SearchBar />
             </div>
           </div>
@@ -584,13 +577,10 @@ export default function Index() {
         </div>
       )}
 
-      {/* Wave: Hero (Orange) → Featured (Beige) */}
-      <WaveDivider fillColor="#F9F5F1" bgColor="#FF8000" inverted={false} />
-
       {/* Featured Teachers — Beige */}
-      <section className="py-16 sm:py-20 md:py-24 bg-[#F9F5F1]">
+      <section className="py-12 sm:py-16 md:py-20 bg-[#F9F5F1]">
         <div className="container">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-[#1F1F1F] mb-8 sm:mb-10 md:mb-12">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-[#1F1F1F] mb-2 sm:mb-4 md:mb-6">
             Featured <span className="text-[#FF8000]">tuition teachers</span> on ShikshAQ
           </h2>
 
@@ -643,7 +633,7 @@ export default function Index() {
                 </CarouselContent>
               </Carousel>
               {/* View more button below carousel */}
-              <div className="flex justify-end mt-6 sm:mt-8 md:mt-10">
+              <div className="flex justify-end mt-1 sm:mt-4 md:mt-5">
                 <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-[#4351FF] hover:opacity-80 transition-opacity flex items-center gap-2">
                   View more teachers
                   <ArrowRight className="w-4 h-4" />
@@ -662,9 +652,9 @@ export default function Index() {
       <WaveDivider fillColor="#FF8000" bgColor="#F9F5F1" inverted={false} />
 
       {/* Subjects — Orange */}
-      <section ref={subjectsRef} className={`py-16 sm:py-20 md:py-24 bg-[#FF8000] transition-all duration-700 ease-out ${subjectsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+      <section className="py-12 sm:py-16 md:py-20 bg-[#FF8000]">
         <div className="container">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-white mb-8 sm:mb-10 md:mb-12">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-white mb-2 sm:mb-4 md:mb-6">
             Explore tuition teachers via <span className="text-white">subjects</span>
           </h2>
 
@@ -686,12 +676,12 @@ export default function Index() {
                   slug={subject.slug}
                   icon={subjectIconMap[subject.name]}
                   index={index}
-                  isVisible={subjectsVisible}
+                  isVisible={true}
                 />
               ))}
             </div>
               {/* View more button below grid */}
-              <div className="flex justify-end mt-8 sm:mt-10 md:mt-12">
+              <div className="flex justify-end mt-1 sm:mt-4 md:mt-5">
                 <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-white hover:opacity-80 transition-opacity flex items-center gap-2">
                   View more subjects
                   <ArrowRight className="w-4 h-4" />
@@ -707,10 +697,10 @@ export default function Index() {
       </section>
 
       {/* Wave: Orange → Beige */}
-      <WaveDivider fillColor="#F9F5F1" bgColor="#FF8000" inverted={true} />
+      <WaveDivider fillColor="#FF8000" bgColor="#F9F5F1" inverted={true} />
 
       {/* How It Works — Beige */}
-      <div ref={howItWorksRef} className={`bg-[#F9F5F1] transition-all duration-700 ease-out ${howItWorksVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: '100ms' }}>
+      <div className="bg-[#F9F5F1]">
         <HowItWorks />
       </div>
 
@@ -718,12 +708,12 @@ export default function Index() {
       <WaveDivider fillColor="#FF8000" bgColor="#F9F5F1" inverted={false} />
 
       {/* FAQ — Orange */}
-      <div ref={faqRef} className={`bg-[#FF8000] transition-all duration-700 ease-out ${faqVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: '200ms' }}>
+      <div className="bg-[#FF8000]">
         <FAQ />
       </div>
 
-      {/* Wave: FAQ (Orange) → Footer (Dark) */}
-      <WaveDivider fillColor="#1F1F1F" bgColor="#FF8000" inverted={false} />
+      {/* Wave: FAQ (Orange) → Footer */}
+      <WaveDivider fillColor="#fcfbf8" bgColor="#FF8000" inverted={false} />
 
       {/* Footer */}
       <Footer />
