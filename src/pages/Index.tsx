@@ -546,7 +546,7 @@ export default function Index() {
       <Navbar />
       
       {/* Hero Section — Beige */}
-      <section ref={searchBarRef} className="pt-[140px] pb-[120px] bg-[#F9F5F1]">
+      <section ref={searchBarRef} className="pt-[100px] pb-[80px] bg-[#F9F5F1]">
         <div className="container">
           <div className="flex flex-col items-center px-4 sm:px-0">
             <div className="text-center w-full max-w-3xl mb-4 sm:mb-6">

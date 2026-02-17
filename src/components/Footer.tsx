@@ -424,15 +424,17 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           </div>
 
           <div className="mt-8 pt-8 border-t border-border text-center">
-            <p className="text-xs sm:text-sm font-sans font-normal text-[#999999]">© {new Date().getFullYear()} ShikshAq. An AquaTerra Start-up.</p>
-            <p className="mt-4 text-xs font-sans font-normal text-[#999999]">brought to you by</p>
-            <div className="mt-2 flex justify-center">
-              <img
-                src={aquaterraLogo}
-                alt="AquaTerra"
-                className="h-8 w-auto object-contain"
-              />
-            </div>
+            <a href="https://ngoaquaterra.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
+              <p className="text-xs sm:text-sm font-sans font-normal text-[#999999]">© {new Date().getFullYear()} ShikshAQ. An AquaTerra Start-up.</p>
+              <p className="mt-4 text-xs font-sans font-normal text-[#999999]">brought to you by</p>
+              <div className="mt-2 flex justify-center">
+                <img
+                  src={aquaterraLogo}
+                  alt="AquaTerra"
+                  className="h-8 w-auto object-contain"
+                />
+              </div>
+            </a>
           </div>
         </div>
       </div>
