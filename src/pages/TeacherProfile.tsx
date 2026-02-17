@@ -197,9 +197,20 @@ export default function TeacherProfile() {
             review2 = (shikshaqData as any)["Review 2"];
             review3 = (shikshaqData as any)["Review 3"];
             whatsappLink = (shikshaqData as any)["Link"] || (shikshaqData as any)["link"];
-            // Fees
-            minFees = (shikshaqData as any)["Min Fees"];
-            maxFees = (shikshaqData as any)["Max Fees"];
+            // Fees - handle both null and undefined, and ensure numbers are preserved
+            const minFeesRaw = (shikshaqData as any)["Min Fees"];
+            const maxFeesRaw = (shikshaqData as any)["Max Fees"];
+            minFees = minFeesRaw != null && minFeesRaw !== '' ? Number(minFeesRaw) : null;
+            maxFees = maxFeesRaw != null && maxFeesRaw !== '' ? Number(maxFeesRaw) : null;
+            
+            // Debug in development
+            if (import.meta.env.DEV) {
+              console.log('[TeacherProfile] Fees data:', {
+                raw: { minFeesRaw, maxFeesRaw },
+                processed: { minFees, maxFees },
+                shikshaqDataKeys: Object.keys(shikshaqData || {}).filter(k => k.toLowerCase().includes('fee'))
+              });
+            }
           }
         } catch (err) {
           if (import.meta.env.DEV) {
