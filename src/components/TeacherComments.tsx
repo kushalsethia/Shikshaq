@@ -141,8 +141,9 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
         return;
       }
 
+      // Use public_profiles view to avoid exposing PII (email, phone, address, etc.)
       const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, full_name, role, school_college, grade, avatar_url')
         .in('id', userIds);
       

@@ -579,10 +579,10 @@ export default function TeacherProfile() {
         return;
       }
 
-      // Fetch profiles for all students
+      // Fetch profiles for all students (use public_profiles view to avoid PII exposure)
       const studentIds = studentTeachers.map((st: any) => st.student_id);
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, full_name, school_college, grade')
         .in('id', studentIds);
 

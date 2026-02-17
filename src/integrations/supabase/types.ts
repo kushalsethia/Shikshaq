@@ -260,7 +260,17 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_profiles: {
+        Row: {
+          id: string
+          full_name: string | null
+          role: string | null
+          school_college: string | null
+          grade: string | null
+          avatar_url: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
