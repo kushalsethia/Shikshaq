@@ -410,7 +410,7 @@ export default function JoinApply() {
           <div className="max-w-2xl mx-auto text-center">
             <div className="bg-card rounded-3xl p-8 border border-border">
               <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h1 className="text-3xl md:text-4xl font-serif text-foreground mb-4">
+              <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-4">
                 Application Submitted!
               </h1>
               <p className="text-lg text-muted-foreground mb-6">
@@ -435,7 +435,7 @@ export default function JoinApply() {
       <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-5xl font-serif text-foreground mb-4">
+            <h1 className="text-3xl md:text-5xl font-sans text-foreground mb-4">
               Join ShikshAQ as a Teacher
             </h1>
             <p className="text-lg text-muted-foreground">
@@ -446,7 +446,7 @@ export default function JoinApply() {
           <form onSubmit={handleSubmit} className="bg-card rounded-3xl p-6 md:p-8 border border-border space-y-8">
             {/* Basic Information */}
             <div className="space-y-6">
-              <h2 className="text-2xl font-serif text-foreground border-b border-border pb-2">
+              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
                 Basic Information
               </h2>
 
@@ -518,7 +518,7 @@ export default function JoinApply() {
 
             {/* Teaching Details */}
             <div className="space-y-6">
-              <h2 className="text-2xl font-serif text-foreground border-b border-border pb-2">
+              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
                 Teaching Details
               </h2>
 
@@ -739,7 +739,7 @@ export default function JoinApply() {
 
             {/* Additional Information */}
             <div className="space-y-6">
-              <h2 className="text-2xl font-serif text-foreground border-b border-border pb-2">
+              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
                 Additional Information
               </h2>
 
@@ -885,7 +885,7 @@ export default function JoinApply() {
 
             {/* MOU Consent */}
             <div className="space-y-6">
-              <h2 className="text-2xl font-serif text-foreground border-b border-border pb-2">
+              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
                 Memorandum of Understanding
               </h2>
 

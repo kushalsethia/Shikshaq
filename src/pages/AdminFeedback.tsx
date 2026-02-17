@@ -245,7 +245,7 @@ export default function AdminFeedback() {
         <Navbar />
         <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
           <div className="max-w-2xl mx-auto text-center">
-            <h1 className="text-3xl font-serif text-foreground mb-4">Access Denied</h1>
+            <h1 className="text-3xl font-sans text-foreground mb-4">Access Denied</h1>
             <p className="text-muted-foreground mb-6">
               You need to be an admin to access this page.
             </p>
@@ -273,7 +273,7 @@ export default function AdminFeedback() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Admin
             </Link>
-            <h1 className="text-3xl md:text-4xl font-serif text-foreground">
+            <h1 className="text-3xl md:text-4xl font-sans text-foreground">
               Feedback Management
             </h1>
             <p className="text-muted-foreground mt-2">

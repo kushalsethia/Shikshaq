@@ -510,7 +510,7 @@ export default function AdminTeachers() {
             <ArrowLeft className="w-4 h-4" />
             Back to Admin
           </Link>
-          <h1 className="text-3xl font-serif">Teacher Dashboard</h1>
+          <h1 className="text-3xl font-sans">Teacher Dashboard</h1>
           <p className="text-muted-foreground mt-2">Edit teacher information</p>
         </div>
 
@@ -561,7 +561,7 @@ export default function AdminTeachers() {
               <div className="bg-card border rounded-lg p-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-serif">{selectedTeacher.Title || 'Untitled Teacher'}</h2>
+                    <h2 className="text-2xl font-sans">{selectedTeacher.Title || 'Untitled Teacher'}</h2>
                     {selectedTeacher.Slug && (
                       <p className="text-sm text-muted-foreground mt-1">Slug: {selectedTeacher.Slug}</p>
                     )}

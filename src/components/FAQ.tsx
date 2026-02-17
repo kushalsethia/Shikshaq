@@ -38,10 +38,10 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <section id="faq" className="py-16 scroll-mt-20">
+    <section id="faq" className="py-16 sm:py-20 md:py-24 bg-[#FF8000] scroll-mt-20">
       <div className="container max-w-3xl">
-        <h2 className="section-title md:text-3xl md:font-serif md:text-center mb-8">
-          Common <span style={{ color: '#4351FF' }}>Queries</span> Answered
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-white text-center mb-12 md:mb-16">
+          Common <span className="text-white">Queries</span> Answered
         </h2>
 
         <Accordion type="single" collapsible className="space-y-2">
@@ -52,10 +52,10 @@ export function FAQ() {
               className="rounded-xl px-6 border-none"
               style={{ backgroundColor: '#fcfbf8' }}
             >
-              <AccordionTrigger className="faq-trigger hover:no-underline">
+              <AccordionTrigger className="flex items-center justify-between w-full py-4 text-left text-base sm:text-lg md:text-xl font-sans font-semibold text-[#1F1F1F] hover:text-[#4351FF] transition-colors hover:no-underline">
                 {faq.question}
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground pb-4">
+              <AccordionContent className="text-sm sm:text-base md:text-lg font-sans font-normal text-[#666666] pb-4 leading-relaxed">
                 {faq.answer}
               </AccordionContent>
             </AccordionItem>

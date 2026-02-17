@@ -302,7 +302,7 @@ export default function AdminComments() {
           <div className="max-w-md mx-auto">
             <div className="bg-card rounded-3xl p-8 border border-border shadow-sm text-center">
               <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h1 className="text-2xl font-serif text-foreground mb-2">
+              <h1 className="text-2xl font-sans text-foreground mb-2">
                 Sign In Required
               </h1>
               <p className="text-muted-foreground mb-6">
@@ -337,7 +337,7 @@ export default function AdminComments() {
           <div className="max-w-md mx-auto">
             <div className="bg-card rounded-3xl p-8 border border-border shadow-sm text-center">
               <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h1 className="text-2xl font-serif text-foreground mb-2">
+              <h1 className="text-2xl font-sans text-foreground mb-2">
                 Access Denied
               </h1>
               <p className="text-muted-foreground mb-6">
@@ -373,7 +373,7 @@ export default function AdminComments() {
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-serif text-foreground mb-2">
+          <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-2">
             Comment Moderation
           </h1>
           <p className="text-muted-foreground">

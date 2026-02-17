@@ -161,7 +161,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
         }`}>
           <div className="flex items-center justify-between">
             <SheetHeader className="flex-1">
-              <SheetTitle className="text-2xl font-serif font-normal tracking-tight">Advanced Filters</SheetTitle>
+              <SheetTitle className="text-2xl font-sans font-normal tracking-tight">Advanced Filters</SheetTitle>
             </SheetHeader>
             <SheetClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none p-2">
           <X className="h-6 w-6 stroke-[2.5]" />

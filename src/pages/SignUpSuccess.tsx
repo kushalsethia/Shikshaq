@@ -35,7 +35,7 @@ export default function SignUpSuccess() {
                 <CheckCircle className="w-12 h-12 text-primary" />
               </div>
             </div>
-            <h1 className="text-3xl md:text-4xl font-serif text-foreground mb-3">
+            <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-3">
               Account Created Successfully!
             </h1>
             <p className="text-muted-foreground text-lg">

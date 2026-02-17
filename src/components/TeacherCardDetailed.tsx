@@ -81,7 +81,7 @@ export function TeacherCardDetailed({
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center min-h-[8rem] md:min-h-[10rem]">
-            <span className="text-2xl md:text-3xl font-serif text-muted-foreground">
+            <span className="text-2xl md:text-3xl font-sans text-muted-foreground">
               {name.charAt(0)}
             </span>
           </div>

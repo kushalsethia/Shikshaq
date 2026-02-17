@@ -206,7 +206,7 @@ export default function AdminRecommendations() {
           <div className="max-w-md mx-auto">
             <div className="bg-card rounded-3xl p-8 border border-border shadow-sm text-center">
               <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h1 className="text-2xl font-serif text-foreground mb-2">
+              <h1 className="text-2xl font-sans text-foreground mb-2">
                 Sign In Required
               </h1>
               <p className="text-muted-foreground mb-6">
@@ -241,7 +241,7 @@ export default function AdminRecommendations() {
           <div className="max-w-md mx-auto">
             <div className="bg-card rounded-3xl p-8 border border-border shadow-sm text-center">
               <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h1 className="text-2xl font-serif text-foreground mb-2">
+              <h1 className="text-2xl font-sans text-foreground mb-2">
                 Access Denied
               </h1>
               <p className="text-muted-foreground mb-6">
@@ -275,7 +275,7 @@ export default function AdminRecommendations() {
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-serif text-foreground mb-2">
+          <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-2">
             Teacher Recommendations
           </h1>
           <p className="text-muted-foreground">
@@ -346,7 +346,7 @@ export default function AdminRecommendations() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                          <h3 className="text-xl font-serif text-foreground">
+                          <h3 className="text-xl font-sans text-foreground">
                             {rec.teacher_name}
                           </h3>
                           <span

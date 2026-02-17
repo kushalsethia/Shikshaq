@@ -389,7 +389,7 @@ export default function StudentDashboard() {
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-2">
               <GraduationCap className="w-8 h-8 text-primary" />
-              <h1 className="text-3xl md:text-4xl font-serif text-foreground">
+              <h1 className="text-3xl md:text-4xl font-sans text-foreground">
                 Student Dashboard
               </h1>
             </div>
@@ -402,7 +402,7 @@ export default function StudentDashboard() {
           <div className="bg-card rounded-2xl p-6 md:p-8 border border-border space-y-6">
             {/* Locked Fields Section */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <h2 className="text-xl font-serif text-foreground flex items-center gap-2">
+              <h2 className="text-xl font-sans text-foreground flex items-center gap-2">
                 <Lock className="w-5 h-5 text-muted-foreground" />
                 Account Information
               </h2>
@@ -435,7 +435,7 @@ export default function StudentDashboard() {
             {/* Editable Fields Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-serif text-foreground">Profile Information</h2>
+                <h2 className="text-xl font-sans text-foreground">Profile Information</h2>
                 <Button
                   onClick={handleSave}
                   disabled={saving || !formData.phone.trim() || !formData.date_of_birth.trim() || !formData.school_college.trim() || !formData.grade.trim()}

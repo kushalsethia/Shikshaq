@@ -29,7 +29,7 @@ export function Logo({ className = '', showText = false, size = 'md', desktopSiz
         className={`${responsiveSizeClass} object-contain flex-shrink-0`}
       />
       {showText && (
-        <span className="font-serif text-foreground leading-none">
+        <span className="font-sans text-foreground leading-none">
           ShikshAq.in
         </span>
       )}

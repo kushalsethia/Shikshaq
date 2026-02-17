@@ -9,6 +9,7 @@ import { SubjectCard } from '@/components/SubjectCard';
 import { HowItWorks } from '@/components/HowItWorks';
 import { FAQ } from '@/components/FAQ';
 import { Footer } from '@/components/Footer';
+import { WaveDivider } from '@/components/WaveDivider';
 import { useLikes } from '@/lib/likes-context';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -548,25 +549,25 @@ export default function Index() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F9F5F1]">
       <Navbar />
       
-      {/* Search Section - Combined with spacing */}
-      <section ref={searchBarRef} className="pt-[141px] sm:pt-[132px] pb-[106px] sm:pb-[70px] md:pt-[100px] md:pb-[120px] bg-background">
+      {/* Hero Section — Orange */}
+      <section ref={searchBarRef} className="pt-20 sm:pt-24 md:pt-32 pb-16 sm:pb-20 md:pb-24 bg-[#FF8000]">
         <div className="container">
           <div className="flex flex-col items-center px-4 sm:px-0">
-            <div className="text-center w-full max-w-3xl mb-[35px] sm:mb-[44px]">
-              <p className="text-lg sm:text-xl text-foreground font-medium mb-3 opacity-0 animate-fade-slide-up" style={{ animationDelay: '100ms' }}>
+            <div className="text-center w-full max-w-3xl mb-4 sm:mb-6">
+              <p className="text-sm sm:text-base md:text-lg text-white font-medium mb-3 opacity-0 animate-fade-slide-up" style={{ animationDelay: '100ms' }}>
                 {user ? `Welcome${userFirstName ? `, ${userFirstName}` : ''}! 👋` : 'Welcome to Shikshaq! 👋'}
               </p>
-              <h1 className="text-[9.5vw] sm:text-4xl md:text-[3.6rem] font-serif text-foreground leading-none tracking-tighter opacity-0 animate-fade-slide-up">
-              Your ideal <span style={{ color: '#FF8B16' }}>teacher</span>,
-              <br />
-              one <span style={{ color: '#5864FF' }}>search</span> away.
-            </h1>
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-sans font-bold text-white leading-tight tracking-tight text-center opacity-0 animate-fade-slide-up" style={{ animationDelay: '200ms' }}>
+                Your ideal teacher,
+                <br />
+                one search away.
+              </h1>
             </div>
-            <div ref={searchBarElementRef} className="w-full max-w-3xl opacity-0 animate-scale-pop" style={{ animationDelay: '200ms' }}>
-          <SearchBar />
+            <div ref={searchBarElementRef} className="w-full max-w-2xl sm:max-w-3xl mx-auto mt-6 sm:mt-8 md:mt-10 opacity-0 animate-scale-pop" style={{ animationDelay: '300ms' }}>
+              <SearchBar />
             </div>
           </div>
         </div>
@@ -583,12 +584,15 @@ export default function Index() {
         </div>
       )}
 
-      {/* Featured Teachers */}
-      <section className="pt-0 sm:pt-0 pb-4">
+      {/* Wave: Hero (Orange) → Featured (Beige) */}
+      <WaveDivider fillColor="#F9F5F1" bgColor="#FF8000" inverted={false} />
+
+      {/* Featured Teachers — Beige */}
+      <section className="py-16 sm:py-20 md:py-24 bg-[#F9F5F1]">
         <div className="container">
-          <div className="mb-2">
-            <h2 className="section-title">Featured <span style={{ color: '#4351FF' }}>tuition teachers</span> on ShikshAq</h2>
-          </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-[#1F1F1F] mb-8 sm:mb-10 md:mb-12">
+            Featured <span className="text-[#FF8000]">tuition teachers</span> on ShikshAQ
+          </h2>
 
           {loading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -639,27 +643,30 @@ export default function Index() {
                 </CarouselContent>
               </Carousel>
               {/* View more button below carousel */}
-              <div className="flex justify-end mt-2 sm:mt-6">
-                <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link font-bold md:font-normal">
+              <div className="flex justify-end mt-6 sm:mt-8 md:mt-10">
+                <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-[#4351FF] hover:opacity-80 transition-opacity flex items-center gap-2">
                   View more teachers
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-8 text-[#999999]">
               <p>No teachers found. Please add teachers to your Supabase database.</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* Subjects */}
-      <section ref={subjectsRef} className={`py-4 transition-all duration-700 ease-out ${subjectsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+      {/* Wave: Beige → Orange */}
+      <WaveDivider fillColor="#FF8000" bgColor="#F9F5F1" inverted={false} />
+
+      {/* Subjects — Orange */}
+      <section ref={subjectsRef} className={`py-16 sm:py-20 md:py-24 bg-[#FF8000] transition-all duration-700 ease-out ${subjectsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
         <div className="container">
-          <div className="mb-2">
-            <h2 className="section-title">Explore tuition teachers via <span style={{ color: '#4351FF' }}>subjects</span></h2>
-          </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-white mb-8 sm:mb-10 md:mb-12">
+            Explore tuition teachers via <span className="text-white">subjects</span>
+          </h2>
 
           {loading ? (
             <div className="grid grid-cols-3 gap-3">
@@ -684,30 +691,39 @@ export default function Index() {
               ))}
             </div>
               {/* View more button below grid */}
-              <div className="flex justify-end mt-6">
-                <Link to="/all-tuition-teachers-in-kolkata" className="view-more-link font-bold md:font-normal">
+              <div className="flex justify-end mt-8 sm:mt-10 md:mt-12">
+                <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-white hover:opacity-80 transition-opacity flex items-center gap-2">
                   View more subjects
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center py-8 text-[#999999]">
               <p>No subjects found. Please add subjects to your Supabase database.</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* How It Works */}
-      <div ref={howItWorksRef} className={`transition-all duration-700 ease-out ${howItWorksVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: '100ms' }}>
+      {/* Wave: Orange → Beige */}
+      <WaveDivider fillColor="#F9F5F1" bgColor="#FF8000" inverted={true} />
+
+      {/* How It Works — Beige */}
+      <div ref={howItWorksRef} className={`bg-[#F9F5F1] transition-all duration-700 ease-out ${howItWorksVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: '100ms' }}>
         <HowItWorks />
       </div>
 
-      {/* FAQ */}
-      <div ref={faqRef} className={`transition-all duration-700 ease-out ${faqVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: '200ms' }}>
+      {/* Wave: Beige → Orange */}
+      <WaveDivider fillColor="#FF8000" bgColor="#F9F5F1" inverted={false} />
+
+      {/* FAQ — Orange */}
+      <div ref={faqRef} className={`bg-[#FF8000] transition-all duration-700 ease-out ${faqVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: '200ms' }}>
         <FAQ />
       </div>
+
+      {/* Wave: FAQ (Orange) → Footer (Dark) */}
+      <WaveDivider fillColor="#1F1F1F" bgColor="#FF8000" inverted={false} />
 
       {/* Footer */}
       <Footer />

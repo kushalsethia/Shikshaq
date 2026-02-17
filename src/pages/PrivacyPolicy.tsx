@@ -14,14 +14,14 @@ export default function PrivacyPolicy() {
       
       <main className="container max-w-4xl mx-auto px-4 pt-32 sm:pt-[120px] pb-12 md:pt-12">
         <div className="prose prose-slate max-w-none">
-          <h1 className="text-4xl font-serif mb-8">Privacy Policy</h1>
+          <h1 className="text-4xl font-sans mb-8">Privacy Policy</h1>
           
           <p className="text-muted-foreground mb-8">
             <strong>Last Updated:</strong> January 24, 2026
           </p>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">1. Introduction</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">1. Introduction</h2>
             <p>
               Welcome to ShikshAq ("we," "our," or "us"). We are committed to protecting your privacy and ensuring transparency about how we collect, use, and safeguard your personal information. This Privacy Policy explains our practices regarding data collection, use, and disclosure when you use our website located at <strong>www.shikshaq.in</strong> (the "Service").
             </p>
@@ -34,7 +34,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">2. Information We Collect</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">2. Information We Collect</h2>
             
             <h3 className="text-xl font-semibold mt-6 mb-3">2.1 Information You Provide</h3>
             <p>We collect information that you voluntarily provide when you:</p>
@@ -56,7 +56,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">3. How We Use Your Information</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">3. How We Use Your Information</h2>
             <p>We use the collected information for the following purposes:</p>
             <ul>
               <li><strong>To Provide and Maintain Our Service:</strong> To create and manage your account, authenticate you, and provide access to our platform.</li>
@@ -70,7 +70,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">4. Third-Party Services and Data Sharing</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">4. Third-Party Services and Data Sharing</h2>
             
             <h3 className="text-xl font-semibold mt-6 mb-3">4.1 Google OAuth</h3>
             <p>
@@ -101,7 +101,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">5. Data Storage and Security</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">5. Data Storage and Security</h2>
             <p>
               We implement appropriate technical and organizational security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. These measures include:
             </p>
@@ -118,7 +118,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">6. Cookies and Local Storage</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">6. Cookies and Local Storage</h2>
             <p>
               We use browser localStorage to store your authentication session tokens. This allows you to remain logged in across browser sessions. The session tokens are encrypted and managed by Supabase Auth.
             </p>
@@ -128,7 +128,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">7. Your Rights and Choices</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">7. Your Rights and Choices</h2>
             <p>You have the following rights regarding your personal information:</p>
             <ul>
               <li><strong>Access:</strong> You can access and review your personal information through your account dashboard.</li>
@@ -145,7 +145,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">8. Data Retention</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">8. Data Retention</h2>
             <p>
               We retain your personal information for as long as necessary to fulfill the purposes outlined in this Privacy Policy, unless a longer retention period is required or permitted by law. Specifically:
             </p>
@@ -161,7 +161,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">9. Children's Privacy</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">9. Children's Privacy</h2>
             <p>
               Our Service is designed to connect students, parents, and guardians with tuition teachers. We recognize that students of various ages, including those in primary and secondary education, may use our Service.
             </p>
@@ -189,7 +189,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">10. International Data Transfers</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">10. International Data Transfers</h2>
             <p>
               Our Service uses third-party services that may process your information in countries outside of India, including the United States and other countries where these services operate. Specifically:
             </p>
@@ -207,14 +207,14 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">11. Changes to This Privacy Policy</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">11. Changes to This Privacy Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date. You are advised to review this Privacy Policy periodically for any changes. Changes to this Privacy Policy are effective when they are posted on this page.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">12. Contact Us</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">12. Contact Us</h2>
             <p>
               If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
             </p>
@@ -226,7 +226,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">13. Grievance Officer</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">13. Grievance Officer</h2>
             <p>
               In accordance with the Information Technology Act, 2000 and the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, we have designated a Grievance Officer to address your concerns and complaints regarding:
             </p>
@@ -259,7 +259,7 @@ export default function PrivacyPolicy() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">14. Governing Law</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">14. Governing Law</h2>
             <p>
               This Privacy Policy is governed by and construed in accordance with the laws of India. Any disputes arising from or relating to this Privacy Policy shall be subject to the exclusive jurisdiction of the courts in Kolkata, West Bengal, India.
             </p>

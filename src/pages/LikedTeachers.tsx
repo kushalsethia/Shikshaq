@@ -176,7 +176,7 @@ export default function LikedTeachers() {
         <div className="flex items-center gap-3 mb-8">
           <Heart className="w-8 h-8 text-red-500 fill-red-500" />
           <div>
-            <h1 className="text-3xl font-serif text-foreground">Favourite Teachers</h1>
+            <h1 className="text-3xl font-sans text-foreground">Favourite Teachers</h1>
             <p className="text-muted-foreground">
               {likedTeachers.length === 0
                 ? 'No favourite teachers yet'
@@ -189,7 +189,7 @@ export default function LikedTeachers() {
         {likedTeachers.length === 0 ? (
           <div className="text-center py-16">
             <Heart className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-            <h2 className="text-xl font-serif text-foreground mb-2">No favourite teachers yet</h2>
+            <h2 className="text-xl font-sans text-foreground mb-2">No favourite teachers yet</h2>
             <p className="text-muted-foreground mb-6">
               Start exploring teachers and favourite the ones you're interested in!
             </p>

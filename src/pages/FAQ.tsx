@@ -9,7 +9,7 @@ export default function FAQPage() {
       
       <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
         <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl md:text-4xl font-serif text-foreground mb-4 text-center">
+          <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-4 text-center">
             Frequently Asked Questions
           </h1>
           <p className="text-lg text-muted-foreground text-center mb-12">

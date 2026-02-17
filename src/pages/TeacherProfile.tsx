@@ -598,7 +598,7 @@ export default function TeacherProfile() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
-          <h1 className="text-2xl font-serif font-normal text-foreground mb-4">Teacher not found</h1>
+          <h1 className="text-2xl font-sans font-normal text-foreground mb-4">Teacher not found</h1>
           <p className="text-foreground/80 mb-6">
             The teacher you're looking for doesn't exist or has been removed.
           </p>
@@ -636,7 +636,7 @@ export default function TeacherProfile() {
                 />
               ) : (
                 <div className="w-full aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-3xl shadow-xl">
-                  <span className="text-6xl font-serif text-muted-foreground">
+                  <span className="text-6xl font-sans text-muted-foreground">
                     {teacher.name.charAt(0)}
                   </span>
                 </div>
@@ -704,7 +704,7 @@ export default function TeacherProfile() {
 
             {/* Teacher Name and Upvote Button - Inline */}
             <div className="flex items-start justify-between gap-4">
-              <h1 className="flex-1 text-3xl md:text-4xl lg:text-5xl font-serif font-normal text-foreground">
+              <h1 className="flex-1 text-3xl md:text-4xl lg:text-5xl font-sans font-semibold text-foreground">
                 {(() => {
                   const sirMaam = teacher.sir_maam;
                   if (!sirMaam) return teacher.name;
@@ -1048,7 +1048,7 @@ export default function TeacherProfile() {
         {/* Little more about teacher section */}
         {teacher.description && (
           <div className="mt-8 md:mt-12">
-            <h3 className="text-xl md:text-2xl font-serif font-normal text-foreground mb-4">
+            <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">
               Little more about {teacher.name}
             </h3>
             <div
@@ -1080,7 +1080,7 @@ export default function TeacherProfile() {
             {/* Additional Details Section */}
         {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.qualifications_etc) && (
           <div className="mt-8 md:mt-12">
-            <h3 className="text-xl md:text-2xl font-serif font-normal text-foreground mb-4 md:mb-6">Here are some more details:</h3>
+            <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4 md:mb-6">Here are some more details:</h3>
             <div className="flex flex-wrap gap-4 md:gap-6">
                   {/* Boards taught */}
                   {teacher.boards_taught && (

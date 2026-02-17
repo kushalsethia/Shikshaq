@@ -257,7 +257,7 @@ export default function AdminApplications() {
             <ArrowLeft className="w-4 h-4" />
             Back to Admin
           </Link>
-          <h1 className="text-3xl font-serif">Teacher Applications</h1>
+          <h1 className="text-3xl font-sans">Teacher Applications</h1>
           <p className="text-muted-foreground mt-2">Review and approve teacher onboarding applications</p>
         </div>
 
@@ -323,7 +323,7 @@ export default function AdminApplications() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-serif">{application.name}</h3>
+                      <h3 className="text-xl font-sans">{application.name}</h3>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         application.status === 'pending' ? 'bg-yellow-500/20 text-yellow-600' :
                         application.status === 'approved' ? 'bg-green-500/20 text-green-600' :
@@ -399,7 +399,7 @@ export default function AdminApplications() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedApplication(null)}>
             <div className="bg-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-serif">{selectedApplication.name}</h2>
+                <h2 className="text-2xl font-sans">{selectedApplication.name}</h2>
                 <Button variant="ghost" size="sm" onClick={() => setSelectedApplication(null)}>Close</Button>
               </div>
 

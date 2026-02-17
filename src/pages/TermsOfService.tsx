@@ -21,14 +21,14 @@ export default function TermsOfService() {
       
       <main className="container max-w-4xl mx-auto px-4 pt-32 sm:pt-[120px] pb-12 md:pt-12">
         <div className="prose prose-slate max-w-none">
-          <h1 className="text-4xl font-serif mb-8">Terms of Service</h1>
+          <h1 className="text-4xl font-sans mb-8">Terms of Service</h1>
           
           <p className="text-muted-foreground mb-8">
             <strong>Last Updated:</strong> {today}
           </p>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">1. Introduction and Acceptance</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">1. Introduction and Acceptance</h2>
             <p>
               Welcome to Shikshaq ("Company," "we," "our," or "us"). By accessing or using our website located at <strong>www.shikshaq.in</strong> (the "Platform"), you agree to be bound by these Terms of Service ("Terms") and our Privacy Policy.
             </p>
@@ -38,7 +38,7 @@ export default function TermsOfService() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">2. Nature of Service (Intermediary Status)</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">2. Nature of Service (Intermediary Status)</h2>
             <h3 className="text-xl font-semibold mt-6 mb-3">2.1 Platform Only</h3>
             <p>Shikshaq acts solely as a technology intermediary that connects students/parents ("Students") with independent tutors ("Teachers").</p>
             
@@ -50,7 +50,7 @@ export default function TermsOfService() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">3. Eligibility</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">3. Eligibility</h2>
             <h3 className="text-xl font-semibold mt-6 mb-3">3.1 Age Requirement</h3>
             <p>You must be at least 18 years old to create an account.</p>
             
@@ -59,7 +59,7 @@ export default function TermsOfService() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">4. Disclaimers regarding Teachers (Crucial Liability Shield)</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">4. Disclaimers regarding Teachers (Crucial Liability Shield)</h2>
             <p>To the fullest extent permitted by Indian law, specifically the Information Technology Act, 2000:</p>
             
             <h3 className="text-xl font-semibold mt-6 mb-3">4.1 No Warranty of Quality</h3>
@@ -73,7 +73,7 @@ export default function TermsOfService() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">5. Limitation of Liability (The "We Are Not Accountable" Clause)</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">5. Limitation of Liability (The "We Are Not Accountable" Clause)</h2>
             <h3 className="text-xl font-semibold mt-6 mb-3">5.1 Interactions Off-Platform</h3>
             <p>Shikshaq is not liable for any interactions, conduct, or transactions that occur off the Platform, including but not limited to:</p>
             <ul>
@@ -96,7 +96,7 @@ export default function TermsOfService() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">6. User Conduct and Safety</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">6. User Conduct and Safety</h2>
             <h3 className="text-xl font-semibold mt-6 mb-3">6.1 Prohibited Content</h3>
             <p>Users shall not transmit any content that is grossly harmful, harassing, blasphemous, defamatory, obscene, pornographic, pedophilic, libelous, invasive of another's privacy, or racially/ethnically objectionable.</p>
             
@@ -105,7 +105,7 @@ export default function TermsOfService() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">7. Payments and Fees</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">7. Payments and Fees</h2>
             <h3 className="text-xl font-semibold mt-6 mb-3">7.1 Direct Tuition Payments</h3>
             <p>Tuition fees for classes are negotiated and paid directly between the Student and the Teacher. Shikshaq is not a party to these transactions, does not hold funds on behalf of users, and is not responsible for refunds, non-payment, or fee disputes arising from these direct interactions.</p>
             
@@ -124,7 +124,7 @@ export default function TermsOfService() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">8. Indemnification</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">8. Indemnification</h2>
             <p>You agree to defend, indemnify, and hold harmless Shikshaq, its founders, directors, employees, and agents from and against any claims, liabilities, damages, losses, and expenses (including legal fees) arising out of:</p>
             <ul>
               <li>Your violation of these Terms.</li>
@@ -135,12 +135,12 @@ export default function TermsOfService() {
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">9. Termination</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">9. Termination</h2>
             <p>Shikshaq reserves the right to suspend or terminate your account immediately, without notice, if we believe you have violated these Terms or posed a safety risk to our community.</p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-serif mt-8 mb-4">10. Governing Law and Jurisdiction</h2>
+            <h2 className="text-2xl font-sans mt-8 mb-4">10. Governing Law and Jurisdiction</h2>
             <p>These Terms shall be governed by the laws of India. You agree that any legal action or proceeding arising out of or relating to these Terms shall be brought exclusively in the courts located in Kolkata, West Bengal.</p>
           </section>
 
