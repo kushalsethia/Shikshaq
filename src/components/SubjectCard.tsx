@@ -6,17 +6,27 @@ interface SubjectCardProps {
   slug: string;
   imageUrl?: string;
   icon?: string;
+  index?: number;
+  isVisible?: boolean;
 }
 
-export function SubjectCard({ name, slug, icon }: SubjectCardProps) {
+export function SubjectCard({ name, slug, icon, index = 0, isVisible = false }: SubjectCardProps) {
+  // Icon bounce starts 300ms after its parent card would finish popping in
+  const iconDelay = (index * 60) + 300;
+
   return (
     <Link
       to={`/all-tuition-teachers-in-kolkata?subject=${slug}`}
-      className="group"
+      className="group active:scale-95 transition-transform duration-150"
     >
       <div className="rounded-2xl border-2 border-transparent hover:border-border py-4 px-2 flex flex-col items-center justify-center text-center gap-2 transition-colors" style={{ backgroundColor: '#fcfbf8' }}>
         {icon && (
-          <img src={icon ? validateImageSrc(icon) : ''} alt={name} className="w-10 h-10 object-contain" />
+          <img
+            src={icon ? validateImageSrc(icon) : ''}
+            alt={name}
+            className={`w-10 h-10 object-contain ${isVisible ? 'animate-icon-bounce' : ''}`}
+            style={isVisible ? { animationDelay: `${iconDelay}ms` } : undefined}
+          />
         )}
         <h3 className="font-semibold text-foreground text-sm group-hover:text-foreground/80 transition-colors leading-tight">
           {name}

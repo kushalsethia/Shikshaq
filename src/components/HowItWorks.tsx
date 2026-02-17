@@ -4,19 +4,19 @@ import step3Image from '@/assets/0003.jpg';
 
 const steps = [
   {
-    number: '1',
+    number: '01',
     title: 'Search across tutors.',
     description: 'Filter by subject, grade, locality and more to find all verified tutors in the city that suit your needs.',
     image: step2Image,
   },
   {
-    number: '2',
+    number: '02',
     title: 'Choose your favourite.',
     description: 'Compare profiles, teaching styles, reviews, and qualifications to identify the tutor who feels right.',
     image: step3Image,
   },
   {
-    number: '3',
+    number: '03',
     title: 'Talk to them directly.',
     description: 'Reach out to teachers directly via Whatsapp to discuss classes, and more without any intermediaries.',
     image: step1Image,
@@ -25,36 +25,45 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section className="py-8">
+    <section className="py-4">
       <div className="container">
         <div className="mb-2">
-          <h2 className="section-title">Looking for a tutor? Just ShikshAq it!</h2>
+          <h2 className="section-title">
+            Looking for a tutor? Just{' '}
+            <span style={{ color: '#FF8000' }}>Shikshaq</span> it!
+          </h2>
         </div>
 
-        <div className="flex flex-col gap-4 md:grid md:grid-cols-3 md:gap-4">
-          {steps.map((step) => (
+        <div className="flex flex-col md:grid md:grid-cols-3 md:gap-10">
+          {steps.map((step, index) => (
             <div
               key={step.number}
-              className="flex flex-col text-left rounded-3xl overflow-hidden"
-              style={{ backgroundColor: '#fcfbf8' }}
+              className={[
+                index < steps.length - 1
+                  ? 'pb-4 mb-4 border-b border-gray-200 md:border-0 md:pb-0 md:mb-0'
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
-              <div className="p-2.5 pb-0">
-                <div className="w-full rounded-xl overflow-hidden group cursor-pointer">
-                  <div className="relative">
-                    <img
-                      src={step.image}
-                      alt={step.title}
-                      className="w-full h-[150px] object-cover rounded-xl"
-                    />
-                    <div className="absolute inset-0 border-[8px] border-transparent group-hover:border-black rounded-xl transition-all duration-200 pointer-events-none" />
-                  </div>
+              <img
+                src={step.image}
+                alt={step.title}
+                className="w-full h-[150px] md:h-[105px] object-cover rounded-xl"
+              />
+              <div className="mt-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span
+                    className="inline-block text-xs font-bold px-2 py-0.5 rounded-full text-white flex-shrink-0"
+                    style={{ backgroundColor: '#4351FF' }}
+                  >
+                    {step.number}
+                  </span>
+                  <h3 className="text-xl font-bold tracking-tight text-foreground leading-tight">
+                    {step.title}
+                  </h3>
                 </div>
-              </div>
-              <div className="p-2.5 pt-2">
-                <h3 className="text-2xl md:text-3xl font-serif font-normal tracking-tight text-foreground mb-1">
-                  {step.number}. {step.title}
-                </h3>
-                <p className="text-muted-foreground text-sm leading-snug">
+                <p className="text-sm text-gray-400 leading-relaxed mt-2">
                   {step.description}
                 </p>
               </div>

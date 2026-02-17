@@ -1252,12 +1252,12 @@ export default function Browse() {
             </div>
           )
         ) : displayedTeachers.length > 0 ? (
-          <div className="space-y-4">
-            {displayedTeachers.map((teacher) => {
+          <div className="space-y-4" key={searchParams.toString()}>
+            {displayedTeachers.map((teacher, index) => {
               // Always prefer subjects_from_shikshaq (all subjects) over subjects?.name (single featured subject)
               // subjects_from_shikshaq contains all subjects the teacher teaches from Shikshaqmine
               const displaySubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
-              
+
               return (
                 <TeacherCardDetailed
                   key={teacher.id}
@@ -1269,6 +1269,7 @@ export default function Browse() {
                   classes={teacher.classes_taught}
                   modeOfTeaching={teacher.mode_of_teaching}
                   sirMaam={(teacher as any).sir_maam}
+                  index={index}
                 />
               );
             })}

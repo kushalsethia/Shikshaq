@@ -40,8 +40,8 @@ export function FAQ() {
   return (
     <section id="faq" className="py-16 scroll-mt-20">
       <div className="container max-w-3xl">
-        <h2 className="text-2xl md:text-3xl font-serif text-foreground text-center mb-8">
-          Common Queries Answered
+        <h2 className="section-title md:text-3xl md:font-serif md:text-center mb-8">
+          Common <span style={{ color: '#4351FF' }}>Queries</span> Answered
         </h2>
 
         <Accordion type="single" collapsible className="space-y-2">

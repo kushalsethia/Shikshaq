@@ -95,7 +95,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
   };
 
   return (
-    <Link to={`/tuition-teachers/${slug}`} className="teacher-card group">
+    <Link to={`/tuition-teachers/${slug}`} className="teacher-card group active:scale-95 transition-transform duration-150">
       <div className="rounded-2xl border-4 overflow-hidden" style={{ backgroundColor: '#fcfbf8', borderColor: '#fcfbf8' }}>
         <div className="relative aspect-[4/5] overflow-hidden rounded-b-2xl">
         {imageUrl ? (

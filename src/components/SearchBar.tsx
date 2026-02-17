@@ -12,6 +12,7 @@ interface SearchBarProps {
 
 export function SearchBar({ className = '', placeholder = 'Look for tuition teachers', sticky = false, showGlow = true }: SearchBarProps) {
   const [query, setQuery] = useState('');
+  const [glowVisible, setGlowVisible] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -28,6 +29,16 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
       setQuery(urlQuery);
     }
   }, [searchParams, location.pathname, isSearchablePage]);
+
+  // Fade out glow after 2 seconds
+  useEffect(() => {
+    if (showGlow && !sticky) {
+      const timer = setTimeout(() => {
+        setGlowVisible(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showGlow, sticky]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,19 +58,27 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
     const currentPath = isSubjectPage ? location.pathname : '/all-tuition-teachers-in-kolkata';
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.delete('q');
-    const newUrl = newSearchParams.toString() 
-      ? `${currentPath}?${newSearchParams.toString()}` 
+    const newUrl = newSearchParams.toString()
+      ? `${currentPath}?${newSearchParams.toString()}`
       : currentPath;
     navigate(newUrl);
   };
 
   return (
-    <div className={`relative ${showGlow && !sticky ? 'search-bar-glow-wrapper' : ''} ${className}`}>
+    <div className={`relative group transition-all duration-300 ease-out ${showGlow && !sticky ? 'search-bar-glow-wrapper focus-within:scale-[1.02]' : ''} ${className}`}>
       {/* Gradient glow behind the search bar (non-sticky only) */}
       {showGlow && !sticky && (
         <>
-          <div className="search-bar-glow-blur" aria-hidden="true" />
-          <div className="search-bar-glow-sharp" aria-hidden="true" />
+          <div
+            className="search-bar-glow-blur transition-opacity duration-1000 ease-out"
+            style={{ opacity: glowVisible ? 1 : 0 }}
+            aria-hidden="true"
+          />
+          <div
+            className="search-bar-glow-sharp transition-opacity duration-1000 ease-out"
+            style={{ opacity: glowVisible ? 1 : 0 }}
+            aria-hidden="true"
+          />
         </>
       )}
       <form onSubmit={handleSubmit} className="relative">
