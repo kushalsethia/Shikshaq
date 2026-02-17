@@ -558,6 +558,21 @@ export default function Index() {
                 <br />
                 one search away.
               </h1>
+              <p className="text-base sm:text-lg md:text-xl text-[#666666] mt-4 sm:mt-6 max-w-2xl mx-auto opacity-0 animate-fade-slide-up" style={{ animationDelay: '250ms' }}>
+                Shikshaq is a free online platform connecting students and parents with verified tuition teachers in Kolkata. 
+                Search by subject, location, or teaching mode to find the perfect tutor for your needs.
+              </p>
+              <p className="text-xs sm:text-sm text-[#999999] mt-4 opacity-0 animate-fade-slide-up" style={{ animationDelay: '300ms' }}>
+                By using Shikshaq, you agree to our{' '}
+                <Link to="/privacy-policy" className="text-[#4351FF] hover:underline">
+                  Privacy Policy
+                </Link>
+                {' '}and{' '}
+                <Link to="/terms-of-service" className="text-[#4351FF] hover:underline">
+                  Terms of Service
+                </Link>
+                .
+              </p>
             </div>
             <div ref={searchBarElementRef} className="w-full max-w-2xl sm:max-w-3xl mx-auto mt-3 sm:mt-10 md:mt-6 opacity-0 animate-scale-pop" style={{ animationDelay: '300ms' }}>
               <SearchBar />
