@@ -21,6 +21,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import imageCompression from 'browser-image-compression';
 import { validateImageSrc } from '@/utils/imageSanitizer';
+import { invalidateTeacherCache, removeCache } from '@/utils/cache';
 
 // Constants matching FilterPanel
 const SUBJECTS = [
@@ -458,6 +459,21 @@ export default function AdminTeachers() {
       }
 
       toast.success('Teacher updated successfully');
+      
+      // Invalidate cache for this teacher's profile (so changes show immediately)
+      if (selectedTeacher.Slug) {
+        invalidateTeacherCache(selectedTeacher.Slug);
+        // Also clear featured teachers cache and Shikshaqmine chunk caches
+        removeCache('featured_teachers_browse');
+        removeCache('featured_teachers_index');
+        // Clear all Shikshaqmine chunk caches that might include this teacher
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.includes('shikshaq_cache_') && key.includes('shikshaqmine')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
       
       // Fetch updated teacher data
       const { data: updatedTeacher, error: fetchError } = await supabase

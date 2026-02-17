@@ -20,7 +20,7 @@ import { Save, Lock, GraduationCap, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
 import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
-import { invalidateTeacherCache, getShikshaqmineBySlugCacheKey, removeCache } from '@/utils/cache';
+import { invalidateTeacherCache, removeCache } from '@/utils/cache';
 import imageCompression from 'browser-image-compression';
 
 const AREAS = [
@@ -654,10 +654,6 @@ export default function TeacherDashboard() {
       if (teacherRecord?.Slug) {
         invalidateTeacherCache(teacherRecord.Slug);
       }
-      
-      // Also invalidate Shikshaqmine cache by email (if cached)
-      const shikshaqCacheKey = `shikshaqmine_email_${profile.email.toLowerCase().trim()}`;
-      removeCache(shikshaqCacheKey);
       
       // Invalidate featured teachers cache (they might appear on browse/home)
       removeCache('featured_teachers_browse');
