@@ -197,18 +197,21 @@ export default function TeacherProfile() {
             review2 = (shikshaqData as any)["Review 2"];
             review3 = (shikshaqData as any)["Review 3"];
             whatsappLink = (shikshaqData as any)["Link"] || (shikshaqData as any)["link"];
-            // Fees - handle both null and undefined, and ensure numbers are preserved
+            // Fees - INTEGER columns from Supabase
             const minFeesRaw = (shikshaqData as any)["Min Fees"];
             const maxFeesRaw = (shikshaqData as any)["Max Fees"];
-            minFees = minFeesRaw != null && minFeesRaw !== '' ? Number(minFeesRaw) : null;
-            maxFees = maxFeesRaw != null && maxFeesRaw !== '' ? Number(maxFeesRaw) : null;
+            // Convert to number if not null/undefined, preserve 0 values
+            minFees = (minFeesRaw != null && minFeesRaw !== undefined) ? Number(minFeesRaw) : null;
+            maxFees = (maxFeesRaw != null && maxFeesRaw !== undefined) ? Number(maxFeesRaw) : null;
             
             // Debug in development
             if (import.meta.env.DEV) {
               console.log('[TeacherProfile] Fees data:', {
-                raw: { minFeesRaw, maxFeesRaw },
+                raw: { minFeesRaw, maxFeesRaw, rawType: { min: typeof minFeesRaw, max: typeof maxFeesRaw } },
                 processed: { minFees, maxFees },
-                shikshaqDataKeys: Object.keys(shikshaqData || {}).filter(k => k.toLowerCase().includes('fee'))
+                willDisplay: { min: minFees != null, max: maxFees != null },
+                allShikshaqKeys: Object.keys(shikshaqData || {}),
+                feeKeys: Object.keys(shikshaqData || {}).filter(k => k.toLowerCase().includes('fee'))
               });
             }
           }
@@ -241,8 +244,8 @@ export default function TeacherProfile() {
           review_2: review2,
           review_3: review3,
           whatsapp_link: whatsappLink,
-          min_fees: minFees || null,
-          max_fees: maxFees || null,
+          min_fees: minFees ?? null,
+          max_fees: maxFees ?? null,
         } as Teacher);
       }
       setLoading(false);
