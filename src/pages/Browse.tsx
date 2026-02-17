@@ -1381,7 +1381,7 @@ export default function Browse() {
         {/* Featured Teachers Section */}
         <section className="mt-16">
           <div className="mb-6">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-foreground mb-6 sm:mb-8">Featured tuition teachers on ShikshAQ</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-foreground mb-6 sm:mb-8">Featured tuition teachers on ShikshAq</h2>
           </div>
 
           {featuredLoading ? (

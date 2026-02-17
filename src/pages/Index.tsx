@@ -213,7 +213,7 @@ export default function Index() {
       "@context": "https://schema.org",
       "@type": "LocalBusiness",
       "@id": "https://www.shikshaq.in/#localbusiness",
-      "name": "ShikshAQ",
+      "name": "ShikshAq",
       "description": "Free online tutor-student matchmaking platform serving Kolkata and surrounding areas",
       "url": "https://www.shikshaq.in",
       "telephone": "+91-8240980312",
@@ -270,7 +270,7 @@ export default function Index() {
       "serviceType": "Educational Tutoring Service",
       "provider": {
         "@type": "EducationalOrganization",
-        "name": "ShikshAQ",
+        "name": "ShikshAq",
         "url": "https://www.shikshaq.in"
       },
       "areaServed": "Kolkata",
@@ -551,7 +551,7 @@ export default function Index() {
           <div className="flex flex-col items-center px-4 sm:px-0">
             <div className="text-center w-full max-w-3xl mb-4 sm:mb-6">
               <p className="text-sm sm:text-base md:text-lg text-[#666666] font-medium mb-2 sm:mb-3 opacity-0 animate-fade-slide-up" style={{ animationDelay: '100ms' }}>
-                {user ? `Welcome${userFirstName ? `, ${userFirstName}` : ''}! 👋` : 'Welcome to Shikshaq! 👋'}
+                {user ? `Welcome${userFirstName ? `, ${userFirstName}` : ''}! 👋` : 'Welcome to ShikshAq! 👋'}
               </p>
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-sans font-bold text-[#1F1F1F] leading-none tracking-tight text-center opacity-0 animate-fade-slide-up" style={{ animationDelay: '200ms' }}>
                 Your ideal teacher,
@@ -559,11 +559,11 @@ export default function Index() {
                 one search away.
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-[#666666] mt-4 sm:mt-6 max-w-2xl mx-auto opacity-0 animate-fade-slide-up" style={{ animationDelay: '250ms' }}>
-                Shikshaq is a free online platform connecting students and parents with verified tuition teachers in Kolkata. 
+                ShikshAq is a free online platform connecting students and parents with verified tuition teachers in Kolkata. 
                 Search by subject, location, or teaching mode to find the perfect tutor for your needs.
               </p>
               <p className="text-xs sm:text-sm text-[#999999] mt-4 opacity-0 animate-fade-slide-up" style={{ animationDelay: '300ms' }}>
-                By using Shikshaq, you agree to our{' '}
+                By using ShikshAq, you agree to our{' '}
                 <Link to="/privacy-policy" className="text-[#4351FF] hover:underline">
                   Privacy Policy
                 </Link>
@@ -596,7 +596,7 @@ export default function Index() {
       <section className="py-12 sm:py-16 md:py-20 bg-[#F9F5F1]">
         <div className="container">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-[#1F1F1F] mb-2 sm:mb-4 md:mb-6">
-            Featured <span className="text-[#FF8000]">tuition teachers</span> on ShikshAQ
+            Featured <span className="text-[#FF8000]">tuition teachers</span> on ShikshAq
           </h2>
 
           {loading ? (

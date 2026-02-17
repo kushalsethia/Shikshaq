@@ -25,7 +25,7 @@ export function Logo({ className = '', showText = false, size = 'md', desktopSiz
     <Link to="/" className={`flex items-center gap-2 ${className}`}>
       <img
         src={logoImage}
-        alt="ShikshAQ Logo"
+        alt="ShikshAq Logo"
         className={`${responsiveSizeClass} object-contain flex-shrink-0`}
       />
       {showText && (

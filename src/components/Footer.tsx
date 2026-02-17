@@ -214,7 +214,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 Share Your Feedback
               </h2>
               <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
-                Help us improve ShikshAQ! Your suggestions shape how we connect students with the best tutors.
+                Help us improve ShikshAq! Your suggestions shape how we connect students with the best tutors.
               </p>
               <div>
                 <button
@@ -424,7 +424,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           </div>
 
           <div className="mt-8 pt-8 border-t border-border text-center">
-            <p className="text-xs sm:text-sm font-sans font-normal text-[#999999]">© {new Date().getFullYear()} ShikshAQ. An AquaTerra Start-up.</p>
+            <p className="text-xs sm:text-sm font-sans font-normal text-[#999999]">© {new Date().getFullYear()} ShikshAq. An AquaTerra Start-up.</p>
             <p className="mt-4 text-xs font-sans font-normal text-[#999999]">brought to you by</p>
             <div className="mt-2 flex justify-center">
               <img

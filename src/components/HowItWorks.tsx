@@ -30,7 +30,7 @@ export function HowItWorks() {
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-[#1F1F1F] text-center mb-12 md:mb-16">
           Looking for a tutor?
           <br />
-          Just <span className="text-[#FF8000]">Shikshaq</span> it!
+          Just <span className="text-[#FF8000]">ShikshAq</span> it!
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
