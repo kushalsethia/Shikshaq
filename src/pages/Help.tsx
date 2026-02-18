@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { FAQ } from '@/components/FAQ';
+import { WaveDivider } from '@/components/WaveDivider';
 import { Mail } from 'lucide-react';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
@@ -124,9 +125,16 @@ export default function Help() {
           </a>
         </div>
 
-        {/* FAQ */}
-        <FAQ />
       </main>
+
+      {/* Wave: Page → Orange */}
+      <WaveDivider fillColor="#FF8000" bgColor="#ffffff" inverted={false} />
+
+      {/* FAQ — Orange */}
+      <FAQ />
+
+      {/* Wave: Orange → Footer */}
+      <WaveDivider fillColor="#fcfbf8" bgColor="#FF8000" inverted={false} />
 
       <Footer />
     </div>

@@ -1,6 +1,7 @@
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { FAQ } from '@/components/FAQ';
+import { WaveDivider } from '@/components/WaveDivider';
 
 export default function FAQPage() {
   return (
@@ -13,12 +14,19 @@ export default function FAQPage() {
             Frequently Asked Questions
           </h1>
           <p className="text-lg text-muted-foreground text-center mb-12">
-            Find answers to common questions about Shikshaq
+            Find answers to common questions about ShikshAq
           </p>
-          
-          <FAQ />
         </div>
       </main>
+
+      {/* Wave: Page → Orange */}
+      <WaveDivider fillColor="#FF8000" bgColor="#ffffff" inverted={false} />
+
+      {/* FAQ — Orange */}
+      <FAQ />
+
+      {/* Wave: Orange → Footer */}
+      <WaveDivider fillColor="#fcfbf8" bgColor="#FF8000" inverted={false} />
 
       <Footer />
     </div>
