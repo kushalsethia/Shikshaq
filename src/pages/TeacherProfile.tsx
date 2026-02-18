@@ -47,6 +47,7 @@ interface Teacher {
   boards_taught?: string | null; // The "School Boards Catered" field from Shikshaqmine table
   class_size?: string | null; // The "Class Size (Group/ Solo)" field from Shikshaqmine table
   mode_of_teaching?: string | null; // The "Mode of Teaching" field from Shikshaqmine table
+  place_of_teaching?: string | null; // The "Place of Teaching" field from Shikshaqmine table (auto-computed from Location V2)
   location_v2?: string | null; // The "Location V2" field from Shikshaqmine table
   students_home_areas?: string | null; // The "student's home in these areas" field from Shikshaqmine table
   tutors_home_areas?: string | null; // The "Tutor's home in these areas" field from Shikshaqmine table
@@ -140,6 +141,7 @@ export default function TeacherProfile() {
       let boardsTaught = null;
       let classSize = null;
       let modeOfTeaching = null;
+      let placeOfTeaching = null;
       let locationV2 = null;
       let studentsHomeAreas = null;
       let tutorsHomeAreas = null;
@@ -187,6 +189,7 @@ export default function TeacherProfile() {
             boardsTaught = (shikshaqData as any)["School Boards Catered"];
             classSize = (shikshaqData as any)["Class Size (Group/ Solo)"];
             modeOfTeaching = (shikshaqData as any)["Mode of Teaching"];
+            placeOfTeaching = (shikshaqData as any)["Place of Teaching"];
             locationV2 = (shikshaqData as any)["LOCATION V2"] || (shikshaqData as any)["Location V2"] || (shikshaqData as any)["location_v2"];
             studentsHomeAreas = (shikshaqData as any)["STUDENT'S HOME IN THESE AREAS"] || (shikshaqData as any)["student's home in these areas"] || (shikshaqData as any)["Student's home in these areas"];
             tutorsHomeAreas = (shikshaqData as any)["TUTOR'S HOME IN THESE AREAS"] || (shikshaqData as any)["Tutor's home in these areas"];
@@ -234,6 +237,7 @@ export default function TeacherProfile() {
           boards_taught: boardsTaught,
           class_size: classSize,
           mode_of_teaching: modeOfTeaching,
+          place_of_teaching: placeOfTeaching,
           location_v2: locationV2,
           students_home_areas: studentsHomeAreas,
           tutors_home_areas: tutorsHomeAreas,
@@ -1102,7 +1106,7 @@ export default function TeacherProfile() {
         )}
 
             {/* Additional Details Section */}
-        {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.qualifications_etc || teacher.min_fees || teacher.max_fees) && (
+        {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.place_of_teaching || teacher.qualifications_etc || teacher.min_fees || teacher.max_fees) && (
           <div className="mt-8 md:mt-12">
             <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4 md:mb-6">Here are some more details:</h3>
             <div className="flex flex-wrap gap-4 md:gap-6">
@@ -1132,6 +1136,16 @@ export default function TeacherProfile() {
                   <h4 className="text-sm font-medium text-foreground/90 mb-2">Mode of teaching</h4>
                   <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
                         {teacher.mode_of_teaching}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Place of Teaching */}
+                  {teacher.place_of_teaching && (
+                <div className="flex-shrink-0 w-full md:w-auto">
+                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Place of teaching</h4>
+                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
+                        {teacher.place_of_teaching}
                       </div>
                     </div>
                   )}

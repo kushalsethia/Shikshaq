@@ -26,6 +26,7 @@ export interface FilterState {
   classSize: string[];
   areas: string[];
   modeOfTeaching: string[];
+  placeOfTeaching: string[];
   minFees: number | null;
   maxFees: number | null;
 }
@@ -55,6 +56,8 @@ const AREAS = [
 ].sort();
 
 const MODE_OF_TEACHING = ['Online', 'Offline'];
+
+const PLACE_OF_TEACHING = ["Teacher's place", "Student's Home"];
 
 // Hardcoded subjects list (sorted alphabetically) - matches subjects table
 const SUBJECTS = [
@@ -143,6 +146,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
     filters.classSize.length > 0 ||
     filters.areas.length > 0 ||
     filters.modeOfTeaching.length > 0 ||
+    filters.placeOfTeaching.length > 0 ||
     filters.minFees != null ||
     filters.maxFees != null;
 
@@ -292,6 +296,26 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                   }`}
                 >
                   {mode}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Place of teaching */}
+          <div>
+            <h3 className="text-lg font-medium mb-4">Place of teaching</h3>
+            <div className="flex flex-wrap gap-2">
+              {PLACE_OF_TEACHING.map((place) => (
+                <button
+                  key={place}
+                  onClick={() => toggleFilter('placeOfTeaching', place)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    filters.placeOfTeaching.includes(place)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {place}
                 </button>
               ))}
             </div>

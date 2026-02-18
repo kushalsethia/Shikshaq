@@ -56,7 +56,6 @@ const AREAS = [
 
 const MODE_OF_TEACHING = ['Online', 'Offline'];
 
-const PLACE_OF_TEACHING = ["Teacher's place", "Student's Home"];
 
 const CLASS_SIZE = ['Group', 'Solo'];
 
@@ -70,7 +69,7 @@ interface TeacherData {
   "Sir/Ma'am?": string | null;
   "Featured Subject": string | null;
   "Classes Taught for Backend": string | null;
-  "Place of Teaching": string | null;
+
   "School Boards Catered": string | null;
   Area: string | null;
   "Mode of Teaching": string | null;
@@ -220,27 +219,6 @@ export default function AdminTeachers() {
   // Initialize form data when teacher is selected
   useEffect(() => {
     if (selectedTeacher) {
-      // Handle "Place of Teaching" - if it contains "Both", split it into both options
-      let placeOfTeaching = selectedTeacher["Place of Teaching"];
-      if (placeOfTeaching) {
-        const normalized = placeOfTeaching.toLowerCase();
-        // If it says "Both" (case-insensitive), replace with both options
-        if (normalized.includes('both') && !normalized.includes("teacher's place") && !normalized.includes("student's home")) {
-          placeOfTeaching = "Teacher's place, Student's Home";
-        }
-        // Normalize existing values to match our constants exactly
-        const parts: string[] = [];
-        if (normalized.includes("teacher's place") || normalized.includes("teacher place")) {
-          parts.push("Teacher's place");
-        }
-        if (normalized.includes("student's home") || normalized.includes("student home")) {
-          parts.push("Student's Home");
-        }
-        if (parts.length > 0) {
-          placeOfTeaching = parts.join(', ');
-        }
-      }
-
       // Handle "School Boards Catered" - normalize "ICSE" to "ICSE/ISC"
       let schoolBoards = selectedTeacher["School Boards Catered"];
       if (schoolBoards) {
@@ -260,7 +238,6 @@ export default function AdminTeachers() {
       
       setFormData({
         ...selectedTeacher,
-        "Place of Teaching": placeOfTeaching,
         "School Boards Catered": schoolBoards,
       });
       // Sanitize image URL when loading from database
@@ -649,31 +626,6 @@ export default function AdminTeachers() {
                             />
                             <Label htmlFor={`class-${cls}`} className="cursor-pointer">
                               {cls}
-                            </Label>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Place of Teaching */}
-                  <div>
-                    <Label>Place of Teaching</Label>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {PLACE_OF_TEACHING.map((place) => {
-                        const currentValue = formData["Place of Teaching"] as string | null;
-                        const selected = valueExistsInString(currentValue, place);
-                        return (
-                          <div key={place} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`place-${place}`}
-                              checked={selected}
-                              onCheckedChange={(checked) =>
-                                handleMultiSelectChange("Place of Teaching", place, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`place-${place}`} className="cursor-pointer">
-                              {place}
                             </Label>
                           </div>
                         );

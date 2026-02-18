@@ -119,6 +119,7 @@ export default function Browse() {
       classSize: parseArrayParam(searchParams.get('filter_classSize')),
       areas: parseArrayParam(searchParams.get('filter_areas')),
       modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
+      placeOfTeaching: parseArrayParam(searchParams.get('filter_placeOfTeaching')),
       minFees: minFeesParam ? parseInt(minFeesParam) : null,
       maxFees: maxFeesParam ? parseInt(maxFeesParam) : null,
     };
@@ -247,6 +248,13 @@ export default function Browse() {
       newParams.delete('filter_modeOfTeaching');
     }
 
+    const placeParam = serializeArrayParam(filters.placeOfTeaching);
+    if (placeParam) {
+      newParams.set('filter_placeOfTeaching', placeParam);
+    } else {
+      newParams.delete('filter_placeOfTeaching');
+    }
+
     // Handle fees filters
     if (filters.minFees != null) {
       newParams.set('filter_minFees', filters.minFees.toString());
@@ -287,6 +295,7 @@ export default function Browse() {
       classSize: parseArrayParam(searchParams.get('filter_classSize')),
       areas: parseArrayParam(searchParams.get('filter_areas')),
       modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
+      placeOfTeaching: parseArrayParam(searchParams.get('filter_placeOfTeaching')),
     };
 
     // Extract filters from search query (q parameter)
@@ -306,6 +315,7 @@ export default function Browse() {
       classSize: searchQuery ? [...(extractedFilters.classSize || [])] : [...urlFilters.classSize],
       areas: searchQuery ? [...(extractedFilters.areas || [])] : [...urlFilters.areas],
       modeOfTeaching: searchQuery ? [...(extractedFilters.modeOfTeaching || [])] : [...urlFilters.modeOfTeaching],
+      placeOfTeaching: searchQuery ? [...(extractedFilters.placeOfTeaching || [])] : [...urlFilters.placeOfTeaching],
     };
 
     // Only update if filters actually differ (prevent unnecessary updates)
@@ -316,7 +326,8 @@ export default function Browse() {
       JSON.stringify([...mergedFilters.boards].sort()) !== JSON.stringify([...filters.boards].sort()) ||
       JSON.stringify([...mergedFilters.classSize].sort()) !== JSON.stringify([...filters.classSize].sort()) ||
       JSON.stringify([...mergedFilters.areas].sort()) !== JSON.stringify([...filters.areas].sort()) ||
-      JSON.stringify([...mergedFilters.modeOfTeaching].sort()) !== JSON.stringify([...filters.modeOfTeaching].sort());
+      JSON.stringify([...mergedFilters.modeOfTeaching].sort()) !== JSON.stringify([...filters.modeOfTeaching].sort()) ||
+      JSON.stringify([...mergedFilters.placeOfTeaching].sort()) !== JSON.stringify([...filters.placeOfTeaching].sort());
 
     if (filtersChanged) {
       // Update filters - the URL sync effect will handle updating the URL
@@ -363,7 +374,8 @@ export default function Browse() {
         const hasFiltersOrSearch = searchQuery || subjectFilter || classFilter || 
           filters.subjects.length > 0 || filters.classes.length > 0 ||
           filters.boards.length > 0 || filters.classSize.length > 0 ||
-          filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
+          filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
+          filters.placeOfTeaching.length > 0;
 
         // Fetch all teachers (up to 200) for infinite scroll
         const limit = 200;
@@ -485,6 +497,7 @@ export default function Browse() {
           classSize: parseArrayParam(searchParams.get('filter_classSize')),
           areas: parseArrayParam(searchParams.get('filter_areas')),
           modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
+          placeOfTeaching: parseArrayParam(searchParams.get('filter_placeOfTeaching')),
         };
 
         // Include class from dropdown in filters (combine URL param and filter panel selections)
@@ -519,6 +532,7 @@ export default function Browse() {
         const hasActiveFilters = effectiveSubjectFilters.length > 0 || effectiveClassFilters.length > 0 || 
             urlFilters.boards.length > 0 || urlFilters.classSize.length > 0 || 
             urlFilters.areas.length > 0 || urlFilters.modeOfTeaching.length > 0 ||
+            urlFilters.placeOfTeaching.length > 0 ||
             urlFilters.minFees != null || urlFilters.maxFees != null;
 
         // Apply filters (extracted from search query or URL params)
@@ -531,6 +545,7 @@ export default function Browse() {
           classSize: urlFilters.classSize,
           areas: urlFilters.areas,
           modeOfTeaching: urlFilters.modeOfTeaching,
+          placeOfTeaching: urlFilters.placeOfTeaching,
           minFees: urlFilters.minFees,
           maxFees: urlFilters.maxFees,
         };
@@ -549,6 +564,7 @@ export default function Browse() {
             classSize: extractedFilters.classSize || [],
             areas: extractedFilters.areas || [],
             modeOfTeaching: extractedFilters.modeOfTeaching || [],
+            placeOfTeaching: extractedFilters.placeOfTeaching || [],
             minFees: urlFilters.minFees, // Keep fees from URL (not extracted from search)
             maxFees: urlFilters.maxFees, // Keep fees from URL (not extracted from search)
           };
@@ -562,6 +578,7 @@ export default function Browse() {
           effectiveFilters.classSize.length > 0 || 
           effectiveFilters.areas.length > 0 || 
           effectiveFilters.modeOfTeaching.length > 0 ||
+          effectiveFilters.placeOfTeaching.length > 0 ||
           effectiveFilters.minFees != null ||
           effectiveFilters.maxFees != null;
 
@@ -604,6 +621,7 @@ export default function Browse() {
           const classSizeFiltersLower = effectiveFilters.classSize.map(s => s.toLowerCase());
           const areaFiltersLower = effectiveFilters.areas.map(a => a.toLowerCase());
           const modeFiltersLower = effectiveFilters.modeOfTeaching.map(m => m.toLowerCase());
+          const placeFiltersLower = effectiveFilters.placeOfTeaching.map(p => p.toLowerCase());
           
           const matchingSlugs = recordsToFilter
             .filter((record: any) => {
@@ -615,6 +633,7 @@ export default function Browse() {
               const classSize = (record["Class Size (Group/ Solo)"] || '').toLowerCase();
               const areaData = (record.Area || record["AREAS FOR FILTERING"] || '').toLowerCase();
               const mode = (record["Mode of Teaching"] || '').toLowerCase();
+              const placeOfTeaching = (record["Place of Teaching"] || '').toLowerCase();
 
               // Check subjects (includes both dropdown and advanced filter selections)
               if (effectiveFilters.subjects.length > 0) {
@@ -710,6 +729,16 @@ export default function Browse() {
                   mode.includes(modeLower + '/')
                 );
                 if (!hasMode) {
+                  return false;
+                }
+              }
+
+              // Check place of teaching
+              if (effectiveFilters.placeOfTeaching.length > 0) {
+                const hasPlace = placeFiltersLower.some(placeLower => 
+                  placeOfTeaching.includes(placeLower)
+                );
+                if (!hasPlace) {
                   return false;
                 }
               }
@@ -1074,6 +1103,7 @@ export default function Browse() {
       classSize: [],
       areas: [],
       modeOfTeaching: [],
+      placeOfTeaching: [],
     });
     setSearchParams({});
     setDisplayedTeachers([]);
@@ -1083,7 +1113,8 @@ export default function Browse() {
   const hasFilters = searchParams.get('subject') || searchParams.get('class') || searchParams.get('q') ||
     filters.subjects.length > 0 || filters.classes.length > 0 ||
     filters.boards.length > 0 || filters.classSize.length > 0 ||
-    filters.areas.length > 0 || filters.modeOfTeaching.length > 0;
+    filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
+    filters.placeOfTeaching.length > 0;
 
   // Generate dynamic heading based on filters
   const getHeading = () => {
@@ -1179,10 +1210,12 @@ export default function Browse() {
               <Filter className="w-5 h-5" />
               {(filters.subjects.length > 0 || filters.classes.length > 0 ||
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
-                filters.areas.length > 0 || filters.modeOfTeaching.length > 0) && (
+                filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
+                filters.placeOfTeaching.length > 0) && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px]">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
-                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length}
+                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
+                   filters.placeOfTeaching.length}
                 </span>
               )}
             </Button>
@@ -1197,10 +1230,12 @@ export default function Browse() {
               Advanced Filters
               {(filters.subjects.length > 0 || filters.classes.length > 0 ||
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
-                filters.areas.length > 0 || filters.modeOfTeaching.length > 0) && (
+                filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
+                filters.placeOfTeaching.length > 0) && (
                 <span className="ml-1 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
-                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length}
+                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
+                   filters.placeOfTeaching.length}
                 </span>
               )}
             </Button>
@@ -1463,6 +1498,7 @@ export default function Browse() {
             classSize: [],
             areas: [],
             modeOfTeaching: [],
+            placeOfTeaching: [],
           });
         }}
       />

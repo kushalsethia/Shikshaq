@@ -271,7 +271,7 @@ export default function TeacherDashboard() {
         }
       }
       
-      // Clear areas when Place of Teaching changes
+      // Clear areas when Location V2 changes
       if (field === "LOCATION V2") {
         const locationV2 = value as string | null;
         // If switching to "TEACHER'S HOME TUTORING", clear student's home areas
@@ -313,12 +313,12 @@ export default function TeacherDashboard() {
       return false;
     }
     
-    // Check Place of Teaching
+    // Check Location V2 (Place of Teaching)
     if (!teacherData["LOCATION V2"]) {
       return false;
     }
     
-    // Check areas based on Place of Teaching
+    // Check areas based on Location V2
     const locationV2 = teacherData["LOCATION V2"];
     if (locationV2 === "STUDENT'S HOME TUTORING ONLY" || locationV2 === "BOTH OPTIONS LISTED") {
       if (!teacherData["STUDENT'S HOME IN THESE AREAS"] || !teacherData["STUDENT'S HOME IN THESE AREAS"].trim()) {
@@ -530,7 +530,7 @@ export default function TeacherDashboard() {
       return;
     }
 
-    // Validate areas based on Place of Teaching
+    // Validate areas based on Location V2
     const locationV2 = teacherData["LOCATION V2"];
     if (locationV2 === "STUDENT'S HOME TUTORING ONLY" || locationV2 === "BOTH OPTIONS LISTED") {
       if (!teacherData["STUDENT'S HOME IN THESE AREAS"] || !teacherData["STUDENT'S HOME IN THESE AREAS"].trim()) {
