@@ -350,6 +350,16 @@ export default function TeacherDashboard() {
       return false;
     }
     
+    // Check School Boards Catered (required)
+    if (!teacherData["School Boards Catered"] || !teacherData["School Boards Catered"].trim()) {
+      return false;
+    }
+    
+    // Check Classes Taught (required)
+    if (!teacherData["Classes Taught for Backend"] || !teacherData["Classes Taught for Backend"].trim()) {
+      return false;
+    }
+    
     // Check Mode of Teaching (required)
     if (!teacherData["Mode of Teaching"] || !teacherData["Mode of Teaching"].trim()) {
       return false;
@@ -551,19 +561,31 @@ export default function TeacherDashboard() {
 
     // Validate Subjects (required)
     if (!teacherData.Subjects || !teacherData.Subjects.trim()) {
-      toast.error('Subjects is required');
+      toast.error('Please select at least one subject');
+      return;
+    }
+
+    // Validate School Boards Catered (required)
+    if (!teacherData["School Boards Catered"] || !teacherData["School Boards Catered"].trim()) {
+      toast.error('Please select at least one school board');
+      return;
+    }
+
+    // Validate Classes Taught (required)
+    if (!teacherData["Classes Taught for Backend"] || !teacherData["Classes Taught for Backend"].trim()) {
+      toast.error('Please select at least one class');
       return;
     }
 
     // Validate Mode of Teaching (required)
     if (!teacherData["Mode of Teaching"] || !teacherData["Mode of Teaching"].trim()) {
-      toast.error('Mode of Teaching is required');
+      toast.error('Please select a mode of teaching');
       return;
     }
 
     // Validate Class Size (required)
     if (!teacherData["Class Size (Group/ Solo)"] || !teacherData["Class Size (Group/ Solo)"].trim()) {
-      toast.error('Class Size is required');
+      toast.error('Please select a class size');
       return;
     }
 
@@ -813,9 +835,9 @@ export default function TeacherDashboard() {
                 )}
               </div>
 
-              {/* Hero Image */}
+              {/* Profile Image */}
               <div className="space-y-2">
-                <Label>Hero Image</Label>
+                <Label>Profile Image</Label>
                 {imagePreview && (() => {
                   // Apply DOMPurify as final sanitization — CodeQL recognises it as a known sanitizer
                   const safeSrc = DOMPurify.sanitize(validateImageSrc(imagePreview), {
@@ -865,9 +887,9 @@ export default function TeacherDashboard() {
                 </p>
               </div>
 
-              {/* Description */}
+              {/* Profile Introduction */}
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Profile Introduction</Label>
                 <Textarea
                   id="description"
                   value={teacherData["Description"] || ''}
@@ -902,6 +924,74 @@ export default function TeacherDashboard() {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* School Boards Catered */}
+              <div className="space-y-2">
+                <Label>
+                  School Boards Catered <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex flex-wrap gap-2 mt-2 border rounded-lg p-4">
+                  {SCHOOL_BOARDS.map((board) => {
+                    const currentValue = teacherData["School Boards Catered"] as string | null;
+                    const selected = valueExistsInString(currentValue, board);
+                    return (
+                      <div key={board} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`board-${board}`}
+                          checked={selected}
+                          onCheckedChange={(checked) =>
+                            handleMultiSelectChange("School Boards Catered", board, checked as boolean)
+                          }
+                        />
+                        <Label htmlFor={`board-${board}`} className="cursor-pointer text-sm">
+                          {board}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Classes Taught */}
+              <div className="space-y-2">
+                <Label>
+                  Classes Taught <span className="text-red-500">*</span>
+                </Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Select the classes you teach. Display format will be automatically computed.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-2 border rounded-lg p-4">
+                  {CLASS_NUMBERS.map((cls) => {
+                    const currentValue = teacherData["Classes Taught for Backend"] as string | null;
+                    const selected = valueExistsInString(currentValue, cls);
+                    return (
+                      <div key={cls} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`class-${cls}`}
+                          checked={selected}
+                          onCheckedChange={(checked) =>
+                            handleMultiSelectChange("Classes Taught for Backend", cls, checked as boolean)
+                          }
+                        />
+                        <Label htmlFor={`class-${cls}`} className="cursor-pointer text-sm">
+                          {cls}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Show Classes Taught (read-only) */}
+                {teacherData["Classes Taught"] && (
+                  <div className="mt-2">
+                    <Label className="text-sm text-muted-foreground">Classes Taught (Auto-computed):</Label>
+                    <Input
+                      value={teacherData["Classes Taught"]}
+                      disabled
+                      className="bg-muted cursor-not-allowed mt-1"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Mode of Teaching */}
@@ -1135,69 +1225,6 @@ export default function TeacherDashboard() {
                 </Select>
               </div>
 
-              {/* School Boards Catered */}
-              <div className="space-y-2">
-                <Label>School Boards Catered</Label>
-                <div className="flex flex-wrap gap-2 mt-2 border rounded-lg p-4">
-                  {SCHOOL_BOARDS.map((board) => {
-                    const currentValue = teacherData["School Boards Catered"] as string | null;
-                    const selected = valueExistsInString(currentValue, board);
-                    return (
-                      <div key={board} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`board-${board}`}
-                          checked={selected}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange("School Boards Catered", board, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`board-${board}`} className="cursor-pointer text-sm">
-                          {board}
-                        </Label>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Classes Taught for Backend */}
-              <div className="space-y-2">
-                <Label>Classes Taught for Backend</Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Select classes (1-12). Classes Taught will be automatically updated to Roman numerals.
-                </p>
-                <div className="flex flex-wrap gap-2 mt-2 border rounded-lg p-4">
-                  {CLASS_NUMBERS.map((cls) => {
-                    const currentValue = teacherData["Classes Taught for Backend"] as string | null;
-                    const selected = valueExistsInString(currentValue, cls);
-                    return (
-                      <div key={cls} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`class-${cls}`}
-                          checked={selected}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange("Classes Taught for Backend", cls, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`class-${cls}`} className="cursor-pointer text-sm">
-                          {cls}
-                        </Label>
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* Show Classes Taught (read-only) */}
-                {teacherData["Classes Taught"] && (
-                  <div className="mt-2">
-                    <Label className="text-sm text-muted-foreground">Classes Taught (Auto-computed):</Label>
-                    <Input
-                      value={teacherData["Classes Taught"]}
-                      disabled
-                      className="bg-muted cursor-not-allowed mt-1"
-                    />
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>

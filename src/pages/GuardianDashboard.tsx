@@ -88,7 +88,9 @@ export default function GuardianDashboard() {
           .single();
 
         if (profileError) {
-          console.error('Error fetching profile:', profileError);
+          if (import.meta.env.DEV) {
+            console.error('Error fetching profile:', profileError);
+          }
           setLoading(false);
           return;
         }
@@ -236,12 +238,16 @@ export default function GuardianDashboard() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
-    if (name === 'student_date_of_birth') {
+    if (name === 'phone') {
+      // For phone number, only allow numeric characters
+      const numericValue = value.replace(/\D/g, '');
+      setFormData({ ...formData, [name]: numericValue });
+    } else if (name === 'student_date_of_birth') {
       // Format date input as dd-mm-yyyy
       const formatted = formatDateInput(value);
       setFormData({ ...formData, [name]: formatted });
     } else {
-    setFormData({ ...formData, [name]: value });
+      setFormData({ ...formData, [name]: value });
     }
   };
 
@@ -257,6 +263,12 @@ export default function GuardianDashboard() {
 
   const handleSave = async () => {
     if (!user || !profile) return;
+
+    // Validate phone number if provided (must be exactly 10 digits)
+    if (formData.phone.trim() && formData.phone.trim().length !== 10) {
+      toast.error('Phone number must be exactly 10 digits');
+      return;
+    }
 
     // Validate date format if provided
     if (formData.student_date_of_birth && !isValidDateFormat(formData.student_date_of_birth)) {
@@ -439,10 +451,11 @@ export default function GuardianDashboard() {
                     id="phone"
                     name="phone"
                     type="tel"
-                    placeholder="+91 XXXXXXXXXX"
+                    placeholder="10-digit phone number"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    maxLength={13}
+                    maxLength={10}
+                    inputMode="numeric"
                   />
                 </div>
 

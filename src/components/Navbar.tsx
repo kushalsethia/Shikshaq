@@ -338,6 +338,17 @@ export function Navbar() {
                     PYQs
                   </Link>
                 </DropdownMenuItem>
+                {user && userRole === 'teacher' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard/teacher" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 text-primary font-medium">
+                        <GraduationCap className="w-4 h-4" />
+                        View Profile
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuItem asChild>
                   <Link to="/more" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
                     <HelpCircle className="w-4 h-4" />

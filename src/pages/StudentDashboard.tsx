@@ -237,21 +237,33 @@ export default function StudentDashboard() {
   };
 
   const validateRequiredFields = (): boolean => {
-    const required = {
-      phone: formData.phone.trim(),
-      date_of_birth: formData.date_of_birth.trim(),
-      school_college: formData.school_college.trim(),
-      grade: formData.grade.trim(),
-    };
-
-    if (!required.phone || !required.date_of_birth || !required.school_college || !required.grade) {
-      toast.error('Please fill in all required fields: Phone, Date of Birth, School/College, and Grade');
+    if (!formData.phone.trim()) {
+      toast.error('Please enter your phone number');
       return false;
     }
 
-    // Validate date format
-    if (!isValidDateFormat(required.date_of_birth)) {
+    if (formData.phone.trim().length !== 10) {
+      toast.error('Phone number must be exactly 10 digits');
+      return false;
+    }
+
+    if (!formData.date_of_birth.trim()) {
+      toast.error('Please enter your date of birth');
+      return false;
+    }
+
+    if (!isValidDateFormat(formData.date_of_birth.trim())) {
       toast.error('Please enter a valid date in DD-MM-YYYY format (e.g., 15-03-2010)');
+      return false;
+    }
+
+    if (!formData.school_college.trim()) {
+      toast.error('Please enter your school or college name');
+      return false;
+    }
+
+    if (!formData.grade.trim()) {
+      toast.error('Please select your grade');
       return false;
     }
 
@@ -438,7 +450,7 @@ export default function StudentDashboard() {
                 <h2 className="text-xl font-sans text-foreground">Profile Information</h2>
                 <Button
                   onClick={handleSave}
-                  disabled={saving || !formData.phone.trim() || !formData.date_of_birth.trim() || !formData.school_college.trim() || !formData.grade.trim()}
+                  disabled={saving}
                   className="gap-2"
                   size="lg"
                 >
@@ -456,10 +468,10 @@ export default function StudentDashboard() {
                     id="phone"
                     name="phone"
                     type="tel"
-                    placeholder="91XXXXXXXXXX"
+                    placeholder="10-digit phone number"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    maxLength={12}
+                    maxLength={10}
                     inputMode="numeric"
                     className="w-full"
                   />
