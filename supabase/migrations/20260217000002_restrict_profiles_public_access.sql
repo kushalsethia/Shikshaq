@@ -45,10 +45,14 @@ CREATE POLICY "Admins can view all profiles"
 -- ============================================================================
 -- 4. Create public_profiles VIEW with ONLY safe, non-PII fields
 --    This is what public/unauthenticated queries should use
+--    Uses security_invoker = on so the view runs with the querying user's
+--    permissions, ensuring RLS policies on the profiles table are respected
 -- ============================================================================
 DROP VIEW IF EXISTS public.public_profiles;
 
-CREATE VIEW public.public_profiles AS
+CREATE VIEW public.public_profiles
+  WITH (security_invoker = on)
+  AS
   SELECT
     id,
     full_name,
