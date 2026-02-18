@@ -97,7 +97,6 @@ export default function TeacherDashboard() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [subjects, setSubjects] = useState<{ name: string; slug: string }[]>([]);
 
   // Redirect if not authenticated or not a teacher
   useEffect(() => {
@@ -224,26 +223,6 @@ export default function TeacherDashboard() {
     fetchTeacherData();
   }, [user]);
 
-  // Fetch subjects for Featured Subject dropdown
-  useEffect(() => {
-    async function fetchSubjects() {
-      const { data, error } = await supabase
-        .from('subjects')
-        .select('name, slug')
-        .order('name');
-
-      if (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching subjects:', error);
-        }
-        return;
-      }
-
-      setSubjects(data || []);
-    }
-
-    fetchSubjects();
-  }, []);
 
   // Helper function to check if value exists in comma-separated string
   const valueExistsInString = (str: string | null, value: string): boolean => {
@@ -255,6 +234,14 @@ export default function TeacherDashboard() {
     setTeacherData((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, [field]: value };
+      
+      // Auto-clear Featured Subject if it's no longer in the selected Subjects
+      if (field === "Subjects") {
+        const selectedSubjects = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
+        if (updated["Featured Subject"] && !selectedSubjects.includes(updated["Featured Subject"])) {
+          updated["Featured Subject"] = null;
+        }
+      }
       
       // Auto-update Classes Taught when Classes Taught for Backend changes
       if (field === "Classes Taught for Backend") {
@@ -926,6 +913,30 @@ export default function TeacherDashboard() {
                 </div>
               </div>
 
+              {/* Featured Subject */}
+              <div className="space-y-2">
+                <Label htmlFor="featuredSubject">Featured Subject</Label>
+                <Select
+                  value={teacherData["Featured Subject"] || "none"}
+                  onValueChange={(value) => handleInputChange("Featured Subject", value === "none" ? null : value)}
+                >
+                  <SelectTrigger id="featuredSubject">
+                    <SelectValue placeholder="Select featured subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {(teacherData.Subjects || '').split(',').map(s => s.trim()).filter(Boolean).map((subject) => (
+                      <SelectItem key={subject} value={subject}>
+                        {subject}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Choose one of your selected subjects to feature on your profile
+                </p>
+              </div>
+
               {/* School Boards Catered */}
               <div className="space-y-2">
                 <Label>
@@ -1204,26 +1215,6 @@ export default function TeacherDashboard() {
                 <p className="text-xs text-muted-foreground">Optional - Enter maximum monthly fees</p>
               </div>
 
-              {/* Featured Subject */}
-              <div className="space-y-2">
-                <Label htmlFor="featuredSubject">Featured Subject</Label>
-                <Select
-                  value={teacherData["Featured Subject"] || "none"}
-                  onValueChange={(value) => handleInputChange("Featured Subject", value === "none" ? null : value)}
-                >
-                  <SelectTrigger id="featuredSubject">
-                    <SelectValue placeholder="Select featured subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {subjects.map((subject) => (
-                      <SelectItem key={subject.slug} value={subject.name}>
-                        {subject.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
 
             </div>
           </div>
