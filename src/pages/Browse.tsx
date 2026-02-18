@@ -623,6 +623,20 @@ export default function Browse() {
                   if (subjLower === 'accountancy') {
                     return subjects.includes('accountancy') || subjects.includes('accounts');
                   }
+                  // Handle "Computers" matching "Computer" (singular/plural variants in DB)
+                  if (subjLower === 'computers') {
+                    return subjects.includes('computers') || subjects.includes('computer');
+                  }
+                  if (subjLower === 'computer') {
+                    return subjects.includes('computer');
+                  }
+                  // Handle "Drawing & Painting" / "Drawing and Painting" / "Drawing" variants in DB
+                  if (subjLower === 'drawing & painting' || subjLower === 'drawing and painting') {
+                    return subjects.includes('drawing & painting') || subjects.includes('drawing and painting') || subjects.includes('drawing');
+                  }
+                  if (subjLower === 'drawing') {
+                    return subjects.includes('drawing');
+                  }
                   return subjects.includes(subjLower);
                 });
                 if (!hasSubject) {

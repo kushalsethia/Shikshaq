@@ -10,7 +10,7 @@ export const SUBJECT_PATH_TO_FILTER: Record<string, string> = {
   '/physics-tuition-teachers-in-kolkata': 'Physics',
   '/chemistry-tuition-teachers-in-kolkata': 'Chemistry',
   '/biology-tuition-teachers-in-kolkata': 'Biology',
-  '/computer-tuition-teachers-in-kolkata': 'Computer',
+  '/computer-tuition-teachers-in-kolkata': 'Computers',
   '/hindi-tuition-teachers-in-kolkata': 'Hindi',
   '/history-tuition-teachers-in-kolkata': 'History & Civics', // Note: FilterPanel uses 'History & Civics'
   '/geography-tuition-teachers-in-kolkata': 'Geography',
@@ -23,7 +23,7 @@ export const SUBJECT_PATH_TO_FILTER: Record<string, string> = {
   '/political-science-tuition-teachers-in-kolkata': 'Political Science',
   '/environmental-science-tuition-teachers-in-kolkata': 'Environmental Science',
   '/bengali-tuition-teachers-in-kolkata': 'Bengali',
-  '/drawing-tuition-teachers-in-kolkata': 'Drawing',
+  '/drawing-tuition-teachers-in-kolkata': 'Drawing & Painting',
   '/sat-tuition-teachers-in-kolkata': 'SAT',
   '/act-tuition-teachers-in-kolkata': 'ACT',
   '/cat-tuition-teachers-in-kolkata': 'CAT',

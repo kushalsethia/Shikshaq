@@ -56,8 +56,9 @@ const subjectImageMap: Record<string, string> = {
   'ielts': subjectCommerce,
   'pte': subjectCommerce,
   
-  // Computer (used for tech-related subjects)
+  // Computer / Computers (used for tech-related subjects)
   'computer': subjectComputer,
+  'computers': subjectComputer,
   'computer science': subjectComputer,
   'computer-science': subjectComputer,
   'informatics practices': subjectComputer,

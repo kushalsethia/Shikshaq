@@ -36,7 +36,9 @@ const subjectIconMap: Record<string, string> = {
   'English': iconEnglish,
   'Biology': iconBiology,
   'Computers': iconComputers,
+  'Computer': iconComputers,
   'Drawing': iconDrawing,
+  'Drawing & Painting': iconDrawing,
   'Accounts': iconAccounts,
   'Bengali': iconBengali,
   'Maths': iconMaths,
@@ -337,9 +339,9 @@ export default function Index() {
         }
         
         // Fetch teachers by upvotes (top 16) and subjects in parallel
-        // Fetch specific subjects: Bengali, Maths, Drawing, Psychology, Computers, Accounts, Biology, Economics
-        // Exclude "Drawing and Painting"
-        const desiredSubjects = ['Bengali', 'English', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computers', 'Accounts', 'Biology', 'Economics'];
+        // Fetch specific subjects: Bengali, Maths, Drawing & Painting, Psychology, Computers, Accounts, Biology, Economics
+        // Include both "Drawing" and "Drawing & Painting", "Computer" and "Computers" for backward compatibility
+        const desiredSubjects = ['Bengali', 'English', 'Maths', 'Mathematics', 'Drawing', 'Drawing & Painting', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
         const [subjectsRes, upvotesRes] = await Promise.all([
           cachedSubjects ? Promise.resolve({ data: cachedSubjects, error: null }) :
           supabase
@@ -479,10 +481,21 @@ export default function Index() {
         }
 
         if (subjectsRes.data) {
-          // Order by desired sequence
-          const desiredOrder = ['Bengali', 'English', 'Maths', 'Mathematics', 'Drawing', 'Psychology', 'Computers', 'Accounts', 'Biology', 'Economics'];
+          // Order by desired sequence (include both naming variants for backward compatibility)
+          const desiredOrder = ['Bengali', 'English', 'Maths', 'Mathematics', 'Drawing', 'Drawing & Painting', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
+          // Deduplicate subjects that are variants of the same thing (e.g., "Computer" and "Computers")
+          const seen = new Set<string>();
           const filteredSubjects = subjectsRes.data
             .filter((subject: any) => desiredOrder.includes(subject.name))
+            .filter((subject: any) => {
+              // Normalize name for deduplication
+              const normalized = subject.name.toLowerCase()
+                .replace('computers', 'computer')
+                .replace('drawing & painting', 'drawing');
+              if (seen.has(normalized)) return false;
+              seen.add(normalized);
+              return true;
+            })
             .sort((a: any, b: any) => {
               const indexA = desiredOrder.indexOf(a.name);
               const indexB = desiredOrder.indexOf(b.name);
