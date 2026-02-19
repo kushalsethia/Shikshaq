@@ -368,10 +368,10 @@ export default function Auth() {
               {showResetPassword 
                 ? 'Enter your new password below'
                 : !showEmailForm
-                ? 'Sign in to continue to ShikshAq'
+                ? 'Sign in to continue to Shikshaq'
                 : isLogin 
-                ? 'Sign in to continue to ShikshAq' 
-                : 'Join ShikshAq to find the best tutors'
+                ? 'Sign in to continue to Shikshaq' 
+                : 'Join Shikshaq to find the best tutors'
               }
             </p>
 
@@ -409,7 +409,7 @@ export default function Auth() {
                 {/* Welcome Message */}
                 <div className="text-center space-y-3">
                   <p className="text-foreground font-medium">
-                    Thank you for choosing ShikshAq!
+                    Thank you for choosing Shikshaq!
                   </p>
                   <p className="text-muted-foreground text-sm leading-relaxed">
                     Connect with the best tutors in Kolkata. Sign in quickly and securely with Google to get started.

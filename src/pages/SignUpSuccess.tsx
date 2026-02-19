@@ -39,7 +39,7 @@ export default function SignUpSuccess() {
               Account Created Successfully!
             </h1>
             <p className="text-muted-foreground text-lg">
-              Welcome to ShikshAq
+              Welcome to Shikshaq
             </p>
           </div>
 

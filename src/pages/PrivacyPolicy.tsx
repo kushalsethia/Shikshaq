@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
           <section className="mb-8">
             <h2 className="text-2xl font-sans mt-8 mb-4">1. Introduction</h2>
             <p>
-              Welcome to ShikshAq ("we," "our," or "us"). We are committed to protecting your privacy and ensuring transparency about how we collect, use, and safeguard your personal information. This Privacy Policy explains our practices regarding data collection, use, and disclosure when you use our website located at <strong>www.shikshaq.in</strong> (the "Service").
+              Welcome to Shikshaq ("we," "our," or "us"). We are committed to protecting your privacy and ensuring transparency about how we collect, use, and safeguard your personal information. This Privacy Policy explains our practices regarding data collection, use, and disclosure when you use our website located at <strong>www.shikshaq.in</strong> (the "Service").
             </p>
             <p>
               By using our Service, you agree to the collection and use of information in accordance with this Privacy Policy. If you do not agree with our policies and practices, please do not use our Service.

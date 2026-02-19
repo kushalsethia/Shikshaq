@@ -7,8 +7,8 @@ import {
 
 const faqs = [
   {
-    question: 'What exactly is ShikshAq?',
-    answer: 'ShikshAq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.',
+    question: 'What exactly is Shikshaq?',
+    answer: 'Shikshaq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.',
   },
   {
     question: 'How does it actually work?',
@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     question: 'How much does this cost? What about payments?',
-    answer: 'ShikshAq is completely free for students and parents! There are no commissions or hidden fees. You negotiate the tuition fees directly with the teacher.',
+    answer: 'Shikshaq is completely free for students and parents! There are no commissions or hidden fees. You negotiate the tuition fees directly with the teacher.',
   },
   {
     question: 'What if I need help? How do I reach your team?',

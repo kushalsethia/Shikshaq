@@ -14,7 +14,7 @@ export default function FAQPage() {
             Frequently Asked Questions
           </h1>
           <p className="text-lg text-muted-foreground text-center mb-12">
-            Find answers to common questions about ShikshAq
+            Find answers to common questions about Shikshaq
           </p>
         </div>
       </main>
