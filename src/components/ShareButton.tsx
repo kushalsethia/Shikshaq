@@ -19,7 +19,7 @@ export function ShareButton({ url, title, description, className = '', iconSize 
   const fullUrl = url.startsWith('http') ? url : `https://www.shikshaq.in${url}`;
   const shareText = description 
     ? `${title} - ${description}`
-    : `Check out ${title} on ShikshAq`;
+    : `Check out ${title} on Shikshaq`;
 
   const copyToClipboard = async (e?: React.MouseEvent) => {
     if (e) {
@@ -139,7 +139,7 @@ export function ShareButton({ url, title, description, className = '', iconSize 
   };
 
   const shareViaEmail = () => {
-    const subject = encodeURIComponent(`Check out ${title} on ShikshAq`);
+    const subject = encodeURIComponent(`Check out ${title} on Shikshaq`);
     const body = encodeURIComponent(`${shareText}\n\n${fullUrl}`);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
     setShowMenu(false);

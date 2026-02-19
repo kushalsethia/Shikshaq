@@ -200,7 +200,7 @@ export default function TeacherTermsAgreement() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="bg-muted/50 p-4 rounded-lg border">
               <p className="text-sm text-foreground mb-3">
-                As a teacher on ShikshAq, you agree to:
+                As a teacher on Shikshaq, you agree to:
               </p>
               <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside">
                 <li>Provide accurate information about your qualifications and teaching experience</li>
@@ -227,7 +227,7 @@ export default function TeacherTermsAgreement() {
                 <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline underline">
                   Privacy Policy
                 </a>
-                {' '}and consent to be listed as a teacher on ShikshAq.
+                {' '}and consent to be listed as a teacher on Shikshaq.
               </Label>
             </div>
 

@@ -454,8 +454,8 @@ export default function TeacherProfile() {
     const modeOfTeaching = getValue(teacher.mode_of_teaching, 'online/offline');
     const expanded = getValue(teacher.expanded, '');
 
-    // Build title: {{Title}} teaches {{Subjects}} for Classes {{Classes Taught}} in {{Area}} via {{Mode of Teaching}} on ShikshAq by AquaTerra
-    const title = `${teacherName} teaches ${subjects} for Classes ${classesTaught} in ${area} via ${modeOfTeaching} on ShikshAq by AquaTerra`;
+    // Build title: {{Title}} teaches {{Subjects}} for Classes {{Classes Taught}} in {{Area}} via {{Mode of Teaching}} on Shikshaq by AquaTerra
+    const title = `${teacherName} teaches ${subjects} for Classes ${classesTaught} in ${area} via ${modeOfTeaching} on Shikshaq by AquaTerra`;
     
     // Build description: {{Subjects}} tuition classes for {{Classes Taught}} in {{Area}} via {{Mode of Teaching}} {{EXPANDED}}
     let description = `${subjects} tuition classes for ${classesTaught} in ${area} via ${modeOfTeaching}`;
@@ -516,20 +516,20 @@ export default function TeacherProfile() {
 
     // Cleanup: restore default title and meta tags when component unmounts
     return () => {
-      document.title = 'ShikshAq - by AquaTerra';
-      const defaultDescription = 'ShikshAq connects students with real local tuition teachers for free. Discover trusted, verified educators near you for school subjects and exams- simple, genuine, and community-driven learning with no hidden costs.';
+      document.title = 'Shikshaq - by AquaTerra';
+      const defaultDescription = 'Shikshaq connects students with real local tuition teachers for free. Discover trusted, verified educators near you for school subjects and exams- simple, genuine, and community-driven learning with no hidden costs.';
       
       const metaDesc = document.querySelector('meta[name="description"]');
       if (metaDesc) metaDesc.setAttribute('content', defaultDescription);
       
       const ogTitleEl = document.querySelector('meta[property="og:title"]');
-      if (ogTitleEl) ogTitleEl.setAttribute('content', 'ShikshAq - by AquaTerra');
+      if (ogTitleEl) ogTitleEl.setAttribute('content', 'Shikshaq - by AquaTerra');
       
       const ogDescEl = document.querySelector('meta[property="og:description"]');
       if (ogDescEl) ogDescEl.setAttribute('content', defaultDescription);
       
       const twitterTitleEl = document.querySelector('meta[name="twitter:title"]');
-      if (twitterTitleEl) twitterTitleEl.setAttribute('content', 'ShikshAq - by AquaTerra');
+      if (twitterTitleEl) twitterTitleEl.setAttribute('content', 'Shikshaq - by AquaTerra');
       
       const twitterDescEl = document.querySelector('meta[name="twitter:description"]');
       if (twitterDescEl) twitterDescEl.setAttribute('content', defaultDescription);

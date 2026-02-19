@@ -9,12 +9,12 @@ interface Message {
   content: string;
 }
 
-const FAQ_CONTEXT = `ShikshAq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.
+const FAQ_CONTEXT = `Shikshaq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.
 
 Common Questions and Answers:
 
-1. What exactly is ShikshAq?
-ShikshAq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.
+1. What exactly is Shikshaq?
+Shikshaq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.
 
 2. How does it actually work?
 Simply search for teachers by subject, grade, or locality. Browse through detailed profiles, read reviews, and when you find someone you like, reach out to them directly via WhatsApp. No middlemen, no hassle.
@@ -29,7 +29,7 @@ If you can't find a suitable tutor, you can contact us and we'll help you find t
 That's okay! There's no commitment. You can always browse and connect with other tutors until you find the perfect fit for your learning needs.
 
 6. How much does this cost? What about payments?
-ShikshAq is completely free for students and parents! There are no commissions or hidden fees. You negotiate the tuition fees directly with the teacher.
+Shikshaq is completely free for students and parents! There are no commissions or hidden fees. You negotiate the tuition fees directly with the teacher.
 
 7. What if I need help? How do I reach your team?
 You can reach us via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. Our team is always ready to help you with any questions or concerns you might have.
@@ -45,11 +45,11 @@ Additional Information:
 const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   {
     keywords: ['free', 'cost', 'price', 'charge', 'fee', 'payment', 'money'],
-    response: 'Yes! ShikshAq is completely free for students and parents. There are no platform fees, commissions, or hidden charges. You only pay the tuition fees directly to the teacher.',
+    response: 'Yes! Shikshaq is completely free for students and parents. There are no platform fees, commissions, or hidden charges. You only pay the tuition fees directly to the teacher.',
   },
   {
     keywords: ['what is', 'about', 'tell me'],
-    response: 'ShikshAq is a platform that connects students and parents with verified tuition teachers across Kolkata. You can search for teachers by subject, class, or location, and contact them directly via WhatsApp. No middlemen, no hassle!',
+    response: 'Shikshaq is a platform that connects students and parents with verified tuition teachers across Kolkata. You can search for teachers by subject, class, or location, and contact them directly via WhatsApp. No middlemen, no hassle!',
   },
   {
     keywords: ['how', 'work', 'does it work'],
@@ -65,10 +65,10 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
 ];
 
-const SYSTEM_PROMPT = `You are a friendly and helpful AI assistant for ShikshAq, a tutoring platform that connects students with verified tuition teachers in Kolkata, India.
+const SYSTEM_PROMPT = `You are a friendly and helpful AI assistant for Shikshaq, a tutoring platform that connects students with verified tuition teachers in Kolkata, India.
 
 Your role:
-- Answer questions about ShikshAq based on the provided FAQ context
+- Answer questions about Shikshaq based on the provided FAQ context
 - Be concise, friendly, and helpful
 - If you don't know something or the question is outside the FAQ context, politely suggest contacting the team via WhatsApp (+91 8240980312) or email (join.shikshaq@gmail.com)
 - Keep responses brief (2-3 sentences maximum)
@@ -77,14 +77,14 @@ Your role:
 FAQ Context:
 ${FAQ_CONTEXT}
 
-Remember: Only answer questions related to ShikshAq. For other topics, politely redirect to contact the team.`;
+Remember: Only answer questions related to Shikshaq. For other topics, politely redirect to contact the team.`;
 
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: "Hi! I'm your ShikshAq assistant. How can I help you today?",
+      content: "Hi! I'm your Shikshaq assistant. How can I help you today?",
     },
   ]);
   const [input, setInput] = useState('');
@@ -217,7 +217,7 @@ export function Chatbot() {
       let errorMessage = "Sorry, I'm having trouble right now. ";
       
       if (error.name === 'AbortError' || error.message?.includes('timeout')) {
-        errorMessage = "The request is taking too long. For quick answers, try asking 'Is ShikshAq free?' or 'How do I contact you?'. You can also reach us directly via WhatsApp (+91 8240980312).";
+        errorMessage = "The request is taking too long. For quick answers, try asking 'Is Shikshaq free?' or 'How do I contact you?'. You can also reach us directly via WhatsApp (+91 8240980312).";
       } else if (error.message?.includes('API key')) {
         errorMessage = "The chatbot is temporarily unavailable. Please contact us directly via WhatsApp (+91 8240980312) or email (join.shikshaq@gmail.com).";
       } else {
@@ -264,7 +264,7 @@ export function Chatbot() {
                 <HelpCircle className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               </div>
               <div className="min-w-0">
-                <h3 className="font-semibold text-foreground text-sm md:text-base truncate">ShikshAq Assistant</h3>
+                <h3 className="font-semibold text-foreground text-sm md:text-base truncate">Shikshaq Assistant</h3>
                 <p className="text-xs text-muted-foreground hidden md:block">AI-powered FAQ helper</p>
               </div>
             </div>

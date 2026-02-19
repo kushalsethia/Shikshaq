@@ -214,7 +214,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 Share Your Feedback
               </h2>
               <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
-                Help us improve ShikshAq! Your suggestions shape how we connect students with the best tutors.
+                Help us improve Shikshaq! Your suggestions shape how we connect students with the best tutors.
               </p>
               <div>
                 <button

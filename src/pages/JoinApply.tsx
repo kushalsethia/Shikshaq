@@ -941,7 +941,7 @@ export default function JoinApply() {
 
               <div className="bg-muted/50 rounded-lg p-6 space-y-4">
                 <p className="text-sm text-foreground leading-relaxed">
-                  This Memorandum of Understanding confirms that you grant ShikshAq permission to display your submitted profile (name, locality, place of teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and enhancing their learning experience. Your mobile number will remain confidential and used only for identity verification and internal communication.
+                  This Memorandum of Understanding confirms that you grant Shikshaq permission to display your submitted profile (name, locality, place of teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and enhancing their learning experience. Your mobile number will remain confidential and used only for identity verification and internal communication.
                 </p>
 
                 <p className="text-sm font-medium text-foreground">
@@ -951,8 +951,8 @@ export default function JoinApply() {
                 <div className="space-y-2 text-sm text-foreground">
                   <p><strong>I have read and understood the above Memorandum of Understanding and consent to:</strong></p>
                   <ol className="list-decimal list-inside space-y-1 ml-2">
-                    <li>ShikshAq displaying my educator profile as previously submitted;</li>
-                    <li>The use of my Whatsapp link to let students land directly on my Whatsapp chat through ShikshAq for communication;</li>
+                    <li>Shikshaq displaying my educator profile as previously submitted;</li>
+                    <li>The use of my Whatsapp link to let students land directly on my Whatsapp chat through Shikshaq for communication;</li>
                     <li>The use of my provided information for student outreach and internal communication;</li>
                     <li>This digital form serving as a legally binding agreement.</li>
                   </ol>
