@@ -20,15 +20,15 @@ export default function Help() {
       "mainEntity": [
         {
           "@type": "Question",
-          "name": "Is ShikshAQ completely free?",
+          "name": "Is Shikshaq completely free?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes, ShikshAQ is completely free for both students and tutors. There are no registration fees, subscription charges, or hidden costs."
+            "text": "Yes, Shikshaq is completely free for both students and tutors. There are no registration fees, subscription charges, or hidden costs."
           }
         },
         {
           "@type": "Question",
-          "name": "How do I find a tutor on ShikshAQ?",
+          "name": "How do I find a tutor on Shikshaq?",
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Simply visit shikshaq.in and use our search filters to find tutors by subject, board, class, location, and teaching mode. Browse verified tutor profiles and contact them directly."
@@ -36,15 +36,15 @@ export default function Help() {
         },
         {
           "@type": "Question",
-          "name": "Does ShikshAQ handle payments?",
+          "name": "Does Shikshaq handle payments?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No, ShikshAQ does not handle any payments. All fees are negotiated directly between students and tutors. We are a connection-only platform."
+            "text": "No, Shikshaq does not handle any payments. All fees are negotiated directly between students and tutors. We are a connection-only platform."
           }
         },
         {
           "@type": "Question",
-          "name": "How are tutors verified on ShikshAQ?",
+          "name": "How are tutors verified on Shikshaq?",
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "All tutors undergo a verification process that includes educational qualification verification and identity verification."
@@ -52,10 +52,10 @@ export default function Help() {
         },
         {
           "@type": "Question",
-          "name": "Which areas does ShikshAQ serve?",
+          "name": "Which areas does Shikshaq serve?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "ShikshAQ currently serves Kolkata and surrounding areas including Howrah, Salt Lake, Jadavpur, Bhowanipore, Ballygunge, and many other localities."
+            "text": "Shikshaq currently serves Kolkata and surrounding areas including Howrah, Salt Lake, Jadavpur, Bhowanipore, Ballygunge, and many other localities."
           }
         }
       ]

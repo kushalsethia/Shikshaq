@@ -420,7 +420,7 @@ export default function JoinApply() {
                 Application Submitted!
               </h1>
               <p className="text-lg text-muted-foreground mb-6">
-                Thank you for your interest in joining ShikshAQ as a teacher. 
+                Thank you for your interest in joining Shikshaq as a teacher. 
                 We have received your application and will review it shortly.
               </p>
               <p className="text-sm text-muted-foreground">
@@ -442,7 +442,7 @@ export default function JoinApply() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl md:text-5xl font-sans text-foreground mb-4">
-              Join ShikshAQ as a Teacher
+              Join Shikshaq as a Teacher
             </h1>
             <p className="text-lg text-muted-foreground">
               Fill out the form below to apply. All fields marked with * are required.

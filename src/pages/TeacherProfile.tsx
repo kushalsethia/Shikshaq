@@ -330,7 +330,7 @@ export default function TeacherProfile() {
       }),
       "memberOf": {
         "@type": "EducationalOrganization",
-        "name": "ShikshAQ",
+        "name": "Shikshaq",
         "url": "https://www.shikshaq.in"
       },
       ...(phoneNumber && {
