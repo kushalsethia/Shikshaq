@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
@@ -69,141 +69,44 @@ export default function Index() {
   const [userFirstName, setUserFirstName] = useState<string | null>(null);
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchBarElementRef = useRef<HTMLDivElement>(null);
-  const roleCheckRef = useRef<{ userId: string | null; hasChecked: boolean }>({ userId: null, hasChecked: false });
-  // Pre-initialize likes hook for fast initial render (shared state)
   const { isLiked } = useLikes();
   const { user, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
 
-  // Check if user has a role - redirect to role selection if not
-  // Only check once per user ID, not constantly
+  // Load user's first name for greeting. No redirects from homepage so that the
+  // landing page is always public (required for OAuth/API verification and SEO).
+  // Role selection and teacher terms are enforced on protected routes via useRequireRole.
   useEffect(() => {
-    let isMounted = true;
+    const isMounted = true;
 
-    const checkUserRole = async () => {
+    const loadUserDisplayName = async () => {
       if (authLoading) return;
-      
-      // If we've already checked this user ID, don't check again
-      if (roleCheckRef.current.hasChecked && roleCheckRef.current.userId === user?.id) {
-        return;
-      }
-      
-      // If user changed, reset the check flag
-      if (roleCheckRef.current.userId !== user?.id) {
-        roleCheckRef.current.hasChecked = false;
-        roleCheckRef.current.userId = user?.id || null;
-      }
-      
       if (!user) {
-        if (isMounted) {
-          setUserFirstName(null);
-          roleCheckRef.current.hasChecked = true;
-        }
+        if (isMounted) setUserFirstName(null);
         return;
       }
 
-      roleCheckRef.current.hasChecked = true;
-      
-      // Check cache first
       const cacheKey = getUserProfileCacheKey(user.id);
       const cachedProfile = getCache<{ role: string; full_name: string | null; terms_agreement?: boolean }>(cacheKey);
-      
-      if (cachedProfile) {
-        // Use cached data
-        if (!cachedProfile.role) {
-          if (isMounted && window.location.pathname !== '/select-role') {
-            navigate('/select-role', { replace: true });
-          }
-          return;
-        }
-        // Check if teacher needs to agree to terms
-        // If cache has terms_agreement, use it. Otherwise fetch from database.
-        if (cachedProfile.role === 'teacher') {
-          if (cachedProfile.terms_agreement === true) {
-            // Already agreed - continue normally
-          } else if (cachedProfile.terms_agreement === false || cachedProfile.terms_agreement === null) {
-            // Not agreed (false or null) - redirect to terms agreement
-            if (isMounted && window.location.pathname !== '/teacher-terms-agreement') {
-              navigate('/teacher-terms-agreement', { replace: true });
-            }
-            return;
-          } else {
-            // Cache doesn't have terms_agreement field - fetch from database to be sure
-            // Don't return, let it fall through to database fetch
-          }
-        }
-        // Extract first name from cached full_name or user metadata
-        if (isMounted) {
-          const fullName = cachedProfile.full_name || 
-                          user.user_metadata?.full_name || 
-                          user.user_metadata?.name || 
-                          null;
-          
-          if (fullName) {
-            const firstName = fullName.split(' ')[0];
-            setUserFirstName(firstName);
-          }
-        }
-        // If cache has terms_agreement, we're done. Otherwise, continue to database fetch
-        if (cachedProfile.terms_agreement !== undefined && cachedProfile.terms_agreement !== null) {
-          return;
-        }
+
+      if (cachedProfile?.full_name != null) {
+        const firstName = (cachedProfile.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '').split(' ')[0];
+        if (isMounted && firstName) setUserFirstName(firstName);
+        return;
       }
 
-      // Cache miss - fetch from database
-      const { data: profile, error } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
-        .select('role, full_name, terms_agreement')
+        .select('full_name')
         .eq('id', user.id)
         .maybeSingle();
 
-      if (!isMounted) return;
-
-      // Handle error case - don't redirect on error, just log it
-      if (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching profile:', error);
-        }
-        return;
-      }
-
-      // Cache the result
-      if (profile) {
-        setCache(cacheKey, { role: profile.role, full_name: profile.full_name, terms_agreement: profile.terms_agreement }, CACHE_TTL.USER_PROFILE);
-      }
-
-      if (!profile || !profile.role) {
-        // Only redirect if we're not already on select-role page
-        if (isMounted && window.location.pathname !== '/select-role') {
-          navigate('/select-role', { replace: true });
-        }
-      } else if (profile.role === 'teacher' && profile.terms_agreement !== true) {
-        // Teacher needs to agree to terms (if false or null)
-        if (isMounted && window.location.pathname !== '/teacher-terms-agreement') {
-          navigate('/teacher-terms-agreement', { replace: true });
-        }
-      } else {
-        // Extract first name from full_name or user metadata
-        if (isMounted) {
-          const fullName = profile.full_name || 
-                          user.user_metadata?.full_name || 
-                          user.user_metadata?.name || 
-                          null;
-          
-          if (fullName) {
-            const firstName = fullName.split(' ')[0];
-            setUserFirstName(firstName);
-          }
-        }
-      }
+      if (!isMounted || !profile) return;
+      const fullName = profile.full_name || user.user_metadata?.full_name || user.user_metadata?.name || null;
+      if (fullName) setUserFirstName(fullName.split(' ')[0]);
     };
 
-    checkUserRole();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user, authLoading, navigate]);
+    loadUserDisplayName();
+  }, [user, authLoading]);
 
   // Add homepage-specific JSON-LD structured data
   useEffect(() => {
@@ -572,8 +475,8 @@ export default function Index() {
                 one search away.
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-[#666666] mt-4 sm:mt-6 max-w-2xl mx-auto opacity-0 animate-fade-slide-up" style={{ animationDelay: '250ms' }}>
-                Shikshaq is a free online platform connecting students and parents with verified tuition teachers in Kolkata. 
-                Search by subject, location, or teaching mode to find the perfect tutor for your needs.
+                <strong className="text-[#1F1F1F]">Purpose of this application:</strong> Shikshaq is a free online platform that connects students and parents with verified tuition teachers in Kolkata. 
+                Search by subject, location, or teaching mode to find the perfect tutor—no middlemen, no commissions.
               </p>
               <p className="text-xs sm:text-sm text-[#999999] mt-4 opacity-0 animate-fade-slide-up" style={{ animationDelay: '300ms' }}>
                 By using Shikshaq, you agree to our{' '}
@@ -590,6 +493,13 @@ export default function Index() {
             <div ref={searchBarElementRef} className="w-full max-w-2xl sm:max-w-3xl mx-auto mt-3 sm:mt-10 md:mt-6 opacity-0 animate-scale-pop" style={{ animationDelay: '300ms' }}>
               <SearchBar />
             </div>
+            {/* Clear statement of purpose for users and platform verification */}
+            <section className="mt-8 sm:mt-10 max-w-2xl mx-auto text-center opacity-0 animate-fade-slide-up" style={{ animationDelay: '350ms' }} aria-label="About Shikshaq">
+              <h2 className="text-lg font-sans font-semibold text-[#1F1F1F] mb-2">What is Shikshaq?</h2>
+              <p className="text-sm sm:text-base text-[#666666]">
+                Shikshaq is a free tutor–student matchmaking application. It helps students and parents in Kolkata find verified tuition teachers by subject, location, and teaching mode, and connect with them directly—no intermediaries or fees.
+              </p>
+            </section>
           </div>
         </div>
       </section>

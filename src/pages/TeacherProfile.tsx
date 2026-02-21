@@ -75,6 +75,8 @@ export default function TeacherProfile() {
   const [studentsDialogOpen, setStudentsDialogOpen] = useState(false);
   const [studentsList, setStudentsList] = useState<Array<{ id: string; full_name: string | null; school_college: string | null; grade: string | null }>>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [whatsappDisclaimerOpen, setWhatsappDisclaimerOpen] = useState(false);
+  const [pendingWhatsappUrl, setPendingWhatsappUrl] = useState<string | null>(null);
 
   // Check if user has a role - redirect to role selection if not
   // Also check if teacher has agreed to terms
@@ -1042,23 +1044,21 @@ export default function TeacherProfile() {
                 Reach out directly to discuss class timings, fees, and more.
               </p>
               {user ? (
-                <a
-                  href={
-                    teacher.whatsapp_link 
-                      ? (teacher.whatsapp_link.startsWith('http') 
-                          ? teacher.whatsapp_link 
+                <Button
+                  className="w-full gap-2 py-6 text-base font-medium bg-[#25D366] hover:bg-[#20BA5A] text-white shadow-md hover:shadow-lg transition-all whatsapp-pulse-once"
+                  onClick={() => {
+                    const url = teacher.whatsapp_link
+                      ? (teacher.whatsapp_link.startsWith('http')
+                          ? teacher.whatsapp_link
                           : getWhatsAppLink(teacher.whatsapp_link))
-                      : getWhatsAppLink(null, '8240980312')
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
+                      : getWhatsAppLink(null, '8240980312');
+                    setPendingWhatsappUrl(url);
+                    setWhatsappDisclaimerOpen(true);
+                  }}
                 >
-                  <Button className="w-full gap-2 py-6 text-base font-medium bg-[#25D366] hover:bg-[#20BA5A] text-white shadow-md hover:shadow-lg transition-all whatsapp-pulse-once">
-                    <WhatsAppIcon className="w-5 h-5" />
-                    Contact via WhatsApp
-                  </Button>
-                </a>
+                  <WhatsAppIcon className="w-5 h-5" />
+                  Contact via WhatsApp
+                </Button>
               ) : (
                 <Button
                   className="w-full gap-2 py-6 text-base font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all whatsapp-pulse-once"
@@ -1184,6 +1184,44 @@ export default function TeacherProfile() {
       </main>
 
       <Footer expandedContent={teacher?.expanded || null} />
+
+      {/* WhatsApp disclaimer dialog */}
+      <Dialog open={whatsappDisclaimerOpen} onOpenChange={(open) => {
+        setWhatsappDisclaimerOpen(open);
+        if (!open) setPendingWhatsappUrl(null);
+      }}>
+        <DialogContent className="max-w-md rounded-2xl w-[90%] sm:w-full">
+          <DialogHeader>
+            <DialogTitle>Before you continue</DialogTitle>
+            <DialogDescription className="text-foreground/80 pt-1">
+              Shikshaq takes no responsibility for your conversations or any arrangements made outside the platform. You will be redirected to WhatsApp to contact this teacher directly.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setWhatsappDisclaimerOpen(false);
+                setPendingWhatsappUrl(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (pendingWhatsappUrl) {
+                  window.open(pendingWhatsappUrl, '_blank', 'noopener,noreferrer');
+                }
+                setWhatsappDisclaimerOpen(false);
+                setPendingWhatsappUrl(null);
+              }}
+              className="bg-[#25D366] hover:bg-[#20BA5A] text-white"
+            >
+              OK, continue to WhatsApp
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Students Dialog */}
       <Dialog open={studentsDialogOpen} onOpenChange={setStudentsDialogOpen}>

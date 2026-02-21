@@ -327,6 +327,11 @@ export default function JoinApply() {
       toast.error('Reference phone number must be exactly 10 digits');
       return false;
     }
+    // Hero image is required: user must have selected a file to upload
+    if (!selectedImageFile) {
+      toast.error('Please upload a hero image');
+      return false;
+    }
     if (!formData.mou_consent) {
       toast.error('You must consent to the Memorandum of Understanding to proceed');
       return false;
@@ -855,7 +860,7 @@ export default function JoinApply() {
 
                 {/* Hero Image */}
                 <div className="md:col-span-2">
-                  <Label htmlFor="hero_image">Hero Image</Label>
+                  <Label htmlFor="hero_image">Hero Image *</Label>
                   <div className="space-y-3">
                     {(() => {
                       // Early return if no preview
@@ -936,7 +941,7 @@ export default function JoinApply() {
             {/* MOU Consent */}
             <div className="space-y-6">
               <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
-                Memorandum of Understanding
+                Memorandum of Understanding *
               </h2>
 
               <div className="bg-muted/50 rounded-lg p-6 space-y-4">
@@ -966,7 +971,7 @@ export default function JoinApply() {
                     required
                   />
                   <Label htmlFor="mou_consent" className="cursor-pointer text-sm leading-relaxed">
-                    <span className="font-medium">I consent.</span>
+                    <span className="font-medium">I consent. *</span>
                   </Label>
                 </div>
               </div>
