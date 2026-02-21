@@ -1194,7 +1194,7 @@ export default function TeacherProfile() {
           <DialogHeader>
             <DialogTitle>Before you continue</DialogTitle>
             <DialogDescription className="text-foreground/80 pt-1">
-              Shikshaq takes no responsibility for your conversations or any arrangements made outside the platform. You will be redirected to WhatsApp to contact this teacher directly.
+              We're glad to help you connect! You'll be taken to WhatsApp. Any fees or arrangements are between you and the teacher—Shikshaq isn't responsible for transactions outside our platform.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
@@ -1217,7 +1217,7 @@ export default function TeacherProfile() {
               }}
               className="bg-[#25D366] hover:bg-[#20BA5A] text-white"
             >
-              OK, continue to WhatsApp
+              Yes, continue to WhatsApp
             </Button>
           </div>
         </DialogContent>
