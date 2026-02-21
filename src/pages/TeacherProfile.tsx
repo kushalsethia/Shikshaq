@@ -1045,7 +1045,7 @@ export default function TeacherProfile() {
               </p>
               {user ? (
                 <Button
-                  className="w-full gap-2 py-6 text-base font-medium bg-[#25D366] hover:bg-[#20BA5A] text-white shadow-md hover:shadow-lg transition-all whatsapp-pulse-once"
+                  className="w-full gap-2 py-6 text-base font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all whatsapp-pulse-once"
                   onClick={() => {
                     const url = teacher.whatsapp_link
                       ? (teacher.whatsapp_link.startsWith('http')
@@ -1056,7 +1056,7 @@ export default function TeacherProfile() {
                     setWhatsappDisclaimerOpen(true);
                   }}
                 >
-                  <WhatsAppIcon className="w-5 h-5" />
+                  <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
                   Contact via WhatsApp
                 </Button>
               ) : (
@@ -1179,7 +1179,7 @@ export default function TeacherProfile() {
               </div>
             )}
 
-        {/* Comments Section */}
+        {/* Reviews Section */}
         {teacher && <TeacherComments teacherId={teacher.id} />}
       </main>
 

@@ -170,7 +170,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       if (import.meta.env.DEV) {
         console.error('Error fetching comments:', err);
       }
-      setError(err.message || 'Failed to load comments');
+      setError(err.message || 'Failed to load reviews');
     } finally {
       setLoading(false);
     }
@@ -205,9 +205,9 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       
       // Show different success messages based on approval status
       if (approved) {
-        toast.success('Your comment has been posted successfully!');
+        toast.success('Your review has been posted successfully!');
       } else {
-        toast.success('Your comment has been submitted and is pending approval');
+        toast.success('Your review has been submitted and is pending approval');
       }
       await fetchComments(); // Refresh comments
       setVisibleCommentsCount(5); // Reset to show first 5 comments
@@ -215,7 +215,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       if (import.meta.env.DEV) {
         console.error('Error submitting comment:', err);
       }
-      setError(err.message || 'Failed to submit comment');
+      setError(err.message || 'Failed to submit review');
     } finally {
       setSubmitting(false);
     }
@@ -225,7 +225,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
     if (!user) return;
     
     // Confirm deletion
-    if (!window.confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
+    if (!window.confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
       return;
     }
 
@@ -241,13 +241,13 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
 
       if (error) throw error;
 
-      toast.success('Comment deleted successfully');
+      toast.success('Review deleted successfully');
       await fetchComments(); // Refresh comments
     } catch (err: any) {
       if (import.meta.env.DEV) {
         console.error('Error deleting comment:', err);
       }
-      toast.error(err.message || 'Failed to delete comment');
+      toast.error(err.message || 'Failed to delete review');
     } finally {
       setDeletingCommentId(null);
     }
@@ -319,7 +319,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
     <div className="mt-12 border-t border-border pt-8">
       <div className="flex items-center gap-3 mb-6">
         <MessageCircle className="w-6 h-6 text-foreground" />
-        <h2 className="text-2xl font-sans text-foreground">Comments</h2>
+        <h2 className="text-2xl font-sans text-foreground">Reviews</h2>
         <span className="text-muted-foreground">({comments.length})</span>
       </div>
 
@@ -389,7 +389,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                   setIsAnonymous(newValue);
                   // Show popup when anonymous is checked
                   if (newValue) {
-                    toast.info('Your comment will only be posted after a review from our admins. Thanks!', {
+                    toast.info('Your review will only be posted after approval from our admins. Thanks!', {
                       duration: 5000,
                     });
                   }
@@ -414,7 +414,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                 className="gap-2"
               >
                 <Send className="w-4 h-4" />
-                {submitting ? 'Posting...' : 'Post Comment'}
+                {submitting ? 'Posting...' : 'Post Review'}
               </Button>
             </div>
           </div>
@@ -429,7 +429,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
             >
               Sign in
             </Button>
-            {' '}to leave a comment
+            {' '}to leave a review
           </p>
         </div>
       )}
@@ -453,7 +453,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       ) : comments.length === 0 ? (
         <div className="text-center py-12">
           <MessageCircle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-          <p className="text-muted-foreground">No comments yet. Be the first to share your thoughts!</p>
+          <p className="text-muted-foreground">No reviews yet. Be the first to share your thoughts!</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -537,7 +537,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                 onClick={() => setVisibleCommentsCount(prev => prev + 5)}
                 className="gap-2"
               >
-                Load more comments ({comments.length - visibleCommentsCount} remaining)
+                Load more reviews ({comments.length - visibleCommentsCount} remaining)
               </Button>
             </div>
           )}
