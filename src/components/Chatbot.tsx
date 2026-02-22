@@ -9,75 +9,118 @@ interface Message {
   content: string;
 }
 
-const FAQ_CONTEXT = `Shikshaq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.
-
-Common Questions and Answers:
-
-1. What exactly is Shikshaq?
-Shikshaq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.
-
-2. How does it actually work?
-Simply search for teachers by subject, grade, or locality. Browse through detailed profiles, read reviews, and when you find someone you like, reach out to them directly via WhatsApp. No middlemen, no hassle.
-
-3. Is this safe? Are the tutors actually verified?
-Yes! All tutors on our platform go through a verification process. We verify their identity, qualifications, and teaching experience to ensure you connect with genuine educators.
-
-4. What if I search and can't find the right tutor?
-If you can't find a suitable tutor, you can contact us and we'll help you find the right match. We're constantly adding new teachers to our platform.
-
-5. What if I connect with a tutor and it doesn't work out?
-That's okay! There's no commitment. You can always browse and connect with other tutors until you find the perfect fit for your learning needs.
-
-6. How much does this cost? What about payments?
-Shikshaq is completely free for students and parents! There are no commissions or hidden fees. You negotiate the tuition fees directly with the teacher.
-
-7. What if I need help? How do I reach your team?
-You can reach us via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. Our team is always ready to help you with any questions or concerns you might have.
-
-Additional Information:
-- Teachers can be searched by subject, class, location, board, mode of teaching, and class size
-- All teachers have detailed profiles with their qualifications, experience, and teaching areas
-- Direct communication via WhatsApp for each teacher
-- Platform is free to use for students and parents
-- Based in Kolkata, India`;
-
-// Quick responses for common questions (instant, no API call needed)
+// Quick responses for common FAQ questions (instant, no API call). Order matters: more specific first.
+// Only add "contact" keywords when user is clearly asking how to reach Shikshaq support.
 const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   {
-    keywords: ['free', 'cost', 'price', 'charge', 'fee', 'payment', 'money'],
-    response: 'Yes! Shikshaq is completely free for students and parents. There are no platform fees, commissions, or hidden charges. You only pay the tuition fees directly to the teacher.',
+    keywords: ['pay through shikshaq', 'pay shikshaq', 'payment to shikshaq', 'where does payment go', 'commission', 'who do i pay'],
+    response: 'All payments are made directly to the teacher. Shikshaq does not handle payments and takes zero commission. Fees are decided between you and the teacher.',
   },
   {
-    keywords: ['what is', 'about', 'tell me'],
-    response: 'Shikshaq is a platform that connects students and parents with verified tuition teachers across Kolkata. You can search for teachers by subject, class, or location, and contact them directly via WhatsApp. No middlemen, no hassle!',
+    keywords: ['free', 'cost', 'price', 'charge', 'platform fee', 'hidden fee'],
+    response: 'Yes! Shikshaq is completely free for students and parents. There are no platform charges or hidden fees. You only pay tuition fees directly to the teacher.',
   },
   {
-    keywords: ['how', 'work', 'does it work'],
-    response: 'Simply search for teachers by subject, grade, or locality. Browse through detailed profiles, read reviews, and when you find someone you like, reach out to them directly via WhatsApp. No middlemen, no hassle.',
+    keywords: ['which city', 'which cities', 'which localities', 'where does shikshaq', 'kolkata only', 'other cities'],
+    response: 'Shikshaq currently operates only in Kolkata and covers most major localities. Expansion to other cities is planned for the future.',
   },
   {
-    keywords: ['safe', 'verified', 'trust', 'genuine'],
-    response: 'Yes! All tutors on our platform go through a verification process. We verify their identity, qualifications, and teaching experience to ensure you connect with genuine educators.',
+    keywords: ['which class', 'which grade', 'which boards', 'icse', 'cbse', 'ib', 'igcse', 'state board'],
+    response: 'Shikshaq supports Classes 1–12, UG, and PG. Boards supported: ICSE/ISC, CBSE, IB, IGCSE, and State Boards.',
   },
   {
-    keywords: ['contact', 'help', 'support', 'reach', 'email', 'whatsapp'],
-    response: `You can reach us via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. Our team is always ready to help you with any questions or concerns you might have.`,
+    keywords: ['how do i find', 'how to find tutor', 'find right tutor', 'choose tutor'],
+    response: 'Use filters for subject, class, board, and locality. Compare profiles, experience, and student reviews. You can contact multiple teachers to find the best match.',
+  },
+  {
+    keywords: ['how do i contact a teacher', 'contact teacher', 'message teacher', 'reach teacher'],
+    response: 'Each teacher profile has a direct contact option. You can message or call them directly—no account needed to browse or contact.',
+  },
+  {
+    keywords: ['what is shikshaq', 'what is shikshaq and how', 'about shikshaq', 'tell me about shikshaq'],
+    response: 'Shikshaq helps students and parents discover tuition teachers in Kolkata. You browse profiles, compare experience and reviews, and contact teachers directly to start classes.',
+  },
+  {
+    keywords: ['verified', 'verification', 'verified badge', 'are tutors verified'],
+    response: 'A Verified badge means a Shikshaq team member has personally vouched for that teacher. Shikshaq does not guarantee teaching outcomes or accept liability.',
+  },
+  {
+    keywords: ['reviews real', 'are reviews', 'reviews genuine', 'teacher reviews'],
+    response: 'Reviews are from genuine student or parent experiences. Teachers cannot remove reviews; they help keep things transparent.',
+  },
+  {
+    keywords: ['account', 'sign up', 'create account', 'do i need account'],
+    response: 'No account is needed to browse or contact tutors. You can use Shikshaq without signing up.',
+  },
+  {
+    keywords: ['who is shikshaq for', 'shikshaq for'],
+    response: 'Shikshaq is for students and parents looking for reliable tutors across subjects, grades, boards, and exams.',
+  },
+  {
+    keywords: ['negotiate fee', 'negotiate fees', 'trial class', 'demo class'],
+    response: 'Fees and arrangements are agreed between you and the teacher. Trial or demo classes depend on the teacher—ask them when you contact.',
+  },
+  {
+    keywords: ['responsibility', 'liable', 'shikshaq responsible', 'dispute', 'payment dispute'],
+    response: 'Shikshaq is a discovery platform and does not take responsibility for teaching quality, payments, or disputes. All arrangements are between you and the teacher.',
+  },
+  {
+    keywords: ['teacher not responding', 'teacher didn\'t reply', 'no response from teacher'],
+    response: 'You can contact Team Shikshaq via Contact Us. We\'ll try to reach the teacher on your behalf within 48 hours.',
+  },
+  {
+    keywords: ['change tutor', 'switch tutor', 'another tutor'],
+    response: 'Yes. You can contact another tutor anytime—there\'s no commitment to stay with one teacher.',
+  },
+  {
+    keywords: ['phone number safe', 'data safe', 'personal data', 'privacy'],
+    response: 'Yes. Shikshaq doesn\'t sell or share your personal info. Only the teacher you contact sees your details.',
+  },
+  {
+    keywords: ['what is on profile', 'teacher profile', 'profile shows'],
+    response: 'Profiles show subjects, classes, boards, experience, locations, teaching mode (online/home), fees if provided, and student reviews.',
+  },
+  {
+    keywords: ['online class', 'online classes', 'zoom', 'google meet'],
+    response: 'Teachers usually use Zoom, Google Meet, or WhatsApp video. You need a stable connection, camera/mic, and a quiet space. Confirm the platform with the teacher.',
+  },
+  {
+    keywords: ['group class', 'one to one', 'one-on-one', 'batch'],
+    response: 'It depends on the teacher—some do group batches, others one-to-one. Ask when you contact them.',
+  },
+  {
+    keywords: ['recommend a tutor', 'assign a tutor', 'suggest a tutor', 'shikshaq recommend'],
+    response: 'Shikshaq doesn\'t assign or recommend one tutor. You browse profiles and choose teachers based on your preferences and reviews. You can contact multiple teachers to compare.',
+  },
+  {
+    keywords: ['guarantee', 'improvement in marks', 'improve marks', 'results guaranteed'],
+    response: 'Shikshaq doesn\'t guarantee marks or results. Academic performance depends on student effort, teacher compatibility, and regular practice.',
+  },
+  {
+    keywords: ['trial class', 'demo before', 'try before finalising'],
+    response: 'A trial class is a good idea to evaluate teaching style and comfort. Availability depends on the teacher—ask when you contact them.',
+  },
+  {
+    keywords: ['stop classes', 'discontinue', 'leave tutor', 'not satisfied'],
+    response: 'Yes. You can stop or change anytime. Continuation depends on mutual agreement between you and the teacher.',
+  },
+  {
+    keywords: ['refund', 'refunds', 'shikshaq handle refund'],
+    response: 'Shikshaq doesn\'t handle payments or refunds. Refund discussions are between you and the teacher since you pay them directly.',
+  },
+  {
+    keywords: ['weekend class', 'weekend only', 'schedule change'],
+    response: 'Scheduling (including weekend-only or timing changes) is decided directly between you and the teacher. Confirm with them.',
+  },
+  {
+    keywords: ['first time', 'never had tuition', 'where to start'],
+    response: 'Browse tutors for your class and subject, shortlist a few, speak to them, and try an initial class before deciding. You can compare 2–4 teachers.',
+  },
+  {
+    keywords: ['how to contact you', 'contact shikshaq', 'whatsapp number', 'support number', 'reach you', 'customer support', 'contact support', 'your email', 'your whatsapp'],
+    response: 'You can reach Team Shikshaq via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. We aim to respond within 48 hours.',
   },
 ];
-
-const SYSTEM_PROMPT = `You are a friendly and helpful AI assistant for Shikshaq, a tutoring platform that connects students with verified tuition teachers in Kolkata, India.
-
-Your role:
-- Answer questions about Shikshaq based on the provided FAQ context
-- Be concise, friendly, and helpful
-- If you don't know something or the question is outside the FAQ context, politely suggest contacting the team via WhatsApp (+91 8240980312) or email (join.shikshaq@gmail.com)
-- Keep responses brief (2-3 sentences maximum)
-- Use a conversational, warm tone
-
-FAQ Context:
-${FAQ_CONTEXT}
-
-Remember: Only answer questions related to Shikshaq. For other topics, politely redirect to contact the team.`;
 
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);

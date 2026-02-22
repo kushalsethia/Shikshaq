@@ -7,32 +7,32 @@ import {
 
 const faqs = [
   {
-    question: 'What exactly is Shikshaq?',
-    answer: 'Shikshaq is a platform that connects students and parents with verified tuition teachers across Kolkata. We make it easy to find, compare, and reach out to quality educators without any intermediaries.',
+    question: 'What is Shikshaq and how does it work?',
+    answer: 'Shikshaq helps students find tuition teachers based on subject, class, board, and locality. You can compare teachers through past student reviews, teaching experience, and educational qualifications, then directly connect with the one that best fits your needs.',
   },
   {
-    question: 'How does it actually work?',
-    answer: 'Simply search for teachers by subject, grade, or locality. Browse through detailed profiles, read reviews, and when you find someone you like, reach out to them directly via WhatsApp. No middlemen, no hassle.',
+    question: 'Which classes/grades and boards do you support?',
+    answer: 'Shikshaq supports school students across CISCE, CBSE, IB, IGCSE, and State Boards, covering multiple classes and subjects.',
   },
   {
-    question: 'Is this safe? Are the tutors actually verified?',
-    answer: 'Yes! All tutors on our platform go through a verification process. We verify their identity, qualifications, and teaching experience to ensure you connect with genuine educators.',
+    question: 'Which cities or localities do you currently cater to?',
+    answer: 'Shikshaq currently focuses on Kolkata, with teachers listed across different neighbourhoods in the city.',
   },
   {
-    question: "What if I search and can't find the right tutor?",
-    answer: "If you can't find a suitable tutor, you can contact us and we'll help you find the right match. We're constantly adding new teachers to our platform.",
+    question: 'How do I find the right tutor on Shikshaq?',
+    answer: 'Use filters for subject, class, board, and locality. Check reviews, experience, and qualifications on each profile to confidently shortlist teachers.',
   },
   {
-    question: "What if I connect with a tutor and it doesn't work out?",
-    answer: "That's okay! There's no commitment. You can always browse and connect with other tutors until you find the perfect fit for your learning needs.",
+    question: 'How do I contact a teacher through Shikshaq?',
+    answer: 'You can contact teachers directly via WhatsApp through the contact option on their profile to discuss classes and availability.',
   },
   {
-    question: 'How much does this cost? What about payments?',
-    answer: 'Shikshaq is completely free for students and parents! There are no commissions or hidden fees. You negotiate the tuition fees directly with the teacher.',
+    question: 'Do I pay through Shikshaq or directly to the teacher?',
+    answer: 'Fees are decided directly between you and the teacher. Payments are made directly to the teacher. Shikshaq has no role in financial transactions between students and teachers.',
   },
   {
-    question: 'What if I need help? How do I reach your team?',
-    answer: 'You can reach us via WhatsApp or email. Our team is always ready to help you with any questions or concerns you might have.',
+    question: 'Is my phone number and personal data safe on Shikshaq?',
+    answer: 'Yes. Your personal details remain private, and you choose whom you contact.',
   },
 ];
 
