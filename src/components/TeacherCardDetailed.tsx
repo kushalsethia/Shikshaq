@@ -68,11 +68,11 @@ export function TeacherCardDetailed({
   return (
     <Link
       to={`/tuition-teachers/${slug}`}
-      className="group flex gap-3 bg-card rounded-2xl p-1.5 border border-border hover:shadow-lg transition-all duration-150 active:scale-[0.97] animate-card-reveal opacity-0"
+      className="group flex gap-3 bg-card rounded-2xl p-1.5 border border-border hover:shadow-lg transition-all duration-150 active:scale-[0.97] animate-card-reveal opacity-0 min-w-0"
       style={{ animationDelay: `${delay}ms` }}
     >
-      {/* Teacher Image */}
-      <div className="relative w-32 md:w-40 flex-shrink-0 overflow-hidden rounded-xl self-stretch">
+      {/* Teacher Image - fixed aspect ratio so card height is consistent and upvote stays visible */}
+      <div className="relative w-32 md:w-40 flex-shrink-0 overflow-hidden rounded-xl aspect-[3/4] self-start">
         {imageUrl ? (
           <img
             src={imageUrl ? validateImageSrc(imageUrl) : ''}
@@ -103,7 +103,7 @@ export function TeacherCardDetailed({
       </div>
 
       {/* Teacher Info */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
         <h3 className="text-lg md:text-xl font-sans font-semibold tracking-tight text-foreground mb-0.5 group-hover:text-foreground/80 transition-colors">
           {displayName}
         </h3>
@@ -130,8 +130,8 @@ export function TeacherCardDetailed({
         </div>
       </div>
 
-      {/* View More Arrow and Upvote Button */}
-      <div className="flex items-center gap-4 flex-shrink-0">
+      {/* View More Arrow and Upvote Button - align start so upvote is always visible */}
+      <div className="flex items-center gap-4 flex-shrink-0 self-start md:self-center">
         {/* Upvote Button - Hidden on mobile (shown on image), visible on desktop */}
         <button
           onClick={handleUpvoteClick}

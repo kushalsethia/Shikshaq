@@ -658,9 +658,9 @@ export default function TeacherProfile() {
           Back to all teachers
         </Link>
 
-        <div className="grid md:grid-cols-2 gap-8 lg:gap-12 xl:gap-16">
+        <div className="grid md:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 min-w-0">
           {/* Image - dynamic on mobile and desktop: shrinks for small images (no gap), capped for large (buttons stay visible) */}
-          <div className="relative min-h-[220px] md:min-h-0 md:h-auto md:flex md:items-start">
+          <div className="relative min-h-[220px] md:min-h-0 md:h-auto md:flex md:items-start min-w-0">
             <div className="sticky top-24 w-full md:w-fit md:max-w-full">
               {teacher.image_url ? (
                 <img
@@ -723,7 +723,7 @@ export default function TeacherProfile() {
           </div>
 
           {/* Info - on mobile: sheet with handle overlapping hero */}
-          <div className="relative -mt-6 md:mt-0 rounded-t-3xl md:rounded-none bg-background shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)] md:shadow-none pt-2 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4">
+          <div className="relative -mt-6 md:mt-0 rounded-t-3xl md:rounded-none bg-background shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)] md:shadow-none pt-2 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0">
             {/* Sheet handle - mobile only */}
             <div className="flex justify-center md:hidden pt-1 pb-2" aria-hidden>
               <div className="w-12 h-1 rounded-full bg-muted-foreground/40" />
@@ -741,8 +741,8 @@ export default function TeacherProfile() {
             )}
 
             {/* Teacher Name and Upvote Button - Inline */}
-            <div className="flex items-start justify-between gap-4">
-              <h1 className="flex-1 text-3xl md:text-4xl lg:text-5xl font-sans font-semibold text-foreground">
+            <div className="flex items-start justify-between gap-4 min-w-0">
+              <h1 className="flex-1 min-w-0 text-3xl md:text-4xl lg:text-5xl font-sans font-semibold text-foreground break-words">
                 {(() => {
                   const sirMaam = teacher.sir_maam;
                   if (!sirMaam) return teacher.name;
