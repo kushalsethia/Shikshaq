@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, ThumbsUp, GraduationCap, Users } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, GraduationCap, Users } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
@@ -54,6 +54,7 @@ interface Teacher {
   expanded?: string | null; // The "EXPANDED" field from Shikshaqmine table
   description?: string | null; // The "Description" field from Shikshaqmine table
   qualifications_etc?: string | null; // The "Qualifications etc" field from Shikshaqmine table
+  teaching_since?: string | null; // The "Years they started teaching" field from Shikshaqmine table
   review_1?: string | null; // The "Review 1" field from Shikshaqmine table
   review_2?: string | null; // The "Review 2" field from Shikshaqmine table
   review_3?: string | null; // The "Review 3" field from Shikshaqmine table
@@ -150,6 +151,7 @@ export default function TeacherProfile() {
       let expanded = null;
       let description = null;
       let qualificationsEtc = null;
+      let teachingSinceRaw: string | number | null = null;
       let review1 = null;
       let review2 = null;
       let review3 = null;
@@ -198,6 +200,7 @@ export default function TeacherProfile() {
             expanded = (shikshaqData as any)["EXPANDED"] || (shikshaqData as any)["Expanded"] || (shikshaqData as any)["expanded"];
             description = (shikshaqData as any)["Description"];
             qualificationsEtc = (shikshaqData as any)["Qualifications etc"];
+            teachingSinceRaw = (shikshaqData as any)["Years they started teaching"] ?? null;
             review1 = (shikshaqData as any)["Review 1"];
             review2 = (shikshaqData as any)["Review 2"];
             review3 = (shikshaqData as any)["Review 3"];
@@ -246,6 +249,7 @@ export default function TeacherProfile() {
           expanded: expanded,
           description: description,
           qualifications_etc: qualificationsEtc,
+          teaching_since: teachingSinceRaw != null && String(teachingSinceRaw).trim() !== '' ? String(teachingSinceRaw).trim() : null,
           review_1: review1,
           review_2: review2,
           review_3: review3,
@@ -645,7 +649,7 @@ export default function TeacherProfile() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container pt-20 sm:pt-[120px] pb-8 md:pt-12 md:pb-12">
+      <main className="container pt-20 sm:pt-[120px] pb-24 md:pb-12 md:pt-12">
         <Link
           to="/all-tuition-teachers-in-kolkata"
           className="inline-flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors mb-6 md:mb-8"
@@ -655,17 +659,17 @@ export default function TeacherProfile() {
         </Link>
 
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 xl:gap-16">
-          {/* Image */}
-          <div className="relative md:max-w-[600px]">
-            <div className="sticky top-24">
+          {/* Image - dynamic on mobile and desktop: shrinks for small images (no gap), capped for large (buttons stay visible) */}
+          <div className="relative min-h-[220px] md:min-h-0 md:h-auto md:flex md:items-start">
+            <div className="sticky top-24 w-full md:w-fit md:max-w-full">
               {teacher.image_url ? (
                 <img
                   src={teacher.image_url ? validateImageSrc(teacher.image_url) : ''}
                   alt={teacher.name}
-                  className="w-full aspect-[4/5] object-cover rounded-3xl shadow-xl"
+                  className="block w-full max-w-full max-h-[55vh] md:max-h-[min(75vh,520px)] w-auto h-auto object-contain rounded-t-2xl md:rounded-3xl shadow-xl"
                 />
               ) : (
-                <div className="w-full aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-3xl shadow-xl">
+                <div className="w-full min-h-[220px] max-h-[55vh] md:min-h-[200px] md:max-h-[min(75vh,520px)] aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-t-2xl md:rounded-3xl shadow-xl">
                   <span className="text-6xl font-sans text-muted-foreground">
                     {teacher.name.charAt(0)}
                   </span>
@@ -718,8 +722,12 @@ export default function TeacherProfile() {
             </div>
           </div>
 
-          {/* Info */}
-          <div className="space-y-4">
+          {/* Info - on mobile: sheet with handle overlapping hero */}
+          <div className="relative -mt-6 md:mt-0 rounded-t-3xl md:rounded-none bg-background shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)] md:shadow-none pt-2 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4">
+            {/* Sheet handle - mobile only */}
+            <div className="flex justify-center md:hidden pt-1 pb-2" aria-hidden>
+              <div className="w-12 h-1 rounded-full bg-muted-foreground/40" />
+            </div>
             {/* Subject Badge */}
             {teacher.subjects && (
               <Link
@@ -759,23 +767,15 @@ export default function TeacherProfile() {
                   }
                   await toggleUpvote(teacher.id);
                 }}
-                className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border-2 border-border bg-card hover:bg-muted transition-colors"
+                className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-border bg-muted/50 hover:bg-muted transition-colors"
                 aria-label={isUpvoted(teacher.id) ? 'Remove upvote' : 'Upvote teacher'}
               >
-                <ThumbsUp
-                  className={`w-4 h-4 transition-colors ${
-                    isUpvoted(teacher.id)
-                      ? 'fill-primary text-primary'
-                      : 'text-foreground/70'
-                  }`}
-                />
-                <span className="text-sm font-medium text-foreground">
+                <span className="text-lg leading-none" aria-hidden>👍</span>
+                <span className="text-sm font-semibold text-foreground">
                   {isUpvoted(teacher.id) ? 'Upvoted' : 'Upvote'}
                 </span>
                 {getUpvoteCount(teacher.id) > 0 && (
-                  <span className={`text-sm font-medium ${
-                    isUpvoted(teacher.id) ? 'text-primary' : 'text-foreground/70'
-                  }`}>
+                  <span className="text-sm font-semibold text-foreground">
                     {getUpvoteCount(teacher.id)}
                   </span>
                 )}
@@ -891,24 +891,22 @@ export default function TeacherProfile() {
                   <>
                     {subjectsList.length > 0 && (
                       <div>
-                        <p className="text-sm font-medium text-foreground leading-tight mb-2">{pronoun} teaches</p>
-                        <div className="flex flex-wrap gap-2">
+                        <p className="font-sans text-base font-bold leading-tight mb-2" style={{ color: '#FF7A00' }}>SUBJECTS</p>
+                        <p className="font-sans text-base font-normal text-foreground leading-relaxed">
                           {subjectsList.map((subject: string, index: number) => (
-                            <span
-                              key={index}
-                              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                            >
-                              {subject}
+                            <span key={index}>
+                              {index > 0 && <span style={{ color: '#FF7A00', margin: '0 0.5em' }}>•</span>}
+                              <span>{subject}</span>
                             </span>
                           ))}
-                        </div>
+                        </p>
                       </div>
                     )}
                   </>
                 );
               })()}
 
-              {/* To students of section */}
+              {/* Classes section */}
               {(() => {
                 // Get classes from Shikshaqmine table first, then fallback to teachers_list
                 const classesData = teacher.classes_taught || (teacher as any).classes;
@@ -919,17 +917,15 @@ export default function TeacherProfile() {
                   if (classesList.length > 0) {
                     return (
                       <div>
-                        <p className="text-sm font-medium text-foreground leading-tight mb-2">to students of</p>
-                        <div className="flex flex-wrap gap-2">
+                        <p className="font-sans text-base font-bold leading-tight mb-2" style={{ color: '#FF7A00' }}>CLASSES</p>
+                        <p className="font-sans text-base font-normal text-foreground leading-relaxed">
                           {classesList.map((cls: string, index: number) => (
-                            <span
-                              key={index}
-                              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
-                            >
-                              {cls}
+                            <span key={index}>
+                              {index > 0 && <span style={{ color: '#FF7A00', margin: '0 0.5em' }}>•</span>}
+                              <span>{cls}</span>
                             </span>
                           ))}
-                        </div>
+                        </p>
                       </div>
                     );
                   }
@@ -998,76 +994,39 @@ export default function TeacherProfile() {
                   {/* Students home tutoring section */}
                   {(isStudentsHomeOnly || isBothOptions) && studentsAreas.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium text-foreground mb-0.5 pb-0.5 leading-tight">
-                        <span>{pronoun}</span> provides home to home tutoring to students in
+                      <p className="font-sans text-base font-bold leading-tight mb-2" style={{ color: '#FF7A00' }}>
+                        Home to Home tutoring in
                       </p>
-                      <div className="flex flex-wrap gap-2">
+                      <p className="font-sans text-base font-normal text-foreground leading-relaxed">
                         {studentsAreas.map((area, index) => (
-                          <span
-                            key={index}
-                            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                          >
-                            {area}
+                          <span key={index}>
+                            {index > 0 && <span style={{ color: '#FF7A00', margin: '0 0.5em' }}>•</span>}
+                            <span>{area}</span>
                           </span>
                         ))}
-                      </div>
+                      </p>
                     </div>
                   )}
 
                   {/* Teacher's home tutoring section */}
                   {(isTeachersHomeOnly || isBothOptions) && tutorsAreas.length > 0 && (
                     <div>
-                      <p className="text-sm font-medium text-foreground mb-0.5 pb-0.5 leading-tight">
-                        <span>{possessive}</span> tuition centre's are located in
+                      <p className="font-sans text-base font-bold leading-tight mb-2" style={{ color: '#FF7A00' }}>
+                        Tuition Centres in
                       </p>
-                      <div className="flex flex-wrap gap-2">
+                      <p className="font-sans text-base font-normal text-foreground leading-relaxed">
                         {tutorsAreas.map((area, index) => (
-                          <span
-                            key={index}
-                            className="px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                          >
-                            {area}
+                          <span key={index}>
+                            {index > 0 && <span style={{ color: '#FF7A00', margin: '0 0.5em' }}>•</span>}
+                            <span>{area}</span>
                           </span>
                         ))}
-                      </div>
+                      </p>
                     </div>
                   )}
                 </div>
               );
             })()}
-            </div>
-
-            {/* CTA - Contact via WhatsApp */}
-            <div className="mt-6 md:mt-8 bg-gradient-to-br from-primary/10 via-primary/5 to-card rounded-2xl p-6 md:p-8 border-2 border-black shadow-lg">
-              <h3 className="font-medium text-foreground mb-2 text-lg">Interested in classes?</h3>
-              <p className="text-foreground/80 text-sm mb-6">
-                Reach out directly to discuss class timings, fees, and more.
-              </p>
-              {user ? (
-                <Button
-                  className="w-full gap-2 py-6 text-base font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all whatsapp-pulse-once"
-                  onClick={() => {
-                    const url = teacher.whatsapp_link
-                      ? (teacher.whatsapp_link.startsWith('http')
-                          ? teacher.whatsapp_link
-                          : getWhatsAppLink(teacher.whatsapp_link))
-                      : getWhatsAppLink(null, '8240980312');
-                    setPendingWhatsappUrl(url);
-                    setWhatsappDisclaimerOpen(true);
-                  }}
-                >
-                  <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
-                  Contact via WhatsApp
-                </Button>
-              ) : (
-                <Button
-                  className="w-full gap-2 py-6 text-base font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all whatsapp-pulse-once"
-                  onClick={() => navigate('/auth')}
-                >
-                  <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
-                  Sign in to contact
-                </Button>
-              )}
             </div>
 
           </div>
@@ -1076,11 +1035,12 @@ export default function TeacherProfile() {
         {/* Little more about teacher section */}
         {teacher.description && (
           <div className="mt-8 md:mt-12">
+            <div className="h-0.5 w-full rounded-full mb-6" style={{ backgroundColor: '#FF7A00' }} aria-hidden />
             <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">
               Little more about {teacher.name}
             </h3>
             <div
-              className="px-4 py-3 rounded-lg bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 prose prose-sm max-w-none inline-block"
+              className="prose prose-sm max-w-none text-foreground"
               dangerouslySetInnerHTML={{
                 __html: (() => {
                   const content = teacher.description || '';
@@ -1105,83 +1065,124 @@ export default function TeacherProfile() {
           </div>
         )}
 
-            {/* Additional Details Section */}
-        {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.place_of_teaching || teacher.qualifications_etc || teacher.min_fees || teacher.max_fees) && (
+            {/* Additional Details Section - card layout like reference image */}
+        {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.place_of_teaching || teacher.qualifications_etc || teacher.teaching_since || teacher.min_fees || teacher.max_fees) && (
           <div className="mt-8 md:mt-12">
-            <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4 md:mb-6">Here are some more details:</h3>
-            <div className="flex flex-wrap gap-4 md:gap-6">
-                  {/* Boards taught */}
-                  {teacher.boards_taught && (
-                <div className="flex-shrink-0">
-                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Boards taught</h4>
-                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
-                        {teacher.boards_taught}
-                      </div>
+            <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">Here are some more details:</h3>
+            <div className="rounded-2xl bg-muted/40 dark:bg-muted/20 border border-border/60 p-5 md:p-6">
+              <div className="grid grid-cols-1 gap-6 md:gap-8">
+                {teacher.boards_taught && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl leading-none" aria-hidden>📚</span>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Boards taught</h4>
                     </div>
-                  )}
-
-                  {/* Class Size */}
-                  {teacher.class_size && (
-                <div className="flex-shrink-0">
-                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Class Size</h4>
-                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
-                        {teacher.class_size}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Mode of teaching */}
-                  {teacher.mode_of_teaching && (
-                <div className="flex-shrink-0 w-full md:w-auto">
-                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Mode of teaching</h4>
-                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
-                        {teacher.mode_of_teaching}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Place of Teaching */}
-                  {teacher.place_of_teaching && (
-                <div className="flex-shrink-0 w-full md:w-auto">
-                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Place of teaching</h4>
-                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
-                        {teacher.place_of_teaching}
-                      </div>
-                    </div>
-                  )}
-
-              {/* Experience/Qualifications */}
-              {teacher.qualifications_etc && (
-                <div className="flex-shrink-0 w-full md:w-auto">
-                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Experience/Qualifications</h4>
-                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
-                    {teacher.qualifications_etc}
+                    <p className="text-base font-normal text-foreground pl-7">{teacher.boards_taught}</p>
                   </div>
-                </div>
-              )}
-
-              {/* Approximate Fees per month - Only display if at least one fee is filled */}
-              {(teacher.min_fees != null || teacher.max_fees != null) && (
-                <div className="flex-shrink-0 w-full md:w-auto">
-                  <h4 className="text-sm font-medium text-foreground/90 mb-2">Approximate Fees per month</h4>
-                  <div className="px-4 py-3 rounded-lg bg-background text-foreground border border-border/60 inline-block">
-                    {teacher.min_fees != null && teacher.max_fees != null
-                      ? `₹${teacher.min_fees.toLocaleString()} - ₹${teacher.max_fees.toLocaleString()}`
-                      : teacher.min_fees != null
-                      ? `₹${teacher.min_fees.toLocaleString()}+`
-                      : teacher.max_fees != null
-                      ? `Up to ₹${teacher.max_fees.toLocaleString()}`
-                      : ''}
+                )}
+                {teacher.class_size && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl leading-none" aria-hidden>👥</span>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Structure of classes</h4>
+                    </div>
+                    <p className="text-base font-normal text-foreground pl-7">{teacher.class_size.replace(/\bSolo\b/g, 'One-on-one')}</p>
                   </div>
-                </div>
-              )}
-                </div>
+                )}
+                {teacher.mode_of_teaching && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl leading-none" aria-hidden>🏫</span>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Mode of teaching</h4>
+                    </div>
+                    <p className="text-base font-normal text-foreground pl-7">{teacher.mode_of_teaching}</p>
+                  </div>
+                )}
+                {teacher.place_of_teaching && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl leading-none" aria-hidden>📍</span>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Place of teaching</h4>
+                    </div>
+                    <p className="text-base font-normal text-foreground pl-7">{teacher.place_of_teaching}</p>
+                  </div>
+                )}
+                {teacher.qualifications_etc && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl leading-none" aria-hidden>🎓</span>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Qualifications</h4>
+                    </div>
+                    <p className="text-base font-normal text-foreground pl-7 break-words">{teacher.qualifications_etc}</p>
+                  </div>
+                )}
+                {teacher.teaching_since && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl leading-none" aria-hidden>📅</span>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Teaching since</h4>
+                    </div>
+                    <p className="text-base font-normal text-foreground pl-7">{teacher.teaching_since}</p>
+                  </div>
+                )}
+                {(teacher.min_fees != null || teacher.max_fees != null) && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl leading-none" aria-hidden>💰</span>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Approximate Fees per month</h4>
+                    </div>
+                    <p className="text-base font-normal text-foreground pl-7">
+                      {teacher.min_fees != null && teacher.max_fees != null
+                        ? `₹${teacher.min_fees.toLocaleString()} - ₹${teacher.max_fees.toLocaleString()}`
+                        : teacher.min_fees != null
+                        ? `₹${teacher.min_fees.toLocaleString()}+`
+                        : teacher.max_fees != null
+                        ? `Up to ₹${teacher.max_fees.toLocaleString()}`
+                        : ''}
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+          </div>
+        )}
 
         {/* Reviews Section */}
         {teacher && <TeacherComments teacherId={teacher.id} />}
       </main>
+
+      {/* Sticky Contact via WhatsApp bar - fixed at bottom while scrolling */}
+      {teacher && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-t border-border shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)] p-4 safe-area-pb">
+          <div className="container max-w-lg mx-auto">
+            {user ? (
+              <Button
+                className="w-full gap-3 py-6 text-lg font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all"
+                onClick={() => {
+                  const url = teacher.whatsapp_link
+                    ? (teacher.whatsapp_link.startsWith('http')
+                        ? teacher.whatsapp_link
+                        : getWhatsAppLink(teacher.whatsapp_link))
+                    : getWhatsAppLink(null, '8240980312');
+                  setPendingWhatsappUrl(url);
+                  setWhatsappDisclaimerOpen(true);
+                }}
+              >
+                <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
+                Contact via WhatsApp
+              </Button>
+            ) : (
+              <Button
+                className="w-full gap-3 py-6 text-lg font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all"
+                onClick={() => navigate('/auth')}
+              >
+                <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
+                Sign in to contact
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       <Footer expandedContent={teacher?.expanded || null} />
 

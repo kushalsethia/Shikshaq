@@ -776,9 +776,9 @@ export default function AdminTeachers() {
                     />
                   </div>
 
-                  {/* Class Size */}
+                  {/* Structure of classes (stored as Class Size (Group/ Solo)) */}
                   <div>
-                    <Label>Class Size (Group/ Solo)</Label>
+                    <Label>Structure of classes</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {CLASS_SIZE.map((size) => {
                         const currentValue = formData["Class Size (Group/ Solo)"] as string | null;
@@ -793,7 +793,7 @@ export default function AdminTeachers() {
                               }
                             />
                             <Label htmlFor={`classSize-${size}`} className="cursor-pointer">
-                              {size}
+                              {size === 'Solo' ? 'One-on-one' : size}
                             </Label>
                           </div>
                         );

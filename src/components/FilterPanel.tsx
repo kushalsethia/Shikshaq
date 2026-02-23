@@ -241,9 +241,9 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
             </div>
           </div>
 
-          {/* Classes Size */}
+          {/* Structure of classes */}
           <div>
-            <h3 className="text-lg font-medium mb-4">Classes Size</h3>
+            <h3 className="text-lg font-medium mb-4">Structure of classes</h3>
             <div className="flex flex-wrap gap-2">
               {CLASS_SIZE.map((size) => (
                 <button
@@ -255,7 +255,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                       : 'bg-muted text-foreground hover:bg-muted/80'
                   }`}
                 >
-                  {size}
+                  {size === 'Solo' ? 'One-on-one' : size}
                 </button>
               ))}
             </div>

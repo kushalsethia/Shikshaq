@@ -572,7 +572,7 @@ export default function TeacherDashboard() {
 
     // Validate Class Size (required)
     if (!teacherData["Class Size (Group/ Solo)"] || !teacherData["Class Size (Group/ Solo)"].trim()) {
-      toast.error('Please select a class size');
+      toast.error('Please select structure of classes');
       return;
     }
 
@@ -1032,10 +1032,10 @@ export default function TeacherDashboard() {
                 </div>
               </div>
 
-              {/* Class Size */}
+              {/* Structure of classes (stored as Class Size (Group/ Solo)) */}
               <div className="space-y-2">
                 <Label>
-                  Class Size <span className="text-red-500">*</span>
+                  Structure of classes <span className="text-red-500">*</span>
                 </Label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {CLASS_SIZE.map((size) => {
@@ -1051,7 +1051,7 @@ export default function TeacherDashboard() {
                           }
                         />
                         <Label htmlFor={`classSize-${size}`} className="cursor-pointer">
-                          {size}
+                          {size === 'Solo' ? 'One-on-one' : size}
                         </Label>
                       </div>
                     );

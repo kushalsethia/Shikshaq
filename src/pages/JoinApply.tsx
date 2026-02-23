@@ -285,7 +285,7 @@ export default function JoinApply() {
       return false;
     }
     if (!formData.class_size.trim()) {
-      toast.error('Please select at least one class size option');
+      toast.error('Please select at least one structure of classes option');
       return false;
     }
     if (!formData.location_v2) {
@@ -670,9 +670,9 @@ export default function JoinApply() {
                   </div>
                 </div>
 
-                {/* Class Size */}
+                {/* Structure of classes (stored as class_size) */}
                 <div>
-                  <Label>Class Size *</Label>
+                  <Label>Structure of classes *</Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {CLASS_SIZE.map((size) => {
                       const selected = valueExistsInString(formData.class_size, size);
@@ -686,7 +686,7 @@ export default function JoinApply() {
                             }
                           />
                           <Label htmlFor={`classSize-${size}`} className="cursor-pointer">
-                            {size}
+                            {size === 'Solo' ? 'One-on-one' : size}
                           </Label>
                         </div>
                       );

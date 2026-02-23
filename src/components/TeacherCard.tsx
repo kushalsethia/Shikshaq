@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Heart, ThumbsUp } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
@@ -188,20 +188,12 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         {!isFeatured && (
           <button
             onClick={handleUpvoteClick}
-            className="absolute bottom-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10 flex items-center gap-1"
+            className="absolute bottom-3 right-3 px-2.5 py-1.5 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background border border-border/60 transition-colors z-10 flex items-center gap-1"
             aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
           >
-            <ThumbsUp
-              className={`w-4 h-4 transition-colors ${
-                upvoted
-                  ? 'fill-blue-500 text-blue-500'
-                  : 'text-foreground/70 hover:text-blue-500'
-              }`}
-            />
+            <span className="text-base leading-none" aria-hidden>👍</span>
             {upvoteCount > 0 && (
-              <span className={`text-xs font-medium ${
-                upvoted ? 'text-blue-500' : 'text-foreground/70'
-              }`}>
+              <span className="text-xs font-semibold text-foreground">
                 {upvoteCount}
               </span>
             )}

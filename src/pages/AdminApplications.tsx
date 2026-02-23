@@ -428,7 +428,7 @@ export default function AdminApplications() {
                     <div><strong>Boards:</strong> {selectedApplication.school_boards_catered || 'N/A'}</div>
                     <div><strong>Location:</strong> {selectedApplication.location_v2 || 'N/A'}</div>
                     <div><strong>Mode:</strong> {selectedApplication.mode_of_teaching || 'N/A'}</div>
-                    <div><strong>Class Size:</strong> {selectedApplication.class_size || 'N/A'}</div>
+                    <div><strong>Structure of classes:</strong> {selectedApplication.class_size ? selectedApplication.class_size.replace(/\bSolo\b/g, 'One-on-one') : 'N/A'}</div>
                   </div>
                 </div>
 
