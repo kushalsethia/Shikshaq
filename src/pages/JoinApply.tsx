@@ -31,7 +31,7 @@ const SUBJECTS = [
 
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
-const BOARDS = ['ICSE/ISC', 'CBSE', 'IGCSE', 'IB', 'State', 'College'];
+const BOARDS = ['ICSE/ISC', 'CBSE', 'IGCSE', 'IB', 'State'];
 
 const AREAS = [
   'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba', 

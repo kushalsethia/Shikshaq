@@ -133,7 +133,7 @@ export default function GuardianDashboard() {
               // Split by comma and clean up
               const boardsList = boardsStr.split(',').map((b: string) => b.trim()).filter(Boolean);
               boardsList.forEach((board: string) => {
-                if (board) {
+                if (board && board !== 'College') {
                   boardSet.add(board);
                 }
               });

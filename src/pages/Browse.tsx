@@ -1132,24 +1132,30 @@ export default function Browse() {
     // Find subject name - check URL param first (slug), then advanced filters (direct name)
     let subjectName = null;
     if (subjectFromUrl) {
-      // Subject from URL is a slug, need to look it up
       const subject = subjects.find(s => s.slug === subjectFromUrl);
       subjectName = subject?.name || subjectFromUrl.charAt(0).toUpperCase() + subjectFromUrl.slice(1);
     } else if (subjectFromFilters) {
-      // Subject from advanced filters is already a name
       subjectName = subjectFromFilters;
     }
 
-    // Build heading based on filters
+    // Build heading: include board when selected
+    const citySuffix = activeBoard ? ` in Kolkata for ${activeBoard}` : ' in Kolkata';
     if (subjectName && activeClass && activeBoard) {
-      return `All Class ${activeClass} ${subjectName} teachers in Kolkata for ${activeBoard}`;
+      return `All Class ${activeClass} ${subjectName} teachers${citySuffix}`;
     } else if (subjectName && activeClass) {
-      return `All Class ${activeClass} ${subjectName} teachers in Kolkata`;
+      return `All Class ${activeClass} ${subjectName} teachers${citySuffix}`;
+    } else if (subjectName && activeBoard) {
+      return `All ${subjectName} teachers${citySuffix}`;
     } else if (subjectName) {
       return `All ${subjectName} teachers in Kolkata`;
+    } else if (activeClass && activeBoard) {
+      return `All Class ${activeClass} teachers${citySuffix}`;
+    } else if (activeClass) {
+      return `All Class ${activeClass} teachers in Kolkata`;
+    } else if (activeBoard) {
+      return `All Tuition Teachers in Kolkata for ${activeBoard}`;
     }
 
-    // Default heading
     return 'All Tuition Teachers in Kolkata';
   };
 
@@ -1271,6 +1277,16 @@ export default function Browse() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Clear filters - Mobile only, just under class filter */}
+          {hasFilters && (
+            <div className="sm:hidden mb-3">
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 h-9 text-muted-foreground">
+                <X className="w-4 h-4" />
+                Clear filters
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Sticky Search Bar - Only visible when scrolled past original */}
