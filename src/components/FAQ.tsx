@@ -57,6 +57,15 @@ export function FAQ() {
               </AccordionTrigger>
               <AccordionContent className="text-sm sm:text-base md:text-lg font-sans font-normal text-[#666666] pb-4 leading-relaxed">
                 {faq.answer}
+                <p className="mt-4 pt-3 border-t border-[#1F1F1F]/10">
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('shikshaq-open-chat'))}
+                    className="text-[#4351FF] font-medium hover:underline focus:outline-none focus:underline"
+                  >
+                    Not the answer you were looking for? Ask our AI assistant
+                  </button>
+                </p>
               </AccordionContent>
             </AccordionItem>
           ))}

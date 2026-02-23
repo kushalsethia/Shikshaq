@@ -143,6 +143,13 @@ export function Chatbot() {
     scrollToBottom();
   }, [messages]);
 
+  // Allow opening chatbot from outside (e.g. FAQ "Ask our AI assistant" link)
+  useEffect(() => {
+    const openChat = () => setIsOpen(true);
+    window.addEventListener('shikshaq-open-chat', openChat);
+    return () => window.removeEventListener('shikshaq-open-chat', openChat);
+  }, []);
+
   useEffect(() => {
     // Save current viewport scale before opening
     const savedViewport = document.querySelector('meta[name="viewport"]')?.getAttribute('content') || '';
