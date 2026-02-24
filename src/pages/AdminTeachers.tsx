@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import imageCompression from 'browser-image-compression';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { invalidateTeacherCache, removeCache } from '@/utils/cache';
+import { convertClassesToRoman } from '@/utils/romanNumerals';
 
 // Constants matching FilterPanel
 const SUBJECTS = [
@@ -251,10 +252,14 @@ export default function AdminTeachers() {
   }, [selectedTeacher]);
 
   const handleInputChange = (field: keyof TeacherData, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      // Auto-update Classes Taught when Classes Taught for Backend changes (same as teacher dashboard)
+      if (field === "Classes Taught for Backend") {
+        updated["Classes Taught"] = convertClassesToRoman(value);
+      }
+      return updated;
+    });
   };
 
   const handleMultiSelectChange = (field: keyof TeacherData, value: string, checked: boolean) => {
@@ -608,9 +613,12 @@ export default function AdminTeachers() {
                     </Select>
                   </div>
 
-                  {/* Classes Taught for Backend */}
+                  {/* Classes Taught for Backend - display is auto-computed */}
                   <div>
-                    <Label>Classes Taught</Label>
+                    <Label>Classes Taught <span className="text-red-500">*</span></Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Select the classes. Display format will be automatically computed.
+                    </p>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {CLASSES.map((cls) => {
                         const currentValue = formData["Classes Taught for Backend"] as string | null;
@@ -631,6 +639,16 @@ export default function AdminTeachers() {
                         );
                       })}
                     </div>
+                    {formData["Classes Taught"] != null && formData["Classes Taught"] !== '' && (
+                      <div className="mt-2">
+                        <Label className="text-sm text-muted-foreground">Classes Taught (Auto-computed):</Label>
+                        <Input
+                          value={formData["Classes Taught"]}
+                          disabled
+                          className="bg-muted cursor-not-allowed mt-1"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* School Boards Catered */}
@@ -764,16 +782,6 @@ export default function AdminTeachers() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  {/* Classes Taught */}
-                  <div>
-                    <Label htmlFor="classesTaught">Classes Taught (Display)</Label>
-                    <Input
-                      id="classesTaught"
-                      value={formData["Classes Taught"] || ''}
-                      onChange={(e) => handleInputChange("Classes Taught", e.target.value)}
-                    />
                   </div>
 
                   {/* Structure of classes (stored as Class Size (Group/ Solo)) */}
