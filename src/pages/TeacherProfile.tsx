@@ -1139,15 +1139,7 @@ export default function TeacherProfile() {
         )}
 
         {/* Reviews Section - inside scroll area so one continuous scroll on mobile */}
-        <div className="md:col-span-2">
-          {teacher && <TeacherComments teacherId={teacher.id} />}
-        </div>
-
-        {/* Footer inside scroll container so it's reachable on mobile */}
-        <div className="md:col-span-2">
-          <Footer expandedContent={teacher?.expanded || null} />
-        </div>
-        </div>
+        {teacher && <TeacherComments teacherId={teacher.id} />}
         </div>
       </main>
 
@@ -1183,6 +1175,8 @@ export default function TeacherProfile() {
           </div>
         </div>
       )}
+
+      <Footer expandedContent={teacher?.expanded || null} />
 
       {/* WhatsApp disclaimer dialog */}
       <Dialog open={whatsappDisclaimerOpen} onOpenChange={(open) => {
