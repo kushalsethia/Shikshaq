@@ -41,10 +41,10 @@ export default function Join() {
               <div className="space-y-4">
                 <div>
                   <h3 className="font-medium text-foreground">Build your profile</h3>
-                  <p className="text-sm text-muted-foreground">Showcase your qualifications</p>
+                  <p className="text-sm text-muted-foreground">Showcase your qualifications and increase your visibility</p>
                 </div>
                 <div>
-                  <h3 className="font-medium text-foreground">Verified badge</h3>
+                  <h3 className="font-medium text-foreground">Verified Profiles</h3>
                   <p className="text-sm text-muted-foreground">Stand out from the crowd</p>
                 </div>
               </div>

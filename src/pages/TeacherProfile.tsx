@@ -668,10 +668,10 @@ export default function TeacherProfile() {
                 <img
                   src={teacher.image_url ? validateImageSrc(teacher.image_url) : ''}
                   alt={teacher.name}
-                  className="block w-full max-w-full max-h-[55vh] md:max-h-[min(75vh,520px)] w-auto h-auto object-contain rounded-t-2xl md:rounded-3xl shadow-xl"
+                  className="block w-full max-w-full max-h-[55vh] md:max-h-[min(75vh,520px)] w-auto h-auto object-contain rounded-t-2xl md:rounded-3xl"
                 />
               ) : (
-                <div className="w-full min-h-[220px] max-h-[55vh] md:min-h-[200px] md:max-h-[min(75vh,520px)] aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-t-2xl md:rounded-3xl shadow-xl">
+                <div className="w-full min-h-[220px] max-h-[55vh] md:min-h-[200px] md:max-h-[min(75vh,520px)] aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-t-2xl md:rounded-3xl">
                   <span className="text-6xl font-sans text-muted-foreground">
                     {teacher.name.charAt(0)}
                   </span>
@@ -1028,7 +1028,18 @@ export default function TeacherProfile() {
           <div className="mt-8 md:mt-12">
             <div className="h-0.5 w-full rounded-full mb-6" style={{ backgroundColor: '#FF7A00' }} aria-hidden />
             <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">
-              Little more about {teacher.name}
+              Little more about {(() => {
+                const sirMaam = teacher.sir_maam;
+                if (!sirMaam) return teacher.name;
+                const sirMaamLower = String(sirMaam).toLowerCase().trim();
+                if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
+                  return `${teacher.name} Sir`;
+                }
+                if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
+                  return `${teacher.name} Ma'am`;
+                }
+                return teacher.name;
+              })()}
             </h3>
             <div
               className="prose prose-sm max-w-none text-foreground"

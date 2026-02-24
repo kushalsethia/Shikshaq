@@ -466,8 +466,8 @@ export default function Index() {
         <div className="container">
           <div className="flex flex-col items-center px-4 sm:px-0">
             <div className="text-center w-full max-w-3xl mb-4 sm:mb-6">
-              <p className="text-sm sm:text-base md:text-lg text-[#666666] font-medium mb-2 sm:mb-3 opacity-0 animate-fade-slide-up" style={{ animationDelay: '100ms' }}>
-                {user ? `Welcome${userFirstName ? `, ${userFirstName}` : ''}! 👋` : 'Welcome to Shikshaq! 👋'}
+              <p className="text-sm sm:text-base md:text-lg font-medium mb-2 sm:mb-3 opacity-0 animate-fade-slide-up text-[#FF8000]" style={{ animationDelay: '100ms' }}>
+                Welcome to Shikshaq{user && userFirstName ? `, ${userFirstName}` : ''}! 👋
               </p>
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-sans font-bold text-[#1F1F1F] leading-none tracking-tight text-center opacity-0 animate-fade-slide-up" style={{ animationDelay: '200ms' }}>
                 Your ideal teacher,

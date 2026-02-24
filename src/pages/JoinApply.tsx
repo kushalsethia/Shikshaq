@@ -946,7 +946,7 @@ export default function JoinApply() {
 
               <div className="bg-muted/50 rounded-lg p-6 space-y-4">
                 <p className="text-sm text-foreground leading-relaxed">
-                  This Memorandum of Understanding confirms that you grant Shikshaq permission to display your submitted profile (name, locality, place of teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and enhancing their learning experience. Your mobile number will remain confidential and used only for identity verification and internal communication.
+                  This Memorandum of Understanding confirms that you grant Shikshaq permission to display your submitted profile (name, locality, place of teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and enhancing their learning experience.
                 </p>
 
                 <p className="text-sm font-medium text-foreground">
