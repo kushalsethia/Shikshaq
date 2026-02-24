@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -78,6 +78,8 @@ export default function TeacherProfile() {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [whatsappDisclaimerOpen, setWhatsappDisclaimerOpen] = useState(false);
   const [pendingWhatsappUrl, setPendingWhatsappUrl] = useState<string | null>(null);
+  const reviewsSectionRef = useRef<HTMLElement | null>(null);
+  const location = useLocation();
 
   // Check if user has a role - redirect to role selection if not
   // Also check if teacher has agreed to terms
@@ -111,6 +113,18 @@ export default function TeacherProfile() {
 
     checkUserRole();
   }, [user, authLoading, navigate]);
+
+  // Scroll to reviews when URL has #reviews (e.g. shared link or in-page link)
+  useEffect(() => {
+    if (location.hash !== '#reviews' || !teacher) return;
+    const el = reviewsSectionRef.current || document.getElementById('reviews');
+    if (el) {
+      const id = requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      return () => cancelAnimationFrame(id);
+    }
+  }, [location.hash, teacher]);
 
   useEffect(() => {
     async function fetchTeacher() {
@@ -658,8 +672,8 @@ export default function TeacherProfile() {
           Back to all teachers
         </Link>
 
-        {/* Mobile: scroll container so sticky hero + pull-up card work correctly. Desktop: normal flow. */}
-        <div className="md:h-auto md:overflow-visible md:min-h-0 h-[calc(100vh-7rem)] overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
+        {/* Content in normal flow so window scrolls and reviews + footer are reachable on mobile */}
+        <div className="min-w-0">
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 min-w-0">
           {/* Hero image - sticky within scroll area on mobile, sticky in viewport on desktop */}
           <div className="relative min-h-[220px] md:min-h-0 md:h-auto md:flex md:items-start min-w-0">
@@ -1138,12 +1152,12 @@ export default function TeacherProfile() {
           </div>
         )}
 
-        {/* Reviews Section - inside scroll area so one continuous scroll on mobile */}
-        <div className="md:col-span-2">
+        {/* Reviews Section */}
+        <section id="reviews" ref={reviewsSectionRef} className="md:col-span-2 scroll-mt-24 md:scroll-mt-28" aria-label="Reviews">
           {teacher && <TeacherComments teacherId={teacher.id} />}
-        </div>
+        </section>
 
-        {/* Footer inside scroll container so it's reachable on mobile */}
+        {/* Footer - in flow so reachable when scrolling */}
         <div className="md:col-span-2">
           <Footer expandedContent={teacher?.expanded || null} />
         </div>
