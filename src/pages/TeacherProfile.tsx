@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, GraduationCap, Users } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
@@ -25,7 +24,6 @@ import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmi
 import DOMPurify from 'dompurify';
 import { toast } from 'sonner';
 import { validateImageSrc } from '@/utils/imageSanitizer';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 
 interface Teacher {
@@ -80,7 +78,6 @@ export default function TeacherProfile() {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [whatsappDisclaimerOpen, setWhatsappDisclaimerOpen] = useState(false);
   const [pendingWhatsappUrl, setPendingWhatsappUrl] = useState<string | null>(null);
-  const isMobile = useIsMobile();
 
   // Check if user has a role - redirect to role selection if not
   // Also check if teacher has agreed to terms
@@ -665,7 +662,7 @@ export default function TeacherProfile() {
         <div className="min-h-0 overflow-x-hidden md:h-auto md:overflow-visible md:min-h-0">
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 min-w-0">
           {/* Hero image - sticky below navbar on mobile so card scrolls over it; sticky in viewport on desktop */}
-          <div className="relative min-h-[220px] md:min-h-0 md:h-auto md:flex md:items-start min-w-0 col-span-full md:col-span-1">
+          <div className="relative min-h-[220px] md:min-h-0 md:h-auto md:flex md:items-start min-w-0">
             <div className="sticky top-20 sm:top-24 md:top-24 w-full md:w-fit md:max-w-full">
               {teacher.image_url ? (
                 <img
@@ -682,7 +679,7 @@ export default function TeacherProfile() {
               )}
               <div className="absolute top-4 right-4 flex items-center gap-2">
                 {teacher.is_verified && (
-                  <div className="bg-card rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-sm">
+                  <div className="bg-card/90 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
                     <BadgeCheck className="w-4 h-4 text-badge-science" />
                     <span className="text-sm font-medium">Verified</span>
                   </div>
@@ -690,13 +687,13 @@ export default function TeacherProfile() {
               </div>
               {/* Combined Heart and Share Buttons - Bottom Right of Image */}
               <div className="absolute bottom-4 right-4 md:top-4 md:left-4 md:bottom-auto md:right-auto">
-                <div className="inline-flex items-center rounded-full border-2 border-border bg-card overflow-hidden shadow-sm">
+                <div className="inline-flex items-center rounded-full border-2 border-border bg-card/90 backdrop-blur-sm overflow-hidden">
                   <div className="p-2 hover:bg-muted/80 transition-colors flex items-center">
                     <ShareButton
                       url={`/tuition-teachers/${teacher.slug}`}
                       title={`${teacher.name}${teacher.sir_maam ? ` ${teacher.sir_maam}` : ''}`}
                       description={teacher.subjects_from_shikshaq || teacher.subjects?.name || 'Tuition Teacher'}
-                      className="[&>button]:!p-0 [&>button]:!bg-transparent [&>button]:hover:!bg-transparent"
+                      className="[&>button]:!p-0 [&>button]:!bg-transparent [&>button]:hover:!bg-transparent [&>button]:!backdrop-blur-none"
                       iconSize="md"
                       menuWidth="md"
                     />
@@ -727,8 +724,8 @@ export default function TeacherProfile() {
             </div>
           </div>
 
-          {/* Info card - desktop: in grid column; mobile: inside pullover Drawer below */}
-          <div className="hidden md:block relative -mt-6 md:mt-0 rounded-t-3xl md:rounded-none bg-background md:shadow-none pt-2 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0 z-10 shadow-[0_-4px_16px_-4px_rgba(0,0,0,0.08)]">
+          {/* Info - on mobile: slight overlap so card starts natural, then scrolls up over image */}
+          <div className="relative -mt-6 md:mt-0 rounded-t-3xl md:rounded-none bg-background md:shadow-none pt-2 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0 z-10 shadow-[0_-4px_16px_-4px_rgba(0,0,0,0.08)]">
             {/* Sheet handle - mobile only */}
             <div className="flex justify-center md:hidden pt-1 pb-2" aria-hidden>
               <div className="w-12 h-1 rounded-full bg-muted-foreground/40" />
@@ -1026,8 +1023,6 @@ export default function TeacherProfile() {
           </div>
         </div>
 
-        {/* Desktop: Little more, Additional details, Reviews - hidden on mobile (shown in Drawer) */}
-        <div className="hidden md:block">
         {/* Little more about teacher section */}
         {teacher.description && (
           <div className="mt-8 md:mt-12">
@@ -1145,202 +1140,6 @@ export default function TeacherProfile() {
 
         {/* Reviews Section - inside scroll area so one continuous scroll on mobile */}
         {teacher && <TeacherComments teacherId={teacher.id} />}
-        </div>
-
-        {/* Mobile: Pullover drawer with info card + all below content */}
-        {isMobile && (
-          <Drawer
-            defaultOpen
-            snapPoints={[0.38, 0.65, 1]}
-            defaultSnapPoint={0.38}
-            modal={false}
-            shouldScaleBackground={false}
-          >
-            <DrawerContent
-              overlayClassName="!bg-transparent"
-              className="rounded-t-3xl border-t shadow-[0_-4px_24px_-4px_rgba(0,0,0,0.12)] max-h-[96vh] flex flex-col"
-            >
-              <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-8 -mt-2">
-                {/* Info card content - same as desktop, mobile styling */}
-                <div className="rounded-t-3xl bg-background pt-2 pb-4 space-y-4 min-w-0">
-                  <h1 className="text-3xl font-sans font-semibold text-foreground break-words">
-                    {(() => {
-                      const sirMaam = teacher.sir_maam;
-                      if (!sirMaam) return teacher.name;
-                      const sirMaamLower = String(sirMaam).toLowerCase().trim();
-                      if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) return `${teacher.name} Sir`;
-                      if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) return `${teacher.name} Ma'am`;
-                      return teacher.name;
-                    })()}
-                  </h1>
-                  <button
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      if (!user) { navigate('/auth'); return; }
-                      await toggleUpvote(teacher.id);
-                    }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-border bg-muted/50 hover:bg-muted transition-colors"
-                    aria-label={isUpvoted(teacher.id) ? 'Remove upvote' : 'Upvote teacher'}
-                  >
-                    <span className="text-lg leading-none" aria-hidden>👍</span>
-                    <span className="text-sm font-semibold text-foreground">
-                      {isUpvoted(teacher.id) ? 'Upvoted' : 'Upvote'}
-                    </span>
-                    {getUpvoteCount(teacher.id) > 0 && (
-                      <span className="text-sm font-semibold text-foreground">{getUpvoteCount(teacher.id)}</span>
-                    )}
-                  </button>
-                  {userRole !== 'teacher' && (
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          if (!user) { navigate('/auth'); return; }
-                          if (userRole !== 'student') {
-                            toast.error('You need to be a student to use this feature.');
-                            return;
-                          }
-                          await toggleStudiesWith(teacher.id);
-                        }}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
-                          user && userRole === 'student' && isStudyingWith(teacher.id)
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                            : 'bg-muted text-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        <GraduationCap className={`w-4 h-4 ${user && userRole === 'student' && isStudyingWith(teacher.id) ? 'fill-current' : ''}`} />
-                        <span>{user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Studying here ✓' : "I've studied here"}</span>
-                      </button>
-                      <button
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          setStudentsDialogOpen(true);
-                          if (studentsList.length === 0 && !loadingStudents) await fetchStudentsList();
-                        }}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-background text-muted-foreground hover:text-foreground hover:bg-accent border border-border"
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">View</span>
-                      </button>
-                    </div>
-                  )}
-                  {teacher.location && (
-                    <div className="flex items-start gap-2 text-foreground/80">
-                      <MapPin className="w-4 h-4 mt-0.5" />
-                      <span>{teacher.location}</span>
-                    </div>
-                  )}
-                  {teacher.experience_years && (
-                    <div className="flex items-center gap-2 text-foreground/80">
-                      <Clock className="w-4 h-4" />
-                      <span>{teacher.experience_years}+ years experience</span>
-                    </div>
-                  )}
-                  {teacher.subjects_from_shikshaq && (
-                    <div>
-                      <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>SUBJECTS</p>
-                      <p className="font-sans text-base font-normal text-foreground leading-relaxed">
-                        {teacher.subjects_from_shikshaq.split(',').map((s: string, i: number) => (
-                          <span key={i}>{i > 0 && <span style={{ color: '#FF7A00', margin: '0 0.5em' }}>•</span>}{s.trim()}</span>
-                        ))}
-                      </p>
-                    </div>
-                  )}
-                  {teacher.classes_taught && (
-                    <div>
-                      <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>CLASSES</p>
-                      <p className="font-sans text-base font-normal text-foreground leading-relaxed">
-                        {teacher.classes_taught.split(',').map((cls: string, i: number) => (
-                          <span key={i}>{i > 0 && <span style={{ color: '#FF7A00', margin: '0 0.5em' }}>•</span>}{cls.trim()}</span>
-                        ))}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {teacher.description && (
-                  <div className="mt-8">
-                    <div className="h-0.5 w-full rounded-full mb-6" style={{ backgroundColor: '#FF7A00' }} aria-hidden />
-                    <h3 className="text-xl font-sans font-normal text-foreground mb-4">Little more about {teacher.name}</h3>
-                    <div
-                      className="prose prose-sm max-w-none text-foreground"
-                      dangerouslySetInnerHTML={{
-                        __html: (() => {
-                          const content = teacher.description || '';
-                          if (/<[a-z][\s\S]*>/i.test(content)) {
-                            return DOMPurify.sanitize(content, {
-                              ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-                              ALLOWED_ATTR: ['href', 'target', 'rel'],
-                            });
-                          }
-                          return DOMPurify.sanitize(content.replace(/\n/g, '<br />'), { ALLOWED_TAGS: ['br'] });
-                        })()
-                      }}
-                    />
-                  </div>
-                )}
-                {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.place_of_teaching || teacher.qualifications_etc || teacher.teaching_since || teacher.min_fees != null || teacher.max_fees != null) && (
-                  <div className="mt-8">
-                    <h3 className="text-xl font-sans font-normal text-foreground mb-4">Here are some more details:</h3>
-                    <div className="rounded-2xl bg-orange-50/80 dark:bg-orange-950/20 border border-border/60 p-5">
-                      <div className="grid grid-cols-2 gap-6">
-                        {teacher.boards_taught && (
-                          <div>
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80 mb-2">Boards taught</h4>
-                            <p className="text-base font-normal text-foreground">{teacher.boards_taught}</p>
-                          </div>
-                        )}
-                        {teacher.class_size && (
-                          <div>
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80 mb-2">Structure of classes</h4>
-                            <p className="text-base font-normal text-foreground">{teacher.class_size.replace(/\bSolo\b/g, 'One-on-one')}</p>
-                          </div>
-                        )}
-                        {teacher.mode_of_teaching && (
-                          <div>
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80 mb-2">Mode of teaching</h4>
-                            <p className="text-base font-normal text-foreground">{teacher.mode_of_teaching}</p>
-                          </div>
-                        )}
-                        {teacher.place_of_teaching && (
-                          <div>
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80 mb-2">Place of teaching</h4>
-                            <p className="text-base font-normal text-foreground">{teacher.place_of_teaching}</p>
-                          </div>
-                        )}
-                        {teacher.qualifications_etc && (
-                          <div>
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80 mb-2">Qualifications</h4>
-                            <p className="text-base font-normal text-foreground break-words">{teacher.qualifications_etc}</p>
-                          </div>
-                        )}
-                        {teacher.teaching_since && (
-                          <div>
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80 mb-2">Teaching since</h4>
-                            <p className="text-base font-normal text-foreground">{teacher.teaching_since}</p>
-                          </div>
-                        )}
-                        {(teacher.min_fees != null || teacher.max_fees != null) && (
-                          <div>
-                            <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80 mb-2">Approximate Fees per month</h4>
-                            <p className="text-base font-normal text-foreground">
-                              {teacher.min_fees != null && teacher.max_fees != null
-                                ? `₹${teacher.min_fees.toLocaleString()} - ₹${teacher.max_fees.toLocaleString()}`
-                                : teacher.min_fees != null ? `₹${teacher.min_fees.toLocaleString()}+`
-                                : teacher.max_fees != null ? `Up to ₹${teacher.max_fees.toLocaleString()}` : ''}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div className="mt-8">
-                  <TeacherComments teacherId={teacher.id} />
-                </div>
-              </div>
-            </DrawerContent>
-          </Drawer>
-        )}
         </div>
       </main>
 
