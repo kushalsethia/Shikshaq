@@ -178,7 +178,7 @@ export default function Browse() {
             seen.add(nameLower);
             return true;
           });
-        
+
         setSubjects(cleanedSubjects);
         // Cache the cleaned subjects
         setCache(cacheKey, cleanedSubjects, CACHE_TTL.SUBJECTS);
@@ -1401,9 +1401,11 @@ export default function Browse() {
         ) : displayedTeachers.length > 0 ? (
           <div className="space-y-4" key={searchParams.toString()}>
             {displayedTeachers.map((teacher, index) => {
-              // Always prefer subjects_from_shikshaq (all subjects) over subjects?.name (single featured subject)
-              // subjects_from_shikshaq contains all subjects the teacher teaches from Shikshaqmine
-              const displaySubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
+              // Prefer subjects_from_shikshaq; on browse page limit to 5 subjects (profile page shows all)
+              const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
+              const displaySubjects = allSubjects
+                ? allSubjects.split(',').map(s => s.trim()).filter(Boolean).slice(0, 5).join(', ')
+                : '';
 
               return (
                 <TeacherCardDetailed
