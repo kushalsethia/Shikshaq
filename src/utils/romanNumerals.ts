@@ -85,6 +85,8 @@ export function convertClassesToRoman(numbersStr: string | null): string | null 
   // Add non-numeric values (like UG)
   result.push(...nonNumbers);
 
-  return result.length > 0 ? result.join(', ') : null;
+  const joined = result.length > 0 ? result.join(', ') : null;
+  // Prefix with "Class " so display reads e.g. "Class I - V, UG"
+  return joined ? `Class ${joined}` : null;
 }
 
