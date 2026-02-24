@@ -658,10 +658,12 @@ export default function TeacherProfile() {
           Back to all teachers
         </Link>
 
+        {/* Mobile: scroll container so sticky hero + pull-up card work correctly. Desktop: normal flow. */}
+        <div className="md:h-auto md:overflow-visible md:min-h-0 h-[calc(100vh-7rem)] overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 min-w-0">
-          {/* Image - dynamic on mobile and desktop: shrinks for small images (no gap), capped for large (buttons stay visible) */}
+          {/* Hero image - sticky within scroll area on mobile, sticky in viewport on desktop */}
           <div className="relative min-h-[220px] md:min-h-0 md:h-auto md:flex md:items-start min-w-0">
-            <div className="sticky top-24 w-full md:w-fit md:max-w-full">
+            <div className="sticky top-0 md:top-24 w-full md:w-fit md:max-w-full">
               {teacher.image_url ? (
                 <img
                   src={teacher.image_url ? validateImageSrc(teacher.image_url) : ''}
@@ -722,23 +724,12 @@ export default function TeacherProfile() {
             </div>
           </div>
 
-          {/* Info - on mobile: sheet with handle overlapping hero */}
-          <div className="relative -mt-6 md:mt-0 rounded-t-3xl md:rounded-none bg-background shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)] md:shadow-none pt-2 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0">
+          {/* Info - on mobile: sheet pulled up onto hero image (overlap + shadow for depth) */}
+          <div className="relative -mt-20 md:mt-0 rounded-t-3xl md:rounded-none bg-background md:shadow-none pt-2 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0 z-10 shadow-[0_-8px_30px_-8px_rgba(0,0,0,0.12),0_-2px_8px_-2px_rgba(0,0,0,0.06)]">
             {/* Sheet handle - mobile only */}
             <div className="flex justify-center md:hidden pt-1 pb-2" aria-hidden>
               <div className="w-12 h-1 rounded-full bg-muted-foreground/40" />
             </div>
-            {/* Subject Badge */}
-            {teacher.subjects && (
-              <Link
-                to={`/all-tuition-teachers-in-kolkata?subject=${teacher.subjects.slug}`}
-                className="inline-block"
-              >
-                <span className="px-3 py-1 rounded-full text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                  {teacher.subjects.name}
-                </span>
-              </Link>
-            )}
 
             {/* Teacher Name and Upvote Button - Inline */}
             <div className="flex items-start justify-between gap-4 min-w-0">
@@ -848,8 +839,8 @@ export default function TeacherProfile() {
               )}
             </div>
 
-            {/* He/She teaches section */}
-            <div className="space-y-2">
+            {/* He/She teaches section - more space between sections, tight under headings */}
+            <div className="space-y-4 pt-2">
               {(() => {
                 // Get gender from Shikshaqmine table (sir_maam field)
                 const sirMaam = teacher.sir_maam;
@@ -891,7 +882,7 @@ export default function TeacherProfile() {
                   <>
                     {subjectsList.length > 0 && (
                       <div>
-                        <p className="font-sans text-base font-bold leading-tight mb-2" style={{ color: '#FF7A00' }}>SUBJECTS</p>
+                        <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>SUBJECTS</p>
                         <p className="font-sans text-base font-normal text-foreground leading-relaxed">
                           {subjectsList.map((subject: string, index: number) => (
                             <span key={index}>
@@ -917,7 +908,7 @@ export default function TeacherProfile() {
                   if (classesList.length > 0) {
                     return (
                       <div>
-                        <p className="font-sans text-base font-bold leading-tight mb-2" style={{ color: '#FF7A00' }}>CLASSES</p>
+                        <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>CLASSES</p>
                         <p className="font-sans text-base font-normal text-foreground leading-relaxed">
                           {classesList.map((cls: string, index: number) => (
                             <span key={index}>
@@ -935,7 +926,7 @@ export default function TeacherProfile() {
             </div>
 
             {/* Location V2 section - Home tutoring locations */}
-            <div>
+            <div className="mt-4">
             {(() => {
               const locationV2 = teacher.location_v2;
               if (!locationV2) return null;
@@ -990,11 +981,11 @@ export default function TeacherProfile() {
               }
 
               return (
-                <div className="space-y-2">
+                <div className="space-y-4">
                   {/* Students home tutoring section */}
                   {(isStudentsHomeOnly || isBothOptions) && studentsAreas.length > 0 && (
                     <div>
-                      <p className="font-sans text-base font-bold leading-tight mb-2" style={{ color: '#FF7A00' }}>
+                      <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>
                         Home to Home tutoring in
                       </p>
                       <p className="font-sans text-base font-normal text-foreground leading-relaxed">
@@ -1011,7 +1002,7 @@ export default function TeacherProfile() {
                   {/* Teacher's home tutoring section */}
                   {(isTeachersHomeOnly || isBothOptions) && tutorsAreas.length > 0 && (
                     <div>
-                      <p className="font-sans text-base font-bold leading-tight mb-2" style={{ color: '#FF7A00' }}>
+                      <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>
                         Tuition Centres in
                       </p>
                       <p className="font-sans text-base font-normal text-foreground leading-relaxed">
@@ -1069,8 +1060,8 @@ export default function TeacherProfile() {
         {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.place_of_teaching || teacher.qualifications_etc || teacher.teaching_since || teacher.min_fees || teacher.max_fees) && (
           <div className="mt-8 md:mt-12">
             <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">Here are some more details:</h3>
-            <div className="rounded-2xl bg-muted/40 dark:bg-muted/20 border border-border/60 p-5 md:p-6">
-              <div className="grid grid-cols-1 gap-6 md:gap-8">
+            <div className="rounded-2xl bg-orange-50/80 dark:bg-orange-950/20 border border-border/60 p-5 md:p-6">
+              <div className="grid grid-cols-2 gap-6 md:gap-8">
                 {teacher.boards_taught && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
@@ -1147,7 +1138,9 @@ export default function TeacherProfile() {
           </div>
         )}
 
-        {/* Reviews Section */}
+        </div>
+
+        {/* Reviews Section - outside scroll area so it scrolls with page */}
         {teacher && <TeacherComments teacherId={teacher.id} />}
       </main>
 
