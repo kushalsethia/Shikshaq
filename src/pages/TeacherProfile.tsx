@@ -724,8 +724,8 @@ export default function TeacherProfile() {
             </div>
           </div>
 
-          {/* Info - on mobile: slight overlap so card starts natural, then scrolls up over image */}
-          <div className="relative -mt-6 md:mt-0 rounded-t-3xl md:rounded-none bg-background md:shadow-none pt-2 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0 z-10 shadow-[0_-4px_16px_-4px_rgba(0,0,0,0.08)]">
+          {/* Info - no overlap with image to avoid blur; clear break between image and name */}
+          <div className="relative mt-4 md:mt-0 rounded-t-3xl md:rounded-none bg-background md:shadow-none pt-2 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0 z-10">
             {/* Sheet handle - mobile only */}
             <div className="flex justify-center md:hidden pt-1 pb-2" aria-hidden>
               <div className="w-12 h-1 rounded-full bg-muted-foreground/40" />

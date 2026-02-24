@@ -12,7 +12,7 @@ interface TeacherCardDetailedProps {
   imageUrl?: string;
   subjects?: string; // Comma-separated subjects from Shikshaqmine
   classes?: string; // Classes taught from Shikshaqmine
-  modeOfTeaching?: string; // Mode of teaching from Shikshaqmine
+  area?: string | null; // Area from Shikshaqmine (comma-separated)
   sirMaam?: string | null; // Sir/Ma'am from Shikshaqmine
   index?: number; // For staggered entrance animation
 }
@@ -37,7 +37,7 @@ export function TeacherCardDetailed({
   imageUrl,
   subjects,
   classes,
-  modeOfTeaching,
+  area,
   sirMaam,
   index = 0
 }: TeacherCardDetailedProps) {
@@ -115,19 +115,25 @@ export function TeacherCardDetailed({
           </p>
         )}
 
-        {/* Classes and Mode of Teaching */}
-        <div className="flex flex-wrap gap-2 mt-3">
-          {classes && (
-            <span className="px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-              {classes}
-            </span>
-          )}
-          {modeOfTeaching && (
-            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-              {modeOfTeaching}
-            </span>
-          )}
-        </div>
+        {/* Classes - black and bold, no pill; orange dot spacer after */}
+        {classes && (
+          <p className="text-sm mt-2 font-bold text-foreground flex items-center gap-2">
+            {classes}
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FF7A00] shrink-0" aria-hidden />
+          </p>
+        )}
+
+        {/* First two areas from Shikshaqmine Area - black and bold */}
+        {area && (() => {
+          const areas = area.split(',').map(a => a.trim()).filter(Boolean);
+          const firstTwo = areas.slice(0, 2);
+          if (firstTwo.length === 0) return null;
+          return (
+            <p className="text-sm mt-1 font-bold text-foreground">
+              {firstTwo.join(', ')}
+            </p>
+          );
+        })()}
       </div>
 
       {/* View More Arrow and Upvote Button - align start so upvote is always visible */}

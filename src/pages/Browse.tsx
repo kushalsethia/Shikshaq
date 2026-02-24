@@ -862,6 +862,7 @@ export default function Browse() {
               classes: record["Classes Taught"],
               modeOfTeaching: record["Mode of Teaching"],
               sirMaam: record["Sir/Ma'am?"],
+              area: record.Area || null,
             });
           });
         }
@@ -875,6 +876,7 @@ export default function Browse() {
             classes_taught: shikshaqInfo?.classes || null,
             mode_of_teaching: shikshaqInfo?.modeOfTeaching || null,
             sir_maam: shikshaqInfo?.sirMaam || null,
+            area: shikshaqInfo?.area || null,
           };
         });
 
@@ -1412,7 +1414,7 @@ export default function Browse() {
                   imageUrl={teacher.image_url}
                   subjects={displaySubjects}
                   classes={teacher.classes_taught}
-                  modeOfTeaching={teacher.mode_of_teaching}
+                  area={(teacher as any).area}
                   sirMaam={(teacher as any).sir_maam}
                   index={index}
                 />
