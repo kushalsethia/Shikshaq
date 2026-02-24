@@ -658,12 +658,12 @@ export default function TeacherProfile() {
           Back to all teachers
         </Link>
 
-        {/* Mobile: scroll container so sticky hero + pull-up card work correctly. Desktop: normal flow. */}
-        <div className="md:h-auto md:overflow-visible md:min-h-0 h-[calc(100vh-7rem)] overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
+        {/* Mobile: use window scroll so Reviews and Footer are reachable. Desktop: normal flow. */}
+        <div className="min-h-0 overflow-x-hidden md:h-auto md:overflow-visible md:min-h-0">
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 min-w-0">
-          {/* Hero image - sticky within scroll area on mobile, sticky in viewport on desktop */}
+          {/* Hero image - sticky below navbar on mobile so card scrolls over it; sticky in viewport on desktop */}
           <div className="relative min-h-[220px] md:min-h-0 md:h-auto md:flex md:items-start min-w-0">
-            <div className="sticky top-0 md:top-24 w-full md:w-fit md:max-w-full">
+            <div className="sticky top-20 sm:top-24 md:top-24 w-full md:w-fit md:max-w-full">
               {teacher.image_url ? (
                 <img
                   src={teacher.image_url ? validateImageSrc(teacher.image_url) : ''}
