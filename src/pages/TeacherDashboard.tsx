@@ -630,7 +630,7 @@ export default function TeacherDashboard() {
         "Phone Number": normalizedPhoneNumber,
         "Hero Image": teacherData["Hero Image"] || null,
         "Classes Taught for Backend": teacherData["Classes Taught for Backend"] || null,
-        "Classes Taught": teacherData["Classes Taught"] || null,
+        "Classes Taught": convertClassesToRoman(teacherData["Classes Taught for Backend"]) || null, // always write computed value to DB
         "Link": whatsappLink,
         Subjects: teacherData.Subjects || null,
         "Mode of Teaching": teacherData["Mode of Teaching"] || null,

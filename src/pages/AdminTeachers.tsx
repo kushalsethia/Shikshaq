@@ -426,6 +426,8 @@ export default function AdminTeachers() {
           updateData[key] = formData[key as keyof TeacherData] ?? null;
         }
       });
+      // Always write auto-computed Classes Taught to DB so it is displayed everywhere
+      updateData["Classes Taught"] = convertClassesToRoman(formData["Classes Taught for Backend"] ?? null);
 
       const { error } = await supabase
         .from('Shikshaqmine')
