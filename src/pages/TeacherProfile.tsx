@@ -1138,10 +1138,9 @@ export default function TeacherProfile() {
           </div>
         )}
 
-        </div>
-
-        {/* Reviews Section - outside scroll area so it scrolls with page */}
+        {/* Reviews Section - inside scroll area so one continuous scroll on mobile */}
         {teacher && <TeacherComments teacherId={teacher.id} />}
+        </div>
       </main>
 
       {/* Sticky Contact via WhatsApp bar - fixed at bottom while scrolling */}
