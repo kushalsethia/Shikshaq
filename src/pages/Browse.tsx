@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKeywordExtractor';
+import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { useLikes } from '@/lib/likes-context';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
@@ -1118,6 +1119,17 @@ export default function Browse() {
     filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
     filters.placeOfTeaching.length > 0;
 
+  // Subjects in display order for Browse dropdowns (UI only)
+  const sortedSubjectsForDisplay = useMemo(() => {
+    return [...subjects].sort((a, b) => {
+      const i = SUBJECT_DISPLAY_ORDER.indexOf(a.name);
+      const j = SUBJECT_DISPLAY_ORDER.indexOf(b.name);
+      const orderA = i === -1 ? 9999 : i;
+      const orderB = j === -1 ? 9999 : j;
+      return orderA - orderB;
+    });
+  }, [subjects]);
+
   // Generate dynamic heading based on filters
   const getHeading = () => {
     // Priority: search query > subject/class/board filters
@@ -1257,7 +1269,7 @@ export default function Browse() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Subjects</SelectItem>
-                {subjects.map((subject) => (
+                {sortedSubjectsForDisplay.map((subject) => (
                   <SelectItem key={subject.id} value={subject.slug}>
                     {subject.name}
                   </SelectItem>
@@ -1322,7 +1334,7 @@ export default function Browse() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Subjects</SelectItem>
-                  {subjects.map((subject) => (
+                  {sortedSubjectsForDisplay.map((subject) => (
                     <SelectItem key={subject.id} value={subject.slug}>
                       {subject.name}
                     </SelectItem>

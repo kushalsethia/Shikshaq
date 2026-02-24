@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/sheet';
 import { X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 
 interface FilterPanelProps {
   open: boolean;
@@ -59,14 +60,8 @@ const MODE_OF_TEACHING = ['Online', 'Offline'];
 
 const PLACE_OF_TEACHING = ["Teacher's place", "Student's Home"];
 
-// Hardcoded subjects list (sorted alphabetically) - matches subjects table
-const SUBJECTS = [
-  'Accounts', 'ACT', 'AP', 'Bengali', 'Biology', 'Business Studies', 'CA', 'CAT', 'Chemistry',
-  'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
-  'Geography', 'Hindi', 'History & Civics', 'Home Science', 'JEE', 'Legal Studies', 'Maths',
-  'NEET', 'NMAT', 'Physics', 'Political Science', 'Psychology', 'SAT', 'Science',
-  'Sanskrit', 'Social Studies', 'Sociology'
-];
+// Subject list in display order for Browse page (advanced filters)
+const SUBJECTS = SUBJECT_DISPLAY_ORDER;
 
 export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onClearFilters }: FilterPanelProps) {
   const [isScrolled, setIsScrolled] = useState(false);
