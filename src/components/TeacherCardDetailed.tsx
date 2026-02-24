@@ -136,8 +136,8 @@ export function TeacherCardDetailed({
         })()}
       </div>
 
-      {/* View More Arrow and Upvote Button - align start so upvote is always visible */}
-      <div className="flex items-center gap-4 flex-shrink-0 self-start md:self-center">
+      {/* View More Arrow and Upvote Button - vertically centered */}
+      <div className="flex items-center gap-4 flex-shrink-0 self-center">
         {/* Upvote Button - Hidden on mobile (shown on image), visible on desktop */}
         <button
           onClick={handleUpvoteClick}
