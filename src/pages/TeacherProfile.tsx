@@ -1068,7 +1068,9 @@ export default function TeacherProfile() {
             {/* Additional Details Section - aligned with SUBJECTS and titles above */}
             {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.place_of_teaching || teacher.qualifications_etc || teacher.teaching_since || teacher.min_fees || teacher.max_fees) && (
               <div className="mt-8 md:mt-12">
-                <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">Here are some more details:</h3>
+                <div className="flex justify-center mb-4" aria-hidden>
+                  <span className="text-2xl font-light" style={{ color: '#FF7A00' }}>—</span>
+                </div>
                 <div className="rounded-2xl bg-orange-50/80 dark:bg-orange-950/20 border border-border/60 p-5 md:p-6">
                   <div className="grid grid-cols-2 gap-6 md:gap-8">
                 {teacher.boards_taught && (
