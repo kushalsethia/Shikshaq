@@ -12,7 +12,7 @@ const faqs = [
   },
   {
     question: 'Which classes/grades and boards do you support?',
-    answer: 'Shikshaq supports school students across CISCE, CBSE, IB, IGCSE, and State Boards, covering multiple classes and subjects.',
+    answer: 'Shikshaq caters to students across all school classes, from primary to senior secondary levels, under boards including CISCE, CBSE, IB, IGCSE, and State Boards. The platform also supports college students at the undergraduate level, along with learners preparing for various competitive examinations.',
   },
   {
     question: 'Which cities or localities do you currently cater to?',
@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     question: 'How do I find the right tutor on Shikshaq?',
-    answer: 'Use filters for subject, class, board, and locality. Check reviews, experience, and qualifications on each profile to confidently shortlist teachers.',
+    answer: 'You can use filters such as subject, class, board, and locality to narrow down your search. Review each teacher\'s experience, qualifications, and student feedback to further shortlist the right fit.',
   },
   {
     question: 'How do I contact a teacher through Shikshaq?',

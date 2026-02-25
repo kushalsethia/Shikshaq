@@ -669,10 +669,10 @@ export default function TeacherProfile() {
                 <img
                   src={teacher.image_url ? validateImageSrc(teacher.image_url) : ''}
                   alt={teacher.name}
-                  className="block w-full max-w-full max-h-[55vh] md:max-h-[min(75vh,520px)] w-auto h-auto object-contain rounded-t-2xl md:rounded-3xl"
+                  className="block w-full max-w-full max-h-[55vh] md:max-h-[min(75vh,520px)] w-auto h-auto object-contain rounded-2xl md:rounded-3xl"
                 />
               ) : (
-                <div className="w-full min-h-[220px] max-h-[55vh] md:min-h-[200px] md:max-h-[min(75vh,520px)] aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-t-2xl md:rounded-3xl">
+                <div className="w-full min-h-[220px] max-h-[55vh] md:min-h-[200px] md:max-h-[min(75vh,520px)] aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-2xl md:rounded-3xl">
                   <span className="text-6xl font-sans text-muted-foreground">
                     {teacher.name.charAt(0)}
                   </span>
@@ -819,7 +819,7 @@ export default function TeacherProfile() {
                   title="View students who have studied here"
                 >
                   <Users className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">View</span>
+                  <span>View</span>
                 </button>
               </div>
             )}
@@ -987,7 +987,7 @@ export default function TeacherProfile() {
                   {(isStudentsHomeOnly || isBothOptions) && studentsAreas.length > 0 && (
                     <div>
                       <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>
-                        Home to Home tutoring in
+                        HOME TO HOME TUTORING IN
                       </p>
                       <p className="font-sans text-base font-normal text-foreground leading-relaxed">
                         {studentsAreas.map((area, index) => (
@@ -1004,7 +1004,7 @@ export default function TeacherProfile() {
                   {(isTeachersHomeOnly || isBothOptions) && tutorsAreas.length > 0 && (
                     <div>
                       <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>
-                        Tuition Centres in
+                        TUITION CENTRES IN
                       </p>
                       <p className="font-sans text-base font-normal text-foreground leading-relaxed">
                         {tutorsAreas.map((area, index) => (
@@ -1021,59 +1021,56 @@ export default function TeacherProfile() {
             })()}
             </div>
 
-          </div>
-        </div>
+            {/* Little more about teacher section - aligned with SUBJECTS and titles above */}
+                {teacher.description && (
+              <div className="mt-8 md:mt-12">
+                <div className="h-0.5 w-full rounded-full mb-6" style={{ backgroundColor: '#FF7A00' }} aria-hidden />
+                <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">
+                  Little more about {(() => {
+                    const sirMaam = teacher.sir_maam;
+                    if (!sirMaam) return teacher.name;
+                    const sirMaamLower = String(sirMaam).toLowerCase().trim();
+                    if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
+                      return `${teacher.name} Sir`;
+                    }
+                    if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
+                      return `${teacher.name} Ma'am`;
+                    }
+                    return teacher.name;
+                  })()}
+                </h3>
+                <div
+                  className="prose prose-sm max-w-none text-foreground"
+                  dangerouslySetInnerHTML={{
+                    __html: (() => {
+                      const content = teacher.description || '';
+                      // Sanitize content to prevent XSS attacks
+                      let sanitizedContent: string;
+                      // If content contains HTML tags, sanitize it
+                      // Otherwise, convert line breaks to <br /> tags and sanitize
+                      if (/<[a-z][\s\S]*>/i.test(content)) {
+                        sanitizedContent = DOMPurify.sanitize(content, {
+                          ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+                          ALLOWED_ATTR: ['href', 'target', 'rel'],
+                        });
+                      } else {
+                        sanitizedContent = DOMPurify.sanitize(content.replace(/\n/g, '<br />'), {
+                          ALLOWED_TAGS: ['br'],
+                        });
+                      }
+                      return sanitizedContent;
+                    })()
+                  }}
+                />
+              </div>
+            )}
 
-        {/* Little more about teacher section */}
-        {teacher.description && (
-          <div className="mt-8 md:mt-12">
-            <div className="h-0.5 w-full rounded-full mb-6" style={{ backgroundColor: '#FF7A00' }} aria-hidden />
-            <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">
-              Little more about {(() => {
-                const sirMaam = teacher.sir_maam;
-                if (!sirMaam) return teacher.name;
-                const sirMaamLower = String(sirMaam).toLowerCase().trim();
-                if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
-                  return `${teacher.name} Sir`;
-                }
-                if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
-                  return `${teacher.name} Ma'am`;
-                }
-                return teacher.name;
-              })()}
-            </h3>
-            <div
-              className="prose prose-sm max-w-none text-foreground"
-              dangerouslySetInnerHTML={{
-                __html: (() => {
-                  const content = teacher.description || '';
-                  // Sanitize content to prevent XSS attacks
-                  let sanitizedContent: string;
-                  // If content contains HTML tags, sanitize it
-                  // Otherwise, convert line breaks to <br /> tags and sanitize
-                  if (/<[a-z][\s\S]*>/i.test(content)) {
-                    sanitizedContent = DOMPurify.sanitize(content, {
-                      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-                      ALLOWED_ATTR: ['href', 'target', 'rel'],
-                    });
-                  } else {
-                    sanitizedContent = DOMPurify.sanitize(content.replace(/\n/g, '<br />'), {
-                      ALLOWED_TAGS: ['br'],
-                    });
-                  }
-                  return sanitizedContent;
-                })()
-              }}
-            />
-          </div>
-        )}
-
-            {/* Additional Details Section - card layout like reference image */}
-        {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.place_of_teaching || teacher.qualifications_etc || teacher.teaching_since || teacher.min_fees || teacher.max_fees) && (
-          <div className="mt-8 md:mt-12">
-            <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">Here are some more details:</h3>
-            <div className="rounded-2xl bg-orange-50/80 dark:bg-orange-950/20 border border-border/60 p-5 md:p-6">
-              <div className="grid grid-cols-2 gap-6 md:gap-8">
+            {/* Additional Details Section - aligned with SUBJECTS and titles above */}
+            {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.place_of_teaching || teacher.qualifications_etc || teacher.teaching_since || teacher.min_fees || teacher.max_fees) && (
+              <div className="mt-8 md:mt-12">
+                <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">Here are some more details:</h3>
+                <div className="rounded-2xl bg-orange-50/80 dark:bg-orange-950/20 border border-border/60 p-5 md:p-6">
+                  <div className="grid grid-cols-2 gap-6 md:gap-8">
                 {teacher.boards_taught && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
@@ -1145,10 +1142,13 @@ export default function TeacherProfile() {
                     </p>
                   </div>
                 )}
+                </div>
               </div>
             </div>
+            )}
+
           </div>
-        )}
+        </div>
 
         {/* Reviews Section - inside scroll area so one continuous scroll on mobile */}
         {teacher && <TeacherComments teacherId={teacher.id} />}
