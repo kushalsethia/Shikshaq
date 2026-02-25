@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Share2, Copy, Check, Twitter, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { WhatsAppIcon, FacebookIcon, InstagramIcon } from '@/components/BrandIcons';
-import { toast } from 'sonner';
+import { WhatsAppIcon, FacebookIcon } from '@/components/BrandIcons';
 
 interface ShareButtonProps {
   url: string;
@@ -146,30 +145,6 @@ export function ShareButton({ url, title, description, className = '', iconSize 
     setShowMenu(false);
   };
 
-  const shareViaInstagramStory = async () => {
-    const urlToCopy = fullUrl.trim();
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(urlToCopy);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = urlToCopy;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      }
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      toast.info('Link copied! In Instagram: create a story → tap link sticker → paste.', { duration: 5000 });
-    } catch {
-      toast.error('Could not copy link. Try "Copy link" instead.');
-    }
-    setShowMenu(false);
-  };
-
   const handleNativeShare = async () => {
     if (navigator.share) {
       try {
@@ -294,15 +269,6 @@ export function ShareButton({ url, title, description, className = '', iconSize 
               >
                 <Twitter className="w-4 h-4" />
                 Share on Twitter
-              </Button>
-              
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-2"
-                onClick={shareViaInstagramStory}
-              >
-                <InstagramIcon className="w-4 h-4" />
-                Share to Instagram Story
               </Button>
               
               <Button
