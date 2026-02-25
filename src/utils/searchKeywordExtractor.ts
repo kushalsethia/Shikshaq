@@ -346,6 +346,10 @@ function normalizeText(text: string): string {
   return text.toLowerCase().trim();
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function extractFiltersFromQuery(query: string, subjects?: { name: string; slug: string }[]): Partial<FilterState> {
   if (!query || query.trim().length < 2) return {};
 
@@ -573,12 +577,20 @@ export function extractFiltersFromQuery(query: string, subjects?: { name: string
               continue;
             }
             
-            // Also check direct subject name matches from database
+            // Also check direct subject name matches from database.
+            // Require subject name/slug to be at least 4 chars when matching as substring of query,
+            // so "aparna" (a name) is not matched as subject "AP" (word.includes("ap")).
+            // Require word boundary when subject contains query so "social" matches "Social Studies" not "Sociology".
+            const MIN_SUBJECT_LENGTH_FOR_SUBSTRING = 4;
             if (subjects) {
+              const wordBoundary = new RegExp(`\\b${escapeRegex(word)}\\b`);
               const directSubjectMatch = subjects.find(s => {
                 const nameLower = s.name.toLowerCase();
                 const slug = s.slug.toLowerCase();
-                return nameLower === word || slug === word || nameLower.includes(word) || word.includes(nameLower);
+                const exactMatch = nameLower === word || slug === word;
+                const queryContainsSubject = (key: string) => key.length >= MIN_SUBJECT_LENGTH_FOR_SUBSTRING && word.includes(key);
+                const subjectContainsQueryAsWord = wordBoundary.test(nameLower) || wordBoundary.test(slug);
+                return exactMatch || subjectContainsQueryAsWord || queryContainsSubject(nameLower) || queryContainsSubject(slug);
               });
               if (directSubjectMatch && !extractedFilters.subjects!.includes(directSubjectMatch.name)) {
                 extractedFilters.subjects!.push(directSubjectMatch.name);

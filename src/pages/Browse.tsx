@@ -630,63 +630,68 @@ export default function Browse() {
           const matchingSlugs = recordsToFilter
             .filter((record: any) => {
               // Pre-compute lowercase values for this record once (inside loop but before checks)
-              const subjects = (record.Subjects || '').toLowerCase();
+              const subjectsRaw = (record.Subjects || '').toLowerCase();
+              // Match by whole subject tokens (comma-separated) so "AP" matches only subject AP, not "ap" in "Geography"
+              const subjectTokens = subjectsRaw.split(',').map((s: string) => s.trim()).filter(Boolean);
               const classesBackend = (record["Classes Taught for Backend"] || '').toLowerCase();
               const classesDisplay = (record["Classes Taught"] || '').toLowerCase();
-              const boards = (record["School Boards Catered"] || '').toLowerCase();
-              const classSize = (record["Class Size (Group/ Solo)"] || '').toLowerCase();
-              const areaData = (record.Area || record["AREAS FOR FILTERING"] || '').toLowerCase();
-              const mode = (record["Mode of Teaching"] || '').toLowerCase();
-              const placeOfTeaching = (record["Place of Teaching"] || '').toLowerCase();
+              // Tokenize comma- or slash-separated values so "IB" doesn't match inside "ICSE", "Park" doesn't match "Park Street", etc.
+              const tokenize = (s: string) => s.split(/\s*[,/]\s*/).map((x: string) => x.trim().toLowerCase()).filter(Boolean);
+              const boardTokens = tokenize(record["School Boards Catered"] || '');
+              const classSizeTokens = tokenize(record["Class Size (Group/ Solo)"] || '');
+              const areaTokens = tokenize(record.Area || record["AREAS FOR FILTERING"] || '');
+              const modeTokens = tokenize(record["Mode of Teaching"] || '');
+              const placeTokens = tokenize(record["Place of Teaching"] || '');
 
-              // Check subjects (includes both dropdown and advanced filter selections)
+              // Check subjects (match whole tokens only so AP does not match Geography)
               if (effectiveFilters.subjects.length > 0) {
                 const hasSubject = subjectFiltersLower.some(subjLower => {
+                  const tokenMatches = (token: string) => subjectTokens.includes(token);
+                  const tokenMatchesAny = (tokens: string[]) => tokens.some(t => subjectTokens.includes(t));
                   // Handle "Accountancy" matching "Accounts" in database for backward compatibility
                   if (subjLower === 'accountancy') {
-                    return subjects.includes('accountancy') || subjects.includes('accounts');
+                    return tokenMatchesAny(['accountancy', 'accounts']);
                   }
                   // Handle "Computers" matching "Computer" (singular/plural variants in DB)
                   if (subjLower === 'computers') {
-                    return subjects.includes('computers') || subjects.includes('computer');
+                    return tokenMatchesAny(['computers', 'computer']);
                   }
                   if (subjLower === 'computer') {
-                    return subjects.includes('computer');
+                    return tokenMatches('computer');
                   }
                   // Handle "Drawing & Painting" / "Drawing and Painting" / "Drawing" variants in DB
                   if (subjLower === 'drawing & painting' || subjLower === 'drawing and painting') {
-                    return subjects.includes('drawing & painting') || subjects.includes('drawing and painting') || subjects.includes('drawing');
+                    return tokenMatchesAny(['drawing & painting', 'drawing and painting', 'drawing']);
                   }
                   if (subjLower === 'drawing') {
-                    return subjects.includes('drawing');
+                    return tokenMatches('drawing');
                   }
-                  return subjects.includes(subjLower);
+                  return tokenMatches(subjLower);
                 });
                 if (!hasSubject) {
                   return false;
                 }
               }
 
-              // Check classes - optimized with pre-computed values
+              // Check classes - backend is token-based; display uses word boundary so "5" doesn't match "15"
               if (effectiveFilters.classes.length > 0) {
                 const hasClass = classFiltersLower.some(classLower => {
-                  // Check backend column (numeric values like "5,6,7,8")
                   if (classesBackend) {
                     const backendClasses = classesBackend.split(',').map(c => c.trim());
                     if (backendClasses.includes(classLower)) {
                       return true;
                     }
                   }
-                  
-                  // Fallback to display column (handles ranges like "Class V - X" or "Class 5-10")
                   if (classesDisplay) {
-                    return classesDisplay.includes(classLower) || 
-                           classesDisplay.includes(`class ${classLower}`) ||
+                    const escaped = classLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    if (new RegExp(`\\b${escaped}\\b`).test(classesDisplay)) {
+                      return true;
+                    }
+                    return classesDisplay.includes(`class ${classLower}`) ||
                            classesDisplay.includes(`class ${classLower} -`) ||
                            classesDisplay.includes(`- ${classLower}`) ||
                            classesDisplay.includes(`class ${classLower}-`);
                   }
-                  
                   return false;
                 });
                 if (!hasClass) {
@@ -694,53 +699,50 @@ export default function Browse() {
                 }
               }
 
-              // Check boards - optimized
+              // Check boards - whole tokens only (e.g. IB matches only "IB", not inside "ICSE")
               if (effectiveFilters.boards.length > 0) {
-                const hasBoard = boardFiltersLower.some(boardLower => 
-                  boards.includes(boardLower)
+                const hasBoard = boardFiltersLower.some(boardLower =>
+                  boardTokens.includes(boardLower)
                 );
                 if (!hasBoard) {
                   return false;
                 }
               }
 
-              // Check class size - optimized
+              // Check class size - whole tokens only (e.g. "Group" only as token, not substring)
               if (effectiveFilters.classSize.length > 0) {
-                const hasSize = classSizeFiltersLower.some(sizeLower => 
-                  classSize.includes(sizeLower)
+                const hasSize = classSizeFiltersLower.some(sizeLower =>
+                  classSizeTokens.includes(sizeLower)
                 );
                 if (!hasSize) {
                   return false;
                 }
               }
 
-              // Check areas - optimized
+              // Check areas - whole tokens only (e.g. "Park" only as token, not inside "Park Street")
               if (effectiveFilters.areas.length > 0) {
-                const hasArea = areaFiltersLower.some(areaLower => 
-                  areaData.includes(areaLower)
+                const hasArea = areaFiltersLower.some(areaLower =>
+                  areaTokens.includes(areaLower)
                 );
                 if (!hasArea) {
                   return false;
                 }
               }
 
-              // Check mode of teaching - optimized
+              // Check mode of teaching - whole tokens only
               if (effectiveFilters.modeOfTeaching.length > 0) {
-                const hasMode = modeFiltersLower.some(modeLower => 
-                  mode.includes(modeLower) || 
-                  mode.includes(modeLower + ' /') ||
-                  mode.includes('/ ' + modeLower) ||
-                  mode.includes(modeLower + '/')
+                const hasMode = modeFiltersLower.some(modeLower =>
+                  modeTokens.includes(modeLower)
                 );
                 if (!hasMode) {
                   return false;
                 }
               }
 
-              // Check place of teaching
+              // Check place of teaching - whole tokens only
               if (effectiveFilters.placeOfTeaching.length > 0) {
-                const hasPlace = placeFiltersLower.some(placeLower => 
-                  placeOfTeaching.includes(placeLower)
+                const hasPlace = placeFiltersLower.some(placeLower =>
+                  placeTokens.includes(placeLower)
                 );
                 if (!hasPlace) {
                   return false;

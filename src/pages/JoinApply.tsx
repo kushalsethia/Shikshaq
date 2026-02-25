@@ -779,9 +779,9 @@ export default function JoinApply() {
                   />
                 </div>
 
-                {/* Years Started Teaching */}
+                {/* Experience (years started teaching) */}
                 <div>
-                  <Label htmlFor="years_started_teaching">Years Started Teaching</Label>
+                  <Label htmlFor="years_started_teaching">Experience</Label>
                   <Input
                     id="years_started_teaching"
                     value={formData.years_started_teaching}

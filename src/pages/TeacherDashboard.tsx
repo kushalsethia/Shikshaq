@@ -1165,9 +1165,9 @@ export default function TeacherDashboard() {
                 />
               </div>
 
-              {/* Years they started teaching */}
+              {/* Experience (Years they started teaching) */}
               <div className="space-y-2">
-                <Label htmlFor="yearsStarted">Years they started teaching</Label>
+                <Label htmlFor="yearsStarted">Experience</Label>
                 <Input
                   id="yearsStarted"
                   value={teacherData["Years they started teaching"] || ''}

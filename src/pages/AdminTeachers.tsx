@@ -1023,9 +1023,9 @@ export default function AdminTeachers() {
                     />
                   </div>
 
-                  {/* Years they started teaching */}
+                  {/* Year they started teaching */}
                   <div>
-                    <Label htmlFor="yearsStarted">Years they started teaching</Label>
+                    <Label htmlFor="yearsStarted">Year they started teaching</Label>
                     <Input
                       id="yearsStarted"
                       value={formData["Years they started teaching"] || ''}
