@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, GraduationCap, Users } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, GraduationCap, Users, ThumbsUp } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
@@ -650,88 +650,99 @@ export default function TeacherProfile() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container pt-20 sm:pt-[120px] pb-24 md:pb-12 md:pt-12">
-        <Link
-          to={(location.state as { fromBrowse?: string })?.fromBrowse ?? '/all-tuition-teachers-in-kolkata'}
-          className="inline-flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors mb-6 md:mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to all teachers
-        </Link>
+      <main className="pt-[50px] md:pt-12 pb-24 md:pb-12">
+        {/* Desktop: back link above content (original layout) */}
+        <div className="container hidden md:block px-4">
+          <Link
+            to={(location.state as { fromBrowse?: string })?.fromBrowse ?? '/all-tuition-teachers-in-kolkata'}
+            className="inline-flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors mb-6 md:mb-8"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to all teachers
+          </Link>
+        </div>
 
-        {/* Mobile: use window scroll so Reviews and Footer are reachable. Desktop: normal flow. */}
-        <div className="min-h-0 overflow-x-hidden md:h-auto md:overflow-visible md:min-h-0">
-        <div className="grid md:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 min-w-0">
-          {/* Hero image - sticky below navbar on mobile so card scrolls over it; sticky in viewport on desktop */}
-          <div className="relative min-h-[220px] md:min-h-0 md:h-auto md:flex md:items-start min-w-0">
-            <div className="sticky top-20 sm:top-24 md:top-24 w-full md:w-fit md:max-w-full">
-              {teacher.image_url ? (
-                <img
-                  src={teacher.image_url ? validateImageSrc(teacher.image_url) : ''}
-                  alt={teacher.name}
-                  className="block w-full max-w-full max-h-[55vh] md:max-h-[min(75vh,520px)] w-auto h-auto object-contain rounded-2xl md:rounded-3xl"
+        {/* Container + grid on desktop; on mobile image is full-bleed then container for info */}
+        <div className="container px-0 md:px-4">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,400px)_1fr] md:gap-6 lg:gap-8 min-w-0">
+        {/* Image section: full width on mobile (break out), in grid on desktop with rounded corners */}
+        <section className="relative w-full min-h-[220px] max-h-[55vh] md:min-h-0 md:max-h-[min(75vh,520px)] rounded-b-[2rem] md:rounded-2xl md:rounded-3xl overflow-hidden w-screen max-w-none left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 md:w-full md:flex md:items-start">
+          <div className="md:sticky md:top-24 w-full md:w-full md:max-w-full">
+          {teacher.image_url ? (
+            <img
+              src={teacher.image_url ? validateImageSrc(teacher.image_url) : ''}
+              alt={teacher.name}
+              className="block w-full h-full min-h-[220px] max-h-[55vh] md:max-h-[min(75vh,520px)] object-cover object-top md:object-contain md:object-center"
+            />
+          ) : (
+            <div className="w-full min-h-[220px] max-h-[55vh] md:min-h-[200px] md:max-h-[min(75vh,520px)] aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center">
+              <span className="text-6xl font-sans text-muted-foreground">
+                {teacher.name.charAt(0)}
+              </span>
+            </div>
+          )}
+
+          {/* Back to all teachers on image - mobile only; desktop has link above */}
+          <Link
+            to={(location.state as { fromBrowse?: string })?.fromBrowse ?? '/all-tuition-teachers-in-kolkata'}
+            className="absolute top-8 left-3 sm:top-10 sm:left-4 md:hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/95 dark:bg-card/95 backdrop-blur-sm border border-border/80 shadow-md text-foreground hover:bg-white dark:hover:bg-card hover:shadow-lg transition-all font-medium text-xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to all teachers
+          </Link>
+
+          <div className="absolute top-20 right-4 sm:top-24 md:top-4 flex items-center gap-2">
+            {teacher.is_verified && (
+              <div className="bg-card/90 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
+                <BadgeCheck className="w-4 h-4 text-badge-science" />
+                <span className="text-sm font-medium">Verified</span>
+              </div>
+            )}
+          </div>
+          {/* Combined Heart and Share Buttons */}
+          <div className="absolute bottom-4 right-4 md:top-4 md:left-4 md:bottom-auto md:right-auto">
+            <div className="inline-flex items-center rounded-full border-2 border-border bg-card/90 backdrop-blur-sm overflow-hidden">
+              <div className="p-2 hover:bg-muted/80 transition-colors flex items-center">
+                <ShareButton
+                  url={`/tuition-teachers/${teacher.slug}`}
+                  title={`${teacher.name}${teacher.sir_maam ? ` ${teacher.sir_maam}` : ''}`}
+                  description={teacher.subjects_from_shikshaq || teacher.subjects?.name || 'Tuition Teacher'}
+                  className="[&>button]:!p-0 [&>button]:!bg-transparent [&>button]:hover:!bg-transparent [&>button]:!backdrop-blur-none"
+                  iconSize="md"
+                  menuWidth="md"
                 />
-              ) : (
-                <div className="w-full min-h-[220px] max-h-[55vh] md:min-h-[200px] md:max-h-[min(75vh,520px)] aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-2xl md:rounded-3xl">
-                  <span className="text-6xl font-sans text-muted-foreground">
-                    {teacher.name.charAt(0)}
-                  </span>
-                </div>
-              )}
-              <div className="absolute top-4 right-4 flex items-center gap-2">
-                {teacher.is_verified && (
-                  <div className="bg-card/90 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
-                    <BadgeCheck className="w-4 h-4 text-badge-science" />
-                    <span className="text-sm font-medium">Verified</span>
-                  </div>
-                )}
               </div>
-              {/* Combined Heart and Share Buttons - Bottom Right of Image */}
-              <div className="absolute bottom-4 right-4 md:top-4 md:left-4 md:bottom-auto md:right-auto">
-                <div className="inline-flex items-center rounded-full border-2 border-border bg-card/90 backdrop-blur-sm overflow-hidden">
-                  <div className="p-2 hover:bg-muted/80 transition-colors flex items-center">
-                    <ShareButton
-                      url={`/tuition-teachers/${teacher.slug}`}
-                      title={`${teacher.name}${teacher.sir_maam ? ` ${teacher.sir_maam}` : ''}`}
-                      description={teacher.subjects_from_shikshaq || teacher.subjects?.name || 'Tuition Teacher'}
-                      className="[&>button]:!p-0 [&>button]:!bg-transparent [&>button]:hover:!bg-transparent [&>button]:!backdrop-blur-none"
-                      iconSize="md"
-                      menuWidth="md"
-                    />
-                  </div>
 
-                  <button
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      if (!user) {
-                        navigate('/auth');
-                        return;
-                      }
-                      await toggleLike(teacher.id);
-                    }}
-                    className="p-2 hover:bg-muted/80 transition-colors flex items-center border-l border-border"
-                    aria-label={isLiked(teacher.id) ? 'Remove from favourites' : 'Add to favourites'}
-                  >
-                    <Heart
-                      className={`w-5 h-5 transition-colors ${
-                        isLiked(teacher.id)
-                          ? 'fill-red-500 text-red-500'
-                          : 'text-foreground/70'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
+              <button
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (!user) {
+                    navigate('/auth');
+                    return;
+                  }
+                  await toggleLike(teacher.id);
+                }}
+                className="p-2 hover:bg-muted/80 transition-colors flex items-center border-l border-border"
+                aria-label={isLiked(teacher.id) ? 'Remove from favourites' : 'Add to favourites'}
+              >
+                <Heart
+                  className={`w-5 h-5 transition-colors ${
+                    isLiked(teacher.id)
+                      ? 'fill-red-500 text-red-500'
+                      : 'text-foreground/70'
+                  }`}
+                />
+              </button>
             </div>
           </div>
+          </div>
+        </section>
 
-          {/* Info - no overlap with image to avoid blur; clear break between image and name */}
-          <div className="relative mt-4 md:mt-0 rounded-t-3xl md:rounded-none bg-background md:shadow-none pt-2 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0 z-10">
-            {/* Sheet handle - mobile only */}
-            <div className="flex justify-center md:hidden pt-1 pb-2" aria-hidden>
-              <div className="w-12 h-1 rounded-full bg-muted-foreground/40" />
-            </div>
-
+        {/* Info column */}
+        <div className="min-h-0 overflow-x-hidden md:h-auto md:overflow-visible md:min-h-0 mt-3 md:mt-0">
+        <div className="min-w-0">
+          {/* Info - clear break below hero image */}
+          <div className="relative rounded-t-3xl md:rounded-none bg-background md:shadow-none pt-0 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0 z-10">
             {/* Teacher Name and Upvote Button - Inline */}
             <div className="flex items-start justify-between gap-4 min-w-0">
               <h1 className="flex-1 min-w-0 text-3xl md:text-4xl lg:text-5xl font-sans font-semibold text-foreground break-words">
@@ -762,7 +773,11 @@ export default function TeacherProfile() {
                 className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-border bg-muted/50 hover:bg-muted transition-colors"
                 aria-label={isUpvoted(teacher.id) ? 'Remove upvote' : 'Upvote teacher'}
               >
-                <span className="text-lg leading-none" aria-hidden>👍</span>
+                <ThumbsUp
+                  className={`w-5 h-5 transition-colors ${
+                    isUpvoted(teacher.id) ? 'text-blue-500 fill-blue-500' : 'text-muted-foreground'
+                  }`}
+                />
                 <span className="text-sm font-semibold text-foreground">
                   {isUpvoted(teacher.id) ? 'Upvoted' : 'Upvote'}
                 </span>
@@ -1154,6 +1169,8 @@ export default function TeacherProfile() {
 
         {/* Reviews Section - inside scroll area so one continuous scroll on mobile */}
         {teacher && <TeacherComments teacherId={teacher.id} />}
+        </div>
+        </div>
         </div>
       </main>
 
