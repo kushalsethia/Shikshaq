@@ -1,10 +1,10 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { Navbar } from '@/components/Navbar';
 import { SearchBar } from '@/components/SearchBar';
-import { TeacherCardDetailed } from '@/components/TeacherCardDetailed';
+import { TeacherCardDetailed, type TeacherCardDetailedProps } from '@/components/TeacherCardDetailed';
 import { TeacherCard } from '@/components/TeacherCard';
 import { Footer } from '@/components/Footer';
 import { FilterPanel, FilterState } from '@/components/FilterPanel';
@@ -69,6 +69,9 @@ export default function Browse() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Preserve current browse URL (with filters) so "Back to all teachers" from profile can return here
+  const returnToBrowseUrl = location.pathname + location.search;
 
   // Check if user has a role - redirect to role selection if not
   // Also check if teacher has agreed to terms
@@ -1419,20 +1422,19 @@ export default function Browse() {
                 ? allSubjects.split(',').map(s => s.trim()).filter(Boolean).slice(0, 5).join(', ')
                 : '';
 
-              return (
-                <TeacherCardDetailed
-                  key={teacher.id}
-                  id={teacher.id}
-                  name={teacher.name}
-                  slug={teacher.slug}
-                  imageUrl={teacher.image_url}
-                  subjects={displaySubjects}
-                  classes={teacher.classes_taught}
-                  area={(teacher as any).area}
-                  sirMaam={(teacher as any).sir_maam}
-                  index={index}
-                />
-              );
+              const cardProps: TeacherCardDetailedProps = {
+                id: teacher.id,
+                name: teacher.name,
+                slug: teacher.slug,
+                imageUrl: teacher.image_url ?? undefined,
+                subjects: displaySubjects,
+                classes: teacher.classes_taught ?? undefined,
+                area: (teacher as { area?: string | null }).area ?? null,
+                sirMaam: (teacher as { sir_maam?: string | null }).sir_maam ?? null,
+                index,
+                returnToBrowseUrl,
+              };
+              return <TeacherCardDetailed key={teacher.id} {...cardProps} />;
             })}
             
             {/* Infinite scroll loading indicator */}

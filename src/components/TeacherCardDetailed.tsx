@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useNavigate } from 'react-router-dom';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 
-interface TeacherCardDetailedProps {
+export interface TeacherCardDetailedProps {
   id: string;
   name: string;
   slug: string;
@@ -15,6 +15,8 @@ interface TeacherCardDetailedProps {
   area?: string | null; // Area from Shikshaqmine (comma-separated)
   sirMaam?: string | null; // Sir/Ma'am from Shikshaqmine
   index?: number; // For staggered entrance animation
+  /** When set, passed as state so profile "Back to all teachers" returns to this URL (preserves filters) */
+  returnToBrowseUrl?: string;
 }
 
 // Helper function to format name with Sir/Ma'am
@@ -39,7 +41,8 @@ export function TeacherCardDetailed({
   classes,
   area,
   sirMaam,
-  index = 0
+  index = 0,
+  returnToBrowseUrl
 }: TeacherCardDetailedProps) {
   const displayName = formatTeacherName(name, sirMaam);
   const { user } = useAuth();
@@ -68,6 +71,7 @@ export function TeacherCardDetailed({
   return (
     <Link
       to={`/tuition-teachers/${slug}`}
+      state={returnToBrowseUrl ? { fromBrowse: returnToBrowseUrl } : undefined}
       className="group flex gap-3 bg-card rounded-2xl p-1.5 border border-border hover:shadow-lg transition-all duration-150 active:scale-[0.97] animate-card-reveal opacity-0 min-w-0"
       style={{ animationDelay: `${delay}ms` }}
     >

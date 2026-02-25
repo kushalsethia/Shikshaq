@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -73,6 +73,7 @@ export default function TeacherProfile() {
   const { isStudyingWith, toggleStudiesWith } = useStudiesWith();
   const [userRole, setUserRole] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const [studentsDialogOpen, setStudentsDialogOpen] = useState(false);
   const [studentsList, setStudentsList] = useState<Array<{ id: string; full_name: string | null; school_college: string | null; grade: string | null }>>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -651,7 +652,7 @@ export default function TeacherProfile() {
 
       <main className="container pt-20 sm:pt-[120px] pb-24 md:pb-12 md:pt-12">
         <Link
-          to="/all-tuition-teachers-in-kolkata"
+          to={(location.state as { fromBrowse?: string })?.fromBrowse ?? '/all-tuition-teachers-in-kolkata'}
           className="inline-flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors mb-6 md:mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
