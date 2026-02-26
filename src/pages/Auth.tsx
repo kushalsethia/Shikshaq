@@ -65,13 +65,31 @@ export default function Auth() {
   } = useAuth();
   const navigate = useNavigate();
 
+  const REDIRECT_STORAGE_KEY = 'auth_redirect_path';
+
   // Safe redirect: only allow same-origin paths (no //, no protocol)
-  const getRedirectPath = () => {
+  const isValidRedirect = (path: string | null): path is string => {
+    return !!path && path.startsWith('/') && !path.startsWith('//');
+  };
+
+  // Get redirect path from URL param or sessionStorage (URL param takes priority)
+  const getRedirectPath = (): string | null => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromUrl = urlParams.get('redirect');
+    if (isValidRedirect(fromUrl)) return fromUrl;
+    const fromStorage = sessionStorage.getItem(REDIRECT_STORAGE_KEY);
+    if (isValidRedirect(fromStorage)) return fromStorage;
+    return null;
+  };
+
+  // Persist redirect path to sessionStorage so it survives OAuth round-trips
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const redirect = urlParams.get('redirect');
-    if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//')) return null;
-    return redirect;
-  };
+    if (isValidRedirect(redirect)) {
+      sessionStorage.setItem(REDIRECT_STORAGE_KEY, redirect);
+    }
+  }, []);
 
   // Handle OAuth callback and redirect if authenticated
   useEffect(() => {
@@ -104,8 +122,7 @@ export default function Auth() {
       const errorDescription = hashParams.get('error_description') || 'Authentication failed';
       toast.error(`Authentication Error: ${errorDescription}`);
       setProcessingOAuth(false);
-      // Clean up the hash but preserve query params (e.g. ?redirect=)
-      window.history.replaceState(null, '', `/auth${window.location.search}`);
+      window.history.replaceState(null, '', '/auth');
       return;
     }
     
@@ -122,9 +139,8 @@ export default function Auth() {
             .eq('id', user.id)
             .maybeSingle();
 
-          // Clean up hash if present but preserve query params (e.g. ?redirect=)
           if (window.location.hash && !showResetPassword) {
-            window.history.replaceState(null, '', `/auth${window.location.search}`);
+            window.history.replaceState(null, '', '/auth');
           }
 
           if (error) {
@@ -143,6 +159,7 @@ export default function Auth() {
             navigate(to, { replace: true });
           } else {
             // Profile exists with role and terms agreed (if teacher) - redirect back or home
+            sessionStorage.removeItem(REDIRECT_STORAGE_KEY);
             navigate(redirectParam || '/', { replace: true });
           }
         } catch (error) {
@@ -167,7 +184,7 @@ export default function Auth() {
         if (!user) {
           setProcessingOAuth(false);
           toast.error('Authentication timed out. Please try again.');
-          window.history.replaceState(null, '', `/auth${window.location.search}`);
+          window.history.replaceState(null, '', '/auth');
         }
       }, 3000);
       return () => clearTimeout(waitTimer);
