@@ -66,28 +66,50 @@ export default function Auth() {
   const navigate = useNavigate();
 
   const REDIRECT_STORAGE_KEY = 'auth_redirect_path';
+  const REDIRECT_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-  // Safe redirect: only allow same-origin paths (no //, no protocol)
   const isValidRedirect = (path: string | null): path is string => {
     return !!path && path.startsWith('/') && !path.startsWith('//');
   };
 
-  // Get redirect path from URL param or sessionStorage (URL param takes priority)
+  const saveRedirectPath = (path: string) => {
+    try {
+      localStorage.setItem(REDIRECT_STORAGE_KEY, JSON.stringify({ path, ts: Date.now() }));
+    } catch { /* storage full or blocked */ }
+  };
+
+  const loadRedirectPath = (): string | null => {
+    try {
+      const raw = localStorage.getItem(REDIRECT_STORAGE_KEY);
+      if (!raw) return null;
+      const { path, ts } = JSON.parse(raw);
+      if (Date.now() - ts > REDIRECT_TTL_MS) {
+        localStorage.removeItem(REDIRECT_STORAGE_KEY);
+        return null;
+      }
+      return isValidRedirect(path) ? path : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const clearRedirectPath = () => {
+    try { localStorage.removeItem(REDIRECT_STORAGE_KEY); } catch { /* ok */ }
+  };
+
   const getRedirectPath = (): string | null => {
     const urlParams = new URLSearchParams(window.location.search);
     const fromUrl = urlParams.get('redirect');
     if (isValidRedirect(fromUrl)) return fromUrl;
-    const fromStorage = sessionStorage.getItem(REDIRECT_STORAGE_KEY);
-    if (isValidRedirect(fromStorage)) return fromStorage;
-    return null;
+    return loadRedirectPath();
   };
 
-  // Persist redirect path to sessionStorage so it survives OAuth round-trips
+  // Save redirect path to localStorage on mount so it survives the full OAuth round-trip
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const redirect = urlParams.get('redirect');
     if (isValidRedirect(redirect)) {
-      sessionStorage.setItem(REDIRECT_STORAGE_KEY, redirect);
+      saveRedirectPath(redirect);
     }
   }, []);
 
@@ -159,7 +181,7 @@ export default function Auth() {
             navigate(to, { replace: true });
           } else {
             // Profile exists with role and terms agreed (if teacher) - redirect back or home
-            sessionStorage.removeItem(REDIRECT_STORAGE_KEY);
+            clearRedirectPath();
             navigate(redirectParam || '/', { replace: true });
           }
         } catch (error) {
