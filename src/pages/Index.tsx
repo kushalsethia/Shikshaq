@@ -1,16 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowRight,
-  BookOpen,
-  Calculator,
-  Pipette,
-  Brain,
-  Coins,
-  Dna,
-  Laptop,
-  BookMarked,
-} from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { SearchBar } from '@/components/SearchBar';
@@ -29,23 +19,20 @@ import {
 } from '@/components/ui/carousel';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache, getUserProfileCacheKey } from '@/utils/cache';
 
-const ICON_CLASS = 'w-10 h-10 text-[#228B22]'; // Forest green to match site accent
+// Larger Unicode emoji for subject cards (free to use, rendered by user’s device)
+const EMOJI_WRAPPER = 'flex items-center justify-center min-w-[4rem] min-h-[4rem] text-5xl leading-none select-none';
 const subjectIconMap: Record<string, React.ReactNode> = {
-  Chemistry: <Pipette className={ICON_CLASS} />,
-  Hindi: (
-    <span className={`flex items-center justify-center ${ICON_CLASS} text-4xl font-medium leading-none`} aria-hidden>
-      अ
-    </span>
-  ),
-  English: <BookOpen className={ICON_CLASS} />,
-  Maths: <Calculator className={ICON_CLASS} />,
-  Mathematics: <Calculator className={ICON_CLASS} />,
-  Psychology: <Brain className={ICON_CLASS} />,
-  Economics: <Coins className={ICON_CLASS} />,
-  Biology: <Dna className={ICON_CLASS} />,
-  Computers: <Laptop className={ICON_CLASS} />,
-  Computer: <Laptop className={ICON_CLASS} />,
-  Accounts: <BookMarked className={ICON_CLASS} />,
+  Chemistry: <span className={EMOJI_WRAPPER} aria-hidden>🧪</span>,
+  Hindi: <span className={EMOJI_WRAPPER} aria-hidden>📖</span>,
+  English: <span className={EMOJI_WRAPPER} aria-hidden>📚</span>,
+  Maths: <span className={EMOJI_WRAPPER} aria-hidden>🔢</span>,
+  Mathematics: <span className={EMOJI_WRAPPER} aria-hidden>🔢</span>,
+  Psychology: <span className={EMOJI_WRAPPER} aria-hidden>🧠</span>,
+  Economics: <span className={EMOJI_WRAPPER} aria-hidden>💰</span>,
+  Biology: <span className={EMOJI_WRAPPER} aria-hidden>🧬</span>,
+  Computers: <span className={EMOJI_WRAPPER} aria-hidden>💻</span>,
+  Computer: <span className={EMOJI_WRAPPER} aria-hidden>💻</span>,
+  Accounts: <span className={EMOJI_WRAPPER} aria-hidden>📒</span>,
 };
 
 
@@ -513,11 +500,11 @@ export default function Index() {
               <Carousel
                 opts={{
                   align: "start",
-                  loop: true,
-                  dragFree: true, // Enable free dragging for smoother swipe
+                  loop: false,
+                  dragFree: true,
                   containScroll: "trimSnaps",
                   slidesToScroll: "auto",
-                  watchDrag: true, // Enable mouse drag
+                  watchDrag: true,
                 }}
                 className="w-full overflow-visible"
               >
@@ -588,7 +575,7 @@ export default function Index() {
                   key={subject.id}
                   name={subject.name}
                   slug={subject.slug}
-                  iconComponent={subjectIconMap[subject.name] ?? <BookOpen className={ICON_CLASS} />}
+                  iconComponent={subjectIconMap[subject.name] ?? <span className={EMOJI_WRAPPER} aria-hidden>📚</span>}
                   index={index}
                   isVisible={true}
                 />
