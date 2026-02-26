@@ -10,6 +10,7 @@ import { MessageCircle, Send, User, Clock, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { validateImageSrc } from '@/utils/imageSanitizer';
+import { saveAuthRedirect } from '@/utils/authRedirect';
 
 interface Comment {
   id: string;
@@ -428,7 +429,10 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
             <Button
               variant="link"
               className="p-0 h-auto text-foreground underline"
-              onClick={() => navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`)}
+              onClick={() => {
+                saveAuthRedirect(location.pathname);
+                navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
+              }}
             >
               Sign in
             </Button>

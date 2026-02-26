@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 import { Logo } from '@/components/Logo';
+import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
 
 const emailSchema = z.string().email('Please enter a valid email');
 const passwordSchema = z.string()
@@ -65,81 +66,35 @@ export default function Auth() {
   } = useAuth();
   const navigate = useNavigate();
 
-  const REDIRECT_STORAGE_KEY = 'auth_redirect_path';
-  const REDIRECT_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-  const isValidRedirect = (path: string | null): path is string => {
-    return !!path && path.startsWith('/') && !path.startsWith('//');
-  };
-
-  const saveRedirectPath = (path: string) => {
-    try {
-      localStorage.setItem(REDIRECT_STORAGE_KEY, JSON.stringify({ path, ts: Date.now() }));
-    } catch { /* storage full or blocked */ }
-  };
-
-  const loadRedirectPath = (): string | null => {
-    try {
-      const raw = localStorage.getItem(REDIRECT_STORAGE_KEY);
-      if (!raw) return null;
-      const { path, ts } = JSON.parse(raw);
-      if (Date.now() - ts > REDIRECT_TTL_MS) {
-        localStorage.removeItem(REDIRECT_STORAGE_KEY);
-        return null;
-      }
-      return isValidRedirect(path) ? path : null;
-    } catch {
-      return null;
-    }
-  };
-
-  const clearRedirectPath = () => {
-    try { localStorage.removeItem(REDIRECT_STORAGE_KEY); } catch { /* ok */ }
-  };
-
-  const getRedirectPath = (): string | null => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const fromUrl = urlParams.get('redirect');
-    if (isValidRedirect(fromUrl)) return fromUrl;
-    return loadRedirectPath();
-  };
-
-  // Save redirect path to localStorage on mount so it survives the full OAuth round-trip
+  // Save redirect on mount (backup — primary save happens at the click source)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const redirect = urlParams.get('redirect');
-    if (isValidRedirect(redirect)) {
-      saveRedirectPath(redirect);
+    if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
+      saveAuthRedirect(redirect);
     }
   }, []);
 
   // Handle OAuth callback and redirect if authenticated
   useEffect(() => {
-    // Check for password reset in URL params
     const urlParams = new URLSearchParams(window.location.search);
-    const redirectParam = getRedirectPath();
     const resetType = urlParams.get('type');
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const hasAccessToken = hashParams.get('access_token');
     
-    // If we have a reset-password type and access token, show reset password form
     if (resetType === 'reset-password' && hasAccessToken) {
       setShowResetPassword(true);
       setIsLogin(true);
-      setShowEmailForm(true); // Show email form view for password reset
-      // Don't redirect - let user set new password
+      setShowEmailForm(true);
       return;
     }
 
-    // Check for OAuth callback in hash
     const hasError = hashParams.get('error');
     
-    // Set processing state if we have an OAuth callback
     if (hasAccessToken && !showResetPassword) {
       setProcessingOAuth(true);
     }
     
-    // If there's an error in the hash, show it
     if (hasError) {
       const errorDescription = hashParams.get('error_description') || 'Authentication failed';
       toast.error(`Authentication Error: ${errorDescription}`);
@@ -148,12 +103,13 @@ export default function Auth() {
       return;
     }
     
-    // If user becomes authenticated (from OAuth or email/password) and not resetting password
     if (!authLoading && user && !showResetPassword) {
       setProcessingOAuth(false);
       
-      // Check if user has a profile
       const checkProfile = async () => {
+        // Read redirect at the latest possible moment, right before navigating
+        const redirectTo = getAuthRedirect();
+
         try {
           const { data: profile, error } = await supabase
             .from('profiles')
@@ -172,36 +128,28 @@ export default function Auth() {
           }
 
           if (!profile || !profile.role) {
-            // No profile found or no role set - redirect to role selection (preserve return URL)
-            const to = redirectParam ? `/select-role?redirect=${encodeURIComponent(redirectParam)}` : '/select-role';
+            const to = redirectTo ? `/select-role?redirect=${encodeURIComponent(redirectTo)}` : '/select-role';
             navigate(to, { replace: true });
           } else if (profile.role === 'teacher' && profile.terms_agreement !== true) {
-            // Teacher needs to agree to terms (preserve return URL)
-            const to = redirectParam ? `/teacher-terms-agreement?redirect=${encodeURIComponent(redirectParam)}` : '/teacher-terms-agreement';
+            const to = redirectTo ? `/teacher-terms-agreement?redirect=${encodeURIComponent(redirectTo)}` : '/teacher-terms-agreement';
             navigate(to, { replace: true });
           } else {
-            // Profile exists with role and terms agreed (if teacher) - redirect back or home
-            clearRedirectPath();
-            navigate(redirectParam || '/', { replace: true });
+            clearAuthRedirect();
+            navigate(redirectTo || '/', { replace: true });
           }
         } catch (error) {
           if (import.meta.env.DEV) {
             console.error('Error checking profile:', error);
           }
-          // On error, redirect to role selection to be safe (preserve return URL if present)
-          const redirectParam = getRedirectPath();
-          const to = redirectParam ? `/select-role?redirect=${encodeURIComponent(redirectParam)}` : '/select-role';
+          const to = redirectTo ? `/select-role?redirect=${encodeURIComponent(redirectTo)}` : '/select-role';
           navigate(to, { replace: true });
         }
       };
 
-      // Small delay to ensure session is fully processed
       setTimeout(checkProfile, hasAccessToken ? 500 : 200);
     }
     
-    // If we have an access token but user isn't set yet, wait a bit more
     if (hasAccessToken && authLoading && !showResetPassword) {
-      // Give Supabase more time to process the session (max 3 seconds)
       const waitTimer = setTimeout(() => {
         if (!user) {
           setProcessingOAuth(false);

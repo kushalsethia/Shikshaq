@@ -24,6 +24,7 @@ import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmi
 import DOMPurify from 'dompurify';
 import { toast } from 'sonner';
 import { validateImageSrc } from '@/utils/imageSanitizer';
+import { saveAuthRedirect } from '@/utils/authRedirect';
 
 
 interface Teacher {
@@ -717,6 +718,7 @@ export default function TeacherProfile() {
                 onClick={async (e) => {
                   e.preventDefault();
                   if (!user) {
+                    saveAuthRedirect(location.pathname);
                     navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
                     return;
                   }
@@ -765,6 +767,7 @@ export default function TeacherProfile() {
                 onClick={async (e) => {
                   e.preventDefault();
                   if (!user) {
+                    saveAuthRedirect(location.pathname);
                     navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
                     return;
                   }
@@ -797,6 +800,7 @@ export default function TeacherProfile() {
                     e.preventDefault();
                     // If user is not authenticated, redirect to auth
                     if (!user) {
+                      saveAuthRedirect(location.pathname);
                       navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
                       return;
                     }
@@ -1197,7 +1201,10 @@ export default function TeacherProfile() {
             ) : (
               <Button
                 className="w-full gap-3 py-6 text-lg font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all"
-                onClick={() => navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`)}
+                onClick={() => {
+                  saveAuthRedirect(location.pathname);
+                  navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
+                }}
               >
                 <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
                 Sign in to contact
