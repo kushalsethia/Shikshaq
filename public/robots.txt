@@ -1,7 +1,27 @@
-User-agent: *
-Allow: /static/
-Allow: /css/
-Allow: /js/
-Allow: /*.pdf
+# robots.txt for shikshaq.in
+# Last updated: 2026-02-26
 
+User-agent: *
+Allow: /
+
+# Block private/authenticated pages
+Disallow: /auth
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /dashboard/*
+Disallow: /select-role
+Disallow: /teacher-terms-agreement
+Disallow: /signup-success
+Disallow: /liked-teachers
+Disallow: /my-teachers
+
+# Block deprecated/redirect routes
+Disallow: /help
+Disallow: /teacher/
+Disallow: /404
+
+# Block API endpoints
+Disallow: /api/
+
+# Sitemap
 Sitemap: https://www.shikshaq.in/sitemap.xml
