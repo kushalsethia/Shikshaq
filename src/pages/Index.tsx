@@ -42,6 +42,8 @@ interface Teacher {
   slug: string;
   image_url: string | null;
   subjects: { name: string; slug: string } | null;
+  // Optional label for the green featured-subject tag on the homepage carousel
+  featuredSubjectLabel?: string | null;
 }
 
 interface Subject {
@@ -303,9 +305,10 @@ export default function Index() {
           }
         }
 
-        // Fetch Sir/Ma'am and Subjects data from Shikshaqmine table
+        // Fetch Sir/Ma'am, Featured Subject, and Subjects data from Shikshaqmine table
         const sirMaamMap = new Map();
         const subjectsMap = new Map<string, string>(); // slug -> first subject name
+        const featuredSubjectMap = new Map<string, string>(); // slug -> featured subject label
         if (teachersData.length > 0) {
           const teacherSlugs = teachersData.map((t: any) => t.slug).filter(Boolean);
           if (teacherSlugs.length > 0) {
@@ -316,12 +319,20 @@ export default function Index() {
           
             if (shikshaqData) {
               shikshaqData.forEach((record: any) => {
-                sirMaamMap.set(record.Slug, record["Sir/Ma'am?"]);
+                const slug = record.Slug;
+                sirMaamMap.set(slug, record["Sir/Ma'am?"]);
+
+                // Featured Subject: explicit featured subject for homepage badge
+                const featured = record["Featured Subject"];
+                if (featured != null && String(featured).trim() !== '') {
+                  featuredSubjectMap.set(slug, String(featured).trim());
+                }
+
                 // Extract first subject from comma-separated Subjects field
                 if (record.Subjects) {
                   const firstSubject = record.Subjects.split(',')[0].trim();
                   if (firstSubject) {
-                    subjectsMap.set(record.Slug, firstSubject);
+                    subjectsMap.set(slug, firstSubject);
                   }
                 }
               });
@@ -367,11 +378,32 @@ export default function Index() {
                 }
               }
             }
-            
-            // Add Sir/Ma'am data
+
+            // Decide which subject label to show in the green featured badge:
+            // 1) Featured Subject from Shikshaqmine (if set)
+            // 2) First subject from Shikshaqmine.Subjects
+            // 3) Subject from subjects relationship / fallback
+            const slug = teacher.slug;
+            const featuredFromShikshaq = featuredSubjectMap.get(slug);
+            let featuredSubjectLabel: string | null = null;
+            if (featuredFromShikshaq && featuredFromShikshaq.trim() !== '') {
+              featuredSubjectLabel = featuredFromShikshaq;
+            } else {
+              const firstSubjectName = subjectsMap.get(slug);
+              if (firstSubjectName && firstSubjectName.trim() !== '') {
+                featuredSubjectLabel = firstSubjectName;
+              } else if (teacherWithSubject.subjects?.name) {
+                featuredSubjectLabel = teacherWithSubject.subjects.name;
+              } else {
+                featuredSubjectLabel = null;
+              }
+            }
+
+            // Add Sir/Ma'am data and the featured subject label for the homepage badge
             return {
               ...teacherWithSubject,
-              sir_maam: sirMaamMap.get(teacher.slug) || null
+              sir_maam: sirMaamMap.get(teacher.slug) || null,
+              featuredSubjectLabel,
             };
           });
 
@@ -528,7 +560,8 @@ export default function Index() {
                         id={teacher.id}
                         name={teacher.name}
                         slug={teacher.slug}
-                        subject={teacher.subjects?.name || 'Tuition Teacher'}
+                        // For featured carousel: use Featured Subject from Shikshaqmine, or fall back to first subject / relationship
+                        subject={(teacher as any).featuredSubjectLabel || teacher.subjects?.name || 'Tuition Teacher'}
                         subjectSlug={teacher.subjects?.slug}
                         imageUrl={teacher.image_url}
                         isFeatured={true}
