@@ -200,7 +200,7 @@ export default function Auth() {
         }
         setLoading(false);
       } else {
-        toast.success('Account created successfully! Please check your email to verify your account.');
+        toast.success('Account created successfully! Please check your email to verify your account. If you don\'t see it, check your Spam or Junk folder.');
         // Reset form
         setFormData({ fullName: '', email: '', password: '', confirmPassword: '' });
         setErrors({});
