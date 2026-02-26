@@ -44,7 +44,7 @@ export function HowItWorks() {
                 />
               </div>
               <div className="flex items-center gap-3 mb-3">
-                <div className="bg-[#4351FF] text-white rounded-full w-12 h-12 md:w-14 md:h-14 flex-shrink-0 flex items-center justify-center font-sans font-bold text-lg md:text-xl">
+                <div className="bg-[#228B22] text-white rounded-full w-12 h-12 md:w-14 md:h-14 flex-shrink-0 flex items-center justify-center font-sans font-bold text-lg md:text-xl">
                   {step.number}
                 </div>
                 <h3 className="text-lg md:text-xl font-sans font-semibold text-[#1F1F1F]">

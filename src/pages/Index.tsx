@@ -1,6 +1,16 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import {
+  ArrowRight,
+  BookOpen,
+  Calculator,
+  Pipette,
+  Brain,
+  Coins,
+  Dna,
+  Laptop,
+  BookMarked,
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { SearchBar } from '@/components/SearchBar';
@@ -19,30 +29,23 @@ import {
 } from '@/components/ui/carousel';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache, getUserProfileCacheKey } from '@/utils/cache';
 
-// Subject icon imports
-import iconPsychology from '@/assets/PSYCHOLOGY.png';
-import iconEconomics from '@/assets/ECONOMICS.png';
-import iconEnglish from '@/assets/ENGLISH.png';
-import iconBiology from '@/assets/BIOLOGY.png';
-import iconComputers from '@/assets/COMPUTERS.png';
-import iconDrawing from '@/assets/DRAWING.png';
-import iconAccounts from '@/assets/ACCOUNTS.png';
-import iconBengali from '@/assets/BENGALI.png';
-import iconMaths from '@/assets/MATHS.png';
-
-const subjectIconMap: Record<string, string> = {
-  'Psychology': iconPsychology,
-  'Economics': iconEconomics,
-  'English': iconEnglish,
-  'Biology': iconBiology,
-  'Computers': iconComputers,
-  'Computer': iconComputers,
-  'Drawing': iconDrawing,
-  'Drawing & Painting': iconDrawing,
-  'Accounts': iconAccounts,
-  'Bengali': iconBengali,
-  'Maths': iconMaths,
-  'Mathematics': iconMaths,
+const ICON_CLASS = 'w-10 h-10 text-[#228B22]'; // Forest green to match site accent
+const subjectIconMap: Record<string, React.ReactNode> = {
+  Chemistry: <Pipette className={ICON_CLASS} />,
+  Hindi: (
+    <span className={`flex items-center justify-center ${ICON_CLASS} text-4xl font-medium leading-none`} aria-hidden>
+      अ
+    </span>
+  ),
+  English: <BookOpen className={ICON_CLASS} />,
+  Maths: <Calculator className={ICON_CLASS} />,
+  Mathematics: <Calculator className={ICON_CLASS} />,
+  Psychology: <Brain className={ICON_CLASS} />,
+  Economics: <Coins className={ICON_CLASS} />,
+  Biology: <Dna className={ICON_CLASS} />,
+  Computers: <Laptop className={ICON_CLASS} />,
+  Computer: <Laptop className={ICON_CLASS} />,
+  Accounts: <BookMarked className={ICON_CLASS} />,
 };
 
 
@@ -229,8 +232,8 @@ export default function Index() {
         const featuredCacheKey = 'featured_teachers_index';
         const cachedFeatured = getCache<any[]>(featuredCacheKey);
         
-        // Check cache for subjects
-        const subjectsCacheKey = 'subjects_index';
+        // Check cache for subjects (key bumped when home subject list changes, e.g. Chemistry/Hindi)
+        const subjectsCacheKey = 'subjects_index_v2';
         const cachedSubjects = getCache<any[]>(subjectsCacheKey);
         
         // If both are cached, use them and return early
@@ -242,9 +245,8 @@ export default function Index() {
         }
         
         // Fetch teachers by upvotes (top 16) and subjects in parallel
-        // Fetch specific subjects: Bengali, Maths, Drawing & Painting, Psychology, Computers, Accounts, Biology, Economics
-        // Include both "Drawing" and "Drawing & Painting", "Computer" and "Computers" for backward compatibility
-        const desiredSubjects = ['Bengali', 'English', 'Maths', 'Mathematics', 'Drawing', 'Drawing & Painting', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
+        // Fetch specific subjects: Chemistry, Hindi, English, Maths, Psychology, Computers, Accounts, Biology, Economics
+        const desiredSubjects = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
         const [subjectsRes, upvotesRes] = await Promise.all([
           cachedSubjects ? Promise.resolve({ data: cachedSubjects, error: null }) :
           supabase
@@ -385,16 +387,12 @@ export default function Index() {
 
         if (subjectsRes.data) {
           // Order by desired sequence (include both naming variants for backward compatibility)
-          const desiredOrder = ['Bengali', 'English', 'Maths', 'Mathematics', 'Drawing', 'Drawing & Painting', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
-          // Deduplicate subjects that are variants of the same thing (e.g., "Computer" and "Computers")
+          const desiredOrder = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
           const seen = new Set<string>();
           const filteredSubjects = subjectsRes.data
             .filter((subject: any) => desiredOrder.includes(subject.name))
             .filter((subject: any) => {
-              // Normalize name for deduplication
-              const normalized = subject.name.toLowerCase()
-                .replace('computers', 'computer')
-                .replace('drawing & painting', 'drawing');
+              const normalized = subject.name.toLowerCase().replace('computers', 'computer');
               if (seen.has(normalized)) return false;
               seen.add(normalized);
               return true;
@@ -590,7 +588,7 @@ export default function Index() {
                   key={subject.id}
                   name={subject.name}
                   slug={subject.slug}
-                  icon={subjectIconMap[subject.name]}
+                  iconComponent={subjectIconMap[subject.name] ?? <BookOpen className={ICON_CLASS} />}
                   index={index}
                   isVisible={true}
                 />
