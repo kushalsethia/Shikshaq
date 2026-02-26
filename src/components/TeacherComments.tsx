@@ -316,7 +316,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
   }
 
   return (
-    <div className="mt-12 border-t border-border pt-8">
+    <div className="mt-12 border-t border-border pt-8 px-4 md:px-0 min-w-0">
       <div className="flex items-center gap-3 mb-6">
         <MessageCircle className="w-6 h-6 text-foreground" />
         <h2 className="text-2xl font-sans text-foreground">Reviews</h2>

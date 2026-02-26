@@ -739,7 +739,7 @@ export default function TeacherProfile() {
         </section>
 
         {/* Info column */}
-        <div className="min-h-0 overflow-x-hidden md:h-auto md:overflow-visible md:min-h-0 mt-3 md:mt-0">
+        <div className="min-h-0 overflow-x-clip md:h-auto md:overflow-visible md:min-h-0 mt-3 md:mt-0">
         <div className="min-w-0">
           {/* Info - clear break below hero image */}
           <div className="relative rounded-t-3xl md:rounded-none bg-background md:shadow-none pt-0 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0 z-10">

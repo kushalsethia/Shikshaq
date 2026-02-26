@@ -474,32 +474,10 @@ export default function Index() {
                 <br />
                 one search away.
               </h1>
-              <p className="text-base sm:text-lg md:text-xl text-[#666666] mt-4 sm:mt-6 max-w-2xl mx-auto opacity-0 animate-fade-slide-up" style={{ animationDelay: '250ms' }}>
-                <strong className="text-[#1F1F1F]">Purpose of this application:</strong> Shikshaq is a free online platform that connects students and parents with verified tuition teachers in Kolkata. 
-                Search by subject, location, or teaching mode to find the perfect tutor—no middlemen, no commissions.
-              </p>
-              <p className="text-xs sm:text-sm text-[#999999] mt-4 opacity-0 animate-fade-slide-up" style={{ animationDelay: '300ms' }}>
-                By using Shikshaq, you agree to our{' '}
-                <Link to="/privacy-policy" className="text-[#4351FF] hover:underline">
-                  Privacy Policy
-                </Link>
-                {' '}and{' '}
-                <Link to="/terms-of-service" className="text-[#4351FF] hover:underline">
-                  Terms of Service
-                </Link>
-                .
-              </p>
             </div>
             <div ref={searchBarElementRef} className="w-full max-w-2xl sm:max-w-3xl mx-auto mt-3 sm:mt-10 md:mt-6 opacity-0 animate-scale-pop" style={{ animationDelay: '300ms' }}>
               <SearchBar />
             </div>
-            {/* Clear statement of purpose for users and platform verification */}
-            <section className="mt-8 sm:mt-10 max-w-2xl mx-auto text-center opacity-0 animate-fade-slide-up" style={{ animationDelay: '350ms' }} aria-label="About Shikshaq">
-              <h2 className="text-lg font-sans font-semibold text-[#1F1F1F] mb-2">What is Shikshaq?</h2>
-              <p className="text-sm sm:text-base text-[#666666]">
-                Shikshaq is a free tutor–student matchmaking application. It helps students and parents in Kolkata find verified tuition teachers by subject, location, and teaching mode, and connect with them directly—no intermediaries or fees.
-              </p>
-            </section>
           </div>
         </div>
       </section>
@@ -516,7 +494,7 @@ export default function Index() {
       )}
 
       {/* Featured Teachers — Beige */}
-      <section className="py-12 sm:py-16 md:py-20 bg-[#F9F5F1]">
+      <section className="pt-2 sm:pt-4 md:pt-6 pb-12 sm:pb-16 md:pb-20 bg-[#F9F5F1]">
         <div className="container">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-[#1F1F1F] mb-2 sm:mb-4 md:mb-6">
             Featured <span className="text-[#FF8000]">tuition teachers</span> on Shikshaq
@@ -571,8 +549,8 @@ export default function Index() {
                 </CarouselContent>
               </Carousel>
               {/* View more button below carousel */}
-              <div className="flex justify-end mt-1 sm:mt-4 md:mt-5">
-                <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-[#4351FF] hover:opacity-80 transition-opacity flex items-center gap-2">
+              <div className="flex justify-end mt-4 sm:mt-5 md:mt-6">
+                <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-black hover:opacity-80 transition-opacity flex items-center gap-2">
                   View more teachers
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -619,7 +597,7 @@ export default function Index() {
               ))}
             </div>
               {/* View more button below grid */}
-              <div className="flex justify-end mt-1 sm:mt-4 md:mt-5">
+              <div className="flex justify-end mt-4 sm:mt-5 md:mt-6">
                 <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-white hover:opacity-80 transition-opacity flex items-center gap-2">
                   View more subjects
                   <ArrowRight className="w-4 h-4" />

@@ -52,9 +52,9 @@ const subjectColors: Record<string, string> = {
 };
 
 function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, showShareOnMobile = true, sirMaam, isLiked: isLikedProp, hideFavourite = false, hideShare = false }: TeacherCardProps) {
-  // If featured, always use green; otherwise use subject-specific colors
+  // If featured, use forest green; otherwise use subject-specific colors
   const badgeColor = isFeatured 
-    ? 'bg-badge-science' // Green color for featured teachers
+    ? 'bg-[#228B22]' // Forest green for featured teachers section
     : (subjectColors[subjectSlug?.toLowerCase() || subject.toLowerCase()] || 'bg-muted-foreground');
   
   const displayName = formatTeacherName(name, sirMaam);
@@ -205,9 +205,9 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         )}
         </div>
         
-        {/* Teacher Name - Inside the bordered card */}
-        <div className="py-2.5 rounded-b-2xl">
-          <h3 className="font-semibold text-foreground text-sm group-hover:text-foreground/80 transition-colors pl-0.5 pr-3">
+        {/* Teacher Name - fixed height on mobile so all cards align (one-line vs two-line names) */}
+        <div className="py-2.5 rounded-b-2xl md:py-2.5 h-[3.25rem] md:h-auto flex items-start md:block">
+          <h3 className="font-semibold text-foreground text-sm group-hover:text-foreground/80 transition-colors pl-0.5 pr-3 break-words leading-tight line-clamp-2 md:line-clamp-none" title={displayName}>
             {displayName}
           </h3>
         </div>
