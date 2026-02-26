@@ -104,8 +104,8 @@ export default function Auth() {
       const errorDescription = hashParams.get('error_description') || 'Authentication failed';
       toast.error(`Authentication Error: ${errorDescription}`);
       setProcessingOAuth(false);
-      // Clean up the hash
-      window.history.replaceState(null, '', '/auth');
+      // Clean up the hash but preserve query params (e.g. ?redirect=)
+      window.history.replaceState(null, '', `/auth${window.location.search}`);
       return;
     }
     
@@ -122,9 +122,9 @@ export default function Auth() {
             .eq('id', user.id)
             .maybeSingle();
 
-          // Clean up hash if present
+          // Clean up hash if present but preserve query params (e.g. ?redirect=)
           if (window.location.hash && !showResetPassword) {
-            window.history.replaceState(null, '', '/auth');
+            window.history.replaceState(null, '', `/auth${window.location.search}`);
           }
 
           if (error) {
@@ -167,7 +167,7 @@ export default function Auth() {
         if (!user) {
           setProcessingOAuth(false);
           toast.error('Authentication timed out. Please try again.');
-          window.history.replaceState(null, '', '/auth');
+          window.history.replaceState(null, '', `/auth${window.location.search}`);
         }
       }, 3000);
       return () => clearTimeout(waitTimer);
