@@ -55,6 +55,7 @@ export default function Index() {
   const [featuredTeachers, setFeaturedTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isSearchBarScrolled, setIsSearchBarScrolled] = useState(false);
   const [userFirstName, setUserFirstName] = useState<string | null>(null);
   const searchBarRef = useRef<HTMLDivElement>(null);
@@ -223,8 +224,8 @@ export default function Index() {
         const subjectsCacheKey = 'subjects_index_v2';
         const cachedSubjects = getCache<any[]>(subjectsCacheKey);
         
-        // If both are cached, use them and return early
-        if (cachedFeatured && cachedSubjects) {
+        // Only use cache when we have non-empty data (avoid showing stale "empty" from a past failed load)
+        if (cachedFeatured?.length && cachedSubjects?.length) {
           setFeaturedTeachers(cachedFeatured);
           setSubjects(cachedSubjects);
           setLoading(false);
@@ -235,7 +236,7 @@ export default function Index() {
         // Fetch specific subjects: Chemistry, Hindi, English, Maths, Psychology, Computers, Accounts, Biology, Economics
         const desiredSubjects = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
         const [subjectsRes, upvotesRes] = await Promise.all([
-          cachedSubjects ? Promise.resolve({ data: cachedSubjects, error: null }) :
+          cachedSubjects?.length ? Promise.resolve({ data: cachedSubjects, error: null }) :
           supabase
             .from('subjects')
             .select('*')
@@ -245,6 +246,13 @@ export default function Index() {
             .from('teacher_upvotes')
             .select('teacher_id')
         ]);
+
+        // Treat API errors as load failure (e.g. network, RLS, wrong project)
+        if (subjectsRes.error || upvotesRes.error) {
+          setLoadError(true);
+          setLoading(false);
+          return;
+        }
 
         // Get top 16 teachers by upvote count
         let teachersData: any[] = [];
@@ -402,6 +410,7 @@ export default function Index() {
           setCache(subjectsCacheKey, filteredSubjects, CACHE_TTL.SUBJECTS);
         }
       } catch (error) {
+        setLoadError(true);
         if (import.meta.env.DEV) {
           console.error('Error fetching data:', error);
         }
@@ -541,6 +550,10 @@ export default function Index() {
                 </Link>
               </div>
             </div>
+          ) : loadError ? (
+            <div className="text-center py-8 text-[#999999]">
+              <p>Unable to load teachers. Please check your connection and refresh the page.</p>
+            </div>
           ) : (
             <div className="text-center py-8 text-[#999999]">
               <p>No teachers found. Please add teachers to your Supabase database.</p>
@@ -589,6 +602,10 @@ export default function Index() {
                 </Link>
               </div>
             </>
+          ) : loadError ? (
+            <div className="text-center py-8 text-[#999999]">
+              <p>Unable to load subjects. Please check your connection and refresh the page.</p>
+            </div>
           ) : (
             <div className="text-center py-8 text-[#999999]">
               <p>No subjects found. Please add subjects to your Supabase database.</p>
