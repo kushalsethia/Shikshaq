@@ -14,6 +14,7 @@ export const SUBJECT_PATH_TO_FILTER: Record<string, string> = {
   '/hindi-tuition-teachers-in-kolkata': 'Hindi',
   '/history-tuition-teachers-in-kolkata': 'History & Civics', // Note: FilterPanel uses 'History & Civics'
   '/geography-tuition-teachers-in-kolkata': 'Geography',
+  '/social-studies-tuition-teachers-in-kolkata': 'History & Civics,Geography', // Social Studies = History & Civics OR Geography
   '/economics-tuition-teachers-in-kolkata': 'Economics',
   '/accounts-tuition-teachers-in-kolkata': 'Accounts',
   '/business-studies-tuition-teachers-in-kolkata': 'Business Studies',

@@ -409,8 +409,11 @@ export function extractFiltersFromQuery(query: string, subjects?: { name: string
     remainingQuery = remainingQuery.replace(/\bscience\b/gi, '');
   }
   
-  // Social Studies / SST → History & Civics, Geography
+  // Social Studies / SST → Social Studies, History & Civics, Geography (all shown in advanced filters; filter matches History/Geography)
   if (remainingQuery.match(/\b(social\s+studies|sst)\b/gi)) {
+    if (!extractedFilters.subjects!.includes('Social Studies')) {
+      extractedFilters.subjects!.push('Social Studies');
+    }
     const socialStudiesSubjects = ['History & Civics', 'Geography'];
     socialStudiesSubjects.forEach(subj => {
       if (!extractedFilters.subjects!.includes(subj)) {
@@ -528,8 +531,9 @@ export function extractFiltersFromQuery(query: string, subjects?: { name: string
               continue;
             }
             
-            // SST → History & Civics, Geography
+            // SST → Social Studies, History & Civics, Geography
             if (word === 'sst') {
+              if (!extractedFilters.subjects!.includes('Social Studies')) extractedFilters.subjects!.push('Social Studies');
               const socialStudiesSubjects = ['History & Civics', 'Geography'];
               socialStudiesSubjects.forEach(subj => {
                 if (!extractedFilters.subjects!.includes(subj)) extractedFilters.subjects!.push(subj);

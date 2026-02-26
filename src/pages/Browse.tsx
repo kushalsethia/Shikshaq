@@ -666,6 +666,10 @@ export default function Browse() {
                   if (subjLower === 'drawing') {
                     return tokenMatches('drawing');
                   }
+                  // Social Studies = History & Civics OR Geography (and optionally "Social Studies" in DB)
+                  if (subjLower === 'social studies') {
+                    return tokenMatchesAny(['history & civics', 'geography', 'social studies']);
+                  }
                   return tokenMatches(subjLower);
                 });
                 if (!hasSubject) {
