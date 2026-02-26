@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,8 @@ interface TeacherCommentsProps {
 
 export function TeacherComments({ teacherId }: TeacherCommentsProps) {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -425,7 +428,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
             <Button
               variant="link"
               className="p-0 h-auto text-foreground underline"
-              onClick={() => window.location.href = '/auth'}
+              onClick={() => navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`)}
             >
               Sign in
             </Button>

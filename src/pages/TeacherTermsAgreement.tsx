@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,16 @@ import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
 
+function isValidRedirect(path: string | null): path is string {
+  return !!path && path.startsWith('/') && !path.startsWith('//');
+}
+
 export default function TeacherTermsAgreement() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -38,12 +44,13 @@ export default function TeacherTermsAgreement() {
       // Wait for auth to finish loading
       if (authLoading) return;
       
-      // If no user, redirect to auth
+      // If no user, redirect to auth (preserve return URL)
       if (!user) {
         if (isMounted && !hasRedirectedRef.current && location.pathname === '/teacher-terms-agreement') {
           hasRedirectedRef.current = true;
           hasCheckedRef.current = true;
-          window.location.href = '/auth';
+          const to = isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth';
+          navigate(to, { replace: true });
         }
         return;
       }
@@ -59,16 +66,17 @@ export default function TeacherTermsAgreement() {
           hasCheckedRef.current = true;
           
           if (!profile) {
-            // No profile - redirect to select role
+            // No profile - redirect to select role (preserve return URL)
             hasRedirectedRef.current = true;
-            window.location.href = '/select-role';
+            const to = isValidRedirect(redirectTo) ? `/select-role?redirect=${encodeURIComponent(redirectTo)}` : '/select-role';
+            navigate(to, { replace: true });
             return;
           }
 
           if (profile.role !== 'teacher') {
-            // Not a teacher - redirect to home
+            // Not a teacher - redirect back or home
             hasRedirectedRef.current = true;
-            window.location.href = '/';
+            navigate(isValidRedirect(redirectTo) ? redirectTo : '/', { replace: true });
             return;
           }
 
@@ -76,10 +84,10 @@ export default function TeacherTermsAgreement() {
           setIsTeacher(true);
 
           if (profile.terms_agreement === true) {
-            // Already agreed - use hard redirect to break any loops
+            // Already agreed - redirect back or home
             hasRedirectedRef.current = true;
             setHasAgreed(true);
-            window.location.href = '/';
+            navigate(isValidRedirect(redirectTo) ? redirectTo : '/', { replace: true });
             return;
           } else {
             // Needs to agree - show form
@@ -102,7 +110,7 @@ export default function TeacherTermsAgreement() {
     return () => {
       isMounted = false;
     };
-  }, [user, authLoading, location.pathname]);
+  }, [user, authLoading, location.pathname, redirectTo, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,7 +122,8 @@ export default function TeacherTermsAgreement() {
 
     if (!user) {
       toast.error('You must be signed in to continue');
-      navigate('/auth');
+      const to = isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth';
+      navigate(to);
       return;
     }
 
@@ -143,10 +152,10 @@ export default function TeacherTermsAgreement() {
 
       toast.success('Thank you for verifying your consent!');
       
-      // Use hard redirect to break any potential loops
-      // Small delay to ensure cache is cleared
+      // Small delay to ensure cache is cleared, then redirect back or home
+      const returnPath = isValidRedirect(redirectTo) ? redirectTo : '/';
       setTimeout(() => {
-        window.location.href = '/';
+        navigate(returnPath, { replace: true });
       }, 100);
     } catch (error) {
       if (import.meta.env.DEV) {

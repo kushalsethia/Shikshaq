@@ -12,6 +12,7 @@ import { Footer } from '@/components/Footer';
 import { WaveDivider } from '@/components/WaveDivider';
 import { useLikes } from '@/lib/likes-context';
 import { useAuth } from '@/lib/auth-context';
+import { useRequireRole } from '@/hooks/use-require-role';
 import {
   Carousel,
   CarouselContent,
@@ -65,9 +66,10 @@ export default function Index() {
   const { isLiked } = useLikes();
   const { user, loading: authLoading } = useAuth();
 
-  // Load user's first name for greeting. No redirects from homepage so that the
-  // landing page is always public (required for OAuth/API verification and SEO).
-  // Role selection and teacher terms are enforced on protected routes via useRequireRole.
+  // Redirect signed-in users to select-role or teacher-terms if they haven't completed onboarding
+  useRequireRole();
+
+  // Load user's first name for greeting
   useEffect(() => {
     const isMounted = true;
 

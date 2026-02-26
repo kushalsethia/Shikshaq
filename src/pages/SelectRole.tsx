@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,15 @@ import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
 
+function isValidRedirect(path: string | null): path is string {
+  return !!path && path.startsWith('/') && !path.startsWith('//');
+}
+
 export default function SelectRole() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
   const [role, setRole] = useState<'student' | 'guardian' | ''>('');
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -47,17 +53,19 @@ export default function SelectRole() {
         if (isMounted) {
           if (profile && profile.role) {
             // User already has a role
+            const returnPath = isValidRedirect(redirectTo) ? redirectTo : '/';
             if (profile.role === 'teacher') {
-              // If teacher hasn't agreed to terms, redirect to teacher terms agreement
+              // If teacher hasn't agreed to terms, redirect to teacher terms agreement (preserve return URL)
               if (profile.terms_agreement !== true) {
-                navigate('/teacher-terms-agreement', { replace: true });
+                const to = isValidRedirect(redirectTo) ? `/teacher-terms-agreement?redirect=${encodeURIComponent(redirectTo)}` : '/teacher-terms-agreement';
+                navigate(to, { replace: true });
                 return;
               }
-              // If teacher has agreed, redirect to teacher dashboard (when it exists) or home
-              navigate('/', { replace: true });
+              // If teacher has agreed, redirect back or home
+              navigate(returnPath, { replace: true });
             } else {
-              // Student or guardian - redirect to home
-              navigate('/', { replace: true });
+              // Student or guardian - redirect back or home
+              navigate(returnPath, { replace: true });
             }
             setHasRole(true);
           } else {
@@ -80,7 +88,7 @@ export default function SelectRole() {
     return () => {
       isMounted = false;
     };
-  }, [user, authLoading, navigate]); // Only run when user or authLoading changes
+  }, [user, authLoading, navigate, redirectTo]); // Only run when user or authLoading changes
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +105,8 @@ export default function SelectRole() {
 
     if (!user) {
       toast.error('You must be signed in to continue');
-      navigate('/auth');
+      const to = isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth';
+      navigate(to);
       return;
     }
 
@@ -129,9 +138,10 @@ export default function SelectRole() {
 
       toast.success('Profile created successfully!');
       
-      // Small delay to ensure cache is cleared, then redirect
+      // Small delay to ensure cache is cleared, then redirect back or home
+      const returnPath = isValidRedirect(redirectTo) ? redirectTo : '/';
       setTimeout(() => {
-        navigate('/', { replace: true });
+        navigate(returnPath, { replace: true });
       }, 100);
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -170,7 +180,7 @@ export default function SelectRole() {
         <Navbar />
         <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
           <p className="text-muted-foreground mb-4">You must be signed in to continue.</p>
-          <Button onClick={() => navigate('/auth')}>Sign In</Button>
+          <Button onClick={() => navigate(isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth')}>Sign In</Button>
         </div>
         <Footer />
       </div>

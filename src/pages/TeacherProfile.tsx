@@ -717,7 +717,7 @@ export default function TeacherProfile() {
                 onClick={async (e) => {
                   e.preventDefault();
                   if (!user) {
-                    navigate('/auth');
+                    navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
                     return;
                   }
                   await toggleLike(teacher.id);
@@ -765,7 +765,7 @@ export default function TeacherProfile() {
                 onClick={async (e) => {
                   e.preventDefault();
                   if (!user) {
-                    navigate('/auth');
+                    navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
                     return;
                   }
                   await toggleUpvote(teacher.id);
@@ -797,7 +797,7 @@ export default function TeacherProfile() {
                     e.preventDefault();
                     // If user is not authenticated, redirect to auth
                     if (!user) {
-                      navigate('/auth');
+                      navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
                       return;
                     }
                     // If user is authenticated but not a student (e.g., guardian), show message
@@ -1197,7 +1197,7 @@ export default function TeacherProfile() {
             ) : (
               <Button
                 className="w-full gap-3 py-6 text-lg font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all"
-                onClick={() => navigate('/auth')}
+                onClick={() => navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`)}
               >
                 <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
                 Sign in to contact

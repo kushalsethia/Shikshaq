@@ -65,10 +65,19 @@ export default function Auth() {
   } = useAuth();
   const navigate = useNavigate();
 
+  // Safe redirect: only allow same-origin paths (no //, no protocol)
+  const getRedirectPath = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirect = urlParams.get('redirect');
+    if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//')) return null;
+    return redirect;
+  };
+
   // Handle OAuth callback and redirect if authenticated
   useEffect(() => {
     // Check for password reset in URL params
     const urlParams = new URLSearchParams(window.location.search);
+    const redirectParam = getRedirectPath();
     const resetType = urlParams.get('type');
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const hasAccessToken = hashParams.get('access_token');
@@ -125,21 +134,25 @@ export default function Auth() {
           }
 
           if (!profile || !profile.role) {
-            // No profile found or no role set - redirect to role selection
-            navigate('/select-role', { replace: true });
+            // No profile found or no role set - redirect to role selection (preserve return URL)
+            const to = redirectParam ? `/select-role?redirect=${encodeURIComponent(redirectParam)}` : '/select-role';
+            navigate(to, { replace: true });
           } else if (profile.role === 'teacher' && profile.terms_agreement !== true) {
-            // Teacher needs to agree to terms
-            navigate('/teacher-terms-agreement', { replace: true });
+            // Teacher needs to agree to terms (preserve return URL)
+            const to = redirectParam ? `/teacher-terms-agreement?redirect=${encodeURIComponent(redirectParam)}` : '/teacher-terms-agreement';
+            navigate(to, { replace: true });
           } else {
-            // Profile exists with role and terms agreed (if teacher) - redirect to home
-            navigate('/', { replace: true });
+            // Profile exists with role and terms agreed (if teacher) - redirect back or home
+            navigate(redirectParam || '/', { replace: true });
           }
         } catch (error) {
           if (import.meta.env.DEV) {
             console.error('Error checking profile:', error);
           }
-          // On error, redirect to role selection to be safe
-          navigate('/select-role', { replace: true });
+          // On error, redirect to role selection to be safe (preserve return URL if present)
+          const redirectParam = getRedirectPath();
+          const to = redirectParam ? `/select-role?redirect=${encodeURIComponent(redirectParam)}` : '/select-role';
+          navigate(to, { replace: true });
         }
       };
 
