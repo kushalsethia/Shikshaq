@@ -171,6 +171,8 @@
   /* Search bar gradient shadow box */
   .search-bar-glow-wrapper {
     position: relative;
+    border-radius: 1rem; /* matches input rounded-2xl */
+    overflow: hidden;
   }
 
   /* Sharp gradient box offset behind the search bar */
