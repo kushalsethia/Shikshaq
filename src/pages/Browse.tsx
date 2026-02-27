@@ -8,7 +8,7 @@ import { TeacherCardDetailed, type TeacherCardDetailedProps } from '@/components
 import { TeacherCard } from '@/components/TeacherCard';
 import { Footer } from '@/components/Footer';
 import { FilterPanel, FilterState } from '@/components/FilterPanel';
-import { Filter, X } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -1231,17 +1231,16 @@ export default function Browse() {
 
             {/* Small Filter Button - Mobile */}
             <Button
-              variant="outline"
-              size="sm"
               onClick={() => setFilterPanelOpen(true)}
-              className="h-14 sm:hidden w-14 p-0 flex-shrink-0 relative"
+              className="h-14 sm:hidden w-auto px-3 flex-shrink-0 relative bg-[#228B22] hover:bg-[#1e7a1e] text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 gap-1.5"
             >
-              <Filter className="w-5 h-5" />
+              <SlidersHorizontal className="w-4 h-4 flex-shrink-0" />
+              <span className="font-medium text-sm whitespace-nowrap">Filters</span>
               {(filters.subjects.length > 0 || filters.classes.length > 0 ||
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
                 filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
                 filters.placeOfTeaching.length > 0) && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px]">
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-[#228B22] rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
                    filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
                    filters.placeOfTeaching.length}
@@ -1249,19 +1248,18 @@ export default function Browse() {
               )}
             </Button>
 
-            {/* Advanced Filters Button - Desktop, beside search bar */}
+            {/* Filters Button - Desktop, beside search bar */}
             <Button
-              variant="outline"
               onClick={() => setFilterPanelOpen(true)}
-              className="hidden sm:flex gap-2 h-auto flex-shrink-0"
+              className="hidden sm:flex gap-2 h-auto px-4 py-2.5 flex-shrink-0 bg-[#228B22] hover:bg-[#1e7a1e] text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
             >
-              <Filter className="w-4 h-4" />
-              Advanced Filters
+              <SlidersHorizontal className="w-4 h-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Filters</span>
               {(filters.subjects.length > 0 || filters.classes.length > 0 ||
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
                 filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
                 filters.placeOfTeaching.length > 0) && (
-                <span className="ml-1 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
+                <span className="ml-1 px-2.5 py-0.5 text-xs bg-white text-[#228B22] rounded-full font-bold shadow-sm">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
                    filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
                    filters.placeOfTeaching.length}
