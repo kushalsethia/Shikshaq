@@ -420,7 +420,7 @@ export default function JoinApply() {
         .from('teacher_applications')
         .insert({
           name: formData.name.trim(),
-          email: formData.email.trim().toLowerCase(),
+          email: formData.email.trim().toLowerCase(), // normalize for consistent lookup
           phone_number: formData.phone_number.replace(/\D/g, ''), // Store only digits (10 digits)
           sir_maam: formData.sir_maam,
           subjects: formData.subjects.trim() || null,

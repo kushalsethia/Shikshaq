@@ -440,6 +440,10 @@ export default function AdminTeachers() {
       });
       // Always write auto-computed Classes Taught to DB so it is displayed everywhere
       updateData["Classes Taught"] = convertClassesToRoman(formData["Classes Taught for Backend"] ?? null);
+      // Normalize Email ID to lowercase for consistent lookup (e.g. TeacherDashboard)
+      if (updateData["Email ID"] != null && typeof updateData["Email ID"] === 'string') {
+        updateData["Email ID"] = updateData["Email ID"].trim().toLowerCase();
+      }
 
       const { error } = await supabase
         .from('Shikshaqmine')
