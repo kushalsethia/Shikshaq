@@ -3,8 +3,16 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { GraduationCap, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navbar } from '@/components/Navbar';
@@ -22,6 +30,8 @@ export default function SelectRole() {
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect');
   const [role, setRole] = useState<'student' | 'guardian' | ''>('');
+  const [schoolCollege, setSchoolCollege] = useState('');
+  const [grade, setGrade] = useState('');
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
@@ -98,6 +108,17 @@ export default function SelectRole() {
       return;
     }
 
+    if (role === 'student') {
+      if (!schoolCollege.trim()) {
+        toast.error('Please enter your school or college name');
+        return;
+      }
+      if (!grade) {
+        toast.error('Please select your grade');
+        return;
+      }
+    }
+
     if (!termsAgreed) {
       toast.error('Please agree to the Terms and Privacy Policy to continue');
       return;
@@ -113,14 +134,16 @@ export default function SelectRole() {
     setLoading(true);
 
     try {
-      // Update profile with role and terms agreement (use upsert in case profile already exists from Google Auth)
+      const upsertData = {
+        id: user.id,
+        role: role,
+        terms_agreement: termsAgreed,
+        ...(role === 'student' ? { school_college: schoolCollege.trim(), grade } : {}),
+      };
+
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          role: role,
-          terms_agreement: termsAgreed,
-        }, {
+        .upsert(upsertData, {
           onConflict: 'id'
         });
 
@@ -234,6 +257,51 @@ export default function SelectRole() {
               </div>
             </div>
 
+            {role === 'student' && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="space-y-2">
+                  <Label htmlFor="school_college">
+                    School / College <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="school_college"
+                    placeholder="e.g. Delhi Public School"
+                    value={schoolCollege}
+                    onChange={(e) => setSchoolCollege(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="grade">
+                    Grade <span className="text-red-500">*</span>
+                  </Label>
+                  <Select value={grade} onValueChange={setGrade}>
+                    <SelectTrigger id="grade">
+                      <SelectValue placeholder="Select grade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Class 1</SelectItem>
+                      <SelectItem value="2">Class 2</SelectItem>
+                      <SelectItem value="3">Class 3</SelectItem>
+                      <SelectItem value="4">Class 4</SelectItem>
+                      <SelectItem value="5">Class 5</SelectItem>
+                      <SelectItem value="6">Class 6</SelectItem>
+                      <SelectItem value="7">Class 7</SelectItem>
+                      <SelectItem value="8">Class 8</SelectItem>
+                      <SelectItem value="9">Class 9</SelectItem>
+                      <SelectItem value="10">Class 10</SelectItem>
+                      <SelectItem value="11">Class 11</SelectItem>
+                      <SelectItem value="12">Class 12</SelectItem>
+                      <SelectItem value="UG, First Year">UG, First Year</SelectItem>
+                      <SelectItem value="UG, Second Year">UG, Second Year</SelectItem>
+                      <SelectItem value="UG, Third Year">UG, Third Year</SelectItem>
+                      <SelectItem value="UG, Fourth Year">UG, Fourth Year</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
             {/* Terms and Privacy Policy Checkbox */}
             <div className="flex items-start space-x-2">
               <Checkbox
@@ -255,7 +323,7 @@ export default function SelectRole() {
               </Label>
             </div>
 
-            <Button type="submit" className="w-full h-12" disabled={loading || !role || !termsAgreed}>
+            <Button type="submit" className="w-full h-12" disabled={loading || !role || !termsAgreed || (role === 'student' && (!schoolCollege.trim() || !grade))}>
               {loading ? 'Creating Profile...' : 'Continue'}
             </Button>
           </form>
