@@ -507,6 +507,19 @@ export default function TeacherDashboard() {
         toast.error('Please select an image file');
         return;
       }
+
+      // Block HEIC/HEIF formats which most browsers can't display
+      const lowerName = file.name.toLowerCase();
+      const isHeicLike =
+        lowerName.endsWith('.heic') ||
+        lowerName.endsWith('.heif') ||
+        file.type === 'image/heic' ||
+        file.type === 'image/heif';
+      if (isHeicLike) {
+        toast.error('HEIC images are not supported. Please upload a JPG or PNG image instead.');
+        return;
+      }
+
       // Validate file size (10MB limit - will be compressed to ~1MB)
       if (file.size > 10 * 1024 * 1024) {
         toast.error('Image size must be less than 10MB');

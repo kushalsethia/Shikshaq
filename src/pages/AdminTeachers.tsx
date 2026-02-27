@@ -404,6 +404,18 @@ export default function AdminTeachers() {
       return;
     }
 
+    // Block HEIC/HEIF formats which most browsers can't display
+    const lowerName = file.name.toLowerCase();
+    const isHeicLike =
+      lowerName.endsWith('.heic') ||
+      lowerName.endsWith('.heif') ||
+      file.type === 'image/heic' ||
+      file.type === 'image/heif';
+    if (isHeicLike) {
+      toast.error('HEIC images are not supported. Please upload a JPG or PNG image instead.');
+      return;
+    }
+
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Image size must be less than 5MB');
