@@ -213,8 +213,8 @@ export default function SelectRole() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      
-      <main className="flex-1 flex items-center justify-center py-16">
+
+      <main className="flex-1 flex items-center justify-center py-16 px-4 sm:px-0">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <Logo size="lg" className="mx-auto mb-4" />
