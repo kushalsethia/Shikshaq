@@ -520,9 +520,8 @@ export default function TeacherDashboard() {
         return;
       }
 
-      // Validate file size (10MB limit - will be compressed to ~1MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Image size must be less than 10MB');
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB');
         return;
       }
       handleImageUpload(file);
@@ -883,7 +882,7 @@ export default function TeacherDashboard() {
                   />
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  Upload an image file (max 10MB, will be compressed automatically). Supported formats: JPG, PNG, GIF, WebP
+                  Max 5MB. Supported formats: JPG, PNG, GIF, WebP
                 </p>
               </div>
 
@@ -896,7 +895,9 @@ export default function TeacherDashboard() {
                   onChange={(e) => handleInputChange("Description", e.target.value || null)}
                   rows={5}
                   placeholder="Write about your teaching experience, methodology, and what makes you unique..."
+                  maxLength={1000}
                 />
+                <p className="text-xs text-muted-foreground">Max 1000 characters</p>
               </div>
 
               {/* Subjects (Multiple Select) */}
@@ -1166,66 +1167,74 @@ export default function TeacherDashboard() {
                 </p>
               </div>
 
-              {/* Qualifications */}
+              {/* Educational Qualifications */}
               <div className="space-y-2">
-                <Label htmlFor="qualifications">Qualifications</Label>
+                <Label htmlFor="qualifications">Educational Qualifications</Label>
                 <Textarea
                   id="qualifications"
                   value={teacherData["Qualifications etc"] || ''}
                   onChange={(e) => handleInputChange("Qualifications etc", e.target.value || null)}
                   rows={3}
                   placeholder="List your educational qualifications, certifications, etc."
+                  maxLength={500}
                 />
+                <p className="text-xs text-muted-foreground">Max 500 characters</p>
               </div>
 
-              {/* Experience (Years they started teaching) */}
+              {/* Year you started teaching */}
               <div className="space-y-2">
-                <Label htmlFor="yearsStarted">Experience</Label>
+                <Label htmlFor="yearsStarted">Year you started teaching</Label>
                 <Input
                   id="yearsStarted"
                   value={teacherData["Years they started teaching"] || ''}
-                  onChange={(e) => handleInputChange("Years they started teaching", e.target.value || null)}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    handleInputChange("Years they started teaching", digits || null);
+                  }}
                   type="text"
-                  placeholder="e.g., 2015"
-                />
-              </div>
-
-              {/* Min Fees */}
-              <div className="space-y-2">
-                <Label htmlFor="minFees">Minimum Fees per Month (₹)</Label>
-                <Input
-                  id="minFees"
-                  type="tel"
-                  value={teacherData["Min Fees"]?.toString() || ''}
-                  onChange={(e) => {
-                    // Only allow digits, limit to 6 digits
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    handleInputChange("Min Fees", digits ? parseInt(digits) : null);
-                  }}
-                  placeholder="e.g., 2000"
-                  maxLength={6}
+                  placeholder="e.g. 2015"
+                  maxLength={4}
                   inputMode="numeric"
                 />
-                <p className="text-xs text-muted-foreground">Optional - Enter minimum monthly fees</p>
+                <p className="text-xs text-muted-foreground">Numbers only, up to 4 digits</p>
               </div>
 
-              {/* Max Fees */}
+              {/* Fee range - same line on all screen sizes */}
               <div className="space-y-2">
-                <Label htmlFor="maxFees">Maximum Fees per Month (₹)</Label>
-                <Input
-                  id="maxFees"
-                  type="tel"
-                  value={teacherData["Max Fees"]?.toString() || ''}
-                  onChange={(e) => {
-                    // Only allow digits, limit to 6 digits
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    handleInputChange("Max Fees", digits ? parseInt(digits) : null);
-                  }}
-                  placeholder="e.g., 5000"
-                  maxLength={6}
-                  inputMode="numeric"
-                />
-                <p className="text-xs text-muted-foreground">Optional - Enter maximum monthly fees</p>
+                <Label className="text-base">Fee range</Label>
+                <div className="flex flex-row gap-3 sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor="minFees" className="text-sm font-normal text-muted-foreground">Min (₹)</Label>
+                    <Input
+                      id="minFees"
+                      type="tel"
+                      value={teacherData["Min Fees"]?.toString() || ''}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        handleInputChange("Min Fees", digits ? parseInt(digits) : null);
+                      }}
+                      placeholder="e.g., 2000"
+                      maxLength={6}
+                      inputMode="numeric"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <Label htmlFor="maxFees" className="text-sm font-normal text-muted-foreground">Max (₹)</Label>
+                    <Input
+                      id="maxFees"
+                      type="tel"
+                      value={teacherData["Max Fees"]?.toString() || ''}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        handleInputChange("Max Fees", digits ? parseInt(digits) : null);
+                      }}
+                      placeholder="e.g., 5000"
+                      maxLength={6}
+                      inputMode="numeric"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Optional</p>
               </div>
 
 

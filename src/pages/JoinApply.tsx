@@ -132,7 +132,15 @@ export default function JoinApply() {
       newArray = currentArray.filter((v) => v !== value);
     }
 
-    handleInputChange(field, newArray.join(', ') || '');
+    const newValue = newArray.join(', ') || '';
+    if (field === 'subjects') {
+      const currentFeatured = formData.featured_subject;
+      if (currentFeatured && !newArray.includes(currentFeatured)) {
+        setFormData((prev) => ({ ...prev, [field]: newValue, featured_subject: '' }));
+        return;
+      }
+    }
+    handleInputChange(field, newValue);
   };
 
   // Clean up object URL when component unmounts or file changes
@@ -258,11 +266,20 @@ export default function JoinApply() {
       toast.error('Please enter your name');
       return false;
     }
+    if (formData.name.length > 200) {
+      toast.error('Name must be at most 200 characters');
+      return false;
+    }
     if (!formData.email.trim()) {
       toast.error('Please enter your email');
       return false;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (formData.email.length > 254) {
+      toast.error('Email must be at most 254 characters');
+      return false;
+    }
+    const emailTrimmed = formData.email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
       toast.error('Please enter a valid email address');
       return false;
     }
@@ -329,19 +346,42 @@ export default function JoinApply() {
       toast.error('Please enter the reference student\'s name');
       return false;
     }
+    if (formData.reference_name.length > 200) {
+      toast.error('Student name (for verification) must be at most 200 characters');
+      return false;
+    }
     if (!formData.reference_number.trim()) {
       toast.error('Please enter the reference student\'s phone number');
       return false;
     }
+    if (formData.years_started_teaching.trim()) {
+      const yearDigits = formData.years_started_teaching.replace(/\D/g, '');
+      if (yearDigits.length > 4) {
+        toast.error('Year you started teaching must be at most 4 digits');
+        return false;
+      }
+      if (yearDigits.length > 0 && !/^\d{1,4}$/.test(yearDigits)) {
+        toast.error('Year you started teaching must contain only numbers');
+        return false;
+      }
+    }
     // Validate reference number: must be exactly 10 digits
     const referenceDigits = formData.reference_number.replace(/\D/g, '');
     if (referenceDigits.length !== 10) {
-      toast.error('Reference phone number must be exactly 10 digits');
+      toast.error('Student number must be exactly 10 digits');
       return false;
     }
     // Hero image is required: user must have selected a file to upload
     if (!selectedImageFile) {
       toast.error('Please upload a hero image');
+      return false;
+    }
+    if (formData.description.length > 1000) {
+      toast.error('Profile introduction must be at most 1000 characters');
+      return false;
+    }
+    if (formData.qualifications_etc.length > 500) {
+      toast.error('Educational qualifications must be at most 500 characters');
       return false;
     }
     if (!formData.mou_consent) {
@@ -481,8 +521,10 @@ export default function JoinApply() {
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
+                    maxLength={200}
                     required
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Max 200 characters</p>
                 </div>
 
                 {/* Email */}
@@ -493,8 +535,11 @@ export default function JoinApply() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="e.g. name@example.com"
+                    maxLength={254}
                     required
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Enter a valid email address</p>
                 </div>
 
                 {/* Phone Number */}
@@ -637,11 +682,15 @@ export default function JoinApply() {
                   </Select>
                 </div>
 
-                {/* Featured Subject */}
+                {/* Featured Subject - only from selected subjects */}
                 <div>
                   <Label htmlFor="featured_subject">Featured Subject</Label>
                   <Select
-                    value={formData.featured_subject || "none"}
+                    value={(() => {
+                      const selectedSubjects = (formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
+                      const current = formData.featured_subject;
+                      return current && selectedSubjects.includes(current) ? current : 'none';
+                    })()}
                     onValueChange={(value) => handleInputChange('featured_subject', value === "none" ? "" : value)}
                   >
                     <SelectTrigger id="featured_subject">
@@ -649,13 +698,16 @@ export default function JoinApply() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {SUBJECTS.map((subject) => (
+                      {(formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean).map((subject) => (
                         <SelectItem key={subject} value={subject}>
                           {subject}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Choose one of your selected subjects to feature on your profile
+                  </p>
                 </div>
 
                 {/* Mode of Teaching */}
@@ -776,47 +828,60 @@ export default function JoinApply() {
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     rows={5}
                     placeholder="Tell us about yourself and your teaching approach..."
+                    maxLength={1000}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Max 1000 characters</p>
                 </div>
 
-                {/* Qualifications */}
+                {/* Educational Qualifications */}
                 <div className="md:col-span-2">
-                  <Label htmlFor="qualifications_etc">Qualifications</Label>
+                  <Label htmlFor="qualifications_etc">Educational Qualifications</Label>
                   <Textarea
                     id="qualifications_etc"
                     value={formData.qualifications_etc}
                     onChange={(e) => handleInputChange('qualifications_etc', e.target.value)}
                     rows={3}
                     placeholder="Your educational qualifications, certifications, etc."
+                    maxLength={500}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Max 500 characters</p>
                 </div>
 
-                {/* Experience (years started teaching) */}
+                {/* Year you started teaching */}
                 <div>
-                  <Label htmlFor="years_started_teaching">Experience</Label>
+                  <Label htmlFor="years_started_teaching">Year you started teaching</Label>
                   <Input
                     id="years_started_teaching"
                     value={formData.years_started_teaching}
-                    onChange={(e) => handleInputChange('years_started_teaching', e.target.value)}
-                    placeholder="e.g., 2015"
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      handleInputChange('years_started_teaching', digits);
+                    }}
+                    placeholder="e.g. 2015"
+                    maxLength={4}
+                    inputMode="numeric"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Numbers only, up to 4 digits</p>
                 </div>
 
                 {/* Reference Name */}
                 <div>
-                  <Label htmlFor="reference_name">Student who referred you (we may contact them for verification) *</Label>
+                  <Label htmlFor="reference_name">Student name (for verification) *</Label>
                   <Input
                     id="reference_name"
                     value={formData.reference_name}
                     onChange={(e) => handleInputChange('reference_name', e.target.value)}
-                    placeholder="Name of the student who referred you"
+                    placeholder="Name of a student we can contact"
+                    maxLength={200}
                     required
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Max 200 characters</p>
+                  <p className="text-xs text-muted-foreground mt-1">We will call them to verify you're a teacher</p>
                 </div>
 
-                {/* Reference Number */}
+                {/* Student number for verification */}
                 <div>
-                  <Label htmlFor="reference_number">Reference Number (Student's Number) *</Label>
+                  <Label htmlFor="reference_number">Student number (for verification) *</Label>
                   <Input
                     id="reference_number"
                     type="tel"
@@ -832,47 +897,47 @@ export default function JoinApply() {
                   />
                 </div>
 
-                {/* Min Fees */}
-                <div>
-                  <Label htmlFor="min_fees">Minimum Fees per Month (₹)</Label>
-                  <Input
-                    id="min_fees"
-                    type="tel"
-                    value={formData.min_fees}
-                    onChange={(e) => {
-                      // Only allow digits, limit to 6 digits
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                      handleInputChange('min_fees', digits);
-                    }}
-                    placeholder="e.g., 2000"
-                    maxLength={6}
-                    inputMode="numeric"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Optional - Enter minimum monthly fees</p>
+                {/* Monthly fee range */}
+                <div className="md:col-span-2 space-y-2">
+                  <Label className="text-base">Monthly fee range</Label>
+                  <div className="flex flex-row gap-3 sm:gap-4">
+                    <div className="flex-1 min-w-0">
+                      <Label htmlFor="min_fees" className="text-sm font-normal text-muted-foreground">Min (₹)</Label>
+                      <Input
+                        id="min_fees"
+                        type="tel"
+                        value={formData.min_fees}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          handleInputChange('min_fees', digits);
+                        }}
+                        placeholder="e.g., 2000"
+                        maxLength={6}
+                        inputMode="numeric"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <Label htmlFor="max_fees" className="text-sm font-normal text-muted-foreground">Max (₹)</Label>
+                      <Input
+                        id="max_fees"
+                        type="tel"
+                        value={formData.max_fees}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          handleInputChange('max_fees', digits);
+                        }}
+                        placeholder="e.g., 5000"
+                        maxLength={6}
+                        inputMode="numeric"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Optional</p>
                 </div>
 
-                {/* Max Fees */}
-                <div>
-                  <Label htmlFor="max_fees">Maximum Fees per Month (₹)</Label>
-                  <Input
-                    id="max_fees"
-                    type="tel"
-                    value={formData.max_fees}
-                    onChange={(e) => {
-                      // Only allow digits, limit to 6 digits
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                      handleInputChange('max_fees', digits);
-                    }}
-                    placeholder="e.g., 5000"
-                    maxLength={6}
-                    inputMode="numeric"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Optional - Enter maximum monthly fees</p>
-                </div>
-
-                {/* Hero Image */}
+                {/* Profile Picture */}
                 <div className="md:col-span-2">
-                  <Label htmlFor="hero_image">Hero Image *</Label>
+                  <Label htmlFor="hero_image">Profile Picture *</Label>
                   <div className="space-y-3">
                     {(() => {
                       // Early return if no preview
@@ -901,7 +966,7 @@ export default function JoinApply() {
                         <div className="relative w-full max-w-md">
                           <img
                             src={safeSrc}
-                            alt="Hero preview"
+                            alt="Profile picture preview"
                             className="w-full h-48 object-cover rounded-lg border"
                             onError={() => setImagePreview(null)}
                           />
