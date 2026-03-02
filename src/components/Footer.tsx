@@ -207,14 +207,14 @@ export function Footer({ expandedContent }: FooterProps = {}) {
       {/* Feedback and Join Sections - Side by side on desktop, stacked on mobile */}
       <div className="container pt-16 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Feedback Section - Blue to Purple Gradient */}
-          <div className="relative rounded-3xl overflow-hidden bg-blue-600 p-9">
+          {/* Feedback Section - Blue to Purple Gradient (order-2 on mobile so Join appears first) */}
+          <div className="relative rounded-3xl overflow-hidden bg-blue-600 p-9 order-2 md:order-1">
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl font-sans text-white mb-4 md:mb-6 leading-tight">
                 Share Your Feedback
               </h2>
               <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
-                Help us improve Shikshaq! Your suggestions shape how we connect students with the best tutors.
+                Share your feedback on Shikshaq and help us improve how we connect students with the best tuition teachers.
               </p>
               <div>
                 <button
@@ -228,8 +228,8 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             </div>
           </div>
 
-          {/* Join as Teacher Section - Orange Gradient */}
-          <div className="relative rounded-3xl overflow-hidden bg-[#FF8000] p-9">
+          {/* Join as Teacher Section - Orange Gradient (order-1 on mobile so it appears first) */}
+          <div className="relative rounded-3xl overflow-hidden bg-[#FF8000] p-9 order-1 md:order-2">
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl font-sans text-white mb-4 md:mb-6 leading-tight">
                 Join as a Teacher
