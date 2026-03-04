@@ -820,7 +820,7 @@ export default function TeacherProfile() {
                   aria-label={user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Remove from my teachers' : "I've studied with this teacher"}
                 >
                   <GraduationCap className={`w-4 h-4 ${user && userRole === 'student' && isStudyingWith(teacher.id) ? 'fill-current' : ''}`} />
-                  <span>{user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Studying here ✓' : "I've studied here"}</span>
+                  <span>{user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Studied here ✓' : "I've studied here"}</span>
                 </button>
                 
                 {/* View Students Button - Compact badge style (hide for teachers) */}
