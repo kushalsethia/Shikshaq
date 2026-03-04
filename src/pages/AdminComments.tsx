@@ -143,7 +143,6 @@ export default function AdminComments() {
           setIsAdmin(false);
         } else if (data && data.id === user.id) {
           setIsAdmin(true);
-          fetchComments();
         } else {
           setIsAdmin(false);
         }

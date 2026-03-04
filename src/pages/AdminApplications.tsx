@@ -96,6 +96,7 @@ export default function AdminApplications() {
         navigate('/');
       } finally {
         setCheckingAdmin(false);
+        setLoading(false);
       }
     }
 

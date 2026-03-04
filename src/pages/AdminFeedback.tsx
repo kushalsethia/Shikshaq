@@ -140,7 +140,6 @@ export default function AdminFeedback() {
           setIsAdmin(false);
         } else if (data && data.id === user.id) {
           setIsAdmin(true);
-          fetchFeedback();
         } else {
           setIsAdmin(false);
         }

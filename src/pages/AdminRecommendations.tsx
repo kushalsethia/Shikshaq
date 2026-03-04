@@ -43,6 +43,7 @@ export default function AdminRecommendations() {
 
   async function fetchRecommendations() {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('teacher_recommendations')
         .select('*')

@@ -153,6 +153,7 @@ export default function AdminTeachers() {
         navigate('/');
       } finally {
         setCheckingAdmin(false);
+        setLoading(false);
       }
     }
 
