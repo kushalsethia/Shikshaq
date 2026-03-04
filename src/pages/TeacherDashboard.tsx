@@ -54,7 +54,7 @@ const CLASS_NUMBERS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 
 
 const SUBJECTS = [
   'Accounts', 'ACT', 'AP', 'Bengali', 'Biology', 'Business Studies', 'CA', 'CAT', 'Chemistry',
-  'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
+  'CLAT', 'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
   'Geography', 'Hindi', 'History & Civics', 'Home Science', 'JEE', 'Legal Studies', 'Maths',
   'NEET', 'NMAT', 'Physics', 'Political Science', 'Psychology', 'SAT', 'Science',
   'Sanskrit', 'Social Studies', 'Sociology'
@@ -1079,14 +1079,14 @@ export default function TeacherDashboard() {
                   Place of Teaching <span className="text-red-500">*</span>
                 </Label>
                 <Select
-                  value={teacherData["LOCATION V2"] || ""}
-                  onValueChange={(value) => handleInputChange("LOCATION V2", value)}
-                  required
+                  value={teacherData["LOCATION V2"] || "__none__"}
+                  onValueChange={(value) => handleInputChange("LOCATION V2", value === "__none__" ? "" : value)}
                 >
                   <SelectTrigger id="locationV2">
                     <SelectValue placeholder="Select place of teaching" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
                     <SelectItem value="TEACHER'S HOME TUTORING">Teacher's Home Tutoring Only</SelectItem>
                     <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's Home Tutoring Only</SelectItem>
                     <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>

@@ -27,7 +27,7 @@ import { convertClassesToRoman } from '@/utils/romanNumerals';
 // Constants matching FilterPanel
 const SUBJECTS = [
   'Accounts', 'ACT', 'AP', 'Bengali', 'Biology', 'Business Studies', 'CA', 'CAT', 'Chemistry',
-  'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
+  'CLAT', 'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
   'Geography', 'Hindi', 'History & Civics', 'Home Science', 'JEE', 'Legal Studies', 'Maths',
   'NEET', 'NMAT', 'Physics', 'Political Science', 'Psychology', 'SAT', 'Science',
   'Sanskrit', 'Social Studies', 'Sociology'

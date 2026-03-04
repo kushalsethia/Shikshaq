@@ -482,6 +482,10 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               Tuition teachers for Chemistry in Kolkata
             </Link>
             <span className="text-muted-foreground">|</span>
+            <Link to="/clat-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
+              Tuition teachers for CLAT in Kolkata
+            </Link>
+            <span className="text-muted-foreground">|</span>
             <Link to="/commerce-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
               Tuition teachers for Commerce in Kolkata
             </Link>

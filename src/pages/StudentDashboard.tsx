@@ -515,13 +515,14 @@ export default function StudentDashboard() {
                     Grade <span className="text-red-500">*</span>
                   </Label>
                   <Select
-                    value={formData.grade}
-                    onValueChange={(value) => setFormData({ ...formData, grade: value })}
+                    value={formData.grade || "__none__"}
+                    onValueChange={(value) => setFormData({ ...formData, grade: value === "__none__" ? "" : value })}
                   >
                     <SelectTrigger id="grade">
                       <SelectValue placeholder="Select grade" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
                       <SelectItem value="1">Class 1</SelectItem>
                       <SelectItem value="2">Class 2</SelectItem>
                       <SelectItem value="3">Class 3</SelectItem>
@@ -546,13 +547,14 @@ export default function StudentDashboard() {
                 <div className="space-y-2">
                   <Label htmlFor="school_board">School Board (Optional)</Label>
                   <Select
-                    value={formData.school_board}
-                    onValueChange={(value) => setFormData({ ...formData, school_board: value })}
+                    value={formData.school_board || "__none__"}
+                    onValueChange={(value) => setFormData({ ...formData, school_board: value === "__none__" ? "" : value })}
                   >
                     <SelectTrigger id="school_board">
                       <SelectValue placeholder="Select school board" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
                       {schoolBoards.map((board) => (
                         <SelectItem key={board} value={board}>
                           {board}

@@ -32,7 +32,8 @@ const BASE_SUBJECT_NORMALIZATION: Record<string, string> = {
   'jee': 'JEE', 'joint entrance exam': 'JEE', 'joint entrance examination': 'JEE',
   'neet': 'NEET', 'national eligibility cum entrance test': 'NEET',
   'nmat': 'NMAT',
-  'sat': 'SAT', 'scholastic assessment test': 'SAT'
+  'sat': 'SAT', 'scholastic assessment test': 'SAT',
+  'clat': 'CLAT', 'common law admission test': 'CLAT'
 };
 
 // Function to build dynamic subject normalization from database subjects
@@ -331,7 +332,10 @@ const SUBJECT_NORMALIZATION: Record<string, string> = {
   'nmat': 'NMAT',
   
   // Competitive exams - SAT
-  'sat': 'SAT', 'scholastic assessment test': 'SAT'
+  'sat': 'SAT', 'scholastic assessment test': 'SAT',
+
+  // Competitive exams - CLAT
+  'clat': 'CLAT', 'common law admission test': 'CLAT'
 };
 
 const STOP_WORDS = new Set([
@@ -444,7 +448,7 @@ export function extractFiltersFromQuery(query: string, subjects?: { name: string
   
   // Competitive Exams → SAT, ACT, CAT, NMAT, GMAT, CA, CFA, JEE
   if (remainingQuery.match(/\b(competitive\s+exam|competitive\s+exams)\b/gi)) {
-    const competitiveSubjects = ['SAT', 'ACT', 'CAT', 'NMAT', 'GMAT', 'CA', 'CFA', 'JEE'];
+    const competitiveSubjects = ['SAT', 'ACT', 'CAT', 'NMAT', 'GMAT', 'CA', 'CFA', 'JEE', 'CLAT'];
     competitiveSubjects.forEach(subj => {
       if (!extractedFilters.subjects!.includes(subj)) {
         extractedFilters.subjects!.push(subj);

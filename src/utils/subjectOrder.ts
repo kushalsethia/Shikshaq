@@ -35,4 +35,5 @@ export const SUBJECT_DISPLAY_ORDER = [
   'NMAT',
   'AP',
   'ACT',
+  'CLAT',
 ];

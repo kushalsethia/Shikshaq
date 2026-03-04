@@ -462,13 +462,14 @@ export default function GuardianDashboard() {
                 <div className="space-y-2">
                   <Label htmlFor="relationship_to_student">Relationship to Student (Optional)</Label>
                   <Select
-                    value={formData.relationship_to_student}
-                    onValueChange={(value) => setFormData({ ...formData, relationship_to_student: value })}
+                    value={formData.relationship_to_student || "__none__"}
+                    onValueChange={(value) => setFormData({ ...formData, relationship_to_student: value === "__none__" ? "" : value })}
                   >
                     <SelectTrigger id="relationship_to_student">
                       <SelectValue placeholder="Select relationship" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
                       <SelectItem value="parent">Parent</SelectItem>
                       <SelectItem value="sister/brother">Sister/Brother</SelectItem>
                       <SelectItem value="grandparent">Grandparent</SelectItem>
@@ -531,13 +532,14 @@ export default function GuardianDashboard() {
                 <div className="space-y-2">
                   <Label htmlFor="student_grade">Student Class/Grade (Optional)</Label>
                   <Select
-                    value={formData.student_grade}
-                    onValueChange={(value) => setFormData({ ...formData, student_grade: value })}
+                    value={formData.student_grade || "__none__"}
+                    onValueChange={(value) => setFormData({ ...formData, student_grade: value === "__none__" ? "" : value })}
                   >
                     <SelectTrigger id="student_grade">
                       <SelectValue placeholder="Select class/grade" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
                       <SelectItem value="1">Class 1</SelectItem>
                       <SelectItem value="2">Class 2</SelectItem>
                       <SelectItem value="3">Class 3</SelectItem>
@@ -561,13 +563,14 @@ export default function GuardianDashboard() {
                 <div className="space-y-2">
                   <Label htmlFor="student_school_board">Student School Board (Optional)</Label>
                   <Select
-                    value={formData.student_school_board}
-                    onValueChange={(value) => setFormData({ ...formData, student_school_board: value })}
+                    value={formData.student_school_board || "__none__"}
+                    onValueChange={(value) => setFormData({ ...formData, student_school_board: value === "__none__" ? "" : value })}
                   >
                     <SelectTrigger id="student_school_board">
                       <SelectValue placeholder="Select school board" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
                       {boards.map((board) => (
                         <SelectItem key={board} value={board}>
                           {board}

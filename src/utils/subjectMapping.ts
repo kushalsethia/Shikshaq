@@ -32,6 +32,7 @@ export const SUBJECT_PATH_TO_FILTER: Record<string, string> = {
   '/gmat-tuition-teachers-in-kolkata': 'GMAT',
   '/ca-tuition-teachers-in-kolkata': 'CA',
   '/cfa-tuition-teachers-in-kolkata': 'CFA',
+  '/clat-tuition-teachers-in-kolkata': 'CLAT',
 };
 
 /**

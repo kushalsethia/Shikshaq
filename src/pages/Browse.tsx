@@ -559,6 +559,16 @@ export default function Browse() {
         let extractedFilters: Partial<FilterState> = {};
           if (searchQuery && searchQuery.trim().length >= 2) {
           extractedFilters = extractFiltersFromQuery(searchQuery, subjects);
+          // When query is exactly a subject-only term (e.g. "neet", "ap"), treat as subject filter only so
+          // we don't run name search and match similar names (e.g. "Neeta", "Aparna")
+          const subjectOnlyQueries: Record<string, string> = { 'ap': 'AP', 'neet': 'NEET' };
+          const q = searchQuery.trim().toLowerCase();
+          if (subjectOnlyQueries[q]) {
+            const subj = subjectOnlyQueries[q];
+            if (!(extractedFilters.subjects || []).includes(subj)) {
+              extractedFilters = { ...extractedFilters, subjects: [...(extractedFilters.subjects || []), subj] };
+            }
+          }
           // Replace all filters with extracted ones (don't merge with previous search)
           // Note: Fees are not extracted from search query, keep URL fees
           effectiveFilters = {

@@ -23,7 +23,7 @@ import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 // Constants matching AdminTeachers
 const SUBJECTS = [
   'Accounts', 'ACT', 'AP', 'Bengali', 'Biology', 'Business Studies', 'CA', 'CAT', 'Chemistry',
-  'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
+  'CLAT', 'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
   'Geography', 'Hindi', 'History & Civics', 'Home Science', 'JEE', 'Legal Studies', 'Maths',
   'NEET', 'NMAT', 'Physics', 'Political Science', 'Psychology', 'SAT', 'Science',
   'Sanskrit', 'Social Studies', 'Sociology'
@@ -565,14 +565,14 @@ export default function JoinApply() {
                 <div>
                   <Label htmlFor="sir_maam">Sir/Ma'am? *</Label>
                   <Select
-                    value={formData.sir_maam}
-                    onValueChange={(value) => handleInputChange('sir_maam', value as 'Sir' | "Ma'am")}
-                    required
+                    value={formData.sir_maam || "__none__"}
+                    onValueChange={(value) => handleInputChange('sir_maam', value === "__none__" ? "" : value)}
                   >
                     <SelectTrigger id="sir_maam">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
                       {SIR_MAAM.map((option) => (
                         <SelectItem key={option} value={option}>
                           {option}
@@ -667,14 +667,14 @@ export default function JoinApply() {
                 <div>
                   <Label htmlFor="location_v2">Location *</Label>
                   <Select
-                    value={formData.location_v2 || ""}
-                    onValueChange={(value) => handleInputChange('location_v2', value)}
-                    required
+                    value={formData.location_v2 || "__none__"}
+                    onValueChange={(value) => handleInputChange('location_v2', value === "__none__" ? "" : value)}
                   >
                     <SelectTrigger id="location_v2">
                       <SelectValue placeholder="Select location option" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
                       <SelectItem value="TEACHER'S HOME TUTORING">Teacher's Home Tutoring Only</SelectItem>
                       <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's Home Tutoring Only</SelectItem>
                       <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
