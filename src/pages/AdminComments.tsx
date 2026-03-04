@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, CheckCircle, XCircle, Clock, Lock, User as UserIcon, MessageCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, Lock, User as UserIcon, MessageCircle, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -197,8 +197,6 @@ export default function AdminComments() {
 
   const handleReject = async (commentId: string) => {
     try {
-      // For now, we'll delete rejected comments
-      // You can change this to set a 'rejected' status if you add that column
       const { error } = await supabase
         .from('teacher_comments')
         .delete()
@@ -219,6 +217,35 @@ export default function AdminComments() {
         console.error('Error:', error);
       }
       toast.error('Failed to reject comment');
+    }
+  };
+
+  const handleDelete = async (commentId: string) => {
+    if (!window.confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('teacher_comments')
+        .delete()
+        .eq('id', commentId);
+
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error deleting comment:', error);
+        }
+        toast.error('Failed to delete comment');
+        return;
+      }
+
+      toast.success('Comment deleted');
+      fetchComments();
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
+      toast.error('Failed to delete comment');
     }
   };
 
@@ -519,10 +546,21 @@ export default function AdminComments() {
                           </Button>
                         </div>
                       ) : (
-                        <div className="text-xs text-muted-foreground">
-                          Approved {comment.approved_at 
-                            ? formatDistanceToNow(new Date(comment.approved_at), { addSuffix: true })
-                            : 'recently'}
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground">
+                            Approved {comment.approved_at 
+                              ? formatDistanceToNow(new Date(comment.approved_at), { addSuffix: true })
+                              : 'recently'}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDelete(comment.id)}
+                            className="gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </Button>
                         </div>
                       )}
                     </div>
