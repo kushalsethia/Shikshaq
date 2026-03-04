@@ -34,18 +34,32 @@ interface Comment {
   } | null;
 }
 
+const COMMENTS_PAGE_SIZE = 50;
+
 export default function AdminComments() {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [page, setPage] = useState(0);
 
-  async function fetchComments() {
+  async function fetchComments(append = false) {
+    if (!isAdmin) return;
     try {
-      setLoading(true);
-      
+      if (!append) {
+        setLoading(true);
+        setPage(0);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const from = append ? page * COMMENTS_PAGE_SIZE : 0;
+      const to = from + COMMENTS_PAGE_SIZE - 1;
+
       let query = supabase
         .from('teacher_comments')
         .select(`
@@ -60,7 +74,8 @@ export default function AdminComments() {
           created_at,
           updated_at
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       // Apply filter
       if (filter === 'pending') {
@@ -68,8 +83,6 @@ export default function AdminComments() {
       } else if (filter === 'approved') {
         query = query.eq('approved', true);
       } else if (filter === 'rejected') {
-        // For now, we'll use approved=false as rejected
-        // You can add a separate 'rejected' status column later if needed
         query = query.eq('approved', false);
       }
 
@@ -83,32 +96,53 @@ export default function AdminComments() {
         return;
       }
 
-      // Fetch profiles and teachers separately
-      const commentsWithData = await Promise.all(
-        (data || []).map(async (comment) => {
-          // Fetch profile
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('id, full_name, role, school_college, grade, avatar_url')
-            .eq('id', comment.user_id)
-            .maybeSingle();
+      const rawComments = data || [];
+      setHasMore(rawComments.length === COMMENTS_PAGE_SIZE);
 
-          // Fetch teacher
-          const { data: teacherData } = await supabase
-            .from('teachers_list')
-            .select('name, slug')
-            .eq('id', comment.teacher_id)
-            .maybeSingle();
+      if (rawComments.length === 0 && !append) {
+        setComments([]);
+        return;
+      }
 
-          return {
-            ...comment,
-            profiles: profileData || null,
-            teachers_list: teacherData || null,
-          };
-        })
+      // Batch fetch: one query for all unique profiles, one for all teachers (avoids N+1)
+      const userIds = [...new Set(rawComments.map((c: { user_id: string }) => c.user_id))];
+      const teacherIds = [...new Set(rawComments.map((c: { teacher_id: string }) => c.teacher_id))];
+
+      const [profilesRes, teachersRes] = await Promise.all([
+        userIds.length > 0
+          ? supabase
+              .from('profiles')
+              .select('id, full_name, role, school_college, grade, avatar_url')
+              .in('id', userIds)
+          : Promise.resolve({ data: [] }),
+        teacherIds.length > 0
+          ? supabase
+              .from('teachers_list')
+              .select('id, name, slug')
+              .in('id', teacherIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const profilesMap = new Map(
+        (profilesRes.data || []).map((p: { id: string }) => [p.id, p])
+      );
+      const teachersMap = new Map(
+        (teachersRes.data || []).map((t: { id: string }) => [t.id, t])
       );
 
-      setComments(commentsWithData);
+      const commentsWithData = rawComments.map((comment: Record<string, unknown>) => ({
+        ...comment,
+        profiles: profilesMap.get(comment.user_id as string) || null,
+        teachers_list: teachersMap.get(comment.teacher_id as string) || null,
+      })) as Comment[];
+
+      if (append) {
+        setComments((prev) => [...prev, ...commentsWithData]);
+        setPage((p) => p + 1);
+      } else {
+        setComments(commentsWithData);
+        setPage(1);
+      }
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
@@ -116,8 +150,11 @@ export default function AdminComments() {
       toast.error('Failed to load comments');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }
+
+  const loadMore = () => fetchComments(true);
 
   // Check if current user is an admin
   useEffect(() => {
@@ -454,6 +491,7 @@ export default function AdminComments() {
             </p>
           </div>
         ) : (
+          <>
           <div className="space-y-4">
             {comments.map((comment) => {
               const avatarUrl = getCommentAvatar(comment);
@@ -568,6 +606,19 @@ export default function AdminComments() {
               );
             })}
           </div>
+          {hasMore && (
+            <div className="mt-6 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="min-w-[140px]"
+              >
+                {loadingMore ? 'Loading…' : 'Load more'}
+              </Button>
+            </div>
+          )}
+        </>
         )}
       </main>
 
