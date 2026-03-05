@@ -18,7 +18,7 @@ import {
   CarouselContent,
   CarouselItem,
 } from '@/components/ui/carousel';
-import { getCache, setCache, CACHE_TTL, clearExpiredCache, getUserProfileCacheKey } from '@/utils/cache';
+import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache';
 
 // Larger Unicode emoji for subject cards (free to use, rendered by user’s device)
 const EMOJI_WRAPPER = 'flex items-center justify-center min-w-[4rem] min-h-[4rem] text-5xl leading-none select-none';
@@ -64,44 +64,21 @@ export default function Index() {
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchBarElementRef = useRef<HTMLDivElement>(null);
   const { isLiked } = useLikes();
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile } = useAuth();
 
-  // Redirect signed-in users to select-role or teacher-terms if they haven't completed onboarding
   useRequireRole();
 
-  // Load user's first name for greeting
+  // Derive user's first name from centralized profile (no extra fetch needed)
   useEffect(() => {
-    const isMounted = true;
-
-    const loadUserDisplayName = async () => {
-      if (authLoading) return;
-      if (!user) {
-        if (isMounted) setUserFirstName(null);
-        return;
-      }
-
-      const cacheKey = getUserProfileCacheKey(user.id);
-      const cachedProfile = getCache<{ role: string; full_name: string | null; terms_agreement?: boolean }>(cacheKey);
-
-      if (cachedProfile?.full_name != null) {
-        const firstName = (cachedProfile.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '').split(' ')[0];
-        if (isMounted && firstName) setUserFirstName(firstName);
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (!isMounted || !profile) return;
-      const fullName = profile.full_name || user.user_metadata?.full_name || user.user_metadata?.name || null;
-      if (fullName) setUserFirstName(fullName.split(' ')[0]);
-    };
-
-    loadUserDisplayName();
-  }, [user, authLoading]);
+    if (!user) {
+      setUserFirstName(null);
+      return;
+    }
+    const fullName = profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || null;
+    if (fullName) {
+      setUserFirstName(fullName.split(' ')[0]);
+    }
+  }, [user, profile]);
 
   // Add homepage-specific JSON-LD structured data
   useEffect(() => {
@@ -236,81 +213,63 @@ export default function Index() {
           return;
         }
         
-        // Fetch teachers by upvotes (top 16) and subjects in parallel
-        // Fetch specific subjects: Chemistry, Hindi, English, Maths, Psychology, Computers, Accounts, Biology, Economics
+        // Fetch subjects, upvotes, and all teachers in parallel (eliminates waterfall)
         const desiredSubjects = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
-        const [subjectsRes, upvotesRes] = await Promise.all([
+        const [subjectsRes, upvotesRes, allTeachersRes] = await Promise.all([
           cachedSubjects?.length ? Promise.resolve({ data: cachedSubjects, error: null }) :
           supabase
             .from('subjects')
             .select('*')
             .in('name', desiredSubjects)
-            .limit(10), // Fetch a few extra in case we need to filter
+            .limit(10),
           (supabase as any)
             .from('teacher_upvotes')
-            .select('teacher_id')
+            .select('teacher_id'),
+          (supabase as any)
+            .from('teachers_list')
+            .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
+            .limit(100),
         ]);
 
-        // Treat API errors as load failure (e.g. network, RLS, wrong project)
-        if (subjectsRes.error || upvotesRes.error) {
+        if (subjectsRes.error || upvotesRes.error || allTeachersRes.error) {
           setLoadError(true);
           setLoading(false);
           return;
         }
 
-        // Get top 16 teachers by upvote count
+        // Sort teachers by upvote count client-side, pick top 16, fill with random if needed
         let teachersData: any[] = [];
-        
+        const allTeachers: any[] = allTeachersRes.data || [];
+
         if (upvotesRes.data && upvotesRes.data.length > 0) {
-          // Count upvotes per teacher
           const upvoteCounts = new Map<string, number>();
           upvotesRes.data.forEach((upvote: any) => {
             const current = upvoteCounts.get(upvote.teacher_id) || 0;
             upvoteCounts.set(upvote.teacher_id, current + 1);
           });
 
-          // Sort by upvote count and get top 16 teacher IDs
+          const teacherMap = new Map(allTeachers.map((t: any) => [t.id, t]));
           const topTeacherIds = Array.from(upvoteCounts.entries())
-            .sort((a, b) => b[1] - a[1]) // Sort by count descending
+            .sort((a, b) => b[1] - a[1])
             .slice(0, 16)
             .map(([teacherId]) => teacherId);
 
-          if (topTeacherIds.length > 0) {
-            const { data: topTeachers } = await (supabase as any)
-              .from('teachers_list')
-              .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-              .in('id', topTeacherIds);
-
-            if (topTeachers) {
-              // Sort teachers to match upvote order
-              const teacherMap = new Map(topTeachers.map((t: any) => [t.id, t]));
-              teachersData = topTeacherIds
-                .map(id => teacherMap.get(id))
-                .filter(Boolean) as any[];
-            }
-          }
+          teachersData = topTeacherIds
+            .map(id => teacherMap.get(id))
+            .filter(Boolean) as any[];
         }
 
-        // If we have less than 16 teachers, fill with random teachers
-        if (teachersData.length < 16) {
+        if (teachersData.length < 16 && allTeachers.length > 0) {
           const existingIds = new Set(teachersData.map((t: any) => t.id));
-          const { data: allTeachers } = await (supabase as any)
-            .from('teachers_list')
-            .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-            .limit(100);
-          
-          if (allTeachers && allTeachers.length > 0) {
-            const availableTeachers = allTeachers.filter((t: any) => !existingIds.has(t.id));
-            const shuffled = [...availableTeachers].sort(() => Math.random() - 0.5);
-            const needed = 16 - teachersData.length;
-            teachersData = [...teachersData, ...shuffled.slice(0, needed)];
-          }
+          const available = allTeachers.filter((t: any) => !existingIds.has(t.id));
+          const shuffled = [...available].sort(() => Math.random() - 0.5);
+          teachersData = [...teachersData, ...shuffled.slice(0, 16 - teachersData.length)];
         }
 
-        // Fetch Sir/Ma'am, Featured Subject, and Subjects data from Shikshaqmine table
+        // Fetch Shikshaqmine data for the selected teachers (single query)
         const sirMaamMap = new Map();
-        const subjectsMap = new Map<string, string>(); // slug -> first subject name
-        const featuredSubjectMap = new Map<string, string>(); // slug -> featured subject label
+        const subjectsMap = new Map<string, string>();
+        const featuredSubjectMap = new Map<string, string>();
         if (teachersData.length > 0) {
           const teacherSlugs = teachersData.map((t: any) => t.slug).filter(Boolean);
           if (teacherSlugs.length > 0) {
@@ -324,13 +283,11 @@ export default function Index() {
                 const slug = record.Slug;
                 sirMaamMap.set(slug, record["Sir/Ma'am?"]);
 
-                // Featured Subject: explicit featured subject for homepage badge
                 const featured = record["Featured Subject"];
                 if (featured != null && String(featured).trim() !== '') {
                   featuredSubjectMap.set(slug, String(featured).trim());
                 }
 
-                // Extract first subject from comma-separated Subjects field
                 if (record.Subjects) {
                   const firstSubject = record.Subjects.split(',')[0].trim();
                   if (firstSubject) {

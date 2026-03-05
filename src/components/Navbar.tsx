@@ -15,7 +15,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
-import { getCache, setCache, CACHE_TTL, getUserProfileCacheKey } from '@/utils/cache';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 
 export function Navbar() {
@@ -23,21 +22,19 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const lastScrollY = useRef(0);
-  const { user, signOut } = useAuth();
+  const { user, signOut, profile } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [userRole, setUserRole] = useState<'student' | 'guardian' | 'teacher' | null>(null);
+  const userRole = (profile?.role as 'student' | 'guardian' | 'teacher') || null;
 
-  // Check if user is an admin and get their role
+  // Check if user is an admin (profile/role now comes from auth context)
   useEffect(() => {
-    async function checkAdminStatusAndRole() {
+    async function checkAdminStatus() {
       if (!user) {
         setIsAdmin(false);
-        setUserRole(null);
         return;
       }
 
       try {
-        // Check admin status
         const { data: adminData, error: adminError } = await supabase
           .from('admins')
           .select('id')
@@ -54,45 +51,15 @@ export function Navbar() {
         } else {
           setIsAdmin(false);
         }
-
-        // Get user role from profiles - check cache first
-        const cacheKey = getUserProfileCacheKey(user.id);
-        const cachedProfile = getCache<{ role: string; full_name: string | null }>(cacheKey);
-        
-        if (cachedProfile) {
-          // Use cached role
-          setUserRole(cachedProfile.role as 'student' | 'guardian' | 'teacher');
-        } else {
-          // Cache miss - fetch from database
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('role, full_name')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          if (profileError) {
-            if (import.meta.env.DEV) {
-              console.log('Error fetching profile:', profileError.message);
-            }
-            setUserRole(null);
-          } else if (profileData) {
-            // Cache the result
-            setCache(cacheKey, { role: profileData.role, full_name: profileData.full_name }, CACHE_TTL.USER_PROFILE);
-            setUserRole(profileData.role as 'student' | 'guardian' | 'teacher');
-          } else {
-            setUserRole(null);
-          }
-        }
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error('Error:', error);
         }
         setIsAdmin(false);
-        setUserRole(null);
       }
     }
 
-    checkAdminStatusAndRole();
+    checkAdminStatus();
   }, [user]);
 
   // Handle scroll detection for collapsing main navbar on mobile

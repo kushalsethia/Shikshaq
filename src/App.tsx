@@ -11,9 +11,9 @@ import { StudiesWithProvider } from "@/lib/studies-with-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { Chatbot } from "@/components/Chatbot";
 import Index from "./pages/Index";
-import Browse from "./pages/Browse";
+const Browse = lazy(() => import("./pages/Browse"));
 import Auth from "./pages/Auth";
-import TeacherProfile from "./pages/TeacherProfile";
+const TeacherProfile = lazy(() => import("./pages/TeacherProfile"));
 import Help from "./pages/Help";
 import FAQ from "./pages/FAQ";
 import Join from "./pages/Join";
@@ -84,10 +84,18 @@ const App = () => (
             <Chatbot />
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/all-tuition-teachers-in-kolkata" element={<Browse />} />
+              <Route path="/all-tuition-teachers-in-kolkata" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Browse />
+                </Suspense>
+              } />
               <Route path="/browse" element={<Navigate to="/all-tuition-teachers-in-kolkata" replace />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/tuition-teachers/:slug" element={<TeacherProfile />} />
+              <Route path="/tuition-teachers/:slug" element={
+                <Suspense fallback={<PageLoader />}>
+                  <TeacherProfile />
+                </Suspense>
+              } />
               <Route path="/teacher/:slug" element={<TeacherRedirect />} />
               <Route path="/liked-teachers" element={
                 <Suspense fallback={<PageLoader />}>

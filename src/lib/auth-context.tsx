@@ -1,11 +1,20 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { getCache, setCache, CACHE_TTL, getUserProfileCacheKey } from '@/utils/cache';
+
+export interface UserProfile {
+  role: string | null;
+  full_name: string | null;
+  terms_agreement?: boolean;
+}
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  profile: UserProfile | null;
+  profileLoading: boolean;
   signInWithGoogle: () => Promise<void>;
   signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -22,6 +31,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const profileFetchedForRef = useRef<string | null>(null);
+
+  // Fetch user profile once when user changes (single source of truth for role, name, terms)
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      setProfile(null);
+      setProfileLoading(false);
+      profileFetchedForRef.current = null;
+      return;
+    }
+    if (profileFetchedForRef.current === user.id) return;
+    profileFetchedForRef.current = user.id;
+
+    const cacheKey = getUserProfileCacheKey(user.id);
+    const cached = getCache<UserProfile>(cacheKey);
+    if (cached) {
+      setProfile(cached);
+      setProfileLoading(false);
+      return;
+    }
+
+    setProfileLoading(true);
+    supabase
+      .from('profiles')
+      .select('role, full_name, terms_agreement')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          const p: UserProfile = { role: data.role, full_name: data.full_name, terms_agreement: data.terms_agreement };
+          setProfile(p);
+          setCache(cacheKey, p, CACHE_TTL.USER_PROFILE);
+        } else {
+          setProfile(null);
+        }
+      })
+      .catch(() => setProfile(null))
+      .finally(() => setProfileLoading(false));
+  }, [user, loading]);
 
   useEffect(() => {
     // Handle OAuth callback - check for hash fragment first
@@ -371,7 +422,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{ 
       user, 
       session, 
-      loading, 
+      loading,
+      profile,
+      profileLoading,
       signInWithGoogle, 
       signUpWithEmail, 
       signInWithEmail,

@@ -67,39 +67,24 @@ export default function Browse() {
   const [selectedSubject, setSelectedSubject] = useState(searchParams.get('subject') || '');
   const [selectedClass, setSelectedClass] = useState(searchParams.get('class') || '');
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, profile: userProfile, profileLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  // Preserve current browse URL (with filters) so "Back to all teachers" from profile can return here
   const returnToBrowseUrl = location.pathname + location.search;
 
-  // Check if user has a role - redirect to role selection if not
-  // Also check if teacher has agreed to terms
+  // Redirect using centralized profile from auth context instead of an extra fetch
   useEffect(() => {
-    const checkUserRole = async () => {
-      if (authLoading) return;
-      
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, terms_agreement')
-          .eq('id', user.id)
-          .maybeSingle();
+    if (authLoading || profileLoading) return;
+    if (!user) return;
 
-        if (!profile || !profile.role) {
-          navigate('/select-role', { replace: true });
-          return;
-        }
-
-        // If user is a teacher but hasn't agreed to terms, redirect to teacher terms agreement
-        if (profile.role === 'teacher' && profile.terms_agreement !== true) {
-          navigate('/teacher-terms-agreement', { replace: true });
-        }
-      }
-    };
-
-    checkUserRole();
-  }, [user, authLoading, navigate]);
+    if (!userProfile || !userProfile.role) {
+      navigate('/select-role', { replace: true });
+      return;
+    }
+    if (userProfile.role === 'teacher' && userProfile.terms_agreement !== true) {
+      navigate('/teacher-terms-agreement', { replace: true });
+    }
+  }, [user, authLoading, userProfile, profileLoading, navigate]);
   
   // Helper function to parse array from URL params
   const parseArrayParam = (param: string | null): string[] => {
@@ -140,6 +125,8 @@ export default function Browse() {
   const isUpdatingUrlRef = useRef(false);
   // Ref to track loading timeout
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref to debounce filter-driven refetches
+  const fetchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   // Refs for floating search bar
   const searchBarRef = useRef<HTMLDivElement>(null);
   const searchBarElementRef = useRef<HTMLDivElement>(null);
@@ -436,26 +423,20 @@ export default function Browse() {
           }
         }
 
-        // Fetch Shikshaqmine data for filtering and enrichment (always fetch to show all subjects/classes in cards)
-        // Previously only fetched when filters/search were active, causing cards to only show one subject
+        // Fetch Shikshaqmine data for filtering and enrichment
         let allShikshaqData = null;
         if (teachersData && teachersData.length > 0) {
           const teacherSlugs = teachersData.map(t => t.slug);
           
-          // Optimize: For preset filters only (no search query), we can potentially filter at DB level
-          // But for now, we still need to fetch all and filter in JS due to complex matching logic
-          // However, we can optimize chunk size for faster parallel fetching
-          const chunkSize = 50; // Smaller chunks = faster parallel requests
+          // Chunked parallel queries (50 per chunk) so this scales past 300+ teachers
+          const chunkSize = 50;
           const chunks = [];
           for (let i = 0; i < teacherSlugs.length; i += chunkSize) {
             chunks.push(teacherSlugs.slice(i, i + chunkSize));
           }
           
-          // Fetch data in parallel chunks - only fetch needed columns
-          // Note: This fetches all Shikshaqmine data because filtering logic is complex (includes() checks)
-          // Check cache for each chunk first
           const shikshaqPromises = chunks
-            .filter(chunk => chunk.length > 0) // Filter out empty chunks
+            .filter(chunk => chunk.length > 0)
             .map(async (chunk) => {
               const cacheKey = getShikshaqmineChunkCacheKey(chunk);
               const cached = getCache<any[]>(cacheKey);
@@ -463,15 +444,11 @@ export default function Browse() {
                 return { data: cached, error: null };
               }
               
-              // Fetch from API if not in cache
-              // Note: Using select('*') to avoid issues with special characters in column names
-              // We'll filter the columns we need after fetching
               const result = await supabase
                 .from('Shikshaqmine')
                 .select('*')
                 .in('Slug', chunk);
               
-              // Cache the result if successful
               if (result.data && !result.error) {
                 setCache(cacheKey, result.data, CACHE_TTL.SHIKSHAQMINE_CHUNK);
               }
@@ -921,16 +898,27 @@ export default function Browse() {
       }
     }
 
-    fetchTeachers();
+    // Debounce filter-driven refetches to avoid rapid-fire queries when toggling filters
+    if (fetchDebounceRef.current) {
+      clearTimeout(fetchDebounceRef.current);
+    }
+    const searchQuery = searchParams.get('q');
+    const debounceMs = searchQuery ? 0 : 250;
+    fetchDebounceRef.current = setTimeout(() => {
+      fetchTeachers();
+    }, debounceMs);
     
-    // Cleanup timeout on unmount or when dependencies change
     return () => {
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
         loadingTimeoutRef.current = null;
       }
+      if (fetchDebounceRef.current) {
+        clearTimeout(fetchDebounceRef.current);
+        fetchDebounceRef.current = null;
+      }
     };
-  }, [searchParams, subjects]); // Remove filters from deps - filters are already in searchParams
+  }, [searchParams, subjects]);
 
   // Fetch featured teachers for bottom section
   useEffect(() => {
@@ -1430,7 +1418,7 @@ export default function Browse() {
             </div>
           )
         ) : displayedTeachers.length > 0 ? (
-          <div className="space-y-4" key={searchParams.toString()}>
+          <div className="space-y-4">
             {displayedTeachers.map((teacher, index) => {
               // Prefer subjects_from_shikshaq; on browse page limit to 5 subjects (profile page shows all)
               const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';

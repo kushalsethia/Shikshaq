@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ThumbsUp } from 'lucide-react';
 import { useUpvotes } from '@/lib/upvotes-context';
@@ -32,7 +33,7 @@ function formatTeacherName(name: string, sirMaam?: string | null): string {
   return name;
 }
 
-export function TeacherCardDetailed({
+export const TeacherCardDetailed = memo(function TeacherCardDetailed({
   id,
   name,
   slug,
@@ -81,6 +82,8 @@ export function TeacherCardDetailed({
           <img
             src={imageUrl ? validateImageSrc(imageUrl) : ''}
             alt={name}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
@@ -168,5 +171,5 @@ export function TeacherCardDetailed({
       </div>
     </Link>
   );
-}
+});
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Instagram, MessageCircle, Mail, ChevronDown, ChevronUp, GraduationCap, UserPlus } from 'lucide-react';
 import { Logo } from '@/components/Logo';
@@ -9,6 +9,8 @@ import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import { FeedbackModal } from '@/components/FeedbackModal';
 import DOMPurify from 'dompurify';
 import aquaterraLogo from '@/assets/Frame 48095868.png';
+
+const footerContentCache = new Map<string, PageContent>();
 
 interface PageContent {
   id: string;
@@ -38,11 +40,18 @@ export function Footer({ expandedContent }: FooterProps = {}) {
       try {
         setLoading(true);
         
-        // Extract subject/board slug from pathname
         const pathname = location.pathname;
         
-        // Don't show Footer content on teacher profile pages (they have their own EXPANDED section)
         if (pathname.startsWith('/tuition-teachers/')) {
+          setLoading(false);
+          return;
+        }
+
+        // Check in-memory cache by route key to avoid re-fetching on back navigation
+        const routeKey = pathname + '|' + (searchParams.get('filter_boards') || '');
+        const cachedContent = footerContentCache.get(routeKey);
+        if (cachedContent) {
+          setPageContent(cachedContent);
           setLoading(false);
           return;
         }
@@ -144,7 +153,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               .limit(1);
             
             if (subjectData && subjectData.length > 0) {
-              setPageContent(subjectData[0] as PageContent);
+              const content = subjectData[0] as PageContent;
+              setPageContent(content);
+              footerContentCache.set(routeKey, content);
               return;
             }
           }
@@ -161,7 +172,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             .limit(1);
           
           if (generalData && generalData.length > 0) {
-            setPageContent(generalData[0] as PageContent);
+            const content = generalData[0] as PageContent;
+            setPageContent(content);
+            footerContentCache.set(routeKey, content);
             return;
           }
           
@@ -176,7 +189,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             full_content: 'Whether you need help with Mathematics, Science, English, Commerce, or any other subject, our verified teachers are here to help you succeed. All teachers on our platform have been verified and come with student reviews to help you make an informed decision.'
           });
         } else {
-          setPageContent(data[0] as PageContent);
+          const content = data[0] as PageContent;
+          setPageContent(content);
+          footerContentCache.set(routeKey, content);
         }
       } catch (error) {
         if (import.meta.env.DEV) {

@@ -40,6 +40,8 @@ export function HowItWorks() {
                 <img
                   src={step.image}
                   alt={step.title}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full rounded-2xl object-cover max-h-[150px] md:max-h-none"
                 />
               </div>
