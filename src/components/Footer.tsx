@@ -229,7 +229,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 Share Your Feedback
               </h2>
               <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
-                Share your feedback on Shikshaq and help us improve how we connect students with the best tuition teachers.
+                Share your feedback about the Shikshaq website and help us improve how our platform connects students with the best tuition teachers.
               </p>
               <div>
                 <button
