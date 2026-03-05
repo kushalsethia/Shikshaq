@@ -213,9 +213,9 @@ export default function Index() {
           return;
         }
         
-        // Fetch subjects, upvotes, and all teachers in parallel (eliminates waterfall)
+        // Fetch subjects and upvotes in parallel (step 1)
         const desiredSubjects = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
-        const [subjectsRes, upvotesRes, allTeachersRes] = await Promise.all([
+        const [subjectsRes, upvotesRes] = await Promise.all([
           cachedSubjects?.length ? Promise.resolve({ data: cachedSubjects, error: null }) :
           supabase
             .from('subjects')
@@ -225,21 +225,16 @@ export default function Index() {
           (supabase as any)
             .from('teacher_upvotes')
             .select('teacher_id'),
-          (supabase as any)
-            .from('teachers_list')
-            .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-            .limit(100),
         ]);
 
-        if (subjectsRes.error || upvotesRes.error || allTeachersRes.error) {
+        if (subjectsRes.error || upvotesRes.error) {
           setLoadError(true);
           setLoading(false);
           return;
         }
 
-        // Sort teachers by upvote count client-side, pick top 16, fill with random if needed
+        // Get top 16 teacher IDs by upvote count, then fetch those specific teachers
         let teachersData: any[] = [];
-        const allTeachers: any[] = allTeachersRes.data || [];
 
         if (upvotesRes.data && upvotesRes.data.length > 0) {
           const upvoteCounts = new Map<string, number>();
@@ -248,22 +243,39 @@ export default function Index() {
             upvoteCounts.set(upvote.teacher_id, current + 1);
           });
 
-          const teacherMap = new Map(allTeachers.map((t: any) => [t.id, t]));
           const topTeacherIds = Array.from(upvoteCounts.entries())
             .sort((a, b) => b[1] - a[1])
             .slice(0, 16)
             .map(([teacherId]) => teacherId);
 
-          teachersData = topTeacherIds
-            .map(id => teacherMap.get(id))
-            .filter(Boolean) as any[];
+          if (topTeacherIds.length > 0) {
+            const { data: topTeachers } = await (supabase as any)
+              .from('teachers_list')
+              .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
+              .in('id', topTeacherIds);
+
+            if (topTeachers) {
+              const teacherMap = new Map(topTeachers.map((t: any) => [t.id, t]));
+              teachersData = topTeacherIds
+                .map(id => teacherMap.get(id))
+                .filter(Boolean) as any[];
+            }
+          }
         }
 
-        if (teachersData.length < 16 && allTeachers.length > 0) {
+        // Fill remaining slots with random teachers if needed
+        if (teachersData.length < 16) {
           const existingIds = new Set(teachersData.map((t: any) => t.id));
-          const available = allTeachers.filter((t: any) => !existingIds.has(t.id));
-          const shuffled = [...available].sort(() => Math.random() - 0.5);
-          teachersData = [...teachersData, ...shuffled.slice(0, 16 - teachersData.length)];
+          const { data: fillTeachers } = await (supabase as any)
+            .from('teachers_list')
+            .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
+            .limit(100);
+
+          if (fillTeachers && fillTeachers.length > 0) {
+            const available = fillTeachers.filter((t: any) => !existingIds.has(t.id));
+            const shuffled = [...available].sort(() => Math.random() - 0.5);
+            teachersData = [...teachersData, ...shuffled.slice(0, 16 - teachersData.length)];
+          }
         }
 
         // Fetch Shikshaqmine data for the selected teachers (single query)
