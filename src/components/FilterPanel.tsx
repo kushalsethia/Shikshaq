@@ -2,6 +2,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -11,6 +18,15 @@ import {
 import { X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
+
+const EXPERIENCE_OPTIONS = [
+  { value: '1', label: '1+ years' },
+  { value: '3', label: '3+ years' },
+  { value: '5', label: '5+ years' },
+  { value: '10', label: '10+ years' },
+  { value: '15', label: '15+ years' },
+  { value: '20', label: '20+ years' },
+];
 
 interface FilterPanelProps {
   open: boolean;
@@ -30,6 +46,7 @@ export interface FilterState {
   placeOfTeaching: string[];
   minFees: number | null;
   maxFees: number | null;
+  minExperience: string | null;
 }
 
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
@@ -143,7 +160,8 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
     filters.modeOfTeaching.length > 0 ||
     filters.placeOfTeaching.length > 0 ||
     filters.minFees != null ||
-    filters.maxFees != null;
+    filters.maxFees != null ||
+    filters.minExperience != null;
 
   const handleApplyFilters = () => {
     onOpenChange(false);
@@ -314,6 +332,35 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Experience */}
+          <div>
+            <h3 className="text-lg font-medium mb-4">Experience</h3>
+            <Select
+              value={filters.minExperience || ''}
+              onValueChange={(value) => {
+                onFilterChange({
+                  ...filters,
+                  minExperience: value === 'all' ? null : value,
+                });
+              }}
+            >
+              <SelectTrigger className="w-full h-11 text-sm">
+                <SelectValue placeholder="Any experience" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any experience</SelectItem>
+                {EXPERIENCE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-2">
+              Filter by minimum years of teaching experience.
+            </p>
           </div>
 
           {/* Fees per month */}

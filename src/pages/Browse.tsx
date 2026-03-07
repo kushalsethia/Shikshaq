@@ -111,6 +111,7 @@ export default function Browse() {
       placeOfTeaching: parseArrayParam(searchParams.get('filter_placeOfTeaching')),
       minFees: minFeesParam ? parseInt(minFeesParam) : null,
       maxFees: maxFeesParam ? parseInt(maxFeesParam) : null,
+      minExperience: searchParams.get('filter_experience') || null,
     };
   });
   const [displayedTeachers, setDisplayedTeachers] = useState<Teacher[]>([]);
@@ -259,6 +260,12 @@ export default function Browse() {
       newParams.delete('filter_maxFees');
     }
 
+    if (filters.minExperience != null) {
+      newParams.set('filter_experience', filters.minExperience);
+    } else {
+      newParams.delete('filter_experience');
+    }
+
     // Only update URL if params actually changed (avoid infinite loop)
     const currentParams = searchParams.toString();
     const newParamsStr = newParams.toString();
@@ -287,6 +294,7 @@ export default function Browse() {
       areas: parseArrayParam(searchParams.get('filter_areas')),
       modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
       placeOfTeaching: parseArrayParam(searchParams.get('filter_placeOfTeaching')),
+      minExperience: searchParams.get('filter_experience') || null,
     };
 
     // Extract filters from search query (q parameter)
@@ -307,6 +315,7 @@ export default function Browse() {
       areas: searchQuery ? [...(extractedFilters.areas || [])] : [...urlFilters.areas],
       modeOfTeaching: searchQuery ? [...(extractedFilters.modeOfTeaching || [])] : [...urlFilters.modeOfTeaching],
       placeOfTeaching: searchQuery ? [...(extractedFilters.placeOfTeaching || [])] : [...urlFilters.placeOfTeaching],
+      minExperience: searchQuery ? null : urlFilters.minExperience,
     };
 
     // Only update if filters actually differ (prevent unnecessary updates)
@@ -318,7 +327,8 @@ export default function Browse() {
       JSON.stringify([...mergedFilters.classSize].sort()) !== JSON.stringify([...filters.classSize].sort()) ||
       JSON.stringify([...mergedFilters.areas].sort()) !== JSON.stringify([...filters.areas].sort()) ||
       JSON.stringify([...mergedFilters.modeOfTeaching].sort()) !== JSON.stringify([...filters.modeOfTeaching].sort()) ||
-      JSON.stringify([...mergedFilters.placeOfTeaching].sort()) !== JSON.stringify([...filters.placeOfTeaching].sort());
+      JSON.stringify([...mergedFilters.placeOfTeaching].sort()) !== JSON.stringify([...filters.placeOfTeaching].sort()) ||
+      mergedFilters.minExperience !== filters.minExperience;
 
     if (filtersChanged) {
       // Update filters - the URL sync effect will handle updating the URL
@@ -366,7 +376,7 @@ export default function Browse() {
           filters.subjects.length > 0 || filters.classes.length > 0 ||
           filters.boards.length > 0 || filters.classSize.length > 0 ||
           filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
-          filters.placeOfTeaching.length > 0;
+          filters.placeOfTeaching.length > 0 || filters.minExperience != null;
 
         // Fetch all teachers (up to 200) for infinite scroll
         const limit = 200;
@@ -479,6 +489,7 @@ export default function Browse() {
           areas: parseArrayParam(searchParams.get('filter_areas')),
           modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
           placeOfTeaching: parseArrayParam(searchParams.get('filter_placeOfTeaching')),
+          minExperience: searchParams.get('filter_experience') || null,
         };
 
         // Include class from dropdown in filters (combine URL param and filter panel selections)
@@ -514,7 +525,8 @@ export default function Browse() {
             urlFilters.boards.length > 0 || urlFilters.classSize.length > 0 || 
             urlFilters.areas.length > 0 || urlFilters.modeOfTeaching.length > 0 ||
             urlFilters.placeOfTeaching.length > 0 ||
-            urlFilters.minFees != null || urlFilters.maxFees != null;
+            urlFilters.minFees != null || urlFilters.maxFees != null ||
+            urlFilters.minExperience != null;
 
         // Apply filters (extracted from search query or URL params)
         // If we have a search query, extract filters directly to ensure they're applied immediately
@@ -529,6 +541,7 @@ export default function Browse() {
           placeOfTeaching: urlFilters.placeOfTeaching,
           minFees: urlFilters.minFees,
           maxFees: urlFilters.maxFees,
+          minExperience: urlFilters.minExperience,
         };
 
         // Extract filters from search query if present (apply immediately, don't wait for state update)
@@ -547,7 +560,7 @@ export default function Browse() {
             }
           }
           // Replace all filters with extracted ones (don't merge with previous search)
-          // Note: Fees are not extracted from search query, keep URL fees
+          // Note: Fees and experience are not extracted from search query, keep URL values
           effectiveFilters = {
             subjects: extractedFilters.subjects || [],
             classes: extractedFilters.classes || [],
@@ -556,8 +569,9 @@ export default function Browse() {
             areas: extractedFilters.areas || [],
             modeOfTeaching: extractedFilters.modeOfTeaching || [],
             placeOfTeaching: extractedFilters.placeOfTeaching || [],
-            minFees: urlFilters.minFees, // Keep fees from URL (not extracted from search)
-            maxFees: urlFilters.maxFees, // Keep fees from URL (not extracted from search)
+            minFees: urlFilters.minFees,
+            maxFees: urlFilters.maxFees,
+            minExperience: urlFilters.minExperience,
           };
         }
 
@@ -571,7 +585,8 @@ export default function Browse() {
           effectiveFilters.modeOfTeaching.length > 0 ||
           effectiveFilters.placeOfTeaching.length > 0 ||
           effectiveFilters.minFees != null ||
-          effectiveFilters.maxFees != null;
+          effectiveFilters.maxFees != null ||
+          effectiveFilters.minExperience != null;
 
         // Smart Search Logic: Handle both Name Search and Filters
         // Strategy: 
@@ -789,6 +804,19 @@ export default function Browse() {
                 }
 
                 if (!matches) {
+                  return false;
+                }
+              }
+
+              // Check experience
+              if (effectiveFilters.minExperience != null) {
+                const yearStarted = parseInt(record["Years they started teaching"]);
+                if (!yearStarted || isNaN(yearStarted)) {
+                  return false;
+                }
+                const currentYear = new Date().getFullYear();
+                const yearsExp = currentYear - yearStarted;
+                if (yearsExp < parseInt(effectiveFilters.minExperience)) {
                   return false;
                 }
               }
@@ -1114,6 +1142,7 @@ export default function Browse() {
       areas: [],
       modeOfTeaching: [],
       placeOfTeaching: [],
+      minExperience: null,
     });
     setSearchParams({});
     setDisplayedTeachers([]);
@@ -1124,7 +1153,7 @@ export default function Browse() {
     filters.subjects.length > 0 || filters.classes.length > 0 ||
     filters.boards.length > 0 || filters.classSize.length > 0 ||
     filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
-    filters.placeOfTeaching.length > 0;
+    filters.placeOfTeaching.length > 0 || filters.minExperience != null;
 
   // Subjects in display order for Browse dropdowns (UI only)
   const sortedSubjectsForDisplay = useMemo(() => {
@@ -1238,11 +1267,11 @@ export default function Browse() {
               {(filters.subjects.length > 0 || filters.classes.length > 0 ||
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
                 filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
-                filters.placeOfTeaching.length > 0) && (
+                filters.placeOfTeaching.length > 0 || filters.minExperience != null) && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
                    filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
-                   filters.placeOfTeaching.length}
+                   filters.placeOfTeaching.length + (filters.minExperience != null ? 1 : 0)}
                 </span>
               )}
             </Button>
@@ -1258,11 +1287,11 @@ export default function Browse() {
               {(filters.subjects.length > 0 || filters.classes.length > 0 ||
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
                 filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
-                filters.placeOfTeaching.length > 0) && (
+                filters.placeOfTeaching.length > 0 || filters.minExperience != null) && (
                 <span className="ml-1 px-2.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full font-bold shadow-sm">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
                    filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
-                   filters.placeOfTeaching.length}
+                   filters.placeOfTeaching.length + (filters.minExperience != null ? 1 : 0)}
                 </span>
               )}
             </Button>
@@ -1537,6 +1566,7 @@ export default function Browse() {
             areas: [],
             modeOfTeaching: [],
             placeOfTeaching: [],
+            minExperience: null,
           });
         }}
       />
