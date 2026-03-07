@@ -428,26 +428,22 @@ export default function Index() {
   }, []);
 
   // Handle scroll detection for making search bar sticky
+  // Use the actual search bar element (not the hero section) so the sticky bar
+  // only appears once the original search bar has scrolled off-screen.
   useEffect(() => {
     const handleScroll = () => {
-      if (!searchBarRef.current) return;
+      if (!searchBarElementRef.current) return;
       
-      const searchBarRect = searchBarRef.current.getBoundingClientRect();
-      // When search bar section is scrolled past (its top is above the mobile nav bar area)
-      // Use a higher threshold on mobile to account for heading height
-      const threshold = window.innerWidth < 768 ? 300 : 150;
-      setIsSearchBarScrolled(searchBarRect.top < threshold);
+      const rect = searchBarElementRef.current.getBoundingClientRect();
+      // Show sticky just before the original search bar fully disappears
+      setIsSearchBarScrolled(rect.bottom < 40);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    // Check initial position - ensure heading is visible initially
-    // Only set to scrolled if we're actually scrolled past
     const initialCheck = () => {
-      if (!searchBarRef.current) return;
-      const searchBarRect = searchBarRef.current.getBoundingClientRect();
-      const threshold = window.innerWidth < 768 ? 300 : 150;
-      // Only set to true if significantly scrolled past (not just slightly)
-      setIsSearchBarScrolled(searchBarRect.top < threshold && window.scrollY > 50);
+      if (!searchBarElementRef.current) return;
+      const rect = searchBarElementRef.current.getBoundingClientRect();
+      setIsSearchBarScrolled(rect.bottom < 40);
     };
     initialCheck();
     
