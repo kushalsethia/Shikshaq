@@ -342,6 +342,15 @@ const STOP_WORDS = new Set([
   'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'will', 'with', 'teacher', 'teachers', 'tutor', 'tutors', 'tuition', 'need', 'want', 'looking', 'find'
 ]);
 
+// Experience filter buckets (same as FilterPanel). Map extracted years to bucket value.
+const EXPERIENCE_BUCKETS = [20, 15, 10, 5, 3, 1];
+function yearsToExperienceBucket(years: number): string | null {
+  for (const bucket of EXPERIENCE_BUCKETS) {
+    if (years >= bucket) return String(bucket);
+  }
+  return null;
+}
+
 const ADDRESS_INDICATORS = new Set([
   'sector', 'sec', 'ward', 'block', 'phase', 'lane', 'road', 'st', 'street', 'no', 'flat', 'apt', 'plot', 'number', 'pin'
 ]);
@@ -363,7 +372,7 @@ export function extractFiltersFromQuery(query: string, subjects?: { name: string
   const SUBJECT_NORMALIZATION = subjects ? buildSubjectNormalization(subjects) : BASE_SUBJECT_NORMALIZATION;
   
   const extractedFilters: Partial<FilterState> = {
-    subjects: [], classes: [], boards: [], classSize: [], areas: [], modeOfTeaching: [],
+    subjects: [], classes: [], boards: [], classSize: [], areas: [], modeOfTeaching: [], minExperience: null,
   };
 
   // --- STEP 1: Handle Multi-Word Areas & Subjects First (Priority) ---
@@ -483,6 +492,36 @@ export function extractFiltersFromQuery(query: string, subjects?: { name: string
       extractedFilters.subjects!.push('English');
     }
     remainingQuery = remainingQuery.replace(/\b(literature|language)\b/gi, '');
+  }
+
+  // --- Experience extraction (e.g. "5 years experience", "10+ yrs", "experienced") ---
+  const experiencePatterns = [
+    /\b(\d+)\s*\+\s*(?:year|years|yr|yrs)(?:\s+experience)?\b/gi,
+    /\b(?:year|years|yr|yrs)?\s*(\d+)\s*(?:year|years|yr|yrs)(?:\s+experience)?\b/gi,
+    /\bexperienced\b/gi,
+  ];
+  for (const re of experiencePatterns) {
+    const m = remainingQuery.match(re);
+    if (m) {
+      if (/\bexperienced\b/i.test(m[0])) {
+        extractedFilters.minExperience = '5';
+        remainingQuery = remainingQuery.replace(/\bexperienced\b/gi, ' ');
+      } else {
+        const numRe = /(\d+)/;
+        const numMatch = m[0].match(numRe);
+        if (numMatch) {
+          const years = parseInt(numMatch[1], 10);
+          if (years >= 1 && years <= 99) {
+            const bucket = yearsToExperienceBucket(years);
+            if (bucket) {
+              extractedFilters.minExperience = bucket;
+              remainingQuery = remainingQuery.replace(re, ' ');
+            }
+          }
+        }
+      }
+      break;
+    }
   }
 
   // --- STEP 2: Process Single Words ---
@@ -645,6 +684,7 @@ export function extractFiltersFromQuery(query: string, subjects?: { name: string
   if (extractedFilters.areas!.length) result.areas = [...new Set(extractedFilters.areas)];
   if (extractedFilters.classSize!.length) result.classSize = [...new Set(extractedFilters.classSize)];
   if (extractedFilters.modeOfTeaching!.length) result.modeOfTeaching = [...new Set(extractedFilters.modeOfTeaching)];
+  if (extractedFilters.minExperience != null) result.minExperience = extractedFilters.minExperience;
 
   return result;
 }
@@ -710,6 +750,13 @@ export function extractNameFromQuery(query: string, extractedFilters: Partial<Fi
     extractedFilters.boards.forEach(board => {
       remainingQuery = remainingQuery.replace(new RegExp(board.toLowerCase(), 'gi'), '');
     });
+  }
+
+  // Remove experience phrases so they don't end up in name part
+  if (extractedFilters.minExperience != null) {
+    remainingQuery = remainingQuery.replace(/\b\d+\s*\+\s*(?:year|years|yr|yrs)(?:\s+experience)?\b/gi, ' ');
+    remainingQuery = remainingQuery.replace(/\b(?:\d+\s+)?(?:year|years|yr|yrs)(?:\s+experience)?\b/gi, ' ');
+    remainingQuery = remainingQuery.replace(/\bexperienced\b/gi, ' ');
   }
 
   // Remove stop words and clean up

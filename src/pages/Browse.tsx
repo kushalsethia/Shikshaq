@@ -315,7 +315,7 @@ export default function Browse() {
       areas: searchQuery ? [...(extractedFilters.areas || [])] : [...urlFilters.areas],
       modeOfTeaching: searchQuery ? [...(extractedFilters.modeOfTeaching || [])] : [...urlFilters.modeOfTeaching],
       placeOfTeaching: searchQuery ? [...(extractedFilters.placeOfTeaching || [])] : [...urlFilters.placeOfTeaching],
-      minExperience: searchQuery ? null : urlFilters.minExperience,
+      minExperience: searchQuery ? (extractedFilters.minExperience ?? null) : urlFilters.minExperience,
     };
 
     // Only update if filters actually differ (prevent unnecessary updates)
@@ -571,7 +571,7 @@ export default function Browse() {
             placeOfTeaching: extractedFilters.placeOfTeaching || [],
             minFees: urlFilters.minFees,
             maxFees: urlFilters.maxFees,
-            minExperience: urlFilters.minExperience,
+            minExperience: extractedFilters.minExperience ?? urlFilters.minExperience,
           };
         }
 
