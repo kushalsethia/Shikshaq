@@ -1,0 +1,223 @@
+#!/usr/bin/env tsx
+/**
+ * AUTOMATIC SITEMAP GENERATOR
+ *
+ * This script automatically regenerates public/sitemap.xml with:
+ * - All approved teacher profiles from database
+ * - All subject pages
+ * - All board pages
+ * - All static pages
+ *
+ * Run manually: npm run generate-sitemap
+ * Or set up as cron job / build step
+ *
+ * Updates public/sitemap.xml directly
+ */
+
+import { createClient } from '@supabase/supabase-js';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
+const SITE_URL = 'https://www.shikshaq.in';
+const OUTPUT_PATH = path.join(__dirname, '..', 'public', 'sitemap.xml');
+
+interface SitemapURL {
+  loc: string;
+  lastmod: string;
+  changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
+  priority: number;
+}
+
+/**
+ * Static pages with fixed URLs
+ */
+const STATIC_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
+  { loc: '/', changefreq: 'daily', priority: 1.0 },
+  { loc: '/all-tuition-teachers-in-kolkata', changefreq: 'daily', priority: 0.9 },
+  { loc: '/faq', changefreq: 'monthly', priority: 0.6 },
+  { loc: '/join', changefreq: 'monthly', priority: 0.7 },
+  { loc: '/join/apply', changefreq: 'monthly', priority: 0.6 },
+  { loc: '/past-papers', changefreq: 'weekly', priority: 0.5 },
+  { loc: '/privacy-policy', changefreq: 'yearly', priority: 0.3 },
+  { loc: '/terms-of-service', changefreq: 'yearly', priority: 0.3 },
+  { loc: '/recommend-teacher', changefreq: 'monthly', priority: 0.5 },
+];
+
+/**
+ * Subject pages
+ */
+const SUBJECT_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
+  { loc: '/maths-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  { loc: '/english-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  { loc: '/science-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  { loc: '/physics-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  { loc: '/chemistry-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  { loc: '/biology-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  { loc: '/computer-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/hindi-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/bengali-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/history-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/geography-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/economics-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/accounts-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/business-studies-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/commerce-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/commercial-studies-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
+  { loc: '/psychology-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
+  { loc: '/sociology-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
+  { loc: '/political-science-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
+  { loc: '/environmental-science-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
+  { loc: '/drawing-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
+  { loc: '/sat-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/act-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/cat-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/nmat-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
+  { loc: '/gmat-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
+  { loc: '/ca-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/cfa-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
+];
+
+/**
+ * Board pages
+ */
+const BOARD_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
+  { loc: '/cbse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  { loc: '/icse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  { loc: '/igcse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/international-board-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/state-board-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+];
+
+/**
+ * Fetch all approved teacher slugs from Supabase
+ */
+async function fetchTeacherSlugs(): Promise<SitemapURL[]> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('ERROR: Missing Supabase credentials');
+    console.error('Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env');
+    return [];
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  try {
+    console.log('📡 Fetching teacher data from Supabase...');
+
+    const { data: teachers, error } = await supabase
+      .from('teachers_list')
+      .select('slug, updated_at')
+      .eq('approved', true)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Database error:', error.message);
+      return [];
+    }
+
+    if (!teachers || teachers.length === 0) {
+      console.warn('⚠️  No approved teachers found in database');
+      return [];
+    }
+
+    console.log(`✅ Found ${teachers.length} approved teachers`);
+
+    return teachers.map((teacher) => ({
+      loc: `/tuition-teachers/${teacher.slug}`,
+      lastmod: teacher.updated_at
+        ? new Date(teacher.updated_at).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0],
+      changefreq: 'weekly' as const,
+      priority: 0.7,
+    }));
+  } catch (err) {
+    console.error('❌ Exception while fetching teachers:', err);
+    return [];
+  }
+}
+
+/**
+ * Generate sitemap XML
+ */
+function generateSitemapXML(urls: SitemapURL[]): string {
+  const urlElements = urls
+    .map(
+      (url) => `  <url>
+    <loc>${SITE_URL}${url.loc}</loc>
+    <lastmod>${url.lastmod}</lastmod>
+    <changefreq>${url.changefreq}</changefreq>
+    <priority>${url.priority.toFixed(1)}</priority>
+  </url>`
+    )
+    .join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+${urlElements}
+</urlset>`;
+}
+
+/**
+ * Main execution
+ */
+async function main() {
+  console.log('🚀 Starting sitemap generation...\n');
+
+  const currentDate = new Date().toISOString().split('T')[0];
+
+  // Fetch dynamic teacher pages
+  const teacherPages = await fetchTeacherSlugs();
+
+  // Combine all URLs
+  const allURLs: SitemapURL[] = [
+    ...STATIC_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
+    ...SUBJECT_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
+    ...BOARD_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
+    ...teacherPages,
+  ];
+
+  console.log('\n📊 Sitemap Statistics:');
+  console.log(`   Static pages:       ${STATIC_PAGES.length}`);
+  console.log(`   Subject pages:      ${SUBJECT_PAGES.length}`);
+  console.log(`   Board pages:        ${BOARD_PAGES.length}`);
+  console.log(`   Teacher profiles:   ${teacherPages.length}`);
+  console.log(`   ─────────────────────────────────`);
+  console.log(`   Total URLs:         ${allURLs.length}`);
+
+  if (allURLs.length > 50000) {
+    console.warn('\n⚠️  WARNING: More than 50,000 URLs!');
+    console.warn('   Consider implementing sitemap index for better performance.');
+  }
+
+  // Generate XML
+  const sitemapXML = generateSitemapXML(allURLs);
+
+  // Write to file
+  try {
+    fs.writeFileSync(OUTPUT_PATH, sitemapXML, 'utf-8');
+    console.log(`\n✅ Sitemap generated successfully!`);
+    console.log(`   Output: ${OUTPUT_PATH}`);
+    console.log(`   Size: ${(sitemapXML.length / 1024).toFixed(2)} KB`);
+  } catch (err) {
+    console.error('\n❌ Failed to write sitemap file:', err);
+    process.exit(1);
+  }
+
+  console.log('\n🎉 Done!\n');
+}
+
+// Run
+main().catch((err) => {
+  console.error('Fatal error:', err);
+  process.exit(1);
+});
