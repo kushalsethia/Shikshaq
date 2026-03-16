@@ -1,13 +1,17 @@
 # robots.txt for shikshaq.in
-# Last updated: 2026-02-26
+# Last updated: 2026-03-15
 
+# Default crawler rules
 User-agent: *
 Allow: /
+Crawl-delay: 1
 
 # Block private/authenticated pages
 Disallow: /auth
+Disallow: /auth/*
 Disallow: /admin
 Disallow: /admin/*
+Disallow: /dashboard
 Disallow: /dashboard/*
 Disallow: /select-role
 Disallow: /teacher-terms-agreement
@@ -22,6 +26,16 @@ Disallow: /404
 
 # Block API endpoints
 Disallow: /api/
+Disallow: /api/*
 
-# Sitemap
+# Block query parameter URLs to prevent duplicate content
+Disallow: /*?*filter_*
+Disallow: /*?*sort_*
+Disallow: /*?*page=*
+
+# Sitemaps
 Sitemap: https://www.shikshaq.in/sitemap.xml
+
+# AI crawler guidelines
+# See llms.txt for AI-specific crawling and usage guidelines
+# https://www.shikshaq.in/llms.txt
