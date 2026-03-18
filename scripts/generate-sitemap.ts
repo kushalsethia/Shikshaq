@@ -18,12 +18,16 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { config } from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Load .env from project root
+config({ path: path.join(__dirname, '..', '.env') });
+
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const SITE_URL = 'https://www.shikshaq.in';
 const OUTPUT_PATH = path.join(__dirname, '..', 'public', 'sitemap.xml');
 
@@ -98,40 +102,38 @@ const BOARD_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
  * Fetch all approved teacher slugs from Supabase
  */
 async function fetchTeacherSlugs(): Promise<SitemapURL[]> {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
     console.error('ERROR: Missing Supabase credentials');
-    console.error('Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env');
+    console.error('Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env');
     return [];
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
   try {
-    console.log('📡 Fetching teacher data from Supabase...');
+    console.log('Fetching teacher data from Supabase...');
 
     const { data: teachers, error } = await supabase
       .from('teachers_list')
-      .select('slug, updated_at')
-      .eq('approved', true)
-      .order('updated_at', { ascending: false });
+      .select('slug')
+      .order('name');
 
     if (error) {
-      console.error('❌ Database error:', error.message);
+      console.error('Database error:', error.message);
       return [];
     }
 
     if (!teachers || teachers.length === 0) {
-      console.warn('⚠️  No approved teachers found in database');
+      console.warn('No teachers found in database');
       return [];
     }
 
-    console.log(`✅ Found ${teachers.length} approved teachers`);
+    const today = new Date().toISOString().split('T')[0];
+    console.log(`Found ${teachers.length} teachers`);
 
     return teachers.map((teacher) => ({
       loc: `/tuition-teachers/${teacher.slug}`,
-      lastmod: teacher.updated_at
-        ? new Date(teacher.updated_at).toISOString().split('T')[0]
-        : new Date().toISOString().split('T')[0],
+      lastmod: today,
       changefreq: 'weekly' as const,
       priority: 0.7,
     }));
