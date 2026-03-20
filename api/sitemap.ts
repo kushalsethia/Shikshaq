@@ -14,7 +14,11 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
+/** Same anon/public key as the browser client — see src/integrations/supabase/client.ts */
+const SUPABASE_PUBLISHABLE_KEY =
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  '';
 const SITE_URL = 'https://www.shikshaq.in';
 
 interface SitemapURL {
@@ -124,7 +128,12 @@ const BOARD_PAGES: SitemapURL[] = [
  * Fetch all teacher slugs from database
  */
 async function fetchTeacherSlugs(): Promise<SitemapURL[]> {
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY');
+    return [];
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
   try {
     // Query teachers_list table for all approved teachers

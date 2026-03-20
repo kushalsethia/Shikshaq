@@ -96,7 +96,7 @@ Create `.env` file in project root if not exists:
 
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key-here
+VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key-here
 ```
 
 These should already exist since the site uses Supabase.
@@ -310,7 +310,7 @@ const { data: teachers } = await supabase
 ```bash
 # Create .env file
 echo "VITE_SUPABASE_URL=https://your-project.supabase.co" >> .env
-echo "VITE_SUPABASE_ANON_KEY=your-key" >> .env
+echo "VITE_SUPABASE_PUBLISHABLE_KEY=your-key" >> .env
 ```
 
 ### Issue: "No approved teachers found"
@@ -401,7 +401,7 @@ jobs:
       - run: npm run generate-sitemap
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "chore: auto-update sitemap"

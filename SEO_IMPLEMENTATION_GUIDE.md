@@ -122,7 +122,7 @@ All new files are **patch-ready** and safe to add without breaking existing func
 ### Phase 1: Dynamic Sitemap (2-3 days) 🔴 CRITICAL
 
 - [ ] Deploy `api/sitemap.ts` as serverless function
-- [ ] Configure environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
+- [ ] Configure environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY)
 - [ ] Test sitemap generation: `https://www.shikshaq.in/api/sitemap`
 - [ ] Verify teacher profiles appear in sitemap
 - [ ] Submit new sitemap to Google Search Console
@@ -266,7 +266,7 @@ Ensure these are set in your deployment platform:
 
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key
 ```
 
 #### Step 3: Test Sitemap Generation
