@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Save, Search, Loader2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Save, Search, Loader2, Upload, X, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import DOMPurify from 'dompurify';
@@ -109,6 +109,7 @@ export default function AdminTeachers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<TeacherData>>({});
@@ -508,6 +509,58 @@ export default function AdminTeachers() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!selectedTeacher) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${selectedTeacher.Title}"? This will remove them from Shikshaqmine and their profile role will be reverted to student.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeleting(true);
+
+      const { error } = await supabase
+        .from('Shikshaqmine')
+        .delete()
+        .eq('id', selectedTeacher.id);
+
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error deleting teacher:', error);
+        }
+        toast.error('Failed to delete teacher');
+        return;
+      }
+
+      toast.success(`"${selectedTeacher.Title}" has been deleted`);
+
+      if (selectedTeacher.Slug) {
+        invalidateTeacherCache(selectedTeacher.Slug);
+        removeCache('featured_teachers_browse');
+        removeCache('featured_teachers_index');
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.includes('shikshaq_cache_') && key.includes('shikshaqmine')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+
+      setSelectedTeacher(null);
+      setFormData({});
+      setImagePreview(null);
+      await fetchTeachers();
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
+      toast.error('Failed to delete teacher');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (checkingAdmin || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -585,19 +638,38 @@ export default function AdminTeachers() {
                       <p className="text-sm text-muted-foreground mt-1">Slug: {selectedTeacher.Slug}</p>
                     )}
                   </div>
-                  <Button onClick={handleSave} disabled={saving}>
-                    {saving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button onClick={handleSave} disabled={saving || deleting}>
+                      {saving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDelete}
+                      disabled={saving || deleting}
+                    >
+                      {deleting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

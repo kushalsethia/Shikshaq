@@ -4,10 +4,17 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, CheckCircle, XCircle, Clock, Search, Loader2, User, Mail, Phone, FileText } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Clock, Search, Loader2, User, Mail, Phone, FileText, MessageCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 
@@ -36,6 +43,7 @@ interface TeacherApplication {
   mou_consent: boolean;
   mou_consent_timestamp: string | null;
   status: 'pending' | 'approved' | 'rejected';
+  texted_status: 'not_texted' | 'texted' | 'follow_up';
   reviewed_by: string | null;
   reviewed_at: string | null;
   rejection_reason: string | null;
@@ -237,6 +245,54 @@ export default function AdminApplications() {
     }
   };
 
+  const handleTextedStatusChange = async (applicationId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('teacher_applications')
+        .update({ texted_status: newStatus })
+        .eq('id', applicationId);
+
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error updating texted status:', error);
+        }
+        toast.error('Failed to update texted status');
+        return;
+      }
+
+      setApplications(prev =>
+        prev.map(app =>
+          app.id === applicationId ? { ...app, texted_status: newStatus as TeacherApplication['texted_status'] } : app
+        )
+      );
+      toast.success('Texted status updated');
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error:', error);
+      }
+      toast.error('Failed to update texted status');
+    }
+  };
+
+  const getTextedStatusColor = (status: string) => {
+    switch (status) {
+      case 'texted':
+        return 'bg-green-500/20 text-green-600';
+      case 'follow_up':
+        return 'bg-orange-500/20 text-orange-600';
+      default:
+        return 'bg-gray-500/20 text-gray-500';
+    }
+  };
+
+  const getTextedStatusLabel = (status: string) => {
+    switch (status) {
+      case 'texted': return 'Texted';
+      case 'follow_up': return 'Follow Up';
+      default: return 'Not Texted';
+    }
+  };
+
   if (checkingAdmin || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -334,6 +390,10 @@ export default function AdminApplications() {
                         {application.status === 'approved' && <CheckCircle className="w-3 h-3 inline mr-1" />}
                         {application.status === 'rejected' && <XCircle className="w-3 h-3 inline mr-1" />}
                         {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTextedStatusColor(application.texted_status)}`}>
+                        <MessageCircle className="w-3 h-3 inline mr-1" />
+                        {getTextedStatusLabel(application.texted_status)}
                       </span>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground mb-4">
@@ -470,6 +530,28 @@ export default function AdminApplications() {
                     {selectedApplication.rejection_reason && (
                       <div><strong>Rejection Reason:</strong> {selectedApplication.rejection_reason}</div>
                     )}
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <h3 className="font-semibold mb-2">Texted Status</h3>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select
+                      value={selectedApplication.texted_status}
+                      onValueChange={(value) => {
+                        handleTextedStatusChange(selectedApplication.id, value);
+                        setSelectedApplication({ ...selectedApplication, texted_status: value as TeacherApplication['texted_status'] });
+                      }}
+                    >
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="not_texted">Not Texted</SelectItem>
+                        <SelectItem value="texted">Texted</SelectItem>
+                        <SelectItem value="follow_up">Follow Up</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
