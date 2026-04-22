@@ -124,14 +124,7 @@ export default function Index() {
       "sameAs": [
         "https://www.instagram.com/ngo.aquaterra/",
         "https://www.facebook.com/shikshaqkolkata/"
-      ],
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.8",
-        "reviewCount": "150",
-        "bestRating": "5",
-        "worstRating": "1"
-      }
+      ]
     });
 
     // Service schema
@@ -153,7 +146,7 @@ export default function Index() {
       "areaServed": "Kolkata",
       "availableChannel": {
         "@type": "ServiceChannel",
-        "serviceUrl": "https://www.shikshaq.in/search",
+        "serviceUrl": "https://www.shikshaq.in/all-tuition-teachers-in-kolkata",
         "servicePhone": "+91-8240980312"
       },
       "offers": [

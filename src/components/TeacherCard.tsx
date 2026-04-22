@@ -95,16 +95,16 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
   };
 
   return (
-    <Link to={`/tuition-teachers/${slug}`} className="teacher-card group active:scale-95 transition-transform duration-150">
+    <Link to={`/tuition-teachers/${slug}`} className="teacher-card group active:scale-[0.96] transition-[transform,box-shadow] duration-150">
       <div className="rounded-2xl border-4 overflow-hidden" style={{ backgroundColor: '#fcfbf8', borderColor: '#fcfbf8' }}>
-        <div className="relative aspect-[4/5] overflow-hidden rounded-b-2xl">
+        <div className="relative aspect-[4/5] overflow-hidden rounded-b-xl">
         {imageUrl ? (
           <img
             src={imageUrl ? validateImageSrc(imageUrl) : ''}
             alt={name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 md:group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 md:group-hover:scale-105 ring-1 ring-inset ring-black/10 dark:ring-white/10"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-b-2xl">
@@ -127,7 +127,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
           {!hideFavourite && (
             <button
               onClick={handleHeartClick}
-              className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
+              className="p-2.5 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
               aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
             >
               <Heart
@@ -197,7 +197,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
               }`}
             />
             {upvoteCount > 0 && (
-              <span className="text-xs font-semibold text-foreground">
+              <span className="text-xs font-semibold text-foreground tabular-nums">
                 {upvoteCount}
               </span>
             )}
