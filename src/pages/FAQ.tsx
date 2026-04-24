@@ -13,7 +13,7 @@ export default function FAQPage() {
           <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-4 text-center">
             Frequently Asked Questions
           </h1>
-          <p className="text-lg text-muted-foreground text-center mb-12">
+          <p className="text-lg text-muted-foreground text-center mb-12 text-pretty">
             Find answers to common questions about Shikshaq
           </p>
         </div>

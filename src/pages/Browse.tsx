@@ -135,6 +135,19 @@ export default function Browse() {
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
   useEffect(() => {
+    document.title = 'All Tuition Teachers in Kolkata | Shikshaq';
+    const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
+    if (metaDesc) metaDesc.setAttribute('content', 'Browse all verified tuition teachers in Kolkata. Filter by subject, class, board, area, mode of teaching, and fees. Free to use — connect directly with local tutors.');
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    if (!canonical) { canonical = document.createElement('link'); canonical.rel = 'canonical'; document.head.appendChild(canonical); }
+    canonical.href = 'https://www.shikshaq.in/all-tuition-teachers-in-kolkata';
+    return () => {
+      document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
+      if (metaDesc) metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board — no commission, no middlemen.');
+    };
+  }, []);
+
+  useEffect(() => {
     async function fetchSubjects() {
       // Check cache first
       const cacheKey = 'subjects';

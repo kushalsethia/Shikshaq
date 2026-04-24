@@ -55,7 +55,7 @@ export function FAQ() {
               <AccordionTrigger className="flex items-center justify-between w-full py-4 text-left text-base sm:text-lg md:text-xl font-sans font-semibold text-[#1F1F1F] hover:text-[#4351FF] transition-colors hover:no-underline">
                 {faq.question}
               </AccordionTrigger>
-              <AccordionContent className="text-sm sm:text-base md:text-lg font-sans font-normal text-[#666666] pb-4 leading-relaxed">
+              <AccordionContent className="text-sm sm:text-base md:text-lg font-sans font-normal text-[#666666] pb-4 leading-relaxed text-pretty">
                 {faq.answer}
                 <p className="mt-4 pt-3 border-t border-[#1F1F1F]/10">
                   <button

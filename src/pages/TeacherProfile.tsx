@@ -285,7 +285,7 @@ export default function TeacherProfile() {
         ? teacher.subjects_from_shikshaq.toLowerCase().replace(/\s+/g, '-').split(',')[0].trim()
         : null);
     const subjectName = teacher.subjects?.name || teacher.subjects_from_shikshaq?.split(',')[0].trim() || 'Tuition Teachers';
-    const subjectUrl = subjectSlug ? `https://www.shikshaq.in/${subjectSlug}-tuition-teachers-in-kolkata` : 'https://www.shikshaq.in/search';
+    const subjectUrl = subjectSlug ? `https://www.shikshaq.in/${subjectSlug}-tuition-teachers-in-kolkata` : 'https://www.shikshaq.in/all-tuition-teachers-in-kolkata';
 
     const teacherUrl = `https://www.shikshaq.in/tuition-teachers/${teacher.slug}`;
     const teacherName = teacher.name || '';
@@ -366,7 +366,7 @@ export default function TeacherProfile() {
         "@type": "ListItem",
         "position": 2,
         "name": "Tuition Teachers",
-        "item": "https://www.shikshaq.in/search"
+        "item": "https://www.shikshaq.in/all-tuition-teachers-in-kolkata"
       }
     ];
     
@@ -419,13 +419,6 @@ export default function TeacherProfile() {
         "@type": "Person",
         "@id": `${teacherUrl}#reviews`,
         "name": teacherName,
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": "4.8",
-          "reviewCount": reviews.length.toString(),
-          "bestRating": "5",
-          "worstRating": "1"
-        },
         "review": reviewItems
       });
     }
@@ -724,7 +717,7 @@ export default function TeacherProfile() {
                   }
                   await toggleLike(teacher.id);
                 }}
-                className="p-2 hover:bg-muted/80 transition-colors flex items-center border-l border-border"
+                className="p-2.5 hover:bg-muted/80 transition-colors flex items-center border-l border-border"
                 aria-label={isLiked(teacher.id) ? 'Remove from favourites' : 'Add to favourites'}
               >
                 <Heart
@@ -773,7 +766,7 @@ export default function TeacherProfile() {
                   }
                   await toggleUpvote(teacher.id);
                 }}
-                className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-border bg-muted/50 hover:bg-muted transition-colors"
+                className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-border bg-muted/50 hover:bg-muted transition-[transform,background-color] active:scale-[0.96]"
                 aria-label={isUpvoted(teacher.id) ? 'Remove upvote' : 'Upvote teacher'}
               >
                 <ThumbsUp
@@ -785,7 +778,7 @@ export default function TeacherProfile() {
                   {isUpvoted(teacher.id) ? 'Upvoted' : 'Upvote'}
                 </span>
                 {getUpvoteCount(teacher.id) > 0 && (
-                  <span className="text-sm font-semibold text-foreground">
+                  <span className="text-sm font-semibold text-foreground tabular-nums">
                     {getUpvoteCount(teacher.id)}
                   </span>
                 )}
@@ -812,7 +805,7 @@ export default function TeacherProfile() {
                     // If user is authenticated student, toggle studies with
                     await toggleStudiesWith(teacher.id);
                   }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-[transform,background-color] active:scale-[0.96] flex items-center gap-2 ${
                     user && userRole === 'student' && isStudyingWith(teacher.id)
                       ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -1152,7 +1145,7 @@ export default function TeacherProfile() {
                       <span className="text-xl leading-none" aria-hidden>💰</span>
                       <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Approximate Fees per month</h4>
                     </div>
-                    <p className="text-base font-normal text-foreground pl-7">
+                    <p className="text-base font-normal text-foreground pl-7 tabular-nums">
                       {teacher.min_fees != null && teacher.max_fees != null
                         ? `₹${teacher.min_fees.toLocaleString()} - ₹${teacher.max_fees.toLocaleString()}`
                         : teacher.min_fees != null
@@ -1184,7 +1177,7 @@ export default function TeacherProfile() {
           <div className="container max-w-lg mx-auto">
             {user ? (
               <Button
-                className="w-full gap-3 py-6 text-lg font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all"
+                className="w-full gap-3 py-6 text-lg font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-[transform,opacity,box-shadow,background-color] active:scale-[0.96]"
                 onClick={() => {
                   const url = teacher.whatsapp_link
                     ? (teacher.whatsapp_link.startsWith('http')
@@ -1200,7 +1193,7 @@ export default function TeacherProfile() {
               </Button>
             ) : (
               <Button
-                className="w-full gap-3 py-6 text-lg font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-all"
+                className="w-full gap-3 py-6 text-lg font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-[transform,opacity,box-shadow,background-color] active:scale-[0.96]"
                 onClick={() => {
                   saveAuthRedirect(location.pathname);
                   navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);

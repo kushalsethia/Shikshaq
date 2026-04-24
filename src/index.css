@@ -130,12 +130,14 @@
     font-family: 'Geist', system-ui, -apple-system, sans-serif;
     font-weight: 600;
     letter-spacing: -0.05em;
+    text-wrap: balance;
   }
 
   h2 {
     font-family: 'Geist', system-ui, -apple-system, sans-serif;
     font-weight: 600;
     letter-spacing: -0.05em;
+    text-wrap: balance;
   }
 
   h3 {
@@ -310,7 +312,7 @@
   }
 
   .teacher-card {
-    @apply relative overflow-hidden rounded-2xl bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+    @apply relative overflow-hidden rounded-2xl bg-card transition-[transform,box-shadow] duration-300 hover:shadow-lg hover:-translate-y-1;
   }
 
   .subject-badge {
