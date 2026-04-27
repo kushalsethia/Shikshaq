@@ -234,7 +234,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               <div>
                 <button
                   onClick={() => setFeedbackModalOpen(true)}
-                  className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-md"
+                  className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors duration-200 shadow-md active:scale-[0.96] transition-[transform,background-color,box-shadow]"
                 >
                   <MessageCircle className="w-5 h-5 text-black" />
                   Give Feedback
@@ -255,7 +255,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               <div>
                 <Link
                   to="/join"
-                  className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200 shadow-md"
+                  className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-[transform,background-color,box-shadow] duration-200 shadow-md active:scale-[0.96]"
                 >
                   <UserPlus className="w-5 h-5 text-black" />
                   Register Now

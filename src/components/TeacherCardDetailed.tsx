@@ -84,7 +84,7 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
             alt={name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ring-1 ring-inset ring-black/10 dark:ring-white/10"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center min-h-[8rem] md:min-h-[10rem]">
@@ -106,7 +106,7 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
             }`}
           />
           {upvoteCount > 0 && (
-            <span className="text-xs font-semibold text-foreground">
+            <span className="text-xs font-semibold text-foreground tabular-nums">
               {upvoteCount}
             </span>
           )}
@@ -160,7 +160,7 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
               upvoted ? 'text-blue-500 fill-blue-500' : 'text-muted-foreground'
             }`}
           />
-          <span className="text-sm font-semibold text-foreground">
+          <span className="text-sm font-semibold text-foreground tabular-nums">
             Upvote{upvoteCount > 0 ? ` ${upvoteCount}` : ''}
           </span>
         </button>

@@ -48,6 +48,7 @@ const STATIC_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
   { loc: '/join', changefreq: 'monthly', priority: 0.7 },
   { loc: '/join/apply', changefreq: 'monthly', priority: 0.6 },
   { loc: '/past-papers', changefreq: 'weekly', priority: 0.5 },
+  { loc: '/more', changefreq: 'monthly', priority: 0.4 },
   { loc: '/privacy-policy', changefreq: 'yearly', priority: 0.3 },
   { loc: '/terms-of-service', changefreq: 'yearly', priority: 0.3 },
   { loc: '/recommend-teacher', changefreq: 'monthly', priority: 0.5 },
@@ -91,7 +92,7 @@ const SUBJECT_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
  * Board pages
  */
 const BOARD_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
-  { loc: '/cbse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  { loc: '/cbse-ncert-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
   { loc: '/icse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
   { loc: '/igcse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
   { loc: '/international-board-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },

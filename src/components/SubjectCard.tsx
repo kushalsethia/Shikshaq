@@ -15,7 +15,7 @@ export function SubjectCard({ name, slug, iconComponent, index = 0, isVisible = 
   return (
     <Link
       to={`/all-tuition-teachers-in-kolkata?subject=${slug}`}
-      className="group active:scale-95 transition-transform duration-150"
+      className="group active:scale-[0.96] transition-transform duration-150"
     >
       <div className="rounded-2xl border-2 border-transparent hover:border-border py-4 px-2 flex flex-col items-center justify-center text-center gap-2 transition-colors" style={{ backgroundColor: '#fcfbf8' }}>
         {iconComponent && (

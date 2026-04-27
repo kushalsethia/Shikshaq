@@ -115,11 +115,16 @@
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   html, body {
     overflow-x: hidden;
     width: 100%;
+    overscroll-behavior-x: none;
   }
-  
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Geist', system-ui, -apple-system, sans-serif;
@@ -148,6 +153,10 @@
   h4 {
     font-family: 'Geist', system-ui, -apple-system, sans-serif;
     font-weight: 500;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 
   /* Meta text (small text, captions, etc.) */
@@ -558,6 +567,19 @@ input[type="date"].date-input-left {
   }
 }
 
+/* Shake animation for disabled-button clicks */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-4px); }
+  40%       { transform: translateX(4px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX(3px); }
+}
+
+.shake {
+  animation: shake 0.35s ease-in-out;
+}
+
 /* Performance optimizations for low-end devices */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -590,11 +612,7 @@ input[type="date"].date-input-left {
   }
 }
 
-/* GPU acceleration for better performance on low-end devices */
-.teacher-card,
-img,
-button {
-  will-change: auto;
-  transform: translateZ(0);
-  backface-visibility: hidden;
+/* GPU layer hint for the card that animates transform+shadow on hover */
+.teacher-card {
+  will-change: transform;
 }

@@ -134,6 +134,12 @@ export function Chatbot() {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [inputShaking, setInputShaking] = useState(false);
+
+  const shakeInput = () => {
+    setInputShaking(true);
+    setTimeout(() => setInputShaking(false), 400);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -298,7 +304,7 @@ export function Chatbot() {
       {/* Floating Button with ? icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
+        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-[0.96] transition-[transform,box-shadow] duration-200"
         aria-label="Ask AI"
       >
         <HelpCircle className="w-6 h-6" />
@@ -405,13 +411,16 @@ export function Chatbot() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask a question..."
-                className="flex-1 px-3 py-2.5 md:px-4 md:py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-base md:text-sm min-h-[44px] md:min-h-0"
+                className={`flex-1 px-3 py-2.5 md:px-4 md:py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-base md:text-sm min-h-[44px] md:min-h-0${inputShaking ? ' shake' : ''}`}
                 style={{ fontSize: '16px' }}
                 disabled={loading}
               />
               <Button
-                onClick={handleSend}
-                disabled={!input.trim() || loading}
+                onClick={() => {
+                  if (!input.trim() && !loading) { shakeInput(); return; }
+                  handleSend();
+                }}
+                disabled={loading}
                 size="icon"
                 className="flex-shrink-0 h-[44px] w-[44px] md:h-auto md:w-auto"
               >

@@ -1,5 +1,31 @@
 {
+  "redirects": [
+    {
+      "source": "/cbse-tuition-teachers-in-kolkata",
+      "destination": "/cbse-ncert-tuition-teachers-in-kolkata",
+      "permanent": true
+    },
+    {
+      "source": "/browse",
+      "destination": "/all-tuition-teachers-in-kolkata",
+      "permanent": true
+    },
+    {
+      "source": "/help",
+      "destination": "/more",
+      "permanent": true
+    },
+    {
+      "source": "/teacher/:slug",
+      "destination": "/tuition-teachers/:slug",
+      "permanent": true
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"
@@ -10,4 +36,3 @@
     }
   ]
 }
-

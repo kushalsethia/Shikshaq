@@ -154,6 +154,9 @@ export function SEOHead({
       updateStructuredData(schema);
     }
 
+    // Sync browser chrome color with page background (immersive on mobile)
+    updateMetaTag('theme-color', '#F7F3EE');
+
     // Cleanup function
     return () => {
       // Optionally restore defaults on unmount

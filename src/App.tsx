@@ -9,6 +9,7 @@ import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
 import { StudiesWithProvider } from "@/lib/studies-with-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { BackToTop } from "@/components/BackToTop";
 import { Chatbot } from "@/components/Chatbot";
 import Index from "./pages/Index";
 const Browse = lazy(() => import("./pages/Browse"));
@@ -81,6 +82,7 @@ const App = () => (
             <Sonner />
           <BrowserRouter>
             <ScrollToTop />
+            <BackToTop />
             <Chatbot />
             <Routes>
               <Route path="/" element={<Index />} />

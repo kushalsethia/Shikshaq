@@ -63,6 +63,11 @@ const STATIC_PAGES: SitemapURL[] = [
     priority: 0.5,
   },
   {
+    loc: '/more',
+    changefreq: 'monthly',
+    priority: 0.4,
+  },
+  {
     loc: '/privacy-policy',
     changefreq: 'yearly',
     priority: 0.3,
@@ -117,7 +122,7 @@ const SUBJECT_PAGES: SitemapURL[] = [
  * Board pages - all 5 boards
  */
 const BOARD_PAGES: SitemapURL[] = [
-  { loc: '/cbse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  { loc: '/cbse-ncert-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
   { loc: '/icse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
   { loc: '/igcse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
   { loc: '/international-board-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
