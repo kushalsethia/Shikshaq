@@ -65,7 +65,7 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
   };
 
   return (
-    <div className={`relative group transition-all duration-300 ease-out ${showGlow && !sticky ? 'search-bar-glow-wrapper focus-within:scale-[1.02]' : ''} ${className}`}>
+    <div className={`relative group transition-transform duration-300 ease-out ${showGlow && !sticky ? 'search-bar-glow-wrapper focus-within:scale-[1.02]' : ''} ${className}`}>
       {/* Gradient glow behind the search bar (non-sticky only) */}
       {showGlow && !sticky && (
         <>
@@ -102,7 +102,7 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
           <button
             type="button"
             onClick={handleClear}
-            className={`absolute ${sticky ? 'right-2.5' : 'right-3 sm:right-4'} top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted active:bg-muted/80 transition-all duration-200 z-[2]`}
+            className={`absolute ${sticky ? 'right-2.5' : 'right-3 sm:right-4'} top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted active:bg-muted/80 transition-colors duration-200 z-[2]`}
             aria-label="Clear search"
           >
             <X className={`${sticky ? 'w-3 h-3' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'} text-muted-foreground hover:text-foreground`} />

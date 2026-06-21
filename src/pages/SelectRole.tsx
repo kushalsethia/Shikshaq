@@ -233,7 +233,7 @@ export default function SelectRole() {
                 <button
                   type="button"
                   onClick={() => setRole('student')}
-                  className={`flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-all ${
+                  className={`flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-colors ${
                     role === 'student'
                       ? 'border-primary bg-primary/10'
                       : 'border-border hover:border-primary/50'
@@ -245,7 +245,7 @@ export default function SelectRole() {
                 <button
                   type="button"
                   onClick={() => setRole('guardian')}
-                  className={`flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-all ${
+                  className={`flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-colors ${
                     role === 'guardian'
                       ? 'border-primary bg-primary/10'
                       : 'border-border hover:border-primary/50'

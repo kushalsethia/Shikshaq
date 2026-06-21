@@ -73,7 +73,7 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
     <Link
       to={`/tuition-teachers/${slug}`}
       state={returnToBrowseUrl ? { fromBrowse: returnToBrowseUrl } : undefined}
-      className="group flex gap-3 bg-card rounded-2xl p-1.5 border border-border hover:shadow-lg transition-all duration-150 active:scale-[0.97] animate-card-reveal opacity-0 min-w-0"
+      className="group flex gap-3 bg-card rounded-2xl p-1.5 border border-border hover:shadow-lg transition-[transform,box-shadow] duration-150 active:scale-[0.97] animate-card-reveal opacity-0 min-w-0"
       style={{ animationDelay: `${delay}ms` }}
     >
       {/* Teacher Image - fixed aspect ratio so card height is consistent and upvote stays visible */}

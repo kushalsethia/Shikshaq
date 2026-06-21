@@ -17,6 +17,7 @@ import { useUpvotes } from '@/lib/upvotes-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
 import { useAuth } from '@/lib/auth-context';
 import { getWhatsAppLink } from '@/utils/whatsapp';
+import { trackWhatsAppClick } from '@/utils/clarityEvents';
 import { TeacherComments } from '@/components/TeacherComments';
 import { ShareButton } from '@/components/ShareButton';
 import { WhatsAppIcon } from '@/components/BrandIcons';
@@ -679,7 +680,7 @@ export default function TeacherProfile() {
           {/* Back to all teachers on image - mobile only; desktop has link above */}
           <Link
             to={(location.state as { fromBrowse?: string })?.fromBrowse ?? '/all-tuition-teachers-in-kolkata'}
-            className="absolute top-8 left-3 sm:top-10 sm:left-4 md:hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/95 dark:bg-card/95 backdrop-blur-sm border border-border/80 shadow-md text-foreground hover:bg-white dark:hover:bg-card hover:shadow-lg transition-all font-medium text-xs"
+            className="absolute top-8 left-3 sm:top-10 sm:left-4 md:hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/95 dark:bg-card/95 backdrop-blur-sm border border-border/80 shadow-md text-foreground hover:bg-white dark:hover:bg-card hover:shadow-lg transition-[background-color,box-shadow] font-medium text-xs"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to all teachers
@@ -826,7 +827,7 @@ export default function TeacherProfile() {
                       await fetchStudentsList();
                     }
                   }}
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-background text-muted-foreground hover:text-foreground hover:bg-accent border border-border shadow-sm hover:shadow"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-[color,background-color,box-shadow] flex items-center gap-1.5 bg-background text-muted-foreground hover:text-foreground hover:bg-accent border border-border shadow-sm hover:shadow"
                   aria-label="View students who have studied here"
                   title="View students who have studied here"
                 >
@@ -1234,6 +1235,7 @@ export default function TeacherProfile() {
             <Button
               onClick={() => {
                 if (pendingWhatsappUrl) {
+                  if (teacher?.slug) trackWhatsAppClick(teacher.slug);
                   window.open(pendingWhatsappUrl, '_blank', 'noopener,noreferrer');
                 }
                 setWhatsappDisclaimerOpen(false);

@@ -382,7 +382,7 @@ export default function Auth() {
                 <div>
                   <Button
                     onClick={handleGoogleSignIn}
-                    className="w-full h-16 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-gray-300 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold text-lg gap-3"
+                    className="w-full h-16 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-gray-300 shadow-lg hover:shadow-xl transition-[color,background-color,border-color,box-shadow] duration-200 font-semibold text-lg gap-3"
                   >
                     <svg className="w-7 h-7" viewBox="0 0 24 24">
                       <path
@@ -433,7 +433,7 @@ export default function Auth() {
               <>
                 <Button
                   onClick={handleGoogleSignIn}
-                  className="w-full h-12 mb-6 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg transition-all duration-200 font-medium gap-3"
+                  className="w-full h-12 mb-6 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg transition-[color,background-color,border-color,box-shadow] duration-200 font-medium gap-3"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path

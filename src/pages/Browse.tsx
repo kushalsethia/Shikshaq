@@ -1354,7 +1354,7 @@ export default function Browse() {
 
         {/* Sticky Search Bar - Only visible when scrolled past original */}
         {isSearchBarScrolled && (
-          <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 py-3 transition-all duration-300 ease-in-out">
+          <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 py-3 transition-[opacity] duration-300 ease-in-out">
             <div className="container mx-auto px-4">
               <div className="w-full">
                 <SearchBar showGlow={false} />

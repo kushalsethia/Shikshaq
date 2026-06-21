@@ -401,7 +401,7 @@ export function Navbar() {
         </div>
       </div>
     ) : (
-      <div className={`md:hidden fixed left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-all duration-300 ease-in-out ${
+      <div className={`md:hidden fixed left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-[top] duration-300 ease-in-out ${
         isScrolled ? 'top-0' : 'top-16'
       }`}>
         <div className="container mx-auto px-4">

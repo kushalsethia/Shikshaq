@@ -298,7 +298,7 @@ export function Chatbot() {
       {/* Floating Button with ? icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
+        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-[transform,box-shadow] duration-200"
         aria-label="Ask AI"
       >
         <HelpCircle className="w-6 h-6" />
@@ -306,7 +306,7 @@ export function Chatbot() {
 
       {/* Chat Window - Uses part of screen, smaller on mobile */}
       {isOpen && (
-        <div className="fixed bottom-24 left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col transition-all duration-300">
+        <div className="fixed bottom-24 left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col transition-[opacity] duration-300">
           {/* Header - Mobile: Larger, Desktop: Compact */}
           <div className="flex items-center justify-between p-3 md:p-4 border-b border-border flex-shrink-0">
             <div className="flex items-center gap-2 md:gap-3">

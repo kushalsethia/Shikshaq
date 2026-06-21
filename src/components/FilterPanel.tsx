@@ -179,7 +179,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
         }}
       >
         {/* Sticky header with Advanced Filters title and X button - sticky when scrolling down, returns to original position when at top */}
-        <div className={`sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 -mx-6 px-6 pb-4 mb-6 transition-all duration-300 ease-in-out ${
+        <div className={`sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 -mx-6 px-6 pb-4 mb-6 transition-[padding-top] duration-300 ease-in-out ${
           isScrolled ? 'pt-[7px]' : 'pt-6'
         }`}>
           <div className="flex items-center justify-between">
