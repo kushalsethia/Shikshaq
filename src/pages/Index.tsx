@@ -470,7 +470,7 @@ export default function Index() {
 
       {/* Sticky Search Bar - Only visible when scrolled past original */}
       {isSearchBarScrolled && (
-        <div className="md:hidden fixed top-14 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 py-2 transition-all duration-300 ease-in-out">
+        <div className="md:hidden fixed top-14 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 py-2 transition-[opacity] duration-300 ease-in-out">
           <div className="container mx-auto px-4">
             <div className="w-full max-w-3xl mx-auto">
               <SearchBar sticky={true} />

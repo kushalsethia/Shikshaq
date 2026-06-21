@@ -91,7 +91,7 @@ export default function Help() {
             href={getWhatsAppLink('8240980312')}
             target="_blank"
             rel="noopener noreferrer"
-            className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-all hover:-translate-y-1 border border-border"
+            className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-[transform,box-shadow] hover:-translate-y-1 border border-border"
           >
             <div className="w-12 h-12 bg-badge-science/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <WhatsAppIcon className="w-6 h-6 text-badge-science" />
@@ -102,7 +102,7 @@ export default function Help() {
 
           <a
             href="mailto:join.shikshaq@gmail.com"
-            className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-all hover:-translate-y-1 border border-border"
+            className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-[transform,box-shadow] hover:-translate-y-1 border border-border"
           >
             <div className="w-12 h-12 bg-badge-commerce/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Mail className="w-6 h-6 text-badge-commerce" />
@@ -115,7 +115,7 @@ export default function Help() {
             href="https://instagram.com/shikshaq.in"
             target="_blank"
             rel="noopener noreferrer"
-            className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-all hover:-translate-y-1 border border-border"
+            className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-[transform,box-shadow] hover:-translate-y-1 border border-border"
           >
             <div className="w-12 h-12 bg-badge-hindi/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <InstagramIcon className="w-6 h-6 text-badge-hindi" />
