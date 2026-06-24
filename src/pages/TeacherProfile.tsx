@@ -17,7 +17,7 @@ import { useUpvotes } from '@/lib/upvotes-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
 import { useAuth } from '@/lib/auth-context';
 import { getWhatsAppLink } from '@/utils/whatsapp';
-import { trackWhatsAppClick } from '@/utils/clarityEvents';
+import { trackWhatsAppClick } from '@/utils/whatsappTracking';
 import { TeacherComments } from '@/components/TeacherComments';
 import { ShareButton } from '@/components/ShareButton';
 import { WhatsAppIcon } from '@/components/BrandIcons';
@@ -1235,7 +1235,7 @@ export default function TeacherProfile() {
             <Button
               onClick={() => {
                 if (pendingWhatsappUrl) {
-                  if (teacher?.slug) trackWhatsAppClick(teacher.slug);
+                  if (teacher?.slug) trackWhatsAppClick(teacher.slug, teacher.id);
                   window.open(pendingWhatsappUrl, '_blank', 'noopener,noreferrer');
                 }
                 setWhatsappDisclaimerOpen(false);
