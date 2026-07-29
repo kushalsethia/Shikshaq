@@ -84,7 +84,7 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
       <form onSubmit={handleSubmit} className="relative">
         <button
           type="submit"
-          className={`absolute ${sticky ? 'left-2.5' : 'left-3 sm:left-5'} top-1/2 -translate-y-1/2 z-[2] p-0 bg-transparent border-none cursor-pointer`}
+          className={`absolute ${sticky ? 'left-2.5' : 'left-3 sm:left-5'} top-1/2 -translate-y-1/2 z-[2] p-2.5 -m-2.5 bg-transparent border-none cursor-pointer`}
           aria-label="Search"
         >
           <Search className={`${sticky ? 'w-3.5 h-3.5' : 'w-4 h-4 sm:w-5 sm:h-5'} text-muted-foreground hover:text-foreground transition-colors duration-200`} strokeWidth={sticky ? 2 : 2.5} />
@@ -102,7 +102,7 @@ export function SearchBar({ className = '', placeholder = 'Look for tuition teac
           <button
             type="button"
             onClick={handleClear}
-            className={`absolute ${sticky ? 'right-2.5' : 'right-3 sm:right-4'} top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted active:bg-muted/80 transition-colors duration-200 z-[2]`}
+            className={`absolute ${sticky ? 'right-2.5' : 'right-3 sm:right-4'} top-1/2 -translate-y-1/2 p-1.5 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-full hover:bg-muted active:bg-muted/80 transition-colors duration-200 z-[2]`}
             aria-label="Clear search"
           >
             <X className={`${sticky ? 'w-3 h-3' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'} text-muted-foreground hover:text-foreground`} />

@@ -1,8 +1,14 @@
 import { useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 export default function PrivacyPolicy() {
+  usePageMeta(
+    'Privacy Policy | Shikshaq',
+    'How Shikshaq collects, uses, and protects your personal data when you search for or list as a tuition teacher in Kolkata.'
+  );
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);

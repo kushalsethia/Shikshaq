@@ -136,7 +136,8 @@ export function Chatbot() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    messagesEndRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' });
   };
 
   useEffect(() => {
@@ -298,7 +299,7 @@ export function Chatbot() {
       {/* Floating Button with ? icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-[transform,box-shadow] duration-200"
+        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-[0.96] transition-[transform,box-shadow] duration-200"
         aria-label="Ask AI"
       >
         <HelpCircle className="w-6 h-6" />
@@ -320,7 +321,7 @@ export function Chatbot() {
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-2 md:p-2 hover:bg-muted active:bg-muted rounded-full transition-colors flex-shrink-0 -mr-1 md:mr-0"
+              className="p-2.5 hover:bg-muted active:bg-muted rounded-full transition-colors flex-shrink-0 -mr-1 md:mr-0"
               aria-label="Close chat"
             >
               <X className="w-5 h-5 md:w-5 md:h-5 text-muted-foreground" />

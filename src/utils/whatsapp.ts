@@ -65,3 +65,45 @@ export function getWhatsAppLink(
   return `https://wa.me/${sanitized}`;
 }
 
+/**
+ * Resolves the destination WhatsApp URL for a teacher.
+ *
+ * The Shikshaqmine "Link" column may hold either a full URL or a bare number,
+ * so both shapes are handled. Falls back to the Shikshaq support number when a
+ * teacher has no link of their own.
+ *
+ * @param whatsappLink - The teacher's raw "Link" value, if any.
+ */
+export function resolveTeacherWhatsAppUrl(whatsappLink: string | null | undefined): string {
+  if (!whatsappLink) return getWhatsAppLink(null, '8240980312');
+  return whatsappLink.startsWith('http') ? whatsappLink : getWhatsAppLink(whatsappLink);
+}
+
+/**
+ * Hosts the redirect page is allowed to forward to automatically.
+ *
+ * `wa.link` is the Walink short-link service and accounts for the overwhelming
+ * majority of teacher links in Shikshaqmine; `wa.me` covers the rest. The
+ * whatsapp.com hosts are included so hand-entered links keep working.
+ */
+const WHATSAPP_HOSTS = new Set(['wa.me', 'wa.link', 'whatsapp.com']);
+
+/**
+ * Whether a URL actually points at WhatsApp.
+ *
+ * The redirect page sends users off-site, so the destination is checked against
+ * a host allowlist first. Anything else is surfaced as a button the user taps
+ * deliberately rather than an automatic redirect — a bad "Link" value should
+ * never turn shikshaq.in into an open redirect.
+ */
+export function isWhatsAppUrl(url: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(url);
+    if (protocol !== 'https:' && protocol !== 'http:') return false;
+    const host = hostname.toLowerCase().replace(/^www\./, '');
+    return WHATSAPP_HOSTS.has(host) || host.endsWith('.whatsapp.com');
+  } catch {
+    return false;
+  }
+}
+

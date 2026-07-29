@@ -2,8 +2,14 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { FAQ } from '@/components/FAQ';
 import { WaveDivider } from '@/components/WaveDivider';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 export default function FAQPage() {
+  usePageMeta(
+    'Tuition FAQs for Students and Parents in Kolkata | Shikshaq',
+    'Answers to common questions about finding a tuition teacher in Kolkata on Shikshaq — how matching works, fees, verification, and contacting tutors directly for free.'
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

@@ -341,7 +341,7 @@ export function Navbar() {
                     <a
                       href="mailto:join.shikshaq@gmail.com"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="p-2 rounded-lg hover:bg-muted transition-colors"
+                      className="p-2.5 rounded-lg hover:bg-muted transition-colors"
                       aria-label="Gmail"
                     >
                       <Mail className="w-5 h-5" />
@@ -351,7 +351,7 @@ export function Navbar() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="p-2 rounded-lg hover:bg-muted transition-colors"
+                      className="p-2.5 rounded-lg hover:bg-muted transition-colors"
                       aria-label="Instagram"
                     >
                       <InstagramIcon className="w-5 h-5" />
@@ -361,7 +361,7 @@ export function Navbar() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="p-2 rounded-lg hover:bg-muted transition-colors"
+                      className="p-2.5 rounded-lg hover:bg-muted transition-colors"
                       aria-label="WhatsApp"
                     >
                       <WhatsAppIcon className="w-5 h-5" />

@@ -42,7 +42,9 @@ export function HowItWorks() {
                   alt={step.title}
                   loading="lazy"
                   decoding="async"
-                  className="w-full rounded-2xl object-cover max-h-[150px] md:max-h-none"
+                  width={800}
+                  height={600}
+                  className="w-full rounded-2xl object-cover max-h-[150px] md:max-h-none ring-1 ring-inset ring-black/10 dark:ring-white/10"
                 />
               </div>
               <div className="flex items-center gap-3 mb-3">

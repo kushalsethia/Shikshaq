@@ -21,7 +21,7 @@
     --secondary-foreground: 30 10% 20%;
 
     --muted: 35 20% 92%;
-    --muted-foreground: 30 10% 45%;
+    --muted-foreground: 30 10% 40%;
 
     --accent: 35 40% 88%;
     --accent-foreground: 30 10% 15%;
@@ -131,6 +131,12 @@
     @apply border-border;
   }
 
+  /* Global keyboard focus indicator — nothing else in the app provides one */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
   html, body {
     overflow-x: hidden;
     width: 100%;
@@ -168,8 +174,13 @@
     text-wrap: balance;
   }
 
+  /* Smaller headings (h5 is rendered by ui/alert.tsx) */
+  h5, h6 {
+    text-wrap: balance;
+  }
+
   /* Avoid orphaned words on short-to-medium body text */
-  p, li, figcaption, blockquote {
+  p, li, figcaption, blockquote, dd, td, summary {
     text-wrap: pretty;
   }
 
@@ -180,7 +191,7 @@
   p.text-muted-foreground,
   span.text-muted-foreground {
     font-family: 'Geist', system-ui, -apple-system, sans-serif;
-    font-weight: 300; /* Geist Light */
+    font-weight: 400; /* Geist Regular — 300 hurt contrast at small sizes */
   }
 }
 
@@ -229,6 +240,7 @@
     filter: blur(12px);
     opacity: 0.6;
     animation: glowShift 4s ease-in-out infinite alternate;
+    will-change: transform;
     pointer-events: none;
   }
 
@@ -259,8 +271,14 @@
     caret-color: hsl(var(--foreground));
   }
 
+  /* focus:outline-none above leaves keyboard users with no focus indicator */
+  .search-input:focus-visible {
+    outline: 2px solid #4351FF;
+    outline-offset: 2px;
+  }
+
   .search-input-sticky {
-    @apply w-full bg-card border-2 border-black rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring/20 transition-[border-color,box-shadow,background-color] duration-200;
+    @apply w-full bg-card border-2 border-black rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-[border-color,box-shadow,background-color] duration-200;
     min-height: 2.5rem;
     cursor: text;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -275,7 +293,7 @@
   
   .search-input-sticky:focus {
     border-color: hsl(var(--ring));
-    box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 0 0 2px hsl(var(--ring)), 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
     background-color: hsl(var(--card));
   }
   
@@ -304,7 +322,7 @@
 
   .search-input-pulse {
     border-width: 4px;
-    animation: search-border-pulse 5s ease-in-out infinite;
+    animation: search-border-pulse 5s ease-in-out 3;
   }
 
   .search-input-pulse:hover:not(:focus),
@@ -339,7 +357,7 @@
   }
 
   .subject-badge {
-    @apply inline-flex px-3 py-1 rounded-full text-xs font-medium text-white/95;
+    @apply inline-flex px-3 py-1 rounded-full text-xs font-medium text-[#1F1F1F];
   }
 
   .hero-cta {
@@ -418,7 +436,7 @@
   }
 
   .whatsapp-pulse-once {
-    animation: whatsapp-pulse 7s linear 1s infinite;
+    animation: whatsapp-pulse 7s linear 1s 3;
   }
 
   .scrollbar-hide {
@@ -585,10 +603,13 @@ input[type="date"].date-input-left {
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
-  *::after {
+  *::after,
+  ::backdrop {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }
 

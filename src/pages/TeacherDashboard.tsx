@@ -757,10 +757,11 @@ export default function TeacherDashboard() {
               
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>
+                  <Label htmlFor="accountName">
                     Name <span className="text-red-500">*</span>
                   </Label>
                   <Input
+                    id="accountName"
                     value={userName}
                     disabled
                     className="bg-muted cursor-not-allowed"
@@ -768,10 +769,11 @@ export default function TeacherDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>
+                  <Label htmlFor="accountHonorific">
                     Honorific
                   </Label>
                   <Input
+                    id="accountHonorific"
                     value={teacherData["Sir/Ma'am?"] || ''}
                     disabled
                     className="bg-muted cursor-not-allowed"
@@ -779,10 +781,11 @@ export default function TeacherDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>
+                  <Label htmlFor="accountEmailId">
                     Email ID <span className="text-red-500">*</span>
                   </Label>
                   <Input
+                    id="accountEmailId"
                     value={teacherData["Email ID"] || ''}
                     disabled
                     className="bg-muted cursor-not-allowed"
@@ -820,6 +823,8 @@ export default function TeacherDashboard() {
                     handleInputChange("Phone Number", digits || null);
                   }}
                   type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
                   placeholder="10 digit number"
                   maxLength={10}
                   required

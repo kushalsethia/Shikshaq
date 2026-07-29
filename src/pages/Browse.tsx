@@ -59,7 +59,38 @@ interface FeaturedTeacher {
   sir_maam?: string | null;
 }
 
-export default function Browse() {
+interface BrowseProps {
+  /**
+   * Whether Browse owns the page title/description. SubjectPage and BoardPage
+   * render Browse as a child, and this component mounts *after* their effects
+   * have run — so without this flag it overwrites their keyword-targeted SEO
+   * tags with the generic "All Tuition Teachers" copy.
+   */
+  manageSeo?: boolean;
+}
+
+/**
+ * Loading placeholder that mirrors TeacherCardDetailed's geometry (rounded-2xl p-1.5
+ * shell, w-32 md:w-40 aspect-[3/4] image) so the list doesn't jump when results land.
+ */
+function TeacherCardSkeletons({ count }: { count: number }) {
+  return (
+    <div className="space-y-4">
+      {[...Array(count)].map((_, i) => (
+        <div key={i} className="animate-pulse flex gap-3 bg-card rounded-2xl p-1.5 border border-border">
+          <div className="w-32 md:w-40 flex-shrink-0 self-start aspect-[3/4] bg-muted rounded-[10px]" />
+          <div className="flex-1 space-y-2 pt-1">
+            <div className="h-6 bg-muted rounded w-1/3" />
+            <div className="h-4 bg-muted rounded w-2/3" />
+            <div className="h-4 bg-muted rounded w-1/4" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function Browse({ manageSeo = true }: BrowseProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -135,17 +166,17 @@ export default function Browse() {
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
   useEffect(() => {
+    // Canonical is handled globally by <CanonicalTag>.
+    if (!manageSeo) return;
+
     document.title = 'All Tuition Teachers in Kolkata | Shikshaq';
     const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
     if (metaDesc) metaDesc.setAttribute('content', 'Browse all verified tuition teachers in Kolkata. Filter by subject, class, board, area, mode of teaching, and fees. Free to use — connect directly with local tutors.');
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
-    if (!canonical) { canonical = document.createElement('link'); canonical.rel = 'canonical'; document.head.appendChild(canonical); }
-    canonical.href = 'https://www.shikshaq.in/all-tuition-teachers-in-kolkata';
     return () => {
       document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
       if (metaDesc) metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board — no commission, no middlemen.');
     };
-  }, []);
+  }, [manageSeo]);
 
   useEffect(() => {
     async function fetchSubjects() {
@@ -1273,7 +1304,7 @@ export default function Browse() {
             <Button
               onClick={() => setFilterPanelOpen(true)}
               variant="secondary"
-              className="h-14 sm:hidden w-auto px-3 flex-shrink-0 relative gap-1.5"
+              className="h-14 sm:hidden w-auto px-3 flex-shrink-0 relative gap-1.5 transition-transform active:scale-[0.96]"
             >
               <SlidersHorizontal className="w-4 h-4 flex-shrink-0" />
               <span className="font-medium text-sm whitespace-nowrap">Filters</span>
@@ -1281,7 +1312,7 @@ export default function Browse() {
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
                 filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
                 filters.placeOfTeaching.length > 0 || filters.minExperience != null) && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm tabular-nums">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
                    filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
                    filters.placeOfTeaching.length + (filters.minExperience != null ? 1 : 0)}
@@ -1293,7 +1324,7 @@ export default function Browse() {
             <Button
               onClick={() => setFilterPanelOpen(true)}
               variant="secondary"
-              className="hidden sm:flex gap-2 h-auto px-4 py-2.5 flex-shrink-0 font-medium"
+              className="hidden sm:flex gap-2 h-auto px-4 py-2.5 flex-shrink-0 font-medium transition-transform active:scale-[0.96]"
             >
               <SlidersHorizontal className="w-4 h-4 flex-shrink-0" />
               <span className="whitespace-nowrap">Filters</span>
@@ -1301,7 +1332,7 @@ export default function Browse() {
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
                 filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
                 filters.placeOfTeaching.length > 0 || filters.minExperience != null) && (
-                <span className="ml-1 px-2.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full font-bold shadow-sm">
+                <span className="ml-1 px-2.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full font-bold shadow-sm tabular-nums">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
                    filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
                    filters.placeOfTeaching.length + (filters.minExperience != null ? 1 : 0)}
@@ -1313,7 +1344,7 @@ export default function Browse() {
           {/* Subject and Class Filters - Mobile: One row */}
           <div className="flex items-center gap-2 sm:hidden mb-3">
             <Select value={selectedSubject} onValueChange={handleSubjectChange}>
-              <SelectTrigger className="flex-1 h-9 text-sm">
+              <SelectTrigger className="flex-1 h-10 text-sm">
                 <SelectValue placeholder="Subject" />
               </SelectTrigger>
               <SelectContent>
@@ -1327,7 +1358,7 @@ export default function Browse() {
             </Select>
 
             <Select value={selectedClass} onValueChange={handleClassChange}>
-              <SelectTrigger className="flex-1 h-9 text-sm">
+              <SelectTrigger className="flex-1 h-10 text-sm">
                 <SelectValue placeholder="Class" />
               </SelectTrigger>
               <SelectContent>
@@ -1344,7 +1375,7 @@ export default function Browse() {
           {/* Clear filters - Mobile only, just under class filter */}
           {hasFilters && (
             <div className="sm:hidden mb-3">
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 h-9 text-muted-foreground">
+              <Button variant="ghost" onClick={clearFilters} className="gap-1.5 h-10 text-muted-foreground active:scale-[0.96] transition-transform">
                 <X className="w-4 h-4" />
                 Clear filters
               </Button>
@@ -1371,7 +1402,7 @@ export default function Browse() {
                 {getHeading()}
               </h1>
               <p className="text-muted-foreground mt-1">
-                {loading ? 'Loading...' : `${teachers.length} teachers found`}
+                {loading ? 'Loading...' : <><span className="tabular-nums">{teachers.length}</span> teachers found</>}
               </p>
             </div>
 
@@ -1406,7 +1437,7 @@ export default function Browse() {
               </Select>
 
               {hasFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+                <Button variant="ghost" onClick={clearFilters} className="gap-1 active:scale-[0.96] transition-transform">
                   <X className="w-4 h-4" />
                   Clear filters
                 </Button>
@@ -1419,45 +1450,14 @@ export default function Browse() {
         {loading ? (
           // Check if this is initial page load (no teachers loaded yet)
           displayedTeachers.length === 0 && allTeachersData.length === 0 ? (
-            // Show loading screen for initial page load
-            <div className="flex flex-col items-center justify-center py-24 md:py-32 min-h-[60vh]">
-              <div className="text-center space-y-6">
-                <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mb-6"></div>
-                <h2 className="text-3xl md:text-4xl font-sans text-foreground">
-                  Finding your favourite teachers
-                </h2>
-                <p className="text-muted-foreground text-lg">
-                  Please wait while we load the best tutors for you...
-                </p>
-              </div>
-            </div>
+            // Show card skeletons for initial page load
+            <TeacherCardSkeletons count={6} />
           ) : hasFilters ? (
-            // Show search message when filters are active
-            <div className="flex flex-col items-center justify-center py-16 md:py-24">
-              <div className="text-center space-y-4">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mb-4"></div>
-                <h2 className="text-2xl md:text-3xl font-sans text-foreground">
-                  We are searching for your perfect teacher
-                </h2>
-                <p className="text-muted-foreground text-lg">
-                  Please wait while we find the best matches for you...
-                </p>
-              </div>
-            </div>
+            // Show card skeletons while filters are being applied
+            <TeacherCardSkeletons count={5} />
           ) : (
             // Show skeleton loaders when loading more (has some teachers already)
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="animate-pulse flex gap-4 bg-card rounded-2xl p-4 border border-border">
-                  <div className="w-24 h-24 md:w-32 md:h-32 bg-muted rounded-xl" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-6 bg-muted rounded w-1/3" />
-                    <div className="h-4 bg-muted rounded w-2/3" />
-                    <div className="h-4 bg-muted rounded w-1/4" />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TeacherCardSkeletons count={5} />
           )
         ) : displayedTeachers.length > 0 ? (
           <div className="space-y-4">
@@ -1485,13 +1485,8 @@ export default function Browse() {
             
             {/* Infinite scroll loading indicator */}
             {hasMore && (
-              <div 
-                id="scroll-trigger" 
-                className="h-20 flex items-center justify-center"
-              >
-                <div className="animate-pulse text-muted-foreground">
-                  Loading more teachers...
-                </div>
+              <div id="scroll-trigger">
+                <TeacherCardSkeletons count={2} />
               </div>
             )}
           </div>
@@ -1501,7 +1496,7 @@ export default function Browse() {
             <p className="text-muted-foreground mb-4">
               Try adjusting your search or filters
             </p>
-            <Button onClick={clearFilters} variant="outline">
+            <Button onClick={clearFilters} variant="outline" className="transition-transform active:scale-[0.96]">
               Clear all filters
             </Button>
           </div>

@@ -9,6 +9,7 @@ import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
 import { StudiesWithProvider } from "@/lib/studies-with-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { CanonicalTag } from "@/components/CanonicalTag";
 import { Chatbot } from "@/components/Chatbot";
 import Index from "./pages/Index";
 const Browse = lazy(() => import("./pages/Browse"));
@@ -25,6 +26,7 @@ import TermsOfService from "./pages/TermsOfService";
 
 // Lazy load heavy components for better performance on mobile
 const SubjectPage = lazy(() => import("./pages/SubjectPage"));
+const WhatsAppRedirect = lazy(() => import("./pages/WhatsAppRedirect"));
 const BoardPage = lazy(() => import("./pages/BoardPage"));
 const RecommendTeacher = lazy(() => import("./pages/RecommendTeacher"));
 const AdminRecommendations = lazy(() => import("./pages/AdminRecommendations"));
@@ -80,7 +82,14 @@ const App = () => (
             <Toaster />
             <Sonner />
           <BrowserRouter>
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:ring-2 focus:ring-ring"
+            >
+              Skip to content
+            </a>
             <ScrollToTop />
+            <CanonicalTag />
             <Chatbot />
             <Routes>
               <Route path="/" element={<Index />} />
@@ -94,6 +103,11 @@ const App = () => (
               <Route path="/tuition-teachers/:slug" element={
                 <Suspense fallback={<PageLoader />}>
                   <TeacherProfile />
+                </Suspense>
+              } />
+              <Route path="/tuition-teachers/:slug/whatsapp-click" element={
+                <Suspense fallback={<PageLoader />}>
+                  <WhatsAppRedirect />
                 </Suspense>
               } />
               <Route path="/teacher/:slug" element={<TeacherRedirect />} />

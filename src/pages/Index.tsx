@@ -446,13 +446,15 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-[#F9F5F1]">
       <Navbar />
-      
+
+      <main id="main-content">
+
       {/* Hero Section — Beige */}
       <section ref={searchBarRef} className="pt-[100px] pb-[80px] bg-[#F9F5F1]">
         <div className="container">
           <div className="flex flex-col items-center px-4 sm:px-0">
             <div className="text-center w-full max-w-3xl mb-4 sm:mb-6">
-              <p className="text-sm sm:text-base md:text-lg font-medium mb-2 sm:mb-3 opacity-0 animate-fade-slide-up text-[#FF8000]" style={{ animationDelay: '100ms' }}>
+              <p className="text-sm sm:text-base md:text-lg font-medium mb-2 sm:mb-3 opacity-0 animate-fade-slide-up text-[#B35900]" style={{ animationDelay: '100ms' }}>
                 Welcome to Shikshaq{user && userFirstName ? `, ${userFirstName}` : ''}! 👋
               </p>
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-sans font-bold text-[#1F1F1F] leading-none tracking-tight text-center opacity-0 animate-fade-slide-up" style={{ animationDelay: '200ms' }}>
@@ -537,7 +539,7 @@ export default function Index() {
               </Carousel>
               {/* View more button below carousel */}
               <div className="flex justify-end mt-4 sm:mt-5 md:mt-6">
-                <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-black hover:opacity-80 transition-opacity flex items-center gap-2">
+                <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-black hover:opacity-80 transition-[opacity,transform] active:scale-[0.96] inline-flex items-center gap-2 min-h-10 px-2 -mx-2">
                   View more teachers
                   <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -549,7 +551,11 @@ export default function Index() {
             </div>
           ) : (
             <div className="text-center py-8 text-[#999999]">
-              <p>No teachers found. Please add teachers to your Supabase database.</p>
+              <p>We're refreshing our featured teachers right now.</p>
+              <Link to="/all-tuition-teachers-in-kolkata" className="inline-flex items-center gap-2 min-h-10 px-2 -mx-2 mt-2 text-sm md:text-base font-semibold text-[#B35900] hover:opacity-80 transition-[opacity,transform] active:scale-[0.96]">
+                Browse all tuition teachers in Kolkata
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           )}
         </div>
@@ -561,8 +567,8 @@ export default function Index() {
       {/* Subjects — Orange */}
       <section className="py-12 sm:py-16 md:py-20 bg-[#FF8000]">
         <div className="container">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-white mb-2 sm:mb-4 md:mb-6">
-            Explore tuition teachers via <span className="text-white">subjects</span>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-[#1F1F1F] mb-2 sm:mb-4 md:mb-6">
+            Explore tuition teachers via <span className="text-[#1F1F1F]">subjects</span>
           </h2>
 
           {loading ? (
@@ -589,19 +595,19 @@ export default function Index() {
             </div>
               {/* View more button below grid */}
               <div className="flex justify-end mt-4 sm:mt-5 md:mt-6">
-                <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-white hover:opacity-80 transition-opacity flex items-center gap-2">
+                <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-[#1F1F1F] hover:opacity-80 transition-[opacity,transform] active:scale-[0.96] inline-flex items-center gap-2 min-h-10 px-2 -mx-2">
                   View more subjects
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </>
           ) : loadError ? (
-            <div className="text-center py-8 text-[#999999]">
+            <div className="text-center py-8 text-[#1F1F1F]/80">
               <p>Unable to load subjects. Please check your connection and refresh the page.</p>
             </div>
           ) : (
-            <div className="text-center py-8 text-[#999999]">
-              <p>No subjects found. Please add subjects to your Supabase database.</p>
+            <div className="text-center py-8 text-[#1F1F1F]/80">
+              <p>We're updating our list of subjects. Please check back shortly.</p>
             </div>
           )}
         </div>
@@ -625,6 +631,8 @@ export default function Index() {
 
       {/* Wave: FAQ (Orange) → Footer */}
       <WaveDivider fillColor="#fcfbf8" bgColor="#FF8000" inverted={false} />
+
+      </main>
 
       {/* Footer */}
       <Footer />

@@ -202,7 +202,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={subject}
                   onClick={() => toggleFilter('subjects', subject)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
                     filters.subjects.includes(subject)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -242,7 +242,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={board}
                   onClick={() => toggleFilter('boards', board)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
                     filters.boards.includes(board)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -262,7 +262,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={size}
                   onClick={() => toggleFilter('classSize', size)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
                     filters.classSize.includes(size)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -282,7 +282,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={area}
                   onClick={() => toggleFilter('areas', area)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
                     filters.areas.includes(area)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -302,7 +302,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={mode}
                   onClick={() => toggleFilter('modeOfTeaching', mode)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
                     filters.modeOfTeaching.includes(mode)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -322,7 +322,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={place}
                   onClick={() => toggleFilter('placeOfTeaching', place)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
                     filters.placeOfTeaching.includes(place)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
