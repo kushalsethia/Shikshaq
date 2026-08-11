@@ -43,14 +43,7 @@ export default function BoardPage() {
     const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
     if (metaDesc) metaDesc.setAttribute('content', seo.description);
 
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.rel = 'canonical';
-      document.head.appendChild(canonical);
-    }
-    canonical.href = `https://www.shikshaq.in${pathname}`;
-
+    // Canonical is handled globally by <CanonicalTag>, keyed on pathname.
     return () => {
       document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
       if (metaDesc) {
@@ -60,7 +53,7 @@ export default function BoardPage() {
   }, [pathname]);
 
   if (!filterValue) {
-    return <Browse />;
+    return <Browse manageSeo={!BOARD_SEO[pathname]} />;
   }
 
   const filterBoardsExists = searchParams.has('filter_boards');
@@ -90,5 +83,5 @@ export default function BoardPage() {
     hasSetInitialFilterRef.current = true;
   }
 
-  return <Browse />;
+  return <Browse manageSeo={!BOARD_SEO[pathname]} />;
 }

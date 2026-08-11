@@ -4,8 +4,14 @@ import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getWhatsAppLink } from '@/utils/whatsapp';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 export default function Join() {
+  usePageMeta(
+    'Join as a Tuition Teacher in Kolkata | Shikshaq',
+    'List yourself as a tuition teacher in Kolkata for free. Reach students near you directly — no commission, no middlemen, no platform fees. Apply to join Shikshaq today.'
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

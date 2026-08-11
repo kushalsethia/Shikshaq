@@ -421,10 +421,11 @@ export default function StudentDashboard() {
               
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>
+                  <Label htmlFor="accountName">
                     Name <span className="text-red-500">*</span>
                   </Label>
                   <Input
+                    id="accountName"
                     value={userName}
                     disabled
                     className="bg-muted cursor-not-allowed"
@@ -432,10 +433,11 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>
+                  <Label htmlFor="accountEmail">
                     Email <span className="text-red-500">*</span>
                   </Label>
                   <Input
+                    id="accountEmail"
                     value={userEmail}
                     disabled
                     className="bg-muted cursor-not-allowed"
@@ -468,6 +470,7 @@ export default function StudentDashboard() {
                     id="phone"
                     name="phone"
                     type="tel"
+                    autoComplete="tel"
                     placeholder="10-digit phone number"
                     value={formData.phone}
                     onChange={handleInputChange}
@@ -570,6 +573,10 @@ export default function StudentDashboard() {
                     id="guardian_email"
                     name="guardian_email"
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     placeholder="guardian@example.com"
                     value={formData.guardian_email}
                     onChange={handleInputChange}

@@ -17,7 +17,6 @@ import { useUpvotes } from '@/lib/upvotes-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
 import { useAuth } from '@/lib/auth-context';
 import { getWhatsAppLink } from '@/utils/whatsapp';
-import { trackWhatsAppClick } from '@/utils/clarityEvents';
 import { TeacherComments } from '@/components/TeacherComments';
 import { ShareButton } from '@/components/ShareButton';
 import { WhatsAppIcon } from '@/components/BrandIcons';
@@ -667,7 +666,11 @@ export default function TeacherProfile() {
             <img
               src={teacher.image_url ? validateImageSrc(teacher.image_url) : ''}
               alt={teacher.name}
-              className="block w-full h-full min-h-[220px] max-h-[55vh] md:max-h-[min(75vh,520px)] object-cover object-top md:object-contain md:object-center"
+              width={800}
+              height={1000}
+              decoding="async"
+              fetchPriority="high"
+              className="block w-full h-full min-h-[220px] max-h-[55vh] md:max-h-[min(75vh,520px)] object-cover object-top md:object-contain md:object-center ring-1 ring-inset ring-black/10 dark:ring-white/10"
             />
           ) : (
             <div className="w-full min-h-[220px] max-h-[55vh] md:min-h-[200px] md:max-h-[min(75vh,520px)] aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center">
@@ -680,7 +683,7 @@ export default function TeacherProfile() {
           {/* Back to all teachers on image - mobile only; desktop has link above */}
           <Link
             to={(location.state as { fromBrowse?: string })?.fromBrowse ?? '/all-tuition-teachers-in-kolkata'}
-            className="absolute top-8 left-3 sm:top-10 sm:left-4 md:hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/95 dark:bg-card/95 backdrop-blur-sm border border-border/80 shadow-md text-foreground hover:bg-white dark:hover:bg-card hover:shadow-lg transition-[background-color,box-shadow] font-medium text-xs"
+            className="absolute top-8 left-3 sm:top-10 sm:left-4 md:hidden inline-flex items-center gap-1.5 min-h-10 px-3 py-2 rounded-full bg-white/95 dark:bg-card/95 backdrop-blur-sm border border-border/80 shadow-md text-foreground hover:bg-white dark:hover:bg-card hover:shadow-lg transition-[background-color,box-shadow,transform] active:scale-[0.96] font-medium text-xs"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to all teachers
@@ -697,7 +700,7 @@ export default function TeacherProfile() {
           {/* Combined Heart and Share Buttons */}
           <div className="absolute bottom-4 right-4 md:top-4 md:left-4 md:bottom-auto md:right-auto">
             <div className="inline-flex items-center rounded-full border-2 border-border bg-card/90 backdrop-blur-sm overflow-hidden">
-              <div className="p-2 hover:bg-muted/80 transition-colors flex items-center">
+              <div className="p-2.5 hover:bg-muted/80 transition-colors flex items-center">
                 <ShareButton
                   url={`/tuition-teachers/${teacher.slug}`}
                   title={`${teacher.name}${teacher.sir_maam ? ` ${teacher.sir_maam}` : ''}`}
@@ -806,7 +809,7 @@ export default function TeacherProfile() {
                     // If user is authenticated student, toggle studies with
                     await toggleStudiesWith(teacher.id);
                   }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-[transform,background-color] active:scale-[0.96] flex items-center gap-2 ${
+                  className={`min-h-10 px-4 py-2 rounded-full text-sm font-medium transition-[transform,background-color] active:scale-[0.96] flex items-center gap-2 ${
                     user && userRole === 'student' && isStudyingWith(teacher.id)
                       ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -827,7 +830,7 @@ export default function TeacherProfile() {
                       await fetchStudentsList();
                     }
                   }}
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-[color,background-color,box-shadow] flex items-center gap-1.5 bg-background text-muted-foreground hover:text-foreground hover:bg-accent border border-border shadow-sm hover:shadow"
+                  className="min-h-10 px-3 rounded-lg text-xs font-medium transition-[color,background-color,box-shadow,transform] active:scale-[0.96] flex items-center gap-1.5 bg-background text-muted-foreground hover:text-foreground hover:bg-accent border border-border shadow-sm hover:shadow"
                   aria-label="View students who have studied here"
                   title="View students who have studied here"
                 >
@@ -848,7 +851,7 @@ export default function TeacherProfile() {
               {teacher.experience_years && (
                 <div className="flex items-center gap-2 text-foreground/80">
                   <Clock className="w-4 h-4" />
-                  <span>{teacher.experience_years}+ years experience</span>
+                  <span><span className="tabular-nums">{teacher.experience_years}</span>+ years experience</span>
                 </div>
               )}
             </div>
@@ -1137,7 +1140,7 @@ export default function TeacherProfile() {
                       <span className="text-xl leading-none" aria-hidden>📅</span>
                       <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Teaching since</h4>
                     </div>
-                    <p className="text-base font-normal text-foreground pl-7">{teacher.teaching_since}</p>
+                    <p className="text-base font-normal text-foreground pl-7 tabular-nums">{teacher.teaching_since}</p>
                   </div>
                 )}
                 {(teacher.min_fees != null || teacher.max_fees != null) && (
@@ -1234,9 +1237,13 @@ export default function TeacherProfile() {
             </Button>
             <Button
               onClick={() => {
-                if (pendingWhatsappUrl) {
-                  if (teacher?.slug) trackWhatsAppClick(teacher.slug);
-                  window.open(pendingWhatsappUrl, '_blank', 'noopener,noreferrer');
+                if (pendingWhatsappUrl && teacher?.slug) {
+                  // Tracking now lives on the redirect page, so the click gets a
+                  // real per-teacher URL in GA4/Clarity. The resolved URL rides
+                  // along in router state to avoid a second lookup there.
+                  navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, {
+                    state: { url: pendingWhatsappUrl, name: teacher.name },
+                  });
                 }
                 setWhatsappDisclaimerOpen(false);
                 setPendingWhatsappUrl(null);

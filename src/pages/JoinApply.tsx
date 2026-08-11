@@ -519,6 +519,7 @@ export default function JoinApply() {
                   <Label htmlFor="name">Name *</Label>
                   <Input
                     id="name"
+                    autoComplete="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     maxLength={200}
@@ -533,6 +534,10 @@ export default function JoinApply() {
                   <Input
                     id="email"
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     placeholder="e.g. name@example.com"
@@ -548,6 +553,10 @@ export default function JoinApply() {
                   <Input
                     id="phone_number"
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     value={formData.phone_number}
                     onChange={(e) => {
                       // Only allow digits, limit to 10 digits
@@ -885,6 +894,8 @@ export default function JoinApply() {
                   <Input
                     id="reference_number"
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="off"
                     value={formData.reference_number}
                     onChange={(e) => {
                       // Only allow digits, limit to 10

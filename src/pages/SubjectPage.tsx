@@ -135,14 +135,7 @@ export default function SubjectPage() {
     const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
     if (metaDesc) metaDesc.setAttribute('content', seo.description);
 
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.rel = 'canonical';
-      document.head.appendChild(canonical);
-    }
-    canonical.href = `https://www.shikshaq.in${pathname}`;
-
+    // Canonical is handled globally by <CanonicalTag>, keyed on pathname.
     return () => {
       document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
       if (metaDesc) {
@@ -152,7 +145,7 @@ export default function SubjectPage() {
   }, [pathname]);
 
   if (!filterValue) {
-    return <Browse />;
+    return <Browse manageSeo={!SUBJECT_SEO[pathname]} />;
   }
 
   const filterSubjectsExists = searchParams.has('filter_subjects');
@@ -182,5 +175,5 @@ export default function SubjectPage() {
     hasSetInitialFilterRef.current = true;
   }
 
-  return <Browse />;
+  return <Browse manageSeo={!SUBJECT_SEO[pathname]} />;
 }

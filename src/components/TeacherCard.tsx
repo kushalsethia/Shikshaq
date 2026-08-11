@@ -157,7 +157,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         {!hideFavourite && (
           <button
             onClick={handleHeartClick}
-            className="md:hidden absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
+            className="md:hidden absolute top-3 right-3 p-2.5 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
             aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
           >
             <Heart
@@ -188,7 +188,7 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
         {!isFeatured && (
           <button
             onClick={handleUpvoteClick}
-            className="absolute bottom-3 right-3 px-2.5 py-1.5 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background border border-border/60 transition-colors z-10 flex items-center gap-1"
+            className="absolute bottom-3 right-3 px-2.5 py-1.5 min-h-[40px] rounded-full bg-background/90 backdrop-blur-sm hover:bg-background border border-border/60 transition-colors z-10 flex items-center justify-center gap-1"
             aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
           >
             <ThumbsUp

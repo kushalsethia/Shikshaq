@@ -478,15 +478,16 @@ export default function Auth() {
                       id="newPassword"
                       name="newPassword"
                       type={showNewPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       placeholder="Enter new password"
                       value={formData.newPassword}
                       onChange={handleInputChange}
-                      className={`pl-10 pr-10 ${errors.newPassword ? 'border-destructive' : ''}`}
+                      className={`pl-10 pr-12 ${errors.newPassword ? 'border-destructive' : ''}`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-foreground"
                     >
                       {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -504,15 +505,16 @@ export default function Auth() {
                       id="confirmNewPassword"
                       name="confirmNewPassword"
                       type={showConfirmPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       placeholder="Confirm new password"
                       value={formData.confirmNewPassword}
                       onChange={handleInputChange}
-                      className={`pl-10 pr-10 ${errors.confirmNewPassword ? 'border-destructive' : ''}`}
+                      className={`pl-10 pr-12 ${errors.confirmNewPassword ? 'border-destructive' : ''}`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-foreground"
                     >
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -539,6 +541,7 @@ export default function Auth() {
                       id="fullName"
                       name="fullName"
                       type="text"
+                      autoComplete="name"
                       placeholder="Enter your name"
                       value={formData.fullName}
                       onChange={handleInputChange}
@@ -560,6 +563,10 @@ export default function Auth() {
                     id="email"
                     name="email"
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     placeholder="Enter your email"
                     value={formData.email}
                     onChange={handleInputChange}
@@ -596,15 +603,16 @@ export default function Auth() {
                       id="password"
                       name="password"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete={isLogin ? 'current-password' : 'new-password'}
                       placeholder={isLogin ? 'Enter your password' : 'Create a password'}
                       value={formData.password}
                       onChange={handleInputChange}
-                      className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
+                      className={`pl-10 pr-12 ${errors.password ? 'border-destructive' : ''}`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-foreground"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -626,6 +634,10 @@ export default function Auth() {
                         id="forgotEmail"
                         name="email"
                         type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         placeholder="Enter your email"
                         value={formData.email}
                         onChange={handleInputChange}
@@ -674,15 +686,16 @@ export default function Auth() {
                       id="confirmPassword"
                       name="confirmPassword"
                       type={showConfirmPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
                       placeholder="Confirm your password"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className={`pl-10 pr-10 ${errors.confirmPassword ? 'border-destructive' : ''}`}
+                      className={`pl-10 pr-12 ${errors.confirmPassword ? 'border-destructive' : ''}`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-foreground"
                     >
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>

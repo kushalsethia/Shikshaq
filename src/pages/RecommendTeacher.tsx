@@ -12,6 +12,7 @@ import { ArrowLeft, User, Phone, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Link } from 'react-router-dom';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 const recommendSchema = z.object({
   yourName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -21,6 +22,11 @@ const recommendSchema = z.object({
 });
 
 export default function RecommendTeacher() {
+  usePageMeta(
+    'Recommend a Tuition Teacher in Kolkata | Shikshaq',
+    'Know a great tuition teacher in Kolkata? Recommend them to Shikshaq so other students and parents can find them. Free to submit, takes under a minute.'
+  );
+
   const navigate = useNavigate();
   const { user } = useAuth();
   const [formData, setFormData] = useState({
@@ -40,7 +46,9 @@ export default function RecommendTeacher() {
     
     // Handle phone number input - only allow digits
     if (name === 'yourContact' || name === 'teacherContact') {
-      const digitsOnly = value.replace(/\D/g, '');
+      // Strip a leading +91 country code before truncating, so pasting
+      // "+91 98765 43210" doesn't silently store "9198765432".
+      const digitsOnly = value.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').slice(0, 10);
       setFormData({ ...formData, [name]: digitsOnly });
     } else {
       setFormData({ ...formData, [name]: value });
@@ -189,6 +197,10 @@ export default function RecommendTeacher() {
                     id="yourContact"
                     name="yourContact"
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     placeholder=""
                     value={formData.yourContact}
                     onChange={handleInputChange}
@@ -233,6 +245,9 @@ export default function RecommendTeacher() {
                     id="teacherContact"
                     name="teacherContact"
                     type="tel"
+                    inputMode="numeric"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     placeholder=""
                     value={formData.teacherContact}
                     onChange={handleInputChange}

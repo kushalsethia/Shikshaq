@@ -419,8 +419,9 @@ export default function GuardianDashboard() {
               
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Name</Label>
+                  <Label htmlFor="accountName">Name</Label>
                   <Input
+                    id="accountName"
                     value={userName}
                     disabled
                     className="bg-muted cursor-not-allowed"

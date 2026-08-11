@@ -4,7 +4,6 @@
 # Default crawler rules
 User-agent: *
 Allow: /
-Crawl-delay: 1
 
 # Block private/authenticated pages
 Disallow: /auth
@@ -23,6 +22,9 @@ Disallow: /my-teachers
 Disallow: /help
 Disallow: /teacher/
 Disallow: /404
+
+# Block click-tracking interstitials
+Disallow: /*/whatsapp-click
 
 # Block API endpoints
 Disallow: /api/

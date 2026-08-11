@@ -234,7 +234,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               <div>
                 <button
                   onClick={() => setFeedbackModalOpen(true)}
-                  className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-200 shadow-md"
+                  className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 active:scale-[0.96] transition-[background-color,transform] duration-200 shadow-md"
                 >
                   <MessageCircle className="w-5 h-5 text-black" />
                   Give Feedback
@@ -246,16 +246,16 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           {/* Join as Teacher Section - Orange Gradient (order-1 on mobile so it appears first) */}
           <div className="relative rounded-3xl overflow-hidden bg-[#FF8000] p-9 order-1 md:order-2">
             <div className="relative z-10">
-              <h2 className="text-3xl md:text-4xl font-sans text-white mb-4 md:mb-6 leading-tight">
+              <h2 className="text-3xl md:text-4xl font-sans text-[#1F1F1F] mb-4 md:mb-6 leading-tight">
                 Join as a Teacher
               </h2>
-              <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
+              <p className="text-[#1F1F1F]/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
                 Are you a tuition teacher? List yourself for free and connect with students across Kolkata. No fees, no commissions!
               </p>
               <div>
                 <Link
                   to="/join"
-                  className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-200 shadow-md"
+                  className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 active:scale-[0.96] transition-[background-color,transform] duration-200 shadow-md"
                 >
                   <UserPlus className="w-5 h-5 text-black" />
                   Register Now
@@ -417,13 +417,13 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 href={getWhatsAppLink('8240980312')}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-full bg-muted hover:bg-accent transition-colors"
+                className="p-2.5 rounded-full bg-muted hover:bg-accent transition-colors"
               >
                 <WhatsAppIcon className="w-5 h-5 text-foreground" />
               </a>
               <a
                 href="mailto:join.shikshaq@gmail.com"
-                className="p-2 rounded-full bg-muted hover:bg-accent transition-colors"
+                className="p-2.5 rounded-full bg-muted hover:bg-accent transition-colors"
               >
                 <Mail className="w-5 h-5 text-foreground" />
               </a>
@@ -431,7 +431,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 href="https://instagram.com/shikshaq.in"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-full bg-muted hover:bg-accent transition-colors"
+                className="p-2.5 rounded-full bg-muted hover:bg-accent transition-colors"
               >
                 <InstagramIcon className="w-5 h-5 text-foreground" />
               </a>
@@ -446,6 +446,10 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 <img
                   src={aquaterraLogo}
                   alt="AquaTerra"
+                  width={120}
+                  height={32}
+                  loading="lazy"
+                  decoding="async"
                   className="h-8 w-auto object-contain"
                 />
               </div>

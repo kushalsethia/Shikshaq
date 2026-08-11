@@ -1,7 +1,13 @@
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 export default function PastPapers() {
+  usePageMeta(
+    'Past Year Question Papers (PYQs) for CBSE, ICSE and State Board | Shikshaq',
+    'Download free past year question papers and previous year solved papers for CBSE, ICSE, ISC and West Bengal State Board exams. Practice PYQs by subject and class.'
+  );
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />

@@ -6,8 +6,14 @@ import { WaveDivider } from '@/components/WaveDivider';
 import { Mail } from 'lucide-react';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 export default function Help() {
+  usePageMeta(
+    'Help and Contact | Shikshaq',
+    'Need help finding a tuition teacher in Kolkata? Contact the Shikshaq team on WhatsApp or email, and learn how our free tutor matching works.'
+  );
+
   // Add FAQPage JSON-LD structured data
   useEffect(() => {
     const faqPageScript = document.createElement('script');

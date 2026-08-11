@@ -73,7 +73,7 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
     <Link
       to={`/tuition-teachers/${slug}`}
       state={returnToBrowseUrl ? { fromBrowse: returnToBrowseUrl } : undefined}
-      className="group flex gap-3 bg-card rounded-2xl p-1.5 border border-border hover:shadow-lg transition-[transform,box-shadow] duration-150 active:scale-[0.97] animate-card-reveal opacity-0 min-w-0"
+      className="group flex gap-3 bg-card rounded-2xl p-1.5 border border-border hover:shadow-lg transition-[transform,box-shadow] duration-150 active:scale-[0.96] animate-card-reveal opacity-0 min-w-0"
       style={{ animationDelay: `${delay}ms` }}
     >
       {/* Teacher Image - fixed aspect ratio so card height is consistent and upvote stays visible */}
@@ -84,7 +84,7 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
             alt={name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-full object-cover ring-1 ring-inset ring-black/10 dark:ring-white/10 transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center min-h-[8rem] md:min-h-[10rem]">
@@ -97,7 +97,7 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
         {/* Upvote Button - On image for mobile, hidden on desktop (shown in right section) */}
         <button
           onClick={handleUpvoteClick}
-          className="md:hidden absolute bottom-2 right-2 px-2 py-1 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background border border-border/60 transition-colors z-10 flex items-center gap-1"
+          className="md:hidden absolute bottom-2 right-2 px-2 py-1 min-h-[40px] min-w-[40px] rounded-full bg-background/90 backdrop-blur-sm hover:bg-background border border-border/60 transition-colors z-10 flex items-center justify-center gap-1"
           aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
         >
           <ThumbsUp
@@ -106,7 +106,7 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
             }`}
           />
           {upvoteCount > 0 && (
-            <span className="text-xs font-semibold text-foreground">
+            <span className="text-xs font-semibold text-foreground tabular-nums">
               {upvoteCount}
             </span>
           )}
@@ -115,13 +115,16 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
 
       {/* Teacher Info */}
       <div className="flex-1 min-w-0 flex flex-col justify-center">
-        <h3 className="text-lg md:text-xl font-sans font-semibold tracking-tight text-foreground mb-0.5 group-hover:text-foreground/80 transition-colors">
+        <h3
+          className="text-lg md:text-xl font-sans font-semibold tracking-tight text-foreground mb-0.5 group-hover:text-foreground/80 transition-colors line-clamp-2"
+          title={displayName}
+        >
           {displayName}
         </h3>
 
         {/* Subjects */}
         {subjects && (
-          <p className="text-sm text-muted-foreground mb-2">
+          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
             {subjects}
           </p>
         )}
@@ -140,7 +143,7 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
           const firstTwo = areas.slice(0, 2);
           if (firstTwo.length === 0) return null;
           return (
-            <p className="text-sm mt-1 font-bold text-foreground">
+            <p className="text-sm mt-1 font-bold text-foreground truncate">
               {firstTwo.join(', ')}
             </p>
           );
@@ -160,7 +163,7 @@ export const TeacherCardDetailed = memo(function TeacherCardDetailed({
               upvoted ? 'text-blue-500 fill-blue-500' : 'text-muted-foreground'
             }`}
           />
-          <span className="text-sm font-semibold text-foreground">
+          <span className="text-sm font-semibold text-foreground tabular-nums">
             Upvote{upvoteCount > 0 ? ` ${upvoteCount}` : ''}
           </span>
         </button>

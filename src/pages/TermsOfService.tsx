@@ -1,8 +1,14 @@
 import { useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 export default function TermsOfService() {
+  usePageMeta(
+    'Terms of Service | Shikshaq',
+    'The terms that govern your use of Shikshaq, the free tutor-student matchmaking platform connecting students with verified tuition teachers in Kolkata.'
+  );
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
