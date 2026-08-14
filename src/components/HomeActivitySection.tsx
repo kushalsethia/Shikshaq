@@ -1,0 +1,165 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Clock, FileText, Heart, GraduationCap } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth-context';
+import { useLikes } from '@/lib/likes-context';
+import { TeacherCard } from '@/components/TeacherCard';
+import { getRecentlyVisited, type RecentVisit } from '@/lib/recently-visited';
+
+interface FavouriteTeacher {
+  id: string;
+  name: string;
+  slug: string;
+  image_url: string | null;
+  subjects: { name: string; slug: string } | null;
+}
+
+const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
+const SECTION = 'py-16 sm:py-20 lg:py-24';
+
+/**
+ * "Your activity" — Favourites (account-linked via likes-context, same
+ * Supabase + localStorage cache pattern as LikedTeachers.tsx) and Recently
+ * visited (device-local only, see src/lib/recently-visited.ts — a fresh
+ * device/browser starts empty even for a signed-in user; there is no
+ * account-level sync for this yet).
+ */
+export function HomeActivitySection() {
+  const { user } = useAuth();
+  const { likedTeacherIds, loading: likesLoading } = useLikes();
+  const [favourites, setFavourites] = useState<FavouriteTeacher[]>([]);
+  const [favouritesLoading, setFavouritesLoading] = useState(true);
+  const [recent, setRecent] = useState<RecentVisit[]>([]);
+
+  useEffect(() => {
+    setRecent(getRecentlyVisited());
+  }, []);
+
+  useEffect(() => {
+    if (!user || likedTeacherIds.size === 0) {
+      setFavouritesLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    async function fetchFavourites() {
+      const ids = Array.from(likedTeacherIds).slice(0, 6);
+      const { data } = await supabase
+        .from('teachers_list')
+        .select('id, name, slug, image_url, subjects(name, slug)')
+        .in('id', ids);
+      if (!cancelled) {
+        setFavourites((data as FavouriteTeacher[] | null) ?? []);
+        setFavouritesLoading(false);
+      }
+    }
+    fetchFavourites();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, likedTeacherIds]);
+
+  if (!user && recent.length === 0) {
+    // Nothing to show for a signed-out visitor with no browsing history yet —
+    // skip the section entirely rather than rendering two empty states.
+    return null;
+  }
+
+  return (
+    <section className={`${CONTAINER} ${SECTION}`}>
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-6">
+        {/* Favourites */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Heart className="h-5 w-5 text-brand" strokeWidth={2} aria-hidden="true" />
+            <h2 className="text-xl font-semibold tracking-tight">Favourites</h2>
+          </div>
+
+          {!user ? (
+            <div className="flex flex-col items-start gap-3 rounded-2xl border border-hairline bg-warm-card p-6">
+              <p className="text-sm text-warm-secondary">
+                Sign in to save teachers you like and find them here.
+              </p>
+              <Link
+                to="/auth"
+                className="inline-flex h-10 items-center rounded-lg bg-brand px-4 text-sm font-medium text-white transition-colors duration-150 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                Sign in
+              </Link>
+            </div>
+          ) : favouritesLoading || likesLoading ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="aspect-[4/5] animate-shimmer rounded-2xl bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%]" />
+              ))}
+            </div>
+          ) : favourites.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {favourites.map((t) => (
+                <TeacherCard
+                  key={t.id}
+                  id={t.id}
+                  name={t.name}
+                  slug={t.slug}
+                  subject={t.subjects?.name || 'Tuition Teacher'}
+                  subjectSlug={t.subjects?.slug}
+                  imageUrl={t.image_url ?? undefined}
+                  size="sm"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-start gap-1 rounded-2xl border border-hairline bg-warm-card p-6">
+              <p className="text-sm font-medium">No favourites yet</p>
+              <p className="text-sm text-warm-secondary">
+                Tap the heart on a teacher's profile to save them here.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Recently visited */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-brand-blue" strokeWidth={2} aria-hidden="true" />
+            <h2 className="text-xl font-semibold tracking-tight">Recently visited</h2>
+          </div>
+
+          {recent.length > 0 ? (
+            <ul className="divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-warm-card">
+              {recent.map((item) => {
+                const Icon = item.type === 'teacher' ? GraduationCap : FileText;
+                return (
+                  <li key={`${item.type}-${item.id}`}>
+                    <Link
+                      to={item.path}
+                      className="flex items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-warm-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
+                    >
+                      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-warm-muted">
+                        <Icon className="h-4 w-4 text-warm-secondary" strokeWidth={1.75} aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{item.title}</span>
+                        {item.subtitle && (
+                          <span className="block truncate text-xs text-warm-secondary">{item.subtitle}</span>
+                        )}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="flex flex-col items-start gap-1 rounded-2xl border border-hairline bg-warm-card p-6">
+              <p className="text-sm font-medium">Nothing viewed yet</p>
+              <p className="text-sm text-warm-secondary">
+                Teachers and papers you open will show up here for quick access.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}

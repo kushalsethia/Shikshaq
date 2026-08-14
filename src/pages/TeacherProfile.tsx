@@ -1,31 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { ArrowLeft, MapPin, Clock, BadgeCheck, Heart, GraduationCap, Users, ThumbsUp } from 'lucide-react';
+import { Heart, ArrowUp, Clock, Wallet, Users } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
-import { useStudiesWith } from '@/lib/studies-with-context';
 import { useAuth } from '@/lib/auth-context';
-import { getWhatsAppLink } from '@/utils/whatsapp';
-import { TeacherComments } from '@/components/TeacherComments';
-import { ShareButton } from '@/components/ShareButton';
+import { useRequireRole } from '@/hooks/use-require-role';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
 import { WhatsAppIcon } from '@/components/BrandIcons';
+import { getSubjectColors } from '@/utils/subjectColors';
 import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey } from '@/utils/cache';
 import DOMPurify from 'dompurify';
-import { toast } from 'sonner';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { saveAuthRedirect } from '@/utils/authRedirect';
-
+import { recordVisit } from '@/lib/recently-visited';
 
 interface Teacher {
   id: string;
@@ -64,55 +56,84 @@ interface Teacher {
   max_fees?: number | null; // The "Max Fees" field from Shikshaqmine table
 }
 
+interface TeacherReview {
+  id: string;
+  comment: string;
+  authorName: string;
+  authorInfo: string;
+}
+
+// "{name}, {honorific}" per pages/TeacherProfile.md's h1 spec (same honorific rule as TeacherCard).
+function formatDisplayName(name: string, sirMaam?: string | null): string {
+  if (!sirMaam) return name;
+  const lower = String(sirMaam).toLowerCase().trim();
+  let honorific: string | null = null;
+  if (lower === 'sir' || lower.includes('sir')) honorific = 'Sir';
+  else if (lower === "ma'am" || lower === 'maam' || lower.includes("ma'am")) honorific = "Ma'am";
+  return honorific ? `${name}, ${honorific}` : name;
+}
+
+function parseCommaList(value: string | null | undefined): string[] {
+  if (!value) return [];
+  return value.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+// "Where they teach" pills: merges student's-home and tutor's-home areas depending on which
+// modes location_v2 flags, deduped. No sub-labels — the page spec has one flat pill list.
+function getTaughtAreas(teacher: Teacher): string[] {
+  const locationV2 = teacher.location_v2;
+  if (!locationV2) return [];
+  const lower = String(locationV2).toLowerCase().trim();
+  const isStudentsHomeOnly = lower.includes('students home tutoring only') || lower.includes("student's home tutoring only");
+  const isTeachersHomeOnly = lower.includes("teacher's home tutoring") || lower.includes("tutor's home tutoring");
+  const isBothOptions = lower.includes('both options listed') || lower.includes('both options');
+
+  const studentsAreas = isStudentsHomeOnly || isBothOptions ? parseCommaList(teacher.students_home_areas) : [];
+  const tutorsAreas = isTeachersHomeOnly || isBothOptions ? parseCommaList(teacher.tutors_home_areas) : [];
+  return Array.from(new Set([...studentsAreas, ...tutorsAreas]));
+}
+
+function Tag({ label, bg, color }: { label: string; bg: string; color: string }) {
+  return (
+    <span style={{ padding: '6px 13px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, background: bg, color }}>
+      {label}
+    </span>
+  );
+}
+
+function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return (
+    <div style={{ padding: 18, borderRadius: 16, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#8B837A', marginBottom: 6 }}>
+        <Icon size={13} color="#8B837A" strokeWidth={2} aria-hidden="true" />
+        {label}
+      </div>
+      <div className="tabular-nums" style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
+    </div>
+  );
+}
+
+const sectionH2Style: React.CSSProperties = {
+  fontSize: 'clamp(21px,2.4vw,26px)',
+  fontWeight: 700,
+  lineHeight: 1,
+  margin: '32px 0 12px',
+};
+
 export default function TeacherProfile() {
   const { slug } = useParams<{ slug: string }>();
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
-  const { user, loading: authLoading } = useAuth();
+  const [reviews, setReviews] = useState<TeacherReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const { user } = useAuth();
   const { isLiked, toggleLike } = useLikes();
   const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
-  const { isStudyingWith, toggleStudiesWith } = useStudiesWith();
-  const [userRole, setUserRole] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const [studentsDialogOpen, setStudentsDialogOpen] = useState(false);
-  const [studentsList, setStudentsList] = useState<Array<{ id: string; full_name: string | null; school_college: string | null; grade: string | null }>>([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [whatsappDisclaimerOpen, setWhatsappDisclaimerOpen] = useState(false);
-  const [pendingWhatsappUrl, setPendingWhatsappUrl] = useState<string | null>(null);
 
-  // Check if user has a role - redirect to role selection if not
-  // Also check if teacher has agreed to terms
-  useEffect(() => {
-    const checkUserRole = async () => {
-      if (authLoading) return;
-      
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, terms_agreement')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (!profile || !profile.role) {
-          navigate('/select-role', { replace: true });
-          return;
-        }
-
-        // If user is a teacher but hasn't agreed to terms, redirect to teacher terms agreement
-        if (profile.role === 'teacher' && profile.terms_agreement !== true) {
-          navigate('/teacher-terms-agreement', { replace: true });
-          return;
-        }
-
-        setUserRole(profile.role);
-      } else {
-        setUserRole(null);
-      }
-    };
-
-    checkUserRole();
-  }, [user, authLoading, navigate]);
+  // Redirects to role selection / teacher terms agreement when needed.
+  useRequireRole();
 
   useEffect(() => {
     async function fetchTeacher() {
@@ -121,7 +142,7 @@ export default function TeacherProfile() {
       // Check cache for teacher profile
       const teacherCacheKey = getTeacherProfileCacheKey(slug);
       let teacherData = getCache<any>(teacherCacheKey);
-      
+
       if (!teacherData) {
         // Fetch teacher from teachers_list
         const { data } = await supabase
@@ -129,7 +150,7 @@ export default function TeacherProfile() {
           .select('*, subjects(name, slug)')
           .eq('slug', slug)
           .maybeSingle();
-        
+
         if (data) {
           teacherData = data;
           // Cache teacher profile
@@ -166,14 +187,14 @@ export default function TeacherProfile() {
           // Check cache for Shikshaqmine data
           const shikshaqCacheKey = getShikshaqmineBySlugCacheKey(slug);
           shikshaqData = getCache<any>(shikshaqCacheKey);
-          
+
           if (!shikshaqData) {
             const { data, error } = await supabase
               .from('Shikshaqmine')
               .select('*')
               .eq('Slug', slug)
               .maybeSingle();
-            
+
             if (error) {
               if (import.meta.env.DEV) {
                 console.warn('Error fetching from Shikshaqmine:', error);
@@ -184,7 +205,7 @@ export default function TeacherProfile() {
               setCache(shikshaqCacheKey, shikshaqData, CACHE_TTL.SHIKSHAQMINE);
             }
           }
-          
+
           if (shikshaqData) {
             // Access the columns with special characters
             sirMaam = (shikshaqData as any)["Sir/Ma'am?"];
@@ -213,17 +234,6 @@ export default function TeacherProfile() {
             // Convert to number if not null/undefined, preserve 0 values
             minFees = (minFeesRaw != null && minFeesRaw !== undefined) ? Number(minFeesRaw) : null;
             maxFees = (maxFeesRaw != null && maxFeesRaw !== undefined) ? Number(maxFeesRaw) : null;
-            
-            // Debug in development
-            if (import.meta.env.DEV) {
-              console.log('[TeacherProfile] Fees data:', {
-                raw: { minFeesRaw, maxFeesRaw, rawType: { min: typeof minFeesRaw, max: typeof maxFeesRaw } },
-                processed: { minFees, maxFees },
-                willDisplay: { min: minFees != null, max: maxFees != null },
-                allShikshaqKeys: Object.keys(shikshaqData || {}),
-                feeKeys: Object.keys(shikshaqData || {}).filter(k => k.toLowerCase().includes('fee'))
-              });
-            }
           }
         } catch (err) {
           if (import.meta.env.DEV) {
@@ -266,13 +276,84 @@ export default function TeacherProfile() {
     fetchTeacher();
   }, [slug]);
 
+  // "What students say" — approved teacher_comments only, per pages/TeacherProfile.md.
+  // Rows without an `approved` column yet (pre-moderation data) default to approved, matching
+  // the same backwards-compatibility rule TeacherComments.tsx uses.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchReviews() {
+      if (!teacher) return;
+      setReviewsLoading(true);
+
+      const { data: commentsData, error } = await supabase
+        .from('teacher_comments')
+        .select('id, comment, created_at, user_id, is_anonymous, approved')
+        .eq('teacher_id', teacher.id)
+        .order('created_at', { ascending: false });
+
+      if (error || !commentsData || commentsData.length === 0) {
+        if (!cancelled) {
+          setReviews([]);
+          setReviewsLoading(false);
+        }
+        return;
+      }
+
+      const approvedComments = commentsData.filter((c: any) => (c.approved ?? true) === true);
+      const userIds = [...new Set(approvedComments.filter((c: any) => !c.is_anonymous).map((c: any) => c.user_id))];
+
+      let profilesMap = new Map<string, any>();
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('public_profiles')
+          .select('id, full_name, role, school_college, grade')
+          .in('id', userIds);
+        profilesMap = new Map((profilesData || []).map((p: any) => [p.id, p]));
+      }
+
+      const mapped: TeacherReview[] = approvedComments.map((c: any) => {
+        const profile = c.is_anonymous ? null : profilesMap.get(c.user_id);
+        const authorName = !c.is_anonymous && profile?.full_name ? profile.full_name : 'Anonymous';
+        let authorInfo = '';
+        if (!c.is_anonymous && profile) {
+          if (profile.role === 'guardian') authorInfo = 'Guardian';
+          else if (profile.role === 'student') {
+            authorInfo = [profile.school_college, profile.grade ? `Grade ${profile.grade}` : null].filter(Boolean).join(' • ');
+          }
+        }
+        return { id: c.id, comment: c.comment, authorName, authorInfo };
+      });
+
+      if (!cancelled) {
+        setReviews(mapped);
+        setReviewsLoading(false);
+      }
+    }
+
+    fetchReviews();
+    return () => {
+      cancelled = true;
+    };
+  }, [teacher?.id]);
+
+  // Record this visit for the home page's "Recently visited" section
+  // (device-local only, see src/lib/recently-visited.ts).
+  useEffect(() => {
+    if (!teacher || !teacher.slug) return;
+    recordVisit({
+      type: 'teacher',
+      id: teacher.id,
+      title: teacher.name,
+      subtitle: teacher.subjects?.name || teacher.subjects_from_shikshaq?.split(',')[0].trim(),
+      path: `/tuition-teachers/${teacher.slug}`,
+    });
+  }, [teacher?.id]);
+
   // Add teacher profile JSON-LD structured data
   useEffect(() => {
     if (!teacher || !teacher.slug) return;
 
-    // Helper function to safely get value or null
-    const safeValue = (value: any) => value || null;
-    
     // Helper function to convert comma-separated string to array
     const toArray = (value: string | null | undefined): string[] => {
       if (!value || typeof value !== 'string') return [];
@@ -280,8 +361,8 @@ export default function TeacherProfile() {
     };
 
     // Get subject slug for breadcrumb
-    const subjectSlug = teacher.subjects?.slug || 
-      (teacher.subjects_from_shikshaq 
+    const subjectSlug = teacher.subjects?.slug ||
+      (teacher.subjects_from_shikshaq
         ? teacher.subjects_from_shikshaq.toLowerCase().replace(/\s+/g, '-').split(',')[0].trim()
         : null);
     const subjectName = teacher.subjects?.name || teacher.subjects_from_shikshaq?.split(',')[0].trim() || 'Tuition Teachers';
@@ -369,7 +450,7 @@ export default function TeacherProfile() {
         "item": "https://www.shikshaq.in/all-tuition-teachers-in-kolkata"
       }
     ];
-    
+
     if (subjectSlug && subjectName) {
       breadcrumbItems.push({
         "@type": "ListItem",
@@ -378,7 +459,7 @@ export default function TeacherProfile() {
         "item": subjectUrl
       });
     }
-    
+
     breadcrumbItems.push({
       "@type": "ListItem",
       "position": breadcrumbItems.length + 1,
@@ -394,14 +475,14 @@ export default function TeacherProfile() {
     });
 
     // Person schema with reviews (if reviews exist)
-    const reviews = [review1, review2, review3].filter(Boolean);
+    const reviewsForSchema = [review1, review2, review3].filter(Boolean);
     let reviewScript = null;
-    if (reviews.length > 0) {
+    if (reviewsForSchema.length > 0) {
       reviewScript = document.createElement('script');
       reviewScript.type = 'application/ld+json';
       reviewScript.id = 'teacher-profile-reviews-schema';
-      
-      const reviewItems = reviews.map(review => ({
+
+      const reviewItems = reviewsForSchema.map(review => ({
         "@type": "Review",
         "author": {
           "@type": "Person",
@@ -441,866 +522,311 @@ export default function TeacherProfile() {
     };
   }, [teacher]);
 
-  // Update document title and meta tags for SEO
-  useEffect(() => {
-    if (!teacher) return;
+  // Title/description — canonical is handled globally by <CanonicalTag> in App.tsx.
+  const getMetaValue = (value: string | null | undefined, fallback = '') => value || fallback;
+  const metaSubjects = getMetaValue(teacher?.subjects_from_shikshaq || teacher?.subjects?.name, 'subjects');
+  const metaClasses = getMetaValue(teacher?.classes_taught || teacher?.classes_taught_for_backend, 'classes');
+  const metaArea = getMetaValue(teacher?.area, 'Kolkata');
+  const metaMode = getMetaValue(teacher?.mode_of_teaching, 'online/offline');
+  const metaExpanded = getMetaValue(teacher?.expanded, '');
 
-    // Helper function to get display value or fallback
-    const getValue = (value: string | null | undefined, fallback: string = '') => value || fallback;
-    
-    const teacherName = getValue(teacher.name);
-    const subjects = getValue(teacher.subjects_from_shikshaq || teacher.subjects?.name, 'subjects');
-    const classesTaught = getValue(teacher.classes_taught || teacher.classes_taught_for_backend, 'classes');
-    const area = getValue(teacher.area, 'Kolkata');
-    const modeOfTeaching = getValue(teacher.mode_of_teaching, 'online/offline');
-    const expanded = getValue(teacher.expanded, '');
+  const pageTitle = teacher
+    ? `${teacher.name} teaches ${metaSubjects} for Classes ${metaClasses} in ${metaArea} via ${metaMode} on Shikshaq by AquaTerra`
+    : 'Shikshaq - by AquaTerra';
 
-    // Build title: {{Title}} teaches {{Subjects}} for Classes {{Classes Taught}} in {{Area}} via {{Mode of Teaching}} on Shikshaq by AquaTerra
-    const title = `${teacherName} teaches ${subjects} for Classes ${classesTaught} in ${area} via ${modeOfTeaching} on Shikshaq by AquaTerra`;
-    
-    // Build description: {{Subjects}} tuition classes for {{Classes Taught}} in {{Area}} via {{Mode of Teaching}} {{EXPANDED}}
-    let description = `${subjects} tuition classes for ${classesTaught} in ${area} via ${modeOfTeaching}`;
-    if (expanded) {
-      // Strip HTML tags using DOMPurify for complete sanitization and limit to ~150 characters for meta description
-      const expandedText = DOMPurify.sanitize(expanded, { ALLOWED_TAGS: [] }).trim();
-      const expandedPreview = expandedText.length > 150 
-        ? expandedText.substring(0, 147) + '...' 
-        : expandedText;
-      description = `${description}. ${expandedPreview}`;
-    }
+  let pageDescription = teacher
+    ? `${metaSubjects} tuition classes for ${metaClasses} in ${metaArea} via ${metaMode}`
+    : 'Shikshaq connects students with real local tuition teachers for free. Discover trusted, verified educators near you for school subjects and exams- simple, genuine, and community-driven learning with no hidden costs.';
+  if (teacher && metaExpanded) {
+    const expandedText = DOMPurify.sanitize(metaExpanded, { ALLOWED_TAGS: [] }).trim();
+    const expandedPreview = expandedText.length > 150 ? expandedText.substring(0, 147) + '...' : expandedText;
+    pageDescription = `${pageDescription}. ${expandedPreview}`;
+  }
 
-    // Update document title
-    document.title = title;
+  usePageMeta(pageTitle, pageDescription);
 
-    // Update or create meta description
-    let metaDescription = document.querySelector('meta[name="description"]');
-    if (!metaDescription) {
-      metaDescription = document.createElement('meta');
-      metaDescription.setAttribute('name', 'description');
-      document.head.appendChild(metaDescription);
-    }
-    metaDescription.setAttribute('content', description);
-
-    // Update or create Open Graph tags
-    let ogTitle = document.querySelector('meta[property="og:title"]');
-    if (!ogTitle) {
-      ogTitle = document.createElement('meta');
-      ogTitle.setAttribute('property', 'og:title');
-      document.head.appendChild(ogTitle);
-    }
-    ogTitle.setAttribute('content', title);
-
-    let ogDescription = document.querySelector('meta[property="og:description"]');
-    if (!ogDescription) {
-      ogDescription = document.createElement('meta');
-      ogDescription.setAttribute('property', 'og:description');
-      document.head.appendChild(ogDescription);
-    }
-    ogDescription.setAttribute('content', description);
-
-    // Update or create Twitter tags
-    let twitterTitle = document.querySelector('meta[name="twitter:title"]');
-    if (!twitterTitle) {
-      twitterTitle = document.createElement('meta');
-      twitterTitle.setAttribute('name', 'twitter:title');
-      document.head.appendChild(twitterTitle);
-    }
-    twitterTitle.setAttribute('content', title);
-
-    let twitterDescription = document.querySelector('meta[name="twitter:description"]');
-    if (!twitterDescription) {
-      twitterDescription = document.createElement('meta');
-      twitterDescription.setAttribute('name', 'twitter:description');
-      document.head.appendChild(twitterDescription);
-    }
-    twitterDescription.setAttribute('content', description);
-
-    // Cleanup: restore default title and meta tags when component unmounts
-    return () => {
-      document.title = 'Shikshaq - by AquaTerra';
-      const defaultDescription = 'Shikshaq connects students with real local tuition teachers for free. Discover trusted, verified educators near you for school subjects and exams- simple, genuine, and community-driven learning with no hidden costs.';
-      
-      const metaDesc = document.querySelector('meta[name="description"]');
-      if (metaDesc) metaDesc.setAttribute('content', defaultDescription);
-      
-      const ogTitleEl = document.querySelector('meta[property="og:title"]');
-      if (ogTitleEl) ogTitleEl.setAttribute('content', 'Shikshaq - by AquaTerra');
-      
-      const ogDescEl = document.querySelector('meta[property="og:description"]');
-      if (ogDescEl) ogDescEl.setAttribute('content', defaultDescription);
-      
-      const twitterTitleEl = document.querySelector('meta[name="twitter:title"]');
-      if (twitterTitleEl) twitterTitleEl.setAttribute('content', 'Shikshaq - by AquaTerra');
-      
-      const twitterDescEl = document.querySelector('meta[name="twitter:description"]');
-      if (twitterDescEl) twitterDescEl.setAttribute('content', defaultDescription);
-    };
-  }, [teacher]);
+  const backHref = (location.state as { fromBrowse?: string })?.fromBrowse ?? '/all-tuition-teachers-in-kolkata';
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
-          <div className="animate-pulse">
-            <div className="h-8 w-32 bg-muted rounded mb-8" />
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="aspect-[4/5] bg-muted rounded-3xl" />
-              <div className="space-y-4">
-                <div className="h-10 w-3/4 bg-muted rounded" />
-                <div className="h-6 w-1/4 bg-muted rounded" />
-                <div className="h-24 bg-muted rounded" />
+        <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
+          <div className="animate-pulse" style={{ height: 16, width: 130, borderRadius: 8, background: '#F0EAE2', marginBottom: 20 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 36 }}>
+            <div>
+              <div className="animate-pulse" style={{ aspectRatio: '4/5', borderRadius: 22, background: '#F0EAE2' }} />
+              <div style={{ display: 'flex', gap: 9, marginTop: 14 }}>
+                <div className="animate-pulse" style={{ flex: 1, height: 44, borderRadius: 12, background: '#F0EAE2' }} />
+                <div className="animate-pulse" style={{ flex: 1, height: 44, borderRadius: 12, background: '#F0EAE2' }} />
+              </div>
+            </div>
+            <div>
+              <div className="animate-pulse" style={{ height: 40, width: '70%', borderRadius: 8, background: '#F0EAE2' }} />
+              <div style={{ display: 'flex', gap: 7, marginTop: 16 }}>
+                <div className="animate-pulse" style={{ height: 26, width: 90, borderRadius: 999, background: '#F0EAE2' }} />
+                <div className="animate-pulse" style={{ height: 26, width: 90, borderRadius: 999, background: '#F0EAE2' }} />
+                <div className="animate-pulse" style={{ height: 26, width: 90, borderRadius: 999, background: '#F0EAE2' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginTop: 24 }}>
+                <div className="animate-pulse" style={{ height: 72, borderRadius: 16, background: '#F0EAE2' }} />
+                <div className="animate-pulse" style={{ height: 72, borderRadius: 16, background: '#F0EAE2' }} />
+                <div className="animate-pulse" style={{ height: 72, borderRadius: 16, background: '#F0EAE2' }} />
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Function to fetch students who have studied with this teacher
-  async function fetchStudentsList() {
-    if (!teacher) return;
-    
-    try {
-      setLoadingStudents(true);
-      
-      // Fetch students from student_teachers table
-      const { data: studentTeachers, error } = await supabase
-        .from('student_teachers')
-        .select('student_id')
-        .eq('teacher_id', teacher.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching students list:', error);
-        }
-        return;
-      }
-
-      if (!studentTeachers || studentTeachers.length === 0) {
-        setStudentsList([]);
-        return;
-      }
-
-      // Fetch profiles for all students (use public_profiles view to avoid PII exposure)
-      const studentIds = studentTeachers.map((st: any) => st.student_id);
-      const { data: profiles, error: profilesError } = await supabase
-        .from('public_profiles')
-        .select('id, full_name, school_college, grade')
-        .in('id', studentIds);
-
-      if (profilesError) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching student profiles:', profilesError);
-        }
-        return;
-      }
-
-      // Create a map for quick lookup
-      const profilesMap = new Map((profiles || []).map((p: any) => [p.id, p]));
-
-      // Transform the data to match our state structure
-      const students = studentIds.map((studentId: string) => {
-        const profile = profilesMap.get(studentId);
-        return {
-          id: studentId,
-          full_name: profile?.full_name || null,
-          school_college: profile?.school_college || null,
-          grade: profile?.grade || null,
-        };
-      });
-
-      setStudentsList(students);
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Error fetching students list:', error);
-      }
-    } finally {
-      setLoadingStudents(false);
-    }
-  }
-
-  if (!teacher) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
-          <h1 className="text-2xl font-sans font-normal text-foreground mb-4">Teacher not found</h1>
-          <p className="text-foreground/80 mb-6">
-            The teacher you're looking for doesn't exist or has been removed.
-          </p>
-          <Link to="/all-tuition-teachers-in-kolkata">
-            <Button>Browse all teachers</Button>
-          </Link>
-        </div>
+        </main>
         <Footer />
       </div>
     );
   }
 
+  if (!teacher) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+        <Navbar />
+        <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px', textAlign: 'center' }}>
+          <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', fontWeight: 700, marginBottom: 16 }}>Teacher not found</h1>
+          <p style={{ fontSize: 15, color: '#7B736B', marginBottom: 24 }}>
+            The teacher you're looking for doesn't exist or has been removed.
+          </p>
+          <Link
+            to="/all-tuition-teachers-in-kolkata"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, padding: '12px 22px', borderRadius: 12, background: '#FF8000', color: '#1F1F1F', fontSize: 14.5, fontWeight: 600 }}
+          >
+            Browse all teachers
+          </Link>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const requireAuth = () => {
+    saveAuthRedirect(location.pathname);
+    navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
+  };
+
+  const handleHeartClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user) {
+      requireAuth();
+      return;
+    }
+    await toggleLike(teacher.id);
+  };
+
+  const handleUpvoteClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user) {
+      requireAuth();
+      return;
+    }
+    await toggleUpvote(teacher.id);
+  };
+
+  const handleWhatsAppClick = () => {
+    if (!user) {
+      requireAuth();
+      return;
+    }
+    const url = resolveTeacherWhatsAppUrl(teacher.whatsapp_link);
+    navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, { state: { url, name: teacher.name } });
+  };
+
+  const liked = isLiked(teacher.id);
+  const upvoted = isUpvoted(teacher.id);
+  const upvoteCount = getUpvoteCount(teacher.id);
+
+  const subjectsList = teacher.subjects_from_shikshaq
+    ? parseCommaList(teacher.subjects_from_shikshaq)
+    : teacher.subjects_text
+    ? parseCommaList(teacher.subjects_text)
+    : teacher.subjects
+    ? [teacher.subjects.name]
+    : [];
+  const boardsList = parseCommaList(teacher.boards_taught);
+  const taughtAreas = getTaughtAreas(teacher);
+
+  const feesValue =
+    teacher.min_fees != null && teacher.max_fees != null
+      ? `₹${teacher.min_fees.toLocaleString()} - ₹${teacher.max_fees.toLocaleString()}`
+      : teacher.min_fees != null
+      ? `₹${teacher.min_fees.toLocaleString()}+`
+      : teacher.max_fees != null
+      ? `Up to ₹${teacher.max_fees.toLocaleString()}`
+      : null;
+  const classSizeValue = teacher.class_size ? teacher.class_size.replace(/\bSolo\b/g, 'One-on-one') : null;
+  const hasStats = Boolean(teacher.experience_years || feesValue || classSizeValue);
+
+  const firstName = teacher.name.trim().split(/\s+/)[0] || teacher.name;
+
+  // Sanitize the description: allow rich formatting when the field already has HTML,
+  // otherwise treat it as plain text with line breaks.
+  const descriptionHtml = teacher.description
+    ? /<[a-z][\s\S]*>/i.test(teacher.description)
+      ? DOMPurify.sanitize(teacher.description, {
+          ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+          ALLOWED_ATTR: ['href', 'target', 'rel'],
+        })
+      : DOMPurify.sanitize(teacher.description.replace(/\n/g, '<br />'), { ALLOWED_TAGS: ['br'] })
+    : null;
+
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
       <Navbar />
 
-      <main className="pt-[50px] md:pt-12 pb-24 md:pb-12">
-        {/* Desktop: back link above content (original layout) */}
-        <div className="container hidden md:block px-4">
-          <Link
-            to={(location.state as { fromBrowse?: string })?.fromBrowse ?? '/all-tuition-teachers-in-kolkata'}
-            className="inline-flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors mb-6 md:mb-8"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to all teachers
-          </Link>
-        </div>
+      <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
+        <Link
+          to={backHref}
+          style={{ display: 'inline-flex', alignItems: 'center', fontSize: 13, fontWeight: 600, color: '#8B837A', marginBottom: 20 }}
+        >
+          ← Back to results
+        </Link>
 
-        {/* Container + grid on desktop; on mobile image is full-bleed then container for info */}
-        <div className="container px-0 md:px-4">
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(280px,400px)_1fr] md:gap-6 lg:gap-8 min-w-0">
-        {/* Image section: full width on mobile (break out), in grid on desktop with rounded corners */}
-        <section className="relative w-full min-h-[220px] max-h-[55vh] md:min-h-0 md:max-h-[min(75vh,520px)] rounded-b-[2rem] md:rounded-2xl md:rounded-3xl overflow-hidden w-screen max-w-none left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 md:w-full md:flex md:items-start">
-          <div className="md:sticky md:top-24 w-full md:w-full md:max-w-full">
-          {teacher.image_url ? (
-            <img
-              src={teacher.image_url ? validateImageSrc(teacher.image_url) : ''}
-              alt={teacher.name}
-              width={800}
-              height={1000}
-              decoding="async"
-              fetchPriority="high"
-              className="block w-full h-full min-h-[220px] max-h-[55vh] md:max-h-[min(75vh,520px)] object-cover object-top md:object-contain md:object-center ring-1 ring-inset ring-black/10 dark:ring-white/10"
-            />
-          ) : (
-            <div className="w-full min-h-[220px] max-h-[55vh] md:min-h-[200px] md:max-h-[min(75vh,520px)] aspect-[4/5] bg-gradient-to-br from-muted to-accent flex items-center justify-center">
-              <span className="text-6xl font-sans text-muted-foreground">
-                {teacher.name.charAt(0)}
-              </span>
-            </div>
-          )}
-
-          {/* Back to all teachers on image - mobile only; desktop has link above */}
-          <Link
-            to={(location.state as { fromBrowse?: string })?.fromBrowse ?? '/all-tuition-teachers-in-kolkata'}
-            className="absolute top-8 left-3 sm:top-10 sm:left-4 md:hidden inline-flex items-center gap-1.5 min-h-10 px-3 py-2 rounded-full bg-white/95 dark:bg-card/95 backdrop-blur-sm border border-border/80 shadow-md text-foreground hover:bg-white dark:hover:bg-card hover:shadow-lg transition-[background-color,box-shadow,transform] active:scale-[0.96] font-medium text-xs"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back to all teachers
-          </Link>
-
-          <div className="absolute top-20 right-4 sm:top-24 md:top-4 flex items-center gap-2">
-            {teacher.is_verified && (
-              <div className="bg-card/90 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
-                <BadgeCheck className="w-4 h-4 text-badge-science" />
-                <span className="text-sm font-medium">Verified</span>
-              </div>
-            )}
-          </div>
-          {/* Combined Heart and Share Buttons */}
-          <div className="absolute bottom-4 right-4 md:top-4 md:left-4 md:bottom-auto md:right-auto">
-            <div className="inline-flex items-center rounded-full border-2 border-border bg-card/90 backdrop-blur-sm overflow-hidden">
-              <div className="p-2.5 hover:bg-muted/80 transition-colors flex items-center">
-                <ShareButton
-                  url={`/tuition-teachers/${teacher.slug}`}
-                  title={`${teacher.name}${teacher.sir_maam ? ` ${teacher.sir_maam}` : ''}`}
-                  description={teacher.subjects_from_shikshaq || teacher.subjects?.name || 'Tuition Teacher'}
-                  className="[&>button]:!p-0 [&>button]:!bg-transparent [&>button]:hover:!bg-transparent [&>button]:!backdrop-blur-none"
-                  iconSize="md"
-                  menuWidth="md"
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 36 }}>
+          {/* Left column */}
+          <div>
+            <div style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 22, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+              {teacher.image_url ? (
+                <img
+                  src={validateImageSrc(teacher.image_url)}
+                  alt={teacher.name}
+                  width={800}
+                  height={1000}
+                  decoding="async"
+                  fetchPriority="high"
+                  className="w-full h-full object-cover"
                 />
-              </div>
-
-              <button
-                onClick={async (e) => {
-                  e.preventDefault();
-                  if (!user) {
-                    saveAuthRedirect(location.pathname);
-                    navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
-                    return;
-                  }
-                  await toggleLike(teacher.id);
-                }}
-                className="p-2.5 hover:bg-muted/80 transition-colors flex items-center border-l border-border"
-                aria-label={isLiked(teacher.id) ? 'Remove from favourites' : 'Add to favourites'}
-              >
-                <Heart
-                  className={`w-5 h-5 transition-colors ${
-                    isLiked(teacher.id)
-                      ? 'fill-red-500 text-red-500'
-                      : 'text-foreground/70'
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-          </div>
-        </section>
-
-        {/* Info column */}
-        <div className="min-h-0 overflow-x-clip md:h-auto md:overflow-visible md:min-h-0 mt-3 md:mt-0">
-        <div className="min-w-0">
-          {/* Info - clear break below hero image */}
-          <div className="relative rounded-t-3xl md:rounded-none bg-background md:shadow-none pt-0 pb-4 md:pt-0 md:pb-0 px-4 md:px-0 space-y-4 min-w-0 z-10">
-            {/* Teacher Name and Upvote Button - Inline */}
-            <div className="flex items-start justify-between gap-4 min-w-0">
-              <h1 className="flex-1 min-w-0 text-3xl md:text-4xl lg:text-5xl font-sans font-semibold text-foreground break-words">
-                {(() => {
-                  const sirMaam = teacher.sir_maam;
-                  if (!sirMaam) return teacher.name;
-
-                  const sirMaamLower = String(sirMaam).toLowerCase().trim();
-                  if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
-                    return `${teacher.name} Sir`;
-                  } else if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
-                    return `${teacher.name} Ma'am`;
-                  }
-                  return teacher.name;
-                })()}
-              </h1>
-
-              {/* Upvote Button */}
-              <button
-                onClick={async (e) => {
-                  e.preventDefault();
-                  if (!user) {
-                    saveAuthRedirect(location.pathname);
-                    navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
-                    return;
-                  }
-                  await toggleUpvote(teacher.id);
-                }}
-                className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-border bg-muted/50 hover:bg-muted transition-[transform,background-color] active:scale-[0.96]"
-                aria-label={isUpvoted(teacher.id) ? 'Remove upvote' : 'Upvote teacher'}
-              >
-                <ThumbsUp
-                  className={`w-5 h-5 transition-colors ${
-                    isUpvoted(teacher.id) ? 'text-blue-500 fill-blue-500' : 'text-muted-foreground'
-                  }`}
-                />
-                <span className="text-sm font-semibold text-foreground">
-                  {isUpvoted(teacher.id) ? 'Upvoted' : 'Upvote'}
-                </span>
-                {getUpvoteCount(teacher.id) > 0 && (
-                  <span className="text-sm font-semibold text-foreground tabular-nums">
-                    {getUpvoteCount(teacher.id)}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Studies With Button - Show for students, guardians, and guests (hide for teachers) */}
-            {userRole !== 'teacher' && (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    // If user is not authenticated, redirect to auth
-                    if (!user) {
-                      saveAuthRedirect(location.pathname);
-                      navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
-                      return;
-                    }
-                    // If user is authenticated but not a student (e.g., guardian), show message
-                    if (userRole !== 'student') {
-                      toast.error('You need to be a student to use this feature. Please sign in with a student account.');
-                      return;
-                    }
-                    // If user is authenticated student, toggle studies with
-                    await toggleStudiesWith(teacher.id);
-                  }}
-                  className={`min-h-10 px-4 py-2 rounded-full text-sm font-medium transition-[transform,background-color] active:scale-[0.96] flex items-center gap-2 ${
-                    user && userRole === 'student' && isStudyingWith(teacher.id)
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'bg-muted text-foreground hover:bg-muted/80'
-                  }`}
-                  aria-label={user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Remove from my teachers' : "I've studied with this teacher"}
-                >
-                  <GraduationCap className={`w-4 h-4 ${user && userRole === 'student' && isStudyingWith(teacher.id) ? 'fill-current' : ''}`} />
-                  <span>{user && userRole === 'student' && isStudyingWith(teacher.id) ? 'Studied here ✓' : "I've studied here"}</span>
-                </button>
-                
-                {/* View Students Button - Compact badge style (hide for teachers) */}
-                <button
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    setStudentsDialogOpen(true);
-                    // Fetch students list when dialog opens
-                    if (studentsList.length === 0 && !loadingStudents) {
-                      await fetchStudentsList();
-                    }
-                  }}
-                  className="min-h-10 px-3 rounded-lg text-xs font-medium transition-[color,background-color,box-shadow,transform] active:scale-[0.96] flex items-center gap-1.5 bg-background text-muted-foreground hover:text-foreground hover:bg-accent border border-border shadow-sm hover:shadow"
-                  aria-label="View students who have studied here"
-                  title="View students who have studied here"
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  <span>View</span>
-                </button>
-              </div>
-            )}
-
-            {/* Quick Info */}
-            <div className="flex flex-wrap items-center gap-4 md:gap-6">
-              {teacher.location && (
-                <div className="flex items-start gap-2 text-foreground/80">
-                  <MapPin className="w-4 h-4 mt-0.5" />
-                  <span>{teacher.location}</span>
-                </div>
-              )}
-              {teacher.experience_years && (
-                <div className="flex items-center gap-2 text-foreground/80">
-                  <Clock className="w-4 h-4" />
-                  <span><span className="tabular-nums">{teacher.experience_years}</span>+ years experience</span>
-                </div>
-              )}
-            </div>
-
-            {/* He/She teaches section - more space between sections, tight under headings */}
-            <div className="space-y-4 pt-2">
-              {(() => {
-                // Get gender from Shikshaqmine table (sir_maam field)
-                const sirMaam = teacher.sir_maam;
-                const nameLower = teacher.name.toLowerCase();
-                
-                let pronoun = 'She'; // Default to "She"
-                let possessive = 'Her'; // Default to "Her"
-                
-                if (sirMaam) {
-                  // Use the Shikshaqmine table field
-                  const sirMaamLower = String(sirMaam).toLowerCase().trim();
-                  if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
-                    pronoun = 'He';
-                    possessive = 'His';
-                  } else if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
-                    pronoun = 'She';
-                    possessive = 'Her';
-                  }
-                } else {
-                  // Fallback to name-based detection if Shikshaqmine data not found
-                  const hasSir = nameLower.includes('sir');
-                  const hasMr = nameLower.includes('mr') || nameLower.includes('mr.');
-                  if (hasSir || hasMr) {
-                    pronoun = 'He';
-                    possessive = 'His';
-                  }
-                }
-                
-                // Get subjects from Shikshaqmine table first, then fallback to other sources
-                const subjectsList = teacher.subjects_from_shikshaq
-                  ? teacher.subjects_from_shikshaq.split(',').map((s: string) => s.trim()).filter((s: string) => s)
-                  : (teacher as any).subjects_text 
-                  ? (teacher as any).subjects_text.split(',').map((s: string) => s.trim()).filter((s: string) => s)
-                  : teacher.subjects 
-                  ? [teacher.subjects.name]
-                  : [];
-                
-                return (
-                  <>
-                    {subjectsList.length > 0 && (
-                      <div>
-                        <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>SUBJECTS</p>
-                        <p className="font-sans text-base font-normal text-foreground leading-relaxed">
-                          {subjectsList.map((subject: string, index: number) => (
-                            <span key={index}>
-                              {index > 0 && <span style={{ color: '#FF7A00', margin: '0 0.5em' }}>•</span>}
-                              <span>{subject}</span>
-                            </span>
-                          ))}
-                        </p>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-
-              {/* Classes section */}
-              {(() => {
-                // Get classes from Shikshaqmine table first, then fallback to teachers_list
-                const classesData = teacher.classes_taught || (teacher as any).classes;
-                
-                if (classesData) {
-                  const classesList = classesData.split(',').map((cls: string) => cls.trim()).filter((cls: string) => cls);
-                  
-                  if (classesList.length > 0) {
-                    return (
-                      <div>
-                        <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>CLASSES</p>
-                        <p className="font-sans text-base font-normal text-foreground leading-relaxed">
-                          {classesList.map((cls: string, index: number) => (
-                            <span key={index}>
-                              {index > 0 && <span style={{ color: '#FF7A00', margin: '0 0.5em' }}>•</span>}
-                              <span>{cls}</span>
-                            </span>
-                          ))}
-                        </p>
-                      </div>
-                    );
-                  }
-                }
-                return null;
-              })()}
-            </div>
-
-            {/* Location V2 section - Home tutoring locations */}
-            <div className="mt-4">
-            {(() => {
-              const locationV2 = teacher.location_v2;
-              if (!locationV2) return null;
-
-              const sirMaam = teacher.sir_maam;
-              const nameLower = teacher.name.toLowerCase();
-              
-              let pronoun = 'She'; // Default to "She"
-              let possessive = 'Her'; // Default to "Her"
-              
-              if (sirMaam) {
-                const sirMaamLower = String(sirMaam).toLowerCase().trim();
-                if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
-                  pronoun = 'He';
-                  possessive = 'His';
-                }
-              } else {
-                const hasSir = nameLower.includes('sir');
-                const hasMr = nameLower.includes('mr') || nameLower.includes('mr.');
-                if (hasSir || hasMr) {
-                  pronoun = 'He';
-                  possessive = 'His';
-                }
-              }
-
-              const locationV2Lower = String(locationV2).toLowerCase().trim();
-              const studentsHomeAreas = teacher.students_home_areas;
-              const tutorsHomeAreas = teacher.tutors_home_areas;
-
-              // Helper function to parse areas and create bubbles
-              const parseAreas = (areasString: string | null | undefined): string[] => {
-                if (!areasString) return [];
-                return areasString
-                  .split(',')
-                  .map(area => area.trim())
-                  .filter(area => area.length > 0);
-              };
-
-              const studentsAreas = parseAreas(studentsHomeAreas);
-              const tutorsAreas = parseAreas(tutorsHomeAreas);
-
-              // Check what to display based on location_v2
-              const isStudentsHomeOnly = locationV2Lower.includes('students home tutoring only') || 
-                                         locationV2Lower.includes("student's home tutoring only");
-              const isTeachersHomeOnly = locationV2Lower.includes("teacher's home tutoring") || 
-                                         locationV2Lower.includes("tutor's home tutoring");
-              const isBothOptions = locationV2Lower.includes('both options listed') || 
-                                    locationV2Lower.includes('both options');
-
-              if (!isStudentsHomeOnly && !isTeachersHomeOnly && !isBothOptions) {
-                return null; // Unknown location_v2 value
-              }
-
-              return (
-                <div className="space-y-4">
-                  {/* Students home tutoring section */}
-                  {(isStudentsHomeOnly || isBothOptions) && studentsAreas.length > 0 && (
-                    <div>
-                      <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>
-                        HOME TO HOME TUTORING IN
-                      </p>
-                      <p className="font-sans text-base font-normal text-foreground leading-relaxed">
-                        {studentsAreas.map((area, index) => (
-                          <span key={index}>
-                            {index > 0 && <span style={{ color: '#FF7A00', margin: '0 0.5em' }}>•</span>}
-                            <span>{area}</span>
-                          </span>
-                        ))}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Teacher's home tutoring section */}
-                  {(isTeachersHomeOnly || isBothOptions) && tutorsAreas.length > 0 && (
-                    <div>
-                      <p className="font-sans text-base font-bold leading-tight mb-0.5" style={{ color: '#FF7A00' }}>
-                        TUITION CENTRES IN
-                      </p>
-                      <p className="font-sans text-base font-normal text-foreground leading-relaxed">
-                        {tutorsAreas.map((area, index) => (
-                          <span key={index}>
-                            {index > 0 && <span style={{ color: '#FF7A00', margin: '0 0.5em' }}>•</span>}
-                            <span>{area}</span>
-                          </span>
-                        ))}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-            </div>
-
-            {/* Little more about teacher section - aligned with SUBJECTS and titles above */}
-                {teacher.description && (
-              <div className="mt-8 md:mt-12">
-                <div className="h-0.5 w-full rounded-full mb-6" style={{ backgroundColor: '#FF7A00' }} aria-hidden />
-                <h3 className="text-xl md:text-2xl font-sans font-normal text-foreground mb-4">
-                  Little more about {(() => {
-                    const sirMaam = teacher.sir_maam;
-                    if (!sirMaam) return teacher.name;
-                    const sirMaamLower = String(sirMaam).toLowerCase().trim();
-                    if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
-                      return `${teacher.name} Sir`;
-                    }
-                    if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
-                      return `${teacher.name} Ma'am`;
-                    }
-                    return teacher.name;
-                  })()}
-                </h3>
+              ) : (
                 <div
-                  className="prose prose-sm max-w-none text-foreground"
-                  dangerouslySetInnerHTML={{
-                    __html: (() => {
-                      const content = teacher.description || '';
-                      // Sanitize content to prevent XSS attacks
-                      let sanitizedContent: string;
-                      // If content contains HTML tags, sanitize it
-                      // Otherwise, convert line breaks to <br /> tags and sanitize
-                      if (/<[a-z][\s\S]*>/i.test(content)) {
-                        sanitizedContent = DOMPurify.sanitize(content, {
-                          ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-                          ALLOWED_ATTR: ['href', 'target', 'rel'],
-                        });
-                      } else {
-                        sanitizedContent = DOMPurify.sanitize(content.replace(/\n/g, '<br />'), {
-                          ALLOWED_TAGS: ['br'],
-                        });
-                      }
-                      return sanitizedContent;
-                    })()
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundImage: 'repeating-linear-gradient(45deg,#F2ECE4 0 8px,#F9F5F1 8px 16px)',
                   }}
-                />
-              </div>
-            )}
-
-            {/* Additional Details Section - aligned with SUBJECTS and titles above */}
-            {(teacher.boards_taught || teacher.class_size || teacher.mode_of_teaching || teacher.place_of_teaching || teacher.qualifications_etc || teacher.teaching_since || teacher.min_fees || teacher.max_fees) && (
-              <div className="mt-8 md:mt-12">
-                <div className="flex justify-center mb-4" aria-hidden>
-                  <span className="text-2xl font-light" style={{ color: '#FF7A00' }}>—</span>
+                >
+                  <span style={{ fontSize: 64, fontWeight: 700, color: 'rgba(31,31,31,.2)' }}>{teacher.name.charAt(0)}</span>
                 </div>
-                <div className="rounded-2xl bg-orange-50/80 dark:bg-orange-950/20 border border-border/60 p-5 md:p-6">
-                  <div className="grid grid-cols-2 gap-6 md:gap-8">
-                {teacher.boards_taught && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl leading-none" aria-hidden>📚</span>
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Boards taught</h4>
-                    </div>
-                    <p className="text-base font-normal text-foreground pl-7">{teacher.boards_taught}</p>
-                  </div>
-                )}
-                {teacher.class_size && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl leading-none" aria-hidden>👥</span>
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Structure of classes</h4>
-                    </div>
-                    <p className="text-base font-normal text-foreground pl-7">{teacher.class_size.replace(/\bSolo\b/g, 'One-on-one')}</p>
-                  </div>
-                )}
-                {teacher.mode_of_teaching && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl leading-none" aria-hidden>🏫</span>
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Mode of teaching</h4>
-                    </div>
-                    <p className="text-base font-normal text-foreground pl-7">{teacher.mode_of_teaching}</p>
-                  </div>
-                )}
-                {teacher.place_of_teaching && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl leading-none" aria-hidden>📍</span>
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Place of teaching</h4>
-                    </div>
-                    <p className="text-base font-normal text-foreground pl-7">{teacher.place_of_teaching}</p>
-                  </div>
-                )}
-                {teacher.qualifications_etc && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl leading-none" aria-hidden>🎓</span>
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Qualifications</h4>
-                    </div>
-                    <p className="text-base font-normal text-foreground pl-7 break-words">{teacher.qualifications_etc}</p>
-                  </div>
-                )}
-                {teacher.teaching_since && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl leading-none" aria-hidden>📅</span>
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Teaching since</h4>
-                    </div>
-                    <p className="text-base font-normal text-foreground pl-7 tabular-nums">{teacher.teaching_since}</p>
-                  </div>
-                )}
-                {(teacher.min_fees != null || teacher.max_fees != null) && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl leading-none" aria-hidden>💰</span>
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground/80">Approximate Fees per month</h4>
-                    </div>
-                    <p className="text-base font-normal text-foreground pl-7 tabular-nums">
-                      {teacher.min_fees != null && teacher.max_fees != null
-                        ? `₹${teacher.min_fees.toLocaleString()} - ₹${teacher.max_fees.toLocaleString()}`
-                        : teacher.min_fees != null
-                        ? `₹${teacher.min_fees.toLocaleString()}+`
-                        : teacher.max_fees != null
-                        ? `Up to ₹${teacher.max_fees.toLocaleString()}`
-                        : ''}
-                    </p>
-                  </div>
-                )}
-                </div>
-              </div>
+              )}
             </div>
+
+            <div style={{ display: 'flex', gap: 9, marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={handleHeartClick}
+                aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
+                className="active:scale-[0.97] transition-transform duration-150 [transition-timing-function:ease] motion-reduce:transition-none"
+                style={{ flex: 1, minHeight: 44, padding: 12, borderRadius: 12, fontSize: 13.5, fontWeight: 600, boxShadow: '0 0 0 1px #E7DFD5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                <Heart size={15} className={liked ? 'fill-[#E5484D] text-[#E5484D]' : 'text-foreground/70'} />
+                Favourite
+              </button>
+              <button
+                type="button"
+                onClick={handleUpvoteClick}
+                aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
+                className="active:scale-[0.97] transition-transform duration-150 [transition-timing-function:ease] motion-reduce:transition-none"
+                style={{ flex: 1, minHeight: 44, padding: 12, borderRadius: 12, fontSize: 13.5, fontWeight: 600, boxShadow: '0 0 0 1px #E7DFD5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                <ArrowUp size={15} color="#4351FF" strokeWidth={2.2} />
+                <span className="tabular-nums">{upvoteCount}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Right column */}
+          <div>
+            <h1 style={{ fontSize: 'clamp(27px,3.8vw,44px)', lineHeight: 1, fontWeight: 700 }}>
+              {formatDisplayName(teacher.name, teacher.sir_maam)}
+            </h1>
+
+            {(subjectsList.length > 0 || boardsList.length > 0 || teacher.area) && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 16 }}>
+                {subjectsList.map((subject) => {
+                  const colors = getSubjectColors(subject);
+                  return <Tag key={subject} label={subject} bg={colors.tint} color={colors.titleText} />;
+                })}
+                {boardsList.map((board) => (
+                  <Tag key={board} label={board} bg="#EDEEFF" color="#2E3AD6" />
+                ))}
+                {teacher.area && <Tag label={teacher.area} bg="#FFF4E8" color="#B35900" />}
+              </div>
             )}
 
-          </div>
-        </div>
+            {hasStats && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginTop: 24 }}>
+                {teacher.experience_years && (
+                  <StatCard icon={Clock} label="Experience" value={`${teacher.experience_years}+ years`} />
+                )}
+                {feesValue && <StatCard icon={Wallet} label="Fees / month" value={feesValue} />}
+                {classSizeValue && <StatCard icon={Users} label="Class size" value={classSizeValue} />}
+              </div>
+            )}
 
-        {/* Reviews Section - inside scroll area so one continuous scroll on mobile */}
-        {teacher && <TeacherComments teacherId={teacher.id} />}
-        </div>
-        </div>
+            {descriptionHtml && (
+              <>
+                <h2 style={sectionH2Style}>Little more about {firstName}</h2>
+                <div
+                  style={{ maxWidth: '62ch', fontSize: 16, lineHeight: 1.7, color: '#4A443E' }}
+                  className="[&_p+p]:mt-3"
+                  dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                />
+              </>
+            )}
+
+            {taughtAreas.length > 0 && (
+              <>
+                <h2 style={sectionH2Style}>Where they teach</h2>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {taughtAreas.map((area) => (
+                    <span key={area} style={{ padding: '8px 14px', borderRadius: 999, background: '#F0EAE2', fontSize: 13.5, fontWeight: 500 }}>
+                      {area}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {!reviewsLoading && reviews.length > 0 && (
+              <>
+                <h2 style={sectionH2Style}>What students say</h2>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {reviews.map((review) => (
+                    <div key={review.id} style={{ padding: 20, borderRadius: 18, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+                      <p style={{ margin: 0, fontSize: 15.5, lineHeight: 1.6, color: '#4A443E' }}>{review.comment}</p>
+                      <p style={{ margin: 0, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: '#8B837A' }}>
+                        {review.authorName}
+                        {review.authorInfo ? ` • ${review.authorInfo}` : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div style={{ marginTop: 28, padding: 22, borderRadius: 20, background: '#F0EAE2', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: '#4A443E', maxWidth: '44ch' }}>
+                Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
+              </p>
+              <button
+                type="button"
+                onClick={handleWhatsAppClick}
+                className="active:scale-[0.97] transition-transform duration-150 [transition-timing-function:ease] motion-reduce:transition-none"
+                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, minHeight: 44, padding: '15px 24px', borderRadius: 12, background: '#25D366', color: '#0B3D1F', fontSize: 15, fontWeight: 700 }}
+              >
+                <WhatsAppIcon className="w-[17px] h-[17px] text-[#0B3D1F]" />
+                Contact via WhatsApp
+              </button>
+            </div>
+          </div>
         </div>
       </main>
 
-      {/* Sticky Contact via WhatsApp bar - fixed at bottom while scrolling */}
-      {teacher && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-t border-border shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)] p-4 safe-area-pb">
-          <div className="container max-w-lg mx-auto">
-            {user ? (
-              <Button
-                className="w-full gap-3 py-6 text-lg font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-[transform,opacity,box-shadow,background-color] active:scale-[0.96]"
-                onClick={() => {
-                  const url = teacher.whatsapp_link
-                    ? (teacher.whatsapp_link.startsWith('http')
-                        ? teacher.whatsapp_link
-                        : getWhatsAppLink(teacher.whatsapp_link))
-                    : getWhatsAppLink(null, '8240980312');
-                  setPendingWhatsappUrl(url);
-                  setWhatsappDisclaimerOpen(true);
-                }}
-              >
-                <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
-                Contact via WhatsApp
-              </Button>
-            ) : (
-              <Button
-                className="w-full gap-3 py-6 text-lg font-medium bg-black hover:bg-black/85 text-white shadow-md hover:shadow-lg transition-[transform,opacity,box-shadow,background-color] active:scale-[0.96]"
-                onClick={() => {
-                  saveAuthRedirect(location.pathname);
-                  navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
-                }}
-              >
-                <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
-                Sign in to contact
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
-      <Footer expandedContent={teacher?.expanded || null} />
-
-      {/* WhatsApp disclaimer dialog */}
-      <Dialog open={whatsappDisclaimerOpen} onOpenChange={(open) => {
-        setWhatsappDisclaimerOpen(open);
-        if (!open) setPendingWhatsappUrl(null);
-      }}>
-        <DialogContent className="max-w-md rounded-2xl w-[90%] sm:w-full">
-          <DialogHeader>
-            <DialogTitle>Before you continue</DialogTitle>
-            <DialogDescription className="text-foreground/80 pt-1">
-              We're glad to help you connect! You'll be taken to WhatsApp. Any fees or arrangements are between you and the teacher—Shikshaq isn't responsible for transactions outside our platform.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setWhatsappDisclaimerOpen(false);
-                setPendingWhatsappUrl(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (pendingWhatsappUrl && teacher?.slug) {
-                  // Tracking now lives on the redirect page, so the click gets a
-                  // real per-teacher URL in GA4/Clarity. The resolved URL rides
-                  // along in router state to avoid a second lookup there.
-                  navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, {
-                    state: { url: pendingWhatsappUrl, name: teacher.name },
-                  });
-                }
-                setWhatsappDisclaimerOpen(false);
-                setPendingWhatsappUrl(null);
-              }}
-              className="bg-[#25D366] hover:bg-[#20BA5A] text-white"
-            >
-              Yes, continue to WhatsApp
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Students Dialog */}
-      <Dialog open={studentsDialogOpen} onOpenChange={setStudentsDialogOpen}>
-        <DialogContent className="max-w-md max-h-[70vh] overflow-y-auto rounded-2xl w-[90%] sm:w-full">
-          <DialogHeader>
-            <DialogTitle>Students Who Have Studied Here</DialogTitle>
-            <DialogDescription>
-              These are the students who have indicated they study or have studied with {teacher.name}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-4">
-            {loadingStudents ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading students...
-              </div>
-            ) : studentsList.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No students have indicated they study here yet.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {studentsList.map((student) => (
-                  <div
-                    key={student.id}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border border-border"
-                  >
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <GraduationCap className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground">
-                        {student.full_name || 'Anonymous Student'}
-                      </p>
-                      {(student.school_college || student.grade) && (
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                          {[student.grade, student.school_college].filter(Boolean).join(' • ')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <Footer expandedContent={teacher.expanded || null} />
     </div>
   );
 }

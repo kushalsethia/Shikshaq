@@ -139,7 +139,8 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
     };
   }, [open]);
 
-  const toggleFilter = (category: keyof FilterState, value: string) => {
+  type ArrayFilterKey = 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas' | 'modeOfTeaching' | 'placeOfTeaching';
+  const toggleFilter = (category: ArrayFilterKey, value: string) => {
     const currentValues = filters[category];
     const newValues = currentValues.includes(value)
       ? currentValues.filter(v => v !== value)
@@ -169,27 +170,29 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent 
+      <SheetContent
         ref={sheetContentRef}
-        side="right" 
+        side="right"
         className="w-full sm:max-w-lg overflow-y-auto [&>button:last-child]:hidden"
-        style={{
-          paddingTop: isScrolled ? 0 : undefined,
-          transition: 'padding-top 0.3s ease-in-out'
-        }}
       >
-        {/* Sticky header with Advanced Filters title and X button - sticky when scrolling down, returns to original position when at top */}
-        <div className={`sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 -mx-6 px-6 pb-4 mb-6 transition-[padding-top] duration-300 ease-in-out ${
-          isScrolled ? 'pt-[7px]' : 'pt-6'
-        }`}>
-          <div className="flex items-center justify-between">
+        {/* Sticky header with Advanced Filters title and X button - sticky when scrolling down, returns to original position when at top.
+            Padding stays static; the shrink-on-scroll effect is achieved by translating the inner wrapper via transform
+            (translateY) instead of animating padding-top, which avoids forcing layout reflow on every frame. */}
+        <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 -mx-6 px-6 pb-4 pt-6 mb-6 overflow-hidden">
+          <div
+            className="flex items-center justify-between transition-transform duration-300 ease-in-out will-change-transform"
+            style={{ transform: isScrolled ? 'translateY(-17px)' : 'translateY(0)' }}
+          >
             <SheetHeader className="flex-1">
               <SheetTitle className="text-2xl font-sans font-normal tracking-tight">Advanced Filters</SheetTitle>
             </SheetHeader>
-            <SheetClose className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none p-2">
-          <X className="h-6 w-6 stroke-[2.5]" />
-          <span className="sr-only">Close</span>
-        </SheetClose>
+            <SheetClose
+              aria-label="Close filters"
+              className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center"
+            >
+              <X className="h-6 w-6 stroke-[2.5]" />
+              <span className="sr-only">Close</span>
+            </SheetClose>
           </div>
         </div>
 
@@ -202,7 +205,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={subject}
                   onClick={() => toggleFilter('subjects', subject)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
                     filters.subjects.includes(subject)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -222,7 +225,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={cls}
                   onClick={() => toggleFilter('classes', cls)}
-                  className={`w-12 h-12 rounded-full text-sm font-medium transition-colors flex items-center justify-center ${
+                  className={`w-12 h-12 rounded-full text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] flex items-center justify-center ${
                     filters.classes.includes(cls)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -242,7 +245,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={board}
                   onClick={() => toggleFilter('boards', board)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
                     filters.boards.includes(board)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -262,7 +265,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={size}
                   onClick={() => toggleFilter('classSize', size)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
                     filters.classSize.includes(size)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -282,7 +285,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={area}
                   onClick={() => toggleFilter('areas', area)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
                     filters.areas.includes(area)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -302,7 +305,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={mode}
                   onClick={() => toggleFilter('modeOfTeaching', mode)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
                     filters.modeOfTeaching.includes(mode)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -322,7 +325,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={place}
                   onClick={() => toggleFilter('placeOfTeaching', place)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
                     filters.placeOfTeaching.includes(place)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -430,7 +433,8 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
             )}
             <Button
               onClick={handleApplyFilters}
-              className={`flex-1 bg-green-600 hover:bg-green-700 text-white ${!hasActiveFilters ? 'w-full' : ''}`}
+              className={`flex-1 text-[#1F1F1F] hover:brightness-95 ${!hasActiveFilters ? 'w-full' : ''}`}
+              style={{ background: '#FF8000' }}
             >
               Apply filters
             </Button>

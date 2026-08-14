@@ -153,7 +153,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                         transform: isSelected ? 'scale(1.1)' : 'scale(0.7)',
                         opacity: isSelected ? 1 : 0.6,
                         zIndex: isSelected ? 20 : 10,
-                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        transition: 'transform 0.3s cubic-bezier(.2,.9,.2,1), opacity 0.3s cubic-bezier(.2,.9,.2,1)',
                         willChange: 'transform, opacity',
                       }}
                     >
@@ -162,10 +162,10 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                         alt={option.emoji}
                         className="w-full h-full object-contain"
                         style={{ 
-                          margin: 0, 
-                          padding: 0, 
+                          margin: 0,
+                          padding: 0,
                           display: 'block',
-                          transition: 'opacity 0.2s ease-in-out',
+                          transition: 'opacity 0.2s cubic-bezier(.2,.9,.2,1)',
                           opacity: imagesLoaded ? 1 : 0,
                         }}
                         loading="eager"
@@ -190,7 +190,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                         className="text-[10px] sm:text-xs font-medium whitespace-nowrap text-center"
                         style={{
                           color: isSelected ? 'inherit' : 'transparent',
-                          transition: 'color 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          transition: 'color 0.3s cubic-bezier(.2,.9,.2,1)',
                         }}
                       >
                         {option.label}
@@ -228,7 +228,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
               placeholder="Add a comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="min-h-[80px] sm:min-h-[100px] resize-none border-gray-300 rounded-lg w-full max-w-full mt-2 text-sm"
+              className="min-h-[80px] sm:min-h-[100px] resize-none rounded-lg w-full max-w-full mt-2 text-sm"
             />
           </div>
 
@@ -237,7 +237,10 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             <Button
               onClick={handleSubmit}
               disabled={submitting || !selectedEmoji}
-              className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-2.5 sm:py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              className="w-full text-white font-medium py-2.5 sm:py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              style={{ background: '#4351FF' }}
+              onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.background = '#2E3AD6'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#4351FF'; }}
             >
               {submitting ? 'Submitting...' : 'Submit Feedback'}
             </Button>

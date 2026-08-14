@@ -133,11 +133,11 @@ export default function WhatsAppRedirect() {
   if (status === 'notfound') {
     return (
       <Shell>
-        <h1 className="text-xl font-medium">Teacher not found</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: '#1F1F1F' }}>Teacher not found</h1>
+        <p style={{ color: '#7B736B', marginTop: 8 }}>
           We couldn't find this teacher. They may no longer be listed.
         </p>
-        <Button asChild className="mt-6">
+        <Button asChild className="mt-6" style={{ background: '#1F1F1F', color: '#fff', borderRadius: 12 }}>
           <Link to="/all-tuition-teachers-in-kolkata">Browse all teachers</Link>
         </Button>
       </Shell>
@@ -146,11 +146,13 @@ export default function WhatsAppRedirect() {
 
   return (
     <Shell>
-      <WhatsAppIcon className="w-12 h-12 text-[#25D366] mx-auto" />
-      <h1 className="text-xl font-medium mt-4">
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: 999, background: '#E6F4E6', margin: '0 auto' }}>
+        <WhatsAppIcon className="w-8 h-8 text-[#228B22]" />
+      </span>
+      <h1 style={{ fontSize: 20, fontWeight: 600, color: '#1F1F1F', marginTop: 16 }}>
         {status === 'manual' ? 'Ready to message' : 'Opening WhatsApp…'}
       </h1>
-      <p className="text-muted-foreground mt-2">
+      <p style={{ color: '#7B736B', marginTop: 8 }}>
         {name ? `Connecting you with ${name}.` : 'Connecting you with your teacher.'}
       </p>
 
@@ -159,7 +161,8 @@ export default function WhatsAppRedirect() {
       {url && (
         <Button
           asChild
-          className="mt-6 bg-[#25D366] hover:bg-[#20BA5A] text-white gap-2"
+          className="mt-6 gap-2"
+          style={{ background: '#25D366', color: '#0B3D1F', borderRadius: 12, fontWeight: 700 }}
         >
           <a href={url} rel="noopener noreferrer">
             <WhatsAppIcon className="w-5 h-5" />
@@ -169,8 +172,8 @@ export default function WhatsAppRedirect() {
       )}
 
       <div className="mt-4">
-        <Link to={profilePath} className="text-sm text-muted-foreground underline">
-          {name ? `Back to ${name}` : 'Back to profile'}
+        <Link to={profilePath} style={{ fontSize: 13, fontWeight: 600, color: '#8B837A' }}>
+          {name ? `← Back to ${name}` : '← Back to profile'}
         </Link>
       </div>
     </Shell>
@@ -179,8 +182,8 @@ export default function WhatsAppRedirect() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="text-center max-w-sm">{children}</div>
+    <div style={{ minHeight: '100vh', background: '#F9F5F1', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ textAlign: 'center', maxWidth: 380 }}>{children}</div>
     </div>
   );
 }

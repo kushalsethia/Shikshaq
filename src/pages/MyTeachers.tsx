@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, ArrowLeft } from 'lucide-react';
+import { GraduationCap, ArrowLeft, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface MyTeacher {
@@ -23,7 +23,7 @@ interface MyTeacher {
 export default function MyTeachers() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { studiesWithTeacherIds, loading: studiesWithLoading, isStudyingWith } = useStudiesWith();
+  const { studiesWithTeacherIds, loading: studiesWithLoading, isStudyingWith, toggleStudiesWith } = useStudiesWith();
   const [myTeachers, setMyTeachers] = useState<MyTeacher[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -136,61 +136,64 @@ export default function MyTeachers() {
   }, [user, studiesWithTeacherIds, navigate, studiesWithLoading]);
 
   if (!user) {
-    return null; // Will redirect to auth
+    return (
+      <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+        <Navbar />
+        <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px', textAlign: 'center' }}>
+          <h1 style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: '#1F1F1F', marginBottom: 12 }}>Sign in required</h1>
+          <p style={{ color: '#7B736B', marginBottom: 24 }}>Please sign in to view the teachers you study with.</p>
+          <Button onClick={() => navigate('/auth')}>Sign In</Button>
+        </main>
+        <Footer />
+      </div>
+    ); // Will also redirect to auth
   }
 
   // Show loading only if we don't have any teachers yet
   if (loading && myTeachers.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
+      <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
-          <div className="animate-pulse">
-            <div className="h-8 w-48 bg-muted rounded mb-8" />
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="aspect-[4/5] bg-muted rounded-2xl" />
-              ))}
-            </div>
+        <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
+          <div className="animate-pulse" style={{ height: 32, width: 220, background: '#F0EAE2', borderRadius: 8, marginBottom: 28 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 18 }}>
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="animate-pulse" style={{ borderRadius: 20, aspectRatio: '4/5', background: '#F0EAE2' }} />
+            ))}
           </div>
-        </div>
+        </main>
         <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
       <Navbar />
-      <main className="container pt-32 sm:pt-30 pb-8 md:pt-8">
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
         {/* Back Button */}
         <Link
           to="/dashboard/student"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#8B837A', marginBottom: 16 }}
         >
           <ArrowLeft className="w-4 h-4" />
           Back to dashboard
         </Link>
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <GraduationCap className="w-8 h-8 text-primary fill-primary" />
-          <div>
-            <h1 className="text-3xl font-sans text-foreground">My Teachers</h1>
-            <p className="text-muted-foreground">
-              {myTeachers.length === 0
-                ? 'No teachers yet'
-                : `${myTeachers.length} ${myTeachers.length === 1 ? 'teacher' : 'teachers'} you study with`}
-            </p>
-          </div>
-        </div>
+        <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', lineHeight: 1, fontWeight: 700 }}>My Teachers</h1>
+        <p style={{ marginTop: 8, fontSize: 15, color: '#7B736B' }}>
+          {myTeachers.length === 0
+            ? 'Teachers you study with will show up here'
+            : `${myTeachers.length} ${myTeachers.length === 1 ? 'teacher' : 'teachers'} you study with`}
+        </p>
 
         {/* Teachers Grid */}
         {myTeachers.length === 0 ? (
-          <div className="text-center py-16">
-            <GraduationCap className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-            <h2 className="text-xl font-sans text-foreground mb-2">No teachers yet</h2>
-            <p className="text-muted-foreground mb-6">
+          <div style={{ marginTop: 24, padding: 36, borderRadius: 22, background: '#FCFAF7', boxShadow: '0 0 0 1px #E7DFD5', textAlign: 'center' }}>
+            <GraduationCap className="w-10 h-10 mx-auto mb-4" style={{ color: '#8B837A' }} />
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No teachers yet</h2>
+            <p style={{ fontSize: 15, lineHeight: 1.6, color: '#7B736B', maxWidth: 420, margin: '0 auto 18px' }}>
               Start exploring teachers and indicate which ones you study with!
             </p>
             <Link to="/all-tuition-teachers-in-kolkata">
@@ -198,18 +201,44 @@ export default function MyTeachers() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 18 }}>
             {myTeachers.map((teacher) => (
-              <TeacherCard
-                key={teacher.id}
-                id={teacher.id}
-                name={teacher.name}
-                slug={teacher.slug}
-                subject={teacher.subjects?.name || 'Tuition Teacher'}
-                imageUrl={teacher.image_url || undefined}
-                subjectSlug={teacher.subjects?.slug}
-                sirMaam={teacher.sirMaam}
-              />
+              <div key={teacher.id} style={{ position: 'relative' }}>
+                <TeacherCard
+                  id={teacher.id}
+                  name={teacher.name}
+                  slug={teacher.slug}
+                  subject={teacher.subjects?.name || 'Tuition Teacher'}
+                  imageUrl={teacher.image_url || undefined}
+                  subjectSlug={teacher.subjects?.slug}
+                  sirMaam={teacher.sirMaam}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleStudiesWith(teacher.id);
+                  }}
+                  aria-label="Remove from my teachers"
+                  style={{
+                    position: 'absolute',
+                    top: 10,
+                    right: 10,
+                    zIndex: 10,
+                    width: 40,
+                    height: 40,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(252,250,247,.94)',
+                    borderRadius: 999,
+                    boxShadow: '0 0 0 1px rgba(0,0,0,.06)',
+                  }}
+                >
+                  <X className="w-4 h-4" style={{ color: '#1F1F1F' }} />
+                </button>
+              </div>
             ))}
           </div>
         )}

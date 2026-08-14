@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef, ReactNode } fro
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getCache, setCache, CACHE_TTL, getUserProfileCacheKey } from '@/utils/cache';
+import { logger } from '@/utils/logger';
 
 export interface UserProfile {
   role: string | null;
@@ -248,7 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The trigger handle_new_user() will create the profile automatically when user confirms email
       // We don't need to do anything here - attempting to upsert would fail with 401
       if (import.meta.env.DEV) {
-        console.log('User created but not authenticated yet. Profile will be created by trigger after email confirmation.');
+        logger.log('User created but not authenticated yet. Profile will be created by trigger after email confirmation.');
       }
     }
 

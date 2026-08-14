@@ -1,66 +1,61 @@
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getWhatsAppLink } from '@/utils/whatsapp';
 import { usePageMeta } from '@/hooks/usePageMeta';
+
+const BENEFITS = [
+  {
+    title: 'No commission fees',
+    body: 'Fees are agreed between you and the family. We never sit in the middle of a payment.',
+  },
+  {
+    title: 'Direct student contact',
+    body: 'Enquiries reach you on WhatsApp. No lead credits, no bidding for students.',
+  },
+  {
+    title: 'Empathy',
+    body: 'We were students in this city. The platform is built for how tuition actually works in Kolkata.',
+  },
+  {
+    title: 'Values',
+    body: 'Real reviews from real students, and no paid placement in results. Ever.',
+  },
+];
 
 export default function Join() {
   usePageMeta(
     'Join as a Tuition Teacher in Kolkata | Shikshaq',
-    'List yourself as a tuition teacher in Kolkata for free. Reach students near you directly — no commission, no middlemen, no platform fees. Apply to join Shikshaq today.'
+    'List yourself as a tuition teacher in Kolkata for free. Reach students near you directly. No commission, no middlemen, no platform fees. Apply to join Shikshaq today.'
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
       <Navbar />
 
-      <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
-        <div className="max-w-2xl mx-auto text-center space-y-4 md:space-y-6">
-          <span className="text-muted-foreground block">Free of charge, no commissions!</span>
-          
-          <h1 className="text-3xl md:text-5xl font-sans text-foreground">
-            Join Shikshaq as a teacher today!
-          </h1>
-          
-          <p className="text-lg text-muted-foreground">
-            We're simply a community of students who are trying to make tuition teacher discovery easier in Kolkata. Join as a teacher to help students find you and learn!
-          </p>
+      <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(28px,5vw,56px) clamp(16px,3vw,28px) 56px' }}>
+        <h1 style={{ fontSize: 'clamp(28px,4.4vw,48px)', lineHeight: 1, fontWeight: 700, maxWidth: '18ch', color: '#1F1F1F' }}>
+          Teach on Shikshaq. <span style={{ color: '#FF8000' }}>Keep every rupee.</span>
+        </h1>
 
-          <div className="bg-card rounded-3xl p-8 border border-border space-y-4 md:space-y-6">
-            <h2 className="text-xl font-sans text-foreground">Why join Shikshaq?</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-x-6 md:gap-y-6 text-left">
-              <div className="order-1">
-                <h3 className="font-medium text-foreground">No commission fees</h3>
-                <p className="text-sm text-muted-foreground">Keep 100% of what you earn.</p>
-              </div>
-              <div className="order-2 md:order-3">
-                <h3 className="font-medium text-foreground">Direct student contact</h3>
-                <p className="text-sm text-muted-foreground">Students get in touch with you directly. No middlemen.</p>
-              </div>
-              <div className="order-3 md:order-2">
-                <h3 className="font-medium text-foreground">Empathy</h3>
-                <p className="text-sm text-muted-foreground">Who'd know students better than students themselves?</p>
-              </div>
-              <div className="order-4">
-                <h3 className="font-medium text-foreground">Values</h3>
-                <p className="text-sm text-muted-foreground">Shikshaq is built by NGO AquaTerra, with the aim of helping students learn.</p>
-              </div>
+        <p style={{ marginTop: 18, maxWidth: '56ch', fontSize: 'clamp(15px,1.6vw,17px)', lineHeight: 1.6, color: '#7B736B' }}>
+          We list local tuition teachers, students contact you directly on WhatsApp, and we take nothing from what you charge. There is no listing fee either.
+        </p>
+
+        <Link
+          to="/join/apply"
+          className="hover:opacity-90 active:scale-[0.97] transition-[opacity,transform] duration-150"
+          style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, marginTop: 24, padding: '15px 24px', borderRadius: 12, background: '#1F1F1F', color: '#fff', fontSize: 15, fontWeight: 600 }}
+        >
+          Apply to be listed
+        </Link>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 16, marginTop: 36 }}>
+          {BENEFITS.map((b) => (
+            <div key={b.title} style={{ padding: 24, borderRadius: 20, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 9, color: '#1F1F1F' }}>{b.title}</h3>
+              <p style={{ fontSize: 14.5, lineHeight: 1.6, color: '#7B736B' }}>{b.body}</p>
             </div>
-
-            <Link to="/join/apply" className="inline-block mt-6 md:mt-8">
-              <Button size="lg" className="gap-2">
-                Apply to Join
-                <ExternalLink className="w-4 h-4" />
-              </Button>
-            </Link>
-          </div>
-
-          <p className="text-sm text-muted-foreground">
-            Have questions? <a href={getWhatsAppLink('8240980312')} className="text-foreground hover:underline">Contact us on WhatsApp</a>
-          </p>
+          ))}
         </div>
       </main>
 

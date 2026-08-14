@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { HelpCircle, X, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getWhatsAppLink } from '@/utils/whatsapp';
+import { useExitPresence } from '@/hooks/useExitPresence';
 import DOMPurify from 'dompurify';
 
 interface Message {
@@ -34,7 +36,7 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
   {
     keywords: ['how do i contact a teacher', 'contact teacher', 'message teacher', 'reach teacher'],
-    response: 'Each teacher profile has a direct contact option. You can message or call them directly—no account needed to browse or contact.',
+    response: 'Each teacher profile has a direct contact option. You can message or call them directly. No account needed to browse or contact.',
   },
   {
     keywords: ['what is shikshaq', 'what is shikshaq and how', 'about shikshaq', 'tell me about shikshaq'],
@@ -58,7 +60,7 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
   {
     keywords: ['negotiate fee', 'negotiate fees', 'trial class', 'demo class'],
-    response: 'Fees and arrangements are agreed between you and the teacher. Trial or demo classes depend on the teacher—ask them when you contact.',
+    response: 'Fees and arrangements are agreed between you and the teacher. Trial or demo classes depend on the teacher, ask them when you contact.',
   },
   {
     keywords: ['responsibility', 'liable', 'shikshaq responsible', 'dispute', 'payment dispute'],
@@ -70,7 +72,7 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
   {
     keywords: ['change tutor', 'switch tutor', 'another tutor'],
-    response: 'Yes. You can contact another tutor anytime—there\'s no commitment to stay with one teacher.',
+    response: 'Yes. You can contact another tutor anytime, there\'s no commitment to stay with one teacher.',
   },
   {
     keywords: ['phone number safe', 'data safe', 'personal data', 'privacy'],
@@ -86,7 +88,7 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
   {
     keywords: ['group class', 'one to one', 'one-on-one', 'batch'],
-    response: 'It depends on the teacher—some do group batches, others one-to-one. Ask when you contact them.',
+    response: 'It depends on the teacher: some do group batches, others one-to-one. Ask when you contact them.',
   },
   {
     keywords: ['recommend a tutor', 'assign a tutor', 'suggest a tutor', 'shikshaq recommend'],
@@ -98,7 +100,7 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
   {
     keywords: ['trial class', 'demo before', 'try before finalising'],
-    response: 'A trial class is a good idea to evaluate teaching style and comfort. Availability depends on the teacher—ask when you contact them.',
+    response: 'A trial class is a good idea to evaluate teaching style and comfort. Availability depends on the teacher, ask when you contact them.',
   },
   {
     keywords: ['stop classes', 'discontinue', 'leave tutor', 'not satisfied'],
@@ -123,7 +125,16 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
 ];
 
 export function Chatbot() {
+  // Two fixed elements can sit below the launcher, so its offset is layered:
+  //   - BottomNav (h-16, mobile only) clears at lg:, hence the `lg:` overrides.
+  //   - Teacher profile pages add their own full-width WhatsApp contact bar
+  //     (~81px) — sit above it so the launcher never covers that primary CTA.
+  const location = useLocation();
+  const hasBottomBar = location.pathname.startsWith('/tuition-teachers/') && !location.pathname.endsWith('/whatsapp-click');
   const [isOpen, setIsOpen] = useState(false);
+  // Keep the panel mounted briefly on close so it can play a subtle exit
+  // instead of vanishing the instant the close button is tapped.
+  const panelPresence = useExitPresence(isOpen, 180);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -299,15 +310,25 @@ export function Chatbot() {
       {/* Floating Button with ? icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-[0.96] transition-[transform,box-shadow] duration-200"
+        className={`fixed ${hasBottomBar ? 'bottom-[168px] lg:bottom-[104px]' : 'bottom-[88px] lg:bottom-6'} right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-[0.97] transition-[transform,box-shadow] duration-200`}
         aria-label="Ask AI"
       >
         <HelpCircle className="w-6 h-6" />
       </button>
 
-      {/* Chat Window - Uses part of screen, smaller on mobile */}
-      {isOpen && (
-        <div className="fixed bottom-24 left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col transition-[opacity] duration-300">
+      {/* Chat Window - Uses part of screen, smaller on mobile.
+          Both mount and unmount animate via useExitPresence — a plain
+          `{isOpen && ...}` render never has an opacity to transition from,
+          so it used to pop in and vanish instantly despite the transition class. */}
+      {panelPresence.mounted && (
+        <div
+          className={`fixed ${hasBottomBar ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col origin-bottom-right`}
+          style={{
+            animation: panelPresence.closing
+              ? 'shikshaq-chat-fall .16s cubic-bezier(.4,0,1,1) both'
+              : 'shikshaq-chat-rise .22s cubic-bezier(.16,1,.3,1) both',
+          }}
+        >
           {/* Header - Mobile: Larger, Desktop: Compact */}
           <div className="flex items-center justify-between p-3 md:p-4 border-b border-border flex-shrink-0">
             <div className="flex items-center gap-2 md:gap-3">
@@ -414,6 +435,7 @@ export function Chatbot() {
                 onClick={handleSend}
                 disabled={!input.trim() || loading}
                 size="icon"
+                aria-label="Send message"
                 className="flex-shrink-0 h-[44px] w-[44px] md:h-auto md:w-auto"
               >
                 {loading ? (
@@ -429,6 +451,17 @@ export function Chatbot() {
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes shikshaq-chat-rise {
+          from { opacity: 0; transform: translateY(12px) scale(.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes shikshaq-chat-fall {
+          from { opacity: 1; transform: translateY(0) scale(1); }
+          to { opacity: 0; transform: translateY(6px) scale(.98); }
+        }
+      `}</style>
     </>
   );
 }

@@ -40,7 +40,7 @@ export interface ButtonProps
 
 // Tactile press feedback. 0.96 is the floor — anything smaller feels exaggerated.
 // Disabled buttons already have pointer-events-none, so :active can't fire on them.
-const tapScale = "active:scale-[0.96]";
+const tapScale = "active:scale-[0.97]";
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, static: isStatic = false, ...props }, ref) => {

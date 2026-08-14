@@ -4,34 +4,88 @@
 
 @layer base {
   :root {
-    /* Warm cream/beige palette inspired by Shikshaq */
-    --background: 40 33% 96%;
-    --foreground: 30 10% 15%;
+    /* ---- Warm neutral ground (VISUAL_LANGUAGE.md §2.1) --------------------
+       Every neutral is warm. Pure white appears ONLY as text on saturated
+       fills. These HSL triples are tuned so they round-trip to the exact
+       hexes the handoff specifies — the fractional components are load
+       bearing, do not "tidy" them to whole numbers.
+         --background #F9F5F1   --card/--popover #FCFAF7
+         --muted      #F0EAE2   --border/--input #E7DFD5
+         --foreground #1F1F1F                                              */
+    --background: 30 40% 96.1%;
+    --foreground: 0 0% 12.2%;
 
-    --card: 40 40% 98%;
-    --card-foreground: 30 10% 15%;
+    --card: 36 45.5% 97.8%;
+    --card-foreground: 0 0% 12.2%;
 
-    --popover: 40 40% 98%;
-    --popover-foreground: 30 10% 15%;
+    --popover: 36 45.5% 97.8%;
+    --popover-foreground: 0 0% 12.2%;
 
-    --primary: 30 10% 15%;
-    --primary-foreground: 40 33% 96%;
+    --primary: 0 0% 12.2%;
+    --primary-foreground: 30 40% 96.1%;
 
     --secondary: 35 30% 90%;
     --secondary-foreground: 30 10% 20%;
 
-    --muted: 35 20% 92%;
-    --muted-foreground: 30 10% 40%;
+    --muted: 34.3 31.8% 91.4%;
+    /* #7B736B — VISUAL_LANGUAGE.md §2.1 "text secondary".
+       ⚠ DELIBERATE, OWNER-APPROVED ACCESSIBILITY EXCEPTION. This measures
+       4.34:1 on the #F9F5F1 page ground and therefore fails the 4.5:1 floor in
+       DESIGN_SYSTEM.md §1.5. The owner ruled in favour of handoff fidelity
+       over the contrast bar with full knowledge of the trade-off. The same
+       ruling covers --text-tertiary and --text-quaternary below.
+       DO NOT "fix" this by darkening it. If you think it is a bug, it is not —
+       it is a recorded decision. Raise it with the owner, don't change it. */
+    --muted-foreground: 30 7% 45.1%;
 
     --accent: 35 40% 88%;
-    --accent-foreground: 30 10% 15%;
+    --accent-foreground: 0 0% 12.2%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 35 20% 88%;
-    --input: 35 20% 88%;
+    --border: 33.3 27.3% 87.1%;
+    --input: 33.3 27.3% 87.1%;
     --ring: 30 10% 25%;
+
+    /* ---- Extended warm scale (VISUAL_LANGUAGE.md §2.1) --------------------
+       Roles the semantic tokens above don't cover. Held as literal hex (not
+       HSL triples) so they are exact; consumed by tailwind.config.ts as
+       `warm-*` / `panel` / `mint` classes. No alpha modifier support. */
+    --warm-page: #F9F5F1;          /* == --background */
+    --warm-card: #FCFAF7;          /* == --card; the "bone" stat card fill */
+    --warm-muted: #F0EAE2;         /* == --muted */
+    --warm-band: #F2ECE4;          /* stripe-placeholder dark band */
+    --warm-hairline: #E7DFD5;      /* == --border */
+    --warm-hairline-raised: #E4DCD2;
+    --warm-hairline-strong: #D8CFC4;
+    --panel-dark: #1B1A18;         /* footer / near-black slab */
+
+    /* ---- Warm text scale (VISUAL_LANGUAGE.md §2.1) ------------------------
+       The full secondary → quaternary ramp, shipped at the handoff's exact
+       values.
+
+       ⚠ DELIBERATE, OWNER-APPROVED ACCESSIBILITY EXCEPTION. Measured against
+       the #F9F5F1 page ground:
+           --text-prose       #4A443E   8.9:1   passes AA
+           --text-secondary   #7B736B   4.34:1  FAILS the 4.5:1 floor
+           --text-tertiary    #8B837A   3.5:1   FAILS
+           --text-quaternary  #A39A90   2.6:1   FAILS
+       DESIGN_SYSTEM.md §1.5 sets that floor. The owner reviewed the exact
+       numbers above and ruled for handoff fidelity over the contrast bar.
+       This is a recorded decision, not an oversight.
+
+       DO NOT darken these values. Do not "correct" them in a lint pass, a
+       cleanup commit, or an accessibility sweep. If you believe this is wrong,
+       take it to the owner — do not change the tokens.
+
+       --text-secondary is also wired into --muted-foreground above, so
+       `text-muted-foreground` and `text-warm-secondary` are the same colour. */
+    --text-prose: #4A443E;         /* long-form body copy */
+    --text-secondary: #7B736B;     /* secondary text */
+    --text-tertiary: #8B837A;      /* card meta */
+    --text-quaternary: #A39A90;    /* uppercase labels */
+    --mint: #E3F7EC;               /* subject-Science tint, reused by §8 */
 
     --radius: 0.75rem;
 
@@ -46,21 +100,39 @@
       0px 1px 2px -1px rgba(0, 0, 0, 0.08),
       0px 2px 4px 0px rgba(0, 0, 0, 0.06);
 
+    /* ---- Brand accent tokens (DESIGN_SYSTEM.md §2) ----------------------
+       Accents, never surfaces. Max two accented elements per viewport.
+       --brand      = #FF8000   --brand-blue = #4351FF                     */
+    --brand: 30.1 100% 50%;
+    --brand-foreground: 0 0% 100%;
+    --brand-hover: 30 100% 44%;
+    --brand-subtle: 31.3 100% 95.5%; /* the §2.2 orange tint, #FFF4E8 */
+
+    --brand-blue: 235.5 100% 63.1%;
+    --brand-blue-foreground: 0 0% 100%;
+    --brand-blue-hover: 235 85% 56%;
+    --brand-blue-subtle: 236.7 100% 96.5%; /* the §2.2 indigo tint, #EDEEFF */
+
+    /* ---- Mode "deep" pair (VISUAL_LANGUAGE.md §2.2) -----------------------
+       Teachers = orange, Papers = indigo. "Deep" is the text-on-tint colour,
+       dark enough to read on its matching `*-subtle` tint. The `*-subtle`
+       tokens above ARE the §2.2 tint row — they were already present and have
+       been nudged to the handoff's exact hexes (#FFF2E5 → #FFF4E8,
+       #EBECFF → #EDEEFF); every existing consumer keeps working.           */
+    --brand-deep: 30 100% 35%;        /* #B35900 */
+    --brand-blue-deep: 235.7 67.2% 51%; /* #2E3AD6 */
+
+    /* ---- Colored glow shadows (VISUAL_LANGUAGE.md §2.2, §8) -------------- */
+    --shadow-glow-brand: 0 14px 34px rgba(255, 128, 0, 0.28);
+    --shadow-glow-brand-blue: 0 14px 34px rgba(67, 81, 255, 0.28);
+    --shadow-card-bone: 0 0 0 1px #E7DFD5, 0 10px 26px rgba(0, 0, 0, 0.07);
+    --shadow-card-mint: 0 10px 26px rgba(0, 0, 0, 0.06);
+
     /* Custom colors */
     --cream: 40 33% 96%;
     --cream-dark: 35 25% 92%;
     --charcoal: 30 10% 15%;
     --warm-gray: 30 10% 45%;
-
-    /* Subject badge colors */
-    --badge-maths: 28 85% 65%;
-    --badge-english: 180 45% 50%;
-    --badge-science: 145 55% 45%;
-    --badge-commerce: 220 60% 55%;
-    --badge-computer: 280 50% 55%;
-    --badge-hindi: 0 65% 55%;
-    --badge-history: 35 55% 50%;
-    --badge-geography: 160 50% 45%;
 
     /* Fonts */
     --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
@@ -76,54 +148,6 @@
     --sidebar-ring: 30 10% 25%;
   }
 
-  .dark {
-    --background: 30 15% 8%;
-    --foreground: 40 20% 95%;
-
-    --card: 30 15% 10%;
-    --card-foreground: 40 20% 95%;
-
-    --popover: 30 15% 10%;
-    --popover-foreground: 40 20% 95%;
-
-    --primary: 40 20% 95%;
-    --primary-foreground: 30 15% 8%;
-
-    --secondary: 30 15% 15%;
-    --secondary-foreground: 40 20% 95%;
-
-    --muted: 30 15% 15%;
-    --muted-foreground: 40 10% 60%;
-
-    --accent: 30 15% 18%;
-    --accent-foreground: 40 20% 95%;
-
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 40 20% 95%;
-
-    --border: 30 15% 18%;
-    --input: 30 15% 18%;
-    --ring: 40 20% 70%;
-
-    --cream: 30 15% 8%;
-    --cream-dark: 30 15% 12%;
-    --charcoal: 40 20% 95%;
-    --warm-gray: 40 10% 60%;
-
-    /* Single white ring in dark mode — layered depth shadows aren't visible
-       on dark backgrounds. */
-    --shadow-border: 0 0 0 1px rgba(255, 255, 255, 0.08);
-    --shadow-border-hover: 0 0 0 1px rgba(255, 255, 255, 0.13);
-
-    --sidebar-background: 30 15% 8%;
-    --sidebar-foreground: 40 20% 95%;
-    --sidebar-primary: 40 20% 95%;
-    --sidebar-primary-foreground: 30 15% 8%;
-    --sidebar-accent: 30 15% 15%;
-    --sidebar-accent-foreground: 40 20% 95%;
-    --sidebar-border: 30 15% 18%;
-    --sidebar-ring: 40 20% 70%;
-  }
 }
 
 @layer base {
@@ -204,164 +228,33 @@
     @apply bg-card shadow-sm border border-border;
   }
 
-  /* Search bar gradient shadow box */
-  .search-bar-glow-wrapper {
-    position: relative;
-    border-radius: 1rem; /* matches input rounded-2xl */
-    overflow: hidden;
-  }
-
-  /* Sharp gradient box offset behind the search bar */
-  .search-bar-glow-sharp {
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    right: -3px;
-    bottom: -3px;
-    border-radius: 14px;
-    background: linear-gradient(90deg, #F4800E, #505CF7);
-    background-size: 200% 100%;
-    z-index: 0;
-    animation: glowShift 4s ease-in-out infinite alternate;
-    pointer-events: none;
-  }
-
-  /* Blurred duplicate of the gradient box */
-  .search-bar-glow-blur {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    right: -6px;
-    bottom: -6px;
-    border-radius: 14px;
-    background: linear-gradient(90deg, #F4800E, #505CF7);
-    background-size: 200% 100%;
-    z-index: 0;
-    filter: blur(12px);
-    opacity: 0.6;
-    animation: glowShift 4s ease-in-out infinite alternate;
-    will-change: transform;
-    pointer-events: none;
-  }
-
-  @media (min-width: 640px) {
-    .search-bar-glow-sharp,
-    .search-bar-glow-blur {
-      border-radius: 16px;
-    }
-  }
-
-  @keyframes glowShift {
-    0% {
-      background-position: 0% 50%;
-    }
-    100% {
-      background-position: 100% 50%;
-    }
-  }
-
-  .search-input {
-    @apply w-full bg-card border-black rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground focus:outline-none transition-[border-color,box-shadow,background-color,transform] duration-200;
-    border-width: 4px;
-    position: relative;
-    z-index: 1;
-    min-height: 3.5rem;
-    cursor: text;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-    caret-color: hsl(var(--foreground));
-  }
-
-  /* focus:outline-none above leaves keyboard users with no focus indicator */
-  .search-input:focus-visible {
-    outline: 2px solid #4351FF;
-    outline-offset: 2px;
-  }
-
-  .search-input-sticky {
-    @apply w-full bg-card border-2 border-black rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-[border-color,box-shadow,background-color] duration-200;
-    min-height: 2.5rem;
-    cursor: text;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    caret-color: hsl(var(--foreground));
-  }
-  
-  .search-input-sticky:hover:not(:focus) {
-    border-color: hsl(var(--ring) / 0.5);
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
-    background-color: hsl(var(--card) / 0.95);
-  }
-  
-  .search-input-sticky:focus {
-    border-color: hsl(var(--ring));
-    box-shadow: 0 0 0 2px hsl(var(--ring)), 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
-    background-color: hsl(var(--card));
-  }
-  
-  .search-input-sticky:focus::placeholder {
-    color: hsl(var(--muted-foreground) / 0.7);
-  }
-  
-  .search-input::placeholder {
-    color: hsl(var(--foreground) / 0.5);
-    font-weight: 600;
-  }
-  
-  .search-input:hover:not(:focus) {
-    border-color: black;
-    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
-    background-color: hsl(var(--card) / 0.95);
-  }
-
-  .search-input:focus {
-    border-color: black;
-    border-width: 4px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    transform: translateY(-1px);
-    background-color: hsl(var(--card));
-  }
-
-  .search-input-pulse {
-    border-width: 4px;
-    animation: search-border-pulse 5s ease-in-out 3;
-  }
-
-  .search-input-pulse:hover:not(:focus),
-  .search-input-pulse:focus {
-    animation-play-state: paused;
-  }
-  
-  .search-input:focus::placeholder {
-    color: hsl(var(--muted-foreground) / 0.7);
-  }
-  
-  @media (min-width: 640px) {
-    .search-input {
-      min-height: 4rem;
-    }
-  }
-
-  @keyframes search-border-pulse {
-    0%, 75% {
-      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-    }
-    87% {
-      box-shadow: 0 0 24px 8px rgba(255, 128, 0, 0.35), 0 0 48px 16px rgba(255, 128, 0, 0.12);
-    }
-    100% {
-      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-    }
-  }
-
   .teacher-card {
     @apply relative overflow-hidden rounded-2xl bg-card transition-[transform,box-shadow] duration-300 hover:shadow-lg hover:-translate-y-1;
   }
 
+  /* PaperCard (src/components/PaperCard.tsx) — card hover is translateY(-3px)/.2s ease
+     per the design handoff motion rules, nothing else moves; press is scale(.97)/.15s ease. */
+  .shikshaq-paper-card {
+    transition: transform 0.2s ease;
+  }
+
+  @media (hover: hover) {
+    .shikshaq-paper-card:hover {
+      transform: translateY(-3px);
+    }
+  }
+
+  .shikshaq-paper-card:active {
+    transform: scale(0.97);
+    transition: transform 0.15s ease;
+  }
+
   .subject-badge {
-    @apply inline-flex px-3 py-1 rounded-full text-xs font-medium text-[#1F1F1F];
+    @apply inline-flex px-3 py-1 rounded-full text-xs font-medium;
   }
 
   .hero-cta {
-    @apply inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-full font-medium transition-[transform,box-shadow,background-color] duration-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.96];
+    @apply inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-full font-medium transition-[transform,box-shadow,background-color] duration-200 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97];
   }
 
   .step-number {
@@ -390,43 +283,52 @@
 }
 
 @layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
+  /* Removed: hand-rolled .animate-fade-in / .animate-slide-up /
+     .animate-slide-in-left utilities and their fadeIn/slideUp/slideInLeft
+     keyframes. They shadowed the Tailwind animations of the same name and are
+     banned by DESIGN_SYSTEM.md §6. Verified unreferenced across src/. */
+
+  /* `heroSwap` used to be declared here as a bare @keyframes with no utility
+     bound to it. It now lives in tailwind.config.ts (identical values) and is
+     reachable as `animate-hero-swap`, alongside the other three
+     VISUAL_LANGUAGE §7 additions. One definition, not two. */
+
+  /* Diagonal-stripe placeholder — VISUAL_LANGUAGE.md §1.4. The single
+     definition for every missing-photo surface: teacher photo wells, school
+     crests, any empty media box. Pair it with a giant low-alpha initial.
+     Do not re-declare this gradient anywhere else. */
+  .stripe-placeholder {
+    background-image: repeating-linear-gradient(
+      45deg,
+      #F2ECE4 0 8px,
+      #F9F5F1 8px 16px
+    );
   }
 
-  .animate-slide-up {
-    animation: slideUp 0.5s ease-out forwards;
-  }
+  /* The hero stat cluster's three-element structure, and the desktop-only
+     guard for the ambient loops, live at the BOTTOM of this file — outside
+     @layer, so the guard is never purged along with unused utilities. */
 
-  .animate-slide-in-left {
-    animation: slideInLeft 0.5s ease-out forwards;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes slideUp {
-    from { 
+  @keyframes routeFadeIn {
+    from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(6px);
     }
-    to { 
+    to {
       opacity: 1;
       transform: translateY(0);
     }
   }
 
-  @keyframes slideInLeft {
-    from {
-      opacity: 0;
-      transform: translateX(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
+  .route-fade {
+    /* fill-mode intentionally omitted (not `both`): the animation's `to` state
+       (opacity:1, transform:none) already matches the element's resting style,
+       so nothing visually changes once it finishes — but ending the animation
+       cleanly (rather than freezing a `transform` via fill-mode) drops the
+       stacking context it would otherwise pin under, which was trapping every
+       in-page z-index (search dropdown, nav menu, etc.) below page-level fixed
+       elements like the chatbot launcher. See Chatbot.tsx's fixed z-40 button. */
+    animation: routeFadeIn .28s cubic-bezier(.2,.9,.2,1);
   }
 
   @keyframes whatsapp-pulse {
@@ -447,159 +349,151 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Tap-feedback for raw inline-style buttons/links where :active can't be
+     expressed via the style prop. Button press is scale(.97) over .15s ease
+     per the design handoff's binding motion rule. */
+  .shikshaq-tap {
+    transition: transform .15s ease;
+  }
+
+  .shikshaq-tap:active {
+    transform: scale(0.97);
+  }
+
+  /* Hover/press tint for full-width inline-style list rows (search results,
+     recent searches) where a scale-down would look odd on a wide row. */
+  .shikshaq-row {
+    transition: background-color .15s ease-out;
+  }
+
+  .shikshaq-row:hover {
+    background-color: rgba(31,31,31,.04);
+  }
+
+  .shikshaq-row:active {
+    background-color: rgba(31,31,31,.07);
+  }
 }
 
-/* Fix date input alignment and size on mobile */
-.date-input-left {
+/* ---- Native date input normalisation --------------------------------------
+   Cross-browser workaround code. Goals, in order: date text left-aligned (WebKit
+   centres it by default), 16px font so iOS doesn't zoom on focus, 2.5rem height
+   to match every other input, calendar picker pinned right.
+   The platform-specific @supports/-webkit-min-device-pixel-ratio blocks that
+   used to follow only re-stated the padding below, so they were dropped.       */
+.date-input-left,
+input[type="date"].date-input-left,
+.date-input-mobile {
   text-align: left !important;
   direction: ltr !important;
   width: 100% !important;
   min-width: 0 !important;
   max-width: 100% !important;
+  height: 2.5rem !important;
+  line-height: 1.5 !important;
+  font-size: 16px !important; /* prevents iOS zoom on focus */
+  padding-left: 0.75rem !important;
+  padding-right: 2.5rem !important; /* room for the calendar icon */
   box-sizing: border-box !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
 }
 
 .date-input-left::-webkit-datetime-edit {
   text-align: left !important;
-  padding-left: 0 !important;
-  margin-left: 0 !important;
-  width: 100% !important;
-}
-
-.date-input-left::-webkit-datetime-edit-text {
-  text-align: left !important;
   padding: 0 !important;
   margin: 0 !important;
+  width: calc(100% - 2rem) !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
+.date-input-left::-webkit-datetime-edit-text,
 .date-input-left::-webkit-datetime-edit-month-field,
 .date-input-left::-webkit-datetime-edit-day-field,
 .date-input-left::-webkit-datetime-edit-year-field {
   text-align: left !important;
-  padding-left: 0 !important;
-  margin-left: 0 !important;
+  padding: 0 0.25rem 0 0 !important;
+  margin: 0 !important;
   width: auto !important;
 }
 
 .date-input-left::-webkit-calendar-picker-indicator {
   cursor: pointer;
   opacity: 1;
-  margin-left: 0;
-  padding: 0;
   position: absolute;
   right: 0.75rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  margin: 0;
 }
 
-/* Ensure date input has same width as other inputs */
-input[type="date"].date-input-left {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-/* Mobile-specific fixes for date input - more aggressive */
-@media (max-width: 768px) {
-  input[type="date"].date-input-left {
-    font-size: 16px !important; /* Prevents zoom on iOS */
-    padding-left: 0.75rem !important;
-    padding-right: 2.5rem !important; /* Space for calendar icon */
-    height: 2.5rem !important; /* Match phone input height */
-    line-height: 1.5 !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-    -webkit-appearance: none !important;
-    appearance: none !important;
-  }
-  
-  .date-input-left::-webkit-datetime-edit {
-    padding-left: 0 !important;
-    margin-left: 0 !important;
-    text-align: left !important;
-    width: calc(100% - 2rem) !important;
-    display: flex !important;
-    align-items: center !important;
-  }
-  
-  .date-input-left::-webkit-datetime-edit-text,
-  .date-input-left::-webkit-datetime-edit-month-field,
-  .date-input-left::-webkit-datetime-edit-day-field,
-  .date-input-left::-webkit-datetime-edit-year-field {
-    padding-left: 0 !important;
-    padding-right: 0.25rem !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    text-align: left !important;
-    display: inline-block !important;
-  }
-  
-  .date-input-left::-webkit-calendar-picker-indicator {
-    position: absolute !important;
-    right: 0.75rem !important;
-    width: 1.5rem !important;
-    height: 1.5rem !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-}
-
-/* iOS Safari specific fixes */
-@supports (-webkit-touch-callout: none) {
-  input[type="date"].date-input-left {
-    padding-left: 0.75rem !important;
-    padding-right: 2.5rem !important;
-  }
-  
-  .date-input-left::-webkit-datetime-edit {
-    padding-left: 0 !important;
-    margin-left: 0 !important;
-  }
-}
-
-/* Android Chrome specific fixes */
-@media screen and (-webkit-min-device-pixel-ratio: 0) {
-  input[type="date"].date-input-left {
-    padding-left: 0.75rem !important;
-    padding-right: 2.5rem !important;
-  }
-}
-
-/* Additional mobile-specific class for more control */
-.date-input-mobile {
+/* Keep the date field flush with the tel field it sits beside in forms. */
+.space-y-2 input[type="tel"] {
   height: 2.5rem !important;
-  padding-left: 0.75rem !important;
-  padding-right: 2.5rem !important;
 }
 
-/* Force same styling as phone input on mobile */
-@media (max-width: 768px) {
-  .date-input-mobile {
-    height: 2.5rem !important;
-    min-height: 2.5rem !important;
-    max-height: 2.5rem !important;
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
-    padding-left: 0.75rem !important;
-    padding-right: 2.5rem !important;
-    font-size: 16px !important;
-    line-height: 1.5 !important;
-    box-sizing: border-box !important;
-  }
-  
-  /* Ensure date input wrapper matches phone input */
-  .space-y-2 input[type="date"].date-input-mobile {
-    width: 100% !important;
-    flex: 1 1 0% !important;
-  }
-  
-  /* Match the exact height of phone input */
-  .space-y-2 input[type="tel"],
-  .space-y-2 input[type="date"].date-input-mobile {
-    height: 2.5rem !important;
+/* ---- Hero stat cluster: how the tilt and the two animations compose --------
+   VISUAL_LANGUAGE.md §7 + §8. Read this before building the cluster.
+
+   §8 gives each of the four stat cards a PERMANENT tilt (-5deg, 3.5deg,
+   -2.5deg, 4.5deg). §7 gives `fanIn` the literal end state `transform: none`.
+   Those two cannot live on the same element — fanIn would wipe the tilt at the
+   end of the entrance. Owner ruling: use a WRAPPER, so `fanIn` keeps its exact
+   spec value and only ever clears its own entrance transform.
+
+   THREE nested elements, one job each. Do not collapse them:
+
+     <div class="rotate-[-5deg]">                            1. TILT
+       <div class="animate-fan-in [animation-delay:50ms]">   2. ENTRANCE
+         <div class="animate-bob [animation-duration:5.5s]
+                     [animation-delay:550ms]">               3. AMBIENT FLOAT
+           ...card content...
+
+   1. TILT wrapper — the rotation and nothing else. No animation class ever
+      goes here. Use a Tailwind `rotate-[Ndeg]` utility, not an inline style.
+   2. ENTRANCE — `animate-fan-in` with the §8 per-card delay
+      (50 / 140 / 230 / 320ms). Its `both` fill-mode holds the finished state,
+      `transform: none`, which resolves against THIS element only and leaves
+      the wrapper's rotation untouched. Nothing else on this element.
+   3. FLOAT — `animate-bob` with the §8 per-card period
+      (5.5s / 6.5s / 7.5s / 6s). Delay it past the entrance (that card's entry
+      delay + fanIn's 0.5s) so the two never run at once. `bob` only ever
+      writes translateY, so it cannot fight the tilt above it.
+
+   Why three and not two: a single element cannot hold a finite entrance and an
+   infinite loop on the same `animation` property without them fighting over
+   fill-mode. Splitting them means each animation owns one element's transform
+   outright, and the static tilt owns a third.
+
+   `--bob-rotate` stays UNSET here (it defaults to 0deg) — the tilt is on the
+   wrapper. It exists only for a future case where rotation and float must
+   share one element. Do not set it on the stat cards.
+
+   The whole cluster is desktop-only per §8; mobile keeps the search-first
+   stack from DESIGN_SYSTEM.md §11. `bob` is additionally hard-stopped below. */
+
+/* Ambient infinite motion is DESKTOP-ONLY — VISUAL_LANGUAGE.md §7. It costs
+   battery on the mid-range Android phones that are our primary surface, so it
+   is disabled here at the token layer rather than trusted to call sites.
+   Deliberately outside @layer: this is a guard, not a utility, and it must
+   ship whether or not the content scan currently sees these classes. */
+@media (max-width: 1023px) {
+  .animate-sparkle,
+  .animate-bob {
+    animation: none !important;
   }
 }
 
-/* Performance optimizations for low-end devices */
+/* Reduced motion kills EVERYTHING — VISUAL_LANGUAGE.md §7, DESIGN_SYSTEM.md §6.
+   The universal selector plus pseudo-elements and ::backdrop means this covers
+   every animation and transition in the app, including the §7 additions
+   (hero-swap, sparkle, fan-in, bob) and any future one. The new ambient
+   infinite loops make this MORE important, not less: `animation-iteration-count:1`
+   is what stops `sparkle`/`bob` looping forever, and the ambient utilities are
+   additionally hard-stopped below so no `transform` is left applied. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -610,6 +504,13 @@ input[type="date"].date-input-left {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Ambient decorative loops leave no residue at all. */
+  .animate-sparkle,
+  .animate-bob {
+    animation: none !important;
   }
 }
 

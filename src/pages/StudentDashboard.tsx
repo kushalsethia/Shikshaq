@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { TeacherCard } from '@/components/TeacherCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,13 +17,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Lock, GraduationCap } from 'lucide-react';
+import { Save, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLikes } from '@/lib/likes-context';
+import { PaperCard, type PaperCardPaper } from '@/components/PaperCard';
+import { SURFACE_TOKENS } from '@/utils/searchFacets';
 
 interface Subject {
   id: string;
   name: string;
   slug: string;
+}
+
+interface SavedTeacher {
+  id: string;
+  name: string;
+  slug: string;
+  image_url: string | null;
+  subjects: { name: string; slug: string } | null;
+  sirMaam?: string | null;
 }
 
 interface Profile {
@@ -40,6 +53,20 @@ interface Profile {
   guardian_email: string | null;
 }
 
+// Profile form field/label/panel styling, derived from this page's own SURFACE_TOKENS — the same
+// token set the header and stat tiles above already use — so the editable form matches the rest
+// of the page instead of falling back to shadcn's bare default input styling.
+const FIELD_STYLE: React.CSSProperties = {
+  background: SURFACE_TOKENS.shell,
+  boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
+  borderRadius: 12,
+  minHeight: 48,
+};
+const LOCKED_FIELD_STYLE: React.CSSProperties = { ...FIELD_STYLE, opacity: 0.7 };
+const FIELD_CLASSNAME = 'h-auto border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0';
+const LABEL_STYLE: React.CSSProperties = { fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary, marginBottom: 6, display: 'block' };
+const SECTION_HEADING_STYLE: React.CSSProperties = { fontSize: 19, fontWeight: 700, color: SURFACE_TOKENS.textPrimary };
+
 export default function StudentDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -48,7 +75,17 @@ export default function StudentDashboard() {
   const [studentSubjects, setStudentSubjects] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+  const { likedTeacherIds, likedCount, loading: likesLoading } = useLikes();
+  const [savedTeachers, setSavedTeachers] = useState<SavedTeacher[]>([]);
+  const [savedTeachersLoading, setSavedTeachersLoading] = useState(true);
+  const [papersContributedCount, setPapersContributedCount] = useState(0);
+
+  // Reading history/progress has no backend yet (pages/PaperReader.md hasn't been built — no
+  // reader page, no progress table). "Continue reading" and the "Papers read" stat therefore stay
+  // honestly empty/zero rather than showing fabricated numbers; this is real, just currently nil.
+  const readingHistory: { paper: PaperCardPaper; questionsRead: number; totalQuestions: number }[] = [];
+  const papersReadCount = 0;
+
   // School board options
   const schoolBoards = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'];
   const [formData, setFormData] = useState({
@@ -141,6 +178,85 @@ export default function StudentDashboard() {
     }
 
     fetchData();
+  }, [user]);
+
+  // Fetch full teacher records for the student's saved (liked) teachers
+  useEffect(() => {
+    async function fetchSavedTeachers() {
+      if (likesLoading) return;
+
+      if (likedTeacherIds.size === 0) {
+        setSavedTeachers([]);
+        setSavedTeachersLoading(false);
+        return;
+      }
+
+      try {
+        const teacherIds = Array.from(likedTeacherIds);
+        const { data: teachersData, error: teachersError } = await supabase
+          .from('teachers_list')
+          .select('id, name, slug, image_url, subjects(name, slug)')
+          .in('id', teacherIds);
+
+        if (teachersError) throw teachersError;
+
+        if (!teachersData || teachersData.length === 0) {
+          setSavedTeachers([]);
+          setSavedTeachersLoading(false);
+          return;
+        }
+
+        const slugs = teachersData.map((t) => t.slug);
+        const { data: shikshaqData } = await supabase
+          .from('Shikshaqmine')
+          .select('*')
+          .in('Slug', slugs);
+
+        const sirMaamMap = new Map<string, string | null>();
+        if (shikshaqData) {
+          shikshaqData.forEach((record: any) => {
+            sirMaamMap.set(record.Slug, record["Sir/Ma'am?"] || null);
+          });
+        }
+
+        setSavedTeachers(
+          teachersData.map((teacher) => ({
+            ...teacher,
+            sirMaam: sirMaamMap.get(teacher.slug) || null,
+          }))
+        );
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error fetching saved teachers:', error);
+        }
+      } finally {
+        setSavedTeachersLoading(false);
+      }
+    }
+
+    fetchSavedTeachers();
+  }, [likedTeacherIds, likesLoading]);
+
+  // "Papers contributed" stat — real count of papers this student has submitted (papers.created_by),
+  // regardless of publish state, since a pending submission is still a real contribution.
+  useEffect(() => {
+    async function fetchPapersContributed() {
+      if (!user) return;
+      try {
+        const { count, error } = await supabase
+          .from('papers')
+          .select('id', { count: 'exact', head: true })
+          .eq('created_by', user.id);
+        if (!error && typeof count === 'number') {
+          setPapersContributedCount(count);
+        }
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error fetching papers contributed count:', error);
+        }
+      }
+    }
+    fetchPapersContributed();
   }, [user]);
 
   // Helper function to convert yyyy-mm-dd to dd-mm-yyyy
@@ -363,14 +479,19 @@ export default function StudentDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
+        <div style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}>
           <div className="animate-pulse">
-            <div className="h-8 w-48 bg-muted rounded mb-8" />
+            <div className="h-8 w-48 rounded mb-8" style={{ background: '#F0EAE2' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16, marginBottom: 24 }}>
+              {[...Array(3)].map((_, i) => (
+                <div key={i} style={{ height: 90, borderRadius: 20, background: '#F0EAE2' }} />
+              ))}
+            </div>
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-24 bg-muted rounded-lg" />
+                <div key={i} className="h-24 rounded-lg" style={{ background: '#F0EAE2' }} />
               ))}
             </div>
           </div>
@@ -381,66 +502,157 @@ export default function StudentDashboard() {
   }
 
   if (!profile || profile.role !== 'student') {
-    return null;
+    return (
+      <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+        <Navbar />
+        <main className="container" style={{ paddingTop: 60, paddingBottom: 60, textAlign: 'center' }}>
+          <h1 style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: '#1F1F1F', marginBottom: 12 }}>
+            {user ? 'Student account required' : 'Sign in required'}
+          </h1>
+          <p style={{ color: '#7B736B', marginBottom: 24 }}>
+            {user
+              ? 'This dashboard is only available to student accounts.'
+              : 'Please sign in to view your dashboard.'}
+          </p>
+          <Button onClick={() => navigate(user ? '/' : '/auth')}>
+            {user ? 'Go Home' : 'Sign In'}
+          </Button>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   // Get user email and name from auth (locked fields)
   const userEmail = user?.email || profile.email || '';
-  const userName = user?.user_metadata?.full_name || 
-                   user?.user_metadata?.name || 
-                   profile.full_name || 
+  const userName = user?.user_metadata?.full_name ||
+                   user?.user_metadata?.name ||
+                   profile.full_name ||
                    '';
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      
-      <main className="container pt-32 sm:pt-30 pb-8 md:pt-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <GraduationCap className="w-8 h-8 text-primary" />
-              <h1 className="text-3xl md:text-4xl font-sans text-foreground">
-                Student Dashboard
-              </h1>
-            </div>
-            <p className="text-muted-foreground">
-              Manage your profile and preferences
-            </p>
-          </div>
+  const subLineParts = [
+    userEmail,
+    profile.grade ? `Class ${profile.grade}` : null,
+    profile.school_board || null,
+  ].filter(Boolean);
 
+  // Labels and order are literal, per design_handoff_shikshaq/pages/StudentDashboard.md.
+  const dashboardStats = [
+    { label: 'Papers read', value: papersReadCount },
+    { label: 'Favourite teachers', value: likedCount },
+    { label: 'Papers contributed', value: papersContributedCount },
+  ];
+
+  const SAVED_TEACHERS_SHOWN = 8;
+  const shownSavedTeachers = savedTeachers.slice(0, SAVED_TEACHERS_SHOWN);
+  const hasMoreSavedTeachers = likedCount > shownSavedTeachers.length;
+
+  return (
+    <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+      <Navbar />
+
+      <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}>
+        {/* Header */}
+        <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', lineHeight: 1, fontWeight: 700 }}>Your dashboard</h1>
+        <p style={{ marginTop: 10, fontSize: 15, color: '#7B736B' }}>
+          {subLineParts.length > 0 ? subLineParts.join(' · ') : 'Manage your profile and preferences'}
+        </p>
+
+        {/* Stat tiles */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16, marginTop: 26 }}>
+          {dashboardStats.map((st) => (
+            <div key={st.label} style={{ padding: 22, borderRadius: 20, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.04em', color: '#8B837A', textTransform: 'uppercase', marginBottom: 7 }}>
+                {st.label}
+              </div>
+              <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-.04em' }}>
+                {st.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Teachers you saved */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: '34px 0 14px' }}>
+          <h2 style={{ fontSize: 'clamp(20px,2.2vw,24px)', fontWeight: 700 }}>Teachers you saved</h2>
+          {hasMoreSavedTeachers && (
+            <Link to="/liked-teachers" style={{ fontSize: 13, fontWeight: 600, color: '#8B837A' }}>
+              See all {likedCount} →
+            </Link>
+          )}
+        </div>
+        {savedTeachersLoading ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16 }}>
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="animate-pulse" style={{ borderRadius: 18, aspectRatio: '4/5', background: '#F0EAE2' }} />
+            ))}
+          </div>
+        ) : shownSavedTeachers.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16 }}>
+            {shownSavedTeachers.map((teacher) => (
+              <TeacherCard
+                key={teacher.id}
+                id={teacher.id}
+                name={teacher.name}
+                slug={teacher.slug}
+                subject={teacher.subjects?.name || 'Tuition Teacher'}
+                subjectSlug={teacher.subjects?.slug}
+                imageUrl={teacher.image_url || undefined}
+                sirMaam={teacher.sirMaam}
+                size="sm"
+              />
+            ))}
+          </div>
+        ) : (
+          <p style={{ fontSize: 15, color: '#7B736B' }}>Nothing saved yet.</p>
+        )}
+
+        {/* Continue reading */}
+        <h2 style={{ fontSize: 'clamp(20px,2.2vw,24px)', fontWeight: 700, margin: '34px 0 14px' }}>Continue reading</h2>
+        {readingHistory.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 18 }}>
+            {readingHistory.map(({ paper }) => (
+              <PaperCard key={paper.id} paper={paper} variant="compact" />
+            ))}
+          </div>
+        ) : (
+          <p style={{ fontSize: 15, color: '#7B736B' }}>Nothing read yet.</p>
+        )}
+
+        <div>
           {/* Profile Form */}
-          <div className="bg-card rounded-2xl p-6 md:p-8 border border-border space-y-6">
+          <div style={{ marginTop: 44, padding: 'clamp(20px,3vw,32px)', borderRadius: 20, background: SURFACE_TOKENS.field, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }} className="space-y-6">
             {/* Locked Fields Section */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <h2 className="text-xl font-sans text-foreground flex items-center gap-2">
-                <Lock className="w-5 h-5 text-muted-foreground" />
+              <h2 style={SECTION_HEADING_STYLE} className="flex items-center gap-2">
+                <Lock className="w-5 h-5" style={{ color: SURFACE_TOKENS.textTertiary }} />
                 Account Information
               </h2>
-              
+
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="accountName">
-                    Name <span className="text-red-500">*</span>
+                  <Label htmlFor="accountName" style={LABEL_STYLE}>
+                    Name <span style={{ color: '#B3261E' }}>*</span>
                   </Label>
                   <Input
                     id="accountName"
                     value={userName}
                     disabled
-                    className="bg-muted cursor-not-allowed"
+                    className={`${FIELD_CLASSNAME} cursor-not-allowed`}
+                    style={LOCKED_FIELD_STYLE}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="accountEmail">
-                    Email <span className="text-red-500">*</span>
+                  <Label htmlFor="accountEmail" style={LABEL_STYLE}>
+                    Email <span style={{ color: '#B3261E' }}>*</span>
                   </Label>
                   <Input
                     id="accountEmail"
                     value={userEmail}
                     disabled
-                    className="bg-muted cursor-not-allowed"
+                    className={`${FIELD_CLASSNAME} cursor-not-allowed`}
+                    style={LOCKED_FIELD_STYLE}
                   />
                 </div>
               </div>
@@ -449,7 +661,7 @@ export default function StudentDashboard() {
             {/* Editable Fields Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-sans text-foreground">Profile Information</h2>
+                <h2 style={SECTION_HEADING_STYLE}>Profile Information</h2>
                 <Button
                   onClick={handleSave}
                   disabled={saving}
@@ -463,8 +675,8 @@ export default function StudentDashboard() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">
-                    Phone Number <span className="text-red-500">*</span>
+                  <Label htmlFor="phone" style={LABEL_STYLE}>
+                    Phone Number <span style={{ color: '#B3261E' }}>*</span>
                   </Label>
                   <Input
                     id="phone"
@@ -476,13 +688,14 @@ export default function StudentDashboard() {
                     onChange={handleInputChange}
                     maxLength={10}
                     inputMode="numeric"
-                    className="w-full"
+                    className={`w-full ${FIELD_CLASSNAME}`}
+                    style={FIELD_STYLE}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="date_of_birth">
-                    Date of Birth <span className="text-red-500">*</span>
+                  <Label htmlFor="date_of_birth" style={LABEL_STYLE}>
+                    Date of Birth <span style={{ color: '#B3261E' }}>*</span>
                   </Label>
                   <Input
                     id="date_of_birth"
@@ -492,16 +705,17 @@ export default function StudentDashboard() {
                     value={formData.date_of_birth}
                     onChange={handleInputChange}
                     maxLength={10}
-                    className="w-full"
+                    className={`w-full ${FIELD_CLASSNAME}`}
+                    style={FIELD_STYLE}
                   />
                   {formData.date_of_birth && !isValidDateFormat(formData.date_of_birth) && (
-                    <p className="text-xs text-red-500">Please enter a valid date in DD-MM-YYYY format</p>
+                    <p className="text-xs" style={{ color: '#B3261E' }}>Please enter a valid date in DD-MM-YYYY format</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="school_college">
-                    School/College <span className="text-red-500">*</span>
+                  <Label htmlFor="school_college" style={LABEL_STYLE}>
+                    School/College <span style={{ color: '#B3261E' }}>*</span>
                   </Label>
                   <Input
                     id="school_college"
@@ -510,18 +724,20 @@ export default function StudentDashboard() {
                     placeholder="Enter school or college name"
                     value={formData.school_college}
                     onChange={handleInputChange}
+                    className={FIELD_CLASSNAME}
+                    style={FIELD_STYLE}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="grade">
-                    Grade <span className="text-red-500">*</span>
+                  <Label htmlFor="grade" style={LABEL_STYLE}>
+                    Grade <span style={{ color: '#B3261E' }}>*</span>
                   </Label>
                   <Select
                     value={formData.grade || "__none__"}
                     onValueChange={(value) => setFormData({ ...formData, grade: value === "__none__" ? "" : value })}
                   >
-                    <SelectTrigger id="grade">
+                    <SelectTrigger id="grade" className={FIELD_CLASSNAME} style={FIELD_STYLE}>
                       <SelectValue placeholder="Select grade" />
                     </SelectTrigger>
                     <SelectContent>
@@ -548,12 +764,12 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="school_board">School Board (Optional)</Label>
+                  <Label htmlFor="school_board" style={LABEL_STYLE}>School Board (Optional)</Label>
                   <Select
                     value={formData.school_board || "__none__"}
                     onValueChange={(value) => setFormData({ ...formData, school_board: value === "__none__" ? "" : value })}
                   >
-                    <SelectTrigger id="school_board">
+                    <SelectTrigger id="school_board" className={FIELD_CLASSNAME} style={FIELD_STYLE}>
                       <SelectValue placeholder="Select school board" />
                     </SelectTrigger>
                     <SelectContent>
@@ -568,7 +784,7 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="guardian_email">Guardian's Email (Optional)</Label>
+                  <Label htmlFor="guardian_email" style={LABEL_STYLE}>Guardian's Email (Optional)</Label>
                   <Input
                     id="guardian_email"
                     name="guardian_email"
@@ -580,11 +796,13 @@ export default function StudentDashboard() {
                     placeholder="guardian@example.com"
                     value={formData.guardian_email}
                     onChange={handleInputChange}
+                    className={FIELD_CLASSNAME}
+                    style={FIELD_STYLE}
                   />
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="address">Address (Optional)</Label>
+                  <Label htmlFor="address" style={LABEL_STYLE}>Address (Optional)</Label>
                   <Textarea
                     id="address"
                     name="address"
@@ -592,14 +810,19 @@ export default function StudentDashboard() {
                     value={formData.address}
                     onChange={handleInputChange}
                     rows={3}
+                    className={`${FIELD_CLASSNAME} py-3`}
+                    style={{ ...FIELD_STYLE, minHeight: 88 }}
                   />
                 </div>
               </div>
 
               {/* Subjects Selection */}
               <div className="space-y-3 pt-4 border-t border-border">
-                <Label>Subjects Interested In</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-4 border border-border rounded-lg">
+                <Label style={LABEL_STYLE}>Subjects Interested In</Label>
+                <div
+                  className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-4"
+                  style={{ background: SURFACE_TOKENS.shell, boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`, borderRadius: 14 }}
+                >
                   {subjects.map((subject) => (
                     <div key={subject.id} className="flex items-center space-x-2">
                       <Checkbox
@@ -610,6 +833,7 @@ export default function StudentDashboard() {
                       <Label
                         htmlFor={`subject-${subject.id}`}
                         className="text-sm font-normal cursor-pointer"
+                        style={{ color: SURFACE_TOKENS.textBody }}
                       >
                         {subject.name}
                       </Label>
@@ -617,7 +841,7 @@ export default function StudentDashboard() {
                   ))}
                 </div>
                 {subjects.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No subjects available</p>
+                  <p className="text-sm" style={{ color: SURFACE_TOKENS.textTertiary }}>No subjects available</p>
                 )}
               </div>
             </div>

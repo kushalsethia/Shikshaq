@@ -2,14 +2,41 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 import { Logo } from '@/components/Logo';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
+
+// Literal values from design_handoff_shikshaq/pages/Auth.md + _tokens.md.
+const TOKENS = {
+  shell: '#F9F5F1',
+  field: '#FCFAF7',
+  text: '#1F1F1F',
+  textSecondary: '#7B736B',
+  textTertiary: '#8B837A',
+  hairline: '#E7DFD5',
+  mutedFill: '#F0EAE2',
+  link: '#4351FF',
+  error: '#E5484D',
+};
+
+function fieldStyle(hasError?: boolean): React.CSSProperties {
+  return {
+    width: '100%',
+    boxSizing: 'border-box',
+    minHeight: 48,
+    padding: '13px 15px',
+    border: 0,
+    borderRadius: 12,
+    background: TOKENS.field,
+    boxShadow: `0 0 0 1px ${hasError ? TOKENS.error : TOKENS.hairline}`,
+    fontFamily: 'inherit',
+    fontSize: 15,
+    color: TOKENS.text,
+    outline: 'none',
+  };
+}
 
 const emailSchema = z.string().email('Please enter a valid email');
 const passwordSchema = z.string()
@@ -39,12 +66,8 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
-  const [showEmailForm, setShowEmailForm] = useState(false);
   const [processingOAuth, setProcessingOAuth] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -55,14 +78,14 @@ export default function Auth() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const { 
-    signInWithGoogle, 
-    signUpWithEmail, 
+  const {
+    signInWithGoogle,
+    signUpWithEmail,
     signInWithEmail,
     resetPasswordForEmail,
     updatePassword,
-    user, 
-    loading: authLoading 
+    user,
+    loading: authLoading
   } = useAuth();
   const navigate = useNavigate();
 
@@ -81,20 +104,19 @@ export default function Auth() {
     const resetType = urlParams.get('type');
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const hasAccessToken = hashParams.get('access_token');
-    
+
     if (resetType === 'reset-password' && hasAccessToken) {
       setShowResetPassword(true);
       setIsLogin(true);
-      setShowEmailForm(true);
       return;
     }
 
     const hasError = hashParams.get('error');
-    
+
     if (hasAccessToken && !showResetPassword) {
       setProcessingOAuth(true);
     }
-    
+
     if (hasError) {
       const errorDescription = hashParams.get('error_description') || 'Authentication failed';
       toast.error(`Authentication Error: ${errorDescription}`);
@@ -102,10 +124,10 @@ export default function Auth() {
       window.history.replaceState(null, '', '/auth');
       return;
     }
-    
+
     if (!authLoading && user && !showResetPassword) {
       setProcessingOAuth(false);
-      
+
       const checkProfile = async () => {
         // Read redirect at the latest possible moment, right before navigating
         const redirectTo = getAuthRedirect();
@@ -148,7 +170,7 @@ export default function Auth() {
 
       setTimeout(checkProfile, hasAccessToken ? 500 : 200);
     }
-    
+
     if (hasAccessToken && authLoading && !showResetPassword) {
       const waitTimer = setTimeout(() => {
         if (!user) {
@@ -202,7 +224,7 @@ export default function Auth() {
       } else {
         toast.success('Account created successfully! Please check your email to verify your account. If you don\'t see it, check your Spam or Junk folder.');
         // Reset form
-        setFormData({ fullName: '', email: '', password: '', confirmPassword: '' });
+        setFormData({ fullName: '', email: '', password: '', confirmPassword: '', newPassword: '', confirmNewPassword: '' });
         setErrors({});
         setLoading(false);
       }
@@ -329,237 +351,202 @@ export default function Auth() {
     }
   };
 
+  // Segmented tab pill — switches sign-in / create-account mode.
+  // Same state reset the old bottom-of-form toggle used to perform.
+  const switchAuthMode = (loginMode: boolean) => {
+    if (isLogin === loginMode) return;
+    setIsLogin(loginMode);
+    setErrors({});
+    setFormData({ fullName: '', email: '', password: '', confirmPassword: '', newPassword: '', confirmNewPassword: '' });
+  };
+
   // Show loading state while processing OAuth callback
   if (processingOAuth || (authLoading && window.location.hash.includes('access_token'))) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Completing sign in...</p>
+      <div style={{ minHeight: '100vh', background: TOKENS.shell, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div
+            className="animate-spin"
+            style={{ borderRadius: 999, height: 48, width: 48, borderWidth: 2, borderStyle: 'solid', borderColor: TOKENS.hairline, borderBottomColor: '#FF8000', margin: '0 auto 16px' }}
+          />
+          <p style={{ color: TOKENS.textSecondary, fontSize: 15 }}>Completing sign in...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div style={{ minHeight: '100vh', background: TOKENS.shell, display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <header className="p-4">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" />
+      <header style={{ padding: '16px clamp(16px,3vw,28px)' }}>
+        <Link
+          to="/"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 40, padding: '4px 0', margin: '-4px 0', fontSize: 14, fontWeight: 500, color: TOKENS.textSecondary }}
+        >
+          <ArrowLeft size={16} />
           Back to home
         </Link>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          {/* Logo */}
-          <div className="text-center mb-8">
+      {/* Main Content — 470px column, literal padding from pages/Auth.md */}
+      <main style={{ flex: 1 }}>
+        <div style={{ maxWidth: 470, margin: '0 auto', padding: 'clamp(28px,5vw,56px) clamp(16px,3vw,28px) 56px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <Logo size="lg" className="justify-center" />
           </div>
 
-          {/* Form Card */}
-          <div className="bg-card rounded-3xl p-8 shadow-sm border border-border">
-            <h1 className="text-2xl font-sans text-foreground text-center mb-2">
-              {showResetPassword ? 'Reset your password' : isLogin ? 'Welcome back' : 'Create your account'}
-            </h1>
-            <p className="text-muted-foreground text-center mb-8">
-              {showResetPassword 
-                ? 'Enter your new password below'
-                : !showEmailForm
-                ? 'Sign in to continue to Shikshaq'
-                : isLogin 
-                ? 'Sign in to continue to Shikshaq' 
-                : 'Join Shikshaq to find the best tutors'
-              }
-            </p>
+          {/* Segmented tab pill — Sign in / Create account */}
+          {!showResetPassword && (
+            <div style={{ display: 'flex', gap: 5, padding: 5, borderRadius: 14, background: TOKENS.mutedFill, marginBottom: 24 }}>
+              <button
+                type="button"
+                onClick={() => switchAuthMode(true)}
+                className="shikshaq-tap"
+                style={{
+                  flex: 1, padding: 12, borderRadius: 10, textAlign: 'center', fontSize: 14, fontWeight: 600,
+                  background: isLogin ? TOKENS.field : 'transparent',
+                  boxShadow: isLogin ? '0 1px 3px rgba(0,0,0,.10)' : 'none',
+                  color: TOKENS.text,
+                  transition: 'all .18s ease',
+                }}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => switchAuthMode(false)}
+                className="shikshaq-tap"
+                style={{
+                  flex: 1, padding: 12, borderRadius: 10, textAlign: 'center', fontSize: 14, fontWeight: 600,
+                  background: !isLogin ? TOKENS.field : 'transparent',
+                  boxShadow: !isLogin ? '0 1px 3px rgba(0,0,0,.10)' : 'none',
+                  color: TOKENS.text,
+                  transition: 'all .18s ease',
+                }}
+              >
+                Create account
+              </button>
+            </div>
+          )}
 
-            {/* Google-Only View - Show when email form is not shown and not resetting password */}
-            {!showEmailForm && !showResetPassword && (
-              <div className="space-y-6">
-                {/* Google Sign-in Button - Prominent and on top */}
-                <div>
-                  <Button
-                    onClick={handleGoogleSignIn}
-                    className="w-full h-16 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-gray-300 shadow-lg hover:shadow-xl transition-[color,background-color,border-color,box-shadow] duration-200 font-semibold text-lg gap-3"
-                  >
-                    <svg className="w-7 h-7" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      />
-                    </svg>
-                    Continue with Google
-                  </Button>
-                </div>
+          <h1 style={{ fontSize: 'clamp(26px,3.4vw,34px)', lineHeight: 1.05, fontWeight: 700, color: TOKENS.text, margin: 0 }}>
+            {showResetPassword ? 'Reset your password' : isLogin ? 'Welcome back' : 'Create your account'}
+          </h1>
+          <p style={{ marginTop: 12, fontSize: 15, lineHeight: 1.6, color: TOKENS.textSecondary }}>
+            {showResetPassword
+              ? 'Enter your new password below'
+              : isLogin
+              ? 'Sign in to continue to Shikshaq'
+              : 'Join Shikshaq to find the best tutors'
+            }
+          </p>
 
-                {/* Welcome Message */}
-                <div className="text-center space-y-3">
-                  <p className="text-foreground font-medium">
-                    Thank you for choosing Shikshaq!
-                  </p>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    Connect with the best tutors in Kolkata. Sign in quickly and securely with Google to get started.
-                  </p>
-                </div>
-                
-                <p className="text-center text-sm text-muted-foreground">
-                  <button
-                    type="button"
-                    onClick={() => setShowEmailForm(true)}
-                    className="text-primary hover:underline font-medium"
-                  >
-                    Continue with email instead
-                  </button>
-                </p>
+          {/* Google button + divider — every screen except password reset */}
+          {!showResetPassword && (
+            <>
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="shikshaq-tap"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  width: '100%', minHeight: 44, marginTop: 24, padding: 15, borderRadius: 12,
+                  background: TOKENS.field, boxShadow: `0 0 0 1px ${TOKENS.hairline}`,
+                  fontSize: 15, fontWeight: 600, color: TOKENS.text,
+                }}
+              >
+                <GoogleIcon size={20} />
+                Continue with Google
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '20px 0' }}>
+                <span style={{ flex: 1, height: 1, background: TOKENS.hairline }} />
+                <span style={{ fontSize: 12, color: TOKENS.textTertiary }}>or</span>
+                <span style={{ flex: 1, height: 1, background: TOKENS.hairline }} />
               </div>
-            )}
+            </>
+          )}
 
-            {/* Google Button - Show on top when email form is visible (but not when resetting password) */}
-            {showEmailForm && !showResetPassword && (
-              <>
-                <Button
-                  onClick={handleGoogleSignIn}
-                  className="w-full h-12 mb-6 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg transition-[color,background-color,border-color,box-shadow] duration-200 font-medium gap-3"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    />
-                  </svg>
-                  Continue with Google
-                </Button>
+          {/* Reset Password Form */}
+          {showResetPassword ? (
+            <form onSubmit={handleResetPassword} style={{ marginTop: 24 }}>
+              <div style={{ marginBottom: 14 }}>
+                <label htmlFor="newPassword" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>New Password</label>
+                <input
+                  id="newPassword"
+                  name="newPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Enter new password"
+                  value={formData.newPassword}
+                  onChange={handleInputChange}
+                  className={errors.newPassword ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
+                  style={fieldStyle(!!errors.newPassword)}
+                />
+                {errors.newPassword && (
+                  <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.newPassword}</p>
+                )}
+              </div>
 
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">or</span>
-                  </div>
-                </div>
-              </>
-            )}
+              <div style={{ marginBottom: 20 }}>
+                <label htmlFor="confirmNewPassword" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>Confirm New Password</label>
+                <input
+                  id="confirmNewPassword"
+                  name="confirmNewPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Confirm new password"
+                  value={formData.confirmNewPassword}
+                  onChange={handleInputChange}
+                  className={errors.confirmNewPassword ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
+                  style={fieldStyle(!!errors.confirmNewPassword)}
+                />
+                {errors.confirmNewPassword && (
+                  <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.confirmNewPassword}</p>
+                )}
+              </div>
 
-            {/* Reset Password Form */}
-            {showResetPassword ? (
-              <form onSubmit={handleResetPassword} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="newPassword"
-                      name="newPassword"
-                      type={showNewPassword ? 'text' : 'password'}
-                      autoComplete="new-password"
-                      placeholder="Enter new password"
-                      value={formData.newPassword}
-                      onChange={handleInputChange}
-                      className={`pl-10 pr-12 ${errors.newPassword ? 'border-destructive' : ''}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-foreground"
-                    >
-                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {errors.newPassword && (
-                    <p className="text-sm text-destructive">{errors.newPassword}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="confirmNewPassword"
-                      name="confirmNewPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      autoComplete="new-password"
-                      placeholder="Confirm new password"
-                      value={formData.confirmNewPassword}
-                      onChange={handleInputChange}
-                      className={`pl-10 pr-12 ${errors.confirmNewPassword ? 'border-destructive' : ''}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-foreground"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {errors.confirmNewPassword && (
-                    <p className="text-sm text-destructive">{errors.confirmNewPassword}</p>
-                  )}
-                </div>
-
-                <Button type="submit" className="w-full h-12" disabled={loading}>
-                  {loading ? 'Updating password...' : 'Update Password'}
-                </Button>
-              </form>
-            ) : showEmailForm ? (
-              /* Regular Sign In/Sign Up Form - Only show when showEmailForm is true */
-              <form onSubmit={isLogin ? handleSignIn : handleSignUp} className="space-y-4">
-              {/* Full Name - Only for Sign Up */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="shikshaq-tap"
+                style={{
+                  width: '100%', minHeight: 52, padding: 15, borderRadius: 12, background: TOKENS.text, color: '#fff',
+                  fontSize: 15, fontWeight: 600, opacity: loading ? .6 : 1, cursor: loading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {loading ? 'Updating password...' : 'Update Password'}
+              </button>
+            </form>
+          ) : (
+            /* Regular Sign In / Sign Up form */
+            <form onSubmit={isLogin ? handleSignIn : handleSignUp}>
+              {/* Full Name — signup only, entering with rise */}
               {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="fullName"
-                      name="fullName"
-                      type="text"
-                      autoComplete="name"
-                      placeholder="Enter your name"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                      className={`pl-10 ${errors.fullName ? 'border-destructive' : ''}`}
-                    />
-                  </div>
+                <div style={{ marginBottom: 14, animation: 'shikshaqAuthRise .25s ease-out both' }}>
+                  <label htmlFor="fullName" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>Full name</label>
+                  <input
+                    id="fullName"
+                    name="fullName"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Enter your name"
+                    value={formData.fullName}
+                    onChange={handleInputChange}
+                    className={errors.fullName ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
+                    style={fieldStyle(!!errors.fullName)}
+                  />
                   {errors.fullName && (
-                    <p className="text-sm text-destructive">{errors.fullName}</p>
+                    <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.fullName}</p>
                   )}
                 </div>
               )}
 
-              {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
+              {/* Email — hidden while the dedicated forgot-password field is showing */}
+              {!showForgotPassword && (
+                <div style={{ marginBottom: 14 }}>
+                  <label htmlFor="email" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>Email</label>
+                  <input
                     id="email"
                     name="email"
                     type="email"
@@ -570,19 +557,20 @@ export default function Auth() {
                     placeholder="Enter your email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
+                    className={errors.email ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
+                    style={fieldStyle(!!errors.email)}
                   />
+                  {errors.email && (
+                    <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.email}</p>
+                  )}
                 </div>
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email}</p>
-                )}
-              </div>
+              )}
 
               {/* Password */}
               {!showForgotPassword && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
+                <div style={{ marginBottom: !isLogin ? 14 : 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+                    <label htmlFor="password" style={{ fontSize: 13, fontWeight: 600, color: TOKENS.text }}>Password</label>
                     {isLogin && (
                       <button
                         type="button"
@@ -591,149 +579,164 @@ export default function Auth() {
                           setErrors({});
                           setFormData({ ...formData, password: '' });
                         }}
-                        className="text-sm text-primary hover:underline"
+                        className="shikshaq-tap"
+                        style={{ fontSize: 13, fontWeight: 600, color: TOKENS.link }}
                       >
                         Forgot password?
                       </button>
                     )}
                   </div>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      name="password"
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete={isLogin ? 'current-password' : 'new-password'}
-                      placeholder={isLogin ? 'Enter your password' : 'Create a password'}
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className={`pl-10 pr-12 ${errors.password ? 'border-destructive' : ''}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-foreground"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete={isLogin ? 'current-password' : 'new-password'}
+                    placeholder={isLogin ? 'Enter your password' : 'Create a password'}
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className={errors.password ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
+                    style={fieldStyle(!!errors.password)}
+                  />
                   {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password}</p>
+                    <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.password}</p>
                   )}
                 </div>
               )}
 
-              {/* Forgot Password Form */}
+              {/* Forgot Password mini-form */}
               {showForgotPassword && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="forgotEmail">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="forgotEmail"
-                        name="email"
-                        type="email"
-                        inputMode="email"
-                        autoComplete="email"
-                        autoCapitalize="none"
-                        spellCheck={false}
-                        placeholder="Enter your email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
-                      />
-                    </div>
+                <div>
+                  <div style={{ marginBottom: 20 }}>
+                    <label htmlFor="forgotEmail" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>Email</label>
+                    <input
+                      id="forgotEmail"
+                      name="email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      placeholder="Enter your email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className={errors.email ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
+                      style={fieldStyle(!!errors.email)}
+                    />
                     {errors.email && (
-                      <p className="text-sm text-destructive">{errors.email}</p>
+                      <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.email}</p>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
                       type="button"
-                      variant="outline"
-                      className="flex-1"
                       onClick={() => {
                         setShowForgotPassword(false);
                         setErrors({});
                         setFormData({ ...formData, email: '' });
                       }}
+                      className="shikshaq-tap"
+                      style={{ flex: 1, minHeight: 48, borderRadius: 12, background: TOKENS.field, boxShadow: `0 0 0 1px ${TOKENS.hairline}`, fontSize: 14, fontWeight: 600, color: TOKENS.text }}
                     >
                       Back
-                    </Button>
-                    <Button
+                    </button>
+                    <button
                       type="button"
-                      className="flex-1"
                       onClick={handleForgotPassword}
                       disabled={loading}
+                      className="shikshaq-tap"
+                      style={{ flex: 1, minHeight: 48, borderRadius: 12, background: TOKENS.text, color: '#fff', fontSize: 14, fontWeight: 600, opacity: loading ? .6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
                     >
                       {loading ? 'Sending...' : 'Send Reset Link'}
-                    </Button>
+                    </button>
                   </div>
-                  <p className="text-sm text-muted-foreground text-center">
+                  <p style={{ marginTop: 14, fontSize: 13, color: TOKENS.textSecondary }}>
                     We'll send you a link to reset your password
                   </p>
                 </div>
               )}
 
-              {/* Confirm Password - Only for Sign Up */}
+              {/* Confirm Password — signup only */}
               {!isLogin && !showForgotPassword && (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      autoComplete="new-password"
-                      placeholder="Confirm your password"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      className={`pl-10 pr-12 ${errors.confirmPassword ? 'border-destructive' : ''}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-foreground"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+                <div style={{ marginBottom: 20 }}>
+                  <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>Confirm Password</label>
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Confirm your password"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    className={errors.confirmPassword ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
+                    style={fieldStyle(!!errors.confirmPassword)}
+                  />
                   {errors.confirmPassword && (
-                    <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                    <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.confirmPassword}</p>
                   )}
                 </div>
               )}
 
               {!showForgotPassword && (
-                <Button type="submit" className="w-full h-12" disabled={loading}>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="shikshaq-tap"
+                  style={{
+                    width: '100%', minHeight: 52, padding: 15, borderRadius: 12, background: TOKENS.text, color: '#fff',
+                    fontSize: 15, fontWeight: 600, opacity: loading ? .6 : 1, cursor: loading ? 'not-allowed' : 'pointer',
+                  }}
+                >
                   {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
-                </Button>
+                </button>
               )}
             </form>
-            ) : null}
+          )}
 
-            {/* Toggle between Sign In and Sign Up - Only show when email form is visible */}
-            {!showResetPassword && showEmailForm && (
-              <p className="text-center text-sm text-muted-foreground mt-6">
-                {isLogin ? "Don't have an account? " : 'Already have an account? '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLogin(!isLogin);
-                    setErrors({});
-                    setFormData({ fullName: '', email: '', password: '', confirmPassword: '', newPassword: '', confirmNewPassword: '' });
-                  }}
-                  className="text-foreground font-medium hover:underline"
-                >
-                  {isLogin ? 'Sign up' : 'Sign in'}
-                </button>
-              </p>
-            )}
-          </div>
+          {/* Legal note — verbatim copy from the design spec */}
+          {!showResetPassword && !showForgotPassword && (
+            <p style={{ marginTop: 18, fontSize: 12.5, lineHeight: 1.55, color: TOKENS.textTertiary }}>
+              By continuing you agree to our{' '}
+              <Link to="/terms-of-service" style={{ color: TOKENS.link, fontWeight: 600 }}>Terms of Service</Link>
+              {' '}and{' '}
+              <Link to="/privacy-policy" style={{ color: TOKENS.link, fontWeight: 600 }}>Privacy Policy</Link>.
+              {' '}Your number is never shared with a teacher until you message them.
+            </p>
+          )}
         </div>
       </main>
+
+      <style>{`
+        @keyframes shikshaqAuthRise {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: none; }
+        }
+        .shikshaq-auth-field { transition: box-shadow .15s ease; }
+        .shikshaq-auth-field:focus { box-shadow: 0 0 0 2px ${TOKENS.text} !important; }
+        .shikshaq-auth-field-error:focus { box-shadow: 0 0 0 2px ${TOKENS.error} !important; }
+      `}</style>
     </div>
+  );
+}
+
+function GoogleIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+      />
+    </svg>
   );
 }

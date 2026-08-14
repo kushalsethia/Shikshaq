@@ -1,12 +1,11 @@
-import { Link } from 'react-router-dom';
-import { Heart, ThumbsUp } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Heart, ArrowUp } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
-import { useNavigate } from 'react-router-dom';
 import { memo } from 'react';
-import { ShareButton } from '@/components/ShareButton';
 import { validateImageSrc } from '@/utils/imageSanitizer';
+import { getSubjectPalette } from '@/lib/subject-palette';
 
 interface TeacherCardProps {
   id: string;
@@ -16,63 +15,70 @@ interface TeacherCardProps {
   imageUrl?: string;
   subjectSlug?: string;
   isFeatured?: boolean; // Optional prop to indicate if this is a featured teacher
-  showShareOnMobile?: boolean; // Optional prop to show/hide share button on mobile
+  /**
+   * @deprecated Sharing is not part of the current components/TeacherCard.md spec (the card has
+   * no share affordance). Kept so existing callers still compile; it is now a no-op.
+   */
+  showShareOnMobile?: boolean;
   sirMaam?: string | null; // Sir/Ma'am from Shikshaqmine
-  isLiked?: boolean; // Optional: pass liked state directly to avoid hook call
+  isLiked?: boolean; // Unused: liked state always comes from the useLikes() hook for live updates
   hideFavourite?: boolean; // Hide heart/favourite button
-  hideShare?: boolean; // Hide share button
+  /**
+   * @deprecated Sharing is not part of the current components/TeacherCard.md spec. Kept so
+   * existing callers still compile; it is now a no-op.
+   */
+  hideShare?: boolean;
+  meta?: string; // Secondary line below the name, e.g. "Class 9-12 · Ballygunge" (size 'md' only)
+  /** Card size per components/TeacherCard.md. Defaults to 'md' (Browse, dashboards, Liked/My Teachers today). */
+  size?: 'sm' | 'md';
+  /** Show the read-only upvote-count pill (size 'md' only). Defaults to !isFeatured to match prior behaviour. */
+  showUpvotes?: boolean;
 }
 
-// Helper function to format name with Sir/Ma'am
-function formatTeacherName(name: string, sirMaam?: string | null): string {
+// Formats "{name}, {honorific}" per components/TeacherCard.md. Omits the comma entirely when
+// there's no recognisable honorific, so nothing is ever left trailing.
+function formatDisplayName(name: string, sirMaam?: string | null): string {
   if (!sirMaam) return name;
-  
-  const sirMaamLower = String(sirMaam).toLowerCase().trim();
-  if (sirMaamLower === 'sir' || sirMaamLower.includes('sir')) {
-    return `${name} Sir`;
-  } else if (sirMaamLower === "ma'am" || sirMaamLower === "maam" || sirMaamLower.includes("ma'am")) {
-    return `${name} Ma'am`;
-  }
-  return name;
+  const lower = String(sirMaam).toLowerCase().trim();
+  let honorific: string | null = null;
+  if (lower === 'sir' || lower.includes('sir')) honorific = 'Sir';
+  else if (lower === "ma'am" || lower === 'maam' || lower.includes("ma'am")) honorific = "Ma'am";
+  return honorific ? `${name}, ${honorific}` : name;
 }
 
-const subjectColors: Record<string, string> = {
-  maths: 'bg-badge-maths',
-  english: 'bg-badge-english',
-  science: 'bg-badge-science',
-  commerce: 'bg-badge-commerce',
-  computer: 'bg-badge-computer',
-  hindi: 'bg-badge-hindi',
-  history: 'bg-badge-history',
-  geography: 'bg-badge-geography',
-  physics: 'bg-badge-science',
-  chemistry: 'bg-badge-science',
-  biology: 'bg-badge-science',
-  economics: 'bg-badge-commerce',
-};
+function TeacherCardComponent({
+  id,
+  name,
+  slug,
+  subject,
+  imageUrl,
+  isFeatured,
+  sirMaam,
+  hideFavourite = false,
+  meta,
+  size = 'md',
+  showUpvotes: showUpvotesProp,
+}: TeacherCardProps) {
+  const isSm = size === 'sm';
 
-function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, isFeatured, showShareOnMobile = true, sirMaam, isLiked: isLikedProp, hideFavourite = false, hideShare = false }: TeacherCardProps) {
-  // If featured, use forest green; otherwise use subject-specific colors
-  const badgeColor = isFeatured 
-    ? 'bg-[#228B22]' // Forest green for featured teachers section
-    : (subjectColors[subjectSlug?.toLowerCase() || subject.toLowerCase()] || 'bg-muted-foreground');
-  
-  const displayName = formatTeacherName(name, sirMaam);
+  const displayName = formatDisplayName(name, sirMaam);
   const { user } = useAuth();
   const navigate = useNavigate();
-  
-  // Use hook for real-time updates (optimistic updates make this instant)
+
+  // Hook state drives the heart so likes update instantly everywhere; upvote count is read-only here.
   const { isLiked, toggleLike } = useLikes();
-  const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
-  // Use hook's state for real-time updates, prop is only for initial optimization
+  const { getUpvoteCount } = useUpvotes();
   const liked = isLiked(id);
-  const upvoted = isUpvoted(id);
   const upvoteCount = getUpvoteCount(id);
+
+  const showFavourite = !hideFavourite;
+  const showUpvotes = (showUpvotesProp ?? !isFeatured) && !isSm;
+  const palette = getSubjectPalette(subject);
 
   const handleHeartClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!user) {
       navigate('/auth');
       return;
@@ -82,135 +88,91 @@ function TeacherCardComponent({ id, name, slug, subject, imageUrl, subjectSlug, 
     await toggleLike(id);
   };
 
-  const handleUpvoteClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
-
-    await toggleUpvote(id);
-  };
-
   return (
-    <Link to={`/tuition-teachers/${slug}`} className="teacher-card group active:scale-[0.96] transition-[transform,box-shadow] duration-150">
-      <div className="rounded-2xl border-4 overflow-hidden" style={{ backgroundColor: '#fcfbf8', borderColor: '#fcfbf8' }}>
-        <div className="relative aspect-[4/5] overflow-hidden rounded-b-xl">
+    /* §5: depth from shadow-border alone — never border + shadow stacked.
+       §7: one bold title, everything else text-sm text-muted-foreground. */
+    <Link
+      to={`/tuition-teachers/${slug}`}
+      className="group block overflow-hidden rounded-2xl bg-card shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+    >
+      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
         {imageUrl ? (
           <img
-            src={imageUrl ? validateImageSrc(imageUrl) : ''}
+            src={validateImageSrc(imageUrl)}
             alt={name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 md:group-hover:scale-105 ring-1 ring-inset ring-black/10 dark:ring-white/10"
+            className="h-full w-full object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-muted to-accent flex items-center justify-center rounded-b-2xl">
-            <span className="text-4xl font-sans text-muted-foreground">
+          /* VISUAL_LANGUAGE §1.4 — diagonal-stripe placeholder for missing photos,
+             with a giant low-alpha initial centred on it. */
+          <div className="stripe-placeholder flex h-full w-full items-center justify-center">
+            <span className="text-6xl font-semibold text-foreground/20" aria-hidden="true">
               {name.charAt(0)}
             </span>
           </div>
         )}
-        
-        {/* Subject Badge - Top-left corner */}
-        <div className="absolute top-1 left-1 z-10">
-          <span className={`subject-badge ${badgeColor}`}>
-            {subject}
-          </span>
-        </div>
 
-        {/* Top-right buttons container - Desktop only */}
-        <div className="hidden md:flex absolute top-3 right-3 items-center gap-2 z-10">
-          {/* Heart Icon (Favourite) */}
-          {!hideFavourite && (
-            <button
-              onClick={handleHeartClick}
-              className="p-2.5 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
-              aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
-            >
+        {/* Subject badge — subject-tinted per VISUAL_LANGUAGE §3 (applies "everywhere",
+            including teacher-card badges). Inline style is the sanctioned exception for
+            getSubjectPalette values (subject-palette.ts). */}
+        <span
+          className="absolute left-2 top-2 inline-flex max-w-[calc(100%-4rem)] items-center truncate rounded-full px-3 py-1 text-xs font-medium"
+          style={{ backgroundColor: palette.solid, color: palette.badgeText }}
+        >
+          {subject}
+        </span>
+
+        {/* Featured sticker — VISUAL_LANGUAGE §1.5: tilted, overhanging, one per card,
+            white on near-black. Only on featured cards, so it stays well under the
+            "never on more than a third of the cards in a grid" ceiling. */}
+        {isFeatured && (
+          <span
+            className="absolute -top-2.5 right-4 rotate-6 rounded-full bg-panel px-3 py-1 text-[11px] font-bold text-white motion-reduce:rotate-0"
+            aria-hidden="true"
+          >
+            Featured
+          </span>
+        )}
+
+        {/* Favourite heart — 44px hit target (§11). */}
+        {showFavourite && (
+          <button
+            type="button"
+            onClick={handleHeartClick}
+            aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
+            aria-pressed={liked}
+            className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-card shadow-border">
               <Heart
-                className={`w-5 h-5 transition-colors ${
-                  liked
-                    ? 'fill-red-500 text-red-500'
-                    : 'text-foreground/70 hover:text-red-500'
+                className={`h-4 w-4 transition-colors duration-150 ${
+                  liked ? 'fill-destructive text-destructive' : 'text-muted-foreground'
                 }`}
               />
-            </button>
-          )}
-
-          {/* Share Button - Only show if featured (Desktop) */}
-          {isFeatured && !hideShare && (
-            <ShareButton
-              url={`/tuition-teachers/${slug}`}
-              title={displayName}
-              description={`${subject} Tuition Teacher`}
-              className=""
-              iconSize="md"
-              menuWidth="md"
-            />
-          )}
-        </div>
-
-        {/* Heart Icon (Favourite) - Mobile only */}
-        {!hideFavourite && (
-          <button
-            onClick={handleHeartClick}
-            className="md:hidden absolute top-3 right-3 p-2.5 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
-            aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
-          >
-            <Heart
-              className={`w-5 h-5 transition-colors ${
-                liked
-                  ? 'fill-red-500 text-red-500'
-                  : 'text-foreground/70 hover:text-red-500'
-              }`}
-            />
+            </span>
           </button>
         )}
 
-        {/* Share Button - Mobile only, bottom-right */}
-        {isFeatured && showShareOnMobile && !hideShare && (
-          <div className="md:hidden absolute bottom-3 right-3 z-10">
-            <ShareButton
-              url={`/tuition-teachers/${slug}`}
-              title={displayName}
-              description={`${subject} Tuition Teacher`}
-              className=""
-              iconSize="md"
-              menuWidth="md"
-            />
-          </div>
+        {/* Upvote count — read-only pill, size 'md' only */}
+        {showUpvotes && (
+          <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-card px-3 py-1 text-xs font-medium tabular-nums text-muted-foreground shadow-border">
+            <ArrowUp className="h-3 w-3" strokeWidth={2.25} aria-hidden="true" />
+            {upvoteCount}
+          </span>
         )}
+      </div>
 
-        {/* Upvote Button - Only show if not featured */}
-        {!isFeatured && (
-          <button
-            onClick={handleUpvoteClick}
-            className="absolute bottom-3 right-3 px-2.5 py-1.5 min-h-[40px] rounded-full bg-background/90 backdrop-blur-sm hover:bg-background border border-border/60 transition-colors z-10 flex items-center justify-center gap-1"
-            aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
-          >
-            <ThumbsUp
-              className={`w-4 h-4 transition-colors ${
-                upvoted ? 'text-blue-500 fill-blue-500' : 'text-muted-foreground'
-              }`}
-            />
-            {upvoteCount > 0 && (
-              <span className="text-xs font-semibold text-foreground tabular-nums">
-                {upvoteCount}
-              </span>
-            )}
-          </button>
-        )}
-        </div>
-        
-        {/* Teacher Name - fixed height on mobile so all cards align (one-line vs two-line names) */}
-        <div className="py-2.5 rounded-b-2xl md:py-2.5 h-[3.25rem] md:h-auto flex items-start md:block">
-          <h3 className="font-semibold text-foreground text-sm group-hover:text-foreground/80 transition-colors pl-0.5 pr-3 break-words leading-tight line-clamp-2 md:line-clamp-none" title={displayName}>
-            {displayName}
-          </h3>
-        </div>
+      {/* Body */}
+      <div className="p-3 sm:p-4">
+        <h3
+          className={`line-clamp-2 break-words font-semibold text-foreground ${isSm ? 'text-sm' : 'text-base'}`}
+          title={displayName}
+        >
+          {displayName}
+        </h3>
+        {!isSm && meta && <p className="mt-1 truncate text-sm text-muted-foreground">{meta}</p>}
       </div>
     </Link>
   );

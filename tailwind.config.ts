@@ -7,9 +7,12 @@ export default {
   theme: {
     container: {
       center: true,
+      /* Matches the DESIGN_SYSTEM.md §4 standard container:
+         mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 */
       padding: {
-        DEFAULT: "0.75rem",
+        DEFAULT: "1rem",
         sm: "1.5rem",
+        lg: "2rem",
       },
       screens: {
         "2xl": "1400px",
@@ -21,11 +24,62 @@ export default {
         serif: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
+        /* @deprecated — legacy literal-hex classes. DESIGN_SYSTEM.md §2 bans
+           these in src/**; use `brand` / `brand-blue` / `bg-background` /
+           `text-foreground` instead. DELETE this block once
+           `grep -rn "shikshaq-\(orange\|blue\|beige\|dark\)" src/` is empty.
+           Kept alive only so in-flight migrations don't break the build. */
         'shikshaq-beige': '#F9F5F1',
-        'shikshaq-orange-light': 'rgba(255, 128, 0, 0.08)',
         'shikshaq-dark': '#1F1F1F',
         'shikshaq-orange': '#FF8000',
         'shikshaq-blue': '#4351FF',
+
+        /* Brand accents — DESIGN_SYSTEM.md §2. Accents, not surfaces. */
+        brand: {
+          DEFAULT: "hsl(var(--brand))",           // #FF8000
+          foreground: "hsl(var(--brand-foreground))",
+          hover: "hsl(var(--brand-hover))",
+          subtle: "hsl(var(--brand-subtle))",     // #FFF4E8 — VISUAL_LANGUAGE §2.2 tint
+          deep: "hsl(var(--brand-deep))",         // #B35900 — text-on-tint
+        },
+        "brand-blue": {
+          DEFAULT: "hsl(var(--brand-blue))",      // #4351FF
+          foreground: "hsl(var(--brand-blue-foreground))",
+          hover: "hsl(var(--brand-blue-hover))",
+          subtle: "hsl(var(--brand-blue-subtle))", // #EDEEFF — VISUAL_LANGUAGE §2.2 tint
+          deep: "hsl(var(--brand-blue-deep))",     // #2E3AD6 — text-on-tint
+        },
+
+        /* Extended warm neutral scale — VISUAL_LANGUAGE.md §2.1. Roles the
+           semantic tokens don't cover. Literal-hex vars, so no `/opacity`. */
+        warm: {
+          page: "var(--warm-page)",                       // #F9F5F1
+          card: "var(--warm-card)",                       // #FCFAF7 (bone)
+          muted: "var(--warm-muted)",                     // #F0EAE2
+          band: "var(--warm-band)",                       // #F2ECE4 stripe band
+          hairline: "var(--warm-hairline)",               // #E7DFD5
+          "hairline-raised": "var(--warm-hairline-raised)", // #E4DCD2
+          "hairline-strong": "var(--warm-hairline-strong)", // #D8CFC4
+
+          /* Warm text ramp — VISUAL_LANGUAGE.md §2.1.
+             ⚠ `secondary` / `meta` / `label` knowingly fail the 4.5:1 floor in
+             DESIGN_SYSTEM.md §1.5. That is an owner-approved exception, not a
+             bug — see the long note at the token definitions in index.css.
+             Do not darken them.
+               text-warm-prose      #4A443E  long-form body copy
+               text-warm-secondary  #7B736B  secondary text (== muted-foreground)
+               text-warm-meta       #8B837A  card meta
+               text-warm-label      #A39A90  uppercase labels           */
+          prose: "var(--text-prose)",
+          secondary: "var(--text-secondary)",
+          meta: "var(--text-tertiary)",
+          label: "var(--text-quaternary)",
+        },
+        /* Near-black slab / footer — VISUAL_LANGUAGE.md §2.1. */
+        panel: "var(--panel-dark)",                       // #1B1A18
+        /* Mint stat-card fill — VISUAL_LANGUAGE.md §8. */
+        mint: "var(--mint)",                              // #E3F7EC
+
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -65,16 +119,6 @@ export default {
         },
         charcoal: "hsl(var(--charcoal))",
         "warm-gray": "hsl(var(--warm-gray))",
-        badge: {
-          maths: "hsl(var(--badge-maths))",
-          english: "hsl(var(--badge-english))",
-          science: "hsl(var(--badge-science))",
-          commerce: "hsl(var(--badge-commerce))",
-          computer: "hsl(var(--badge-computer))",
-          hindi: "hsl(var(--badge-hindi))",
-          history: "hsl(var(--badge-history))",
-          geography: "hsl(var(--badge-geography))",
-        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -86,13 +130,38 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
       },
+      /* DESIGN_SYSTEM.md §5: rounded-lg (controls), rounded-2xl (cards/panels),
+         rounded-full (pills/avatars). `full` comes from the Tailwind defaults,
+         which `extend` merges with — do not redefine it. */
       borderRadius: {
-        lg: "var(--radius)",
+        lg: "var(--radius)",   // 0.75rem
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
         "2xl": "1rem",
         "3xl": "1.5rem",
+        /* VISUAL_LANGUAGE.md §1.1/§6 — 32px, the saturated slabs only. */
+        "4xl": "2rem",
       },
+      /* DESIGN_SYSTEM.md §5: depth comes from these, never border + shadow. */
+      boxShadow: {
+        border: "var(--shadow-border)",
+        "border-hover": "var(--shadow-border-hover)",
+        /* VISUAL_LANGUAGE.md §2.2 / §8 — coloured glows and the two
+           special stat-card shadows. Saturated surfaces only. */
+        "glow-brand": "var(--shadow-glow-brand)",
+        "glow-brand-blue": "var(--shadow-glow-brand-blue)",
+        "card-bone": "var(--shadow-card-bone)",
+        "card-mint": "var(--shadow-card-mint)",
+      },
+      /* DESIGN_SYSTEM.md §6 — permitted motion ONLY. The other 27
+         keyframes/animations (scale-pop, blur-reveal, glow-pulse, icon-spin,
+         stagger-fade-up, slide-in-left/right, chip-slide, count-up,
+         badge-bounce, icon-bounce, avatar-reveal, ring-pulse, stat-reveal,
+         underline-grow, slide-down-fade, tab-switch, rating-star-fill,
+         progress-fill, testimonial-slide, float-subtle, pulse-ring,
+         slide-up-full, fade-in, slide-up, width-expand) were removed after
+         verifying with grep that no file under src/ references them.
+         Do not re-add. Hover/press are transitions, not animations. */
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -102,166 +171,64 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "fade-in": {
-          from: { opacity: "0" },
-          to: { opacity: "1" },
-        },
-        "slide-up": {
-          from: { opacity: "0", transform: "translateY(20px)" },
-          to: { opacity: "1", transform: "translateY(0)" },
-        },
-        "fadeSlideUp": {
+        fadeSlideUp: {
           from: { opacity: "0", transform: "translateY(24px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
-        "scalePop": {
-          from: { opacity: "0", transform: "scale(0.92)" },
-          to: { opacity: "1", transform: "scale(1)" },
-        },
-        "blurReveal": {
-          from: { opacity: "0", filter: "blur(8px)", transform: "scale(1.02)" },
-          to: { opacity: "1", filter: "blur(0px)", transform: "scale(1)" },
-        },
-        "widthExpand": {
-          from: { opacity: "0", transform: "scaleX(0.7)" },
-          to: { opacity: "1", transform: "scaleX(1)" },
-        },
-        "glowPulse": {
-          "0%": { opacity: "0.6" },
-          "50%": { opacity: "1" },
-          "100%": { opacity: "0.6" },
-        },
-        "iconSpin": {
-          from: { opacity: "0", transform: "rotate(-90deg)" },
-          to: { opacity: "1", transform: "rotate(0deg)" },
-        },
-        "staggerFadeUp": {
-          from: { opacity: "0", transform: "translateY(16px)" },
-          to: { opacity: "1", transform: "translateY(0)" },
-        },
-        "slideInLeft": {
-          from: { opacity: "0", transform: "translateX(-20px)" },
-          to: { opacity: "1", transform: "translateX(0)" },
-        },
-        "slideInRight": {
-          from: { opacity: "0", transform: "translateX(20px)" },
-          to: { opacity: "1", transform: "translateX(0)" },
-        },
-        "cardReveal": {
+        cardReveal: {
           from: { opacity: "0", transform: "translateY(20px) scale(0.97)" },
           to: { opacity: "1", transform: "translateY(0) scale(1)" },
         },
-        "chipSlide": {
-          from: { opacity: "0", transform: "translateX(-12px) scale(0.95)" },
-          to: { opacity: "1", transform: "translateX(0) scale(1)" },
-        },
-        "countUp": {
-          from: { opacity: "0", transform: "translateY(8px)" },
-          to: { opacity: "1", transform: "translateY(0)" },
-        },
-        "shimmer": {
+        shimmer: {
           from: { "background-position": "-200% 0" },
           to: { "background-position": "200% 0" },
         },
-        "badgeBounce": {
-          "0%": { opacity: "0", transform: "scale(0.8)" },
-          "60%": { opacity: "1", transform: "scale(1.05)" },
-          "100%": { opacity: "1", transform: "scale(1)" },
+
+        /* ---- VISUAL_LANGUAGE.md §7 additions to the whitelist -------------
+           These four, and only these four, join the contract's §6 list.
+           `heroSwap` previously lived as a bare @keyframes in index.css with
+           no utility attached to it; it has been moved here (same values) so
+           there is one definition and a real `animate-hero-swap` class. */
+        heroSwap: {
+          from: { opacity: "0", filter: "blur(9px)", transform: "translateY(14px)" },
+          to: { opacity: "1", filter: "blur(0)", transform: "translateY(0)" },
         },
-        "iconBounce": {
-          "0%": { transform: "scale(1)" },
-          "30%": { transform: "scale(1.25)" },
-          "50%": { transform: "scale(0.95)" },
-          "70%": { transform: "scale(1.08)" },
-          "100%": { transform: "scale(1)" },
+        sparkle: {
+          "0%, 100%": { opacity: "0", transform: "scale(0.5) rotate(0deg)" },
+          "45%": { opacity: "0.95", transform: "scale(1) rotate(45deg)" },
         },
-        "avatarReveal": {
-          "0%": { opacity: "0", transform: "scale(0.6) rotate(-8deg)", filter: "blur(12px)" },
-          "60%": { opacity: "1", transform: "scale(1.04) rotate(1deg)", filter: "blur(0px)" },
-          "100%": { opacity: "1", transform: "scale(1) rotate(0deg)", filter: "blur(0px)" },
+        /* `to: none` is the literal §7 value and is intentional. It clears
+           only THIS element's entrance transform; the §8 per-card tilt lives
+           on a parent wrapper and survives. Never put a rotation on the same
+           element as `animate-fan-in`. */
+        fanIn: {
+          from: { opacity: "0", transform: "translateY(18px) rotate(0deg) scale(0.94)" },
+          to: { opacity: "1", transform: "none" },
         },
-        "ringPulse": {
-          "0%": { transform: "scale(1)", opacity: "0.7", boxShadow: "0 0 0 0 rgba(99,102,241,0.4)" },
-          "70%": { transform: "scale(1)", opacity: "0", boxShadow: "0 0 0 12px rgba(99,102,241,0)" },
-          "100%": { transform: "scale(1)", opacity: "0", boxShadow: "0 0 0 0 rgba(99,102,241,0)" },
-        },
-        "statReveal": {
-          "0%": { opacity: "0", transform: "translateY(12px) scale(0.9)" },
-          "50%": { opacity: "1", transform: "translateY(-2px) scale(1.02)" },
-          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
-        },
-        "underlineGrow": {
-          from: { transform: "scaleX(0)", transformOrigin: "left" },
-          to: { transform: "scaleX(1)", transformOrigin: "left" },
-        },
-        "slideDownFade": {
-          from: { opacity: "0", transform: "translateY(-12px)" },
-          to: { opacity: "1", transform: "translateY(0)" },
-        },
-        "tabSwitch": {
-          from: { opacity: "0", transform: "translateY(6px) scale(0.98)" },
-          to: { opacity: "1", transform: "translateY(0) scale(1)" },
-        },
-        "ratingStarFill": {
-          "0%": { opacity: "0", transform: "scale(0) rotate(-45deg)" },
-          "60%": { transform: "scale(1.2) rotate(5deg)" },
-          "100%": { opacity: "1", transform: "scale(1) rotate(0deg)" },
-        },
-        "progressFill": {
-          from: { width: "0%" },
-          to: { width: "var(--progress-width)" },
-        },
-        "testimonialSlide": {
-          from: { opacity: "0", transform: "translateX(40px) scale(0.95)" },
-          to: { opacity: "1", transform: "translateX(0) scale(1)" },
-        },
-        "floatSubtle": {
-          "0%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-6px)" },
-          "100%": { transform: "translateY(0)" },
-        },
-        "pulseRing": {
-          "0%": { transform: "scale(0.95)", opacity: "0.5" },
-          "50%": { transform: "scale(1)", opacity: "0.8" },
-          "100%": { transform: "scale(0.95)", opacity: "0.5" },
-        },
-        "slideUp": {
-          from: { opacity: "0", transform: "translateY(100%)" },
-          to: { opacity: "1", transform: "translateY(0)" },
+        /* `bob` writes translateY only, so it composes with a tilt applied on
+           a PARENT element — that is how the §8 stat cluster is built (see the
+           three-element structure documented in index.css). `--bob-rotate` is
+           an escape hatch for the case where rotation and float must share one
+           element; leave it unset on the stat cards. Defaults to 0deg. */
+        bob: {
+          "0%, 100%": { transform: "translateY(0) rotate(var(--bob-rotate, 0deg))" },
+          "50%": { transform: "translateY(-9px) rotate(var(--bob-rotate, 0deg))" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.5s ease-out forwards",
-        "slide-up": "slide-up 0.5s ease-out forwards",
         "fade-slide-up": "fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
-        "scale-pop": "scalePop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both",
-        "blur-reveal": "blurReveal 0.4s ease-out both",
-        "width-expand": "widthExpand 0.5s cubic-bezier(0.22, 1, 0.36, 1) both",
-        "glow-pulse": "glowPulse 2.5s ease-in-out infinite",
-        "icon-spin": "iconSpin 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both",
-        "stagger-fade-up": "staggerFadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both",
-        "slide-in-left": "slideInLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1) both",
-        "slide-in-right": "slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) both",
         "card-reveal": "cardReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both",
-        "chip-slide": "chipSlide 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both",
-        "count-up": "countUp 0.3s ease-out both",
-        "shimmer": "shimmer 1.5s ease-in-out infinite",
-        "badge-bounce": "badgeBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both",
-        "icon-bounce": "iconBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both",
-        "avatar-reveal": "avatarReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both",
-        "ring-pulse": "ringPulse 1.5s ease-out infinite",
-        "stat-reveal": "statReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both",
-        "underline-grow": "underlineGrow 0.4s cubic-bezier(0.22, 1, 0.36, 1) both",
-        "slide-down-fade": "slideDownFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) both",
-        "tab-switch": "tabSwitch 0.25s ease-out both",
-        "rating-star-fill": "ratingStarFill 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both",
-        "progress-fill": "progressFill 0.8s cubic-bezier(0.22, 1, 0.36, 1) both",
-        "testimonial-slide": "testimonialSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
-        "float-subtle": "floatSubtle 3s ease-in-out infinite",
-        "pulse-ring": "pulseRing 2s ease-in-out infinite",
-        "slide-up-full": "slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both",
+        shimmer: "shimmer 1.5s ease-in-out infinite",
+
+        /* VISUAL_LANGUAGE.md §7. `sparkle` and `bob` are ambient infinite
+           loops and are DESKTOP-ONLY — index.css hard-disables them below
+           1024px so they can never run on a mid-range Android phone. */
+        "hero-swap": "heroSwap 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
+        sparkle: "sparkle 2.6s ease-in-out infinite",
+        "fan-in": "fanIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
+        bob: "bob 6s ease-in-out infinite",
       },
     },
   },

@@ -3,12 +3,14 @@ import { useSearchParams, Link, useNavigate, useLocation } from 'react-router-do
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { Navbar } from '@/components/Navbar';
-import { SearchBar } from '@/components/SearchBar';
-import { TeacherCardDetailed, type TeacherCardDetailedProps } from '@/components/TeacherCardDetailed';
+import { SearchControl } from '@/components/SearchControl';
 import { TeacherCard } from '@/components/TeacherCard';
 import { Footer } from '@/components/Footer';
+import { EmptyResults } from '@/components/EmptyResults';
+import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { FilterPanel, FilterState } from '@/components/FilterPanel';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { Nudge } from '@/components/Nudge';
+import { SlidersHorizontal, X, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -20,15 +22,7 @@ import {
 import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKeywordExtractor';
 import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
-import { useLikes } from '@/lib/likes-context';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from '@/components/ui/carousel';
 
 
 interface Teacher {
@@ -50,15 +44,6 @@ interface Subject {
   slug: string;
 }
 
-interface FeaturedTeacher {
-  id: string;
-  name: string;
-  slug: string;
-  image_url: string | null;
-  subjects: { name: string; slug: string } | null;
-  sir_maam?: string | null;
-}
-
 interface BrowseProps {
   /**
    * Whether Browse owns the page title/description. SubjectPage and BoardPage
@@ -70,24 +55,232 @@ interface BrowseProps {
 }
 
 /**
- * Loading placeholder that mirrors TeacherCardDetailed's geometry (rounded-2xl p-1.5
- * shell, w-32 md:w-40 aspect-[3/4] image) so the list doesn't jump when results land.
+ * Loading placeholder that mirrors TeacherCard's sm-size geometry (18px radius,
+ * 4/5 portrait) so the list doesn't jump when results land. Grid matches the
+ * live results grid via the shared .shikshaq-teacher-grid class — a fixed
+ * 2-column layout below 640px (so mobile genuinely gets 2 columns rather than
+ * relying on auto-fill math that can collapse to 1 column on narrow phones),
+ * reverting to the original auto-fill minmax(220px,1fr) at sm+ (TeacherCard.md).
  */
 function TeacherCardSkeletons({ count }: { count: number }) {
   return (
-    <div className="space-y-4">
+    <div className="shikshaq-teacher-grid">
       {[...Array(count)].map((_, i) => (
-        <div key={i} className="animate-pulse flex gap-3 bg-card rounded-2xl p-1.5 border border-border">
-          <div className="w-32 md:w-40 flex-shrink-0 self-start aspect-[3/4] bg-muted rounded-[10px]" />
-          <div className="flex-1 space-y-2 pt-1">
-            <div className="h-6 bg-muted rounded w-1/3" />
-            <div className="h-4 bg-muted rounded w-2/3" />
-            <div className="h-4 bg-muted rounded w-1/4" />
-          </div>
-        </div>
+        <div key={i} className="animate-pulse" style={{ borderRadius: 18, aspectRatio: '4/5', background: '#F0EAE2' }} />
       ))}
     </div>
   );
+}
+
+/**
+ * Pure filter predicate against Shikshaqmine records, extracted so it can be reused
+ * both for the live results (main fetch below) and for computing EmptyResults' relax
+ * options (real "drop one filter, re-run the count" counts per components/EmptyResults.md,
+ * not static/hardcoded copy).
+ */
+function filterShikshaqRecords(recordsToFilter: any[], effectiveFilters: FilterState): any[] {
+  // Pre-compute lowercase filter values once (outside loop for performance)
+  const subjectFiltersLower = effectiveFilters.subjects.map(s => s.toLowerCase());
+  const classFiltersLower = effectiveFilters.classes.map(c => c.toLowerCase());
+  const boardFiltersLower = effectiveFilters.boards.map(b => b.toLowerCase());
+  const classSizeFiltersLower = effectiveFilters.classSize.map(s => s.toLowerCase());
+  const areaFiltersLower = effectiveFilters.areas.map(a => a.toLowerCase());
+  const modeFiltersLower = effectiveFilters.modeOfTeaching.map(m => m.toLowerCase());
+  const placeFiltersLower = effectiveFilters.placeOfTeaching.map(p => p.toLowerCase());
+
+  return recordsToFilter.filter((record: any) => {
+    // Pre-compute lowercase values for this record once (inside loop but before checks)
+    const subjectsRaw = (record.Subjects || '').toLowerCase();
+    // Match by whole subject tokens (comma-separated) so "AP" matches only subject AP, not "ap" in "Geography"
+    const subjectTokens = subjectsRaw.split(',').map((s: string) => s.trim()).filter(Boolean);
+    const classesBackend = (record["Classes Taught for Backend"] || '').toLowerCase();
+    const classesDisplay = (record["Classes Taught"] || '').toLowerCase();
+    // Tokenize comma- or slash-separated values so "IB" doesn't match inside "ICSE", "Park" doesn't match "Park Street", etc.
+    const tokenize = (s: string) => s.split(/\s*[,/]\s*/).map((x: string) => x.trim().toLowerCase()).filter(Boolean);
+    const boardTokens = tokenize(record["School Boards Catered"] || '');
+    const classSizeTokens = tokenize(record["Class Size (Group/ Solo)"] || '');
+    const areaTokens = tokenize(record.Area || record["AREAS FOR FILTERING"] || '');
+    const modeTokens = tokenize(record["Mode of Teaching"] || '');
+    const placeTokens = tokenize(record["Place of Teaching"] || '');
+
+    // Check subjects (match whole tokens only so AP does not match Geography)
+    if (effectiveFilters.subjects.length > 0) {
+      const hasSubject = subjectFiltersLower.some(subjLower => {
+        const tokenMatches = (token: string) => subjectTokens.includes(token);
+        const tokenMatchesAny = (tokens: string[]) => tokens.some(t => subjectTokens.includes(t));
+        // Handle "Accountancy" matching "Accounts" in database for backward compatibility
+        if (subjLower === 'accountancy') {
+          return tokenMatchesAny(['accountancy', 'accounts']);
+        }
+        // Handle "Computers" matching "Computer" (singular/plural variants in DB)
+        if (subjLower === 'computers') {
+          return tokenMatchesAny(['computers', 'computer']);
+        }
+        if (subjLower === 'computer') {
+          return tokenMatches('computer');
+        }
+        // Handle "Drawing & Painting" / "Drawing and Painting" / "Drawing" variants in DB
+        if (subjLower === 'drawing & painting' || subjLower === 'drawing and painting') {
+          return tokenMatchesAny(['drawing & painting', 'drawing and painting', 'drawing']);
+        }
+        if (subjLower === 'drawing') {
+          return tokenMatches('drawing');
+        }
+        // Social Studies = History & Civics OR Geography (and optionally "Social Studies" in DB)
+        if (subjLower === 'social studies') {
+          return tokenMatchesAny(['history & civics', 'geography', 'social studies']);
+        }
+        return tokenMatches(subjLower);
+      });
+      if (!hasSubject) {
+        return false;
+      }
+    }
+
+    // Check classes - backend is token-based; display uses word boundary so "5" doesn't match "15"
+    if (effectiveFilters.classes.length > 0) {
+      const hasClass = classFiltersLower.some(classLower => {
+        if (classesBackend) {
+          const backendClasses = classesBackend.split(',').map(c => c.trim());
+          if (backendClasses.includes(classLower)) {
+            return true;
+          }
+        }
+        if (classesDisplay) {
+          const escaped = classLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          if (new RegExp(`\\b${escaped}\\b`).test(classesDisplay)) {
+            return true;
+          }
+          return classesDisplay.includes(`class ${classLower}`) ||
+                 classesDisplay.includes(`class ${classLower} -`) ||
+                 classesDisplay.includes(`- ${classLower}`) ||
+                 classesDisplay.includes(`class ${classLower}-`);
+        }
+        return false;
+      });
+      if (!hasClass) {
+        return false;
+      }
+    }
+
+    // Check boards - whole tokens only (e.g. IB matches only "IB", not inside "ICSE")
+    if (effectiveFilters.boards.length > 0) {
+      const hasBoard = boardFiltersLower.some(boardLower =>
+        boardTokens.includes(boardLower)
+      );
+      if (!hasBoard) {
+        return false;
+      }
+    }
+
+    // Check class size - whole tokens only (e.g. "Group" only as token, not substring)
+    if (effectiveFilters.classSize.length > 0) {
+      const hasSize = classSizeFiltersLower.some(sizeLower =>
+        classSizeTokens.includes(sizeLower)
+      );
+      if (!hasSize) {
+        return false;
+      }
+    }
+
+    // Check areas - whole tokens only (e.g. "Park" only as token, not inside "Park Street")
+    if (effectiveFilters.areas.length > 0) {
+      const hasArea = areaFiltersLower.some(areaLower =>
+        areaTokens.includes(areaLower)
+      );
+      if (!hasArea) {
+        return false;
+      }
+    }
+
+    // Check mode of teaching - whole tokens only
+    if (effectiveFilters.modeOfTeaching.length > 0) {
+      const hasMode = modeFiltersLower.some(modeLower =>
+        modeTokens.includes(modeLower)
+      );
+      if (!hasMode) {
+        return false;
+      }
+    }
+
+    // Check place of teaching - whole tokens only
+    if (effectiveFilters.placeOfTeaching.length > 0) {
+      const hasPlace = placeFiltersLower.some(placeLower =>
+        placeTokens.includes(placeLower)
+      );
+      if (!hasPlace) {
+        return false;
+      }
+    }
+
+    // Check fees - filter by Min Fees and Max Fees from Shikshaqmine
+    const teacherMinFees = (record["Min Fees"] != null) ? Number(record["Min Fees"]) : null;
+    const teacherMaxFees = (record["Max Fees"] != null) ? Number(record["Max Fees"]) : null;
+    const filterMinFees = effectiveFilters.minFees;
+    const filterMaxFees = effectiveFilters.maxFees;
+
+    // Only filter if at least one fee filter is set
+    if (filterMinFees != null || filterMaxFees != null) {
+      // If teacher has no fees data, exclude them
+      if (teacherMinFees == null && teacherMaxFees == null) {
+        return false;
+      }
+
+      // Check if fee ranges overlap
+      // Filter: [filterMinFees, filterMaxFees] - user wants teachers in this range
+      // Teacher: [teacherMinFees, teacherMaxFees] - teacher's actual fee range
+      // Match if ranges overlap (teacher's range intersects with filter range)
+
+      let matches = true;
+
+      // If filter has minFees, check if teacher's range can include values >= filterMinFees
+      if (filterMinFees != null) {
+        if (teacherMaxFees != null) {
+          // Teacher has maxFees - check if their range goes high enough (maxFees >= filterMinFees)
+          matches = matches && teacherMaxFees >= filterMinFees;
+        } else if (teacherMinFees != null) {
+          // Teacher only has minFees - check if their minimum is acceptable (minFees >= filterMinFees)
+          // If teacher charges at least filterMinFees, they match
+          matches = matches && teacherMinFees >= filterMinFees;
+        } else {
+          matches = false;
+        }
+      }
+
+      // If filter has maxFees, check if teacher's range can include values <= filterMaxFees
+      if (filterMaxFees != null) {
+        if (teacherMinFees != null) {
+          // Teacher has minFees - check if their range goes low enough (minFees <= filterMaxFees)
+          matches = matches && teacherMinFees <= filterMaxFees;
+        } else if (teacherMaxFees != null) {
+          // Teacher only has maxFees - check if their maximum is acceptable (maxFees <= filterMaxFees)
+          // If teacher charges at most filterMaxFees, they match
+          matches = matches && teacherMaxFees <= filterMaxFees;
+        } else {
+          matches = false;
+        }
+      }
+
+      if (!matches) {
+        return false;
+      }
+    }
+
+    // Check experience
+    if (effectiveFilters.minExperience != null) {
+      const yearStarted = parseInt(record["Years they started teaching"]);
+      if (!yearStarted || isNaN(yearStarted)) {
+        return false;
+      }
+      const currentYear = new Date().getFullYear();
+      const yearsExp = currentYear - yearStarted;
+      if (yearsExp < parseInt(effectiveFilters.minExperience)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 }
 
 export default function Browse({ manageSeo = true }: BrowseProps = {}) {
@@ -148,20 +341,19 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
   const [displayedTeachers, setDisplayedTeachers] = useState<Teacher[]>([]);
   const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
   const [hasMore, setHasMore] = useState(true);
-  const [isSearchBarScrolled, setIsSearchBarScrolled] = useState(false);
-  const [featuredTeachers, setFeaturedTeachers] = useState<FeaturedTeacher[]>([]);
-  const [featuredLoading, setFeaturedLoading] = useState(true);
-  const { isLiked } = useLikes();
-  
+
   // Ref to track if we're updating URL ourselves (to prevent circular updates)
   const isUpdatingUrlRef = useRef(false);
   // Ref to track loading timeout
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Ref to debounce filter-driven refetches
   const fetchDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  // Refs for floating search bar
-  const searchBarRef = useRef<HTMLDivElement>(null);
-  const searchBarElementRef = useRef<HTMLDivElement>(null);
+  // Wraps SearchControl so "Edit search" can focus its input, which re-expands it
+  const searchControlWrapRef = useRef<HTMLDivElement>(null);
+  // Snapshot of the Shikshaqmine records + effective filters behind the most recent
+  // fetch, so the EmptyResults "relax a filter" options can be computed with real
+  // counts (components/EmptyResults.md) without a second Supabase round trip.
+  const lastQueryRef = useRef<{ shikshaqRecords: any[]; effectiveFilters: FilterState } | null>(null);
 
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
@@ -171,10 +363,10 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
 
     document.title = 'All Tuition Teachers in Kolkata | Shikshaq';
     const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
-    if (metaDesc) metaDesc.setAttribute('content', 'Browse all verified tuition teachers in Kolkata. Filter by subject, class, board, area, mode of teaching, and fees. Free to use — connect directly with local tutors.');
+    if (metaDesc) metaDesc.setAttribute('content', 'Browse all verified tuition teachers in Kolkata. Filter by subject, class, board, area, mode of teaching, and fees. Free to use, connect directly with local tutors.');
     return () => {
       document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
-      if (metaDesc) metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board — no commission, no middlemen.');
+      if (metaDesc) metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board. No commission, no middlemen.');
     };
   }, [manageSeo]);
 
@@ -182,7 +374,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
     async function fetchSubjects() {
       // Check cache first
       const cacheKey = 'subjects';
-      const cached = getCache(cacheKey);
+      const cached = getCache<Subject[]>(cacheKey);
       if (cached) {
         setSubjects(cached);
         return;
@@ -330,6 +522,8 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
       return;
     }
 
+    const minFeesParam = searchParams.get('filter_minFees');
+    const maxFeesParam = searchParams.get('filter_maxFees');
     const urlFilters = {
       subjects: parseArrayParam(searchParams.get('filter_subjects')),
       classes: parseArrayParam(searchParams.get('filter_classes')),
@@ -338,6 +532,8 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
       areas: parseArrayParam(searchParams.get('filter_areas')),
       modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
       placeOfTeaching: parseArrayParam(searchParams.get('filter_placeOfTeaching')),
+      minFees: minFeesParam ? parseInt(minFeesParam) : null,
+      maxFees: maxFeesParam ? parseInt(maxFeesParam) : null,
       minExperience: searchParams.get('filter_experience') || null,
     };
 
@@ -359,6 +555,8 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
       areas: searchQuery ? [...(extractedFilters.areas || [])] : [...urlFilters.areas],
       modeOfTeaching: searchQuery ? [...(extractedFilters.modeOfTeaching || [])] : [...urlFilters.modeOfTeaching],
       placeOfTeaching: searchQuery ? [...(extractedFilters.placeOfTeaching || [])] : [...urlFilters.placeOfTeaching],
+      minFees: searchQuery ? (extractedFilters.minFees ?? null) : urlFilters.minFees,
+      maxFees: searchQuery ? (extractedFilters.maxFees ?? null) : urlFilters.maxFees,
       minExperience: searchQuery ? (extractedFilters.minExperience ?? null) : urlFilters.minExperience,
     };
 
@@ -372,6 +570,8 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
       JSON.stringify([...mergedFilters.areas].sort()) !== JSON.stringify([...filters.areas].sort()) ||
       JSON.stringify([...mergedFilters.modeOfTeaching].sort()) !== JSON.stringify([...filters.modeOfTeaching].sort()) ||
       JSON.stringify([...mergedFilters.placeOfTeaching].sort()) !== JSON.stringify([...filters.placeOfTeaching].sort()) ||
+      mergedFilters.minFees !== filters.minFees ||
+      mergedFilters.maxFees !== filters.maxFees ||
       mergedFilters.minExperience !== filters.minExperience;
 
     if (filtersChanged) {
@@ -498,9 +698,14 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
                 return { data: cached, error: null };
               }
               
+              // Column list is every field filterShikshaqRecords() and the
+              // enrichment step below actually read (verified by grepping
+              // every `record.X` / `record["X"]` access in this file) — not
+              // '*', which pulled ~20 unused columns (Description, bios,
+              // review text, phone numbers, etc.) per 50-slug chunk.
               const result = await supabase
                 .from('Shikshaqmine')
-                .select('*')
+                .select('Slug, Subjects, "Classes Taught for Backend", "Classes Taught", "School Boards Catered", "Class Size (Group/ Solo)", Area, "Mode of Teaching", "Place of Teaching", "Min Fees", "Max Fees", "Sir/Ma\'am?", "Years they started teaching"')
                 .in('Slug', chunk);
               
               if (result.data && !result.error) {
@@ -525,6 +730,8 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
 
         // Read ALL filters from searchParams for consistency (source of truth)
         // This ensures filters persist even when state might be temporarily out of sync
+        const minFeesParam = searchParams.get('filter_minFees');
+        const maxFeesParam = searchParams.get('filter_maxFees');
         const urlFilters = {
           subjects: parseArrayParam(searchParams.get('filter_subjects')),
           classes: parseArrayParam(searchParams.get('filter_classes')),
@@ -533,6 +740,8 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           areas: parseArrayParam(searchParams.get('filter_areas')),
           modeOfTeaching: parseArrayParam(searchParams.get('filter_modeOfTeaching')),
           placeOfTeaching: parseArrayParam(searchParams.get('filter_placeOfTeaching')),
+          minFees: minFeesParam ? parseInt(minFeesParam) : null,
+          maxFees: maxFeesParam ? parseInt(maxFeesParam) : null,
           minExperience: searchParams.get('filter_experience') || null,
         };
 
@@ -664,210 +873,12 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           // A. Apply the extracted filters (existing filter logic)
           const recordsToFilter = allShikshaqData;
           
-          // Pre-compute lowercase filter values once (outside loop for performance)
-          const subjectFiltersLower = effectiveFilters.subjects.map(s => s.toLowerCase());
-          const classFiltersLower = effectiveFilters.classes.map(c => c.toLowerCase());
-          const boardFiltersLower = effectiveFilters.boards.map(b => b.toLowerCase());
-          const classSizeFiltersLower = effectiveFilters.classSize.map(s => s.toLowerCase());
-          const areaFiltersLower = effectiveFilters.areas.map(a => a.toLowerCase());
-          const modeFiltersLower = effectiveFilters.modeOfTeaching.map(m => m.toLowerCase());
-          const placeFiltersLower = effectiveFilters.placeOfTeaching.map(p => p.toLowerCase());
-          
-          const matchingSlugs = recordsToFilter
-            .filter((record: any) => {
-              // Pre-compute lowercase values for this record once (inside loop but before checks)
-              const subjectsRaw = (record.Subjects || '').toLowerCase();
-              // Match by whole subject tokens (comma-separated) so "AP" matches only subject AP, not "ap" in "Geography"
-              const subjectTokens = subjectsRaw.split(',').map((s: string) => s.trim()).filter(Boolean);
-              const classesBackend = (record["Classes Taught for Backend"] || '').toLowerCase();
-              const classesDisplay = (record["Classes Taught"] || '').toLowerCase();
-              // Tokenize comma- or slash-separated values so "IB" doesn't match inside "ICSE", "Park" doesn't match "Park Street", etc.
-              const tokenize = (s: string) => s.split(/\s*[,/]\s*/).map((x: string) => x.trim().toLowerCase()).filter(Boolean);
-              const boardTokens = tokenize(record["School Boards Catered"] || '');
-              const classSizeTokens = tokenize(record["Class Size (Group/ Solo)"] || '');
-              const areaTokens = tokenize(record.Area || record["AREAS FOR FILTERING"] || '');
-              const modeTokens = tokenize(record["Mode of Teaching"] || '');
-              const placeTokens = tokenize(record["Place of Teaching"] || '');
-
-              // Check subjects (match whole tokens only so AP does not match Geography)
-              if (effectiveFilters.subjects.length > 0) {
-                const hasSubject = subjectFiltersLower.some(subjLower => {
-                  const tokenMatches = (token: string) => subjectTokens.includes(token);
-                  const tokenMatchesAny = (tokens: string[]) => tokens.some(t => subjectTokens.includes(t));
-                  // Handle "Accountancy" matching "Accounts" in database for backward compatibility
-                  if (subjLower === 'accountancy') {
-                    return tokenMatchesAny(['accountancy', 'accounts']);
-                  }
-                  // Handle "Computers" matching "Computer" (singular/plural variants in DB)
-                  if (subjLower === 'computers') {
-                    return tokenMatchesAny(['computers', 'computer']);
-                  }
-                  if (subjLower === 'computer') {
-                    return tokenMatches('computer');
-                  }
-                  // Handle "Drawing & Painting" / "Drawing and Painting" / "Drawing" variants in DB
-                  if (subjLower === 'drawing & painting' || subjLower === 'drawing and painting') {
-                    return tokenMatchesAny(['drawing & painting', 'drawing and painting', 'drawing']);
-                  }
-                  if (subjLower === 'drawing') {
-                    return tokenMatches('drawing');
-                  }
-                  // Social Studies = History & Civics OR Geography (and optionally "Social Studies" in DB)
-                  if (subjLower === 'social studies') {
-                    return tokenMatchesAny(['history & civics', 'geography', 'social studies']);
-                  }
-                  return tokenMatches(subjLower);
-                });
-                if (!hasSubject) {
-                  return false;
-                }
-              }
-
-              // Check classes - backend is token-based; display uses word boundary so "5" doesn't match "15"
-              if (effectiveFilters.classes.length > 0) {
-                const hasClass = classFiltersLower.some(classLower => {
-                  if (classesBackend) {
-                    const backendClasses = classesBackend.split(',').map(c => c.trim());
-                    if (backendClasses.includes(classLower)) {
-                      return true;
-                    }
-                  }
-                  if (classesDisplay) {
-                    const escaped = classLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    if (new RegExp(`\\b${escaped}\\b`).test(classesDisplay)) {
-                      return true;
-                    }
-                    return classesDisplay.includes(`class ${classLower}`) ||
-                           classesDisplay.includes(`class ${classLower} -`) ||
-                           classesDisplay.includes(`- ${classLower}`) ||
-                           classesDisplay.includes(`class ${classLower}-`);
-                  }
-                  return false;
-                });
-                if (!hasClass) {
-                  return false;
-                }
-              }
-
-              // Check boards - whole tokens only (e.g. IB matches only "IB", not inside "ICSE")
-              if (effectiveFilters.boards.length > 0) {
-                const hasBoard = boardFiltersLower.some(boardLower =>
-                  boardTokens.includes(boardLower)
-                );
-                if (!hasBoard) {
-                  return false;
-                }
-              }
-
-              // Check class size - whole tokens only (e.g. "Group" only as token, not substring)
-              if (effectiveFilters.classSize.length > 0) {
-                const hasSize = classSizeFiltersLower.some(sizeLower =>
-                  classSizeTokens.includes(sizeLower)
-                );
-                if (!hasSize) {
-                  return false;
-                }
-              }
-
-              // Check areas - whole tokens only (e.g. "Park" only as token, not inside "Park Street")
-              if (effectiveFilters.areas.length > 0) {
-                const hasArea = areaFiltersLower.some(areaLower =>
-                  areaTokens.includes(areaLower)
-                );
-                if (!hasArea) {
-                  return false;
-                }
-              }
-
-              // Check mode of teaching - whole tokens only
-              if (effectiveFilters.modeOfTeaching.length > 0) {
-                const hasMode = modeFiltersLower.some(modeLower =>
-                  modeTokens.includes(modeLower)
-                );
-                if (!hasMode) {
-                  return false;
-                }
-              }
-
-              // Check place of teaching - whole tokens only
-              if (effectiveFilters.placeOfTeaching.length > 0) {
-                const hasPlace = placeFiltersLower.some(placeLower =>
-                  placeTokens.includes(placeLower)
-                );
-                if (!hasPlace) {
-                  return false;
-                }
-              }
-
-              // Check fees - filter by Min Fees and Max Fees from Shikshaqmine
-              const teacherMinFees = (record["Min Fees"] != null) ? Number(record["Min Fees"]) : null;
-              const teacherMaxFees = (record["Max Fees"] != null) ? Number(record["Max Fees"]) : null;
-              const filterMinFees = effectiveFilters.minFees;
-              const filterMaxFees = effectiveFilters.maxFees;
-
-              // Only filter if at least one fee filter is set
-              if (filterMinFees != null || filterMaxFees != null) {
-                // If teacher has no fees data, exclude them
-                if (teacherMinFees == null && teacherMaxFees == null) {
-                  return false;
-                }
-
-                // Check if fee ranges overlap
-                // Filter: [filterMinFees, filterMaxFees] - user wants teachers in this range
-                // Teacher: [teacherMinFees, teacherMaxFees] - teacher's actual fee range
-                // Match if ranges overlap (teacher's range intersects with filter range)
-                
-                let matches = true;
-
-                // If filter has minFees, check if teacher's range can include values >= filterMinFees
-                if (filterMinFees != null) {
-                  if (teacherMaxFees != null) {
-                    // Teacher has maxFees - check if their range goes high enough (maxFees >= filterMinFees)
-                    matches = matches && teacherMaxFees >= filterMinFees;
-                  } else if (teacherMinFees != null) {
-                    // Teacher only has minFees - check if their minimum is acceptable (minFees >= filterMinFees)
-                    // If teacher charges at least filterMinFees, they match
-                    matches = matches && teacherMinFees >= filterMinFees;
-                  } else {
-                    matches = false;
-                  }
-                }
-
-                // If filter has maxFees, check if teacher's range can include values <= filterMaxFees
-                if (filterMaxFees != null) {
-                  if (teacherMinFees != null) {
-                    // Teacher has minFees - check if their range goes low enough (minFees <= filterMaxFees)
-                    matches = matches && teacherMinFees <= filterMaxFees;
-                  } else if (teacherMaxFees != null) {
-                    // Teacher only has maxFees - check if their maximum is acceptable (maxFees <= filterMaxFees)
-                    // If teacher charges at most filterMaxFees, they match
-                    matches = matches && teacherMaxFees <= filterMaxFees;
-                  } else {
-                    matches = false;
-                  }
-                }
-
-                if (!matches) {
-                  return false;
-                }
-              }
-
-              // Check experience
-              if (effectiveFilters.minExperience != null) {
-                const yearStarted = parseInt(record["Years they started teaching"]);
-                if (!yearStarted || isNaN(yearStarted)) {
-                  return false;
-                }
-                const currentYear = new Date().getFullYear();
-                const yearsExp = currentYear - yearStarted;
-                if (yearsExp < parseInt(effectiveFilters.minExperience)) {
-                  return false;
-                }
-              }
-
-              return true;
-            })
+          const matchingSlugs = filterShikshaqRecords(recordsToFilter, effectiveFilters)
             .map((record: any) => record.Slug);
+
+          // Snapshot the exact records + filters this query used, so the empty state
+          // (below) can compute real "drop one filter" counts instead of a static option.
+          lastQueryRef.current = { shikshaqRecords: recordsToFilter, effectiveFilters };
 
           // Filter teachers by matching slugs
           filteredTeachers = teachersData.filter(teacher => 
@@ -949,13 +960,30 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           };
         });
 
+        // Sort: upvotes desc, then name (pages/Browse.md "Data" section).
+        let sortedTeachers = enrichedTeachers;
+        if (enrichedTeachers.length > 0) {
+          const teacherIds = enrichedTeachers.map((t) => t.id);
+          const { data: upvoteRows } = await supabase
+            .from('teacher_upvote_stats')
+            .select('teacher_id, upvote_count')
+            .in('teacher_id', teacherIds);
+          const upvoteMap = new Map<string, number>(
+            (upvoteRows || []).map((r: any) => [r.teacher_id, r.upvote_count || 0])
+          );
+          sortedTeachers = [...enrichedTeachers].sort((a, b) => {
+            const diff = (upvoteMap.get(b.id) || 0) - (upvoteMap.get(a.id) || 0);
+            return diff !== 0 ? diff : a.name.localeCompare(b.name);
+          });
+        }
+
         // Store all teachers
-        setAllTeachersData(enrichedTeachers);
-        // Show first 20 teachers initially for infinite scroll
-        const initialDisplay = 20;
-        setDisplayedTeachers(enrichedTeachers.slice(0, initialDisplay));
-        setTeachers(enrichedTeachers); // Keep for count display
-        setHasMore(enrichedTeachers.length > initialDisplay);
+        setAllTeachersData(sortedTeachers);
+        // Page size 24 with an explicit "Load more" button, never infinite scroll (Browse.md).
+        const pageSize = 24;
+        setDisplayedTeachers(sortedTeachers.slice(0, pageSize));
+        setTeachers(sortedTeachers); // Keep for count display
+        setHasMore(sortedTeachers.length > pageSize);
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error('Error fetching teachers:', error);
@@ -992,169 +1020,6 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
     };
   }, [searchParams, subjects]);
 
-  // Fetch featured teachers for bottom section
-  useEffect(() => {
-    async function fetchFeaturedTeachers() {
-      try {
-        setFeaturedLoading(true);
-
-        // Check cache for featured teachers
-        const cacheKey = 'featured_teachers_browse';
-        const cached = getCache<any[]>(cacheKey);
-        if (cached) {
-          setFeaturedTeachers(cached);
-          setFeaturedLoading(false);
-          return;
-        }
-
-        // Use the view to get top teachers efficiently
-        const { data: upvoteStats } = await supabase
-          .from('teacher_upvote_stats')
-          .select('teacher_id')
-          .order('upvote_count', { ascending: false })
-          .limit(16);
-
-        let teachersData: any[] = [];
-
-        if (upvoteStats && upvoteStats.length > 0) {
-          const topTeacherIds = upvoteStats.map((stat: any) => stat.teacher_id);
-
-          if (topTeacherIds.length > 0) {
-            const { data: topTeachers } = await supabase
-              .from('teachers_list')
-              .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-              .in('id', topTeacherIds);
-
-            if (topTeachers) {
-              const teacherMap = new Map(topTeachers.map((t: any) => [t.id, t]));
-              teachersData = topTeacherIds
-                .map(id => teacherMap.get(id))
-                .filter(Boolean) as any[];
-            }
-          }
-        }
-
-        // If we have less than 16 teachers, fill with random teachers
-        if (teachersData.length < 16) {
-          const existingIds = new Set(teachersData.map((t: any) => t.id));
-          const { data: allTeachers } = await supabase
-            .from('teachers_list')
-            .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-            .limit(100);
-
-          if (allTeachers && allTeachers.length > 0) {
-            const availableTeachers = allTeachers.filter((t: any) => !existingIds.has(t.id));
-            const shuffled = [...availableTeachers].sort(() => Math.random() - 0.5);
-            const needed = 16 - teachersData.length;
-            teachersData = [...teachersData, ...shuffled.slice(0, needed)];
-          }
-        }
-
-        // Fetch Sir/Ma'am and Subjects data from Shikshaqmine table
-        let sirMaamMap = new Map();
-        const subjectsMap = new Map<string, string>();
-        if (teachersData.length > 0) {
-          const teacherSlugs = teachersData.map((t: any) => t.slug).filter(Boolean);
-          if (teacherSlugs.length > 0) {
-            const { data: shikshaqData } = await supabase
-              .from('Shikshaqmine')
-              .select('*')
-              .in('Slug', teacherSlugs);
-
-            if (shikshaqData) {
-              shikshaqData.forEach((record: any) => {
-                sirMaamMap.set(record.Slug, record["Sir/Ma'am?"]);
-                if (record.Subjects) {
-                  const firstSubject = record.Subjects.split(',')[0].trim();
-                  if (firstSubject) {
-                    subjectsMap.set(record.Slug, firstSubject);
-                  }
-                }
-              });
-            }
-          }
-        }
-
-        // Process teachers data
-        if (teachersData.length > 0) {
-          const processedTeachers = teachersData.map((teacher: any) => {
-            if (!teacher.subjects) {
-              const firstSubjectName = subjectsMap.get(teacher.slug);
-              if (firstSubjectName) {
-                const matchingSubject = subjects.find((s: any) =>
-                  s.name.toLowerCase() === firstSubjectName.toLowerCase()
-                );
-                if (matchingSubject) {
-                  teacher.subjects = { name: matchingSubject.name, slug: matchingSubject.slug };
-                } else {
-                  teacher.subjects = {
-                    name: firstSubjectName,
-                    slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-')
-                  };
-                }
-              }
-            }
-
-            return {
-              ...teacher,
-              sir_maam: sirMaamMap.get(teacher.slug) || null
-            };
-          });
-
-          setFeaturedTeachers(processedTeachers);
-          setCache(cacheKey, processedTeachers, CACHE_TTL.FEATURED_TEACHERS);
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching featured teachers:', error);
-        }
-      } finally {
-        setFeaturedLoading(false);
-      }
-    }
-
-    fetchFeaturedTeachers();
-  }, []);
-
-  // Handle scroll detection for making search bar sticky
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!searchBarRef.current) return;
-      
-      const searchBarRect = searchBarRef.current.getBoundingClientRect();
-      // Show sticky bar when original search bar is scrolled past
-      // Once shown, keep it visible until we're back near the top
-      const threshold = window.innerWidth < 768 ? 200 : 100;
-      const scrollY = window.scrollY;
-      
-      // Show sticky bar if original is scrolled past OR if we're scrolled down significantly
-      // Hide only when we're back near the top (scrollY < 100) so original is visible
-      if (scrollY < 100) {
-        setIsSearchBarScrolled(false);
-      } else if (searchBarRect.top < threshold) {
-        setIsSearchBarScrolled(true);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    // Check initial position
-    const initialCheck = () => {
-      if (!searchBarRef.current) return;
-      const searchBarRect = searchBarRef.current.getBoundingClientRect();
-      const threshold = window.innerWidth < 768 ? 200 : 100;
-      const scrollY = window.scrollY;
-      
-      if (scrollY < 100) {
-        setIsSearchBarScrolled(false);
-      } else if (searchBarRect.top < threshold) {
-        setIsSearchBarScrolled(true);
-      }
-    };
-    initialCheck();
-    
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   const handleSubjectChange = (value: string) => {
     setSelectedSubject(value);
     if (value && value !== 'all') {
@@ -1175,6 +1040,18 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
     setSearchParams(searchParams);
   };
 
+  // The search bar's Teachers/Papers toggle doubles as the page-mode switch —
+  // flipping to Papers carries the active subject/class/board filters over.
+  const handleSearchModeChange = (mode: 'teachers' | 'papers') => {
+    if (mode !== 'papers') return;
+    const params = new URLSearchParams();
+    if (selectedSubject && selectedSubject !== 'all') params.set('filter_subjects', selectedSubject);
+    if (selectedClass && selectedClass !== 'all') params.set('filter_classes', selectedClass);
+    if (filters.boards.length) params.set('filter_boards', filters.boards.join(','));
+    const qs = params.toString();
+    navigate(qs ? `/past-papers?${qs}` : '/past-papers');
+  };
+
   const clearFilters = () => {
     setSelectedSubject('');
     setSelectedClass('');
@@ -1186,6 +1063,8 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
       areas: [],
       modeOfTeaching: [],
       placeOfTeaching: [],
+      minFees: null,
+      maxFees: null,
       minExperience: null,
     });
     setSearchParams({});
@@ -1193,11 +1072,35 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
     setHasMore(true);
   };
 
-  const hasFilters = searchParams.get('subject') || searchParams.get('class') || searchParams.get('q') ||
-    filters.subjects.length > 0 || filters.classes.length > 0 ||
-    filters.boards.length > 0 || filters.classSize.length > 0 ||
-    filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
-    filters.placeOfTeaching.length > 0 || filters.minExperience != null;
+  // Re-focuses the input inside SearchControl, which re-expands it (SearchControl
+  // owns its own expand/collapse state; this just triggers the input's onFocus).
+  const handleEditSearch = () => {
+    searchControlWrapRef.current?.querySelector('input')?.focus();
+  };
+
+  // Removes a single value from one of the "More filters" (advanced panel) arrays.
+  const removeArrayFilterValue = (
+    category: 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas' | 'modeOfTeaching' | 'placeOfTeaching',
+    value: string
+  ) => {
+    setFilters({ ...filters, [category]: filters[category].filter((v) => v !== value) });
+  };
+
+  // Chip per selected value from the advanced filter panel (URL params filter_*).
+  // Quick-filter subject/class (the two Selects above) and the free-text q are
+  // deliberately not represented here — the spec scopes FilterChips to filter_* only.
+  const filterChips: FilterChipItem[] = [
+    ...filters.subjects.map((v) => ({ key: `subjects:${v}`, label: v, onRemove: () => removeArrayFilterValue('subjects', v) })),
+    ...filters.classes.map((v) => ({ key: `classes:${v}`, label: `Class ${v}`, onRemove: () => removeArrayFilterValue('classes', v) })),
+    ...filters.boards.map((v) => ({ key: `boards:${v}`, label: v, onRemove: () => removeArrayFilterValue('boards', v) })),
+    ...filters.classSize.map((v) => ({ key: `classSize:${v}`, label: v === 'Solo' ? 'One-on-one' : v, onRemove: () => removeArrayFilterValue('classSize', v) })),
+    ...filters.areas.map((v) => ({ key: `areas:${v}`, label: v, onRemove: () => removeArrayFilterValue('areas', v) })),
+    ...filters.modeOfTeaching.map((v) => ({ key: `modeOfTeaching:${v}`, label: v, onRemove: () => removeArrayFilterValue('modeOfTeaching', v) })),
+    ...filters.placeOfTeaching.map((v) => ({ key: `placeOfTeaching:${v}`, label: v, onRemove: () => removeArrayFilterValue('placeOfTeaching', v) })),
+    ...(filters.minExperience
+      ? [{ key: 'minExperience', label: `${filters.minExperience}+ years`, onRemove: () => setFilters({ ...filters, minExperience: null }) }]
+      : []),
+  ];
 
   // Subjects in display order for Browse dropdowns (UI only)
   const sortedSubjectsForDisplay = useMemo(() => {
@@ -1253,98 +1156,137 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
     return 'All Tuition Teachers in Kolkata';
   };
 
-  // Infinite scroll handler
-  useEffect(() => {
-    if (!hasMore || loading || allTeachersData.length === 0) return;
+  // Page size 24 with an explicit "Load more" button — never infinite scroll (Browse.md).
+  const handleLoadMore = () => {
+    const pageSize = 24;
+    const currentCount = displayedTeachers.length;
+    const nextBatch = allTeachersData.slice(currentCount, currentCount + pageSize);
+    setDisplayedTeachers((prev) => [...prev, ...nextBatch]);
+    setHasMore(currentCount + pageSize < allTeachersData.length);
+  };
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          // Load next batch of 20 teachers
-          const currentCount = displayedTeachers.length;
-          const nextBatch = allTeachersData.slice(currentCount, currentCount + 20);
-          
-          if (nextBatch.length > 0) {
-            setDisplayedTeachers((prev) => [...prev, ...nextBatch]);
-            setHasMore(currentCount + 20 < allTeachersData.length);
-          } else {
-            setHasMore(false);
-          }
-        }
-      },
-      { threshold: 0.1 }
-    );
+  // EmptyResults relax options: for each applied filter (the same values FilterChips
+  // shows), re-run the last query with that one value dropped and offer the ones that
+  // would return results, "Without {value} · {n}", highest count first, max 3
+  // (components/EmptyResults.md). Falls back to a single "Clear all filters" option
+  // when nothing would relax into results, or when the empty state isn't filter-driven.
+  const emptyStateOptions = useMemo(() => {
+    const fallback = [{ label: 'Clear all filters', onClick: clearFilters }];
+    if (loading || displayedTeachers.length > 0) return fallback;
 
-    const trigger = document.getElementById('scroll-trigger');
-    if (trigger) {
-      observer.observe(trigger);
-    }
+    const ctx = lastQueryRef.current;
+    if (!ctx) return fallback;
 
-    return () => {
-      if (trigger) {
-        observer.unobserve(trigger);
+    type Category = 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas' | 'modeOfTeaching' | 'placeOfTeaching' | 'minExperience';
+    const entries: Array<{ category: Category; value: string; label: string }> = [
+      ...filters.subjects.map((v) => ({ category: 'subjects' as const, value: v, label: v })),
+      ...filters.classes.map((v) => ({ category: 'classes' as const, value: v, label: `Class ${v}` })),
+      ...filters.boards.map((v) => ({ category: 'boards' as const, value: v, label: v })),
+      ...filters.classSize.map((v) => ({ category: 'classSize' as const, value: v, label: v === 'Solo' ? 'One-on-one' : v })),
+      ...filters.areas.map((v) => ({ category: 'areas' as const, value: v, label: v })),
+      ...filters.modeOfTeaching.map((v) => ({ category: 'modeOfTeaching' as const, value: v, label: v })),
+      ...filters.placeOfTeaching.map((v) => ({ category: 'placeOfTeaching' as const, value: v, label: v })),
+      ...(filters.minExperience
+        ? [{ category: 'minExperience' as const, value: filters.minExperience, label: `${filters.minExperience}+ years` }]
+        : []),
+    ];
+    if (entries.length === 0) return fallback;
+
+    const withoutOne = (base: FilterState, category: Category, value: string): FilterState => {
+      switch (category) {
+        case 'subjects': return { ...base, subjects: base.subjects.filter((v) => v !== value) };
+        case 'classes': return { ...base, classes: base.classes.filter((v) => v !== value) };
+        case 'boards': return { ...base, boards: base.boards.filter((v) => v !== value) };
+        case 'classSize': return { ...base, classSize: base.classSize.filter((v) => v !== value) };
+        case 'areas': return { ...base, areas: base.areas.filter((v) => v !== value) };
+        case 'modeOfTeaching': return { ...base, modeOfTeaching: base.modeOfTeaching.filter((v) => v !== value) };
+        case 'placeOfTeaching': return { ...base, placeOfTeaching: base.placeOfTeaching.filter((v) => v !== value) };
+        case 'minExperience': return { ...base, minExperience: null };
+        default: return base;
       }
     };
-  }, [hasMore, loading, allTeachersData, displayedTeachers.length]);
+
+    const scored = entries
+      .map((entry) => {
+        const without = withoutOne(ctx.effectiveFilters, entry.category, entry.value);
+        const n = filterShikshaqRecords(ctx.shikshaqRecords, without).length;
+        return { entry, n };
+      })
+      .filter((s) => s.n > 0)
+      .sort((a, b) => b.n - a.n)
+      .slice(0, 3);
+
+    if (scored.length === 0) return fallback;
+
+    return scored.map(({ entry, n }) => ({
+      label: `Without ${entry.label} · ${n}`,
+      onClick: () => {
+        if (entry.category === 'minExperience') {
+          setFilters({ ...filters, minExperience: null });
+        } else {
+          removeArrayFilterValue(entry.category, entry.value);
+        }
+      },
+    }));
+  }, [loading, displayedTeachers.length, filters]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
       <Navbar />
 
-      <main className="container pt-6 sm:pt-[120px] pb-8 md:pt-8">
-        {/* Search and Filters */}
-        <div ref={searchBarRef} className="mb-3 sm:mb-4">
-          {/* Search Bar and Filter Button - Same Row on Mobile, Search + Advanced Filters on Desktop */}
-          <div className="flex items-center sm:items-stretch gap-2 mb-3 sm:mb-4">
-            <div ref={searchBarElementRef} className="flex-1">
-              <SearchBar showGlow={false} />
-            </div>
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
+        <Link to="/" className="shikshaq-tap" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '4px 0', margin: '-6px 0 14px', fontSize: 13, fontWeight: 600, color: '#8B837A' }}>← Home</Link>
+        <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', lineHeight: 1, fontWeight: 700 }}>{getHeading()}</h1>
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <p style={{ fontSize: 15, color: '#7B736B', fontVariantNumeric: 'tabular-nums' }}>
+            {loading ? 'Loading…' : `${teachers.length} teachers match`}
+          </p>
 
-            {/* Small Filter Button - Mobile */}
-            <Button
-              onClick={() => setFilterPanelOpen(true)}
-              variant="secondary"
-              className="h-14 sm:hidden w-auto px-3 flex-shrink-0 relative gap-1.5 transition-transform active:scale-[0.96]"
+          {/* HelpCircle anchor for the one-time "see papers instead" nudge. Deliberately placed
+              inline in the header row, not floating — Chatbot.tsx already owns a fixed
+              bottom-right "Ask AI" button on every page, and a second floating control there
+              would collide with/be confused for it. */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => handleSearchModeChange('papers')}
+              aria-label="Looking for exam papers instead? See past papers"
+              className="shikshaq-tap"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: '50%' }}
             >
-              <SlidersHorizontal className="w-4 h-4 flex-shrink-0" />
-              <span className="font-medium text-sm whitespace-nowrap">Filters</span>
-              {(filters.subjects.length > 0 || filters.classes.length > 0 ||
-                filters.boards.length > 0 || filters.classSize.length > 0 ||
-                filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
-                filters.placeOfTeaching.length > 0 || filters.minExperience != null) && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm tabular-nums">
-                  {filters.subjects.length + filters.classes.length + filters.boards.length +
-                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
-                   filters.placeOfTeaching.length + (filters.minExperience != null ? 1 : 0)}
-                </span>
-              )}
-            </Button>
-
-            {/* Filters Button - Desktop, beside search bar */}
-            <Button
-              onClick={() => setFilterPanelOpen(true)}
-              variant="secondary"
-              className="hidden sm:flex gap-2 h-auto px-4 py-2.5 flex-shrink-0 font-medium transition-transform active:scale-[0.96]"
-            >
-              <SlidersHorizontal className="w-4 h-4 flex-shrink-0" />
-              <span className="whitespace-nowrap">Filters</span>
-              {(filters.subjects.length > 0 || filters.classes.length > 0 ||
-                filters.boards.length > 0 || filters.classSize.length > 0 ||
-                filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
-                filters.placeOfTeaching.length > 0 || filters.minExperience != null) && (
-                <span className="ml-1 px-2.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full font-bold shadow-sm tabular-nums">
-                  {filters.subjects.length + filters.classes.length + filters.boards.length +
-                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
-                   filters.placeOfTeaching.length + (filters.minExperience != null ? 1 : 0)}
-                </span>
-              )}
-            </Button>
+              <span
+                className="flex items-center justify-center rounded-full"
+                style={{ width: 32, height: 32, boxShadow: '0 0 0 1px #E7DFD5', background: '#FCFAF7', color: '#7B736B' }}
+              >
+                <HelpCircle size={17} />
+              </span>
+            </button>
+            <Nudge
+              id="browse-see-papers"
+              message="Looking for exam papers instead? Tap here →"
+              onCtaClick={() => handleSearchModeChange('papers')}
+              align="right"
+            />
           </div>
+        </div>
 
-          {/* Subject and Class Filters - Mobile: One row */}
-          <div className="flex items-center gap-2 sm:hidden mb-3">
+        <div ref={searchControlWrapRef} style={{ marginTop: 20, maxWidth: 820 }}>
+          <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
+        </div>
+
+        {/* Structured filters (subject/class quick-pick + the advanced FilterPanel dialog)
+            aren't part of the literal Browse.md mockup — that only models the applied-filter
+            row below — but they're the only way to set board/class-size/mode/area/fees/
+            experience filters at all, so they stay. Sized to the 44px touch-target rule. */}
+        <div style={{ marginTop: 20 }}>
+          {/* flex-nowrap + flex-1/min-w-0 selects so this genuinely fits on one line down to a
+              375px viewport instead of just wrapping onto a second line — the fixed w-[150px]/
+              w-[130px] triggers used to overflow narrow screens. Selects revert to their original
+              fixed desktop widths at sm+; the "More filters" button never shrinks (shrink-0) so
+              its active-count badge stays legible, and the two selects give way to it first. */}
+          <div className="flex flex-nowrap items-center gap-2">
             <Select value={selectedSubject} onValueChange={handleSubjectChange}>
-              <SelectTrigger className="flex-1 h-10 text-sm">
+              <SelectTrigger className="h-11 text-sm flex-1 min-w-0 sm:flex-none sm:w-[150px]">
                 <SelectValue placeholder="Subject" />
               </SelectTrigger>
               <SelectContent>
@@ -1358,7 +1300,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
             </Select>
 
             <Select value={selectedClass} onValueChange={handleClassChange}>
-              <SelectTrigger className="flex-1 h-10 text-sm">
+              <SelectTrigger className="h-11 text-sm flex-1 min-w-0 sm:flex-none sm:w-[130px]">
                 <SelectValue placeholder="Class" />
               </SelectTrigger>
               <SelectContent>
@@ -1370,194 +1312,92 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
                 ))}
               </SelectContent>
             </Select>
-          </div>
 
-          {/* Clear filters - Mobile only, just under class filter */}
-          {hasFilters && (
-            <div className="sm:hidden mb-3">
-              <Button variant="ghost" onClick={clearFilters} className="gap-1.5 h-10 text-muted-foreground active:scale-[0.96] transition-transform">
-                <X className="w-4 h-4" />
-                Clear filters
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Sticky Search Bar - Only visible when scrolled past original */}
-        {isSearchBarScrolled && (
-          <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 py-3 transition-[opacity] duration-300 ease-in-out">
-            <div className="container mx-auto px-4">
-              <div className="w-full">
-                <SearchBar showGlow={false} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Results Header with Desktop Subject/Class dropdowns inline */}
-        <div className="mb-4 sm:mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <div>
-              <h1 className="text-2xl font-sans text-foreground tracking-tight">
-                {getHeading()}
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {loading ? 'Loading...' : <><span className="tabular-nums">{teachers.length}</span> teachers found</>}
-              </p>
-            </div>
-
-            {/* Desktop Subject/Class dropdowns - inline with heading */}
-            <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
-              <Select value={selectedSubject} onValueChange={handleSubjectChange}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Subjects</SelectItem>
-                  {sortedSubjectsForDisplay.map((subject) => (
-                    <SelectItem key={subject.id} value={subject.slug}>
-                      {subject.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedClass} onValueChange={handleClassChange}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Class" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Classes</SelectItem>
-                  {CLASSES.map((cls) => (
-                    <SelectItem key={cls} value={cls}>
-                      {cls === 'UG' ? 'UG' : `Class ${cls}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {hasFilters && (
-                <Button variant="ghost" onClick={clearFilters} className="gap-1 active:scale-[0.96] transition-transform">
-                  <X className="w-4 h-4" />
-                  Clear filters
-                </Button>
+            <button
+              onClick={() => setFilterPanelOpen(true)}
+              className="shikshaq-outline-btn shrink-0 flex items-center gap-1.5 sm:gap-[7px] min-h-11 px-2.5 sm:px-[15px] py-2 rounded-[10px] text-xs sm:text-[13px] font-semibold"
+              style={{ boxShadow: '0 0 0 1px #E7DFD5', color: '#1F1F1F', transition: 'background-color .15s ease, transform .15s ease-out' }}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="whitespace-nowrap">More filters</span>
+              {(filters.subjects.length > 0 || filters.classes.length > 0 ||
+                filters.boards.length > 0 || filters.classSize.length > 0 ||
+                filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
+                filters.placeOfTeaching.length > 0 || filters.minExperience != null) && (
+                <span style={{ padding: '1px 7px', borderRadius: 999, background: '#FF8000', color: '#1F1F1F', fontSize: 11, fontWeight: 700 }}>
+                  {filters.subjects.length + filters.classes.length + filters.boards.length +
+                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
+                   filters.placeOfTeaching.length + (filters.minExperience != null ? 1 : 0)}
+                </span>
               )}
-            </div>
+            </button>
           </div>
         </div>
+
+        {/* FilterChips row: margin:20px 0 8px, carry line below at margin-bottom:22px (Browse.md item 5) */}
+        <FilterChips
+          mode="teachers"
+          chips={filterChips}
+          onClearAll={clearFilters}
+          onEditSearch={handleEditSearch}
+          handoff={{ label: 'See papers with these filters →', onClick: () => handleSearchModeChange('papers') }}
+          carryOverNote="Subject, class and board carry over. Area does not apply to papers."
+          style={{ marginTop: 20, marginBottom: 22 }}
+        />
 
         {/* Teachers List */}
         {loading ? (
-          // Check if this is initial page load (no teachers loaded yet)
-          displayedTeachers.length === 0 && allTeachersData.length === 0 ? (
-            // Show card skeletons for initial page load
-            <TeacherCardSkeletons count={6} />
-          ) : hasFilters ? (
-            // Show card skeletons while filters are being applied
-            <TeacherCardSkeletons count={5} />
-          ) : (
-            // Show skeleton loaders when loading more (has some teachers already)
-            <TeacherCardSkeletons count={5} />
-          )
+          <TeacherCardSkeletons count={8} />
         ) : displayedTeachers.length > 0 ? (
-          <div className="space-y-4">
-            {displayedTeachers.map((teacher, index) => {
-              // Prefer subjects_from_shikshaq; on browse page limit to 5 subjects (profile page shows all)
-              const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
-              const displaySubjects = allSubjects
-                ? allSubjects.split(',').map(s => s.trim()).filter(Boolean).slice(0, 5).join(', ')
-                : '';
+          <div>
+            <div className="shikshaq-teacher-grid">
+              {displayedTeachers.map((teacher) => {
+                // Prefer subjects_from_shikshaq; on browse page limit to 5 subjects (profile page shows all)
+                const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
+                const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+                const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
+                const area = (teacher as { area?: string | null }).area ?? null;
+                const firstArea = area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null;
+                const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
 
-              const cardProps: TeacherCardDetailedProps = {
-                id: teacher.id,
-                name: teacher.name,
-                slug: teacher.slug,
-                imageUrl: teacher.image_url ?? undefined,
-                subjects: displaySubjects,
-                classes: teacher.classes_taught ?? undefined,
-                area: (teacher as { area?: string | null }).area ?? null,
-                sirMaam: (teacher as { sir_maam?: string | null }).sir_maam ?? null,
-                index,
-                returnToBrowseUrl,
-              };
-              return <TeacherCardDetailed key={teacher.id} {...cardProps} />;
-            })}
-            
-            {/* Infinite scroll loading indicator */}
+                return (
+                  <TeacherCard
+                    key={teacher.id}
+                    id={teacher.id}
+                    name={teacher.name}
+                    slug={teacher.slug}
+                    subject={firstSubject}
+                    subjectSlug={teacher.subjects?.slug}
+                    imageUrl={teacher.image_url ?? undefined}
+                    sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
+                    meta={meta || undefined}
+                    size="sm"
+                  />
+                );
+              })}
+            </div>
+
+            {/* Page size 24, explicit "Load more" — never infinite scroll (Browse.md "Data"). */}
             {hasMore && (
-              <div id="scroll-trigger">
-                <TeacherCardSkeletons count={2} />
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 28 }}>
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  className="shikshaq-outline-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, padding: '14px 22px', borderRadius: 12, fontSize: 14, fontWeight: 600, color: '#1F1F1F', background: '#FCFAF7', boxShadow: '0 0 0 1px #E7DFD5' }}
+                >
+                  Load more
+                </button>
               </div>
             )}
           </div>
         ) : (
-          <div className="text-center py-16">
-            <h2 className="text-xl font-sans text-foreground mb-2">No teachers found</h2>
-            <p className="text-muted-foreground mb-4">
-              Try adjusting your search or filters
-            </p>
-            <Button onClick={clearFilters} variant="outline" className="transition-transform active:scale-[0.96]">
-              Clear all filters
-            </Button>
-          </div>
+          <EmptyResults
+            heading="No teachers match all of those filters yet"
+            message="Try relaxing the most restrictive one. These are the nearest sets we have."
+            options={emptyStateOptions}
+          />
         )}
-
-        {/* Featured Teachers Section */}
-        <section className="mt-16">
-          <div className="mb-6">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-sans font-bold text-foreground mb-6 sm:mb-8">More tuition teachers you can explore on Shikshaq</h2>
-          </div>
-
-          {featuredLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {[...Array(16)].map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="aspect-[4/5] bg-muted rounded-2xl" />
-                  <div className="mt-3 h-4 bg-muted rounded w-3/4" />
-                </div>
-              ))}
-            </div>
-          ) : featuredTeachers.length > 0 ? (
-            <div className="relative">
-              <Carousel
-                opts={{
-                  align: "start",
-                  loop: true,
-                  dragFree: true,
-                  containScroll: "trimSnaps",
-                  slidesToScroll: "auto",
-                  watchDrag: true,
-                }}
-                className="w-full overflow-visible"
-              >
-                <CarouselContent className="-ml-2 md:-ml-4 pr-2 md:pr-0">
-                  {featuredTeachers.map((teacher) => (
-                    <CarouselItem
-                      key={teacher.id}
-                      className="pl-2 md:pl-4 basis-[45vw] md:basis-1/3 lg:basis-1/4 xl:basis-1/6 flex-shrink-0"
-                    >
-                      <TeacherCard
-                        id={teacher.id}
-                        name={teacher.name}
-                        slug={teacher.slug}
-                        subject={teacher.subjects?.name || 'Tuition Teacher'}
-                        subjectSlug={teacher.subjects?.slug}
-                        imageUrl={teacher.image_url}
-                        isFeatured={true}
-                        showShareOnMobile={false}
-                        sirMaam={teacher.sir_maam}
-                        isLiked={isLiked(teacher.id)}
-                        hideFavourite={true}
-                        hideShare={true}
-                      />
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-              </Carousel>
-            </div>
-          ) : null}
-        </section>
-
       </main>
 
       <FilterPanel
@@ -1574,12 +1414,41 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
             areas: [],
             modeOfTeaching: [],
             placeOfTeaching: [],
+            minFees: null,
+            maxFees: null,
             minExperience: null,
           });
         }}
       />
 
       <Footer />
+
+      {/* These buttons/tiles declared transitions but had nothing hover-driven to
+          transition to on a desktop pointer — same gap fixed on Home/Past papers. */}
+      <style>{`
+        @media (hover: hover) {
+          .shikshaq-outline-btn:hover { background-color: rgba(31,31,31,.05); }
+        }
+        /* Tap feedback (unconditional, not hover-gated) — matches the
+           active:scale-[0.97] convention used elsewhere. */
+        .shikshaq-outline-btn:active { transform: scale(0.97); }
+
+        /* Teacher card grid — explicit 2-column layout below 640px (rather than relying on
+           auto-fill minmax math, which can collapse to a single column on narrow phones) so
+           mobile genuinely gets a compact 2-up grid of size='sm' cards. Reverts to the original
+           auto-fill minmax(220px,1fr) desktop/tablet layout at sm+. */
+        .shikshaq-teacher-grid {
+          display: grid;
+          gap: 12px;
+          grid-template-columns: repeat(2, 1fr);
+        }
+        @media (min-width: 640px) {
+          .shikshaq-teacher-grid {
+            gap: 18px;
+            grid-template-columns: repeat(auto-fill, minmax(220px,1fr));
+          }
+        }
+      `}</style>
     </div>
   );
 }

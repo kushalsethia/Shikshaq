@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ThumbsUp, Lock } from 'lucide-react';
+import { ArrowLeft, ThumbsUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { Navbar } from '@/components/Navbar';
+import { Footer } from '@/components/Footer';
+import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
+import {
+  AdminConsole,
+  AdminTile,
+  adminRowStyle,
+  adminRowListStyle,
+  adminSecondaryBtnStyle,
+  adminToast,
+  useAdminGuard,
+} from '@/components/AdminConsole';
 
 interface UpvoteStat {
   teacher_id: string;
@@ -16,62 +24,22 @@ interface UpvoteStat {
   upvote_count: number;
 }
 
+const TINT = { bg: MODE_TOKENS.papers.tintBg, text: MODE_TOKENS.papers.tintText }; // #EDEEFF / #2E3AD6 per spec
+const UPVOTE_ICON_COLOR = MODE_TOKENS.papers.color; // #4351FF solid, for the ThumbsUp icon accent
+
 export default function AdminUpvotes() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [upvoteStats, setUpvoteStats] = useState<UpvoteStat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
+
+  const { isAdmin, checkingAdmin } = useAdminGuard(user, {
+    onGranted: fetchUpvoteStats,
+    redirectOnDenied: true,
+  });
 
   useEffect(() => {
-    async function checkAdminStatus() {
-      if (!user) {
-        setCheckingAdmin(false);
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('admins')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle(); // Use maybeSingle instead of single to handle "not found" gracefully
-
-        if (error) {
-          // Error querying (table might not exist or RLS issue)
-          if (import.meta.env.DEV) {
-            console.error('Error checking admin status:', error);
-          }
-          setIsAdmin(false);
-        } else if (data && data.id === user.id) {
-          // User is an admin
-          setIsAdmin(true);
-          fetchUpvoteStats();
-        } else {
-          // User is not an admin
-          if (import.meta.env.DEV) {
-            console.log('User is not an admin');
-          }
-          setIsAdmin(false);
-          toast.error('Access denied. Admin only.');
-          navigate('/');
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error checking admin status:', error);
-        }
-        setIsAdmin(false);
-      } finally {
-        setCheckingAdmin(false);
-        setLoading(false);
-      }
-    }
-
-    checkAdminStatus();
-  }, [user, navigate]);
+    if (!checkingAdmin) setLoading(false);
+  }, [checkingAdmin]);
 
   async function fetchUpvoteStats() {
     try {
@@ -134,7 +102,7 @@ export default function AdminUpvotes() {
       if (import.meta.env.DEV) {
         console.error('Error fetching upvote stats:', error);
       }
-      toast.error('Failed to load upvote statistics');
+      adminToast('Failed to load upvote statistics');
     } finally {
       setLoading(false);
     }
@@ -142,12 +110,12 @@ export default function AdminUpvotes() {
 
   if (checkingAdmin || loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
+        <div className="container pt-6 sm:pt-8 pb-16 text-center md:pt-16">
           <div className="animate-pulse">
-            <div className="h-8 w-64 bg-muted rounded mx-auto mb-4" />
-            <div className="h-4 w-48 bg-muted rounded mx-auto" />
+            <div className="h-8 w-64 rounded mx-auto mb-4" style={{ background: SURFACE_TOKENS.mutedFill }} />
+            <div className="h-4 w-48 rounded mx-auto" style={{ background: SURFACE_TOKENS.mutedFill }} />
           </div>
         </div>
         <Footer />
@@ -157,17 +125,21 @@ export default function AdminUpvotes() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
-          <Lock className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-          <h1 className="text-2xl font-sans text-foreground mb-4">Access Denied</h1>
-          <p className="text-muted-foreground mb-6">
-            This page is only accessible to administrators.
-          </p>
-          <Link to="/">
-            <Button>Go Home</Button>
-          </Link>
+        <div className="container pt-6 sm:pt-8 pb-16 text-center md:pt-16">
+          <div className="max-w-2xl mx-auto">
+            <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>Access Denied</h1>
+            <p className="mb-6" style={{ color: SURFACE_TOKENS.textSecondary }}>
+              This page is only accessible to administrators.
+            </p>
+            <Link to="/">
+              <Button>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Go Home
+              </Button>
+            </Link>
+          </div>
         </div>
         <Footer />
       </div>
@@ -175,72 +147,39 @@ export default function AdminUpvotes() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <main className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Link to="/admin">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-sans text-foreground">Teacher Upvotes</h1>
-            <p className="text-muted-foreground mt-1">
-              View upvote statistics for all teachers
-            </p>
-          </div>
+    <AdminConsole
+      activeTab="upvotes"
+      title="Upvote activity"
+      subtitle="Flagged when a profile gains votes faster than usual."
+      tint={TINT}
+      tabCount={upvoteStats.length}
+    >
+      {upvoteStats.length === 0 ? (
+        <div className="text-center py-16" style={{ background: SURFACE_TOKENS.field, borderRadius: 16, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+          <ThumbsUp className="w-16 h-16 mx-auto mb-4" style={{ color: SURFACE_TOKENS.textTertiary, opacity: 0.6 }} />
+          <p style={{ color: SURFACE_TOKENS.textSecondary }}>No upvotes yet.</p>
         </div>
-
-        {upvoteStats.length === 0 ? (
-          <div className="text-center py-16">
-            <ThumbsUp className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No upvotes yet.</p>
-          </div>
-        ) : (
-          <div className="bg-card rounded-2xl border border-border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-foreground">Rank</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-foreground">Teacher Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-foreground">Upvotes</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {upvoteStats.map((stat, index) => (
-                    <tr key={stat.teacher_id} className="hover:bg-muted/50 transition-colors">
-                      <td className="px-6 py-4 text-sm text-muted-foreground">
-                        #{index + 1}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-foreground">
-                        {stat.teacher_name}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <ThumbsUp className="w-4 h-4 text-blue-500" />
-                          <span className="font-medium">{stat.upvote_count}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <Link to={`/tuition-teachers/${stat.teacher_slug}`}>
-                          <Button variant="ghost" size="sm">
-                            View Profile
-                          </Button>
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      ) : (
+        <div style={adminRowListStyle}>
+          {upvoteStats.map((stat, index) => (
+            <div key={stat.teacher_id} style={adminRowStyle}>
+              <AdminTile tint={TINT}>#{index + 1}</AdminTile>
+              <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                <div style={{ fontSize: 15.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>
+                  {stat.teacher_name}
+                </div>
+                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: SURFACE_TOKENS.textTertiary }}>
+                  <ThumbsUp className="w-3.5 h-3.5" style={{ color: UPVOTE_ICON_COLOR }} />
+                  {stat.upvote_count} upvote{stat.upvote_count === 1 ? '' : 's'}
+                </div>
+              </div>
+              <Link to={`/tuition-teachers/${stat.teacher_slug}`}>
+                <button style={adminSecondaryBtnStyle}>View Profile</button>
+              </Link>
             </div>
-          </div>
-        )}
-      </main>
-      <Footer />
-    </div>
+          ))}
+        </div>
+      )}
+    </AdminConsole>
   );
 }
-

@@ -238,16 +238,4 @@ function updateStructuredData(schema: object | object[]) {
   document.head.appendChild(script);
 }
 
-/**
- * Hook for easy SEO management
- */
-export function useSEO(props: SEOHeadProps) {
-  useEffect(() => {
-    const seoHead = new SEOHead(props);
-    return () => {
-      // Cleanup if needed
-    };
-  }, [props]);
-}
-
 export default SEOHead;
