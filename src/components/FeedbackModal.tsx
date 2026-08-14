@@ -185,10 +185,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             <Button
               onClick={handleSubmit}
               disabled={submitting || !selectedEmoji}
-              className="w-full text-white font-medium py-2.5 sm:py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
-              style={{ background: '#4351FF' }}
-              onMouseEnter={(e) => { if (!submitting) e.currentTarget.style.background = '#2E3AD6'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#4351FF'; }}
+              className="w-full text-white font-medium py-2.5 sm:py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base bg-brand-blue hover:bg-brand-blue-hover transition-colors duration-150"
             >
               {submitting ? 'Submitting...' : 'Submit Feedback'}
             </Button>

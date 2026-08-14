@@ -36,28 +36,34 @@ export function HomeGreeting() {
             : 'Welcome back — start by favouriting a teacher or browsing past papers.'}
         </p>
 
-        <div className="mt-6 flex flex-wrap items-end gap-6">
-          <div>
-            <span className="text-4xl font-extrabold tabular-nums tracking-[-.02em] sm:text-5xl">
-              {likedCount}
-            </span>
-            <p className="mt-1 text-[11.5px] font-bold uppercase tracking-[.04em] text-brand-foreground/75">
-              Favourite {likedCount === 1 ? 'teacher' : 'teachers'}
-            </p>
-          </div>
+        {(likedCount > 0 || recent.length > 0) && (
+          <div className="mt-6 flex flex-wrap items-end gap-6">
+            {likedCount > 0 && (
+              <div>
+                <span className="text-4xl font-extrabold tabular-nums tracking-[-.02em] sm:text-5xl">
+                  {likedCount}
+                </span>
+                <p className="mt-1 text-[11.5px] font-bold uppercase tracking-[.04em] text-brand-foreground/75">
+                  Favourite {likedCount === 1 ? 'teacher' : 'teachers'}
+                </p>
+              </div>
+            )}
 
-          <div className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2">
-            <Clock className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
-            <span className="text-sm font-medium tabular-nums">{recent.length} recently visited</span>
-          </div>
+            {recent.length > 0 && (
+              <div className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2">
+                <Clock className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                <span className="text-sm font-medium tabular-nums">{recent.length} recently visited</span>
+              </div>
+            )}
 
-          {papersViewed > 0 && (
-            <div className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2">
-              <FileText className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
-              <span className="text-sm font-medium tabular-nums">{papersViewed} papers viewed</span>
-            </div>
-          )}
-        </div>
+            {papersViewed > 0 && (
+              <div className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2">
+                <FileText className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                <span className="text-sm font-medium tabular-nums">{papersViewed} papers viewed</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

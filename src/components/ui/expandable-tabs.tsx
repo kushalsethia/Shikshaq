@@ -22,8 +22,11 @@ export interface ExpandableTab {
  * click/tap via `useOnClickOutside` so a touch tap elsewhere always closes
  * any open peek instead of leaving it stuck expanded.
  *
- * Width/opacity of the revealed label animate with framer-motion — the one
- * place in the codebase sanctioned to use it (DESIGN_SYSTEM §6).
+ * Width/opacity of the revealed label animate with framer-motion. This
+ * reverses the original BottomNav decision (see HANDOFF.md) to avoid an
+ * animation library — an explicit, owner-approved exception for this one
+ * component. DESIGN_SYSTEM.md §6 does not itself mention framer-motion;
+ * don't cite it as blanket cover for using the library elsewhere.
  */
 export function ExpandableTabs({
   tabs,

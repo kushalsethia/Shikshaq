@@ -146,13 +146,8 @@ export default function WhatsAppRedirect() {
 
   return (
     <Shell>
-      {/* Light green icon well — WhatsApp's own brand green, no token exists
-          for it in the design system (see final report: "not covered"). */}
-      <span
-        className="inline-flex items-center justify-center w-16 h-16 rounded-full mx-auto"
-        style={{ background: '#E6F4E6' }}
-      >
-        <WhatsAppIcon className="w-8 h-8" style={{ color: '#228B22' }} />
+      <span className="inline-flex items-center justify-center w-16 h-16 rounded-full mx-auto bg-mint">
+        <WhatsAppIcon className="w-8 h-8 text-foreground" />
       </span>
       <h1 className="mt-4 text-lg font-semibold text-foreground">
         {status === 'manual' ? 'Ready to message' : 'Opening WhatsApp…'}
@@ -166,10 +161,7 @@ export default function WhatsAppRedirect() {
       {url && (
         <Button
           asChild
-          className="mt-6 gap-2 rounded-lg font-bold"
-          /* WhatsApp's own brand green — no token exists for it (flagged in
-             the final report as "not covered" per VISUAL_LANGUAGE §0). */
-          style={{ background: '#25D366', color: '#0B3D1F' }}
+          className="mt-6 gap-2 rounded-lg font-bold bg-mint text-foreground hover:bg-mint/80"
         >
           <a href={url} rel="noopener noreferrer">
             <WhatsAppIcon className="w-5 h-5" />

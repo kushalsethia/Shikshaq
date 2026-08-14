@@ -119,7 +119,11 @@ export function OnboardingModal() {
                 const styles = MODE_STYLES[screen.mode];
                 const Icon = screen.icon;
                 return (
-                  <div key={screen.title} className="w-full shrink-0 px-6 pb-8 pt-12 sm:px-8">
+                  <div
+                    key={screen.title}
+                    className="w-full shrink-0 px-6 pb-8 pt-12 sm:px-8"
+                    aria-hidden={i !== step}
+                  >
                     <div className={cn("mb-6 inline-flex h-11 w-11 items-center justify-center rounded-2xl", styles.icon)}>
                       <Icon className="h-5 w-5" aria-hidden="true" />
                     </div>
@@ -133,9 +137,6 @@ export function OnboardingModal() {
                     </span>
                     <h2 className="text-2xl font-semibold tracking-tight">{screen.title}</h2>
                     <p className="mt-3 max-w-prose text-sm text-white/70">{screen.body}</p>
-                    {/* aria-hidden siblings keep screen readers from announcing
-                        off-screen panels; focus stays managed by Radix's trap. */}
-                    {i !== step && <span className="sr-only" aria-hidden="true" />}
                   </div>
                 );
               })}

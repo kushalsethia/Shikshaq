@@ -156,6 +156,13 @@ checkout as long as their file lists are disjoint.
    its label next to the icon on a solid brand-orange background. No `framer-motion`/
    `usehooks-ts` — reimplemented with Tailwind/CSS transitions only, matching the rest of the
    codebase's no-animation-library convention.
+3. **Superseded again, owner-approved, later session**: BottomNav and Navbar's desktop nav
+   links were both replaced with a shared `src/components/ui/expandable-tabs.tsx` primitive
+   (mobile bottom, desktop top), which *does* use `framer-motion` + `usehooks-ts` for the
+   label-reveal animation and click-outside collapse. This is a deliberate reversal of point 2
+   above, approved by the owner when asked directly — not a silent drift back to an animation
+   library. It remains the only place in the codebase using either dependency; do not treat
+   this as blanket permission to reach for framer-motion elsewhere.
 
 **New feature — Recently Visited / Favourites on the home page** (owner-requested mid-session,
 not in the original contract):

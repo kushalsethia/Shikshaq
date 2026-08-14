@@ -149,12 +149,9 @@ export default function Help() {
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleWhatsAppClick}
-            className="min-h-12 px-6 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2"
-            /* WhatsApp's own brand green — no token exists for it in the design
-               system (see final report: "not covered" per VISUAL_LANGUAGE §0). */
-            style={{ background: '#25D366', color: '#0B3D1F' }}
+            className="min-h-12 px-6 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 bg-mint text-foreground"
           >
-            <WhatsAppIcon className="w-4 h-4" style={{ color: '#0B3D1F' }} />
+            <WhatsAppIcon className="w-4 h-4 text-foreground" />
             Message Shikshaq
           </a>
         </div>
