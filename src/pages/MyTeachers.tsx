@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
+import { EmptyResults } from '@/components/EmptyResults';
 import { useAuth } from '@/lib/auth-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
 import { useRequireRole } from '@/hooks/use-require-role';
@@ -23,7 +24,7 @@ interface MyTeacher {
 export default function MyTeachers() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { studiesWithTeacherIds, loading: studiesWithLoading, isStudyingWith, toggleStudiesWith } = useStudiesWith();
+  const { studiesWithTeacherIds, loading: studiesWithLoading, toggleStudiesWith } = useStudiesWith();
   const [myTeachers, setMyTeachers] = useState<MyTeacher[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -101,21 +102,21 @@ export default function MyTeachers() {
             const firstSubjectName = subjectsMap.get(teacher.slug);
             if (firstSubjectName && subjectsData) {
               // Try to find matching subject in subjects table
-              const matchingSubject = subjectsData.find((s: any) => 
+              const matchingSubject = subjectsData.find((s: any) =>
                 s.name.toLowerCase() === firstSubjectName.toLowerCase()
               );
               if (matchingSubject) {
                 teacher.subjects = { name: matchingSubject.name, slug: matchingSubject.slug };
               } else {
                 // If no match found, use the name from Shikshaqmine directly
-                teacher.subjects = { 
-                  name: firstSubjectName, 
-                  slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-') 
+                teacher.subjects = {
+                  name: firstSubjectName,
+                  slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-')
                 };
               }
             }
           }
-          
+
           return {
             ...teacher,
             sirMaam: sirMaamMap.get(teacher.slug) || null,
@@ -137,12 +138,12 @@ export default function MyTeachers() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: '#1F1F1F', marginBottom: 12 }}>Sign in required</h1>
-          <p style={{ color: '#7B736B', marginBottom: 24 }}>Please sign in to view the teachers you study with.</p>
-          <Button onClick={() => navigate('/auth')}>Sign In</Button>
+        <main className="container py-16 pb-16 text-center sm:py-20">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Sign in required</h1>
+          <p className="mt-3 text-sm text-muted-foreground">Please sign in to view the teachers you study with.</p>
+          <Button className="mt-6" onClick={() => navigate('/auth')}>Sign In</Button>
         </main>
         <Footer />
       </div>
@@ -152,13 +153,13 @@ export default function MyTeachers() {
   // Show loading only if we don't have any teachers yet
   if (loading && myTeachers.length === 0) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
-          <div className="animate-pulse" style={{ height: 32, width: 220, background: '#F0EAE2', borderRadius: 8, marginBottom: 28 }} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 18 }}>
+        <main className="container pt-8 pb-16">
+          <div className="mb-7 h-8 w-56 animate-shimmer rounded-lg bg-muted" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="animate-pulse" style={{ borderRadius: 20, aspectRatio: '4/5', background: '#F0EAE2' }} />
+              <div key={i} className="aspect-[4/5] animate-shimmer rounded-2xl bg-muted" />
             ))}
           </div>
         </main>
@@ -168,21 +169,21 @@ export default function MyTeachers() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
+      <main className="container pt-8 pb-16">
         {/* Back Button */}
         <Link
           to="/dashboard/student"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#8B837A', marginBottom: 16 }}
+          className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="h-4 w-4" />
           Back to dashboard
         </Link>
 
         {/* Header */}
-        <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', lineHeight: 1, fontWeight: 700 }}>My Teachers</h1>
-        <p style={{ marginTop: 8, fontSize: 15, color: '#7B736B' }}>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">My Teachers</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           {myTeachers.length === 0
             ? 'Teachers you study with will show up here'
             : `${myTeachers.length} ${myTeachers.length === 1 ? 'teacher' : 'teachers'} you study with`}
@@ -190,20 +191,17 @@ export default function MyTeachers() {
 
         {/* Teachers Grid */}
         {myTeachers.length === 0 ? (
-          <div style={{ marginTop: 24, padding: 36, borderRadius: 22, background: '#FCFAF7', boxShadow: '0 0 0 1px #E7DFD5', textAlign: 'center' }}>
-            <GraduationCap className="w-10 h-10 mx-auto mb-4" style={{ color: '#8B837A' }} />
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No teachers yet</h2>
-            <p style={{ fontSize: 15, lineHeight: 1.6, color: '#7B736B', maxWidth: 420, margin: '0 auto 18px' }}>
-              Start exploring teachers and indicate which ones you study with!
-            </p>
-            <Link to="/all-tuition-teachers-in-kolkata">
-              <Button>Browse Teachers</Button>
-            </Link>
-          </div>
+          <EmptyResults
+            className="mt-6"
+            icon={<GraduationCap className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+            heading="No teachers yet"
+            message="Start exploring teachers and indicate which ones you study with."
+            action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
+          />
         ) : (
-          <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 18 }}>
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {myTeachers.map((teacher) => (
-              <div key={teacher.id} style={{ position: 'relative' }}>
+              <div key={teacher.id} className="relative">
                 <TeacherCard
                   id={teacher.id}
                   name={teacher.name}
@@ -221,22 +219,9 @@ export default function MyTeachers() {
                     toggleStudiesWith(teacher.id);
                   }}
                   aria-label="Remove from my teachers"
-                  style={{
-                    position: 'absolute',
-                    top: 10,
-                    right: 10,
-                    zIndex: 10,
-                    width: 40,
-                    height: 40,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'rgba(252,250,247,.94)',
-                    borderRadius: 999,
-                    boxShadow: '0 0 0 1px rgba(0,0,0,.06)',
-                  }}
+                  className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-card/95 shadow-border transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <X className="w-4 h-4" style={{ color: '#1F1F1F' }} />
+                  <X className="h-4 w-4 text-foreground" />
                 </button>
               </div>
             ))}
@@ -247,4 +232,3 @@ export default function MyTeachers() {
     </div>
   );
 }
-

@@ -24,11 +24,10 @@ import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 import DOMPurify from 'dompurify';
 import { invalidateTeacherCache, removeCache } from '@/utils/cache';
 import imageCompression from 'browser-image-compression';
-import { SURFACE_TOKENS, ACCENT_TOKENS } from '@/utils/searchFacets';
 
 const AREAS = [
   // Group 1
-  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba', 
+  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba',
   'New Alipore', 'Southern Avenue', 'Tollygunge', 'Hazra',
   // Group 2
   'Baguihati', 'Belur', 'Howrah', 'Joka', 'Newtown', 'Rajarhat', 'Salt Lake', 'Science City',
@@ -99,25 +98,14 @@ interface TeacherData {
   is_paused: boolean;
 }
 
-// Profile form field/label/panel styling, derived from this page's own SURFACE_TOKENS/ACCENT_TOKENS
-// — the same tokens the header, stat tiles and action cards above already use — so the long
-// editable form below matches the rest of the page instead of falling back to shadcn's bare
-// default input styling.
-const FIELD_STYLE: React.CSSProperties = {
-  background: SURFACE_TOKENS.shell,
-  boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-  borderRadius: 12,
-  minHeight: 48,
-};
-const LOCKED_FIELD_STYLE: React.CSSProperties = { ...FIELD_STYLE, opacity: 0.7 };
-const FIELD_CLASSNAME = 'h-auto border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0';
-const LABEL_STYLE: React.CSSProperties = { fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary, marginBottom: 6, display: 'block' };
-const HELP_TEXT_STYLE: React.CSSProperties = { fontSize: 12.5, color: SURFACE_TOKENS.textTertiary };
-const OPTION_GROUP_STYLE: React.CSSProperties = {
-  background: SURFACE_TOKENS.shell,
-  boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-  borderRadius: 14,
-};
+// Profile form field/label/panel styling, on the token system so the long editable form below
+// matches the rest of the page instead of falling back to shadcn's bare default input styling.
+const FIELD_CLASSNAME =
+  'h-auto min-h-12 rounded-lg border-0 bg-background text-base shadow-border focus-visible:ring-0 focus-visible:ring-offset-0';
+const LOCKED_FIELD_CLASSNAME = `${FIELD_CLASSNAME} cursor-not-allowed opacity-70`;
+const LABEL_CLASSNAME = 'mb-1.5 block text-sm font-semibold text-foreground';
+const HELP_TEXT_CLASSNAME = 'text-xs text-muted-foreground';
+const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-background shadow-border';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
@@ -148,7 +136,7 @@ export default function TeacherDashboard() {
           .select('role')
           .eq('id', user.id)
           .maybeSingle();
-        
+
         if (profile?.role !== 'teacher') {
           navigate('/');
         }
@@ -374,7 +362,7 @@ export default function TeacherDashboard() {
     setTeacherData((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, [field]: value };
-      
+
       // Auto-clear Featured Subject if it's no longer in the selected Subjects
       if (field === "Subjects") {
         const selectedSubjects = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -382,13 +370,13 @@ export default function TeacherDashboard() {
           updated["Featured Subject"] = null;
         }
       }
-      
+
       // Auto-update Classes Taught when Classes Taught for Backend changes
       if (field === "Classes Taught for Backend") {
         const romanClasses = convertClassesToRoman(value);
         updated["Classes Taught"] = romanClasses;
       }
-      
+
       // Auto-generate WhatsApp link when Phone Number changes
       if (field === "Phone Number") {
         if (value && value.trim()) {
@@ -410,7 +398,7 @@ export default function TeacherDashboard() {
           updated["Link"] = null;
         }
       }
-      
+
       // Clear areas when Location V2 changes
       if (field === "LOCATION V2") {
         const locationV2 = value as string | null;
@@ -423,17 +411,17 @@ export default function TeacherDashboard() {
           updated["TUTOR'S HOME IN THESE AREAS"] = null;
         }
       }
-      
+
       return updated;
     });
   };
 
   const handleMultiSelectChange = (field: keyof TeacherData, value: string, checked: boolean) => {
     if (!teacherData) return;
-    
+
     const currentValue = teacherData[field] as string | null;
     const currentArray = currentValue ? currentValue.split(',').map((v) => v.trim()) : [];
-    
+
     let newArray: string[];
     if (checked) {
       newArray = [...currentArray, value].filter((v) => v !== '');
@@ -447,17 +435,17 @@ export default function TeacherDashboard() {
   // Helper function to check if form is valid
   const isFormValid = (): boolean => {
     if (!teacherData) return false;
-    
+
     // Check phone number (must be 10 digits)
     if (!teacherData["Phone Number"] || teacherData["Phone Number"].replace(/\D/g, '').length !== 10) {
       return false;
     }
-    
+
     // Check Location V2 (Place of Teaching)
     if (!teacherData["LOCATION V2"]) {
       return false;
     }
-    
+
     // Check areas based on Location V2
     const locationV2 = teacherData["LOCATION V2"];
     if (locationV2 === "STUDENT'S HOME TUTORING ONLY" || locationV2 === "BOTH OPTIONS LISTED") {
@@ -465,38 +453,38 @@ export default function TeacherDashboard() {
         return false;
       }
     }
-    
+
     if (locationV2 === "TEACHER'S HOME TUTORING" || locationV2 === "BOTH OPTIONS LISTED") {
       if (!teacherData["TUTOR'S HOME IN THESE AREAS"] || !teacherData["TUTOR'S HOME IN THESE AREAS"].trim()) {
         return false;
       }
     }
-    
+
     // Check Subjects (required)
     if (!teacherData.Subjects || !teacherData.Subjects.trim()) {
       return false;
     }
-    
+
     // Check School Boards Catered (required)
     if (!teacherData["School Boards Catered"] || !teacherData["School Boards Catered"].trim()) {
       return false;
     }
-    
+
     // Check Classes Taught (required)
     if (!teacherData["Classes Taught for Backend"] || !teacherData["Classes Taught for Backend"].trim()) {
       return false;
     }
-    
+
     // Check Mode of Teaching (required)
     if (!teacherData["Mode of Teaching"] || !teacherData["Mode of Teaching"].trim()) {
       return false;
     }
-    
+
     // Check Class Size (required)
     if (!teacherData["Class Size (Group/ Solo)"] || !teacherData["Class Size (Group/ Solo)"].trim()) {
       return false;
     }
-    
+
     return true;
   };
 
@@ -564,21 +552,21 @@ export default function TeacherDashboard() {
       if (sanitizedUrl) {
         handleInputChange("Hero Image", sanitizedUrl);
         setImagePreview(sanitizedUrl);
-        
+
         // Delete old image from storage if it exists in the bucket
         if (oldImageUrl && oldImageUrl.includes('hero-images')) {
           // Extract the file path from the URL
           // URL format: https://[project].supabase.co/storage/v1/object/public/hero-images/[path]
           // Or: https://[project].supabase.co/storage/v1/object/sign/hero-images/[path]
           let oldFilePath: string | null = null;
-          
+
           // Try multiple URL patterns
           // Pattern 1: /hero-images/[filename]
           const urlMatch1 = oldImageUrl.match(/\/hero-images\/([^?#]+)/);
           if (urlMatch1 && urlMatch1[1]) {
             oldFilePath = `hero-images/${urlMatch1[1]}`;
           }
-          
+
           // Pattern 2: If URL contains the full path already
           if (!oldFilePath && oldImageUrl.includes('/storage/v1/object/public/hero-images/')) {
             const parts = oldImageUrl.split('/hero-images/');
@@ -587,7 +575,7 @@ export default function TeacherDashboard() {
               oldFilePath = `hero-images/${filename}`;
             }
           }
-          
+
           // Only delete if it's the teacher's own file (contains their user ID)
           if (oldFilePath && oldFilePath.includes(user.id)) {
             try {
@@ -598,11 +586,11 @@ export default function TeacherDashboard() {
               if (oldFilePath.startsWith('hero-images/')) {
                 pathToDelete = oldFilePath.replace('hero-images/', '');
               }
-              
+
               const { error: deleteError } = await supabase.storage
                 .from('hero-images')
                 .remove([pathToDelete]);
-              
+
               if (deleteError) {
                 if (import.meta.env.DEV) {
                   console.warn('Error deleting old image:', deleteError);
@@ -624,7 +612,7 @@ export default function TeacherDashboard() {
             console.warn('User ID:', user.id);
           }
         }
-        
+
         toast.success('Image uploaded successfully');
       } else {
         toast.error('Failed to generate valid image URL');
@@ -816,11 +804,11 @@ export default function TeacherDashboard() {
       if (teacherRecord?.Slug) {
         invalidateTeacherCache(teacherRecord.Slug);
       }
-      
+
       // Invalidate featured teachers cache (they might appear on browse/home)
       removeCache('featured_teachers_browse');
       removeCache('featured_teachers_index');
-      
+
       // Clear all Shikshaqmine chunk caches
       const keys = Object.keys(localStorage);
       keys.forEach(key => {
@@ -842,19 +830,19 @@ export default function TeacherDashboard() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}>
+        <main className="container pt-8 pb-16">
           <div className="animate-pulse">
-            <div style={{ height: 32, width: 220, borderRadius: 10, background: '#F0EAE2', marginBottom: 28 }} />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 14, marginBottom: 40 }}>
+            <div className="mb-7 h-8 w-56 rounded-lg bg-muted" />
+            <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} style={{ height: 96, borderRadius: 20, background: '#F0EAE2' }} />
+                <div key={i} className="h-24 rounded-2xl bg-muted" />
               ))}
             </div>
-            <div style={{ display: 'grid', gap: 10 }}>
+            <div className="grid gap-3">
               {[...Array(3)].map((_, i) => (
-                <div key={i} style={{ height: 64, borderRadius: 18, background: '#F0EAE2' }} />
+                <div key={i} className="h-16 rounded-2xl bg-muted" />
               ))}
             </div>
           </div>
@@ -866,18 +854,18 @@ export default function TeacherDashboard() {
 
   if (!teacherData) {
     return (
-      <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: '#1F1F1F', marginBottom: 12 }}>
+        <main className="container py-16 pb-16 text-center sm:py-20">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {user ? 'Teacher account required' : 'Sign in required'}
           </h1>
-          <p style={{ color: '#7B736B', marginBottom: 24 }}>
+          <p className="mt-3 text-sm text-muted-foreground">
             {user
               ? "We couldn't find a teacher profile for your account. If you believe this is a mistake, contact support."
               : 'Please sign in to view your dashboard.'}
           </p>
-          <Button onClick={() => navigate(user ? '/' : '/auth')}>
+          <Button className="mt-6" onClick={() => navigate(user ? '/' : '/auth')}>
             {user ? 'Go Home' : 'Sign In'}
           </Button>
         </main>
@@ -936,81 +924,67 @@ export default function TeacherDashboard() {
   const enquiries: { id: string; initial: string; name: string; meta: string; when: string }[] = [];
 
   return (
-    <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}>
+      <main className="container pt-8 pb-16">
         {/* Header */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', lineHeight: 1, fontWeight: 700, color: '#1F1F1F' }}>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               {displayName}
             </h1>
-            <p style={{ marginTop: 10, fontSize: 15, color: '#7B736B' }}>
+            <p className="mt-2 text-sm text-muted-foreground">
               {summaryLine}
             </p>
           </div>
           <span
-            style={{
-              flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 15px', borderRadius: 999,
-              fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
-              background: isPaused ? SURFACE_TOKENS.mutedFill : ACCENT_TOKENS.settledBg,
-              color: isPaused ? SURFACE_TOKENS.textBody : ACCENT_TOKENS.settledText,
-            }}
+            className={`flex flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
+              isPaused ? 'bg-muted text-warm-prose' : 'bg-mint text-foreground'
+            }`}
           >
             {isPaused ? 'Paused' : 'Profile live'}
           </span>
         </div>
 
         {/* Stat tiles */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 14, marginTop: 28 }}>
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
           {teacherStats.map((st) => (
-            <div key={st.label} style={{ padding: 22, borderRadius: 20, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#8B837A' }}>
+            <div key={st.label} className="rounded-2xl bg-card p-4 shadow-border sm:p-6">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {st.label}
               </div>
-              <div style={{ marginTop: 10, fontSize: 30, fontWeight: 800, letterSpacing: '-.04em', color: '#1F1F1F' }}>
+              <div className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-foreground">
                 {st.value}
               </div>
-              <div style={{ marginTop: 4, fontSize: 12.5, color: '#8B837A' }}>{st.meta}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{st.meta}</div>
             </div>
           ))}
         </div>
 
         {/* Recent enquiries */}
-        <h2 style={{ marginTop: 44, fontSize: 'clamp(21px,2.4vw,26px)', fontWeight: 700, color: '#1F1F1F' }}>
+        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Recent enquiries
         </h2>
         {enquiries.length > 0 ? (
           <>
-            <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+            <div className="grid gap-2.5">
               {enquiries.slice(0, 10).map((en) => (
                 <div
                   key={en.id}
-                  style={{
-                    display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16,
-                    padding: '18px 20px', borderRadius: 18, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)',
-                  }}
+                  className="flex flex-wrap items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-5"
                 >
-                  <span
-                    style={{
-                      flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      width: 42, height: 42, borderRadius: 13, background: SURFACE_TOKENS.mutedFill, fontSize: 15, fontWeight: 700,
-                    }}
-                  >
+                  <span className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-[13px] bg-muted text-base font-bold text-foreground">
                     {en.initial}
                   </span>
-                  <span style={{ flex: '1 1 160px', minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: 15, fontWeight: 600 }}>{en.name}</span>
-                    <span style={{ display: 'block', marginTop: 3, fontSize: 13, color: '#8B837A' }}>{en.meta}</span>
+                  <span className="min-w-[160px] flex-1">
+                    <span className="block text-base font-semibold text-foreground">{en.name}</span>
+                    <span className="mt-0.5 block text-sm text-muted-foreground">{en.meta}</span>
                   </span>
-                  <span style={{ fontSize: 12.5, color: '#8B837A' }}>{en.when}</span>
+                  <span className="text-xs text-muted-foreground">{en.when}</span>
                   <button
                     type="button"
-                    style={{
-                      flex: 'none', minHeight: 44, padding: '12px 18px', borderRadius: 12,
-                      background: ACCENT_TOKENS.whatsappBg, color: ACCENT_TOKENS.whatsappText, fontSize: 13.5, fontWeight: 700,
-                    }}
+                    className="flex min-h-11 flex-none items-center rounded-lg bg-brand px-5 text-sm font-semibold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover active:scale-[0.97]"
                   >
                     Reply on WhatsApp
                   </button>
@@ -1018,28 +992,27 @@ export default function TeacherDashboard() {
               ))}
             </div>
             {enquiries.length >= 10 && (
-              <div style={{ marginTop: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#8B837A' }}>See all →</span>
+              <div className="mt-3">
+                <span className="text-sm font-semibold text-warm-meta">See all →</span>
               </div>
             )}
           </>
         ) : (
-          <p style={{ marginTop: 16, fontSize: 15, color: '#7B736B' }}>No enquiries recorded yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">No enquiries recorded yet.</p>
         )}
 
         {/* Your profile */}
-        <h2 style={{ marginTop: 44, fontSize: 'clamp(21px,2.4vw,26px)', fontWeight: 700, color: '#1F1F1F' }}>
+        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Your profile
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 14, marginTop: 16 }}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
           <button
             type="button"
             onClick={scrollToProfileForm}
-            className="block w-full text-left transition-transform duration-200 [transition-timing-function:ease] hover:-translate-y-[3px] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-            style={{ padding: 22, borderRadius: 20, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}
+            className="block w-full rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
           >
-            <span style={{ display: 'block', fontSize: 16.5, fontWeight: 700, color: '#1F1F1F' }}>Edit your profile</span>
-            <span style={{ display: 'block', marginTop: 7, fontSize: 13.5, lineHeight: 1.55, color: '#7B736B' }}>
+            <span className="block text-base font-semibold text-foreground">Edit your profile</span>
+            <span className="mt-1.5 block text-sm text-muted-foreground">
               Subjects, classes, boards, areas and fee range.
             </span>
           </button>
@@ -1047,13 +1020,12 @@ export default function TeacherDashboard() {
             type="button"
             onClick={handlePauseToggle}
             disabled={pausing}
-            className="block w-full text-left transition-transform duration-200 [transition-timing-function:ease] hover:-translate-y-[3px] motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60"
-            style={{ padding: 22, borderRadius: 20, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}
+            className="block w-full rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60 sm:p-6"
           >
-            <span style={{ display: 'block', fontSize: 16.5, fontWeight: 700, color: '#1F1F1F' }}>
+            <span className="block text-base font-semibold text-foreground">
               {isPaused ? 'Resume your listing' : 'Pause your listing'}
             </span>
-            <span style={{ display: 'block', marginTop: 7, fontSize: 13.5, lineHeight: 1.55, color: '#7B736B' }}>
+            <span className="mt-1.5 block text-sm text-muted-foreground">
               {isPaused
                 ? 'Your profile is hidden from students until you resume it.'
                 : 'Hide your profile from results while your batches are full.'}
@@ -1062,11 +1034,10 @@ export default function TeacherDashboard() {
           <button
             type="button"
             onClick={handleRequestReview}
-            className="block w-full text-left transition-transform duration-200 [transition-timing-function:ease] hover:-translate-y-[3px] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-            style={{ padding: 22, borderRadius: 20, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}
+            className="block w-full rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
           >
-            <span style={{ display: 'block', fontSize: 16.5, fontWeight: 700, color: '#1F1F1F' }}>Request a review</span>
-            <span style={{ display: 'block', marginTop: 7, fontSize: 13.5, lineHeight: 1.55, color: '#7B736B' }}>
+            <span className="block text-base font-semibold text-foreground">Request a review</span>
+            <span className="mt-1.5 block text-sm text-muted-foreground">
               Send a link to a current student asking them to review you.
             </span>
           </button>
@@ -1076,10 +1047,10 @@ export default function TeacherDashboard() {
             Not part of the new spec's top section; kept here, right above the editable form it
             summarises, since Name/Honorific/Email are real locked account data this page has
             always surfaced and nowhere else on the page shows them. */}
-        <h2 style={{ marginTop: 44, fontSize: 'clamp(21px,2.4vw,26px)', fontWeight: 700, color: '#1F1F1F', marginBottom: 16 }}>
+        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Account Information
         </h2>
-        <div style={{ display: 'grid', gap: 10, marginBottom: 24 }}>
+        <div className="mb-6 grid gap-2.5">
           {[
             { label: 'Name', value: userName },
             { label: 'Honorific', value: teacherData["Sir/Ma'am?"] },
@@ -1087,21 +1058,18 @@ export default function TeacherDashboard() {
           ].map((row) => (
             <div
               key={row.label}
-              style={{
-                padding: '18px 20px', borderRadius: 18, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)',
-                display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-              }}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4 shadow-border sm:p-5"
             >
               <div>
-                <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#8B837A' }}>
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {row.label}
                 </div>
-                <div style={{ marginTop: 4, fontSize: 15, fontWeight: 600, color: '#1F1F1F' }}>
+                <div className="mt-1 text-base font-semibold text-foreground">
                   {row.value || '-'}
                 </div>
               </div>
-              <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#8B837A' }}>
-                <Lock className="w-3.5 h-3.5" />
+              <span className="flex flex-none items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <Lock className="h-3.5 w-3.5" />
                 Locked
               </span>
             </div>
@@ -1109,11 +1077,11 @@ export default function TeacherDashboard() {
         </div>
 
         {/* Profile Form */}
-        <div ref={profileFormRef} id="profile-form" style={{ scrollMarginTop: 96, background: SURFACE_TOKENS.field, borderRadius: 20, boxShadow: '0 0 0 1px rgba(0,0,0,.06)', padding: 'clamp(20px,3vw,32px)' }}>
+        <div ref={profileFormRef} id="profile-form" className="scroll-mt-24 rounded-2xl bg-card p-5 shadow-border sm:p-8">
             {/* Editable Fields Section */}
             <div className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 style={{ fontSize: 'clamp(21px,2.4vw,26px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>Profile Information</h2>
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Profile Information</h2>
                 <Button
                   onClick={handleSave}
                   disabled={saving}
@@ -1127,8 +1095,8 @@ export default function TeacherDashboard() {
 
               {/* Phone Number */}
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber" style={LABEL_STYLE}>
-                  Phone Number <span style={{ color: '#B3261E' }}>*</span>
+                <Label htmlFor="phoneNumber" className={LABEL_CLASSNAME}>
+                  Phone Number <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="phoneNumber"
@@ -1145,13 +1113,12 @@ export default function TeacherDashboard() {
                   maxLength={10}
                   required
                   className={FIELD_CLASSNAME}
-                  style={FIELD_STYLE}
                 />
-                <p className="text-xs" style={HELP_TEXT_STYLE}>
+                <p className={HELP_TEXT_CLASSNAME}>
                   Enter 10 digit phone number. WhatsApp link will be auto-generated.
                 </p>
                 {teacherData["Link"] && (
-                  <p className="text-xs text-primary">
+                  <p className="text-xs text-brand-blue">
                     WhatsApp link: {teacherData["Link"]}
                   </p>
                 )}
@@ -1159,7 +1126,7 @@ export default function TeacherDashboard() {
 
               {/* Profile Image */}
               <div className="space-y-2">
-                <Label style={LABEL_STYLE}>Profile Image</Label>
+                <Label className={LABEL_CLASSNAME}>Profile Image</Label>
                 {imagePreview && (() => {
                   // Apply DOMPurify as final sanitization — CodeQL recognises it as a known sanitizer
                   const safeSrc = DOMPurify.sanitize(validateImageSrc(imagePreview), {
@@ -1167,12 +1134,11 @@ export default function TeacherDashboard() {
                   });
                   if (!safeSrc) return null;
                   return (
-                  <div className="relative w-full max-w-md mb-4">
+                  <div className="relative mb-4 w-full max-w-md">
                     <img
                       src={safeSrc}
                       alt="Hero preview"
-                      className="w-full h-48 object-cover"
-                      style={{ borderRadius: 14, boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}` }}
+                      className="h-48 w-full rounded-lg object-cover shadow-border"
                     />
                     <Button
                       type="button"
@@ -1192,8 +1158,7 @@ export default function TeacherDashboard() {
 
                 <label
                   htmlFor="heroImageUpload"
-                  className="flex items-center gap-2 px-4 py-2 cursor-pointer transition-colors hover:bg-black/[.04] w-fit"
-                  style={{ borderRadius: 12, boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`, color: SURFACE_TOKENS.textPrimary, fontSize: 13.5, fontWeight: 600 }}
+                  className="flex w-fit cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-muted"
                 >
                   <Upload className="w-4 h-4" />
                   {uploadingImage ? 'Uploading...' : 'Upload Image'}
@@ -1206,14 +1171,14 @@ export default function TeacherDashboard() {
                     disabled={uploadingImage}
                   />
                 </label>
-                <p className="text-xs" style={HELP_TEXT_STYLE}>
+                <p className={HELP_TEXT_CLASSNAME}>
                   Max 5MB. Supported formats: JPG, PNG, GIF, WebP
                 </p>
               </div>
 
               {/* Profile Introduction */}
               <div className="space-y-2">
-                <Label htmlFor="description" style={LABEL_STYLE}>Profile Introduction</Label>
+                <Label htmlFor="description" className={LABEL_CLASSNAME}>Profile Introduction</Label>
                 <Textarea
                   id="description"
                   value={teacherData["Description"] || ''}
@@ -1221,18 +1186,17 @@ export default function TeacherDashboard() {
                   rows={5}
                   placeholder="Write about your teaching experience, methodology, and what makes you unique..."
                   maxLength={1000}
-                  className={`${FIELD_CLASSNAME} py-3`}
-                  style={{ ...FIELD_STYLE, minHeight: 130 }}
+                  className={`${FIELD_CLASSNAME} min-h-[130px] py-3`}
                 />
-                <p className="text-xs" style={HELP_TEXT_STYLE}>Max 1000 characters</p>
+                <p className={HELP_TEXT_CLASSNAME}>Max 1000 characters</p>
               </div>
 
               {/* Subjects (Multiple Select) */}
               <div className="space-y-2">
-                <Label style={LABEL_STYLE}>
-                  Subjects <span style={{ color: '#B3261E' }}>*</span>
+                <Label className={LABEL_CLASSNAME}>
+                  Subjects <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4" style={OPTION_GROUP_STYLE}>
+                <div className={`mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}>
                   {SUBJECTS.map((subject) => {
                     const currentValue = teacherData.Subjects as string | null;
                     const selected = valueExistsInString(currentValue, subject);
@@ -1245,7 +1209,7 @@ export default function TeacherDashboard() {
                             handleMultiSelectChange("Subjects", subject, checked as boolean)
                           }
                         />
-                        <Label htmlFor={`subject-${subject}`} className="cursor-pointer text-sm" style={{ color: SURFACE_TOKENS.textBody }}>
+                        <Label htmlFor={`subject-${subject}`} className="cursor-pointer text-sm text-warm-prose">
                           {subject}
                         </Label>
                       </div>
@@ -1256,12 +1220,12 @@ export default function TeacherDashboard() {
 
               {/* Featured Subject */}
               <div className="space-y-2">
-                <Label htmlFor="featuredSubject" style={LABEL_STYLE}>Featured Subject</Label>
+                <Label htmlFor="featuredSubject" className={LABEL_CLASSNAME}>Featured Subject</Label>
                 <Select
                   value={teacherData["Featured Subject"] || "none"}
                   onValueChange={(value) => handleInputChange("Featured Subject", value === "none" ? null : value)}
                 >
-                  <SelectTrigger id="featuredSubject" className={FIELD_CLASSNAME} style={FIELD_STYLE}>
+                  <SelectTrigger id="featuredSubject" className={FIELD_CLASSNAME}>
                     <SelectValue placeholder="Select featured subject" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1273,17 +1237,17 @@ export default function TeacherDashboard() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs" style={HELP_TEXT_STYLE}>
+                <p className={HELP_TEXT_CLASSNAME}>
                   Choose one of your selected subjects to feature on your profile
                 </p>
               </div>
 
               {/* School Boards Catered */}
               <div className="space-y-2">
-                <Label style={LABEL_STYLE}>
-                  School Boards Catered <span style={{ color: '#B3261E' }}>*</span>
+                <Label className={LABEL_CLASSNAME}>
+                  School Boards Catered <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex flex-wrap gap-2 mt-2 p-4" style={OPTION_GROUP_STYLE}>
+                <div className={`mt-2 flex flex-wrap gap-2 p-4 ${OPTION_GROUP_CLASSNAME}`}>
                   {SCHOOL_BOARDS.map((board) => {
                     const currentValue = teacherData["School Boards Catered"] as string | null;
                     const selected = valueExistsInString(currentValue, board);
@@ -1296,7 +1260,7 @@ export default function TeacherDashboard() {
                             handleMultiSelectChange("School Boards Catered", board, checked as boolean)
                           }
                         />
-                        <Label htmlFor={`board-${board}`} className="cursor-pointer text-sm" style={{ color: SURFACE_TOKENS.textBody }}>
+                        <Label htmlFor={`board-${board}`} className="cursor-pointer text-sm text-warm-prose">
                           {board}
                         </Label>
                       </div>
@@ -1307,13 +1271,13 @@ export default function TeacherDashboard() {
 
               {/* Classes Taught */}
               <div className="space-y-2">
-                <Label style={LABEL_STYLE}>
-                  Classes Taught <span style={{ color: '#B3261E' }}>*</span>
+                <Label className={LABEL_CLASSNAME}>
+                  Classes Taught <span className="text-destructive">*</span>
                 </Label>
-                <p className="text-xs mb-2" style={HELP_TEXT_STYLE}>
+                <p className={`${HELP_TEXT_CLASSNAME} mb-2`}>
                   Select the classes you teach. Display format will be automatically computed.
                 </p>
-                <div className="flex flex-wrap gap-2 mt-2 p-4" style={OPTION_GROUP_STYLE}>
+                <div className={`mt-2 flex flex-wrap gap-2 p-4 ${OPTION_GROUP_CLASSNAME}`}>
                   {CLASS_NUMBERS.map((cls) => {
                     const currentValue = teacherData["Classes Taught for Backend"] as string | null;
                     const selected = valueExistsInString(currentValue, cls);
@@ -1326,7 +1290,7 @@ export default function TeacherDashboard() {
                             handleMultiSelectChange("Classes Taught for Backend", cls, checked as boolean)
                           }
                         />
-                        <Label htmlFor={`class-${cls}`} className="cursor-pointer text-sm" style={{ color: SURFACE_TOKENS.textBody }}>
+                        <Label htmlFor={`class-${cls}`} className="cursor-pointer text-sm text-warm-prose">
                           {cls}
                         </Label>
                       </div>
@@ -1336,12 +1300,11 @@ export default function TeacherDashboard() {
                 {/* Show Classes Taught (read-only) */}
                 {teacherData["Classes Taught"] && (
                   <div className="mt-2">
-                    <Label style={{ fontSize: 13, color: SURFACE_TOKENS.textTertiary }}>Classes Taught (Auto-computed):</Label>
+                    <Label className="text-sm text-warm-meta">Classes Taught (Auto-computed):</Label>
                     <Input
                       value={teacherData["Classes Taught"]}
                       disabled
-                      className={`${FIELD_CLASSNAME} mt-1 cursor-not-allowed`}
-                      style={LOCKED_FIELD_STYLE}
+                      className={`${LOCKED_FIELD_CLASSNAME} mt-1`}
                     />
                   </div>
                 )}
@@ -1349,8 +1312,8 @@ export default function TeacherDashboard() {
 
               {/* Mode of Teaching */}
               <div className="space-y-2">
-                <Label style={LABEL_STYLE}>
-                  Mode of Teaching <span style={{ color: '#B3261E' }}>*</span>
+                <Label className={LABEL_CLASSNAME}>
+                  Mode of Teaching <span className="text-destructive">*</span>
                 </Label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {MODE_OF_TEACHING.map((mode) => {
@@ -1365,7 +1328,7 @@ export default function TeacherDashboard() {
                             handleMultiSelectChange("Mode of Teaching", mode, checked as boolean)
                           }
                         />
-                        <Label htmlFor={`mode-${mode}`} className="cursor-pointer" style={{ color: SURFACE_TOKENS.textBody }}>
+                        <Label htmlFor={`mode-${mode}`} className="cursor-pointer text-warm-prose">
                           {mode}
                         </Label>
                       </div>
@@ -1376,8 +1339,8 @@ export default function TeacherDashboard() {
 
               {/* Structure of classes (stored as Class Size (Group/ Solo)) */}
               <div className="space-y-2">
-                <Label style={LABEL_STYLE}>
-                  Structure of classes <span style={{ color: '#B3261E' }}>*</span>
+                <Label className={LABEL_CLASSNAME}>
+                  Structure of classes <span className="text-destructive">*</span>
                 </Label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {CLASS_SIZE.map((size) => {
@@ -1392,7 +1355,7 @@ export default function TeacherDashboard() {
                             handleMultiSelectChange("Class Size (Group/ Solo)", size, checked as boolean)
                           }
                         />
-                        <Label htmlFor={`classSize-${size}`} className="cursor-pointer" style={{ color: SURFACE_TOKENS.textBody }}>
+                        <Label htmlFor={`classSize-${size}`} className="cursor-pointer text-warm-prose">
                           {size === 'Solo' ? 'One-on-one' : size}
                         </Label>
                       </div>
@@ -1403,14 +1366,14 @@ export default function TeacherDashboard() {
 
               {/* Place of Teaching (Location V2) */}
               <div className="space-y-2">
-                <Label htmlFor="locationV2" style={LABEL_STYLE}>
-                  Place of Teaching <span style={{ color: '#B3261E' }}>*</span>
+                <Label htmlFor="locationV2" className={LABEL_CLASSNAME}>
+                  Place of Teaching <span className="text-destructive">*</span>
                 </Label>
                 <Select
                   value={teacherData["LOCATION V2"] || "__none__"}
                   onValueChange={(value) => handleInputChange("LOCATION V2", value === "__none__" ? "" : value)}
                 >
-                  <SelectTrigger id="locationV2" className={FIELD_CLASSNAME} style={FIELD_STYLE}>
+                  <SelectTrigger id="locationV2" className={FIELD_CLASSNAME}>
                     <SelectValue placeholder="Select place of teaching" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1425,10 +1388,10 @@ export default function TeacherDashboard() {
               {/* Student's Home Areas - Show when Place of Teaching is "STUDENT'S HOME TUTORING ONLY" or "BOTH OPTIONS LISTED" */}
               {(teacherData["LOCATION V2"] === "STUDENT'S HOME TUTORING ONLY" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED") && (
                 <div className="space-y-2">
-                  <Label style={LABEL_STYLE}>
-                    Student's Home in These Areas <span style={{ color: '#B3261E' }}>*</span>
+                  <Label className={LABEL_CLASSNAME}>
+                    Student's Home in These Areas <span className="text-destructive">*</span>
                   </Label>
-                  <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4" style={OPTION_GROUP_STYLE}>
+                  <div className={`mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}>
                     {AREAS.map((area) => {
                       const currentValue = teacherData["STUDENT'S HOME IN THESE AREAS"] as string | null;
                       const selected = valueExistsInString(currentValue, area);
@@ -1442,7 +1405,7 @@ export default function TeacherDashboard() {
                             }
                             required={teacherData["LOCATION V2"] === "STUDENT'S HOME TUTORING ONLY" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED"}
                           />
-                          <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm" style={{ color: SURFACE_TOKENS.textBody }}>
+                          <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm text-warm-prose">
                             {area}
                           </Label>
                         </div>
@@ -1455,10 +1418,10 @@ export default function TeacherDashboard() {
               {/* Tutor's Home Areas - Show when Place of Teaching is "TEACHER'S HOME TUTORING" or "BOTH OPTIONS LISTED" */}
               {(teacherData["LOCATION V2"] === "TEACHER'S HOME TUTORING" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED") && (
                 <div className="space-y-2">
-                  <Label style={LABEL_STYLE}>
-                    Tutor's Home in These Areas <span style={{ color: '#B3261E' }}>*</span>
+                  <Label className={LABEL_CLASSNAME}>
+                    Tutor's Home in These Areas <span className="text-destructive">*</span>
                   </Label>
-                  <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4" style={OPTION_GROUP_STYLE}>
+                  <div className={`mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}>
                     {AREAS.map((area) => {
                       const currentValue = teacherData["TUTOR'S HOME IN THESE AREAS"] as string | null;
                       const selected = valueExistsInString(currentValue, area);
@@ -1472,7 +1435,7 @@ export default function TeacherDashboard() {
                             }
                             required={teacherData["LOCATION V2"] === "TEACHER'S HOME TUTORING" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED"}
                           />
-                          <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm" style={{ color: SURFACE_TOKENS.textBody }}>
+                          <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm text-warm-prose">
                             {area}
                           </Label>
                         </div>
@@ -1484,21 +1447,20 @@ export default function TeacherDashboard() {
 
               {/* Area (read-only, auto-computed) */}
               <div className="space-y-2">
-                <Label style={LABEL_STYLE}>Area (Auto-computed)</Label>
+                <Label className={LABEL_CLASSNAME}>Area (Auto-computed)</Label>
                 <Input
                   value={teacherData["Area"] || 'Will be computed automatically when you save'}
                   disabled
-                  className={`${FIELD_CLASSNAME} cursor-not-allowed`}
-                  style={LOCKED_FIELD_STYLE}
+                  className={LOCKED_FIELD_CLASSNAME}
                 />
-                <p className="text-xs" style={HELP_TEXT_STYLE}>
+                <p className={HELP_TEXT_CLASSNAME}>
                   This field is automatically computed from Student's Home Areas and Tutor's Home Areas
                 </p>
               </div>
 
               {/* Educational Qualifications */}
               <div className="space-y-2">
-                <Label htmlFor="qualifications" style={LABEL_STYLE}>Educational Qualifications</Label>
+                <Label htmlFor="qualifications" className={LABEL_CLASSNAME}>Educational Qualifications</Label>
                 <Textarea
                   id="qualifications"
                   value={teacherData["Qualifications etc"] || ''}
@@ -1506,15 +1468,14 @@ export default function TeacherDashboard() {
                   rows={3}
                   placeholder="List your educational qualifications, certifications, etc."
                   maxLength={500}
-                  className={`${FIELD_CLASSNAME} py-3`}
-                  style={{ ...FIELD_STYLE, minHeight: 90 }}
+                  className={`${FIELD_CLASSNAME} min-h-[90px] py-3`}
                 />
-                <p className="text-xs" style={HELP_TEXT_STYLE}>Max 500 characters</p>
+                <p className={HELP_TEXT_CLASSNAME}>Max 500 characters</p>
               </div>
 
               {/* Year you started teaching */}
               <div className="space-y-2">
-                <Label htmlFor="yearsStarted" style={LABEL_STYLE}>Year you started teaching</Label>
+                <Label htmlFor="yearsStarted" className={LABEL_CLASSNAME}>Year you started teaching</Label>
                 <Input
                   id="yearsStarted"
                   value={teacherData["Years they started teaching"] || ''}
@@ -1527,17 +1488,16 @@ export default function TeacherDashboard() {
                   maxLength={4}
                   inputMode="numeric"
                   className={FIELD_CLASSNAME}
-                  style={FIELD_STYLE}
                 />
-                <p className="text-xs" style={HELP_TEXT_STYLE}>Numbers only, up to 4 digits</p>
+                <p className={HELP_TEXT_CLASSNAME}>Numbers only, up to 4 digits</p>
               </div>
 
               {/* Fee range - same line on all screen sizes */}
               <div className="space-y-2">
-                <Label className="text-base" style={LABEL_STYLE}>Fee range</Label>
+                <Label className={LABEL_CLASSNAME}>Fee range</Label>
                 <div className="flex flex-row gap-3 sm:gap-4">
                   <div className="flex-1 min-w-0">
-                    <Label htmlFor="minFees" className="text-sm font-normal" style={{ color: SURFACE_TOKENS.textTertiary, marginBottom: 6, display: 'block' }}>Min (₹)</Label>
+                    <Label htmlFor="minFees" className="mb-1.5 block text-sm font-normal text-warm-meta">Min (₹)</Label>
                     <Input
                       id="minFees"
                       type="tel"
@@ -1550,11 +1510,10 @@ export default function TeacherDashboard() {
                       maxLength={6}
                       inputMode="numeric"
                       className={FIELD_CLASSNAME}
-                      style={FIELD_STYLE}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Label htmlFor="maxFees" className="text-sm font-normal" style={{ color: SURFACE_TOKENS.textTertiary, marginBottom: 6, display: 'block' }}>Max (₹)</Label>
+                    <Label htmlFor="maxFees" className="mb-1.5 block text-sm font-normal text-warm-meta">Max (₹)</Label>
                     <Input
                       id="maxFees"
                       type="tel"
@@ -1567,11 +1526,10 @@ export default function TeacherDashboard() {
                       maxLength={6}
                       inputMode="numeric"
                       className={FIELD_CLASSNAME}
-                      style={FIELD_STYLE}
                     />
                   </div>
                 </div>
-                <p className="text-xs" style={HELP_TEXT_STYLE}>Optional</p>
+                <p className={HELP_TEXT_CLASSNAME}>Optional</p>
               </div>
             </div>
         </div>
@@ -1581,4 +1539,3 @@ export default function TeacherDashboard() {
     </div>
   );
 }
-
