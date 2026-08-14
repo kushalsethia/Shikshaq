@@ -34,6 +34,8 @@ const SECTION = 'py-16 sm:py-20 lg:py-24';
 
 const PAPER_CLASSES = CLASSES.filter((c) => c !== 'UG');
 
+type GroupMode = 'subject' | 'board';
+
 const SUBJECT_ICON: Record<string, typeof BookOpen> = {
   Chemistry: FlaskConical, Hindi: Languages, English: BookOpen, Maths: Calculator,
   Mathematics: Calculator, Psychology: Brain, Economics: Wallet, Biology: Dna,
@@ -70,7 +72,9 @@ export default function PastPapers() {
   const [schoolStats, setSchoolStats] = useState<SchoolStat[]>([]);
   const [recentPapers, setRecentPapers] = useState<Paper[]>([]);
   const [subjectCounts, setSubjectCounts] = useState<Record<string, number>>({});
+  const [boardCounts, setBoardCounts] = useState<Record<string, number>>({});
   const [totalPapers, setTotalPapers] = useState<number | null>(null);
+  const [groupMode, setGroupMode] = useState<GroupMode>('subject');
 
   // The old /past-papers route used to render results inline; that's now the
   // dedicated /past-papers/results route (see PaperResults.tsx). SearchControl,
@@ -109,6 +113,10 @@ export default function PastPapers() {
           return { school, board: dominantBoard, count: total };
         }).sort((a, b) => a.school.localeCompare(b.school));
         setSchoolStats(stats);
+
+        const boards: Record<string, number> = {};
+        schoolsRes.data.forEach((p) => { boards[p.board] = (boards[p.board] || 0) + 1; });
+        setBoardCounts(boards);
       }
       if (recentRes.data) setRecentPapers(recentRes.data);
       if (subjectsRes.data) {
@@ -128,6 +136,8 @@ export default function PastPapers() {
   };
 
   const featuredSubjects = SUBJECTS.filter((s) => subjectCounts[s]).slice(0, 8);
+  const featuredBoards = BOARDS.filter((b) => boardCounts[b]);
+  const subjectsCovered = Object.keys(subjectCounts).length;
 
   if (hasFilters) {
     return <Navigate to={`/past-papers/results?${searchParams.toString()}`} replace />;
@@ -151,6 +161,21 @@ export default function PastPapers() {
           <div className="mt-7 max-w-3xl">
             <SearchControl align="flex-start" stackedToggle initialMode="papers" onModeChange={handleSearchModeChange} />
           </div>
+
+          {/* Device: momentum/highlight banner. Real, currently-queryable coverage
+              stat (subjects + boards already fetched into subjectCounts/
+              boardCounts) instead of the reference's fabricated "streak" /
+              "ahead of 81% of readers" claim. */}
+          {subjectsCovered > 0 && featuredBoards.length > 0 && (
+            <div className="mt-6 flex max-w-3xl items-center gap-3 rounded-2xl bg-brand-blue-subtle px-4 py-3">
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-blue text-sm font-extrabold tabular-nums text-white">
+                {subjectsCovered}
+              </span>
+              <p className="text-sm font-semibold text-brand-blue-deep">
+                Papers across {subjectsCovered} subject{subjectsCovered === 1 ? '' : 's'} and {featuredBoards.length} board{featuredBoards.length === 1 ? '' : 's'} ({BOARDS.filter((b) => boardCounts[b]).join(', ')}) — all free to read.
+              </p>
+            </div>
+          )}
 
           {/* Device (c): bold numeric stat callout, restyling the existing
               "Browse all X papers" line rather than adding a new element. */}
@@ -197,41 +222,89 @@ export default function PastPapers() {
           </section>
         )}
 
-        {/* -------------------------------------------------------- By subject */}
-        {featuredSubjects.length > 0 && (
+        {/* -------------------------------------------------------- By subject / board */}
+        {(featuredSubjects.length > 0 || featuredBoards.length > 0) && (
           <section className={`${CONTAINER} ${SECTION} pt-0`}>
-            <h2 className="mb-6 text-2xl font-semibold tracking-tight sm:text-3xl">By subject</h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-              {featuredSubjects.map((s) => {
-                const palette = getSubjectPalette(s);
-                const Icon = SUBJECT_ICON[s] || BookOpen;
-                const count = subjectCounts[s];
-                return (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                By {groupMode === 'subject' ? 'subject' : 'board'}
+              </h2>
+              {/* Device: segmented toggle mapped to the two real groupings this
+                  page already fetches — subjectCounts and boardCounts (derived
+                  from schoolsRes above), not a decorative switch. */}
+              <div role="tablist" aria-label="Group papers by" className="inline-flex rounded-full bg-muted p-1">
+                {(['subject', 'board'] as GroupMode[]).map((mode) => (
                   <button
-                    key={s}
-                    onClick={() => navigate(`/past-papers/results?filter_subjects=${encodeURIComponent(s)}`)}
-                    className="block rounded-2xl p-[22px] text-left transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
-                    style={{ backgroundColor: palette.tint }}
+                    key={mode}
+                    role="tab"
+                    aria-selected={groupMode === mode}
+                    onClick={() => setGroupMode(mode)}
+                    className={`min-h-9 rounded-full px-4 text-sm font-semibold capitalize transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 ${
+                      groupMode === mode ? 'bg-card text-foreground shadow-border' : 'text-muted-foreground hover:text-foreground'
+                    }`}
                   >
-                    <span className="mb-[26px] flex h-[42px] w-[42px] items-center justify-center rounded-[13px]" style={{ backgroundColor: palette.solid }}>
-                      <Icon size={21} className="text-white" strokeWidth={1.9} aria-hidden="true" />
-                    </span>
-                    <span className="block text-[23px] font-bold tracking-[-.04em]" style={{ color: palette.text }}>
-                      {s}
-                    </span>
-                    {/* Device (b): filter-chip live count badge, sourced from the
-                        existing subjectCounts state — never a literal zero, since
-                        featuredSubjects already filters those out. */}
-                    <span
-                      className="mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums"
-                      style={{ backgroundColor: palette.solid, color: palette.badgeText }}
-                    >
-                      {count} paper{count === 1 ? '' : 's'}
-                    </span>
+                    {mode}
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
+
+            {groupMode === 'subject' ? (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+                {featuredSubjects.map((s) => {
+                  const palette = getSubjectPalette(s);
+                  const Icon = SUBJECT_ICON[s] || BookOpen;
+                  const count = subjectCounts[s];
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => navigate(`/past-papers/results?filter_subjects=${encodeURIComponent(s)}`)}
+                      className="block rounded-2xl p-[22px] text-left transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                      style={{ backgroundColor: palette.tint }}
+                    >
+                      <span className="mb-[26px] flex h-[42px] w-[42px] items-center justify-center rounded-[13px]" style={{ backgroundColor: palette.solid }}>
+                        <Icon size={21} className="text-white" strokeWidth={1.9} aria-hidden="true" />
+                      </span>
+                      <span className="block text-[23px] font-bold tracking-[-.04em]" style={{ color: palette.text }}>
+                        {s}
+                      </span>
+                      {/* Device (b): filter-chip live count badge, sourced from the
+                          existing subjectCounts state — never a literal zero, since
+                          featuredSubjects already filters those out. */}
+                      <span
+                        className="mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums"
+                        style={{ backgroundColor: palette.solid, color: palette.badgeText }}
+                      >
+                        {count} paper{count === 1 ? '' : 's'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+                {featuredBoards.map((b) => {
+                  const count = boardCounts[b];
+                  return (
+                    <button
+                      key={b}
+                      onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
+                      className="block rounded-2xl bg-brand-blue-subtle p-[22px] text-left transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                    >
+                      <span className="mb-[26px] flex h-[42px] w-[42px] items-center justify-center rounded-[13px] bg-brand-blue">
+                        <LandmarkIcon size={21} className="text-white" strokeWidth={1.9} aria-hidden="true" />
+                      </span>
+                      <span className="block text-[23px] font-bold tracking-[-.04em] text-brand-blue-deep">
+                        {b}
+                      </span>
+                      <span className="mt-2 inline-flex items-center rounded-full bg-brand-blue px-2.5 py-0.5 text-xs font-semibold tabular-nums text-white">
+                        {count} paper{count === 1 ? '' : 's'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
         )}
 
