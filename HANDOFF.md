@@ -28,6 +28,7 @@ forbidden, so every file re-declared its own values. The drift was the spec work
 
 | File | Governs | Authority |
 |---|---|---|
+| `WAVE2_INSPO.md` | **Reference** — written descriptions of the 4 inspo images shared in chat during the 2026-08-14 session, since they were pasted inline and no image files exist to hand off. Read this before starting any Wave 2 task in §5. | Reference only, not a rule source |
 | `DESIGN_SYSTEM.md` | **Rules** — tokens, scales, a11y, mobile model, QA | Wins on rules |
 | `VISUAL_LANGUAGE.md` | **Look** — exact values from the client handoff | Wins on appearance |
 
