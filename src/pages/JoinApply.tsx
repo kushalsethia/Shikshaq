@@ -60,78 +60,53 @@ const STEPS = [
   { label: 'Review' },
 ];
 
-// Shared token-based styles for form controls, matching the site's design system.
-// Field styling everywhere on this page (per spec): label 13px/600; input
-// min-height:48px; padding:13px 15px; border-radius:12px; background:#F9F5F1;
-// ring #E7DFD5; 15px.
-const fieldStyle: React.CSSProperties = {
-  background: '#F9F5F1',
-  boxShadow: '0 0 0 1px #E7DFD5',
-  borderRadius: 12,
-  minHeight: 48,
-};
+// Shared token-based classes for form controls, matching the site's design system.
+const fieldClassName = 'h-auto w-full min-h-12 border-0 bg-background rounded-lg ring-1 ring-inset ring-warm-hairline px-[15px] py-[13px] text-base focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-0';
+const textareaClassName = 'w-full border-0 bg-background rounded-lg ring-1 ring-inset ring-warm-hairline px-[15px] py-[13px] text-base focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-0';
 
-const textareaStyle: React.CSSProperties = {
-  background: '#F9F5F1',
-  boxShadow: '0 0 0 1px #E7DFD5',
-  borderRadius: 12,
-};
-
-const fieldClassName = 'h-auto w-full border-0 bg-transparent rounded-none px-[15px] py-[13px] text-[15px] focus-visible:ring-0 focus-visible:ring-offset-0';
-const textareaClassName = 'w-full border-0 bg-transparent rounded-none px-[15px] py-[13px] text-[15px] focus-visible:ring-0 focus-visible:ring-offset-0';
-
-function SectionHeading({ mb = 18, children }: { mb?: number; children: React.ReactNode }) {
+function SectionHeading({ mb = 'mb-4', children }: { mb?: string; children: React.ReactNode }) {
   return (
-    <h2 style={{ fontSize: 'clamp(21px,2.4vw,26px)', fontWeight: 700, color: '#1F1F1F', marginBottom: mb }}>
+    <h2 className={`text-2xl sm:text-3xl font-semibold tracking-tight text-foreground ${mb}`}>
       {children}
     </h2>
   );
 }
 
-function FieldLabel({ htmlFor, mb = 7, children }: { htmlFor?: string; mb?: number; children: React.ReactNode }) {
+function FieldLabel({ htmlFor, mb = 'mb-2', children }: { htmlFor?: string; mb?: string; children: React.ReactNode }) {
   return (
-    <Label htmlFor={htmlFor} style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#4A443E', marginBottom: mb }}>
+    <Label htmlFor={htmlFor} className={`block text-sm font-semibold text-warm-prose ${mb}`}>
       {children}
     </Label>
   );
 }
 
-// Pill: default selected state is the neutral mutedFill (#F0EAE2). Pass `tint`
-// for chip groups where colour is meaningful (subjects, boards, areas), per
-// "Multi-select chips" in the spec.
+// Pill: default selected state is the neutral muted fill. Pass `tintClass`
+// for chip groups where a static accent colour is meaningful (boards, areas —
+// tokens known ahead of time). Pass `dynamicTint` only for the sanctioned
+// data-driven case (subject colors from getSubjectColors / subject-palette),
+// per the inline-style exception documented in src/lib/subject-palette.ts.
 function Pill({
   label,
   selected,
   onClick,
-  tint,
+  tintClass,
+  dynamicTint,
 }: {
   label: string;
   selected: boolean;
   onClick: () => void;
-  tint?: { bg: string; color: string };
+  tintClass?: string;
+  dynamicTint?: { bg: string; color: string };
 }) {
-  const selectedBg = tint?.bg ?? '#F0EAE2';
-  const selectedColor = tint?.color ?? '#1F1F1F';
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={selected ? 'active:scale-[0.97]' : 'shikshaq-pill-unselected active:scale-[0.97]'}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        minHeight: 44,
-        padding: '10px 16px',
-        borderRadius: 999,
-        fontSize: 13.5,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-        background: selected ? selectedBg : 'transparent',
-        color: selected ? selectedColor : '#4A443E',
-        boxShadow: selected ? 'none' : '0 0 0 1px #E7DFD5',
-        transition: 'background .15s ease, color .15s ease, box-shadow .15s ease, transform .15s ease-out',
-      }}
+      className={`inline-flex items-center min-h-11 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97] ${
+        selected ? (dynamicTint ? '' : tintClass ?? 'bg-muted text-foreground') : 'shikshaq-pill-unselected ring-1 ring-inset ring-warm-hairline text-warm-prose'
+      }`}
+      style={selected && dynamicTint ? { background: dynamicTint.bg, color: dynamicTint.color } : undefined}
     >
       {label}
     </button>
@@ -552,20 +527,22 @@ export default function JoinApply() {
 
   if (submitted) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main style={{ maxWidth: 720, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}>
-          <div style={{ padding: 'clamp(28px,4vw,40px)', borderRadius: 24, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06), 0 2px 6px rgba(0,0,0,.04)', textAlign: 'center' }}>
-            <div style={{ width: 64, height: 64, borderRadius: 999, background: '#E6F4E6', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-              <CheckCircle2 className="w-8 h-8" style={{ color: '#228B22' }} />
+        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
+          <div className="p-6 sm:p-10 rounded-2xl bg-card shadow-border text-center">
+            {/* No semantic "success" token exists in the design system (see final report) —
+                nearest existing token used: mint background + foreground icon. */}
+            <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-8 h-8 text-foreground" />
             </div>
-            <h1 style={{ fontSize: 'clamp(24px,3.4vw,32px)', fontWeight: 700, color: '#1F1F1F', marginBottom: 12 }}>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mb-3">
               Application submitted!
             </h1>
-            <p style={{ fontSize: 16, lineHeight: 1.6, color: '#7B736B', marginBottom: 8 }}>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">
               Thank you for your interest in joining Shikshaq as a teacher. We have received your application and will review it shortly.
             </p>
-            <p style={{ fontSize: 14, color: '#8B837A' }}>
+            <p className="text-sm text-warm-meta">
               You will be notified via email once your application has been reviewed.
             </p>
           </div>
@@ -685,38 +662,39 @@ export default function JoinApply() {
   const summaryWhereLine = [summaryAreas.length ? summaryAreas.join(', ') : null, summaryFeeRange].filter(Boolean).join(' · ');
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}>
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
         <Link
           to="/join"
-          style={{ display: 'inline-block', fontSize: 13, fontWeight: 600, color: '#8B837A', marginBottom: 20, textDecoration: 'none' }}
+          className="inline-block text-sm font-semibold text-warm-meta mb-6 no-underline"
         >
           ← Why join Shikshaq
         </Link>
 
         {/* Stepper */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 28 }}>
+        <div className="flex flex-wrap gap-4 mb-8">
           {STEPS.map((s, i) => {
             const state = i === step ? 'current' : i < step ? 'done' : 'upcoming';
-            const numeralBg = state === 'current' ? '#fff' : state === 'done' ? '#228B22' : '#F0EAE2';
-            const numeralColor = state === 'current' ? '#1F1F1F' : state === 'done' ? '#fff' : '#8B837A';
-            const labelColor = state === 'current' ? '#1F1F1F' : state === 'done' ? '#4A443E' : '#8B837A';
+            // "done" state uses mint/foreground — see success-token note above; no green
+            // token exists in the design system.
+            const numeralClass =
+              state === 'current'
+                ? 'bg-card text-foreground'
+                : state === 'done'
+                ? 'bg-mint text-foreground'
+                : 'bg-muted text-warm-meta';
+            const labelClass =
+              state === 'current' ? 'text-foreground' : state === 'done' ? 'text-warm-prose' : 'text-warm-meta';
             return (
-              <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <div key={s.label} className="flex items-center gap-2">
                 <span
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: 30, height: 30, borderRadius: 999, flexShrink: 0,
-                    fontSize: 12.5, fontWeight: 700,
-                    background: numeralBg, color: numeralColor,
-                    transition: 'background .25s ease',
-                  }}
+                  className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 text-xs font-bold transition-colors duration-150 ${numeralClass}`}
                 >
                   {i + 1}
                 </span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: labelColor, whiteSpace: 'nowrap' }}>
+                <span className={`text-sm font-semibold whitespace-nowrap ${labelClass}`}>
                   {s.label}
                 </span>
               </div>
@@ -732,14 +710,14 @@ export default function JoinApply() {
               e.preventDefault();
             }
           }}
-          style={{ padding: 'clamp(22px,3vw,32px)', borderRadius: 24, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06), 0 2px 6px rgba(0,0,0,.04)' }}
+          className="p-6 sm:p-8 rounded-2xl bg-card shadow-border"
         >
           {/* Step 1: About you */}
           {step === 0 && (
             <div className="joinApplyRise">
               <SectionHeading>About you</SectionHeading>
 
-              <div style={{ display: 'grid', gap: 14 }}>
+              <div className="grid gap-4">
                 {/* Full name */}
                 <div>
                   <FieldLabel htmlFor="name">Full name *</FieldLabel>
@@ -752,9 +730,8 @@ export default function JoinApply() {
                     maxLength={200}
                     required
                     className={fieldClassName}
-                    style={fieldStyle}
                   />
-                  <p style={{ fontSize: 12, color: '#8B837A', marginTop: 6 }}>Max 200 characters</p>
+                  <p className="text-xs text-warm-meta mt-2">Max 200 characters</p>
                 </div>
 
                 {/* Email */}
@@ -773,15 +750,14 @@ export default function JoinApply() {
                     maxLength={254}
                     required
                     className={fieldClassName}
-                    style={fieldStyle}
                   />
-                  <p style={{ fontSize: 12, color: '#8B837A', marginTop: 6 }}>Enter a valid email address</p>
+                  <p className="text-xs text-warm-meta mt-2">Enter a valid email address</p>
                 </div>
 
                 {/* Sir or Ma'am */}
                 <div>
                   <FieldLabel>Sir or Ma'am *</FieldLabel>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div className="flex gap-2">
                     {SIR_MAAM.map((option) => (
                       <Pill
                         key={option}
@@ -813,9 +789,8 @@ export default function JoinApply() {
                     maxLength={10}
                     required
                     className={fieldClassName}
-                    style={fieldStyle}
                   />
-                  <p style={{ fontSize: 12, color: '#8B837A', marginTop: 6 }}>Country code +91 is added automatically</p>
+                  <p className="text-xs text-warm-meta mt-2">Country code +91 is added automatically</p>
                 </div>
 
                 {/* Years of experience */}
@@ -832,7 +807,6 @@ export default function JoinApply() {
                     maxLength={4}
                     inputMode="numeric"
                     className={fieldClassName}
-                    style={fieldStyle}
                   />
                 </div>
               </div>
@@ -845,9 +819,9 @@ export default function JoinApply() {
               <SectionHeading>What you teach</SectionHeading>
 
               {/* Subjects */}
-              <div style={{ marginBottom: 20 }}>
-                <FieldLabel mb={9}>Subjects *</FieldLabel>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div className="mb-6">
+                <FieldLabel mb="mb-3">Subjects *</FieldLabel>
+                <div className="flex flex-wrap gap-2">
                   {SUBJECTS.map((subject) => {
                     const selected = valueExistsInString(formData.subjects, subject);
                     const sc = getSubjectColors(subject);
@@ -856,7 +830,7 @@ export default function JoinApply() {
                         key={subject}
                         label={subject}
                         selected={selected}
-                        tint={{ bg: sc.tint, color: sc.titleText }}
+                        dynamicTint={{ bg: sc.tint, color: sc.titleText }}
                         onClick={() => handleMultiSelectChange('subjects', subject, !selected)}
                       />
                     );
@@ -865,9 +839,9 @@ export default function JoinApply() {
               </div>
 
               {/* Boards catered */}
-              <div style={{ marginBottom: 20 }}>
-                <FieldLabel mb={9}>Boards catered *</FieldLabel>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div className="mb-6">
+                <FieldLabel mb="mb-3">Boards catered *</FieldLabel>
+                <div className="flex flex-wrap gap-2">
                   {BOARDS.map((board) => {
                     const selected = valueExistsInString(formData.school_boards_catered, board);
                     return (
@@ -875,7 +849,7 @@ export default function JoinApply() {
                         key={board}
                         label={board}
                         selected={selected}
-                        tint={{ bg: '#EDEEFF', color: '#2E3AD6' }}
+                        tintClass="bg-brand-blue-subtle text-brand-blue-deep"
                         onClick={() => handleMultiSelectChange('school_boards_catered', board, !selected)}
                       />
                     );
@@ -884,9 +858,9 @@ export default function JoinApply() {
               </div>
 
               {/* Classes */}
-              <div style={{ marginBottom: 20 }}>
-                <FieldLabel mb={9}>Classes *</FieldLabel>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div className="mb-6">
+                <FieldLabel mb="mb-3">Classes *</FieldLabel>
+                <div className="flex flex-wrap gap-2">
                   {CLASSES.map((cls) => {
                     const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
                     return (
@@ -902,9 +876,9 @@ export default function JoinApply() {
               </div>
 
               {/* Structure of classes (stored as class_size) */}
-              <div style={{ marginBottom: 20 }}>
-                <FieldLabel mb={9}>Structure of classes *</FieldLabel>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div className="mb-6">
+                <FieldLabel mb="mb-3">Structure of classes *</FieldLabel>
+                <div className="flex flex-wrap gap-2">
                   {CLASS_SIZE.map((size) => {
                     const selected = valueExistsInString(formData.class_size, size);
                     return (
@@ -930,7 +904,7 @@ export default function JoinApply() {
                   })()}
                   onValueChange={(value) => handleInputChange('featured_subject', value === "none" ? "" : value)}
                 >
-                  <SelectTrigger id="featured_subject" className={fieldClassName} style={fieldStyle}>
+                  <SelectTrigger id="featured_subject" className={fieldClassName}>
                     <SelectValue placeholder="Select featured subject" />
                   </SelectTrigger>
                   <SelectContent>
@@ -942,7 +916,7 @@ export default function JoinApply() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p style={{ fontSize: 12, color: '#8B837A', marginTop: 6 }}>
+                <p className="text-xs text-warm-meta mt-2">
                   Choose one of your selected subjects to feature on your profile
                 </p>
               </div>
@@ -955,13 +929,13 @@ export default function JoinApply() {
               <SectionHeading>Where &amp; fees</SectionHeading>
 
               {/* Location */}
-              <div style={{ marginBottom: 20 }}>
+              <div className="mb-6">
                 <FieldLabel htmlFor="location_v2">Location *</FieldLabel>
                 <Select
                   value={formData.location_v2 || "__none__"}
                   onValueChange={(value) => handleInputChange('location_v2', value === "__none__" ? "" : value)}
                 >
-                  <SelectTrigger id="location_v2" className={fieldClassName} style={fieldStyle}>
+                  <SelectTrigger id="location_v2" className={fieldClassName}>
                     <SelectValue placeholder="Select location option" />
                   </SelectTrigger>
                   <SelectContent>
@@ -975,9 +949,9 @@ export default function JoinApply() {
 
               {/* Student's Home Areas - Show when Location is "STUDENT'S HOME TUTORING ONLY" or "BOTH OPTIONS LISTED" */}
               {showStudentAreas && (
-                <div style={{ marginBottom: 20 }}>
-                  <FieldLabel mb={9}>Areas you teach in (student's home) *</FieldLabel>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div className="mb-6">
+                  <FieldLabel mb="mb-3">Areas you teach in (student's home) *</FieldLabel>
+                  <div className="flex flex-wrap gap-2">
                     {AREAS.map((area) => {
                       const selected = valueExistsInString(formData.students_home_areas, area);
                       return (
@@ -985,7 +959,7 @@ export default function JoinApply() {
                           key={area}
                           label={area}
                           selected={selected}
-                          tint={{ bg: '#FFF4E8', color: '#B35900' }}
+                          tintClass="bg-brand-subtle text-brand-deep"
                           onClick={() => handleMultiSelectChange('students_home_areas', area, !selected)}
                         />
                       );
@@ -996,9 +970,9 @@ export default function JoinApply() {
 
               {/* Tutor's Home Areas - Show when Location is "TEACHER'S HOME TUTORING" or "BOTH OPTIONS LISTED" */}
               {showTutorAreas && (
-                <div style={{ marginBottom: 20 }}>
-                  <FieldLabel mb={9}>Areas you teach in (your home) *</FieldLabel>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div className="mb-6">
+                  <FieldLabel mb="mb-3">Areas you teach in (your home) *</FieldLabel>
+                  <div className="flex flex-wrap gap-2">
                     {AREAS.map((area) => {
                       const selected = valueExistsInString(formData.tutors_home_areas, area);
                       return (
@@ -1006,7 +980,7 @@ export default function JoinApply() {
                           key={area}
                           label={area}
                           selected={selected}
-                          tint={{ bg: '#FFF4E8', color: '#B35900' }}
+                          tintClass="bg-brand-subtle text-brand-deep"
                           onClick={() => handleMultiSelectChange('tutors_home_areas', area, !selected)}
                         />
                       );
@@ -1016,9 +990,9 @@ export default function JoinApply() {
               )}
 
               {/* Mode of Teaching */}
-              <div style={{ marginBottom: 20 }}>
-                <FieldLabel mb={9}>Mode of teaching *</FieldLabel>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div className="mb-6">
+                <FieldLabel mb="mb-3">Mode of teaching *</FieldLabel>
+                <div className="flex flex-wrap gap-2">
                   {MODE_OF_TEACHING.map((mode) => {
                     const selected = valueExistsInString(formData.mode_of_teaching, mode);
                     return (
@@ -1034,7 +1008,7 @@ export default function JoinApply() {
               </div>
 
               {/* Monthly fee range */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <FieldLabel htmlFor="min_fees">Minimum fee / month</FieldLabel>
                   <Input
@@ -1049,7 +1023,6 @@ export default function JoinApply() {
                     maxLength={6}
                     inputMode="numeric"
                     className={fieldClassName}
-                    style={fieldStyle}
                   />
                 </div>
                 <div>
@@ -1066,22 +1039,21 @@ export default function JoinApply() {
                     maxLength={6}
                     inputMode="numeric"
                     className={fieldClassName}
-                    style={fieldStyle}
                   />
                 </div>
               </div>
-              <p style={{ fontSize: 12, color: '#8B837A', marginTop: 6 }}>Fee range is optional</p>
+              <p className="text-xs text-warm-meta mt-2">Fee range is optional</p>
             </div>
           )}
 
           {/* Step 4: Review and send */}
           {step === 3 && (
             <div className="joinApplyRise">
-              <SectionHeading mb={12}>Review and send</SectionHeading>
-              <p style={{ fontSize: 15, lineHeight: 1.6, color: '#7B736B', marginBottom: 20 }}>
+              <SectionHeading mb="mb-3">Review and send</SectionHeading>
+              <p className="text-base leading-relaxed text-muted-foreground mb-6">
                 Our team checks qualifications and existing student references before a profile goes live. That usually takes three working days.
               </p>
-              <div style={{ padding: 20, borderRadius: 16, background: '#F9F5F1', boxShadow: '0 0 0 1px #E7DFD5', fontSize: 14.5, lineHeight: 1.9, color: '#4A443E', marginBottom: 24 }}>
+              <div className="p-4 rounded-2xl bg-background ring-1 ring-inset ring-warm-hairline text-sm leading-loose text-warm-prose mb-6">
                 {summaryNameLine || 'Add your name in step 1'}
                 <br />
                 {summaryTeachLine || 'Add subjects, boards and classes in step 2'}
@@ -1089,7 +1061,7 @@ export default function JoinApply() {
                 {summaryWhereLine || 'Add areas and a fee range in step 3'}
               </div>
 
-              <div style={{ display: 'grid', gap: 20 }}>
+              <div className="grid gap-6">
                 {/* Profile Introduction */}
                 <div>
                   <FieldLabel htmlFor="description">Profile introduction</FieldLabel>
@@ -1101,9 +1073,8 @@ export default function JoinApply() {
                     placeholder="Tell us about yourself and your teaching approach..."
                     maxLength={1000}
                     className={textareaClassName}
-                    style={textareaStyle}
                   />
-                  <p style={{ fontSize: 12, color: '#8B837A', marginTop: 6 }}>Max 1000 characters</p>
+                  <p className="text-xs text-warm-meta mt-2">Max 1000 characters</p>
                 </div>
 
                 {/* Educational Qualifications */}
@@ -1117,12 +1088,11 @@ export default function JoinApply() {
                     placeholder="Your educational qualifications, certifications, etc."
                     maxLength={500}
                     className={textareaClassName}
-                    style={textareaStyle}
                   />
-                  <p style={{ fontSize: 12, color: '#8B837A', marginTop: 6 }}>Max 500 characters</p>
+                  <p className="text-xs text-warm-meta mt-2">Max 500 characters</p>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Reference Name */}
                   <div>
                     <FieldLabel htmlFor="reference_name">Student name (for verification) *</FieldLabel>
@@ -1134,9 +1104,8 @@ export default function JoinApply() {
                       maxLength={200}
                       required
                       className={fieldClassName}
-                      style={fieldStyle}
                     />
-                    <p style={{ fontSize: 12, color: '#8B837A', marginTop: 6 }}>We will call them to verify you're a teacher</p>
+                    <p className="text-xs text-warm-meta mt-2">We will call them to verify you're a teacher</p>
                   </div>
 
                   {/* Student number for verification */}
@@ -1157,7 +1126,6 @@ export default function JoinApply() {
                       maxLength={10}
                       required
                       className={fieldClassName}
-                      style={fieldStyle}
                     />
                   </div>
                 </div>
@@ -1165,7 +1133,7 @@ export default function JoinApply() {
                 {/* Profile Picture */}
                 <div>
                   <FieldLabel htmlFor="hero_image">Profile picture *</FieldLabel>
-                  <div style={{ display: 'grid', gap: 12 }}>
+                  <div className="grid gap-3">
                     {(() => {
                       // Early return if no preview
                       if (!imagePreview) return null;
@@ -1190,11 +1158,11 @@ export default function JoinApply() {
                       if (!safeSrc) return null;
 
                       return (
-                        <div style={{ position: 'relative', width: '100%', maxWidth: 340 }}>
+                        <div className="relative w-full max-w-[340px]">
                           <img
                             src={safeSrc}
                             alt="Profile picture preview"
-                            style={{ width: '100%', height: 190, objectFit: 'cover', borderRadius: 16, boxShadow: '0 0 0 1px #E7DFD5' }}
+                            className="w-full h-[190px] object-cover rounded-2xl ring-1 ring-inset ring-warm-hairline"
                             onError={() => setImagePreview(null)}
                           />
                           <button
@@ -1208,16 +1176,16 @@ export default function JoinApply() {
                               setImagePreview(null);
                               handleInputChange('hero_image_url', '');
                             }}
-                            style={{ position: 'absolute', top: 8, right: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 999, background: 'rgba(255,255,255,.92)', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}
+                            className="absolute top-2 right-2 flex items-center justify-center w-10 h-10 rounded-full bg-card/90 shadow-border"
                           >
-                            <X className="w-4 h-4" style={{ color: '#1F1F1F' }} />
+                            <X className="w-4 h-4 text-foreground" />
                           </button>
                         </div>
                       );
                     })()}
                     <label
                       htmlFor="heroImageUpload"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, width: 'fit-content', minHeight: 44, padding: '0 18px', borderRadius: 12, fontSize: 13.5, fontWeight: 600, color: '#1F1F1F', boxShadow: '0 0 0 1px #E7DFD5', cursor: 'pointer' }}
+                      className="inline-flex items-center gap-2 w-fit min-h-11 px-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline cursor-pointer"
                     >
                       <Upload className="w-4 h-4" />
                       {selectedImageFile ? 'Change Image' : 'Select Image'}
@@ -1230,7 +1198,7 @@ export default function JoinApply() {
                         disabled={submitting}
                       />
                     </label>
-                    <p style={{ fontSize: 12, color: '#8B837A' }}>
+                    <p className="text-xs text-warm-meta">
                       {selectedImageFile
                         ? 'Image will be uploaded when you submit the form. Max file size: 5MB'
                         : 'Select a professional photo. Image will be uploaded on form submission. Max file size: 5MB'}
@@ -1239,17 +1207,17 @@ export default function JoinApply() {
                 </div>
 
                 {/* Memorandum of Understanding */}
-                <div style={{ borderRadius: 16, background: '#F9F5F1', boxShadow: '0 0 0 1px #E7DFD5', padding: 20, display: 'grid', gap: 16 }}>
-                  <p style={{ fontSize: 14.5, fontWeight: 600, color: '#1F1F1F' }}>
+                <div className="rounded-2xl bg-background ring-1 ring-inset ring-warm-hairline p-4 grid gap-4">
+                  <p className="text-sm font-semibold text-foreground">
                     Memorandum of Understanding
                   </p>
-                  <p style={{ fontSize: 14.5, lineHeight: 1.65, color: '#4A443E' }}>
+                  <p className="text-sm leading-relaxed text-warm-prose">
                     This Memorandum of Understanding confirms that you grant Shikshaq permission to display your submitted profile (name, locality, place of teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and enhancing their learning experience.
                   </p>
 
-                  <div style={{ fontSize: 14.5, color: '#4A443E' }}>
-                    <p style={{ fontWeight: 600, marginBottom: 8 }}>I have read and understood the above Memorandum of Understanding and consent to:</p>
-                    <ol style={{ listStyleType: 'decimal', listStylePosition: 'inside', display: 'grid', gap: 6, marginLeft: 8 }}>
+                  <div className="text-sm text-warm-prose">
+                    <p className="font-semibold mb-2">I have read and understood the above Memorandum of Understanding and consent to:</p>
+                    <ol className="list-decimal list-inside grid gap-1.5 ml-2">
                       <li>Shikshaq displaying my educator profile as previously submitted;</li>
                       <li>The use of my Whatsapp link to let students land directly on my Whatsapp chat through Shikshaq for communication;</li>
                       <li>The use of my provided information for student outreach and internal communication;</li>
@@ -1257,15 +1225,15 @@ export default function JoinApply() {
                     </ol>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingTop: 16, borderTop: '1px solid #E7DFD5' }}>
+                  <div className="flex items-start gap-3 pt-4 border-t border-warm-hairline">
                     <Checkbox
                       id="mou_consent"
                       checked={formData.mou_consent}
                       onCheckedChange={(checked) => handleInputChange('mou_consent', checked)}
                       required
                     />
-                    <Label htmlFor="mou_consent" style={{ fontSize: 14.5, lineHeight: 1.5, cursor: 'pointer' }}>
-                      <span style={{ fontWeight: 600, color: '#1F1F1F' }}>I consent. *</span>
+                    <Label htmlFor="mou_consent" className="text-sm leading-relaxed cursor-pointer">
+                      <span className="font-semibold text-foreground">I consent. *</span>
                     </Label>
                   </div>
                 </div>
@@ -1274,13 +1242,12 @@ export default function JoinApply() {
           )}
 
           {/* Actions */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 26 }}>
+          <div className="flex flex-wrap gap-2 mt-6">
             {!isLastStep ? (
               <button
                 type="button"
                 onClick={goNext}
-                className="active:scale-[0.97] transition-transform duration-150"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 50, padding: '14px 24px', borderRadius: 12, fontSize: 15, fontWeight: 600, background: '#1F1F1F', color: '#fff' }}
+                className="active:scale-[0.97] transition-transform duration-150 flex items-center justify-center min-h-[50px] px-6 py-4 rounded-lg text-sm font-semibold bg-foreground text-background"
               >
                 Continue
               </button>
@@ -1288,8 +1255,7 @@ export default function JoinApply() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="active:scale-[0.97] transition-transform duration-150"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 50, padding: '14px 24px', borderRadius: 12, fontSize: 15, fontWeight: 600, background: '#228B22', color: '#fff', opacity: submitting ? 0.75 : 1 }}
+                className="active:scale-[0.97] transition-transform duration-150 flex items-center justify-center gap-2 min-h-[50px] px-6 py-4 rounded-lg text-sm font-semibold bg-brand text-brand-foreground disabled:opacity-75"
               >
                 {submitting ? (
                   <>
@@ -1306,8 +1272,7 @@ export default function JoinApply() {
               <button
                 type="button"
                 onClick={goBack}
-                className="active:scale-[0.97] transition-transform duration-150"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 50, padding: '14px 22px', borderRadius: 12, fontSize: 15, fontWeight: 600, color: '#1F1F1F', boxShadow: '0 0 0 1px #E7DFD5' }}
+                className="active:scale-[0.97] transition-transform duration-150 flex items-center justify-center min-h-[50px] px-6 py-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline"
               >
                 Back
               </button>
@@ -1318,19 +1283,13 @@ export default function JoinApply() {
 
       <Footer />
 
-      {/* Step content entry animation ("rise" per _tokens.md) and hover feedback
-          for unselected Pill toggles, which otherwise have no cue that they're
-          clickable on a mouse. Scoped locally since this file may not touch
-          index.css / tailwind.config.ts. The global prefers-reduced-motion rule
-          in index.css already zeroes out this animation's duration. */}
+      {/* Step content entry animation and hover feedback for unselected Pill
+          toggles, which otherwise have no cue that they're clickable on a
+          mouse. Uses the contract's whitelisted fade-slide-up motion. */}
       <style>{`
-        @keyframes joinApplyRise {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: none; }
-        }
-        .joinApplyRise { animation: joinApplyRise .28s cubic-bezier(.16,1,.3,1) both; }
+        .joinApplyRise { animation: fade-slide-up .28s cubic-bezier(.16,1,.3,1) both; }
         @media (hover: hover) {
-          .shikshaq-pill-unselected:hover { background: rgba(31,31,31,.04); box-shadow: 0 0 0 1px #D9CFC2; }
+          .shikshaq-pill-unselected:hover { background-color: hsl(var(--foreground) / 0.04); }
         }
       `}</style>
     </div>

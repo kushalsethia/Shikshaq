@@ -10,38 +10,10 @@ import { z } from 'zod';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { logger } from '@/utils/logger';
 
-const TOKENS = {
-  bg: '#F9F5F1',
-  card: '#FCFAF7',
-  text: '#1F1F1F',
-  textSecondary: '#7B736B',
-  textTertiary: '#8B837A',
-  hairline: '#E7DFD5',
-  error: '#B3261E',
-};
-
-const fieldBase: React.CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  border: 'none',
-  padding: '13px 15px',
-  borderRadius: 12,
-  background: TOKENS.bg,
-  fontFamily: 'inherit',
-  fontSize: 15,
-  color: TOKENS.text,
-  outline: 'none',
-};
-
-function inputStyle(hasError?: boolean): React.CSSProperties {
-  return {
-    ...fieldBase,
-    minHeight: 48,
-    boxShadow: hasError ? `0 0 0 1.5px ${TOKENS.error}` : `0 0 0 1px ${TOKENS.hairline}`,
-  };
-}
-
-const labelStyle: React.CSSProperties = { fontSize: 13, fontWeight: 600, marginBottom: 7, color: TOKENS.text };
+const FIELD_BASE =
+  'w-full box-border min-h-12 px-4 py-3 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline shikshaq-recommend-field';
+const FIELD_ERROR = 'ring-destructive';
+const LABEL = 'text-sm font-semibold text-foreground mb-2';
 
 const recommendSchema = z.object({
   teacherName: z.string().trim().min(1, "Please enter the teacher's name").max(100, "Teacher's name is too long"),
@@ -136,90 +108,95 @@ export default function RecommendTeacher() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: TOKENS.bg }}>
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: 'clamp(28px,5vw,56px) clamp(16px,3vw,28px) 56px' }}>
-        <h1 style={{ fontSize: 'clamp(26px,3.6vw,38px)', lineHeight: 1.02, fontWeight: 700, color: TOKENS.text }}>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
           Recommend a teacher
         </h1>
-        <p style={{ marginTop: 14, maxWidth: '58ch', fontSize: 16, lineHeight: 1.65, color: TOKENS.textSecondary }}>
+        <p className="mt-3 max-w-prose text-base leading-relaxed text-muted-foreground">
           Tell us who taught you well. We contact them, verify their experience, and list them only if they agree.
         </p>
 
-        <div style={{ marginTop: 28, padding: 'clamp(22px,3vw,32px)', borderRadius: 24, background: TOKENS.card, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+        <div className="mt-8 p-6 sm:p-8 rounded-2xl bg-card shadow-border">
           {submitted ? (
-            <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              <p style={{ fontSize: 18, fontWeight: 700, color: TOKENS.text }}>
+            <div className="text-center py-2">
+              <p className="text-lg font-semibold text-foreground">
                 Thanks — we will reach out to them this week.
               </p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 16 }}>
+            <form onSubmit={handleSubmit} className="grid gap-4">
               {/* Teacher's name */}
               <div>
-                <div style={labelStyle}>Teacher's name</div>
+                <label htmlFor="teacherName" className={LABEL}>Teacher's name</label>
                 <input
+                  id="teacherName"
                   name="teacherName"
                   placeholder="e.g. Ananya Ghosh"
                   value={formData.teacherName}
                   onChange={handleChange}
                   maxLength={100}
-                  style={inputStyle(!!error)}
+                  className={`${FIELD_BASE} ${error ? FIELD_ERROR : ''}`}
                 />
-                {error && <p style={{ marginTop: 6, fontSize: 13, color: TOKENS.error }}>{error}</p>}
+                {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
               </div>
 
               {/* Subject / Area pair */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 14 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <div style={labelStyle}>Subject</div>
+                  <label htmlFor="subject" className={LABEL}>Subject</label>
                   <input
+                    id="subject"
                     name="subject"
                     placeholder="e.g. Maths"
                     value={formData.subject}
                     onChange={handleChange}
                     maxLength={100}
-                    style={inputStyle()}
+                    className={FIELD_BASE}
                   />
                 </div>
                 <div>
-                  <div style={labelStyle}>Area they teach in</div>
+                  <label htmlFor="area" className={LABEL}>Area they teach in</label>
                   <input
+                    id="area"
                     name="area"
                     placeholder="e.g. Ballygunge"
                     value={formData.area}
                     onChange={handleChange}
                     maxLength={100}
-                    style={inputStyle()}
+                    className={FIELD_BASE}
                   />
                 </div>
               </div>
 
               {/* Contact */}
               <div>
-                <div style={labelStyle}>Their contact, if you have it</div>
+                <label htmlFor="contact" className={LABEL}>Their contact, if you have it</label>
                 <input
+                  id="contact"
                   name="contact"
                   placeholder="Phone or WhatsApp number"
                   value={formData.contact}
                   onChange={handleChange}
                   maxLength={50}
-                  style={inputStyle()}
+                  className={FIELD_BASE}
                 />
               </div>
 
               {/* Reason */}
               <div>
-                <div style={labelStyle}>Why you would recommend them</div>
+                <label htmlFor="reason" className={LABEL}>Why you would recommend them</label>
                 <textarea
+                  id="reason"
                   name="reason"
                   rows={4}
                   placeholder="A line or two is enough."
                   value={formData.reason}
                   onChange={handleChange}
                   maxLength={1000}
-                  style={{ ...fieldBase, boxShadow: `0 0 0 1px ${TOKENS.hairline}`, lineHeight: 1.5, resize: 'vertical' }}
+                  className={`${FIELD_BASE} leading-relaxed resize-y`}
                 />
               </div>
 
@@ -227,13 +204,12 @@ export default function RecommendTeacher() {
               <button
                 type="submit"
                 disabled={loading}
-                className="hover:opacity-90 active:scale-[0.97] transition-[opacity,transform] duration-150"
-                style={{ minHeight: 52, padding: 15, borderRadius: 12, background: TOKENS.text, color: '#fff', textAlign: 'center', fontSize: 15, fontWeight: 600, opacity: loading ? 0.7 : undefined }}
+                className="hover:opacity-90 active:scale-[0.97] transition-[opacity,transform] duration-150 min-h-[52px] p-4 rounded-lg bg-foreground text-background text-center text-base font-semibold disabled:opacity-70"
               >
                 Send recommendation
               </button>
 
-              <p style={{ fontSize: 12.5, lineHeight: 1.55, color: TOKENS.textTertiary }}>
+              <p className="text-xs leading-relaxed text-warm-meta">
                 We never publish a teacher's details without their consent, and we do not tell them who recommended them unless you ask us to.
               </p>
             </form>
@@ -242,6 +218,11 @@ export default function RecommendTeacher() {
       </div>
 
       <Footer />
+
+      <style>{`
+        .shikshaq-recommend-field { transition: box-shadow .15s ease; }
+        .shikshaq-recommend-field:focus { box-shadow: 0 0 0 2px hsl(var(--foreground)); outline: none; }
+      `}</style>
     </div>
   );
 }

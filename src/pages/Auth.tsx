@@ -8,35 +8,9 @@ import { z } from 'zod';
 import { Logo } from '@/components/Logo';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
 
-// Literal values from design_handoff_shikshaq/pages/Auth.md + _tokens.md.
-const TOKENS = {
-  shell: '#F9F5F1',
-  field: '#FCFAF7',
-  text: '#1F1F1F',
-  textSecondary: '#7B736B',
-  textTertiary: '#8B837A',
-  hairline: '#E7DFD5',
-  mutedFill: '#F0EAE2',
-  link: '#4351FF',
-  error: '#E5484D',
-};
-
-function fieldStyle(hasError?: boolean): React.CSSProperties {
-  return {
-    width: '100%',
-    boxSizing: 'border-box',
-    minHeight: 48,
-    padding: '13px 15px',
-    border: 0,
-    borderRadius: 12,
-    background: TOKENS.field,
-    boxShadow: `0 0 0 1px ${hasError ? TOKENS.error : TOKENS.hairline}`,
-    fontFamily: 'inherit',
-    fontSize: 15,
-    color: TOKENS.text,
-    outline: 'none',
-  };
-}
+const FIELD_BASE =
+  'w-full box-border min-h-12 px-4 py-3 rounded-lg bg-card text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline shikshaq-auth-field';
+const FIELD_ERROR = 'ring-destructive';
 
 const emailSchema = z.string().email('Please enter a valid email');
 const passwordSchema = z.string()
@@ -363,76 +337,59 @@ export default function Auth() {
   // Show loading state while processing OAuth callback
   if (processingOAuth || (authLoading && window.location.hash.includes('access_token'))) {
     return (
-      <div style={{ minHeight: '100vh', background: TOKENS.shell, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div
-            className="animate-spin"
-            style={{ borderRadius: 999, height: 48, width: 48, borderWidth: 2, borderStyle: 'solid', borderColor: TOKENS.hairline, borderBottomColor: '#FF8000', margin: '0 auto 16px' }}
-          />
-          <p style={{ color: TOKENS.textSecondary, fontSize: 15 }}>Completing sign in...</p>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
+          <p className="text-muted-foreground text-base">Completing sign in...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: TOKENS.shell, display: 'flex', flexDirection: 'column' }}>
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header style={{ padding: '16px clamp(16px,3vw,28px)' }}>
+      <header className="p-4 sm:p-6">
         <Link
           to="/"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 40, padding: '4px 0', margin: '-4px 0', fontSize: 14, fontWeight: 500, color: TOKENS.textSecondary }}
+          className="inline-flex items-center gap-2 min-h-11 py-1 -my-1 text-sm font-medium text-muted-foreground"
         >
           <ArrowLeft size={16} />
           Back to home
         </Link>
       </header>
 
-      {/* Main Content — 470px column, literal padding from pages/Auth.md */}
-      <main style={{ flex: 1 }}>
-        <div style={{ maxWidth: 470, margin: '0 auto', padding: 'clamp(28px,5vw,56px) clamp(16px,3vw,28px) 56px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+      {/* Main Content */}
+      <main className="flex-1">
+        <div className="max-w-[470px] mx-auto px-4 sm:px-6 pt-6 sm:pt-12 pb-16">
+          <div className="text-center mb-6">
             <Logo size="lg" className="justify-center" />
           </div>
 
           {/* Segmented tab pill — Sign in / Create account */}
           {!showResetPassword && (
-            <div style={{ display: 'flex', gap: 5, padding: 5, borderRadius: 14, background: TOKENS.mutedFill, marginBottom: 24 }}>
+            <div className="flex gap-1 p-1 rounded-2xl bg-muted mb-6">
               <button
                 type="button"
                 onClick={() => switchAuthMode(true)}
-                className="shikshaq-tap"
-                style={{
-                  flex: 1, padding: 12, borderRadius: 10, textAlign: 'center', fontSize: 14, fontWeight: 600,
-                  background: isLogin ? TOKENS.field : 'transparent',
-                  boxShadow: isLogin ? '0 1px 3px rgba(0,0,0,.10)' : 'none',
-                  color: TOKENS.text,
-                  transition: 'all .18s ease',
-                }}
+                className={`shikshaq-tap flex-1 min-h-11 p-3 rounded-lg text-center text-sm font-semibold text-foreground transition-all duration-150 ${isLogin ? 'bg-card shadow-border' : 'bg-transparent'}`}
               >
                 Sign in
               </button>
               <button
                 type="button"
                 onClick={() => switchAuthMode(false)}
-                className="shikshaq-tap"
-                style={{
-                  flex: 1, padding: 12, borderRadius: 10, textAlign: 'center', fontSize: 14, fontWeight: 600,
-                  background: !isLogin ? TOKENS.field : 'transparent',
-                  boxShadow: !isLogin ? '0 1px 3px rgba(0,0,0,.10)' : 'none',
-                  color: TOKENS.text,
-                  transition: 'all .18s ease',
-                }}
+                className={`shikshaq-tap flex-1 min-h-11 p-3 rounded-lg text-center text-sm font-semibold text-foreground transition-all duration-150 ${!isLogin ? 'bg-card shadow-border' : 'bg-transparent'}`}
               >
                 Create account
               </button>
             </div>
           )}
 
-          <h1 style={{ fontSize: 'clamp(26px,3.4vw,34px)', lineHeight: 1.05, fontWeight: 700, color: TOKENS.text, margin: 0 }}>
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
             {showResetPassword ? 'Reset your password' : isLogin ? 'Welcome back' : 'Create your account'}
           </h1>
-          <p style={{ marginTop: 12, fontSize: 15, lineHeight: 1.6, color: TOKENS.textSecondary }}>
+          <p className="mt-3 text-base leading-relaxed text-muted-foreground">
             {showResetPassword
               ? 'Enter your new password below'
               : isLogin
@@ -447,31 +404,25 @@ export default function Auth() {
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                className="shikshaq-tap"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                  width: '100%', minHeight: 44, marginTop: 24, padding: 15, borderRadius: 12,
-                  background: TOKENS.field, boxShadow: `0 0 0 1px ${TOKENS.hairline}`,
-                  fontSize: 15, fontWeight: 600, color: TOKENS.text,
-                }}
+                className="shikshaq-tap flex items-center justify-center gap-2 w-full min-h-11 mt-6 p-4 rounded-lg bg-card shadow-border text-base font-semibold text-foreground"
               >
                 <GoogleIcon size={20} />
                 Continue with Google
               </button>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '20px 0' }}>
-                <span style={{ flex: 1, height: 1, background: TOKENS.hairline }} />
-                <span style={{ fontSize: 12, color: TOKENS.textTertiary }}>or</span>
-                <span style={{ flex: 1, height: 1, background: TOKENS.hairline }} />
+              <div className="flex items-center gap-3 my-4">
+                <span className="flex-1 h-px bg-warm-hairline" />
+                <span className="text-xs text-warm-meta">or</span>
+                <span className="flex-1 h-px bg-warm-hairline" />
               </div>
             </>
           )}
 
           {/* Reset Password Form */}
           {showResetPassword ? (
-            <form onSubmit={handleResetPassword} style={{ marginTop: 24 }}>
-              <div style={{ marginBottom: 14 }}>
-                <label htmlFor="newPassword" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>New Password</label>
+            <form onSubmit={handleResetPassword} className="mt-6">
+              <div className="mb-4">
+                <label htmlFor="newPassword" className="block text-sm font-semibold text-foreground mb-2">New Password</label>
                 <input
                   id="newPassword"
                   name="newPassword"
@@ -480,16 +431,15 @@ export default function Auth() {
                   placeholder="Enter new password"
                   value={formData.newPassword}
                   onChange={handleInputChange}
-                  className={errors.newPassword ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
-                  style={fieldStyle(!!errors.newPassword)}
+                  className={`${FIELD_BASE} ${errors.newPassword ? FIELD_ERROR : ''}`}
                 />
                 {errors.newPassword && (
-                  <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.newPassword}</p>
+                  <p className="text-sm text-destructive mt-2">{errors.newPassword}</p>
                 )}
               </div>
 
-              <div style={{ marginBottom: 20 }}>
-                <label htmlFor="confirmNewPassword" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>Confirm New Password</label>
+              <div className="mb-6">
+                <label htmlFor="confirmNewPassword" className="block text-sm font-semibold text-foreground mb-2">Confirm New Password</label>
                 <input
                   id="confirmNewPassword"
                   name="confirmNewPassword"
@@ -498,22 +448,17 @@ export default function Auth() {
                   placeholder="Confirm new password"
                   value={formData.confirmNewPassword}
                   onChange={handleInputChange}
-                  className={errors.confirmNewPassword ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
-                  style={fieldStyle(!!errors.confirmNewPassword)}
+                  className={`${FIELD_BASE} ${errors.confirmNewPassword ? FIELD_ERROR : ''}`}
                 />
                 {errors.confirmNewPassword && (
-                  <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.confirmNewPassword}</p>
+                  <p className="text-sm text-destructive mt-2">{errors.confirmNewPassword}</p>
                 )}
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="shikshaq-tap"
-                style={{
-                  width: '100%', minHeight: 52, padding: 15, borderRadius: 12, background: TOKENS.text, color: '#fff',
-                  fontSize: 15, fontWeight: 600, opacity: loading ? .6 : 1, cursor: loading ? 'not-allowed' : 'pointer',
-                }}
+                className="shikshaq-tap w-full min-h-[52px] p-4 rounded-lg bg-foreground text-background text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? 'Updating password...' : 'Update Password'}
               </button>
@@ -523,8 +468,8 @@ export default function Auth() {
             <form onSubmit={isLogin ? handleSignIn : handleSignUp}>
               {/* Full Name — signup only, entering with rise */}
               {!isLogin && (
-                <div style={{ marginBottom: 14, animation: 'shikshaqAuthRise .25s ease-out both' }}>
-                  <label htmlFor="fullName" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>Full name</label>
+                <div className="mb-4 animate-fade-slide-up">
+                  <label htmlFor="fullName" className="block text-sm font-semibold text-foreground mb-2">Full name</label>
                   <input
                     id="fullName"
                     name="fullName"
@@ -533,19 +478,18 @@ export default function Auth() {
                     placeholder="Enter your name"
                     value={formData.fullName}
                     onChange={handleInputChange}
-                    className={errors.fullName ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
-                    style={fieldStyle(!!errors.fullName)}
+                    className={`${FIELD_BASE} ${errors.fullName ? FIELD_ERROR : ''}`}
                   />
                   {errors.fullName && (
-                    <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.fullName}</p>
+                    <p className="text-sm text-destructive mt-2">{errors.fullName}</p>
                   )}
                 </div>
               )}
 
               {/* Email — hidden while the dedicated forgot-password field is showing */}
               {!showForgotPassword && (
-                <div style={{ marginBottom: 14 }}>
-                  <label htmlFor="email" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>Email</label>
+                <div className="mb-4">
+                  <label htmlFor="email" className="block text-sm font-semibold text-foreground mb-2">Email</label>
                   <input
                     id="email"
                     name="email"
@@ -557,20 +501,19 @@ export default function Auth() {
                     placeholder="Enter your email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className={errors.email ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
-                    style={fieldStyle(!!errors.email)}
+                    className={`${FIELD_BASE} ${errors.email ? FIELD_ERROR : ''}`}
                   />
                   {errors.email && (
-                    <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.email}</p>
+                    <p className="text-sm text-destructive mt-2">{errors.email}</p>
                   )}
                 </div>
               )}
 
               {/* Password */}
               {!showForgotPassword && (
-                <div style={{ marginBottom: !isLogin ? 14 : 20 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-                    <label htmlFor="password" style={{ fontSize: 13, fontWeight: 600, color: TOKENS.text }}>Password</label>
+                <div className={isLogin ? 'mb-6' : 'mb-4'}>
+                  <div className="flex items-center justify-between mb-2">
+                    <label htmlFor="password" className="text-sm font-semibold text-foreground">Password</label>
                     {isLogin && (
                       <button
                         type="button"
@@ -579,8 +522,7 @@ export default function Auth() {
                           setErrors({});
                           setFormData({ ...formData, password: '' });
                         }}
-                        className="shikshaq-tap"
-                        style={{ fontSize: 13, fontWeight: 600, color: TOKENS.link }}
+                        className="shikshaq-tap text-sm font-semibold text-brand-blue"
                       >
                         Forgot password?
                       </button>
@@ -594,11 +536,10 @@ export default function Auth() {
                     placeholder={isLogin ? 'Enter your password' : 'Create a password'}
                     value={formData.password}
                     onChange={handleInputChange}
-                    className={errors.password ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
-                    style={fieldStyle(!!errors.password)}
+                    className={`${FIELD_BASE} ${errors.password ? FIELD_ERROR : ''}`}
                   />
                   {errors.password && (
-                    <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.password}</p>
+                    <p className="text-sm text-destructive mt-2">{errors.password}</p>
                   )}
                 </div>
               )}
@@ -606,8 +547,8 @@ export default function Auth() {
               {/* Forgot Password mini-form */}
               {showForgotPassword && (
                 <div>
-                  <div style={{ marginBottom: 20 }}>
-                    <label htmlFor="forgotEmail" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>Email</label>
+                  <div className="mb-6">
+                    <label htmlFor="forgotEmail" className="block text-sm font-semibold text-foreground mb-2">Email</label>
                     <input
                       id="forgotEmail"
                       name="email"
@@ -619,14 +560,13 @@ export default function Auth() {
                       placeholder="Enter your email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className={errors.email ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
-                      style={fieldStyle(!!errors.email)}
+                      className={`${FIELD_BASE} ${errors.email ? FIELD_ERROR : ''}`}
                     />
                     {errors.email && (
-                      <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.email}</p>
+                      <p className="text-sm text-destructive mt-2">{errors.email}</p>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: 10 }}>
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -634,8 +574,7 @@ export default function Auth() {
                         setErrors({});
                         setFormData({ ...formData, email: '' });
                       }}
-                      className="shikshaq-tap"
-                      style={{ flex: 1, minHeight: 48, borderRadius: 12, background: TOKENS.field, boxShadow: `0 0 0 1px ${TOKENS.hairline}`, fontSize: 14, fontWeight: 600, color: TOKENS.text }}
+                      className="shikshaq-tap flex-1 min-h-12 rounded-lg bg-card shadow-border text-sm font-semibold text-foreground"
                     >
                       Back
                     </button>
@@ -643,13 +582,12 @@ export default function Auth() {
                       type="button"
                       onClick={handleForgotPassword}
                       disabled={loading}
-                      className="shikshaq-tap"
-                      style={{ flex: 1, minHeight: 48, borderRadius: 12, background: TOKENS.text, color: '#fff', fontSize: 14, fontWeight: 600, opacity: loading ? .6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+                      className="shikshaq-tap flex-1 min-h-12 rounded-lg bg-foreground text-background text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {loading ? 'Sending...' : 'Send Reset Link'}
                     </button>
                   </div>
-                  <p style={{ marginTop: 14, fontSize: 13, color: TOKENS.textSecondary }}>
+                  <p className="mt-4 text-sm text-muted-foreground">
                     We'll send you a link to reset your password
                   </p>
                 </div>
@@ -657,8 +595,8 @@ export default function Auth() {
 
               {/* Confirm Password — signup only */}
               {!isLogin && !showForgotPassword && (
-                <div style={{ marginBottom: 20 }}>
-                  <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 7 }}>Confirm Password</label>
+                <div className="mb-6">
+                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-foreground mb-2">Confirm Password</label>
                   <input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -667,11 +605,10 @@ export default function Auth() {
                     placeholder="Confirm your password"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    className={errors.confirmPassword ? 'shikshaq-auth-field shikshaq-auth-field-error' : 'shikshaq-auth-field'}
-                    style={fieldStyle(!!errors.confirmPassword)}
+                    className={`${FIELD_BASE} ${errors.confirmPassword ? FIELD_ERROR : ''}`}
                   />
                   {errors.confirmPassword && (
-                    <p style={{ fontSize: 12.5, color: TOKENS.error, marginTop: 6 }}>{errors.confirmPassword}</p>
+                    <p className="text-sm text-destructive mt-2">{errors.confirmPassword}</p>
                   )}
                 </div>
               )}
@@ -680,11 +617,7 @@ export default function Auth() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="shikshaq-tap"
-                  style={{
-                    width: '100%', minHeight: 52, padding: 15, borderRadius: 12, background: TOKENS.text, color: '#fff',
-                    fontSize: 15, fontWeight: 600, opacity: loading ? .6 : 1, cursor: loading ? 'not-allowed' : 'pointer',
-                  }}
+                  className="shikshaq-tap w-full min-h-[52px] p-4 rounded-lg bg-foreground text-background text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
                 </button>
@@ -694,11 +627,11 @@ export default function Auth() {
 
           {/* Legal note — verbatim copy from the design spec */}
           {!showResetPassword && !showForgotPassword && (
-            <p style={{ marginTop: 18, fontSize: 12.5, lineHeight: 1.55, color: TOKENS.textTertiary }}>
+            <p className="mt-4 text-xs leading-relaxed text-warm-meta">
               By continuing you agree to our{' '}
-              <Link to="/terms-of-service" style={{ color: TOKENS.link, fontWeight: 600 }}>Terms of Service</Link>
+              <Link to="/terms-of-service" className="text-brand-blue font-semibold">Terms of Service</Link>
               {' '}and{' '}
-              <Link to="/privacy-policy" style={{ color: TOKENS.link, fontWeight: 600 }}>Privacy Policy</Link>.
+              <Link to="/privacy-policy" className="text-brand-blue font-semibold">Privacy Policy</Link>.
               {' '}Your number is never shared with a teacher until you message them.
             </p>
           )}
@@ -706,13 +639,8 @@ export default function Auth() {
       </main>
 
       <style>{`
-        @keyframes shikshaqAuthRise {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: none; }
-        }
         .shikshaq-auth-field { transition: box-shadow .15s ease; }
-        .shikshaq-auth-field:focus { box-shadow: 0 0 0 2px ${TOKENS.text} !important; }
-        .shikshaq-auth-field-error:focus { box-shadow: 0 0 0 2px ${TOKENS.error} !important; }
+        .shikshaq-auth-field:focus { box-shadow: 0 0 0 2px hsl(var(--foreground)) !important; outline: none; }
       `}</style>
     </div>
   );
