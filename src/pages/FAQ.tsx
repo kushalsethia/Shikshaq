@@ -11,16 +11,16 @@ export default function FAQPage() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+    <div className="min-h-screen bg-background">
       <FAQSchema faqs={FAQ_ITEMS} url="/faq" />
       <Navbar />
 
-      <div style={{ maxWidth: 820, margin: '0 auto', padding: 'clamp(28px,5vw,56px) clamp(16px,3vw,28px) 56px' }}>
-        <h1 style={{ fontSize: 'clamp(26px,3.6vw,38px)', lineHeight: 1.02, fontWeight: 700, color: '#1F1F1F' }}>
+      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
           Frequently asked questions
         </h1>
 
-        <div style={{ marginTop: 26 }}>
+        <div className="mt-6">
           <FAQ items={FAQ_ITEMS} questionSize={16.5} heading={false} />
         </div>
       </div>
