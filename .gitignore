@@ -28,3 +28,6 @@ dist-ssr
 
 # Docs (optional / local)
 docs/GOOGLE_AUTH_CUSTOM_DOMAIN.md
+
+# Claude Code agent worktree scratch space
+.claude/worktrees/
