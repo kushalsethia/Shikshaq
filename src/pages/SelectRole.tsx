@@ -17,34 +17,9 @@ import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
 
-const TOKENS = {
-  bg: '#F9F5F1',
-  card: '#FCFAF7',
-  text: '#1F1F1F',
-  textSecondary: '#7B736B',
-  hairline: '#E7DFD5',
-  orange: '#FF8000',
-  orangeText: '#B35900',
-  orangeTint: '#FFF4E8',
-  blue: '#4351FF',
-  blueTint: '#EDEEFF',
-};
-
-function fieldStyle(): React.CSSProperties {
-  return {
-    width: '100%',
-    minHeight: 48,
-    borderRadius: 12,
-    background: TOKENS.bg,
-    boxShadow: `0 0 0 1px ${TOKENS.hairline}`,
-    fontSize: 15,
-    color: TOKENS.text,
-    outline: 'none',
-    padding: '0 14px',
-  };
-}
-
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 600, color: TOKENS.text, marginBottom: 8 };
+const FIELD_CLASS =
+  'w-full min-h-12 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline px-4 shikshaq-role-field';
+const LABEL_CLASS = 'block text-sm font-semibold text-foreground mb-2';
 
 function isValidRedirect(path: string | null): path is string {
   return !!path && path.startsWith('/') && !path.startsWith('//');
@@ -204,15 +179,12 @@ export default function SelectRole() {
   // Show loading state only while checking auth or initial role check
   if (authLoading || checkingRole) {
     return (
-      <div style={{ minHeight: '100vh', background: TOKENS.bg, display: 'flex', flexDirection: 'column' }}>
+      <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div
-              className="animate-spin"
-              style={{ borderRadius: 999, height: 32, width: 32, borderWidth: 2, borderStyle: 'solid', borderColor: TOKENS.hairline, borderBottomColor: TOKENS.orange, margin: '0 auto 16px' }}
-            />
-            <p style={{ color: TOKENS.textSecondary, fontSize: 15 }}>Loading...</p>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
+            <p className="text-muted-foreground text-base">Loading...</p>
           </div>
         </div>
         <Footer />
@@ -228,14 +200,13 @@ export default function SelectRole() {
   // If no user, show sign-in prompt
   if (!user) {
     return (
-      <div style={{ minHeight: '100vh', background: TOKENS.bg }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <div style={{ padding: 'clamp(28px,5vw,56px) clamp(16px,3vw,28px) 56px', textAlign: 'center' }}>
-          <p style={{ marginBottom: 16, fontSize: 15, color: TOKENS.textSecondary }}>You must be signed in to continue.</p>
+        <div className="px-4 sm:px-6 pt-6 sm:pt-12 pb-16 text-center">
+          <p className="mb-4 text-base text-muted-foreground">You must be signed in to continue.</p>
           <button
             onClick={() => navigate(isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth')}
-            className="active:scale-[0.98] transition-transform duration-150"
-            style={{ minHeight: 48, padding: '0 24px', borderRadius: 12, background: TOKENS.text, color: '#fff', fontSize: 15, fontWeight: 700 }}
+            className="active:scale-[0.98] transition-transform duration-150 min-h-12 px-6 rounded-lg bg-foreground text-background text-base font-bold"
           >
             Sign In
           </button>
@@ -246,86 +217,66 @@ export default function SelectRole() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: TOKENS.bg, display: 'flex', flexDirection: 'column' }}>
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
-      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'clamp(32px,6vw,64px) clamp(16px,3vw,28px)' }}>
-        <div style={{ width: '100%', maxWidth: 480 }}>
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16">
+        <div className="w-full max-w-[480px]">
+          <div className="text-center mb-8">
             <Logo size="lg" className="mx-auto mb-4" />
-            <h1 style={{ fontSize: 'clamp(26px,3.6vw,38px)', lineHeight: 1.02, fontWeight: 700, color: TOKENS.text }}>
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
               Complete your profile
             </h1>
-            <p style={{ marginTop: 10, fontSize: 15, lineHeight: 1.6, color: TOKENS.textSecondary }}>
+            <p className="mt-2 text-base leading-relaxed text-muted-foreground">
               Please select whether you are a student or guardian
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <div>
-              <label style={labelStyle}>I am a...</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <label className={LABEL_CLASS}>I am a...</label>
+              <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
                   onClick={() => setRole('student')}
-                  className="active:scale-[0.98] transition-transform duration-150"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 10,
-                    padding: '24px 16px',
-                    borderRadius: 20,
-                    background: role === 'student' ? TOKENS.orangeTint : TOKENS.card,
-                    boxShadow: role === 'student' ? `0 0 0 2px ${TOKENS.orange}` : '0 0 0 1px rgba(0,0,0,.06)',
-                  }}
+                  aria-pressed={role === 'student'}
+                  className={`active:scale-[0.98] transition-transform duration-150 flex flex-col items-center justify-center gap-2 py-6 px-4 rounded-2xl ${role === 'student' ? 'bg-brand-subtle ring-2 ring-brand' : 'bg-card shadow-border'}`}
                 >
-                  <GraduationCap style={{ width: 28, height: 28, color: role === 'student' ? TOKENS.orangeText : TOKENS.text }} />
-                  <span style={{ fontSize: 15, fontWeight: 600, color: TOKENS.text }}>Student</span>
+                  <GraduationCap className={`w-7 h-7 ${role === 'student' ? 'text-brand-deep' : 'text-foreground'}`} />
+                  <span className="text-base font-semibold text-foreground">Student</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setRole('guardian')}
-                  className="active:scale-[0.98] transition-transform duration-150"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 10,
-                    padding: '24px 16px',
-                    borderRadius: 20,
-                    background: role === 'guardian' ? TOKENS.blueTint : TOKENS.card,
-                    boxShadow: role === 'guardian' ? `0 0 0 2px ${TOKENS.blue}` : '0 0 0 1px rgba(0,0,0,.06)',
-                  }}
+                  aria-pressed={role === 'guardian'}
+                  className={`active:scale-[0.98] transition-transform duration-150 flex flex-col items-center justify-center gap-2 py-6 px-4 rounded-2xl ${role === 'guardian' ? 'bg-brand-blue-subtle ring-2 ring-brand-blue' : 'bg-card shadow-border'}`}
                 >
-                  <Users style={{ width: 28, height: 28, color: role === 'guardian' ? TOKENS.blue : TOKENS.text }} />
-                  <span style={{ fontSize: 15, fontWeight: 600, color: TOKENS.text }}>Guardian</span>
+                  <Users className={`w-7 h-7 ${role === 'guardian' ? 'text-brand-blue' : 'text-foreground'}`} />
+                  <span className="text-base font-semibold text-foreground">Guardian</span>
                 </button>
               </div>
             </div>
 
             {role === 'student' && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-300" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300 flex flex-col gap-6">
                 <div>
-                  <label htmlFor="school_college" style={labelStyle}>
-                    School / College <span style={{ color: '#B3261E' }}>*</span>
+                  <label htmlFor="school_college" className={LABEL_CLASS}>
+                    School / College <span className="text-destructive">*</span>
                   </label>
                   <input
                     id="school_college"
                     placeholder="e.g. Delhi Public School"
                     value={schoolCollege}
                     onChange={(e) => setSchoolCollege(e.target.value)}
-                    style={fieldStyle()}
+                    className={FIELD_CLASS}
                   />
                 </div>
                 <div>
-                  <label htmlFor="grade" style={labelStyle}>
-                    Grade <span style={{ color: '#B3261E' }}>*</span>
+                  <label htmlFor="grade" className={LABEL_CLASS}>
+                    Grade <span className="text-destructive">*</span>
                   </label>
                   <Select value={grade} onValueChange={setGrade}>
-                    <SelectTrigger id="grade" style={{ ...fieldStyle(), border: 'none' }}>
+                    <SelectTrigger id="grade" className={FIELD_CLASS}>
                       <SelectValue placeholder="Select grade" />
                     </SelectTrigger>
                     <SelectContent>
@@ -353,20 +304,20 @@ export default function SelectRole() {
             )}
 
             {/* Terms and Privacy Policy Checkbox */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <div className="flex items-start gap-3">
               <Checkbox
                 id="terms"
                 checked={termsAgreed}
                 onCheckedChange={(checked) => setTermsAgreed(checked === true)}
                 className="mt-1"
               />
-              <label htmlFor="terms" style={{ fontSize: 13.5, lineHeight: 1.55, color: '#4A443E', cursor: 'pointer' }}>
+              <label htmlFor="terms" className="text-sm leading-relaxed text-warm-prose cursor-pointer">
                 I agree to the{' '}
-                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" style={{ color: TOKENS.blue, textDecoration: 'underline' }}>
+                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
                   Terms of Service
                 </a>
                 {' '}and{' '}
-                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: TOKENS.blue, textDecoration: 'underline' }}>
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
                   Privacy Policy
                 </a>
                 {' '}to connect with teachers.
@@ -376,17 +327,7 @@ export default function SelectRole() {
             <button
               type="submit"
               disabled={loading || !role || !termsAgreed || (role === 'student' && (!schoolCollege.trim() || !grade))}
-              className="active:scale-[0.98] transition-transform duration-150"
-              style={{
-                width: '100%',
-                minHeight: 50,
-                borderRadius: 12,
-                background: TOKENS.text,
-                color: '#fff',
-                fontSize: 15,
-                fontWeight: 700,
-                opacity: (loading || !role || !termsAgreed || (role === 'student' && (!schoolCollege.trim() || !grade))) ? 0.5 : 1,
-              }}
+              className="active:scale-[0.98] transition-transform duration-150 w-full min-h-[50px] rounded-lg bg-foreground text-background text-base font-bold disabled:opacity-50"
             >
               {loading ? 'Creating profile...' : 'Continue'}
             </button>
@@ -395,6 +336,11 @@ export default function SelectRole() {
       </main>
 
       <Footer />
+
+      <style>{`
+        .shikshaq-role-field:focus,
+        .shikshaq-role-field:focus-within { box-shadow: 0 0 0 2px hsl(var(--foreground)); outline: none; }
+      `}</style>
     </div>
   );
 }

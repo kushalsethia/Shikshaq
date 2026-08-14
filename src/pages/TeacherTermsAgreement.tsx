@@ -10,16 +10,6 @@ import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
 
-const TOKENS = {
-  bg: '#F9F5F1',
-  card: '#FCFAF7',
-  text: '#1F1F1F',
-  textSecondary: '#7B736B',
-  hairline: '#E7DFD5',
-  mutedFill: '#F0EAE2',
-  blue: '#4351FF',
-};
-
 function isValidRedirect(path: string | null): path is string {
   return !!path && path.startsWith('/') && !path.startsWith('//');
 }
@@ -177,15 +167,12 @@ export default function TeacherTermsAgreement() {
   // Show loading state while checking
   if (authLoading || checking) {
     return (
-      <div style={{ minHeight: '100vh', background: TOKENS.bg, display: 'flex', flexDirection: 'column' }}>
+      <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div
-              className="animate-spin"
-              style={{ borderRadius: 999, height: 32, width: 32, borderWidth: 2, borderStyle: 'solid', borderColor: TOKENS.hairline, borderBottomColor: '#FF8000', margin: '0 auto 16px' }}
-            />
-            <p style={{ color: TOKENS.textSecondary, fontSize: 15 }}>Loading...</p>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
+            <p className="text-muted-foreground text-base">Loading...</p>
           </div>
         </div>
         <Footer />
@@ -199,30 +186,30 @@ export default function TeacherTermsAgreement() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: TOKENS.bg, display: 'flex', flexDirection: 'column' }}>
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
-      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'clamp(32px,6vw,64px) clamp(16px,3vw,28px)' }}>
-        <div style={{ width: '100%', maxWidth: 480 }}>
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16">
+        <div className="w-full max-w-[480px]">
+          <div className="text-center mb-8">
             <Logo size="lg" className="mx-auto mb-4" />
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-              <UserCheck style={{ width: 44, height: 44, color: TOKENS.blue }} />
+            <div className="flex justify-center mb-4">
+              <UserCheck className="w-11 h-11 text-brand-blue" />
             </div>
-            <h1 style={{ fontSize: 'clamp(26px,3.6vw,38px)', lineHeight: 1.02, fontWeight: 700, color: TOKENS.text }}>
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
               Verify your consent
             </h1>
-            <p style={{ marginTop: 10, fontSize: 16, lineHeight: 1.7, color: '#4A443E' }}>
+            <p className="mt-2 text-base leading-relaxed text-warm-prose">
               We've detected that you're a teacher on our platform. Please verify your consent to continue.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div style={{ padding: 18, borderRadius: 16, background: TOKENS.mutedFill }}>
-              <p style={{ marginBottom: 10, fontSize: 14.5, fontWeight: 600, color: TOKENS.text }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="p-4 rounded-2xl bg-muted">
+              <p className="mb-2 text-sm font-semibold text-foreground">
                 As a teacher on Shikshaq, you agree to:
               </p>
-              <ul style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, lineHeight: 1.6, color: TOKENS.textSecondary, paddingLeft: 18, listStyleType: 'disc' }}>
+              <ul className="flex flex-col gap-2 text-sm leading-relaxed text-muted-foreground pl-4 list-disc">
                 <li>Provide accurate information about your qualifications and teaching experience</li>
                 <li>Maintain professional conduct when interacting with students and parents</li>
                 <li>Respect student privacy and confidentiality</li>
@@ -231,20 +218,20 @@ export default function TeacherTermsAgreement() {
             </div>
 
             {/* Terms and Privacy Policy Checkbox */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <div className="flex items-start gap-3">
               <Checkbox
                 id="terms"
                 checked={termsAgreed}
                 onCheckedChange={(checked) => setTermsAgreed(checked === true)}
                 className="mt-1"
               />
-              <label htmlFor="terms" style={{ fontSize: 13.5, lineHeight: 1.55, color: '#4A443E', cursor: 'pointer' }}>
+              <label htmlFor="terms" className="text-sm leading-relaxed text-warm-prose cursor-pointer">
                 I agree to the{' '}
-                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" style={{ color: TOKENS.blue, textDecoration: 'underline' }}>
+                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
                   Terms of Service
                 </a>
                 {' '}and{' '}
-                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: TOKENS.blue, textDecoration: 'underline' }}>
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
                   Privacy Policy
                 </a>
                 {' '}and consent to be listed as a teacher on Shikshaq.
@@ -254,17 +241,7 @@ export default function TeacherTermsAgreement() {
             <button
               type="submit"
               disabled={loading || !termsAgreed}
-              className="active:scale-[0.98] transition-transform duration-150"
-              style={{
-                width: '100%',
-                minHeight: 50,
-                borderRadius: 12,
-                background: TOKENS.text,
-                color: '#fff',
-                fontSize: 15,
-                fontWeight: 700,
-                opacity: (loading || !termsAgreed) ? 0.5 : 1,
-              }}
+              className="active:scale-[0.98] transition-transform duration-150 w-full min-h-[50px] rounded-lg bg-foreground text-background text-base font-bold disabled:opacity-50"
             >
               {loading ? 'Verifying...' : 'Verify consent & continue'}
             </button>
