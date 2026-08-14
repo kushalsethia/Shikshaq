@@ -122,26 +122,26 @@ export default function Help() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div style={{ maxWidth: 820, margin: '0 auto', padding: 'clamp(28px,5vw,56px) clamp(16px,3vw,28px) 56px' }}>
-        <h1 style={{ fontSize: 'clamp(26px,3.6vw,38px)', lineHeight: 1.02, fontWeight: 700 }}>Help</h1>
-        <p style={{ marginTop: 14, maxWidth: '62ch', fontSize: 16, lineHeight: 1.65, color: '#7B736B' }}>
+      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">Help</h1>
+        <p className="mt-3 max-w-prose text-base text-muted-foreground">
           Short answers to the things people actually write in about. If none of it fits, message us on WhatsApp and a person replies.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16, marginTop: 28 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-8">
           {topics.map((topic) => (
-            <div key={topic.title} style={{ padding: 22, borderRadius: 20, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 9 }}>{topic.title}</h3>
-              <p style={{ fontSize: 14.5, lineHeight: 1.6, color: '#7B736B' }}>{topic.body}</p>
+            <div key={topic.title} className="p-4 sm:p-6 rounded-2xl bg-card shadow-border">
+              <h3 className="text-base font-semibold text-foreground mb-2">{topic.title}</h3>
+              <p className="text-sm text-muted-foreground">{topic.body}</p>
             </div>
           ))}
         </div>
 
-        <div style={{ marginTop: 22, padding: 24, borderRadius: 20, background: '#F0EAE2', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-          <p style={{ fontSize: 15, lineHeight: 1.55, color: '#4A443E', maxWidth: '44ch' }}>
+        <div className="mt-6 p-4 sm:p-6 rounded-2xl bg-muted flex flex-wrap items-center justify-between gap-4">
+          <p className="text-sm text-warm-prose max-w-prose">
             Still stuck? We answer on WhatsApp between 8am and 10pm, Monday to Saturday.
           </p>
           <a
@@ -149,32 +149,22 @@ export default function Help() {
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleWhatsAppClick}
-            style={{ minHeight: 48, padding: '14px 22px', borderRadius: 12, background: '#25D366', color: '#0B3D1F', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9 }}
+            className="min-h-12 px-6 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2"
+            /* WhatsApp's own brand green — no token exists for it in the design
+               system (see final report: "not covered" per VISUAL_LANGUAGE §0). */
+            style={{ background: '#25D366', color: '#0B3D1F' }}
           >
-            <WhatsAppIcon className="w-4 h-4 text-[#0B3D1F]" />
+            <WhatsAppIcon className="w-4 h-4" style={{ color: '#0B3D1F' }} />
             Message Shikshaq
           </a>
         </div>
 
-        <p style={{ marginTop: 20, fontSize: 13.5, color: '#8B837A' }}>
+        <p className="mt-6 text-xs text-warm-meta">
           Got feedback instead of a question?{' '}
           <button
             type="button"
             onClick={() => setFeedbackOpen(true)}
-            style={{
-              font: 'inherit',
-              fontSize: 13.5,
-              color: '#4351FF',
-              textDecoration: 'underline',
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: 44,
-              verticalAlign: 'middle',
-            }}
+            className="inline-flex items-center min-h-11 text-xs text-brand-blue underline bg-transparent border-0 p-0 cursor-pointer align-middle"
           >
             Tell us here
           </button>

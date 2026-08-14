@@ -133,11 +133,11 @@ export default function WhatsAppRedirect() {
   if (status === 'notfound') {
     return (
       <Shell>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: '#1F1F1F' }}>Teacher not found</h1>
-        <p style={{ color: '#7B736B', marginTop: 8 }}>
+        <h1 className="text-lg font-semibold text-foreground">Teacher not found</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           We couldn't find this teacher. They may no longer be listed.
         </p>
-        <Button asChild className="mt-6" style={{ background: '#1F1F1F', color: '#fff', borderRadius: 12 }}>
+        <Button asChild className="mt-6 rounded-lg bg-primary text-primary-foreground">
           <Link to="/all-tuition-teachers-in-kolkata">Browse all teachers</Link>
         </Button>
       </Shell>
@@ -146,13 +146,18 @@ export default function WhatsAppRedirect() {
 
   return (
     <Shell>
-      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, borderRadius: 999, background: '#E6F4E6', margin: '0 auto' }}>
-        <WhatsAppIcon className="w-8 h-8 text-[#228B22]" />
+      {/* Light green icon well — WhatsApp's own brand green, no token exists
+          for it in the design system (see final report: "not covered"). */}
+      <span
+        className="inline-flex items-center justify-center w-16 h-16 rounded-full mx-auto"
+        style={{ background: '#E6F4E6' }}
+      >
+        <WhatsAppIcon className="w-8 h-8" style={{ color: '#228B22' }} />
       </span>
-      <h1 style={{ fontSize: 20, fontWeight: 600, color: '#1F1F1F', marginTop: 16 }}>
+      <h1 className="mt-4 text-lg font-semibold text-foreground">
         {status === 'manual' ? 'Ready to message' : 'Opening WhatsApp…'}
       </h1>
-      <p style={{ color: '#7B736B', marginTop: 8 }}>
+      <p className="mt-2 text-sm text-muted-foreground">
         {name ? `Connecting you with ${name}.` : 'Connecting you with your teacher.'}
       </p>
 
@@ -161,8 +166,10 @@ export default function WhatsAppRedirect() {
       {url && (
         <Button
           asChild
-          className="mt-6 gap-2"
-          style={{ background: '#25D366', color: '#0B3D1F', borderRadius: 12, fontWeight: 700 }}
+          className="mt-6 gap-2 rounded-lg font-bold"
+          /* WhatsApp's own brand green — no token exists for it (flagged in
+             the final report as "not covered" per VISUAL_LANGUAGE §0). */
+          style={{ background: '#25D366', color: '#0B3D1F' }}
         >
           <a href={url} rel="noopener noreferrer">
             <WhatsAppIcon className="w-5 h-5" />
@@ -172,7 +179,7 @@ export default function WhatsAppRedirect() {
       )}
 
       <div className="mt-4">
-        <Link to={profilePath} style={{ fontSize: 13, fontWeight: 600, color: '#8B837A' }}>
+        <Link to={profilePath} className="text-xs font-semibold text-warm-meta">
           {name ? `← Back to ${name}` : '← Back to profile'}
         </Link>
       </div>
@@ -182,8 +189,8 @@ export default function WhatsAppRedirect() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ textAlign: 'center', maxWidth: 380 }}>{children}</div>
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="text-center max-w-sm">{children}</div>
     </div>
   );
 }
