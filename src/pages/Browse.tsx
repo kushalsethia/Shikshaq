@@ -66,7 +66,7 @@ function TeacherCardSkeletons({ count }: { count: number }) {
   return (
     <div className="shikshaq-teacher-grid">
       {[...Array(count)].map((_, i) => (
-        <div key={i} className="animate-pulse" style={{ borderRadius: 18, aspectRatio: '4/5', background: '#F0EAE2' }} />
+        <div key={i} className="animate-shimmer aspect-[4/5] rounded-[18px] bg-warm-band" />
       ))}
     </div>
   );
@@ -1231,14 +1231,19 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
   }, [loading, displayedTeachers.length, filters]);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
-        <Link to="/" className="shikshaq-tap" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '4px 0', margin: '-6px 0 14px', fontSize: 13, fontWeight: 600, color: '#8B837A' }}>← Home</Link>
-        <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', lineHeight: 1, fontWeight: 700 }}>{getHeading()}</h1>
-        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <p style={{ fontSize: 15, color: '#7B736B', fontVariantNumeric: 'tabular-nums' }}>
+      <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-5 sm:pt-8 pb-16">
+        <Link
+          to="/"
+          className="shikshaq-tap -mt-1.5 mb-3.5 inline-flex min-h-11 items-center py-1 text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+        >
+          ← Home
+        </Link>
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-none">{getHeading()}</h1>
+        <div className="mt-2 flex items-center justify-between gap-2.5">
+          <p className="text-sm text-muted-foreground tabular-nums">
             {loading ? 'Loading…' : `${teachers.length} teachers match`}
           </p>
 
@@ -1246,18 +1251,14 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
               inline in the header row, not floating — Chatbot.tsx already owns a fixed
               bottom-right "Ask AI" button on every page, and a second floating control there
               would collide with/be confused for it. */}
-          <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => handleSearchModeChange('papers')}
               aria-label="Looking for exam papers instead? See past papers"
-              className="shikshaq-tap"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: '50%' }}
+              className="shikshaq-tap flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <span
-                className="flex items-center justify-center rounded-full"
-                style={{ width: 32, height: 32, boxShadow: '0 0 0 1px #E7DFD5', background: '#FCFAF7', color: '#7B736B' }}
-              >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-warm-secondary shadow-border">
                 <HelpCircle size={17} />
               </span>
             </button>
@@ -1270,7 +1271,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           </div>
         </div>
 
-        <div ref={searchControlWrapRef} style={{ marginTop: 20, maxWidth: 820 }}>
+        <div ref={searchControlWrapRef} className="mt-5 max-w-[820px]">
           <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
         </div>
 
@@ -1278,7 +1279,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
             aren't part of the literal Browse.md mockup — that only models the applied-filter
             row below — but they're the only way to set board/class-size/mode/area/fees/
             experience filters at all, so they stay. Sized to the 44px touch-target rule. */}
-        <div style={{ marginTop: 20 }}>
+        <div className="mt-5">
           {/* flex-nowrap + flex-1/min-w-0 selects so this genuinely fits on one line down to a
               375px viewport instead of just wrapping onto a second line — the fixed w-[150px]/
               w-[130px] triggers used to overflow narrow screens. Selects revert to their original
@@ -1315,8 +1316,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
 
             <button
               onClick={() => setFilterPanelOpen(true)}
-              className="shikshaq-outline-btn shrink-0 flex items-center gap-1.5 sm:gap-[7px] min-h-11 px-2.5 sm:px-[15px] py-2 rounded-[10px] text-xs sm:text-[13px] font-semibold"
-              style={{ boxShadow: '0 0 0 1px #E7DFD5', color: '#1F1F1F', transition: 'background-color .15s ease, transform .15s ease-out' }}
+              className="shikshaq-outline-btn shrink-0 flex items-center gap-1.5 sm:gap-[7px] min-h-11 px-2.5 sm:px-[15px] py-2 rounded-lg text-xs sm:text-[13px] font-semibold text-foreground shadow-border transition-colors duration-150"
             >
               <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span className="whitespace-nowrap">More filters</span>
@@ -1324,7 +1324,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
                 filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
                 filters.placeOfTeaching.length > 0 || filters.minExperience != null) && (
-                <span style={{ padding: '1px 7px', borderRadius: 999, background: '#FF8000', color: '#1F1F1F', fontSize: 11, fontWeight: 700 }}>
+                <span className="rounded-full bg-brand px-[7px] py-px text-[11px] font-bold text-foreground">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
                    filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
                    filters.placeOfTeaching.length + (filters.minExperience != null ? 1 : 0)}
@@ -1342,7 +1342,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           onEditSearch={handleEditSearch}
           handoff={{ label: 'See papers with these filters →', onClick: () => handleSearchModeChange('papers') }}
           carryOverNote="Subject, class and board carry over. Area does not apply to papers."
-          style={{ marginTop: 20, marginBottom: 22 }}
+          className="mt-5 mb-[22px]"
         />
 
         {/* Teachers List */}
@@ -1350,7 +1350,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           <TeacherCardSkeletons count={8} />
         ) : displayedTeachers.length > 0 ? (
           <div>
-            <div className="shikshaq-teacher-grid">
+            <div className="shikshaq-teacher-grid animate-card-reveal">
               {displayedTeachers.map((teacher) => {
                 // Prefer subjects_from_shikshaq; on browse page limit to 5 subjects (profile page shows all)
                 const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
@@ -1379,12 +1379,11 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
 
             {/* Page size 24, explicit "Load more" — never infinite scroll (Browse.md "Data"). */}
             {hasMore && (
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 28 }}>
+              <div className="mt-7 flex justify-center">
                 <button
                   type="button"
                   onClick={handleLoadMore}
-                  className="shikshaq-outline-btn"
-                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 48, padding: '14px 22px', borderRadius: 12, fontSize: 14, fontWeight: 600, color: '#1F1F1F', background: '#FCFAF7', boxShadow: '0 0 0 1px #E7DFD5' }}
+                  className="shikshaq-outline-btn inline-flex min-h-12 items-center justify-center rounded-lg bg-card px-[22px] py-3.5 text-sm font-semibold text-foreground shadow-border transition-colors duration-150"
                 >
                   Load more
                 </button>
@@ -1427,7 +1426,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           transition to on a desktop pointer — same gap fixed on Home/Past papers. */}
       <style>{`
         @media (hover: hover) {
-          .shikshaq-outline-btn:hover { background-color: rgba(31,31,31,.05); }
+          .shikshaq-outline-btn:hover { background-color: hsl(var(--muted)); }
         }
         /* Tap feedback (unconditional, not hover-gated) — matches the
            active:scale-[0.97] convention used elsewhere. */

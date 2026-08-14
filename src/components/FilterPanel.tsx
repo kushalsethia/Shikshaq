@@ -433,8 +433,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
             )}
             <Button
               onClick={handleApplyFilters}
-              className={`flex-1 text-[#1F1F1F] hover:brightness-95 ${!hasActiveFilters ? 'w-full' : ''}`}
-              style={{ background: '#FF8000' }}
+              className={`flex-1 bg-brand text-foreground hover:brightness-95 ${!hasActiveFilters ? 'w-full' : ''}`}
             >
               Apply filters
             </Button>
