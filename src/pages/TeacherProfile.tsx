@@ -12,7 +12,7 @@ import { useRequireRole } from '@/hooks/use-require-role';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
 import { WhatsAppIcon } from '@/components/BrandIcons';
-import { getSubjectColors } from '@/utils/subjectColors';
+import { getSubjectPalette } from '@/lib/subject-palette';
 import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey } from '@/utils/cache';
 import DOMPurify from 'dompurify';
 import { validateImageSrc } from '@/utils/imageSanitizer';
@@ -93,9 +93,28 @@ function getTaughtAreas(teacher: Teacher): string[] {
   return Array.from(new Set([...studentsAreas, ...tutorsAreas]));
 }
 
-function Tag({ label, bg, color }: { label: string; bg: string; color: string }) {
+// Subject tag — subject-tinted per VISUAL_LANGUAGE §3, via getSubjectPalette (the sanctioned
+// inline-style exception for dynamic, data-driven subject color).
+function SubjectTag({ label }: { label: string }) {
+  const palette = getSubjectPalette(label);
   return (
-    <span style={{ padding: '6px 13px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, background: bg, color }}>
+    <span
+      className="inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold"
+      style={{ backgroundColor: palette.tint, color: palette.text }}
+    >
+      {label}
+    </span>
+  );
+}
+
+// Board / area tags — fixed mode colors (brand-blue for boards, brand for area), token classes only.
+function ModeTag({ label, variant }: { label: string; variant: 'blue' | 'brand' }) {
+  const classes =
+    variant === 'blue'
+      ? 'bg-brand-blue-subtle text-brand-blue-deep'
+      : 'bg-brand-subtle text-brand-deep';
+  return (
+    <span className={`inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold ${classes}`}>
       {label}
     </span>
   );
@@ -103,22 +122,19 @@ function Tag({ label, bg, color }: { label: string; bg: string; color: string })
 
 function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
-    <div style={{ padding: 18, borderRadius: 16, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#8B837A', marginBottom: 6 }}>
-        <Icon size={13} color="#8B837A" strokeWidth={2} aria-hidden="true" />
+    <div className="rounded-2xl bg-card p-4 shadow-border">
+      <div className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-warm-meta">
+        <Icon size={13} className="text-warm-meta" strokeWidth={2} aria-hidden="true" />
         {label}
       </div>
-      <div className="tabular-nums" style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
+      <div className="tabular-nums text-xl font-bold text-foreground">{value}</div>
     </div>
   );
 }
 
-const sectionH2Style: React.CSSProperties = {
-  fontSize: 'clamp(21px,2.4vw,26px)',
-  fontWeight: 700,
-  lineHeight: 1,
-  margin: '32px 0 12px',
-};
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return <h2 className="mt-8 mb-3 text-lg font-semibold text-foreground">{children}</h2>;
+}
 
 export default function TeacherProfile() {
   const { slug } = useParams<{ slug: string }>();
@@ -549,29 +565,29 @@ export default function TeacherProfile() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
-          <div className="animate-pulse" style={{ height: 16, width: 130, borderRadius: 8, background: '#F0EAE2', marginBottom: 20 }} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 36 }}>
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
+          <div className="mb-5 h-4 w-32 animate-shimmer rounded-lg bg-muted" />
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
             <div>
-              <div className="animate-pulse" style={{ aspectRatio: '4/5', borderRadius: 22, background: '#F0EAE2' }} />
-              <div style={{ display: 'flex', gap: 9, marginTop: 14 }}>
-                <div className="animate-pulse" style={{ flex: 1, height: 44, borderRadius: 12, background: '#F0EAE2' }} />
-                <div className="animate-pulse" style={{ flex: 1, height: 44, borderRadius: 12, background: '#F0EAE2' }} />
+              <div className="aspect-[4/5] animate-shimmer rounded-2xl bg-muted" />
+              <div className="mt-3.5 flex gap-2">
+                <div className="h-11 flex-1 animate-shimmer rounded-lg bg-muted" />
+                <div className="h-11 flex-1 animate-shimmer rounded-lg bg-muted" />
               </div>
             </div>
             <div>
-              <div className="animate-pulse" style={{ height: 40, width: '70%', borderRadius: 8, background: '#F0EAE2' }} />
-              <div style={{ display: 'flex', gap: 7, marginTop: 16 }}>
-                <div className="animate-pulse" style={{ height: 26, width: 90, borderRadius: 999, background: '#F0EAE2' }} />
-                <div className="animate-pulse" style={{ height: 26, width: 90, borderRadius: 999, background: '#F0EAE2' }} />
-                <div className="animate-pulse" style={{ height: 26, width: 90, borderRadius: 999, background: '#F0EAE2' }} />
+              <div className="h-10 w-2/3 animate-shimmer rounded-lg bg-muted" />
+              <div className="mt-4 flex gap-2">
+                <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
+                <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
+                <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginTop: 24 }}>
-                <div className="animate-pulse" style={{ height: 72, borderRadius: 16, background: '#F0EAE2' }} />
-                <div className="animate-pulse" style={{ height: 72, borderRadius: 16, background: '#F0EAE2' }} />
-                <div className="animate-pulse" style={{ height: 72, borderRadius: 16, background: '#F0EAE2' }} />
+              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
+                <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
+                <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
               </div>
             </div>
           </div>
@@ -583,16 +599,16 @@ export default function TeacherProfile() {
 
   if (!teacher) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', fontWeight: 700, marginBottom: 16 }}>Teacher not found</h1>
-          <p style={{ fontSize: 15, color: '#7B736B', marginBottom: 24 }}>
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 text-center sm:px-6 sm:py-8 lg:px-8">
+          <h1 className="mb-4 text-3xl font-semibold tracking-tight sm:text-4xl">Teacher not found</h1>
+          <p className="mb-6 text-sm text-muted-foreground">
             The teacher you're looking for doesn't exist or has been removed.
           </p>
           <Link
             to="/all-tuition-teachers-in-kolkata"
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, padding: '12px 22px', borderRadius: 12, background: '#FF8000', color: '#1F1F1F', fontSize: 14.5, fontWeight: 600 }}
+            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             Browse all teachers
           </Link>
@@ -673,21 +689,21 @@ export default function TeacherProfile() {
     : null;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
         <Link
           to={backHref}
-          style={{ display: 'inline-flex', alignItems: 'center', fontSize: 13, fontWeight: 600, color: '#8B837A', marginBottom: 20 }}
+          className="mb-5 inline-flex items-center text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           ← Back to results
         </Link>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 36 }}>
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
           {/* Left column */}
           <div>
-            <div style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 22, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+            <div className="relative aspect-[4/5] overflow-hidden rounded-2xl shadow-border">
               {teacher.image_url ? (
                 <img
                   src={validateImageSrc(teacher.image_url)}
@@ -696,43 +712,37 @@ export default function TeacherProfile() {
                   height={1000}
                   decoding="async"
                   fetchPriority="high"
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover"
                 />
               ) : (
-                <div
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundImage: 'repeating-linear-gradient(45deg,#F2ECE4 0 8px,#F9F5F1 8px 16px)',
-                  }}
-                >
-                  <span style={{ fontSize: 64, fontWeight: 700, color: 'rgba(31,31,31,.2)' }}>{teacher.name.charAt(0)}</span>
+                /* VISUAL_LANGUAGE §1.4 — diagonal-stripe placeholder for missing photos. */
+                <div className="stripe-placeholder flex h-full w-full items-center justify-center">
+                  <span className="text-6xl font-bold text-foreground/20" aria-hidden="true">
+                    {teacher.name.charAt(0)}
+                  </span>
                 </div>
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 9, marginTop: 14 }}>
+            <div className="mt-3.5 flex gap-2">
               <button
                 type="button"
                 onClick={handleHeartClick}
                 aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
-                className="active:scale-[0.97] transition-transform duration-150 [transition-timing-function:ease] motion-reduce:transition-none"
-                style={{ flex: 1, minHeight: 44, padding: 12, borderRadius: 12, fontSize: 13.5, fontWeight: 600, boxShadow: '0 0 0 1px #E7DFD5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                aria-pressed={liked}
+                className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg p-3 text-sm font-semibold shadow-border transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
               >
-                <Heart size={15} className={liked ? 'fill-[#E5484D] text-[#E5484D]' : 'text-foreground/70'} />
+                <Heart size={15} className={liked ? 'fill-destructive text-destructive' : 'text-foreground/70'} />
                 Favourite
               </button>
               <button
                 type="button"
                 onClick={handleUpvoteClick}
                 aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
-                className="active:scale-[0.97] transition-transform duration-150 [transition-timing-function:ease] motion-reduce:transition-none"
-                style={{ flex: 1, minHeight: 44, padding: 12, borderRadius: 12, fontSize: 13.5, fontWeight: 600, boxShadow: '0 0 0 1px #E7DFD5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                aria-pressed={upvoted}
+                className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg p-3 text-sm font-semibold shadow-border transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
               >
-                <ArrowUp size={15} color="#4351FF" strokeWidth={2.2} />
+                <ArrowUp size={15} className="text-brand-blue" strokeWidth={2.2} />
                 <span className="tabular-nums">{upvoteCount}</span>
               </button>
             </div>
@@ -740,25 +750,24 @@ export default function TeacherProfile() {
 
           {/* Right column */}
           <div>
-            <h1 style={{ fontSize: 'clamp(27px,3.8vw,44px)', lineHeight: 1, fontWeight: 700 }}>
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
               {formatDisplayName(teacher.name, teacher.sir_maam)}
             </h1>
 
             {(subjectsList.length > 0 || boardsList.length > 0 || teacher.area) && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 16 }}>
-                {subjectsList.map((subject) => {
-                  const colors = getSubjectColors(subject);
-                  return <Tag key={subject} label={subject} bg={colors.tint} color={colors.titleText} />;
-                })}
-                {boardsList.map((board) => (
-                  <Tag key={board} label={board} bg="#EDEEFF" color="#2E3AD6" />
+              <div className="mt-4 flex flex-wrap gap-2">
+                {subjectsList.map((subject) => (
+                  <SubjectTag key={subject} label={subject} />
                 ))}
-                {teacher.area && <Tag label={teacher.area} bg="#FFF4E8" color="#B35900" />}
+                {boardsList.map((board) => (
+                  <ModeTag key={board} label={board} variant="blue" />
+                ))}
+                {teacher.area && <ModeTag label={teacher.area} variant="brand" />}
               </div>
             )}
 
             {hasStats && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginTop: 24 }}>
+              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {teacher.experience_years && (
                   <StatCard icon={Clock} label="Experience" value={`${teacher.experience_years}+ years`} />
                 )}
@@ -769,10 +778,9 @@ export default function TeacherProfile() {
 
             {descriptionHtml && (
               <>
-                <h2 style={sectionH2Style}>Little more about {firstName}</h2>
+                <SectionHeading>Little more about {firstName}</SectionHeading>
                 <div
-                  style={{ maxWidth: '62ch', fontSize: 16, lineHeight: 1.7, color: '#4A443E' }}
-                  className="[&_p+p]:mt-3"
+                  className="max-w-prose text-base leading-7 text-warm-prose [&_p+p]:mt-3"
                   dangerouslySetInnerHTML={{ __html: descriptionHtml }}
                 />
               </>
@@ -780,10 +788,10 @@ export default function TeacherProfile() {
 
             {taughtAreas.length > 0 && (
               <>
-                <h2 style={sectionH2Style}>Where they teach</h2>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                <SectionHeading>Where they teach</SectionHeading>
+                <div className="flex flex-wrap gap-2">
                   {taughtAreas.map((area) => (
-                    <span key={area} style={{ padding: '8px 14px', borderRadius: 999, background: '#F0EAE2', fontSize: 13.5, fontWeight: 500 }}>
+                    <span key={area} className="rounded-full bg-muted px-3.5 py-2 text-sm font-medium text-foreground">
                       {area}
                     </span>
                   ))}
@@ -793,12 +801,12 @@ export default function TeacherProfile() {
 
             {!reviewsLoading && reviews.length > 0 && (
               <>
-                <h2 style={sectionH2Style}>What students say</h2>
-                <div style={{ display: 'grid', gap: 10 }}>
+                <SectionHeading>What students say</SectionHeading>
+                <div className="grid gap-2.5">
                   {reviews.map((review) => (
-                    <div key={review.id} style={{ padding: 20, borderRadius: 18, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
-                      <p style={{ margin: 0, fontSize: 15.5, lineHeight: 1.6, color: '#4A443E' }}>{review.comment}</p>
-                      <p style={{ margin: 0, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: '#8B837A' }}>
+                    <div key={review.id} className="rounded-2xl bg-card p-5 shadow-border">
+                      <p className="text-sm leading-6 text-warm-prose">{review.comment}</p>
+                      <p className="mt-2.5 text-xs font-semibold text-warm-meta">
                         {review.authorName}
                         {review.authorInfo ? ` • ${review.authorInfo}` : ''}
                       </p>
@@ -808,17 +816,17 @@ export default function TeacherProfile() {
               </>
             )}
 
-            <div style={{ marginTop: 28, padding: 22, borderRadius: 20, background: '#F0EAE2', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: '#4A443E', maxWidth: '44ch' }}>
+            {/* Primary CTA — the single accented action on this page (§7, §12): WhatsApp contact. */}
+            <div className="mt-7 flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-muted p-6">
+              <p className="max-w-[44ch] text-sm leading-6 text-warm-prose">
                 Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
               </p>
               <button
                 type="button"
                 onClick={handleWhatsAppClick}
-                className="active:scale-[0.97] transition-transform duration-150 [transition-timing-function:ease] motion-reduce:transition-none"
-                style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, minHeight: 44, padding: '15px 24px', borderRadius: 12, background: '#25D366', color: '#0B3D1F', fontSize: 15, fontWeight: 700 }}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3.5 text-sm font-semibold text-brand-foreground transition-transform duration-150 hover:bg-brand-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
               >
-                <WhatsAppIcon className="w-[17px] h-[17px] text-[#0B3D1F]" />
+                <WhatsAppIcon className="h-[17px] w-[17px] text-brand-foreground" />
                 Contact via WhatsApp
               </button>
             </div>
