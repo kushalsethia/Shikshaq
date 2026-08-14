@@ -7,7 +7,7 @@ import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
-import { getSubjectColors } from '@/utils/subjectColors';
+import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { saveAuthRedirect } from '@/utils/authRedirect';
 import { recordVisit } from '@/lib/recently-visited';
@@ -29,6 +29,9 @@ interface SiblingPaper {
   title: string;
   year: number;
 }
+
+const CONTAINER = 'mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8';
+const SKELETON = 'bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer';
 
 /**
  * NOTE on scope vs. the design_handoff spec (pages/PaperReader.md):
@@ -176,21 +179,21 @@ export default function PaperReader() {
     return `${getWhatsAppLink('8240980312')}?text=${encodeURIComponent(message)}`;
   }
 
-  const colors = paper ? getSubjectColors(paper.subject) : null;
+  const colors = paper ? getSubjectPalette(paper.subject) : null;
   const signedIn = !authLoading && !!user;
 
   // ---------------- Loading shell ----------------
   if (loading || authLoading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9F5F1' }} className="flex flex-col">
+      <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
-        <main className="flex-1" style={{ maxWidth: 1120, margin: '0 auto', width: '100%', padding: '28px clamp(16px,3vw,28px) 60px' }}>
-          <div className="animate-pulse" style={{ width: 120, height: 16, borderRadius: 8, background: '#F0EAE2', marginBottom: 18 }} />
-          <div className="animate-pulse" style={{ width: 280, height: 20, borderRadius: 999, background: '#F0EAE2', marginBottom: 14 }} />
-          <div className="animate-pulse" style={{ width: '70%', maxWidth: 560, height: 36, borderRadius: 10, background: '#F0EAE2' }} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 36, marginTop: 26 }}>
-            <div className="animate-pulse" style={{ height: 480, borderRadius: 20, background: '#F0EAE2' }} />
-            <div className="animate-pulse" style={{ height: 220, borderRadius: 16, background: '#F0EAE2' }} />
+        <main className={`flex-1 ${CONTAINER} pb-16 pt-7`}>
+          <div className={`mb-[18px] h-4 w-[120px] rounded-lg ${SKELETON}`} />
+          <div className={`mb-3.5 h-5 w-[280px] rounded-full ${SKELETON}`} />
+          <div className={`h-9 w-[70%] max-w-[560px] rounded-[10px] ${SKELETON}`} />
+          <div className="mt-6 grid grid-cols-1 gap-9 sm:grid-cols-[2fr,1fr]">
+            <div className={`h-[480px] rounded-2xl ${SKELETON}`} />
+            <div className={`h-[220px] rounded-2xl ${SKELETON}`} />
           </div>
         </main>
         <Footer />
@@ -201,10 +204,15 @@ export default function PaperReader() {
   // ---------------- Not found / error ----------------
   if (notFound || loadError || !paper) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9F5F1' }} className="flex flex-col">
+      <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
-        <main className="flex-1" style={{ maxWidth: 1120, margin: '0 auto', width: '100%', padding: '28px clamp(16px,3vw,28px) 60px' }}>
-          <Link to="/past-papers" className="shikshaq-tap" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 40, fontSize: 13, fontWeight: 600, color: '#8B837A', marginBottom: 18 }}>← Back to papers</Link>
+        <main className={`flex-1 ${CONTAINER} pb-16 pt-7`}>
+          <Link
+            to="/past-papers"
+            className="mb-[18px] inline-flex min-h-11 items-center text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            ← Back to papers
+          </Link>
           <EmptyResults
             heading={loadError ? 'Unable to load this paper right now' : "This paper isn't available"}
             message={loadError ? 'Please refresh the page and try again.' : "It may have been removed, or the link is incorrect. It's still free to browse the rest of the collection."}
@@ -216,34 +224,48 @@ export default function PaperReader() {
     );
   }
 
-  const tagPill = (label: string, bg: string, fg: string, key: string) => (
-    <span key={key} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: bg, color: fg }}>
-      {label}
-    </span>
-  );
+  const tagPillClass = (variant: 'muted' | 'blue') =>
+    `inline-flex items-center rounded-full px-[11px] py-[5px] text-xs font-semibold ${
+      variant === 'blue' ? 'bg-brand-blue-subtle text-brand-blue-deep' : 'bg-muted text-foreground'
+    }`;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1' }} className="flex flex-col">
-      <div className="pr-hide-print" style={{ height: 3, background: '#F0EAE2' }}>
-        <div style={{ height: '100%', width: `${progress * 100}%`, background: '#4351FF', transition: 'width .3s ease' }} />
+    <div className="flex min-h-screen flex-col bg-background">
+      <div className="pr-hide-print h-[3px] bg-muted">
+        <div
+          className="h-full bg-brand-blue transition-[width] duration-300 ease-out"
+          style={{ width: `${progress * 100}%` }}
+        />
       </div>
 
       <div className="pr-hide-print"><Navbar /></div>
 
-      <main className="flex-1" style={{ maxWidth: 1120, margin: '0 auto', width: '100%', padding: '28px clamp(16px,3vw,28px) 60px' }}>
-        <Link to="/past-papers" className="shikshaq-tap pr-hide-print" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 40, fontSize: 13, fontWeight: 600, color: '#8B837A', marginBottom: 18 }}>← Back to papers</Link>
+      <main className={`flex-1 ${CONTAINER} pb-16 pt-7`}>
+        <Link
+          to="/past-papers"
+          className="pr-hide-print mb-[18px] inline-flex min-h-11 items-center text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          ← Back to papers
+        </Link>
 
-        <div className="pr-hide-print" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-          {colors && tagPill(paper.subject, colors.solid, colors.badgeText, 'subject')}
-          {tagPill(`Class ${paper.class}`, '#F0EAE2', '#1F1F1F', 'class')}
-          {tagPill(paper.board, '#EDEEFF', '#2E3AD6', 'board')}
-          {tagPill(paper.exam_type, '#F0EAE2', '#1F1F1F', 'exam')}
-          {tagPill(String(paper.year), '#F0EAE2', '#1F1F1F', 'year')}
+        <div className="pr-hide-print mb-3.5 flex flex-wrap gap-1.5">
+          {colors && (
+            <span
+              className="inline-flex items-center rounded-full px-[11px] py-[5px] text-xs font-semibold"
+              style={{ backgroundColor: colors.solid, color: colors.badgeText }}
+            >
+              {paper.subject}
+            </span>
+          )}
+          <span className={tagPillClass('muted')}>Class {paper.class}</span>
+          <span className={tagPillClass('blue')}>{paper.board}</span>
+          <span className={tagPillClass('muted')}>{paper.exam_type}</span>
+          <span className={tagPillClass('muted')}>{paper.year}</span>
         </div>
 
-        <h1 className="pr-hide-print" style={{ fontSize: 'clamp(24px,3.2vw,36px)', lineHeight: 1.03, fontWeight: 700 }}>{paper.title}</h1>
+        <h1 className="pr-hide-print text-[clamp(24px,3.2vw,36px)] font-bold leading-[1.03] text-foreground">{paper.title}</h1>
 
-        <div className="pr-hide-print" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 12, fontSize: 15, fontWeight: 500, color: '#4A443E' }}>
+        <div className="pr-hide-print mt-3 flex flex-wrap gap-4 text-base font-medium text-warm-prose">
           <span>{paper.school}</span>
           <span>·</span>
           <span>{paper.exam_type}</span>
@@ -251,56 +273,48 @@ export default function PaperReader() {
           <span>{paper.year}</span>
         </div>
 
-        <div style={{ marginTop: 16, padding: '11px 16px', borderRadius: 12, background: '#F0EAE2', fontSize: 13, lineHeight: 1.5, color: '#4A443E' }}>
+        <div className="mt-4 rounded-xl bg-muted px-4 py-[11px] text-sm leading-relaxed text-warm-prose">
           This paper is the property of {paper.school}. Shikshaq claims no ownership and hosts it as a free community resource.{' '}
-          <a href={requestRemovalUrl(paper)} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, color: '#2E3AD6', textDecoration: 'underline' }}>Request removal</a>
+          <a
+            href={requestRemovalUrl(paper)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-brand-blue-deep underline"
+          >
+            Request removal
+          </a>
         </div>
 
-        <div className="pr-hide-print" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12.5, color: '#8B837A' }}>
-          <Lock size={14} strokeWidth={2} />
+        <div className="pr-hide-print mt-2.5 flex items-center gap-2 text-xs text-warm-meta">
+          <Lock size={14} strokeWidth={2} aria-hidden="true" />
           This page is watermarked with your account and the time you opened it.
         </div>
 
-        <div className="pr-hide-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 36, marginTop: 26 }}>
+        <div className="pr-hide-print mt-6 grid grid-cols-1 gap-9 sm:grid-cols-[2fr,1fr]">
           {/* ---------------- Paper body ---------------- */}
           <div
             ref={bodyRef}
-            style={{
-              position: 'relative',
-              padding: signedIn ? 'clamp(20px,3vw,36px) clamp(16px,3vw,40px) 0' : 0,
-              borderRadius: 20,
-              background: '#FCFAF7',
-              boxShadow: '0 0 0 1px rgba(0,0,0,.06), 0 2px 4px rgba(0,0,0,.04)',
-              overflow: 'hidden',
-              userSelect: 'none',
-              minHeight: signedIn ? undefined : 420,
-            }}
+            className={`${signedIn ? 'p-5 pb-0 sm:p-9 sm:pb-0' : 'p-0 min-h-[420px]'} relative select-none overflow-hidden rounded-2xl bg-card shadow-border`}
             onContextMenu={(e) => e.preventDefault()}
             onCopy={(e) => e.preventDefault()}
           >
             {signedIn ? (
               paper.file_url ? (
-                <div style={{ position: 'relative', height: '78vh', minHeight: 480 }}>
+                <div className="relative h-[78vh] min-h-[480px]">
                   <iframe
                     title={paper.title}
                     src={`${paper.file_url}#toolbar=0&navpanes=0`}
-                    style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px 8px 0 0' }}
+                    className="h-full w-full rounded-t-lg border-0"
                   />
                   {/* Watermark layer: absolute, decorative, pointer-events none so
                       the iframe underneath stays fully interactive (scroll/zoom). */}
-                  <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none', overflow: 'hidden' }} aria-hidden="true">
-                    <div style={{ position: 'absolute', top: '-20%', left: '-20%', display: 'flex', flexDirection: 'column', gap: 26, transform: 'rotate(-24deg) scale(1.7)' }}>
+                  <div className="pointer-events-none absolute inset-0 z-[2] overflow-hidden" aria-hidden="true">
+                    <div className="absolute -left-[20%] -top-[20%] flex flex-col gap-[26px] [transform:rotate(-24deg)_scale(1.7)]">
                       {Array.from({ length: 14 }).map((_, i) => (
                         <span
                           key={i}
-                          style={{
-                            display: 'block',
-                            whiteSpace: 'nowrap',
-                            marginLeft: (i % 3) * 40,
-                            font: '600 10px ui-monospace,Menlo,monospace',
-                            letterSpacing: '.06em',
-                            color: 'rgba(31,31,31,.075)',
-                          }}
+                          className="block whitespace-nowrap font-mono text-[10px] font-semibold tracking-[.06em] text-foreground/[.075]"
+                          style={{ marginLeft: (i % 3) * 40 }}
                         >
                           {(user?.email || 'shikshaq')} · {openedAt.toLocaleString('en-IN')}
                         </span>
@@ -309,21 +323,31 @@ export default function PaperReader() {
                   </div>
                 </div>
               ) : (
-                <div style={{ padding: '48px 24px', textAlign: 'center', color: '#7B736B', fontSize: 15 }}>
+                <div className="px-6 py-12 text-center text-base text-muted-foreground">
                   This paper's file hasn't been uploaded yet. Check back soon, or use "Request removal" above if this looks wrong.
                 </div>
               )
             ) : (
               // Signed-out: no file_url ever reaches the DOM here.
-              <div style={{ padding: 'clamp(24px,3vw,36px) clamp(16px,3vw,40px) 44px' }}>
-                <div style={{ maxWidth: 520, margin: '0 auto', padding: 32, borderRadius: 20, background: '#F9F5F1', boxShadow: '0 0 0 1px #E7DFD5, 0 8px 24px rgba(0,0,0,.06)', textAlign: 'center' }}>
-                  <h3 style={{ fontSize: 27, lineHeight: 1.15, fontWeight: 700, marginBottom: 12 }}>Sign in to read the rest of this paper</h3>
-                  <p style={{ fontSize: 15, lineHeight: 1.6, color: '#7B736B', marginBottom: 22 }}>
+              <div className="px-4 pb-11 pt-6 sm:px-10 sm:pt-9">
+                <div className="mx-auto max-w-[520px] rounded-2xl bg-background p-8 text-center shadow-border">
+                  <h2 className="mb-3 text-[27px] font-bold leading-tight text-foreground">Sign in to read the rest of this paper</h2>
+                  <p className="mb-[22px] text-base leading-relaxed text-muted-foreground">
                     We ask for an account so every paper can be attributed to the student who shared it, and so we can stop anyone bulk-copying the collection. That's the whole reason. It's free and takes a minute.
                   </p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10 }}>
-                    <button onClick={goToAuth} className="shikshaq-tap" style={{ minHeight: 44, padding: '13px 22px', borderRadius: 10, fontSize: 15, fontWeight: 600, background: '#4351FF', color: '#fff' }}>Sign in</button>
-                    <button onClick={goToAuth} className="shikshaq-tap" style={{ minHeight: 44, padding: '13px 22px', borderRadius: 10, fontSize: 15, fontWeight: 600, color: '#1F1F1F', boxShadow: '0 0 0 1px #D8CFC4' }}>Create an account</button>
+                  <div className="flex flex-wrap justify-center gap-2.5">
+                    <button
+                      onClick={goToAuth}
+                      className="flex min-h-11 items-center rounded-lg bg-brand-blue px-[22px] text-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-blue-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                    >
+                      Sign in
+                    </button>
+                    <button
+                      onClick={goToAuth}
+                      className="flex min-h-11 items-center rounded-lg px-[22px] text-sm font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-muted active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      Create an account
+                    </button>
                   </div>
                 </div>
               </div>
@@ -332,22 +356,28 @@ export default function PaperReader() {
 
           {/* ---------------- Rail ---------------- */}
           <div className="pr-rail">
-            <div style={{ padding: '14px 16px', borderRadius: 14, background: '#F0EAE2', fontSize: 12.5, lineHeight: 1.5, color: '#4A443E' }}>
+            <div className="rounded-2xl bg-muted px-4 py-3.5 text-xs leading-relaxed text-warm-prose">
               No download, no print. Papers are for reading here only.
             </div>
 
             {signedIn && (prevPaper || nextPaper) && (
-              <div style={{ display: 'grid', gap: 9, marginTop: 14 }}>
+              <div className="mt-3.5 grid gap-2">
                 {prevPaper && (
-                  <Link to={`/past-papers/${prevPaper.id}`} className="shikshaq-tap" style={{ display: 'block', padding: '14px 16px', borderRadius: 14, background: '#FCFAF7', boxShadow: '0 0 0 1px #E7DFD5' }}>
-                    <span style={{ display: 'block', fontSize: 11.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#8B837A' }}>Previous</span>
-                    <span style={{ display: 'block', marginTop: 4, fontSize: 14, fontWeight: 600 }}>{prevPaper.title} ({prevPaper.year})</span>
+                  <Link
+                    to={`/past-papers/${prevPaper.id}`}
+                    className="block rounded-2xl bg-card px-4 py-3.5 shadow-border transition-colors duration-150 hover:bg-muted"
+                  >
+                    <span className="block text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-meta">Previous</span>
+                    <span className="mt-1 block text-sm font-semibold text-foreground">{prevPaper.title} ({prevPaper.year})</span>
                   </Link>
                 )}
                 {nextPaper && (
-                  <Link to={`/past-papers/${nextPaper.id}`} className="shikshaq-tap" style={{ display: 'block', padding: '14px 16px', borderRadius: 14, background: '#FCFAF7', boxShadow: '0 0 0 1px #E7DFD5' }}>
-                    <span style={{ display: 'block', fontSize: 11.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#8B837A' }}>Next</span>
-                    <span style={{ display: 'block', marginTop: 4, fontSize: 14, fontWeight: 600 }}>{nextPaper.title} ({nextPaper.year})</span>
+                  <Link
+                    to={`/past-papers/${nextPaper.id}`}
+                    className="block rounded-2xl bg-card px-4 py-3.5 shadow-border transition-colors duration-150 hover:bg-muted"
+                  >
+                    <span className="block text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-meta">Next</span>
+                    <span className="mt-1 block text-sm font-semibold text-foreground">{nextPaper.title} ({nextPaper.year})</span>
                   </Link>
                 )}
               </div>

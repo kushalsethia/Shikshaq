@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Users } from 'lucide-react';
+import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Users } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { SearchControl } from '@/components/SearchControl';
 import { Footer } from '@/components/Footer';
@@ -8,6 +8,7 @@ import { PaperCard } from '@/components/PaperCard';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
+import { getSubjectPalette } from '@/lib/subject-palette';
 
 interface Paper {
   id: string;
@@ -28,6 +29,9 @@ interface SchoolStat {
   count: number;
 }
 
+const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
+const SECTION = 'py-16 sm:py-20 lg:py-24';
+
 const PAPER_CLASSES = CLASSES.filter((c) => c !== 'UG');
 
 const SUBJECT_ICON: Record<string, typeof BookOpen> = {
@@ -35,12 +39,6 @@ const SUBJECT_ICON: Record<string, typeof BookOpen> = {
   Mathematics: Calculator, Psychology: Brain, Economics: Wallet, Biology: Dna,
   Computers: Monitor, Computer: Monitor, Accounts: LandmarkIcon,
 };
-const SUBJECT_TINTS = [
-  { tint: '#FFF4E8', solid: '#FF8000' },
-  { tint: '#EDEEFF', solid: '#4351FF' },
-  { tint: '#E6F4E6', solid: '#228B22' },
-  { tint: '#FCE8E8', solid: '#C0392B' },
-];
 
 const PAPER_STEPS = [
   { n: '01', icon: Search, title: 'Find the paper', body: 'Search by school, subject, class or board, or browse the sections below.' },
@@ -136,212 +134,205 @@ export default function PastPapers() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1' }} className="flex flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
       <main className="flex-1">
-        <div>
-          <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(32px,5vw,56px) clamp(16px,3vw,28px) 40px' }}>
-            <span style={{ display: 'inline-block', padding: '6px 14px', borderRadius: 999, background: '#EDEEFF', color: '#2E3AD6', fontSize: 11.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' }}>
-              Free community resource
-            </span>
-            <h1 style={{ marginTop: 20, maxWidth: 920, fontSize: 'clamp(31px,5.2vw,60px)', lineHeight: 0.95, letterSpacing: '-.055em', fontWeight: 400 }}>
-              Past papers from <span style={{ fontWeight: 800 }}>Kolkata schools</span>, shared by students, <span style={{ fontWeight: 800 }}>for students</span>.
-            </h1>
-            <p style={{ marginTop: 22, maxWidth: 600, fontSize: 17, lineHeight: 1.55, color: '#7B736B' }}>
-              Real question papers set by real schools. Nothing to pay for, nothing to download, nothing hidden.
-            </p>
-            <div style={{ maxWidth: 820, marginTop: 28 }}>
-              <SearchControl align="flex-start" stackedToggle initialMode="papers" onModeChange={handleSearchModeChange} />
-            </div>
-            {totalPapers != null && totalPapers > 0 && (
-              <button
-                onClick={() => navigate('/past-papers/results?view=all')}
-                className="shikshaq-text-link"
-                style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, marginTop: 18, fontSize: 15, fontWeight: 600, color: '#2E3AD6', transition: 'opacity .15s ease, transform .15s ease-out' }}
-              >
-                Browse all {totalPapers.toLocaleString('en-IN')} paper{totalPapers === 1 ? '' : 's'} →
-              </button>
-            )}
+        {/* ------------------------------------------------------------- Hero */}
+        <section className={`${CONTAINER} pb-8 pt-12 sm:pt-16 lg:pt-20`}>
+          <span className="inline-flex items-center rounded-full bg-brand-blue-subtle px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-[.04em] text-brand-blue-deep">
+            Free community resource
+          </span>
+          <h1 className="mt-5 max-w-3xl text-[clamp(31px,5.2vw,60px)] font-normal leading-[.95] tracking-[-.055em] text-foreground">
+            Past papers from <span className="font-extrabold">Kolkata schools</span>, shared by students, <span className="font-extrabold">for students</span>.
+          </h1>
+          <p className="mt-6 max-w-prose text-base text-muted-foreground sm:text-lg">
+            Real question papers set by real schools. Nothing to pay for, nothing to download, nothing hidden.
+          </p>
+          <div className="mt-7 max-w-3xl">
+            <SearchControl align="flex-start" stackedToggle initialMode="papers" onModeChange={handleSearchModeChange} />
           </div>
 
-          {schoolStats.length > 0 && (
-            <div style={{ background: '#4351FF', borderRadius: 32, margin: '0 clamp(16px,3vw,28px)', padding: 'clamp(32px,4vw,52px) 0' }}>
-              <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 clamp(16px,3vw,28px)' }}>
-                <h2 style={{ fontSize: 'clamp(23px,3vw,34px)', lineHeight: 1, color: '#fff', fontWeight: 700, marginBottom: 24 }}>By school</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 16 }}>
-                  {schoolStats.map(({ school, board, count }) => (
-                    <button
-                      key={school}
-                      onClick={() => navigate(`/past-papers/results?filter_schools=${encodeURIComponent(school)}`)}
-                      className="shikshaq-school-tile shikshaq-tap"
-                      style={{ display: 'block', padding: 22, borderRadius: 18, background: '#FCFAF7', textAlign: 'left', transition: 'transform .2s ease, box-shadow .2s ease' }}
-                    >
-                      <span style={{ display: 'block', fontSize: 18, fontWeight: 600, letterSpacing: '-.03em', lineHeight: 1.2 }}>{school}</span>
-                      <span style={{ display: 'block', marginTop: 9, fontSize: 13, color: '#7B736B' }}>
-                        {board} · {count} paper{count === 1 ? '' : 's'}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+          {/* Device (c): bold numeric stat callout, restyling the existing
+              "Browse all X papers" line rather than adding a new element. */}
+          {totalPapers != null && totalPapers > 0 && (
+            <button
+              onClick={() => navigate('/past-papers/results?view=all')}
+              className="mt-6 flex min-h-11 w-fit items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-border transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <span className="text-3xl font-extrabold tabular-nums tracking-[-.02em] text-foreground">
+                {totalPapers.toLocaleString('en-IN')}
+              </span>
+              <span className="flex flex-col items-start leading-tight">
+                <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">
+                  paper{totalPapers === 1 ? '' : 's'}
+                </span>
+                <span className="flex items-center gap-1 text-sm font-semibold text-brand-blue-deep">
+                  Browse all <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </span>
+              </span>
+            </button>
           )}
+        </section>
 
-          {featuredSubjects.length > 0 && (
-            <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(32px,5vw,56px) clamp(16px,3vw,28px)' }}>
-              <h2 style={{ fontSize: 'clamp(23px,3vw,34px)', lineHeight: 1, fontWeight: 700, marginBottom: 22 }}>By subject</h2>
-              <div className="shikshaq-papers-subject-grid">
-                {featuredSubjects.map((s, i) => {
-                  const tint = SUBJECT_TINTS[i % SUBJECT_TINTS.length];
-                  const Icon = SUBJECT_ICON[s] || BookOpen;
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => navigate(`/past-papers/results?filter_subjects=${encodeURIComponent(s)}`)}
-                      className="shikshaq-subject-tile shikshaq-tap"
-                      style={{ display: 'block', padding: 22, borderRadius: 20, background: tint.tint, textAlign: 'left', transition: 'transform .2s ease, box-shadow .2s ease' }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 42, height: 42, borderRadius: 13, background: tint.solid, marginBottom: 26 }}>
-                        <Icon size={21} color="#fff" strokeWidth={1.9} />
-                      </span>
-                      <span style={{ display: 'block', fontSize: 23, fontWeight: 700, letterSpacing: '-.04em' }}>{s}</span>
-                      <span style={{ display: 'block', marginTop: 5, fontSize: 13, fontWeight: 500, color: 'rgba(31,31,31,.55)' }}>
-                        {subjectCounts[s]} paper{subjectCounts[s] === 1 ? '' : 's'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div style={{ background: '#FF8000', borderRadius: 32, margin: '0 clamp(16px,3vw,28px)', padding: 'clamp(32px,4vw,52px) 0' }}>
-            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 clamp(16px,3vw,28px)' }}>
-              {/* Rules #9: orange never carries white text, so this heading is dark
-                  even though the prototype's spec copy called it a white h2. */}
-              <h2 style={{ fontSize: 'clamp(23px,3vw,34px)', lineHeight: 1, color: '#1F1F1F', fontWeight: 700, marginBottom: 24 }}>By class &amp; board</h2>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                {PAPER_CLASSES.map((c) => (
+        {/* --------------------------------------------------------- By school */}
+        {schoolStats.length > 0 && (
+          <section className={`${CONTAINER} pb-8`}>
+            <div className="rounded-4xl bg-brand-blue p-6 sm:p-8">
+              <h2 className="mb-6 text-[clamp(23px,3vw,34px)] font-bold leading-none text-white">By school</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+                {schoolStats.map(({ school, board, count }) => (
                   <button
-                    key={`class-${c}`}
-                    onClick={() => navigate(`/past-papers/results?filter_classes=${encodeURIComponent(c)}`)}
-                    className="shikshaq-tap"
-                    style={{ minHeight: 44, padding: '13px 22px', borderRadius: 999, fontSize: 15, fontWeight: 600, background: '#FCFAF7', color: '#1F1F1F' }}
+                    key={school}
+                    onClick={() => navigate(`/past-papers/results?filter_schools=${encodeURIComponent(school)}`)}
+                    className="block rounded-[18px] bg-card p-[22px] text-left transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
                   >
-                    Class {c}
-                  </button>
-                ))}
-                {BOARDS.map((b) => (
-                  <button
-                    key={`board-${b}`}
-                    onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
-                    className="shikshaq-tap"
-                    style={{ minHeight: 44, padding: '13px 22px', borderRadius: 999, fontSize: 15, fontWeight: 600, background: '#EDEEFF', color: '#2E3AD6' }}
-                  >
-                    {b}
+                    <span className="block truncate text-lg font-semibold tracking-[-.03em] leading-tight text-foreground">{school}</span>
+                    <span className="mt-2 block text-sm text-muted-foreground">
+                      {board} · {count} paper{count === 1 ? '' : 's'}
+                    </span>
                   </button>
                 ))}
               </div>
             </div>
-          </div>
+          </section>
+        )}
 
-          {recentPapers.length > 0 && (
-            <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(32px,5vw,56px) clamp(16px,3vw,28px)' }}>
-              <h2 style={{ fontSize: 'clamp(23px,3vw,34px)', lineHeight: 1, fontWeight: 700, marginBottom: 20 }}>Recently added</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 18 }}>
-                {recentPapers.map((p) => (
-                  <PaperCard key={p.id} paper={p} variant="recent" sticker={isNewThisWeek(p.created_at) ? 'New this week' : undefined} />
-                ))}
-              </div>
+        {/* -------------------------------------------------------- By subject */}
+        {featuredSubjects.length > 0 && (
+          <section className={`${CONTAINER} ${SECTION} pt-0`}>
+            <h2 className="mb-6 text-2xl font-semibold tracking-tight sm:text-3xl">By subject</h2>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+              {featuredSubjects.map((s) => {
+                const palette = getSubjectPalette(s);
+                const Icon = SUBJECT_ICON[s] || BookOpen;
+                const count = subjectCounts[s];
+                return (
+                  <button
+                    key={s}
+                    onClick={() => navigate(`/past-papers/results?filter_subjects=${encodeURIComponent(s)}`)}
+                    className="block rounded-2xl p-[22px] text-left transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                    style={{ backgroundColor: palette.tint }}
+                  >
+                    <span className="mb-[26px] flex h-[42px] w-[42px] items-center justify-center rounded-[13px]" style={{ backgroundColor: palette.solid }}>
+                      <Icon size={21} className="text-white" strokeWidth={1.9} aria-hidden="true" />
+                    </span>
+                    <span className="block text-[23px] font-bold tracking-[-.04em]" style={{ color: palette.text }}>
+                      {s}
+                    </span>
+                    {/* Device (b): filter-chip live count badge, sourced from the
+                        existing subjectCounts state — never a literal zero, since
+                        featuredSubjects already filters those out. */}
+                    <span
+                      className="mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums"
+                      style={{ backgroundColor: palette.solid, color: palette.badgeText }}
+                    >
+                      {count} paper{count === 1 ? '' : 's'}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </section>
+        )}
 
-          {/* 3 steps */}
-          <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(32px,5vw,56px) clamp(16px,3vw,28px)' }}>
-            <h2 style={{ fontSize: 'clamp(23px,3vw,34px)', lineHeight: 1, fontWeight: 700, textAlign: 'center', marginBottom: 'clamp(26px,3vw,40px)' }}>
-              Three steps, no cost,<br />no catch.
-            </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 'clamp(20px,3vw,32px)' }}>
-              {PAPER_STEPS.map((step) => (
-                <div key={step.n}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 46, height: 46, flex: 'none', borderRadius: 999, background: '#228B22', color: '#fff', fontSize: 17, fontWeight: 700 }}>{step.n}</span>
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 'clamp(18px,1.9vw,20px)', fontWeight: 600 }}>
-                      <step.icon size={18} color="#228B22" strokeWidth={2} />
-                      {step.title}
-                    </h3>
-                  </div>
-                  <p style={{ fontSize: 15, lineHeight: 1.6, color: '#666', maxWidth: '44ch' }}>{step.body}</p>
-                </div>
+        {/* --------------------------------------------------- By class & board */}
+        <section className={`${CONTAINER} pb-8`}>
+          <div className="rounded-4xl bg-brand p-6 sm:p-8">
+            {/* Rules #9: orange never carries white text, so this heading is dark
+                even though the prototype's spec copy called it a white h2. */}
+            <h2 className="mb-6 text-[clamp(23px,3vw,34px)] font-bold leading-none text-foreground">By class &amp; board</h2>
+            <div className="flex flex-wrap gap-3">
+              {PAPER_CLASSES.map((c) => (
+                <button
+                  key={`class-${c}`}
+                  onClick={() => navigate(`/past-papers/results?filter_classes=${encodeURIComponent(c)}`)}
+                  className="flex min-h-11 items-center rounded-full bg-card px-[22px] text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-muted active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  Class {c}
+                </button>
+              ))}
+              {BOARDS.map((b) => (
+                <button
+                  key={`board-${b}`}
+                  onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
+                  className="flex min-h-11 items-center rounded-full bg-brand-blue-subtle px-[22px] text-sm font-semibold text-brand-blue-deep transition-colors duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  {b}
+                </button>
               ))}
             </div>
           </div>
+        </section>
 
-          {/* Promises */}
-          <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 clamp(16px,3vw,28px) clamp(32px,4vw,52px)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 'clamp(14px,2vw,18px)' }}>
-              {PAPER_PROMISES.map((pp) => (
-                <div key={pp.title} style={{ padding: 'clamp(22px,2.6vw,28px)', borderRadius: 22, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06),0 2px 4px rgba(0,0,0,.04)' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 12, background: '#F0EAE2', marginBottom: 14 }}>
-                    <pp.icon size={19} color="#1F1F1F" strokeWidth={1.8} />
-                  </span>
-                  <h3 style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-.03em', marginBottom: 10 }}>{pp.title}</h3>
-                  <p style={{ fontSize: 14.5, lineHeight: 1.6, color: '#7B736B' }}>{pp.body}</p>
+        {/* ----------------------------------------------------- Recently added */}
+        {/* Device (a): horizontal-scroll paper-cover shelf, reusing PaperCard —
+            mobile-first snap-scroll row (DESIGN_SYSTEM §11), wraps into a grid
+            once there's room at sm: and up. */}
+        {recentPapers.length > 0 && (
+          <section className={`${CONTAINER} ${SECTION} pt-0`}>
+            <h2 className="mb-5 text-2xl font-semibold tracking-tight sm:text-3xl">Recently added</h2>
+            <div className="flex snap-x snap-mandatory gap-[18px] overflow-x-auto scrollbar-hide sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible lg:grid-cols-3">
+              {recentPapers.map((p) => (
+                <div key={p.id} className="w-[260px] flex-none snap-start sm:w-auto">
+                  <PaperCard paper={p} variant="recent" sticker={isNewThisWeek(p.created_at) ? 'New this week' : undefined} />
                 </div>
               ))}
             </div>
-          </div>
+          </section>
+        )}
 
-          {/* Ownership */}
-          <div style={{ background: '#F0EAE2', borderRadius: 32, margin: '0 clamp(16px,3vw,28px) 40px', padding: 'clamp(32px,4vw,48px) 0' }}>
-            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 clamp(16px,3vw,28px)' }}>
-              <div style={{ maxWidth: 660 }}>
-                <h2 style={{ fontSize: 28, lineHeight: 1.1, fontWeight: 700, marginBottom: 16 }}>Who owns these papers</h2>
-                <p style={{ fontSize: 16, lineHeight: 1.65, color: '#4A443E', marginBottom: 14 }}>
-                  Every paper here is the property of the school that set it. Shikshaq claims no ownership over any paper, derives no revenue from any paper, and hosts these materials solely as a free community resource for students.
-                </p>
-                <p style={{ fontSize: 16, lineHeight: 1.65, color: '#4A443E' }}>
-                  Any school that wishes a paper removed can have it removed on request, without argument.
-                </p>
+        {/* ------------------------------------------------------------ 3 steps */}
+        <section className={`${CONTAINER} ${SECTION} pt-0`}>
+          <h2 className="mb-8 text-center text-2xl font-semibold tracking-tight sm:mb-10 sm:text-3xl">
+            Three steps, no cost,<br />no catch.
+          </h2>
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+            {PAPER_STEPS.map((step) => (
+              <div key={step.n}>
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-brand-blue text-base font-bold text-white">{step.n}</span>
+                  <h3 className="flex items-center gap-2 text-lg font-semibold">
+                    <step.icon size={18} className="text-brand-blue" strokeWidth={2} aria-hidden="true" />
+                    {step.title}
+                  </h3>
+                </div>
+                <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{step.body}</p>
               </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ------------------------------------------------------------ Promises */}
+        <section className={`${CONTAINER} pb-16 sm:pb-20`}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
+            {PAPER_PROMISES.map((pp) => (
+              <div key={pp.title} className="rounded-[22px] bg-card p-6 shadow-border">
+                <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                  <pp.icon size={19} className="text-foreground" strokeWidth={1.8} aria-hidden="true" />
+                </span>
+                <h3 className="mb-2 text-lg font-bold tracking-[-.03em]">{pp.title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{pp.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ----------------------------------------------------------- Ownership */}
+        <section className={`${CONTAINER} pb-16`}>
+          <div className="rounded-4xl bg-muted p-6 sm:p-8">
+            <div className="max-w-2xl space-y-4">
+              <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Who owns these papers</h2>
+              <p className="text-base leading-relaxed text-warm-prose">
+                Every paper here is the property of the school that set it. Shikshaq claims no ownership over any paper, derives no revenue from any paper, and hosts these materials solely as a free community resource for students.
+              </p>
+              <p className="text-base leading-relaxed text-warm-prose">
+                Any school that wishes a paper removed can have it removed on request, without argument.
+              </p>
             </div>
           </div>
-        </div>
+        </section>
       </main>
       <Footer />
-
-      {/* These tiles/cards/chips declared transitions but had nothing hover-driven
-          to transition to on a desktop pointer — same gap fixed on the Home page's
-          equivalent subject tiles. */}
-      <style>{`
-        @media (hover: hover) {
-          .shikshaq-text-link:hover { opacity: 0.7; }
-          .shikshaq-school-tile:hover,
-          .shikshaq-subject-tile:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(0,0,0,.08); }
-        }
-
-        /* By-subject tile grid — a single minmax(210px,1fr) auto-fill column collapsed to one
-           oversized full-width tile on narrow phones (lots of dead space next to a short
-           subject name + count). Explicit 2/3-column steps below tablet width match the same
-           pattern already used for the homepage subject grid and the Teachers page card grid;
-           auto-fill takes back over once there's room for a real 210px column. */
-        .shikshaq-papers-subject-grid {
-          display: grid;
-          gap: 14px;
-          grid-template-columns: repeat(2, 1fr);
-        }
-        @media (min-width: 480px) {
-          .shikshaq-papers-subject-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-          }
-        }
-        @media (min-width: 768px) {
-          .shikshaq-papers-subject-grid {
-            grid-template-columns: repeat(auto-fill, minmax(210px,1fr));
-          }
-        }
-      `}</style>
     </div>
   );
 }

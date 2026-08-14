@@ -23,6 +23,9 @@ interface Paper {
 
 const PAGE_SIZE = 24;
 
+const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
+const SKELETON = 'bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer';
+
 function parseArrayParam(param: string | null): string[] {
   if (!param) return [];
   return param.split(',').filter(Boolean);
@@ -160,17 +163,22 @@ export default function PaperResults() {
   const hasMore = papers.length < total;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1' }} className="flex flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
       <main className="flex-1">
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(20px,3vw,32px) clamp(16px,3vw,28px) 60px' }}>
-          <Link to="/past-papers" className="shikshaq-tap" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 40, padding: '4px 0', margin: '-4px 0 12px', fontSize: 13, fontWeight: 600, color: '#8B837A' }}>← Past Papers</Link>
-          <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', lineHeight: 1, fontWeight: 700 }}>{heading}</h1>
-          <p style={{ marginTop: 8, fontSize: 15, color: '#7B736B', fontVariantNumeric: 'tabular-nums' }}>
+        <div className={`${CONTAINER} pb-16 pt-6 sm:pt-8`}>
+          <Link
+            to="/past-papers"
+            className="-m-1 mb-3 inline-flex min-h-11 items-center p-1 text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            ← Past Papers
+          </Link>
+          <h1 className="text-[clamp(25px,3.4vw,38px)] font-bold leading-none text-foreground">{heading}</h1>
+          <p className="mt-2 text-sm tabular-nums text-muted-foreground">
             {loading ? 'Loading…' : `${total} paper${total === 1 ? '' : 's'}`}
           </p>
 
-          <div style={{ margin: '20px 0 22px' }}>
+          <div className="my-5">
             <FilterChips
               mode="papers"
               chips={filterChips}
@@ -180,26 +188,29 @@ export default function PaperResults() {
           </div>
 
           {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 18 }}>
-              {[...Array(6)].map((_, i) => <div key={i} className="animate-pulse" style={{ borderRadius: 20, height: 180, background: '#F0EAE2' }} />)}
+            <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
+              {[...Array(6)].map((_, i) => <div key={i} className={`h-[180px] rounded-2xl ${SKELETON}`} />)}
             </div>
           ) : loadError ? (
-            <div style={{ textAlign: 'center', padding: '48px 0', color: '#7B736B' }}>Unable to load papers right now. Please refresh the page.</div>
+            <EmptyResults
+              heading="Unable to load papers right now"
+              message="Please refresh the page and try again."
+              action={{ label: 'Refresh', onClick: () => window.location.reload() }}
+            />
           ) : papers.length > 0 ? (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 18 }}>
+              <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
                 {papers.map((p) => (
                   <PaperCard key={p.id} paper={p} variant="result" />
                 ))}
               </div>
 
               {hasMore && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 28 }}>
+                <div className="mt-7 flex justify-center">
                   <button
                     onClick={loadMore}
                     disabled={loadingMore}
-                    className="shikshaq-tap"
-                    style={{ minHeight: 48, padding: '14px 22px', borderRadius: 12, fontSize: 14, fontWeight: 600, color: '#1F1F1F', boxShadow: '0 0 0 1px #E7DFD5', opacity: loadingMore ? 0.6 : 1 }}
+                    className="flex min-h-12 items-center rounded-lg bg-card px-[22px] text-sm font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-muted active:scale-[0.97] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
                     {loadingMore ? 'Loading…' : 'Load more'}
                   </button>
