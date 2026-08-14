@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,51 +12,31 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
+import { Frown, Meh, Smile, Laugh, Angry, type LucideIcon } from 'lucide-react';
 
 interface FeedbackModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const emojiOptions = [
-  { id: 1, emoji: '🥵', label: 'Poor', image: '/images/emojis/emoji-1' },
-  { id: 2, emoji: '😩', label: 'Below Average', image: '/images/emojis/emoji-2' },
-  { id: 3, emoji: '😐', label: 'Average', image: '/images/emojis/emoji-3' },
-  { id: 4, emoji: '😊', label: 'Good', image: '/images/emojis/emoji-4' },
-  { id: 5, emoji: '🥰', label: 'Excellent', image: '/images/emojis/emoji-5' },
+// Mood/reaction quick-select — replaces the previous image-based emoji set (the
+// `/images/emojis/emoji-N-*.png` assets it depended on) with lucide-react icons.
+// Same 1-5 scale as before, so this still maps straight onto the existing
+// `feedback.rating` column and handleSubmit below — no schema change needed.
+const emojiOptions: { id: number; label: string; Icon: LucideIcon; tone: string }[] = [
+  { id: 1, label: 'Frustrated', Icon: Angry, tone: 'text-destructive' },
+  { id: 2, label: 'Confused', Icon: Frown, tone: 'text-brand-blue' },
+  { id: 3, label: 'Neutral', Icon: Meh, tone: 'text-muted-foreground' },
+  { id: 4, label: 'Happy', Icon: Smile, tone: 'text-brand' },
+  { id: 5, label: 'Delighted', Icon: Laugh, tone: 'text-brand' },
 ];
 
 export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
   const { user } = useAuth();
-  const [selectedEmoji, setSelectedEmoji] = useState<number | null>(3); // Default to "Average"
+  const [selectedEmoji, setSelectedEmoji] = useState<number | null>(3); // Default to "Neutral"
   const [comment, setComment] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState(false);
-
-  // Preload all emoji images when modal opens
-  useEffect(() => {
-    if (open) {
-      const imagePromises: Promise<void>[] = [];
-      
-      emojiOptions.forEach((option) => {
-        // Preload both selected and unselected versions
-        ['selected', 'unselected'].forEach((state) => {
-          const img = new Image();
-          const promise = new Promise<void>((resolve) => {
-            img.onload = () => resolve();
-            img.onerror = () => resolve(); // Resolve even on error to not block
-            img.src = `${option.image}-${state}.png`;
-          });
-          imagePromises.push(promise);
-        });
-      });
-
-      Promise.all(imagePromises).then(() => {
-        setImagesLoaded(true);
-      });
-    }
-  }, [open]);
 
   const handleSubmit = async () => {
     if (!selectedEmoji) {
@@ -129,73 +109,41 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
             </p>
           </div>
 
-          {/* Emoji Selection */}
-          <div className="w-full flex justify-center px-0.5 sm:px-1">
-            <div className="flex gap-0 sm:gap-0.5 md:gap-1 items-center justify-center w-full max-w-full">
-              {emojiOptions.map((option) => {
-                const isSelected = selectedEmoji === option.id;
+          {/* Mood quick-select — how do you feel about this? Same 1-5 scale as the
+              rating the submission handler already expects (see feedbackData below);
+              this is a restyle of the selector, not a new field. */}
+          <div className="w-full">
+            <p className="text-center text-sm font-medium text-foreground mb-2 sm:mb-3">
+              How do you feel about this?
+            </p>
+            <div className="flex gap-2 sm:gap-3 items-start justify-center w-full max-w-full">
+              {emojiOptions.map(({ id, label, Icon, tone }) => {
+                const isSelected = selectedEmoji === id;
                 return (
                   <button
-                    key={option.id}
-                    onClick={() => setSelectedEmoji(option.id)}
-                    className="flex flex-col items-center flex-1 relative"
-                    style={{ 
-                      minHeight: '85px',
-                      transition: 'none',
-                      WebkitTapHighlightColor: 'transparent',
-                    }}
+                    key={id}
+                    type="button"
+                    onClick={() => setSelectedEmoji(id)}
+                    aria-pressed={isSelected}
+                    aria-label={label}
+                    className="flex flex-col items-center gap-1.5 flex-1 min-w-0"
                   >
-                    <div
-                      className="rounded-full relative flex items-center justify-center"
-                      style={{
-                        width: 'clamp(3rem, 15vw, 5rem)',
-                        height: 'clamp(3rem, 15vw, 5rem)',
-                        transform: isSelected ? 'scale(1.1)' : 'scale(0.7)',
-                        opacity: isSelected ? 1 : 0.6,
-                        zIndex: isSelected ? 20 : 10,
-                        transition: 'transform 0.3s cubic-bezier(.2,.9,.2,1), opacity 0.3s cubic-bezier(.2,.9,.2,1)',
-                        willChange: 'transform, opacity',
-                      }}
+                    <span
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-[transform,box-shadow,background-color] duration-150 ${
+                        isSelected
+                          ? `bg-muted ${tone} ring-2 ring-brand scale-110`
+                          : 'bg-muted text-muted-foreground scale-100 hover:scale-105'
+                      }`}
                     >
-                      <img
-                        src={`${option.image}-${isSelected ? 'selected' : 'unselected'}.png`}
-                        alt={option.emoji}
-                        className="w-full h-full object-contain"
-                        style={{ 
-                          margin: 0,
-                          padding: 0,
-                          display: 'block',
-                          transition: 'opacity 0.2s cubic-bezier(.2,.9,.2,1)',
-                          opacity: imagesLoaded ? 1 : 0,
-                        }}
-                        loading="eager"
-                        onLoad={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          img.style.opacity = '1';
-                        }}
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          img.style.display = 'none';
-                          if (!img.parentElement?.querySelector('.emoji-fallback')) {
-                            const fallback = document.createElement('span');
-                            fallback.className = 'emoji-fallback text-2xl';
-                            fallback.textContent = option.emoji;
-                            img.parentElement?.appendChild(fallback);
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="h-4 sm:h-5 mt-0.5 sm:mt-1 flex items-center justify-center">
-                      <span 
-                        className="text-[10px] sm:text-xs font-medium whitespace-nowrap text-center"
-                        style={{
-                          color: isSelected ? 'inherit' : 'transparent',
-                          transition: 'color 0.3s cubic-bezier(.2,.9,.2,1)',
-                        }}
-                      >
-                        {option.label}
-                      </span>
-                    </div>
+                      <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
+                    </span>
+                    <span
+                      className={`text-[10px] sm:text-xs font-medium text-center leading-tight ${
+                        isSelected ? 'text-foreground' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {label}
+                    </span>
                   </button>
                 );
               })}

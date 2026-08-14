@@ -434,6 +434,14 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               >
                 <WhatsAppIcon className="h-4 w-4" />
               </a>
+              <a
+                href={getWhatsAppLink('8240980312')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-[44px] items-center text-sm text-white/85 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 rounded-lg"
+              >
+                Send us a WhatsApp
+              </a>
             </div>
           </div>
 
@@ -500,6 +508,19 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             </a>
             <span>Kolkata, West Bengal, India</span>
           </div>
+
+          {/* Big wordmark flourish — VISUAL_LANGUAGE §1's "one big typographic device"
+              reading. No cursive/script webfont is loaded anywhere in this project
+              (checked tailwind.config.ts + index.css), and VISUAL_LANGUAGE §0 forbids
+              inventing new tokens/assets. Per the task's fallback instruction, this
+              reaches for the flourish with Geist itself: very large size, italic,
+              tight tracking, on the dark panel in off-white. */}
+          <p
+            aria-hidden="true"
+            className="select-none pt-4 text-6xl italic font-semibold leading-none tracking-tighter text-white/90 sm:text-8xl lg:text-9xl"
+          >
+            ShikshAQ
+          </p>
         </div>
       </div>
 
