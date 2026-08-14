@@ -11,6 +11,7 @@ import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { SubjectCard } from '@/components/SubjectCard';
 import { HomeActivitySection } from '@/components/HomeActivitySection';
+import { HomeGreeting } from '@/components/HomeGreeting';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache';
@@ -435,6 +436,7 @@ export default function Index() {
           </div>
         </section>
 
+        <HomeGreeting />
         <HomeActivitySection />
 
         {/* ----------------------------------------------------- Featured teachers */}

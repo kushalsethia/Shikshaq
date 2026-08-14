@@ -7,6 +7,23 @@ import { useLikes } from '@/lib/likes-context';
 import { TeacherCard } from '@/components/TeacherCard';
 import { getRecentlyVisited, type RecentVisit } from '@/lib/recently-visited';
 
+// Small relative-time label for a Recently Visited row's `ts` field.
+// No new dependency — just enough granularity to be useful ("2h ago",
+// "Yesterday", "3d ago"), falling back to a short date beyond a week.
+function formatRelativeTime(ts: number): string {
+  const diffMs = Date.now() - ts;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < minute) return 'Just now';
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)}m ago`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)}h ago`;
+  if (diffMs < 2 * day) return 'Yesterday';
+  if (diffMs < 7 * day) return `${Math.floor(diffMs / day)}d ago`;
+  return new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
 interface FavouriteTeacher {
   id: string;
   name: string;
@@ -27,7 +44,7 @@ const SECTION = 'py-16 sm:py-20 lg:py-24';
  */
 export function HomeActivitySection() {
   const { user } = useAuth();
-  const { likedTeacherIds, loading: likesLoading } = useLikes();
+  const { likedTeacherIds, loading: likesLoading, isLiked, toggleLike } = useLikes();
   const [favourites, setFavourites] = useState<FavouriteTeacher[]>([]);
   const [favouritesLoading, setFavouritesLoading] = useState(true);
   const [recent, setRecent] = useState<RecentVisit[]>([]);
@@ -130,11 +147,12 @@ export function HomeActivitySection() {
             <ul className="divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-warm-card">
               {recent.map((item) => {
                 const Icon = item.type === 'teacher' ? GraduationCap : FileText;
+                const teacherLiked = item.type === 'teacher' && user ? isLiked(item.id) : false;
                 return (
-                  <li key={`${item.type}-${item.id}`}>
+                  <li key={`${item.type}-${item.id}`} className="flex items-center">
                     <Link
                       to={item.path}
-                      className="flex items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-warm-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
+                      className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-warm-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
                     >
                       <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-warm-muted">
                         <Icon className="h-4 w-4 text-warm-secondary" strokeWidth={1.75} aria-hidden="true" />
@@ -145,7 +163,27 @@ export function HomeActivitySection() {
                           <span className="block truncate text-xs text-warm-secondary">{item.subtitle}</span>
                         )}
                       </span>
+                      <span className="flex-none whitespace-nowrap text-xs text-warm-secondary">
+                        {formatRelativeTime(item.ts)}
+                      </span>
                     </Link>
+                    {item.type === 'teacher' && (
+                      <button
+                        type="button"
+                        onClick={() => toggleLike(item.id)}
+                        aria-label={teacherLiked ? `Remove ${item.title} from favourites` : `Add ${item.title} to favourites`}
+                        aria-pressed={teacherLiked}
+                        className="mr-2 flex h-11 w-11 flex-none items-center justify-center rounded-full transition-colors duration-150 hover:bg-warm-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      >
+                        <Heart
+                          className={`h-4 w-4 transition-colors duration-150 ${
+                            teacherLiked ? 'fill-destructive text-destructive' : 'text-warm-secondary'
+                          }`}
+                          strokeWidth={1.75}
+                          aria-hidden="true"
+                        />
+                      </button>
+                    )}
                   </li>
                 );
               })}
