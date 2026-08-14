@@ -4,12 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
+import { EmptyResults } from '@/components/EmptyResults';
 import { useAuth } from '@/lib/auth-context';
 import { useLikes } from '@/lib/likes-context';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { Button } from '@/components/ui/button';
+import { Heart } from 'lucide-react';
 import { adminToast } from '@/components/AdminConsole';
-import { SURFACE_TOKENS } from '@/utils/searchFacets';
 
 interface LikedTeacher {
   id: string;
@@ -163,12 +164,12 @@ export default function LikedTeachers() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: '#1F1F1F', marginBottom: 12 }}>Sign in required</h1>
-          <p style={{ color: '#7B736B', marginBottom: 24 }}>Please sign in to view your favourite teachers.</p>
-          <Button onClick={() => navigate('/auth')}>Sign In</Button>
+        <main className="container py-16 pb-16 text-center sm:py-20">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Sign in required</h1>
+          <p className="mt-3 text-sm text-muted-foreground">Please sign in to view your favourite teachers.</p>
+          <Button className="mt-6" onClick={() => navigate('/auth')}>Sign In</Button>
         </main>
         <Footer />
       </div>
@@ -180,13 +181,13 @@ export default function LikedTeachers() {
   // empty state below instead of skeletons that would never resolve into cards.
   if ((loading || likesLoading) && likedTeachers.length === 0) {
     return (
-      <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}>
-          <div className="animate-pulse" style={{ height: 32, width: 220, background: '#F0EAE2', borderRadius: 8, marginBottom: 28 }} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 18 }}>
+        <main className="container pt-8 pb-16">
+          <div className="mb-7 h-8 w-56 animate-shimmer rounded-lg bg-muted" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="animate-pulse" style={{ borderRadius: 20, aspectRatio: '4/5', background: '#F0EAE2' }} />
+              <div key={i} className="aspect-[4/5] animate-shimmer rounded-2xl bg-muted" />
             ))}
           </div>
         </main>
@@ -196,25 +197,24 @@ export default function LikedTeachers() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}>
-        <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', lineHeight: 1, fontWeight: 700 }}>Favourite teachers</h1>
-        <p style={{ marginTop: 10, fontSize: 15, color: '#7B736B' }}>
+      <main className="container pt-8 pb-16">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Favourite teachers</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           Saved teachers stay here until you remove them.
         </p>
 
         {likedTeachers.length === 0 ? (
-          <div style={{ marginTop: 24 }}>
-            <p style={{ fontSize: 15, lineHeight: 1.6, color: '#7B736B', maxWidth: 420, marginBottom: 18 }}>
-              Start exploring teachers and favourite the ones you're interested in.
-            </p>
-            <Link to="/all-tuition-teachers-in-kolkata">
-              <Button>Browse teachers</Button>
-            </Link>
-          </div>
+          <EmptyResults
+            className="mt-6"
+            icon={<Heart className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+            heading="No favourite teachers yet"
+            message="Start exploring teachers and favourite the ones you're interested in."
+            action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
+          />
         ) : (
-          <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 18 }}>
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {likedTeachers.map((teacher) => (
               <TeacherCard
                 key={teacher.id}

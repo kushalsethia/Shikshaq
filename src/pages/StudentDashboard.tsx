@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
+import { EmptyResults } from '@/components/EmptyResults';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,11 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Lock } from 'lucide-react';
+import { Save, Lock, Heart, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLikes } from '@/lib/likes-context';
 import { PaperCard, type PaperCardPaper } from '@/components/PaperCard';
-import { SURFACE_TOKENS } from '@/utils/searchFacets';
 
 interface Subject {
   id: string;
@@ -53,19 +53,14 @@ interface Profile {
   guardian_email: string | null;
 }
 
-// Profile form field/label/panel styling, derived from this page's own SURFACE_TOKENS — the same
-// token set the header and stat tiles above already use — so the editable form matches the rest
-// of the page instead of falling back to shadcn's bare default input styling.
-const FIELD_STYLE: React.CSSProperties = {
-  background: SURFACE_TOKENS.shell,
-  boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-  borderRadius: 12,
-  minHeight: 48,
-};
-const LOCKED_FIELD_STYLE: React.CSSProperties = { ...FIELD_STYLE, opacity: 0.7 };
-const FIELD_CLASSNAME = 'h-auto border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0';
-const LABEL_STYLE: React.CSSProperties = { fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary, marginBottom: 6, display: 'block' };
-const SECTION_HEADING_STYLE: React.CSSProperties = { fontSize: 19, fontWeight: 700, color: SURFACE_TOKENS.textPrimary };
+// Profile form field/label/panel styling, on the token system so the editable form matches
+// the rest of the page instead of falling back to shadcn's bare default input styling.
+const FIELD_CLASSNAME =
+  'h-auto min-h-12 rounded-lg border-0 bg-background text-base shadow-border focus-visible:ring-0 focus-visible:ring-offset-0';
+const LOCKED_FIELD_CLASSNAME = `${FIELD_CLASSNAME} cursor-not-allowed opacity-70`;
+const LABEL_CLASSNAME = 'mb-1.5 block text-sm font-semibold text-foreground';
+const SECTION_HEADING_CLASSNAME = 'text-lg font-semibold text-foreground';
+const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-background shadow-border';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -291,17 +286,17 @@ export default function StudentDashboard() {
     if (!dateStr) return false;
     const match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
     if (!match) return false;
-    
+
     const [, day, month, year] = match;
     const dayNum = parseInt(day, 10);
     const monthNum = parseInt(month, 10);
     const yearNum = parseInt(year, 10);
-    
+
     // Basic validation
     if (monthNum < 1 || monthNum > 12) return false;
     if (dayNum < 1 || dayNum > 31) return false;
     if (yearNum < 1900 || yearNum > 2100) return false;
-    
+
     // Check if date is valid (e.g., not 31 Feb)
     const date = new Date(yearNum, monthNum - 1, dayNum);
     return (
@@ -315,10 +310,10 @@ export default function StudentDashboard() {
   const formatDateInput = (value: string): string => {
     // Remove all non-digit characters
     const digits = value.replace(/\D/g, '');
-    
+
     // Limit to 8 digits (ddmmyyyy)
     const limitedDigits = digits.slice(0, 8);
-    
+
     // Format as dd-mm-yyyy
     if (limitedDigits.length === 0) return '';
     if (limitedDigits.length <= 2) return limitedDigits;
@@ -328,7 +323,7 @@ export default function StudentDashboard() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     // For phone number, only allow numeric characters
     if (name === 'phone') {
       const numericValue = value.replace(/\D/g, ''); // Remove all non-digit characters
@@ -479,19 +474,19 @@ export default function StudentDashboard() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <div style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}>
+        <div className="container pt-8 pb-8">
           <div className="animate-pulse">
-            <div className="h-8 w-48 rounded mb-8" style={{ background: '#F0EAE2' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16, marginBottom: 24 }}>
+            <div className="mb-8 h-8 w-48 rounded-lg bg-muted" />
+            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
               {[...Array(3)].map((_, i) => (
-                <div key={i} style={{ height: 90, borderRadius: 20, background: '#F0EAE2' }} />
+                <div key={i} className="h-24 rounded-2xl bg-muted" />
               ))}
             </div>
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-24 rounded-lg" style={{ background: '#F0EAE2' }} />
+                <div key={i} className="h-24 rounded-lg bg-muted" />
               ))}
             </div>
           </div>
@@ -503,18 +498,18 @@ export default function StudentDashboard() {
 
   if (!profile || profile.role !== 'student') {
     return (
-      <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="container" style={{ paddingTop: 60, paddingBottom: 60, textAlign: 'center' }}>
-          <h1 style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: '#1F1F1F', marginBottom: 12 }}>
+        <main className="container py-16 pb-16 text-center sm:py-20">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {user ? 'Student account required' : 'Sign in required'}
           </h1>
-          <p style={{ color: '#7B736B', marginBottom: 24 }}>
+          <p className="mt-3 text-sm text-muted-foreground">
             {user
               ? 'This dashboard is only available to student accounts.'
               : 'Please sign in to view your dashboard.'}
           </p>
-          <Button onClick={() => navigate(user ? '/' : '/auth')}>
+          <Button className="mt-6" onClick={() => navigate(user ? '/' : '/auth')}>
             {user ? 'Go Home' : 'Sign In'}
           </Button>
         </main>
@@ -548,24 +543,24 @@ export default function StudentDashboard() {
   const hasMoreSavedTeachers = likedCount > shownSavedTeachers.length;
 
   return (
-    <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }}>
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main style={{ maxWidth: 1000, margin: '0 auto', padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}>
+      <main className="container pt-8 pb-16">
         {/* Header */}
-        <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', lineHeight: 1, fontWeight: 700 }}>Your dashboard</h1>
-        <p style={{ marginTop: 10, fontSize: 15, color: '#7B736B' }}>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Your dashboard</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           {subLineParts.length > 0 ? subLineParts.join(' · ') : 'Manage your profile and preferences'}
         </p>
 
         {/* Stat tiles */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16, marginTop: 26 }}>
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
           {dashboardStats.map((st) => (
-            <div key={st.label} style={{ padding: 22, borderRadius: 20, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.04em', color: '#8B837A', textTransform: 'uppercase', marginBottom: 7 }}>
+            <div key={st.label} className="rounded-2xl bg-card p-4 shadow-border sm:p-6">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {st.label}
               </div>
-              <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-.04em' }}>
+              <div className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-foreground">
                 {st.value}
               </div>
             </div>
@@ -573,22 +568,22 @@ export default function StudentDashboard() {
         </div>
 
         {/* Teachers you saved */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: '34px 0 14px' }}>
-          <h2 style={{ fontSize: 'clamp(20px,2.2vw,24px)', fontWeight: 700 }}>Teachers you saved</h2>
+        <div className="mt-8 mb-4 flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Teachers you saved</h2>
           {hasMoreSavedTeachers && (
-            <Link to="/liked-teachers" style={{ fontSize: 13, fontWeight: 600, color: '#8B837A' }}>
+            <Link to="/liked-teachers" className="text-sm font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep">
               See all {likedCount} →
             </Link>
           )}
         </div>
         {savedTeachersLoading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16 }}>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="animate-pulse" style={{ borderRadius: 18, aspectRatio: '4/5', background: '#F0EAE2' }} />
+              <div key={i} className="aspect-[4/5] animate-shimmer rounded-2xl bg-muted" />
             ))}
           </div>
         ) : shownSavedTeachers.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16 }}>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {shownSavedTeachers.map((teacher) => (
               <TeacherCard
                 key={teacher.id}
@@ -604,55 +599,63 @@ export default function StudentDashboard() {
             ))}
           </div>
         ) : (
-          <p style={{ fontSize: 15, color: '#7B736B' }}>Nothing saved yet.</p>
+          <EmptyResults
+            icon={<Heart className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+            heading="Nothing saved yet"
+            message="Tap the heart on any teacher's profile to save them here for later."
+            action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
+          />
         )}
 
         {/* Continue reading */}
-        <h2 style={{ fontSize: 'clamp(20px,2.2vw,24px)', fontWeight: 700, margin: '34px 0 14px' }}>Continue reading</h2>
+        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Continue reading</h2>
         {readingHistory.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 18 }}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
             {readingHistory.map(({ paper }) => (
               <PaperCard key={paper.id} paper={paper} variant="compact" />
             ))}
           </div>
         ) : (
-          <p style={{ fontSize: 15, color: '#7B736B' }}>Nothing read yet.</p>
+          <EmptyResults
+            icon={<BookOpen className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+            heading="Nothing read yet"
+            message="Papers you open will show up here so you can pick up where you left off."
+            action={{ label: 'Browse past papers', onClick: () => navigate('/past-papers') }}
+          />
         )}
 
         <div>
           {/* Profile Form */}
-          <div style={{ marginTop: 44, padding: 'clamp(20px,3vw,32px)', borderRadius: 20, background: SURFACE_TOKENS.field, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }} className="space-y-6">
+          <div className="mt-11 space-y-6 rounded-2xl bg-card p-5 shadow-border sm:p-8">
             {/* Locked Fields Section */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <h2 style={SECTION_HEADING_STYLE} className="flex items-center gap-2">
-                <Lock className="w-5 h-5" style={{ color: SURFACE_TOKENS.textTertiary }} />
+            <div className="space-y-4 border-b border-border pb-6">
+              <h2 className={`${SECTION_HEADING_CLASSNAME} flex items-center gap-2`}>
+                <Lock className="h-5 w-5 text-warm-meta" />
                 Account Information
               </h2>
 
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="accountName" style={LABEL_STYLE}>
-                    Name <span style={{ color: '#B3261E' }}>*</span>
+                  <Label htmlFor="accountName" className={LABEL_CLASSNAME}>
+                    Name <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="accountName"
                     value={userName}
                     disabled
-                    className={`${FIELD_CLASSNAME} cursor-not-allowed`}
-                    style={LOCKED_FIELD_STYLE}
+                    className={LOCKED_FIELD_CLASSNAME}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="accountEmail" style={LABEL_STYLE}>
-                    Email <span style={{ color: '#B3261E' }}>*</span>
+                  <Label htmlFor="accountEmail" className={LABEL_CLASSNAME}>
+                    Email <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="accountEmail"
                     value={userEmail}
                     disabled
-                    className={`${FIELD_CLASSNAME} cursor-not-allowed`}
-                    style={LOCKED_FIELD_STYLE}
+                    className={LOCKED_FIELD_CLASSNAME}
                   />
                 </div>
               </div>
@@ -661,7 +664,7 @@ export default function StudentDashboard() {
             {/* Editable Fields Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 style={SECTION_HEADING_STYLE}>Profile Information</h2>
+                <h2 className={SECTION_HEADING_CLASSNAME}>Profile Information</h2>
                 <Button
                   onClick={handleSave}
                   disabled={saving}
@@ -675,8 +678,8 @@ export default function StudentDashboard() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone" style={LABEL_STYLE}>
-                    Phone Number <span style={{ color: '#B3261E' }}>*</span>
+                  <Label htmlFor="phone" className={LABEL_CLASSNAME}>
+                    Phone Number <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="phone"
@@ -689,13 +692,12 @@ export default function StudentDashboard() {
                     maxLength={10}
                     inputMode="numeric"
                     className={`w-full ${FIELD_CLASSNAME}`}
-                    style={FIELD_STYLE}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="date_of_birth" style={LABEL_STYLE}>
-                    Date of Birth <span style={{ color: '#B3261E' }}>*</span>
+                  <Label htmlFor="date_of_birth" className={LABEL_CLASSNAME}>
+                    Date of Birth <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="date_of_birth"
@@ -706,16 +708,15 @@ export default function StudentDashboard() {
                     onChange={handleInputChange}
                     maxLength={10}
                     className={`w-full ${FIELD_CLASSNAME}`}
-                    style={FIELD_STYLE}
                   />
                   {formData.date_of_birth && !isValidDateFormat(formData.date_of_birth) && (
-                    <p className="text-xs" style={{ color: '#B3261E' }}>Please enter a valid date in DD-MM-YYYY format</p>
+                    <p className="text-sm text-destructive">Please enter a valid date in DD-MM-YYYY format</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="school_college" style={LABEL_STYLE}>
-                    School/College <span style={{ color: '#B3261E' }}>*</span>
+                  <Label htmlFor="school_college" className={LABEL_CLASSNAME}>
+                    School/College <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="school_college"
@@ -725,19 +726,18 @@ export default function StudentDashboard() {
                     value={formData.school_college}
                     onChange={handleInputChange}
                     className={FIELD_CLASSNAME}
-                    style={FIELD_STYLE}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="grade" style={LABEL_STYLE}>
-                    Grade <span style={{ color: '#B3261E' }}>*</span>
+                  <Label htmlFor="grade" className={LABEL_CLASSNAME}>
+                    Grade <span className="text-destructive">*</span>
                   </Label>
                   <Select
                     value={formData.grade || "__none__"}
                     onValueChange={(value) => setFormData({ ...formData, grade: value === "__none__" ? "" : value })}
                   >
-                    <SelectTrigger id="grade" className={FIELD_CLASSNAME} style={FIELD_STYLE}>
+                    <SelectTrigger id="grade" className={FIELD_CLASSNAME}>
                       <SelectValue placeholder="Select grade" />
                     </SelectTrigger>
                     <SelectContent>
@@ -764,12 +764,12 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="school_board" style={LABEL_STYLE}>School Board (Optional)</Label>
+                  <Label htmlFor="school_board" className={LABEL_CLASSNAME}>School Board (Optional)</Label>
                   <Select
                     value={formData.school_board || "__none__"}
                     onValueChange={(value) => setFormData({ ...formData, school_board: value === "__none__" ? "" : value })}
                   >
-                    <SelectTrigger id="school_board" className={FIELD_CLASSNAME} style={FIELD_STYLE}>
+                    <SelectTrigger id="school_board" className={FIELD_CLASSNAME}>
                       <SelectValue placeholder="Select school board" />
                     </SelectTrigger>
                     <SelectContent>
@@ -784,7 +784,7 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="guardian_email" style={LABEL_STYLE}>Guardian's Email (Optional)</Label>
+                  <Label htmlFor="guardian_email" className={LABEL_CLASSNAME}>Guardian's Email (Optional)</Label>
                   <Input
                     id="guardian_email"
                     name="guardian_email"
@@ -797,12 +797,11 @@ export default function StudentDashboard() {
                     value={formData.guardian_email}
                     onChange={handleInputChange}
                     className={FIELD_CLASSNAME}
-                    style={FIELD_STYLE}
                   />
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="address" style={LABEL_STYLE}>Address (Optional)</Label>
+                  <Label htmlFor="address" className={LABEL_CLASSNAME}>Address (Optional)</Label>
                   <Textarea
                     id="address"
                     name="address"
@@ -810,18 +809,16 @@ export default function StudentDashboard() {
                     value={formData.address}
                     onChange={handleInputChange}
                     rows={3}
-                    className={`${FIELD_CLASSNAME} py-3`}
-                    style={{ ...FIELD_STYLE, minHeight: 88 }}
+                    className={`${FIELD_CLASSNAME} min-h-[88px] py-3`}
                   />
                 </div>
               </div>
 
               {/* Subjects Selection */}
               <div className="space-y-3 pt-4 border-t border-border">
-                <Label style={LABEL_STYLE}>Subjects Interested In</Label>
+                <Label className={LABEL_CLASSNAME}>Subjects Interested In</Label>
                 <div
-                  className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-4"
-                  style={{ background: SURFACE_TOKENS.shell, boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`, borderRadius: 14 }}
+                  className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}
                 >
                   {subjects.map((subject) => (
                     <div key={subject.id} className="flex items-center space-x-2">
@@ -832,8 +829,7 @@ export default function StudentDashboard() {
                       />
                       <Label
                         htmlFor={`subject-${subject.id}`}
-                        className="text-sm font-normal cursor-pointer"
-                        style={{ color: SURFACE_TOKENS.textBody }}
+                        className="cursor-pointer text-sm font-normal text-warm-prose"
                       >
                         {subject.name}
                       </Label>
@@ -841,7 +837,7 @@ export default function StudentDashboard() {
                   ))}
                 </div>
                 {subjects.length === 0 && (
-                  <p className="text-sm" style={{ color: SURFACE_TOKENS.textTertiary }}>No subjects available</p>
+                  <p className="text-sm text-warm-meta">No subjects available</p>
                 )}
               </div>
             </div>
@@ -866,4 +862,3 @@ export default function StudentDashboard() {
     </div>
   );
 }
-
