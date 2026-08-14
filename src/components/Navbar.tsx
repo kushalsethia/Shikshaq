@@ -13,12 +13,13 @@ import { useSearchExpanded } from '@/hooks/useSearchExpanded';
 import {
   Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
 } from '@/components/ui/sheet';
+import { ExpandableTabs, type ExpandableTab } from '@/components/ui/expandable-tabs';
 
-const NAV_TABS: { path: string; label: string; icon: LucideIcon; isActive: (p: string) => boolean }[] = [
-  { path: '/', label: 'Home', icon: Home, isActive: (p) => p === '/' },
-  { path: '/all-tuition-teachers-in-kolkata', label: 'Teachers', icon: GraduationCap, isActive: (p) => p.endsWith('-tuition-teachers-in-kolkata') },
-  { path: '/past-papers', label: 'Papers', icon: FileText, isActive: (p) => p === '/past-papers' },
-  { path: '/about', label: 'About', icon: Info, isActive: (p) => p === '/about' },
+const NAV_TABS: ExpandableTab[] = [
+  { to: '/', label: 'Home', icon: Home, isActive: (p) => p === '/' },
+  { to: '/all-tuition-teachers-in-kolkata', label: 'Teachers', icon: GraduationCap, isActive: (p) => p.endsWith('-tuition-teachers-in-kolkata') },
+  { to: '/past-papers', label: 'Papers', icon: FileText, isActive: (p) => p === '/past-papers' },
+  { to: '/about', label: 'About', icon: Info, isActive: (p) => p === '/about' },
 ];
 
 const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2';
@@ -160,34 +161,18 @@ export function Navbar() {
         <div className="hidden h-16 items-center gap-6 lg:flex">
           <Logo size="nav" className="flex-none" />
 
-          <nav
-            className={`flex flex-1 items-center justify-center gap-1 rounded-full transition-all duration-300 ${
+          <div
+            className={`flex flex-1 justify-center rounded-full transition-all duration-300 ${
               scrolled ? 'bg-transparent p-0' : 'bg-warm-muted/70 p-1'
             }`}
           >
-            {NAV_TABS.map((tab) => {
-              const active = tab.isActive(location.pathname);
-              return (
-                <Link
-                  key={tab.path}
-                  to={tab.path}
-                  aria-current={active ? 'page' : undefined}
-                  className={`relative flex min-h-[44px] items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors duration-150 ${FOCUS_RING} ${
-                    active ? 'bg-muted text-brand' : 'text-foreground hover:bg-muted'
-                  }`}
-                >
-                  <tab.icon className="h-4 w-4" aria-hidden />
-                  {tab.label}
-                  {active && (
-                    <span
-                      aria-hidden
-                      className="absolute -bottom-px left-1/2 h-1 w-5 -translate-x-1/2 rounded-full bg-brand"
-                    />
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
+            <ExpandableTabs
+              tabs={NAV_TABS}
+              pathname={location.pathname}
+              theme="light"
+              className="max-w-md"
+            />
+          </div>
 
           <div className="flex flex-none items-center gap-3">
             <Link
