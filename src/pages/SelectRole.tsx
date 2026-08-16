@@ -2,9 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -19,6 +16,10 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
+
+const FIELD_CLASS =
+  'w-full min-h-12 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline px-4 shikshaq-role-field';
+const LABEL_CLASS = 'block text-sm font-semibold text-foreground mb-2';
 
 function isValidRedirect(path: string | null): path is string {
   return !!path && path.startsWith('/') && !path.startsWith('//');
@@ -44,7 +45,7 @@ export default function SelectRole() {
     const checkExistingRole = async () => {
       // Wait for auth to finish loading
       if (authLoading) return;
-      
+
       // If no user, allow them to see the sign-in message
       if (!user) {
         if (isMounted) {
@@ -160,7 +161,7 @@ export default function SelectRole() {
       }
 
       toast.success('Profile created successfully!');
-      
+
       // Small delay to ensure cache is cleared, then redirect back or home
       const returnPath = isValidRedirect(redirectTo) ? redirectTo : '/';
       setTimeout(() => {
@@ -182,8 +183,8 @@ export default function SelectRole() {
         <Navbar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
+            <p className="text-muted-foreground text-base">Loading...</p>
           </div>
         </div>
         <Footer />
@@ -201,9 +202,14 @@ export default function SelectRole() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-16 text-center md:pt-16">
-          <p className="text-muted-foreground mb-4">You must be signed in to continue.</p>
-          <Button onClick={() => navigate(isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth')}>Sign In</Button>
+        <div className="px-4 sm:px-6 pt-6 sm:pt-12 pb-16 text-center">
+          <p className="mb-4 text-base text-muted-foreground">You must be signed in to continue.</p>
+          <button
+            onClick={() => navigate(isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth')}
+            className="active:scale-[0.98] transition-transform duration-150 min-h-12 px-6 rounded-lg bg-foreground text-background text-base font-bold"
+          >
+            Sign In
+          </button>
         </div>
         <Footer />
       </div>
@@ -214,68 +220,63 @@ export default function SelectRole() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
-      <main className="flex-1 flex items-center justify-center py-16 px-4 sm:px-0">
-        <div className="w-full max-w-md">
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16">
+        <div className="w-full max-w-[480px]">
           <div className="text-center mb-8">
             <Logo size="lg" className="mx-auto mb-4" />
-            <h1 className="text-3xl font-sans text-foreground mb-2">
-              Complete Your Profile
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
+              Complete your profile
             </h1>
-            <p className="text-muted-foreground">
+            <p className="mt-2 text-base leading-relaxed text-muted-foreground">
               Please select whether you are a student or guardian
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-3">
-              <Label className="text-base">I am a...</Label>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div>
+              <label className={LABEL_CLASS}>I am a...</label>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
                   onClick={() => setRole('student')}
-                  className={`flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-colors ${
-                    role === 'student'
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
+                  aria-pressed={role === 'student'}
+                  className={`active:scale-[0.98] transition-transform duration-150 flex flex-col items-center justify-center gap-2 py-6 px-4 rounded-2xl ${role === 'student' ? 'bg-brand-subtle ring-2 ring-brand' : 'bg-card shadow-border'}`}
                 >
-                  <GraduationCap className="w-8 h-8 mb-3" />
-                  <span className="font-medium text-lg">Student</span>
+                  <GraduationCap className={`w-7 h-7 ${role === 'student' ? 'text-brand-deep' : 'text-foreground'}`} />
+                  <span className="text-base font-semibold text-foreground">Student</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setRole('guardian')}
-                  className={`flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-colors ${
-                    role === 'guardian'
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50'
-                  }`}
+                  aria-pressed={role === 'guardian'}
+                  className={`active:scale-[0.98] transition-transform duration-150 flex flex-col items-center justify-center gap-2 py-6 px-4 rounded-2xl ${role === 'guardian' ? 'bg-brand-blue-subtle ring-2 ring-brand-blue' : 'bg-card shadow-border'}`}
                 >
-                  <Users className="w-8 h-8 mb-3" />
-                  <span className="font-medium text-lg">Guardian</span>
+                  <Users className={`w-7 h-7 ${role === 'guardian' ? 'text-brand-blue' : 'text-foreground'}`} />
+                  <span className="text-base font-semibold text-foreground">Guardian</span>
                 </button>
               </div>
             </div>
 
             {role === 'student' && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                <div className="space-y-2">
-                  <Label htmlFor="school_college">
-                    School / College <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300 flex flex-col gap-6">
+                <div>
+                  <label htmlFor="school_college" className={LABEL_CLASS}>
+                    School / College <span className="text-destructive">*</span>
+                  </label>
+                  <input
                     id="school_college"
                     placeholder="e.g. Delhi Public School"
                     value={schoolCollege}
                     onChange={(e) => setSchoolCollege(e.target.value)}
+                    className={FIELD_CLASS}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="grade">
-                    Grade <span className="text-red-500">*</span>
-                  </Label>
+                <div>
+                  <label htmlFor="grade" className={LABEL_CLASS}>
+                    Grade <span className="text-destructive">*</span>
+                  </label>
                   <Select value={grade} onValueChange={setGrade}>
-                    <SelectTrigger id="grade">
+                    <SelectTrigger id="grade" className={FIELD_CLASS}>
                       <SelectValue placeholder="Select grade" />
                     </SelectTrigger>
                     <SelectContent>
@@ -303,35 +304,43 @@ export default function SelectRole() {
             )}
 
             {/* Terms and Privacy Policy Checkbox */}
-            <div className="flex items-start space-x-2">
+            <div className="flex items-start gap-3">
               <Checkbox
                 id="terms"
                 checked={termsAgreed}
                 onCheckedChange={(checked) => setTermsAgreed(checked === true)}
                 className="mt-1"
               />
-              <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
+              <label htmlFor="terms" className="text-sm leading-relaxed text-warm-prose cursor-pointer">
                 I agree to the{' '}
-                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline underline">
+                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
                   Terms of Service
                 </a>
                 {' '}and{' '}
-                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline underline">
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
                   Privacy Policy
                 </a>
                 {' '}to connect with teachers.
-              </Label>
+              </label>
             </div>
 
-            <Button type="submit" className="w-full h-12" disabled={loading || !role || !termsAgreed || (role === 'student' && (!schoolCollege.trim() || !grade))}>
-              {loading ? 'Creating Profile...' : 'Continue'}
-            </Button>
+            <button
+              type="submit"
+              disabled={loading || !role || !termsAgreed || (role === 'student' && (!schoolCollege.trim() || !grade))}
+              className="active:scale-[0.98] transition-transform duration-150 w-full min-h-[50px] rounded-lg bg-foreground text-background text-base font-bold disabled:opacity-50"
+            >
+              {loading ? 'Creating profile...' : 'Continue'}
+            </button>
           </form>
         </div>
       </main>
 
       <Footer />
+
+      <style>{`
+        .shikshaq-role-field:focus,
+        .shikshaq-role-field:focus-within { box-shadow: 0 0 0 2px hsl(var(--foreground)); outline: none; }
+      `}</style>
     </div>
   );
 }
-

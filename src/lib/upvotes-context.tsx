@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback 
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
 
 interface UpvotesContextType {
   isUpvoted: (teacherId: string) => boolean;
@@ -121,9 +122,7 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
           .eq('user_id', user.id);
 
         if (error) {
-          if (import.meta.env.DEV) {
-            console.error('Error fetching upvotes:', error);
-          }
+          logger.error('upvotes-context.loadUpvotes', error);
           if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
             setUpvotedTeacherIds(new Set());
             setLoading(false);
@@ -137,9 +136,7 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
         setUpvotedTeacherIds(upvotedIds);
         setCachedUpvotes(user.id, upvotedIds);
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching upvotes:', error);
-        }
+        logger.error('upvotes-context.loadUpvotes.catch', error);
         if (!cachedUpvotes) {
           setUpvotedTeacherIds(new Set());
         }
@@ -174,31 +171,29 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        // Pulls from the teacher_upvote_stats view (server-side aggregate)
+        // instead of fetching every row of teacher_upvotes and counting
+        // client-side — that approach re-downloaded the entire table on
+        // every page load for every visitor and only grows worse over time.
         const { data, error } = await supabase
-          .from('teacher_upvotes')
-          .select('teacher_id');
+          .from('teacher_upvote_stats')
+          .select('teacher_id, upvote_count');
 
         if (error) {
-          if (import.meta.env.DEV) {
-            console.error('Error fetching upvote counts:', error);
-          }
+          logger.error('upvotes-context.loadUpvoteCounts', error);
           if (cachedCounts) return;
           return;
         }
 
-        // Count upvotes per teacher
         const counts = new Map<string, number>();
-        data?.forEach((upvote) => {
-          const current = counts.get(upvote.teacher_id) || 0;
-          counts.set(upvote.teacher_id, current + 1);
+        data?.forEach((row) => {
+          if (row.teacher_id) counts.set(row.teacher_id, row.upvote_count || 0);
         });
 
         setUpvoteCounts(counts);
         setCachedCounts(counts);
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching upvote counts:', error);
-        }
+        logger.error('upvotes-context.loadUpvoteCounts.catch', error);
       }
     }
 
@@ -321,9 +316,7 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
         return true;
       }
     } catch (error: any) {
-      if (import.meta.env.DEV) {
-        console.error('Error toggling upvote:', error);
-      }
+      logger.error('upvotes-context.toggleUpvote', error);
       toast.error(error.message || 'Failed to update upvote');
       return currentlyUpvoted;
     }

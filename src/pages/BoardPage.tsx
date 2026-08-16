@@ -10,7 +10,7 @@ const BOARD_SEO: Record<string, { title: string; description: string }> = {
   },
   '/icse-tuition-teachers-in-kolkata': {
     title: 'ICSE Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find verified ICSE and ISC tuition teachers in Kolkata for Classes 1–12. Connect directly with local tutors for free on Shikshaq — no commission.',
+    description: 'Find verified ICSE and ISC tuition teachers in Kolkata for Classes 1–12. Connect directly with local tutors for free on Shikshaq, no commission.',
   },
   '/igcse-tuition-teachers-in-kolkata': {
     title: 'IGCSE Tuition Teachers in Kolkata | Shikshaq',
@@ -18,7 +18,7 @@ const BOARD_SEO: Record<string, { title: string; description: string }> = {
   },
   '/international-board-tuition-teachers-in-kolkata': {
     title: 'IB Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find IB (International Baccalaureate) MYP and DP tuition teachers in Kolkata. Connect directly for free on Shikshaq — no commission, no middlemen.',
+    description: 'Find IB (International Baccalaureate) MYP and DP tuition teachers in Kolkata. Connect directly for free on Shikshaq, no commission, no middlemen.',
   },
   '/state-board-tuition-teachers-in-kolkata': {
     title: 'State Board Tuition Teachers in Kolkata | Shikshaq',
@@ -43,24 +43,17 @@ export default function BoardPage() {
     const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
     if (metaDesc) metaDesc.setAttribute('content', seo.description);
 
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.rel = 'canonical';
-      document.head.appendChild(canonical);
-    }
-    canonical.href = `https://www.shikshaq.in${pathname}`;
-
+    // Canonical is handled globally by <CanonicalTag>, keyed on pathname.
     return () => {
       document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
       if (metaDesc) {
-        metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board — no commission, no middlemen.');
+        metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board. No commission, no middlemen.');
       }
     };
   }, [pathname]);
 
   if (!filterValue) {
-    return <Browse />;
+    return <Browse manageSeo={!BOARD_SEO[pathname]} />;
   }
 
   const filterBoardsExists = searchParams.has('filter_boards');
@@ -90,5 +83,5 @@ export default function BoardPage() {
     hasSetInitialFilterRef.current = true;
   }
 
-  return <Browse />;
+  return <Browse manageSeo={!BOARD_SEO[pathname]} />;
 }

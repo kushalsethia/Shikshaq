@@ -18,46 +18,57 @@ const steps = [
   {
     number: '03',
     title: 'Talk to them directly.',
-    description: 'Reach out to teachers directly via Whatsapp to discuss classes, and more without any intermediaries.',
+    description: 'Reach out to teachers directly via WhatsApp to discuss classes, and more without any intermediaries.',
     image: img001,
   },
 ];
 
+/**
+ * Mobile-first: a horizontal snap-scroll carousel of full-bleed step cards at 375px,
+ * becoming a three-column row from `sm:` up. Never a cramped 3-column grid on a phone.
+ */
 export function HowItWorks() {
   return (
-    <section className="py-12 sm:py-16 md:py-20 bg-[#F9F5F1]">
-      <div className="container">
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-[#1F1F1F] text-center mb-12 md:mb-16">
-          Looking for a tutor?
-          <br />
-          Just <span className="text-[#FF8000]">Shikshaq</span> it!
-        </h2>
+    <section className="py-12 sm:py-16 lg:py-20">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="space-y-8">
+          <div className="space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">How it works</p>
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+              Three steps from search to a message.
+            </h2>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
-          {steps.map((step) => (
-            <div key={step.number}>
-              <div className="mb-4 md:mb-6">
+          <ol className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 scrollbar-hide sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-0">
+            {steps.map((step, i) => (
+              <li
+                key={step.number}
+                className="w-[80%] flex-none snap-start rounded-2xl bg-card p-4 shadow-border sm:w-auto sm:p-6"
+              >
                 <img
                   src={step.image}
-                  alt={step.title}
+                  alt=""
                   loading="lazy"
                   decoding="async"
-                  className="w-full rounded-2xl object-cover max-h-[150px] md:max-h-none"
+                  width={800}
+                  height={600}
+                  className="aspect-[4/3] w-full rounded-lg object-cover"
                 />
-              </div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="bg-[#228B22] text-white rounded-full w-12 h-12 md:w-14 md:h-14 flex-shrink-0 flex items-center justify-center font-sans font-bold text-lg md:text-xl">
-                  {step.number}
+                <div className="mt-4 flex items-center gap-2">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground tabular-nums">
+                    Step {step.number}
+                  </span>
                 </div>
-                <h3 className="text-lg md:text-xl font-sans font-semibold text-[#1F1F1F]">
-                  {step.title}
-                </h3>
-              </div>
-              <p className="text-sm md:text-base font-sans font-normal text-[#666666] leading-relaxed">
-                {step.description}
-              </p>
-            </div>
-          ))}
+                <h3 className="mt-2 text-lg font-semibold">{step.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{step.description}</p>
+                {i === steps.length - 1 && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    No middlemen, no commission, no fees.
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
         </div>
       </div>
     </section>

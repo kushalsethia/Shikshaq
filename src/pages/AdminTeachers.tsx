@@ -18,11 +18,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
 import imageCompression from 'browser-image-compression';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { invalidateTeacherCache, removeCache } from '@/utils/cache';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
+import { SURFACE_TOKENS, ACCENT_TOKENS } from '@/utils/searchFacets';
+import {
+  AdminConsole,
+  adminFieldStyle,
+  adminPanelStyle,
+  adminPrimaryBtnStyle,
+  adminSecondaryBtnStyle,
+  adminDestructiveBtnStyle,
+  adminToast,
+} from '@/components/AdminConsole';
 
 // Constants matching FilterPanel
 const SUBJECTS = [
@@ -96,6 +106,8 @@ interface TeacherData {
   "Max Fees": number | null;
 }
 
+const TEACHERS_TINT = { bg: SURFACE_TOKENS.mutedFill, text: SURFACE_TOKENS.textBody }; // #F0EAE2 / #4A443E per spec
+
 export default function AdminTeachers() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -141,7 +153,7 @@ export default function AdminTeachers() {
           fetchTeachers();
         } else {
           if (import.meta.env.DEV) {
-            console.log('User is not an admin');
+            logger.log('User is not an admin');
           }
           setIsAdmin(false);
           navigate('/');
@@ -173,7 +185,7 @@ export default function AdminTeachers() {
         if (import.meta.env.DEV) {
           console.error('Error fetching teachers:', error);
         }
-        toast.error('Failed to load teachers');
+        adminToast('Failed to load teachers');
         return;
       }
 
@@ -183,7 +195,7 @@ export default function AdminTeachers() {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to load teachers');
+      adminToast('Failed to load teachers');
     } finally {
       setLoading(false);
     }
@@ -298,7 +310,7 @@ export default function AdminTeachers() {
         if (import.meta.env.DEV) {
           const originalSize = (file.size / 1024 / 1024).toFixed(2);
           const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
-          console.log(`Image compressed: ${originalSize}MB → ${compressedSize}MB`);
+          logger.log(`Image compressed: ${originalSize}MB → ${compressedSize}MB`);
         }
       } catch (compressionError) {
         if (import.meta.env.DEV) {
@@ -325,7 +337,7 @@ export default function AdminTeachers() {
 
       if (error) {
         // If bucket doesn't exist or upload fails, fall back to URL input
-        toast.error('Image upload failed. Please use a URL instead or set up the storage bucket.');
+        adminToast('Image upload failed. Please use a URL instead or set up the storage bucket.');
         if (import.meta.env.DEV) {
           console.error('Upload error:', error);
         }
@@ -344,14 +356,14 @@ export default function AdminTeachers() {
         handleInputChange("Hero Image", sanitizedUrl);
         setImagePreview(sanitizedUrl);
       } else {
-        toast.error('Failed to generate valid image URL');
+        adminToast('Failed to generate valid image URL');
       }
-      toast.success('Image uploaded successfully');
+      adminToast('Image uploaded successfully');
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error uploading image:', error);
       }
-      toast.error('Failed to upload image. Please use a URL instead.');
+      adminToast('Failed to upload image. Please use a URL instead.');
     } finally {
       setUploadingImage(false);
     }
@@ -402,7 +414,7 @@ export default function AdminTeachers() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
+      adminToast('Please select an image file');
       return;
     }
 
@@ -414,13 +426,13 @@ export default function AdminTeachers() {
       file.type === 'image/heic' ||
       file.type === 'image/heif';
     if (isHeicLike) {
-      toast.error('HEIC images are not supported. Please upload a JPG or PNG image instead.');
+      adminToast('HEIC images are not supported. Please upload a JPG or PNG image instead.');
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size must be less than 5MB');
+      adminToast('Image size must be less than 5MB');
       return;
     }
 
@@ -456,11 +468,11 @@ export default function AdminTeachers() {
         if (import.meta.env.DEV) {
           console.error('Error updating teacher:', error);
         }
-        toast.error('Failed to update teacher');
+        adminToast('Failed to update teacher');
         return;
       }
 
-      toast.success('Teacher updated successfully');
+      adminToast('Teacher updated successfully');
       
       // Invalidate cache for this teacher's profile (so changes show immediately)
       if (selectedTeacher.Slug) {
@@ -503,7 +515,7 @@ export default function AdminTeachers() {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to update teacher');
+      adminToast('Failed to update teacher');
     } finally {
       setSaving(false);
     }
@@ -529,11 +541,11 @@ export default function AdminTeachers() {
         if (import.meta.env.DEV) {
           console.error('Error deleting teacher:', error);
         }
-        toast.error('Failed to delete teacher');
+        adminToast('Failed to delete teacher');
         return;
       }
 
-      toast.success(`"${selectedTeacher.Title}" has been deleted`);
+      adminToast(`"${selectedTeacher.Title}" has been deleted`);
 
       if (selectedTeacher.Slug) {
         invalidateTeacherCache(selectedTeacher.Slug);
@@ -555,73 +567,115 @@ export default function AdminTeachers() {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to delete teacher');
+      adminToast('Failed to delete teacher');
     } finally {
       setDeleting(false);
     }
   };
 
+  // Field/panel styling reuses AdminConsole's shared tokens (adminFieldStyle/adminPanelStyle)
+  // instead of redefining the palette locally, so this form matches every other admin screen.
+  const fieldClassName = 'h-auto border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0';
+  const labelStyle: React.CSSProperties = { fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary, marginBottom: 6, display: 'block' };
+  const optionLabelStyle: React.CSSProperties = { fontSize: 13, color: SURFACE_TOKENS.textBody };
+
   if (checkingAdmin || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen flex flex-col" style={{ background: '#F9F5F1' }}>
+        <Navbar />
+        <main className="flex-1 container mx-auto px-[clamp(16px,3vw,28px)] py-8">
+          <div className="animate-pulse">
+            <div className="h-8 w-48 rounded mb-8" style={{ background: '#F0EAE2' }} />
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-24 rounded-2xl" style={{ background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }} />
+              ))}
+            </div>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   if (!isAdmin) {
-    return null;
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: '#F9F5F1' }}>
+        <Navbar />
+        <main className="flex-1 container mx-auto px-[clamp(16px,3vw,28px)] py-8">
+          <div className="max-w-2xl mx-auto text-center">
+            <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: '#1F1F1F' }}>Access Denied</h1>
+            <p className="mb-6" style={{ color: '#7B736B' }}>
+              You need to be an admin to access this page.
+            </p>
+            <Link to="/">
+              <Button>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Go Home
+              </Button>
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Link to="/admin" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Admin
-          </Link>
-          <h1 className="text-3xl font-sans">Teacher Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Edit teacher information</p>
-        </div>
-
+    <AdminConsole
+      activeTab="teachers"
+      title="Listed teachers"
+      subtitle="Everything currently visible in browse results."
+      tint={TEACHERS_TINT}
+      tabCount={teachers.length}
+    >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Teacher List */}
           <div className="lg:col-span-1">
-            <div className="bg-card border rounded-lg p-4 sticky top-4">
+            <div
+              className="sticky top-4"
+              style={{ ...adminPanelStyle, padding: 16 }}
+            >
               <div className="mb-4">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: SURFACE_TOKENS.textTertiary }} />
                   <Input
                     type="text"
                     placeholder="Search teachers..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+                    className={`pl-10 ${fieldClassName}`}
+                    style={adminFieldStyle}
                   />
                 </div>
               </div>
               <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
                 {filteredTeachers.length === 0 ? (
-                  <p className="text-muted-foreground text-sm text-center py-4">No teachers found</p>
+                  <p className="text-sm text-center py-4" style={{ color: SURFACE_TOKENS.textSecondary }}>No teachers found</p>
                 ) : (
-                  filteredTeachers.map((teacher) => (
-                    <button
-                      key={teacher.id}
-                      onClick={() => setSelectedTeacher(teacher)}
-                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                        selectedTeacher?.id === teacher.id
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted border-border'
-                      }`}
-                    >
-                      <div className="font-medium">{teacher.Title || 'Untitled'}</div>
-                      {teacher.Slug && (
-                        <div className="text-xs opacity-70 mt-1">{teacher.Slug}</div>
-                      )}
-                    </button>
-                  ))
+                  filteredTeachers.map((teacher) => {
+                    const isSelected = selectedTeacher?.id === teacher.id;
+                    return (
+                      <button
+                        key={teacher.id}
+                        onClick={() => setSelectedTeacher(teacher)}
+                        className={`w-full text-left transition-colors ${isSelected ? '' : 'hover:bg-black/[.04]'}`}
+                        style={{
+                          padding: '12px 16px',
+                          borderRadius: 14,
+                          background: isSelected ? SURFACE_TOKENS.textPrimary : 'transparent',
+                          color: isSelected ? '#fff' : SURFACE_TOKENS.textPrimary,
+                        }}
+                      >
+                        <div style={{ fontSize: 15.5, fontWeight: 600 }}>{teacher.Title || 'Untitled'}</div>
+                        {teacher.Slug && (
+                          <div style={{ fontSize: 12.5, marginTop: 4, color: isSelected ? 'rgba(255,255,255,0.7)' : SURFACE_TOKENS.textTertiary }}>
+                            {teacher.Slug}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -630,67 +684,80 @@ export default function AdminTeachers() {
           {/* Teacher Form */}
           <div className="lg:col-span-2">
             {selectedTeacher ? (
-              <div className="bg-card border rounded-lg p-6 space-y-6">
-                <div className="flex items-center justify-between">
+              <div
+                className="space-y-6"
+                style={{ ...adminPanelStyle, padding: 24 }}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-2xl font-sans">{selectedTeacher.Title || 'Untitled Teacher'}</h2>
+                    <h2 style={{ fontSize: 'clamp(19px,2.4vw,24px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>
+                      {selectedTeacher.Title || 'Untitled Teacher'}
+                    </h2>
                     {selectedTeacher.Slug && (
-                      <p className="text-sm text-muted-foreground mt-1">Slug: {selectedTeacher.Slug}</p>
+                      <p style={{ fontSize: 13, color: SURFACE_TOKENS.textTertiary, marginTop: 4 }}>Slug: {selectedTeacher.Slug}</p>
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={handleSave} disabled={saving || deleting}>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving || deleting}
+                      style={adminPrimaryBtnStyle}
+                      className="disabled:opacity-60"
+                    >
                       {saving ? (
                         <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                           Saving...
                         </>
                       ) : (
                         <>
-                          <Save className="w-4 h-4 mr-2" />
+                          <Save className="w-4 h-4" />
                           Save Changes
                         </>
                       )}
-                    </Button>
-                    <Button
-                      variant="destructive"
+                    </button>
+                    <button
                       onClick={handleDelete}
                       disabled={saving || deleting}
+                      style={adminDestructiveBtnStyle}
+                      className="disabled:opacity-60"
                     >
                       {deleting ? (
                         <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                           Deleting...
                         </>
                       ) : (
                         <>
-                          <Trash2 className="w-4 h-4 mr-2" />
+                          <Trash2 className="w-4 h-4" />
                           Delete
                         </>
                       )}
-                    </Button>
+                    </button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Name (Title) */}
                   <div>
-                    <Label htmlFor="title">Name (Title)</Label>
+                    <Label htmlFor="title" style={labelStyle}>Name (Title)</Label>
                     <Input
                       id="title"
                       value={formData.Title || ''}
                       onChange={(e) => handleInputChange('Title', e.target.value)}
+                      className={fieldClassName}
+                      style={adminFieldStyle}
                     />
                   </div>
 
                   {/* Featured Subject */}
                   <div>
-                    <Label htmlFor="featuredSubject">Featured Subject</Label>
+                    <Label htmlFor="featuredSubject" style={labelStyle}>Featured Subject</Label>
                     <Select
                       value={formData["Featured Subject"] ? formData["Featured Subject"] : "none"}
                       onValueChange={(value) => handleInputChange("Featured Subject", value === "none" ? null : value)}
                     >
-                      <SelectTrigger id="featuredSubject">
+                      <SelectTrigger id="featuredSubject" className={fieldClassName} style={adminFieldStyle}>
                         <SelectValue placeholder="Select featured subject" />
                       </SelectTrigger>
                       <SelectContent>
@@ -706,8 +773,8 @@ export default function AdminTeachers() {
 
                   {/* Classes Taught for Backend - display is auto-computed */}
                   <div>
-                    <Label>Classes Taught <span className="text-red-500">*</span></Label>
-                    <p className="text-xs text-muted-foreground mb-2">
+                    <Label style={labelStyle}>Classes Taught <span style={{ color: ACCENT_TOKENS.destructive }}>*</span></Label>
+                    <p className="mb-2" style={{ fontSize: 12, color: SURFACE_TOKENS.textTertiary }}>
                       Select the classes. Display format will be automatically computed.
                     </p>
                     <div className="flex flex-wrap gap-2 mt-2">
@@ -723,7 +790,7 @@ export default function AdminTeachers() {
                                 handleMultiSelectChange("Classes Taught for Backend", cls, checked as boolean)
                               }
                             />
-                            <Label htmlFor={`class-${cls}`} className="cursor-pointer">
+                            <Label htmlFor={`class-${cls}`} className="cursor-pointer" style={optionLabelStyle}>
                               {cls}
                             </Label>
                           </div>
@@ -732,11 +799,12 @@ export default function AdminTeachers() {
                     </div>
                     {formData["Classes Taught"] != null && formData["Classes Taught"] !== '' && (
                       <div className="mt-2">
-                        <Label className="text-sm text-muted-foreground">Classes Taught (Auto-computed):</Label>
+                        <Label style={{ fontSize: 12.5, color: SURFACE_TOKENS.textTertiary }}>Classes Taught (Auto-computed):</Label>
                         <Input
                           value={formData["Classes Taught"]}
                           disabled
-                          className="bg-muted cursor-not-allowed mt-1"
+                          className={`${fieldClassName} mt-1 cursor-not-allowed`}
+                          style={{ ...adminFieldStyle, opacity: 0.7 }}
                         />
                       </div>
                     )}
@@ -744,7 +812,7 @@ export default function AdminTeachers() {
 
                   {/* School Boards Catered */}
                   <div>
-                    <Label>School Boards Catered</Label>
+                    <Label style={labelStyle}>School Boards Catered</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {BOARDS.map((board) => {
                         const currentValue = formData["School Boards Catered"] as string | null;
@@ -758,7 +826,7 @@ export default function AdminTeachers() {
                                 handleMultiSelectChange("School Boards Catered", board, checked as boolean)
                               }
                             />
-                            <Label htmlFor={`board-${board}`} className="cursor-pointer">
+                            <Label htmlFor={`board-${board}`} className="cursor-pointer" style={optionLabelStyle}>
                               {board}
                             </Label>
                           </div>
@@ -773,7 +841,7 @@ export default function AdminTeachers() {
 
                   {/* Mode of Teaching */}
                   <div>
-                    <Label>Mode of Teaching</Label>
+                    <Label style={labelStyle}>Mode of Teaching</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {MODE_OF_TEACHING.map((mode) => {
                         const currentValue = formData["Mode of Teaching"] as string | null;
@@ -787,7 +855,7 @@ export default function AdminTeachers() {
                                 handleMultiSelectChange("Mode of Teaching", mode, checked as boolean)
                               }
                             />
-                            <Label htmlFor={`mode-${mode}`} className="cursor-pointer">
+                            <Label htmlFor={`mode-${mode}`} className="cursor-pointer" style={optionLabelStyle}>
                               {mode}
                             </Label>
                           </div>
@@ -798,7 +866,7 @@ export default function AdminTeachers() {
 
                   {/* Subjects (Multiple Select) */}
                   <div>
-                    <Label>Subjects</Label>
+                    <Label style={labelStyle}>Subjects</Label>
                     <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto">
                       {SUBJECTS.map((subject) => {
                         const currentValue = formData.Subjects as string | null;
@@ -812,7 +880,7 @@ export default function AdminTeachers() {
                                 handleMultiSelectChange("Subjects", subject, checked as boolean)
                               }
                             />
-                            <Label htmlFor={`subject-${subject}`} className="cursor-pointer text-sm">
+                            <Label htmlFor={`subject-${subject}`} className="cursor-pointer" style={optionLabelStyle}>
                               {subject}
                             </Label>
                           </div>
@@ -823,22 +891,26 @@ export default function AdminTeachers() {
 
                   {/* Phone Number */}
                   <div>
-                    <Label htmlFor="phoneNumber">Phone Number</Label>
+                    <Label htmlFor="phoneNumber" style={labelStyle}>Phone Number</Label>
                     <Input
                       id="phoneNumber"
                       value={formData["Phone Number"] || ''}
                       onChange={(e) => handleInputChange("Phone Number", e.target.value)}
+                      className={fieldClassName}
+                      style={adminFieldStyle}
                     />
                   </div>
 
                   {/* Email ID */}
                   <div>
-                    <Label htmlFor="emailId">Email ID</Label>
+                    <Label htmlFor="emailId" style={labelStyle}>Email ID</Label>
                     <Input
                       id="emailId"
                       type="email"
                       value={formData["Email ID"] || ''}
                       onChange={(e) => handleInputChange("Email ID", e.target.value)}
+                      className={fieldClassName}
+                      style={adminFieldStyle}
                     />
                   </div>
 
@@ -849,19 +921,19 @@ export default function AdminTeachers() {
                       checked={formData.Featured || false}
                       onCheckedChange={(checked) => handleInputChange("Featured", checked)}
                     />
-                    <Label htmlFor="featured" className="cursor-pointer">
+                    <Label htmlFor="featured" className="cursor-pointer" style={{ fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>
                       Featured
                     </Label>
                   </div>
 
                   {/* Sir/Ma'am? */}
                   <div>
-                    <Label htmlFor="sirMaam">Sir/Ma'am?</Label>
+                    <Label htmlFor="sirMaam" style={labelStyle}>Sir/Ma'am?</Label>
                     <Select
                       value={formData["Sir/Ma'am?"] || "none"}
                       onValueChange={(value) => handleInputChange("Sir/Ma'am?", value === "none" ? null : value)}
                     >
-                      <SelectTrigger id="sirMaam">
+                      <SelectTrigger id="sirMaam" className={fieldClassName} style={adminFieldStyle}>
                         <SelectValue placeholder="Select Sir or Ma'am" />
                       </SelectTrigger>
                       <SelectContent>
@@ -877,7 +949,7 @@ export default function AdminTeachers() {
 
                   {/* Structure of classes (stored as Class Size (Group/ Solo)) */}
                   <div>
-                    <Label>Structure of classes</Label>
+                    <Label style={labelStyle}>Structure of classes</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {CLASS_SIZE.map((size) => {
                         const currentValue = formData["Class Size (Group/ Solo)"] as string | null;
@@ -891,7 +963,7 @@ export default function AdminTeachers() {
                                 handleMultiSelectChange("Class Size (Group/ Solo)", size, checked as boolean)
                               }
                             />
-                            <Label htmlFor={`classSize-${size}`} className="cursor-pointer">
+                            <Label htmlFor={`classSize-${size}`} className="cursor-pointer" style={optionLabelStyle}>
                               {size === 'Solo' ? 'One-on-one' : size}
                             </Label>
                           </div>
@@ -902,7 +974,7 @@ export default function AdminTeachers() {
 
                   {/* Hero Image */}
                   <div className="md:col-span-2">
-                    <Label htmlFor="heroImage">Hero Image</Label>
+                    <Label htmlFor="heroImage" style={labelStyle}>Hero Image</Label>
                     <div className="space-y-3">
                       {/* Image Preview */}
                       {imagePreview && (() => {
@@ -928,7 +1000,8 @@ export default function AdminTeachers() {
                             <img
                               src={purifiedSrc}
                               alt="Hero preview"
-                              className="w-full h-48 object-cover rounded-lg border"
+                              className="w-full h-48 object-cover"
+                              style={{ borderRadius: 14, boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}` }}
                               onError={() => setImagePreview(null)}
                               crossOrigin="anonymous"
                             />
@@ -936,7 +1009,8 @@ export default function AdminTeachers() {
                               type="button"
                               variant="ghost"
                               size="sm"
-                              className="absolute top-2 right-2"
+                              className="absolute top-2 right-2 border-0"
+                              style={{ background: 'rgba(255,255,255,0.9)', color: SURFACE_TOKENS.textPrimary, borderRadius: 10 }}
                               onClick={() => {
                                 handleInputChange("Hero Image", null);
                                 setImagePreview(null);
@@ -947,12 +1021,13 @@ export default function AdminTeachers() {
                           </div>
                         );
                       })()}
-                      
+
                       {/* Upload Button */}
                       <div className="flex gap-2 items-center">
                         <label
                           htmlFor="heroImageUpload"
-                          className="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 cursor-pointer transition-colors hover:bg-black/[.04]"
+                          style={{ borderRadius: 12, boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`, color: SURFACE_TOKENS.textPrimary, fontSize: 13.5, fontWeight: 600 }}
                         >
                           <Upload className="w-4 h-4" />
                           {uploadingImage ? 'Uploading...' : 'Upload Image'}
@@ -965,9 +1040,9 @@ export default function AdminTeachers() {
                             disabled={uploadingImage}
                           />
                         </label>
-                        <span className="text-sm text-muted-foreground">or</span>
+                        <span style={{ fontSize: 13, color: SURFACE_TOKENS.textTertiary }}>or</span>
                       </div>
-                      
+
                       {/* URL Input */}
                       <Input
                         id="heroImage"
@@ -981,11 +1056,13 @@ export default function AdminTeachers() {
                             handleInputChange("Hero Image", sanitizedUrl || '');
                             setImagePreview(sanitizedUrl);
                           } else {
-                            toast.error('Please enter a valid image URL (http:// or https://)');
+                            adminToast('Please enter a valid image URL (http:// or https://)');
                           }
                         }}
+                        className={fieldClassName}
+                        style={adminFieldStyle}
                       />
-                      <p className="text-xs text-muted-foreground">
+                      <p style={{ fontSize: 12, color: SURFACE_TOKENS.textTertiary }}>
                         Upload an image file or paste an image URL. Max file size: 5MB
                       </p>
                     </div>
@@ -993,42 +1070,48 @@ export default function AdminTeachers() {
 
                   {/* Video */}
                   <div>
-                    <Label htmlFor="video">Video URL</Label>
+                    <Label htmlFor="video" style={labelStyle}>Video URL</Label>
                     <Input
                       id="video"
                       value={formData.Video || ''}
                       onChange={(e) => handleInputChange("Video", e.target.value)}
+                      className={fieldClassName}
+                      style={adminFieldStyle}
                     />
                   </div>
 
                   {/* Video Link */}
                   <div>
-                    <Label htmlFor="videoLink">Video Link</Label>
+                    <Label htmlFor="videoLink" style={labelStyle}>Video Link</Label>
                     <Input
                       id="videoLink"
                       value={formData["Video Link"] || ''}
                       onChange={(e) => handleInputChange("Video Link", e.target.value)}
+                      className={fieldClassName}
+                      style={adminFieldStyle}
                     />
                   </div>
 
                   {/* Link (WhatsApp) */}
                   <div>
-                    <Label htmlFor="link">WhatsApp Link</Label>
+                    <Label htmlFor="link" style={labelStyle}>WhatsApp Link</Label>
                     <Input
                       id="link"
                       value={formData.Link || ''}
                       onChange={(e) => handleInputChange("Link", e.target.value)}
+                      className={fieldClassName}
+                      style={adminFieldStyle}
                     />
                   </div>
 
                   {/* Location V2 */}
                   <div>
-                    <Label htmlFor="locationV2">Location V2</Label>
+                    <Label htmlFor="locationV2" style={labelStyle}>Location V2</Label>
                     <Select
                       value={formData["LOCATION V2"] || "none"}
                       onValueChange={(value) => handleInputChange("LOCATION V2", value === "none" ? null : value)}
                     >
-                      <SelectTrigger id="locationV2">
+                      <SelectTrigger id="locationV2" className={fieldClassName} style={adminFieldStyle}>
                         <SelectValue placeholder="Select location option" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1042,7 +1125,7 @@ export default function AdminTeachers() {
 
                   {/* Student's Home Areas */}
                   <div>
-                    <Label>Student's Home in These Areas</Label>
+                    <Label style={labelStyle}>Student's Home in These Areas</Label>
                     <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto">
                       {AREAS.map((area) => {
                         const currentValue = formData["STUDENT'S HOME IN THESE AREAS"] as string | null;
@@ -1056,7 +1139,7 @@ export default function AdminTeachers() {
                                 handleMultiSelectChange("STUDENT'S HOME IN THESE AREAS", area, checked as boolean)
                               }
                             />
-                            <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm">
+                            <Label htmlFor={`student-area-${area}`} className="cursor-pointer" style={optionLabelStyle}>
                               {area}
                             </Label>
                           </div>
@@ -1067,7 +1150,7 @@ export default function AdminTeachers() {
 
                   {/* Tutor's Home Areas */}
                   <div>
-                    <Label>Tutor's Home in These Areas</Label>
+                    <Label style={labelStyle}>Tutor's Home in These Areas</Label>
                     <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto">
                       {AREAS.map((area) => {
                         const currentValue = formData["TUTOR'S HOME IN THESE AREAS"] as string | null;
@@ -1081,7 +1164,7 @@ export default function AdminTeachers() {
                                 handleMultiSelectChange("TUTOR'S HOME IN THESE AREAS", area, checked as boolean)
                               }
                             />
-                            <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm">
+                            <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer" style={optionLabelStyle}>
                               {area}
                             </Label>
                           </div>
@@ -1092,39 +1175,45 @@ export default function AdminTeachers() {
 
                   {/* Description */}
                   <div className="md:col-span-2">
-                    <Label htmlFor="description">Description</Label>
+                    <Label htmlFor="description" style={labelStyle}>Description</Label>
                     <Textarea
                       id="description"
                       value={formData.Description || ''}
                       onChange={(e) => handleInputChange("Description", e.target.value)}
                       rows={5}
+                      className="border-0"
+                      style={{ ...adminFieldStyle, minHeight: 120, paddingTop: 12 }}
                     />
                   </div>
 
                   {/* Qualifications etc */}
                   <div className="md:col-span-2">
-                    <Label htmlFor="qualifications">Qualifications etc</Label>
+                    <Label htmlFor="qualifications" style={labelStyle}>Qualifications etc</Label>
                     <Textarea
                       id="qualifications"
                       value={formData["Qualifications etc"] || ''}
                       onChange={(e) => handleInputChange("Qualifications etc", e.target.value)}
                       rows={3}
+                      className="border-0"
+                      style={{ ...adminFieldStyle, minHeight: 90, paddingTop: 12 }}
                     />
                   </div>
 
                   {/* Year they started teaching */}
                   <div>
-                    <Label htmlFor="yearsStarted">Year they started teaching</Label>
+                    <Label htmlFor="yearsStarted" style={labelStyle}>Year they started teaching</Label>
                     <Input
                       id="yearsStarted"
                       value={formData["Years they started teaching"] || ''}
                       onChange={(e) => handleInputChange("Years they started teaching", e.target.value)}
+                      className={fieldClassName}
+                      style={adminFieldStyle}
                     />
                   </div>
 
                   {/* Min Fees */}
                   <div>
-                    <Label htmlFor="minFees">Minimum Fees per Month (₹)</Label>
+                    <Label htmlFor="minFees" style={labelStyle}>Minimum Fees per Month (₹)</Label>
                     <Input
                       id="minFees"
                       type="tel"
@@ -1137,13 +1226,15 @@ export default function AdminTeachers() {
                       placeholder="e.g., 2000"
                       maxLength={6}
                       inputMode="numeric"
+                      className={fieldClassName}
+                      style={adminFieldStyle}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Optional - Enter minimum monthly fees</p>
+                    <p style={{ fontSize: 12, color: SURFACE_TOKENS.textTertiary, marginTop: 4 }}>Optional - Enter minimum monthly fees</p>
                   </div>
 
                   {/* Max Fees */}
                   <div>
-                    <Label htmlFor="maxFees">Maximum Fees per Month (₹)</Label>
+                    <Label htmlFor="maxFees" style={labelStyle}>Maximum Fees per Month (₹)</Label>
                     <Input
                       id="maxFees"
                       type="tel"
@@ -1156,54 +1247,63 @@ export default function AdminTeachers() {
                       placeholder="e.g., 5000"
                       maxLength={6}
                       inputMode="numeric"
+                      className={fieldClassName}
+                      style={adminFieldStyle}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Optional - Enter maximum monthly fees</p>
+                    <p style={{ fontSize: 12, color: SURFACE_TOKENS.textTertiary, marginTop: 4 }}>Optional - Enter maximum monthly fees</p>
                   </div>
 
                   {/* Review 1 */}
                   <div className="md:col-span-2">
-                    <Label htmlFor="review1">Review 1</Label>
+                    <Label htmlFor="review1" style={labelStyle}>Review 1</Label>
                     <Textarea
                       id="review1"
                       value={formData["Review 1"] || ''}
                       onChange={(e) => handleInputChange("Review 1", e.target.value)}
                       rows={3}
+                      className="border-0"
+                      style={{ ...adminFieldStyle, minHeight: 90, paddingTop: 12 }}
                     />
                   </div>
 
                   {/* Review 2 */}
                   <div className="md:col-span-2">
-                    <Label htmlFor="review2">Review 2</Label>
+                    <Label htmlFor="review2" style={labelStyle}>Review 2</Label>
                     <Textarea
                       id="review2"
                       value={formData["Review 2"] || ''}
                       onChange={(e) => handleInputChange("Review 2", e.target.value)}
                       rows={3}
+                      className="border-0"
+                      style={{ ...adminFieldStyle, minHeight: 90, paddingTop: 12 }}
                     />
                   </div>
 
                   {/* Review 3 */}
                   <div className="md:col-span-2">
-                    <Label htmlFor="review3">Review 3</Label>
+                    <Label htmlFor="review3" style={labelStyle}>Review 3</Label>
                     <Textarea
                       id="review3"
                       value={formData["Review 3"] || ''}
                       onChange={(e) => handleInputChange("Review 3", e.target.value)}
                       rows={3}
+                      className="border-0"
+                      style={{ ...adminFieldStyle, minHeight: 90, paddingTop: 12 }}
                     />
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="bg-card border rounded-lg p-12 text-center">
-                <p className="text-muted-foreground">Select a teacher from the list to edit</p>
+              <div
+                className="text-center"
+                style={{ ...adminPanelStyle, padding: 48 }}
+              >
+                <p style={{ color: SURFACE_TOKENS.textTertiary, fontSize: 14.5 }}>Select a teacher from the list to edit</p>
               </div>
             )}
           </div>
         </div>
-      </main>
-      <Footer />
-    </div>
+    </AdminConsole>
   );
 }
 

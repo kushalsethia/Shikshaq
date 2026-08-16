@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, CheckCircle, XCircle, Clock, Search, Loader2, MessageCircle } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ArrowLeft, CheckCircle, XCircle, Clock, Search, Loader2, User, Mail, Phone, FileText, MessageCircle } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/auth-context';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Select,
@@ -15,8 +14,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { toast } from 'sonner';
 import { validateImageSrc } from '@/utils/imageSanitizer';
+import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
+import {
+  AdminConsole,
+  AdminStatTiles,
+  AdminTile,
+  AdminPill,
+  adminRowStyle,
+  adminRowListStyle,
+  adminFieldStyle,
+  adminPanelStyle,
+  adminPrimaryBtnStyle,
+  adminSecondaryBtnStyle,
+  adminDestructiveBtnStyle,
+  adminToast,
+  useAdminGuard,
+  useReviewerNames,
+  type AdminPillTone,
+} from '@/components/AdminConsole';
 
 interface TeacherApplication {
   id: string;
@@ -51,65 +67,27 @@ interface TeacherApplication {
   updated_at: string;
 }
 
+const TINT = { bg: MODE_TOKENS.teachers.tintBg, text: MODE_TOKENS.teachers.tintText }; // #FFF4E8 / #B35900 per spec
+
 export default function AdminApplications() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [applications, setApplications] = useState<TeacherApplication[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<TeacherApplication[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<TeacherApplication | null>(null);
 
-  // Check if current user is an admin
+  const { isAdmin, checkingAdmin } = useAdminGuard(user, {
+    onGranted: fetchApplications,
+    redirectOnDenied: true,
+  });
+  const reviewerNames = useReviewerNames(applications.map((a) => a.reviewed_by));
+
   useEffect(() => {
-    async function checkAdminStatus() {
-      if (!user) {
-        setCheckingAdmin(false);
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('admins')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (error) {
-          if (import.meta.env.DEV) {
-            console.error('Error checking admin status:', error);
-          }
-          setIsAdmin(false);
-        } else if (data && data.id === user.id) {
-          setIsAdmin(true);
-          fetchApplications();
-        } else {
-          if (import.meta.env.DEV) {
-            console.log('User is not an admin');
-          }
-          setIsAdmin(false);
-          navigate('/');
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error:', error);
-        }
-        setIsAdmin(false);
-        navigate('/');
-      } finally {
-        setCheckingAdmin(false);
-        setLoading(false);
-      }
-    }
-
-    checkAdminStatus();
-  }, [user, navigate]);
+    if (!checkingAdmin) setLoading(false);
+  }, [checkingAdmin]);
 
   async function fetchApplications() {
     try {
@@ -123,17 +101,30 @@ export default function AdminApplications() {
         if (import.meta.env.DEV) {
           console.error('Error fetching applications:', error);
         }
-        toast.error('Failed to load applications');
+        adminToast('Failed to load applications');
         return;
       }
 
-      setApplications(data || []);
-      setFilteredApplications(data || []);
+      const VALID_APP_STATUSES: TeacherApplication['status'][] = ['pending', 'approved', 'rejected'];
+      const VALID_TEXTED_STATUSES: TeacherApplication['texted_status'][] = ['not_texted', 'texted', 'follow_up'];
+      const normalized: TeacherApplication[] = (data || []).map((row) => ({
+        ...row,
+        sir_maam: row.sir_maam === 'Sir' || row.sir_maam === "Ma'am" ? row.sir_maam : 'Sir',
+        status: (VALID_APP_STATUSES as string[]).includes(row.status)
+          ? (row.status as TeacherApplication['status'])
+          : 'pending',
+        texted_status: (VALID_TEXTED_STATUSES as string[]).includes(row.texted_status)
+          ? (row.texted_status as TeacherApplication['texted_status'])
+          : 'not_texted',
+      }));
+
+      setApplications(normalized);
+      setFilteredApplications(normalized);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to load applications');
+      adminToast('Failed to load applications');
     } finally {
       setLoading(false);
     }
@@ -170,13 +161,13 @@ export default function AdminApplications() {
 
   const handleApprove = async (applicationId: string) => {
     if (!user) {
-      toast.error('You must be logged in to approve applications');
+      adminToast('You must be logged in to approve applications');
       return;
     }
 
     try {
       setProcessingId(applicationId);
-      
+
       // Call the approve function
       const { data, error } = await supabase.rpc('approve_teacher_application', {
         application_id: applicationId,
@@ -187,18 +178,18 @@ export default function AdminApplications() {
         if (import.meta.env.DEV) {
           console.error('Error approving application:', error);
         }
-        toast.error(error.message || 'Failed to approve application');
+        adminToast(error.message || 'Failed to approve application');
         return;
       }
 
-      toast.success('Application approved successfully! Teacher profile created.');
+      adminToast('Application approved. Teacher profile created.');
       await fetchApplications();
       setSelectedApplication(null);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('An unexpected error occurred');
+      adminToast('An unexpected error occurred');
     } finally {
       setProcessingId(null);
     }
@@ -206,7 +197,7 @@ export default function AdminApplications() {
 
   const handleReject = async (applicationId: string, reason?: string) => {
     if (!user) {
-      toast.error('You must be logged in to reject applications');
+      adminToast('You must be logged in to reject applications');
       return;
     }
 
@@ -228,18 +219,18 @@ export default function AdminApplications() {
         if (import.meta.env.DEV) {
           console.error('Error rejecting application:', error);
         }
-        toast.error('Failed to reject application');
+        adminToast('Failed to reject application');
         return;
       }
 
-      toast.success('Application rejected');
+      adminToast('Application rejected');
       await fetchApplications();
       setSelectedApplication(null);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('An unexpected error occurred');
+      adminToast('An unexpected error occurred');
     } finally {
       setProcessingId(null);
     }
@@ -256,7 +247,7 @@ export default function AdminApplications() {
         if (import.meta.env.DEV) {
           console.error('Error updating texted status:', error);
         }
-        toast.error('Failed to update texted status');
+        adminToast('Failed to update texted status');
         return;
       }
 
@@ -265,23 +256,34 @@ export default function AdminApplications() {
           app.id === applicationId ? { ...app, texted_status: newStatus as TeacherApplication['texted_status'] } : app
         )
       );
-      toast.success('Texted status updated');
+      adminToast('Texted status updated');
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to update texted status');
+      adminToast('Failed to update texted status');
     }
   };
 
-  const getTextedStatusColor = (status: string) => {
+  const applicationPillTone = (status: TeacherApplication['status']): AdminPillTone => {
+    switch (status) {
+      case 'approved':
+        return 'settled';
+      case 'rejected':
+        return 'destructive';
+      default:
+        return 'pending';
+    }
+  };
+
+  const textedPillTone = (status: TeacherApplication['texted_status']): AdminPillTone => {
     switch (status) {
       case 'texted':
-        return 'bg-green-500/20 text-green-600';
+        return 'settled';
       case 'follow_up':
-        return 'bg-orange-500/20 text-orange-600';
+        return 'flagged';
       default:
-        return 'bg-gray-500/20 text-gray-500';
+        return 'pending';
     }
   };
 
@@ -293,300 +295,307 @@ export default function AdminApplications() {
     }
   };
 
+  const pendingCount = applications.filter((a) => a.status === 'pending').length;
+  const approvedCount = applications.filter((a) => a.status === 'approved').length;
+  const rejectedCount = applications.filter((a) => a.status === 'rejected').length;
+
   if (checkingAdmin || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen flex flex-col" style={{ background: SURFACE_TOKENS.shell }}>
+        <Navbar />
+        <main className="flex-1 container mx-auto px-4 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 w-48 rounded mb-8" style={{ background: SURFACE_TOKENS.mutedFill }} />
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-24 rounded-2xl" style={{ background: SURFACE_TOKENS.field, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }} />
+              ))}
+            </div>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   if (!isAdmin) {
-    return null;
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: SURFACE_TOKENS.shell }}>
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto text-center">
+            <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>Access Denied</h1>
+            <p className="mb-6" style={{ color: SURFACE_TOKENS.textSecondary }}>
+              You need to be an admin to access this page.
+            </p>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2"
+              style={{ background: SURFACE_TOKENS.ink, color: '#fff', borderRadius: 12, padding: '11px 18px', fontSize: 13.5, fontWeight: 600 }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Go Home
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Link to="/admin" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Admin
-          </Link>
-          <h1 className="text-3xl font-sans">Teacher Applications</h1>
-          <p className="text-muted-foreground mt-2">Review and approve teacher onboarding applications</p>
-        </div>
+    <AdminConsole
+      activeTab="applications"
+      title="Teacher applications"
+      subtitle="Verify qualifications and references before a profile goes live."
+      tint={TINT}
+      tabCount={pendingCount}
+    >
+      <AdminStatTiles
+        stats={[
+          { label: 'Total', value: applications.length },
+          { label: 'Pending', value: pendingCount },
+          { label: 'Approved', value: approvedCount },
+          { label: 'Rejected', value: rejectedCount },
+        ]}
+      />
 
-        {/* Filters and Search */}
-        <div className="bg-card border rounded-lg p-4 mb-6 space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                type="text"
-                placeholder="Search by name, email, phone, or reference..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
-                onClick={() => setFilter('all')}
-                size="sm"
-              >
-                All
-              </Button>
-              <Button
-                variant={filter === 'pending' ? 'default' : 'outline'}
-                onClick={() => setFilter('pending')}
-                size="sm"
-              >
-                Pending
-              </Button>
-              <Button
-                variant={filter === 'approved' ? 'default' : 'outline'}
-                onClick={() => setFilter('approved')}
-                size="sm"
-              >
-                Approved
-              </Button>
-              <Button
-                variant={filter === 'rejected' ? 'default' : 'outline'}
-                onClick={() => setFilter('rejected')}
-                size="sm"
-              >
-                Rejected
-              </Button>
-            </div>
+      {/* Filters and Search */}
+      <div className="mb-4 flex flex-col md:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: SURFACE_TOKENS.textTertiary }} />
+          <Input
+            type="text"
+            placeholder="Search by name, email, phone, or reference..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 h-auto border-0"
+            style={adminFieldStyle}
+          />
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {(['all', 'pending', 'approved', 'rejected'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={filter === f ? adminPrimaryBtnStyle : adminSecondaryBtnStyle}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Applications List */}
+      <div style={adminRowListStyle}>
+        {filteredApplications.length === 0 ? (
+          <div className="text-center" style={{ ...adminPanelStyle, padding: 48 }}>
+            <p style={{ color: SURFACE_TOKENS.textTertiary, fontSize: 14.5 }}>No applications found</p>
           </div>
-        </div>
-
-        {/* Applications List */}
-        <div className="space-y-4">
-          {filteredApplications.length === 0 ? (
-            <div className="bg-card border rounded-lg p-12 text-center">
-              <p className="text-muted-foreground">No applications found</p>
-            </div>
-          ) : (
-            filteredApplications.map((application) => (
+        ) : (
+          filteredApplications.map((application) => {
+            const initials = application.name?.trim().charAt(0).toUpperCase() || '?';
+            return (
               <div
                 key={application.id}
-                className="bg-card border rounded-lg p-6 hover:border-primary/50 transition-colors cursor-pointer"
+                className="cursor-pointer"
+                style={adminRowStyle}
                 onClick={() => setSelectedApplication(application)}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-sans">{application.name}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        application.status === 'pending' ? 'bg-yellow-500/20 text-yellow-600' :
-                        application.status === 'approved' ? 'bg-green-500/20 text-green-600' :
-                        'bg-red-500/20 text-red-600'
-                      }`}>
-                        {application.status === 'pending' && <Clock className="w-3 h-3 inline mr-1" />}
-                        {application.status === 'approved' && <CheckCircle className="w-3 h-3 inline mr-1" />}
-                        {application.status === 'rejected' && <XCircle className="w-3 h-3 inline mr-1" />}
-                        {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                      </span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTextedStatusColor(application.texted_status)}`}>
-                        <MessageCircle className="w-3 h-3 inline mr-1" />
-                        {getTextedStatusLabel(application.texted_status)}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground mb-4">
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4" />
-                        {application.email}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        +91 {application.phone_number}
-                      </div>
-                      {application.reference_name && (
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4" />
-                          Reference: {application.reference_name}
-                        </div>
-                      )}
-                      {application.reference_number && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4" />
-                          Ref. Number: +91 {application.reference_number}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Applied {formatDistanceToNow(new Date(application.created_at), { addSuffix: true })}
-                    </div>
+                <AdminTile tint={TINT}>{initials}</AdminTile>
+                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                  <div className="flex items-center flex-wrap gap-2">
+                    <span style={{ fontSize: 15.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>{application.name}</span>
+                    <AdminPill tone={applicationPillTone(application.status)}>
+                      {application.status === 'pending' && <Clock className="w-3 h-3" />}
+                      {application.status === 'approved' && <CheckCircle className="w-3 h-3" />}
+                      {application.status === 'rejected' && <XCircle className="w-3 h-3" />}
+                      {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                    </AdminPill>
+                    <AdminPill tone={textedPillTone(application.texted_status)}>
+                      <MessageCircle className="w-3 h-3" />
+                      {getTextedStatusLabel(application.texted_status)}
+                    </AdminPill>
                   </div>
-                  {application.status === 'pending' && (
-                    <div className="flex gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        size="sm"
-                        onClick={() => handleApprove(application.id)}
-                        disabled={processingId === application.id}
-                        className="gap-2"
-                      >
-                        {processingId === application.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4" />
-                        )}
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleReject(application.id)}
-                        disabled={processingId === application.id}
-                        className="gap-2"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        Reject
-                      </Button>
-                    </div>
+                  <p style={{ marginTop: 4, fontSize: 13, lineHeight: 1.5, color: SURFACE_TOKENS.textTertiary }}>
+                    {application.email} &middot; +91 {application.phone_number}
+                    {application.reference_name && <> &middot; Ref: {application.reference_name}</>}
+                    {' '}&middot; Applied {formatDistanceToNow(new Date(application.created_at), { addSuffix: true })}
+                  </p>
+                </div>
+                {application.status === 'pending' && (
+                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => handleApprove(application.id)}
+                      disabled={processingId === application.id}
+                      style={adminPrimaryBtnStyle}
+                      className="disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {processingId === application.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleReject(application.id)}
+                      disabled={processingId === application.id}
+                      style={adminDestructiveBtnStyle}
+                      className="disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Application Detail Modal */}
+      {selectedApplication && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedApplication(null)}
+        >
+          <div
+            className="max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            style={{ ...adminPanelStyle, padding: 24 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6 gap-4">
+              <h2 style={{ fontSize: 'clamp(19px,2.4vw,24px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>{selectedApplication.name}</h2>
+              <button
+                onClick={() => setSelectedApplication(null)}
+                className="transition-opacity hover:opacity-70"
+                style={{ fontSize: 13, fontWeight: 600, color: SURFACE_TOKENS.textTertiary }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="mb-2" style={{ fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>Basic Information</h3>
+                <div className="space-y-1.5" style={{ fontSize: 13.5, color: SURFACE_TOKENS.textBody }}>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Name:</strong> {selectedApplication.name}</div>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Email:</strong> {selectedApplication.email}</div>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Phone:</strong> +91 {selectedApplication.phone_number}</div>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Sir/Ma'am:</strong> {selectedApplication.sir_maam}</div>
+                  {selectedApplication.reference_name && (
+                    <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Reference Name:</strong> {selectedApplication.reference_name}</div>
+                  )}
+                  {selectedApplication.reference_number && (
+                    <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Reference Number:</strong> +91 {selectedApplication.reference_number}</div>
                   )}
                 </div>
               </div>
-            ))
-          )}
-        </div>
 
-        {/* Application Detail Modal */}
-        {selectedApplication && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedApplication(null)}>
-            <div className="bg-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-sans">{selectedApplication.name}</h2>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedApplication(null)}>Close</Button>
+              <div>
+                <h3 className="mb-2" style={{ fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>Teaching Details</h3>
+                <div className="space-y-1.5" style={{ fontSize: 13.5, color: SURFACE_TOKENS.textBody }}>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Subjects:</strong> {selectedApplication.subjects || 'N/A'}</div>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Classes:</strong> {selectedApplication.classes_taught_for_backend || 'N/A'}</div>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Boards:</strong> {selectedApplication.school_boards_catered || 'N/A'}</div>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Location:</strong> {selectedApplication.location_v2 || 'N/A'}</div>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Mode:</strong> {selectedApplication.mode_of_teaching || 'N/A'}</div>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Structure of classes:</strong> {selectedApplication.class_size ? selectedApplication.class_size.replace(/\bSolo\b/g, 'One-on-one') : 'N/A'}</div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-semibold mb-2">Basic Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><strong>Name:</strong> {selectedApplication.name}</div>
-                    <div><strong>Email:</strong> {selectedApplication.email}</div>
-                    <div><strong>Phone:</strong> +91 {selectedApplication.phone_number}</div>
-                    <div><strong>Sir/Ma'am:</strong> {selectedApplication.sir_maam}</div>
-                    {selectedApplication.reference_name && (
-                      <div><strong>Reference Name:</strong> {selectedApplication.reference_name}</div>
-                    )}
-                    {selectedApplication.reference_number && (
-                      <div><strong>Reference Number:</strong> +91 {selectedApplication.reference_number}</div>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold mb-2">Teaching Details</h3>
-                  <div className="space-y-2 text-sm">
-                    <div><strong>Subjects:</strong> {selectedApplication.subjects || 'N/A'}</div>
-                    <div><strong>Classes:</strong> {selectedApplication.classes_taught_for_backend || 'N/A'}</div>
-                    <div><strong>Boards:</strong> {selectedApplication.school_boards_catered || 'N/A'}</div>
-                    <div><strong>Location:</strong> {selectedApplication.location_v2 || 'N/A'}</div>
-                    <div><strong>Mode:</strong> {selectedApplication.mode_of_teaching || 'N/A'}</div>
-                    <div><strong>Structure of classes:</strong> {selectedApplication.class_size ? selectedApplication.class_size.replace(/\bSolo\b/g, 'One-on-one') : 'N/A'}</div>
-                  </div>
-                </div>
-
-                {selectedApplication.description && (
-                  <div className="md:col-span-2">
-                    <h3 className="font-semibold mb-2">Description</h3>
-                    <p className="text-sm">{selectedApplication.description}</p>
-                  </div>
-                )}
-
-                {selectedApplication.qualifications_etc && (
-                  <div className="md:col-span-2">
-                    <h3 className="font-semibold mb-2">Qualifications</h3>
-                    <p className="text-sm">{selectedApplication.qualifications_etc}</p>
-                  </div>
-                )}
-
-                {selectedApplication.hero_image_url && (
-                  <div className="md:col-span-2">
-                    <h3 className="font-semibold mb-2">Hero Image</h3>
-                    <img
-                      src={selectedApplication.hero_image_url ? validateImageSrc(selectedApplication.hero_image_url) : ''}
-                      alt="Hero"
-                      className="w-full max-w-md h-48 object-cover rounded-lg border"
-                    />
-                  </div>
-                )}
-
+              {selectedApplication.description && (
                 <div className="md:col-span-2">
-                  <h3 className="font-semibold mb-2">Status</h3>
-                  <div className="text-sm space-y-1">
-                    <div><strong>Status:</strong> {selectedApplication.status}</div>
-                    <div><strong>MOU Consent:</strong> {selectedApplication.mou_consent ? 'Yes' : 'No'}</div>
-                    <div><strong>Applied:</strong> {new Date(selectedApplication.created_at).toLocaleString()}</div>
-                    {selectedApplication.reviewed_at && (
-                      <div><strong>Reviewed:</strong> {new Date(selectedApplication.reviewed_at).toLocaleString()}</div>
-                    )}
-                    {selectedApplication.rejection_reason && (
-                      <div><strong>Rejection Reason:</strong> {selectedApplication.rejection_reason}</div>
-                    )}
-                  </div>
+                  <h3 className="mb-2" style={{ fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>Description</h3>
+                  <p style={{ fontSize: 13.5, color: SURFACE_TOKENS.textBody }}>{selectedApplication.description}</p>
                 </div>
+              )}
 
+              {selectedApplication.qualifications_etc && (
                 <div className="md:col-span-2">
-                  <h3 className="font-semibold mb-2">Texted Status</h3>
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <Select
-                      value={selectedApplication.texted_status}
-                      onValueChange={(value) => {
-                        handleTextedStatusChange(selectedApplication.id, value);
-                        setSelectedApplication({ ...selectedApplication, texted_status: value as TeacherApplication['texted_status'] });
-                      }}
-                    >
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="not_texted">Not Texted</SelectItem>
-                        <SelectItem value="texted">Texted</SelectItem>
-                        <SelectItem value="follow_up">Follow Up</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <h3 className="mb-2" style={{ fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>Qualifications</h3>
+                  <p style={{ fontSize: 13.5, color: SURFACE_TOKENS.textBody }}>{selectedApplication.qualifications_etc}</p>
                 </div>
+              )}
 
-                {selectedApplication.status === 'pending' && (
-                  <div className="md:col-span-2 flex gap-2 pt-4 border-t">
-                    <Button
-                      onClick={() => handleApprove(selectedApplication.id)}
-                      disabled={processingId === selectedApplication.id}
-                      className="gap-2"
-                    >
-                      {processingId === selectedApplication.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <CheckCircle className="w-4 h-4" />
+              {selectedApplication.hero_image_url && (
+                <div className="md:col-span-2">
+                  <h3 className="mb-2" style={{ fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>Hero Image</h3>
+                  <img
+                    src={selectedApplication.hero_image_url ? validateImageSrc(selectedApplication.hero_image_url) : ''}
+                    alt="Hero"
+                    className="w-full max-w-md h-48 object-cover"
+                    style={{ borderRadius: 14, boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}` }}
+                  />
+                </div>
+              )}
+
+              <div className="md:col-span-2">
+                <h3 className="mb-2" style={{ fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>Status</h3>
+                <div className="space-y-1" style={{ fontSize: 13.5, color: SURFACE_TOKENS.textBody }}>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Status:</strong> {selectedApplication.status}</div>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>MOU Consent:</strong> {selectedApplication.mou_consent ? 'Yes' : 'No'}</div>
+                  <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Applied:</strong> {new Date(selectedApplication.created_at).toLocaleString()}</div>
+                  {selectedApplication.reviewed_at && (
+                    <div>
+                      <strong style={{ color: SURFACE_TOKENS.textPrimary }}>Reviewed:</strong> {new Date(selectedApplication.reviewed_at).toLocaleString()}
+                      {selectedApplication.reviewed_by && (
+                        <> by {reviewerNames[selectedApplication.reviewed_by] || 'an admin'}</>
                       )}
-                      Approve Application
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => handleReject(selectedApplication.id)}
-                      disabled={processingId === selectedApplication.id}
-                      className="gap-2"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      Reject Application
-                    </Button>
-                  </div>
-                )}
+                    </div>
+                  )}
+                  {selectedApplication.rejection_reason && (
+                    <div><strong style={{ color: SURFACE_TOKENS.textPrimary }}>Rejection Reason:</strong> {selectedApplication.rejection_reason}</div>
+                  )}
+                </div>
               </div>
+
+              <div className="md:col-span-2">
+                <h3 className="mb-2" style={{ fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>Texted Status</h3>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Select
+                    value={selectedApplication.texted_status}
+                    onValueChange={(value) => {
+                      handleTextedStatusChange(selectedApplication.id, value);
+                      setSelectedApplication({ ...selectedApplication, texted_status: value as TeacherApplication['texted_status'] });
+                    }}
+                  >
+                    <SelectTrigger className="w-full sm:w-[200px] h-auto border-0" style={adminFieldStyle}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="not_texted">Not Texted</SelectItem>
+                      <SelectItem value="texted">Texted</SelectItem>
+                      <SelectItem value="follow_up">Follow Up</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {selectedApplication.status === 'pending' && (
+                <div className="md:col-span-2 flex gap-2 pt-4" style={{ borderTop: `1px solid ${SURFACE_TOKENS.hairline}` }}>
+                  <button
+                    onClick={() => handleApprove(selectedApplication.id)}
+                    disabled={processingId === selectedApplication.id}
+                    style={adminPrimaryBtnStyle}
+                    className="disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {processingId === selectedApplication.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                    Approve Application
+                  </button>
+                  <button
+                    onClick={() => handleReject(selectedApplication.id)}
+                    disabled={processingId === selectedApplication.id}
+                    style={adminDestructiveBtnStyle}
+                    className="disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Reject Application
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </main>
-      <Footer />
-    </div>
+        </div>
+      )}
+    </AdminConsole>
   );
 }
-

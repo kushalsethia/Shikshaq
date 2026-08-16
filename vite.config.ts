@@ -6,7 +6,8 @@ import path from "path";
 export default defineConfig({
   server: {
     host: "::",
-    port: 8080,
+    // Defaults to 8080; PORT lets a second dev server run alongside the first.
+    port: Number(process.env.PORT) || 8080,
   },
   plugins: [react()],
   resolve: {

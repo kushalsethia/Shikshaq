@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
@@ -34,16 +32,16 @@ export default function TeacherTermsAgreement() {
   useEffect(() => {
     // Only check once
     if (hasCheckedRef.current) return;
-    
+
     let isMounted = true;
 
     const checkTeacherStatus = async () => {
       // Prevent multiple redirects
       if (hasRedirectedRef.current) return;
-      
+
       // Wait for auth to finish loading
       if (authLoading) return;
-      
+
       // If no user, redirect to auth (preserve return URL)
       if (!user) {
         if (isMounted && !hasRedirectedRef.current && location.pathname === '/teacher-terms-agreement') {
@@ -64,7 +62,7 @@ export default function TeacherTermsAgreement() {
 
         if (isMounted && !hasRedirectedRef.current && location.pathname === '/teacher-terms-agreement') {
           hasCheckedRef.current = true;
-          
+
           if (!profile) {
             // No profile - redirect to select role (preserve return URL)
             hasRedirectedRef.current = true;
@@ -151,7 +149,7 @@ export default function TeacherTermsAgreement() {
       }
 
       toast.success('Thank you for verifying your consent!');
-      
+
       // Small delay to ensure cache is cleared, then redirect back or home
       const returnPath = isValidRedirect(redirectTo) ? redirectTo : '/';
       setTimeout(() => {
@@ -173,8 +171,8 @@ export default function TeacherTermsAgreement() {
         <Navbar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
+            <p className="text-muted-foreground text-base">Loading...</p>
           </div>
         </div>
         <Footer />
@@ -190,28 +188,28 @@ export default function TeacherTermsAgreement() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      
-      <main className="flex-1 flex items-center justify-center py-16">
-        <div className="w-full max-w-md">
+
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16">
+        <div className="w-full max-w-[480px]">
           <div className="text-center mb-8">
             <Logo size="lg" className="mx-auto mb-4" />
             <div className="flex justify-center mb-4">
-              <UserCheck className="w-12 h-12 text-primary" />
+              <UserCheck className="w-11 h-11 text-brand-blue" />
             </div>
-            <h1 className="text-3xl font-sans text-foreground mb-2">
-              Verify Your Consent
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
+              Verify your consent
             </h1>
-            <p className="text-muted-foreground">
+            <p className="mt-2 text-base leading-relaxed text-warm-prose">
               We've detected that you're a teacher on our platform. Please verify your consent to continue.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-muted/50 p-4 rounded-lg border">
-              <p className="text-sm text-foreground mb-3">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="p-4 rounded-2xl bg-muted">
+              <p className="mb-2 text-sm font-semibold text-foreground">
                 As a teacher on Shikshaq, you agree to:
               </p>
-              <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside">
+              <ul className="flex flex-col gap-2 text-sm leading-relaxed text-muted-foreground pl-4 list-disc">
                 <li>Provide accurate information about your qualifications and teaching experience</li>
                 <li>Maintain professional conduct when interacting with students and parents</li>
                 <li>Respect student privacy and confidentiality</li>
@@ -220,29 +218,33 @@ export default function TeacherTermsAgreement() {
             </div>
 
             {/* Terms and Privacy Policy Checkbox */}
-            <div className="flex items-start space-x-2">
+            <div className="flex items-start gap-3">
               <Checkbox
                 id="terms"
                 checked={termsAgreed}
                 onCheckedChange={(checked) => setTermsAgreed(checked === true)}
                 className="mt-1"
               />
-              <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
+              <label htmlFor="terms" className="text-sm leading-relaxed text-warm-prose cursor-pointer">
                 I agree to the{' '}
-                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline underline">
+                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
                   Terms of Service
                 </a>
                 {' '}and{' '}
-                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline underline">
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
                   Privacy Policy
                 </a>
                 {' '}and consent to be listed as a teacher on Shikshaq.
-              </Label>
+              </label>
             </div>
 
-            <Button type="submit" className="w-full h-12" disabled={loading || !termsAgreed}>
-              {loading ? 'Verifying...' : 'Verify Consent & Continue'}
-            </Button>
+            <button
+              type="submit"
+              disabled={loading || !termsAgreed}
+              className="active:scale-[0.98] transition-transform duration-150 w-full min-h-[50px] rounded-lg bg-foreground text-background text-base font-bold disabled:opacity-50"
+            >
+              {loading ? 'Verifying...' : 'Verify consent & continue'}
+            </button>
           </form>
         </div>
       </main>
@@ -251,4 +253,3 @@ export default function TeacherTermsAgreement() {
     </div>
   );
 }
-

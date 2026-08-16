@@ -5,56 +5,55 @@ import { useAuth } from '@/lib/auth-context';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ArrowLeft, User, Phone, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { Link } from 'react-router-dom';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { logger } from '@/utils/logger';
+
+const FIELD_BASE =
+  'w-full box-border min-h-12 px-4 py-3 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline shikshaq-recommend-field';
+const FIELD_ERROR = 'ring-destructive';
+const LABEL = 'text-sm font-semibold text-foreground mb-2';
 
 const recommendSchema = z.object({
-  yourName: z.string().min(2, 'Name must be at least 2 characters'),
-  yourContact: z.string().min(10, 'Contact number must be at least 10 digits'),
-  teacherName: z.string().min(2, 'Teacher name must be at least 2 characters'),
-  teacherContact: z.string().min(10, 'Teacher contact number must be at least 10 digits'),
+  teacherName: z.string().trim().min(1, "Please enter the teacher's name").max(100, "Teacher's name is too long"),
+  subject: z.string().trim().max(100, 'Subject is too long').optional(),
+  area: z.string().trim().max(100, 'Area is too long').optional(),
+  contact: z.string().trim().max(50, 'Contact is too long').optional(),
+  reason: z.string().trim().max(1000, 'Please keep this under 1000 characters').optional(),
 });
 
 export default function RecommendTeacher() {
+  usePageMeta(
+    'Recommend a Tuition Teacher in Kolkata | Shikshaq',
+    'Know a great tuition teacher in Kolkata? Recommend them to Shikshaq so other students and parents can find them. Free to submit, takes under a minute.'
+  );
+
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
-    yourName: '',
-    yourContact: '',
     teacherName: '',
-    teacherContact: '',
+    subject: '',
+    area: '',
+    contact: '',
+    reason: '',
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   // Ensure user has selected a role
   useRequireRole();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
-    // Handle phone number input - only allow digits
-    if (name === 'yourContact' || name === 'teacherContact') {
-      const digitsOnly = value.replace(/\D/g, '');
-      setFormData({ ...formData, [name]: digitsOnly });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
-    
-    // Clear error for this field
-    if (errors[name]) {
-      setErrors({ ...errors, [name]: '' });
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (error) setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Check if user is signed in
     if (!user) {
       toast.error('Please sign in to submit a recommendation');
@@ -62,59 +61,47 @@ export default function RecommendTeacher() {
       return;
     }
 
+    const result = recommendSchema.safeParse(formData);
+    if (!result.success) {
+      setError(result.error.errors[0]?.message || "Please enter the teacher's name");
+      return;
+    }
+
     setLoading(true);
-    setErrors({});
+    setError('');
 
     try {
-      const result = recommendSchema.safeParse(formData);
-      if (!result.success) {
-        const fieldErrors: Record<string, string> = {};
-        result.error.errors.forEach((err) => {
-          if (err.path[0]) {
-            fieldErrors[err.path[0] as string] = err.message;
-          }
-        });
-        setErrors(fieldErrors);
-        setLoading(false);
-        return;
-      }
+      const notesParts: string[] = [];
+      if (formData.subject.trim()) notesParts.push(`Subject: ${formData.subject.trim()}`);
+      if (formData.area.trim()) notesParts.push(`Area: ${formData.area.trim()}`);
+      if (formData.reason.trim()) notesParts.push(`Why: ${formData.reason.trim()}`);
 
-      // Submit to Supabase with user_id
-      const { error } = await supabase
+      // Submit to Supabase with user_id; recommender identity comes from the
+      // signed-in account since the form itself only collects details about
+      // the teacher being recommended.
+      const { error: submitError } = await supabase
         .from('teacher_recommendations')
         .insert({
           user_id: user.id,
-          recommender_name: formData.yourName,
-          recommender_contact: `+91${formData.yourContact}`,
-          teacher_name: formData.teacherName,
-          teacher_contact: `+91${formData.teacherContact}`,
+          recommender_name: profile?.full_name || user.email || 'Shikshaq user',
+          recommender_contact: user.email || user.phone || '',
+          teacher_name: formData.teacherName.trim(),
+          teacher_contact: formData.contact.trim(),
           status: 'pending',
+          notes: notesParts.length ? notesParts.join('\n') : null,
         });
 
-      if (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error submitting recommendation:', error);
+      if (submitError) {
+        logger.error('RecommendTeacher.submit', submitError);
+        if (submitError.message?.includes('RATE_LIMIT_EXCEEDED')) {
+          throw new Error("You've reached the daily limit for recommendations. Please try again tomorrow.");
         }
-        throw new Error(error.message || 'Failed to submit recommendation');
+        throw new Error(submitError.message || 'Failed to submit recommendation');
       }
-      
-      toast.success('Thank you! Your recommendation has been submitted.');
-      
-      // Reset form
-      setFormData({
-        yourName: '',
-        yourContact: '',
-        teacherName: '',
-        teacherContact: '',
-      });
-      
-      // Optionally navigate back or show success page
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
-      
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to submit recommendation');
+
+      setSubmitted(true);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit recommendation');
     } finally {
       setLoading(false);
     }
@@ -123,155 +110,119 @@ export default function RecommendTeacher() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
-      <main className="container pt-32 sm:pt-[120px] pb-8 md:pt-16 md:pb-16">
-        {/* Back Button */}
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to home
-        </Link>
 
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-            {/* Left Side - Text */}
-            <div className="text-left">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-sans text-foreground leading-tight">
-                We'd love to have the best teachers out there, on-board with us
-              </h1>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
+          Recommend a teacher
+        </h1>
+        <p className="mt-3 max-w-prose text-base leading-relaxed text-muted-foreground">
+          Tell us who taught you well. We contact them, verify their experience, and list them only if they agree.
+        </p>
+
+        <div className="mt-8 p-6 sm:p-8 rounded-2xl bg-card shadow-border">
+          {submitted ? (
+            <div className="text-center py-2">
+              <p className="text-lg font-semibold text-foreground">
+                Thanks — we will reach out to them this week.
+              </p>
             </div>
-
-            {/* Right Side - Form Card - Dark theme like in the image */}
-            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-3xl p-8 md:p-12 border border-gray-700 shadow-xl relative overflow-hidden">
-            {/* Background blur effect */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none">
-              <div 
-                className="absolute top-0 right-0 w-96 h-96 bg-purple-500 rounded-full blur-3xl"
-                style={{
-                  transform: 'translate(30%, -30%)',
-                }}
-              />
-            </div>
-            
-            <div className="relative z-10">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Your Name */}
-              <div className="space-y-2">
-                <Label htmlFor="yourName" className="text-gray-200">Your Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="yourName"
-                    name="yourName"
-                    type="text"
-                    placeholder="FULL NAME"
-                    value={formData.yourName}
-                    onChange={handleInputChange}
-                    className={`pl-10 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-gray-600 ${errors.yourName ? 'border-red-500' : ''}`}
-                  />
-                </div>
-                {errors.yourName && (
-                  <p className="text-sm text-red-400">{errors.yourName}</p>
-                )}
+          ) : (
+            <form onSubmit={handleSubmit} className="grid gap-4">
+              {/* Teacher's name */}
+              <div>
+                <label htmlFor="teacherName" className={LABEL}>Teacher's name</label>
+                <input
+                  id="teacherName"
+                  name="teacherName"
+                  placeholder="e.g. Ananya Ghosh"
+                  value={formData.teacherName}
+                  onChange={handleChange}
+                  maxLength={100}
+                  className={`${FIELD_BASE} ${error ? FIELD_ERROR : ''}`}
+                />
+                {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
               </div>
 
-              {/* Your Contact Number */}
-              <div className="space-y-2">
-                <Label htmlFor="yourContact" className="text-gray-200">Your Contact Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <div className="absolute left-10 top-1/2 -translate-y-1/2 text-gray-400 font-medium">
-                    +91
-                  </div>
-                  <Input
-                    id="yourContact"
-                    name="yourContact"
-                    type="tel"
-                    placeholder=""
-                    value={formData.yourContact}
-                    onChange={handleInputChange}
-                    className={`pl-16 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-gray-600 ${errors.yourContact ? 'border-red-500' : ''}`}
-                    maxLength={10}
+              {/* Subject / Area pair */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="subject" className={LABEL}>Subject</label>
+                  <input
+                    id="subject"
+                    name="subject"
+                    placeholder="e.g. Maths"
+                    value={formData.subject}
+                    onChange={handleChange}
+                    maxLength={100}
+                    className={FIELD_BASE}
                   />
                 </div>
-                {errors.yourContact && (
-                  <p className="text-sm text-red-400">{errors.yourContact}</p>
-                )}
-              </div>
-
-              {/* Teacher's Name */}
-              <div className="space-y-2">
-                <Label htmlFor="teacherName" className="text-gray-200">Teacher's Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="teacherName"
-                    name="teacherName"
-                    type="text"
-                    placeholder="FULL NAME"
-                    value={formData.teacherName}
-                    onChange={handleInputChange}
-                    className={`pl-10 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-gray-600 ${errors.teacherName ? 'border-red-500' : ''}`}
+                <div>
+                  <label htmlFor="area" className={LABEL}>Area they teach in</label>
+                  <input
+                    id="area"
+                    name="area"
+                    placeholder="e.g. Ballygunge"
+                    value={formData.area}
+                    onChange={handleChange}
+                    maxLength={100}
+                    className={FIELD_BASE}
                   />
                 </div>
-                {errors.teacherName && (
-                  <p className="text-sm text-red-400">{errors.teacherName}</p>
-                )}
               </div>
 
-              {/* Teacher's Contact Number */}
-              <div className="space-y-2">
-                <Label htmlFor="teacherContact" className="text-gray-200">Teacher's Contact Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <div className="absolute left-10 top-1/2 -translate-y-1/2 text-gray-400 font-medium">
-                    +91
-                  </div>
-                  <Input
-                    id="teacherContact"
-                    name="teacherContact"
-                    type="tel"
-                    placeholder=""
-                    value={formData.teacherContact}
-                    onChange={handleInputChange}
-                    className={`pl-16 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-gray-600 ${errors.teacherContact ? 'border-red-500' : ''}`}
-                    maxLength={10}
-                  />
-                </div>
-                {errors.teacherContact && (
-                  <p className="text-sm text-red-400">{errors.teacherContact}</p>
-                )}
+              {/* Contact */}
+              <div>
+                <label htmlFor="contact" className={LABEL}>Their contact, if you have it</label>
+                <input
+                  id="contact"
+                  name="contact"
+                  placeholder="Phone or WhatsApp number"
+                  value={formData.contact}
+                  onChange={handleChange}
+                  maxLength={50}
+                  className={FIELD_BASE}
+                />
               </div>
 
-              {/* Sign-in reminder */}
-              {!user && (
-                <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-center gap-3">
-                  <Lock className="w-5 h-5 text-yellow-500" />
-                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                    You need to sign in to submit a recommendation. You'll be redirected to sign in when you click "Send Message".
-                  </p>
-                </div>
-              )}
+              {/* Reason */}
+              <div>
+                <label htmlFor="reason" className={LABEL}>Why you would recommend them</label>
+                <textarea
+                  id="reason"
+                  name="reason"
+                  rows={4}
+                  placeholder="A line or two is enough."
+                  value={formData.reason}
+                  onChange={handleChange}
+                  maxLength={1000}
+                  className={`${FIELD_BASE} leading-relaxed resize-y`}
+                />
+              </div>
 
-              {/* Submit Button */}
-              <Button 
-                type="submit" 
-                className="w-full h-12 bg-black text-white hover:bg-gray-900" 
+              {/* Submit */}
+              <button
+                type="submit"
                 disabled={loading}
+                className="hover:opacity-90 active:scale-[0.97] transition-[opacity,transform] duration-150 min-h-[52px] p-4 rounded-lg bg-foreground text-background text-center text-base font-semibold disabled:opacity-70"
               >
-                {loading ? 'Sending...' : user ? 'Send Message' : 'Sign in to Submit'}
-              </Button>
+                Send recommendation
+              </button>
+
+              <p className="text-xs leading-relaxed text-warm-meta">
+                We never publish a teacher's details without their consent, and we do not tell them who recommended them unless you ask us to.
+              </p>
             </form>
-            </div>
-            </div>
-          </div>
+          )}
         </div>
-      </main>
+      </div>
 
       <Footer />
+
+      <style>{`
+        .shikshaq-recommend-field { transition: box-shadow .15s ease; }
+        .shikshaq-recommend-field:focus { box-shadow: 0 0 0 2px hsl(var(--foreground)); outline: none; }
+      `}</style>
     </div>
   );
 }
-

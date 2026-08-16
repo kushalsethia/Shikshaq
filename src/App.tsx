@@ -2,14 +2,17 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom";
+import { lazy, Suspense, type ReactNode } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
 import { StudiesWithProvider } from "@/lib/studies-with-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { CanonicalTag } from "@/components/CanonicalTag";
 import { Chatbot } from "@/components/Chatbot";
+import { BottomNav } from "@/components/BottomNav";
+import { OnboardingModal } from "@/components/OnboardingModal";
 import Index from "./pages/Index";
 const Browse = lazy(() => import("./pages/Browse"));
 import Auth from "./pages/Auth";
@@ -19,12 +22,16 @@ import FAQ from "./pages/FAQ";
 import Join from "./pages/Join";
 const JoinApply = lazy(() => import("./pages/JoinApply"));
 import PastPapers from "./pages/PastPapers";
+const PaperResults = lazy(() => import("./pages/PaperResults"));
+const PaperReader = lazy(() => import("./pages/PaperReader"));
+import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 
 // Lazy load heavy components for better performance on mobile
 const SubjectPage = lazy(() => import("./pages/SubjectPage"));
+const WhatsAppRedirect = lazy(() => import("./pages/WhatsAppRedirect"));
 const BoardPage = lazy(() => import("./pages/BoardPage"));
 const RecommendTeacher = lazy(() => import("./pages/RecommendTeacher"));
 const AdminRecommendations = lazy(() => import("./pages/AdminRecommendations"));
@@ -33,6 +40,7 @@ const AdminUpvotes = lazy(() => import("./pages/AdminUpvotes"));
 const AdminFeedback = lazy(() => import("./pages/AdminFeedback"));
 const AdminTeachers = lazy(() => import("./pages/AdminTeachers"));
 const AdminApplications = lazy(() => import("./pages/AdminApplications"));
+const AdminPapers = lazy(() => import("./pages/AdminPapers"));
 const LikedTeachers = lazy(() => import("./pages/LikedTeachers"));
 const MyTeachers = lazy(() => import("./pages/MyTeachers"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
@@ -70,6 +78,17 @@ const TeacherRedirect = () => {
   return <Navigate to={`/tuition-teachers/${slug}`} replace />;
 };
 
+// Short, subtle crossfade on route change. Keyed on pathname only (not query
+// params) so filter/search changes within a page never re-trigger it.
+const RouteTransition = ({ children }: { children: ReactNode }) => {
+  const location = useLocation();
+  return (
+    <div key={location.pathname} className="route-fade pb-20 lg:pb-0">
+      {children}
+    </div>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -80,8 +99,17 @@ const App = () => (
             <Toaster />
             <Sonner />
           <BrowserRouter>
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:ring-2 focus:ring-ring"
+            >
+              Skip to content
+            </a>
             <ScrollToTop />
+            <CanonicalTag />
             <Chatbot />
+            <OnboardingModal />
+            <RouteTransition>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/all-tuition-teachers-in-kolkata" element={
@@ -94,6 +122,11 @@ const App = () => (
               <Route path="/tuition-teachers/:slug" element={
                 <Suspense fallback={<PageLoader />}>
                   <TeacherProfile />
+                </Suspense>
+              } />
+              <Route path="/tuition-teachers/:slug/whatsapp-click" element={
+                <Suspense fallback={<PageLoader />}>
+                  <WhatsAppRedirect />
                 </Suspense>
               } />
               <Route path="/teacher/:slug" element={<TeacherRedirect />} />
@@ -117,6 +150,17 @@ const App = () => (
                 </Suspense>
               } />
               <Route path="/past-papers" element={<PastPapers />} />
+              <Route path="/past-papers/results" element={
+                <Suspense fallback={<PageLoader />}>
+                  <PaperResults />
+                </Suspense>
+              } />
+              <Route path="/past-papers/:id" element={
+                <Suspense fallback={<PageLoader />}>
+                  <PaperReader />
+                </Suspense>
+              } />
+              <Route path="/about" element={<About />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/recommend-teacher" element={
@@ -153,6 +197,11 @@ const App = () => (
               <Route path="/admin/applications" element={
                 <Suspense fallback={<PageLoader />}>
                   <AdminApplications />
+                </Suspense>
+              } />
+              <Route path="/admin/papers" element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminPapers />
                 </Suspense>
               } />
               <Route path="/select-role" element={
@@ -326,6 +375,16 @@ const App = () => (
                   <SubjectPage />
                 </Suspense>
               } />
+              <Route path="/clat-tuition-teachers-in-kolkata" element={
+                <Suspense fallback={<PageLoader />}>
+                  <SubjectPage />
+                </Suspense>
+              } />
+              <Route path="/social-studies-tuition-teachers-in-kolkata" element={
+                <Suspense fallback={<PageLoader />}>
+                  <SubjectPage />
+                </Suspense>
+              } />
               {/* Board-specific pages */}
               <Route path="/cbse-ncert-tuition-teachers-in-kolkata" element={
                 <Suspense fallback={<PageLoader />}>
@@ -355,6 +414,8 @@ const App = () => (
               <Route path="/404" element={<NotFound />} />
               <Route path="*" element={<Navigate to="/404" replace />} />
             </Routes>
+            </RouteTransition>
+            <BottomNav />
           </BrowserRouter>
             </StudiesWithProvider>
           </UpvotesProvider>

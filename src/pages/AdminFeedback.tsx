@@ -1,14 +1,25 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Trash2, User as UserIcon, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
+import { Navbar } from '@/components/Navbar';
+import { Footer } from '@/components/Footer';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
+import { SURFACE_TOKENS } from '@/utils/searchFacets';
+import {
+  AdminConsole,
+  AdminStatTiles,
+  AdminTile,
+  AdminPill,
+  adminRowStyle,
+  adminRowListStyle,
+  adminSecondaryBtnStyle,
+  adminDestructiveBtnStyle,
+  adminToast,
+} from '@/components/AdminConsole';
 
 interface Feedback {
   id: string;
@@ -42,6 +53,8 @@ const ratingEmojis: { [key: number]: string } = {
   5: '🥰',
 };
 
+const TINT = { bg: SURFACE_TOKENS.mutedFill, text: SURFACE_TOKENS.textBody }; // #F0EAE2 / #4A443E per spec
+
 export default function AdminFeedback() {
   const { user } = useAuth();
   const [feedback, setFeedback] = useState<Feedback[]>([]);
@@ -53,7 +66,7 @@ export default function AdminFeedback() {
   async function fetchFeedback() {
     try {
       setLoading(true);
-      
+
       let query = supabase
         .from('feedback')
         .select(`
@@ -81,36 +94,38 @@ export default function AdminFeedback() {
         if (import.meta.env.DEV) {
           console.error('Error fetching feedback:', error);
         }
-        toast.error('Failed to load feedback');
+        adminToast('Failed to load feedback');
         return;
       }
 
-      // Fetch profiles for logged-in users
-      const feedbackWithData = await Promise.all(
-        (data || []).map(async (item) => {
-          let profileData = null;
-          if (item.user_id && !item.is_guest) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('id, full_name, email, avatar_url')
-              .eq('id', item.user_id)
-              .maybeSingle();
-            profileData = profile;
-          }
+      // Batch fetch: one query for all unique logged-in-user profiles instead of one query per
+      // feedback row (was N+1 — every row awaited its own round-trip sequentially inside the
+      // Promise.all callback's `await`, since each callback still ran one query per item).
+      const rows = data || [];
+      const userIds = [...new Set(
+        rows.filter((item) => item.user_id && !item.is_guest).map((item) => item.user_id as string)
+      )];
 
-          return {
-            ...item,
-            profiles: profileData,
-          };
-        })
-      );
+      const { data: profilesData } = userIds.length > 0
+        ? await supabase
+            .from('profiles')
+            .select('id, full_name, email, avatar_url')
+            .in('id', userIds)
+        : { data: [] };
+
+      const profilesMap = new Map((profilesData || []).map((p) => [p.id, p]));
+
+      const feedbackWithData = rows.map((item) => ({
+        ...item,
+        profiles: item.user_id && !item.is_guest ? profilesMap.get(item.user_id) || null : null,
+      }));
 
       setFeedback(feedbackWithData);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to load feedback');
+      adminToast('Failed to load feedback');
     } finally {
       setLoading(false);
     }
@@ -181,17 +196,17 @@ export default function AdminFeedback() {
         if (import.meta.env.DEV) {
           console.error('Error deleting feedback:', error);
         }
-        toast.error('Failed to delete feedback');
+        adminToast('Failed to delete feedback');
         return;
       }
 
-      toast.success('Feedback deleted successfully');
+      adminToast('Feedback resolved');
       fetchFeedback();
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to delete feedback');
+      adminToast('Failed to delete feedback');
     }
   };
 
@@ -221,14 +236,14 @@ export default function AdminFeedback() {
 
   if (checkingAdmin || loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
+        <div className="container pt-6 sm:pt-8 pb-8 md:pt-8">
           <div className="animate-pulse">
-            <div className="h-8 w-48 bg-muted rounded mb-8" />
+            <div className="h-8 w-48 rounded mb-8" style={{ background: SURFACE_TOKENS.mutedFill }} />
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-24 bg-muted rounded-lg" />
+                <div key={i} className="h-24 rounded-2xl" style={{ background: SURFACE_TOKENS.field, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }} />
               ))}
             </div>
           </div>
@@ -240,12 +255,12 @@ export default function AdminFeedback() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
+        <div className="container pt-6 sm:pt-8 pb-8 md:pt-8">
           <div className="max-w-2xl mx-auto text-center">
-            <h1 className="text-3xl font-sans text-foreground mb-4">Access Denied</h1>
-            <p className="text-muted-foreground mb-6">
+            <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>Access Denied</h1>
+            <p className="mb-6" style={{ color: SURFACE_TOKENS.textSecondary }}>
               You need to be an admin to access this page.
             </p>
             <Link to="/">
@@ -261,158 +276,108 @@ export default function AdminFeedback() {
     );
   }
 
+  const filterTabs: { key: typeof filter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: feedback.length },
+    { key: 'guest', label: 'Guest', count: feedback.filter((f) => f.is_guest).length },
+    { key: 'logged-in', label: 'Logged In', count: feedback.filter((f) => !f.is_guest).length },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="container py-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <Link to="/admin" className="inline-flex items-center text-muted-foreground hover:text-foreground mb-4">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Admin
-            </Link>
-            <h1 className="text-3xl md:text-4xl font-sans text-foreground">
-              Feedback Management
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              View and manage user feedback submissions
-            </p>
-          </div>
+    <AdminConsole
+      activeTab="feedback"
+      title="Site feedback"
+      subtitle="What students and parents write in from the help page."
+      tint={TINT}
+      tabCount={feedback.length}
+    >
+      {feedback.length > 0 && (
+        <AdminStatTiles
+          stats={[
+            { label: 'Total responses', value: feedback.length },
+            {
+              label: 'Average rating',
+              value: (feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length).toFixed(1),
+            },
+            { label: 'Guest', value: feedback.filter((f) => f.is_guest).length },
+            { label: 'Logged in', value: feedback.filter((f) => !f.is_guest).length },
+          ]}
+        />
+      )}
 
-          {/* Filter Tabs */}
-          <div className="mb-6 flex gap-2 border-b border-border">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 font-medium transition-colors ${
-                filter === 'all'
-                  ? 'border-b-2 border-primary text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              All ({feedback.length})
-            </button>
-            <button
-              onClick={() => setFilter('guest')}
-              className={`px-4 py-2 font-medium transition-colors ${
-                filter === 'guest'
-                  ? 'border-b-2 border-primary text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Guest ({feedback.filter(f => f.is_guest).length})
-            </button>
-            <button
-              onClick={() => setFilter('logged-in')}
-              className={`px-4 py-2 font-medium transition-colors ${
-                filter === 'logged-in'
-                  ? 'border-b-2 border-primary text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Logged In ({feedback.filter(f => !f.is_guest).length})
-            </button>
-          </div>
+      {/* Filter Tabs */}
+      <div className="mb-4 flex gap-2 flex-wrap">
+        {filterTabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setFilter(tab.key)}
+            style={filter === tab.key ? { ...adminSecondaryBtnStyle, background: SURFACE_TOKENS.ink, color: '#fff', boxShadow: 'none' } : adminSecondaryBtnStyle}
+          >
+            {tab.label} ({tab.count})
+          </button>
+        ))}
+      </div>
 
-          {/* Feedback List */}
-          {feedback.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No feedback found.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {feedback.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-card rounded-lg border border-border p-6 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      {/* Header */}
-                      <div className="flex items-center gap-3 mb-3">
-                        {getFeedbackAvatar(item) ? (
-                          <Avatar className="w-10 h-10">
-                            <AvatarImage src={getFeedbackAvatar(item) || ''} />
-                            <AvatarFallback>
-                              {item.is_guest ? (
-                                <UserIcon className="w-5 h-5" />
-                              ) : (
-                                getFeedbackAuthorName(item)
-                                  .charAt(0)
-                                  .toUpperCase()
-                              )}
-                            </AvatarFallback>
-                          </Avatar>
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                            {item.is_guest ? (
-                              <UserIcon className="w-5 h-5 text-muted-foreground" />
-                            ) : (
-                              <span className="text-sm font-medium">
-                                {getFeedbackAuthorName(item).charAt(0).toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-foreground">
-                              {getFeedbackAuthorName(item)}
-                            </p>
-                            {item.is_guest && (
-                              <span className="text-xs px-2 py-0.5 bg-muted rounded-full text-muted-foreground">
-                                Guest
-                              </span>
-                            )}
-                          </div>
-                          {getFeedbackAuthorEmail(item) && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                              <Mail className="w-3 h-3" />
-                              <span>{getFeedbackAuthorEmail(item)}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-2xl">{ratingEmojis[item.rating]}</span>
-                            <span className="font-medium text-foreground">
-                              {ratingLabels[item.rating]}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-                          </p>
-                        </div>
-                      </div>
+      {/* Feedback List */}
+      {feedback.length === 0 ? (
+        <div className="text-center py-16" style={{ background: SURFACE_TOKENS.field, borderRadius: 16, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+          <p style={{ color: SURFACE_TOKENS.textSecondary }}>No feedback found.</p>
+        </div>
+      ) : (
+        <div style={adminRowListStyle}>
+          {feedback.map((item) => {
+            const avatarUrl = getFeedbackAvatar(item);
+            const email = getFeedbackAuthorEmail(item);
+            const name = getFeedbackAuthorName(item);
+            return (
+              <div key={item.id} style={{ ...adminRowStyle, alignItems: 'flex-start' }}>
+                {avatarUrl ? (
+                  <Avatar className="w-[42px] h-[42px] flex-shrink-0">
+                    <AvatarImage src={avatarUrl} />
+                    <AvatarFallback>
+                      {item.is_guest ? <UserIcon className="w-5 h-5" /> : name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <AdminTile tint={TINT}>
+                    {item.is_guest ? <UserIcon className="w-5 h-5" /> : name.charAt(0).toUpperCase()}
+                  </AdminTile>
+                )}
 
-                      {/* Comment */}
-                      {item.comment && (
-                        <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                          <p className="text-sm text-foreground whitespace-pre-wrap">
-                            {item.comment}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 15.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>{name}</span>
+                    {item.is_guest && <AdminPill tone="pending">Guest</AdminPill>}
+                    <span style={{ fontSize: 13 }}>{ratingEmojis[item.rating]}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: SURFACE_TOKENS.textTertiary }}>{ratingLabels[item.rating]}</span>
+                  </div>
+                  <p style={{ marginTop: 4, fontSize: 13, lineHeight: 1.5, color: SURFACE_TOKENS.textTertiary }}>
+                    {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                  </p>
 
-                    {/* Delete Button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(item.id)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  {item.comment && (
+                    <p style={{ marginTop: 10, padding: 12, borderRadius: 12, background: SURFACE_TOKENS.mutedFill, color: SURFACE_TOKENS.textPrimary, fontSize: 13.5, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                      {item.comment}
+                    </p>
+                  )}
+
+                  <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 12 }}>
+                    {email && (
+                      <a href={`mailto:${email}`} style={adminSecondaryBtnStyle}>
+                        <Mail className="w-3.5 h-3.5" />
+                        Reply
+                      </a>
+                    )}
+                    <button onClick={() => handleDelete(item.id)} style={adminDestructiveBtnStyle} aria-label="Resolve feedback">
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Resolve
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            );
+          })}
         </div>
-      </div>
-      <Footer />
-    </div>
+      )}
+    </AdminConsole>
   );
 }
-

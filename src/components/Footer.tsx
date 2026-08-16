@@ -1,16 +1,60 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Instagram, MessageCircle, Mail, ChevronDown, ChevronUp, GraduationCap, UserPlus } from 'lucide-react';
+import { Mail, ChevronDown, ChevronUp, Star, Heart } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth-context';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
-import { FeedbackModal } from '@/components/FeedbackModal';
 import DOMPurify from 'dompurify';
 import aquaterraLogo from '@/assets/Frame 48095868.png';
 
+type FooterLink = { to: string; label: string };
+
+const BOARD_FOOTER_LINKS: FooterLink[] = [
+  { to: '/all-tuition-teachers-in-kolkata', label: 'All boards' },
+  { to: '/cbse-ncert-tuition-teachers-in-kolkata', label: 'CBSE / NCERT' },
+  { to: '/icse-tuition-teachers-in-kolkata', label: 'ICSE' },
+  { to: '/igcse-tuition-teachers-in-kolkata', label: 'IGCSE' },
+  { to: '/international-board-tuition-teachers-in-kolkata', label: 'International Board' },
+  { to: '/state-board-tuition-teachers-in-kolkata', label: 'WB State Board' },
+];
+
 const footerContentCache = new Map<string, PageContent>();
+
+const SUBJECT_SEO_LINKS: FooterLink[] = [
+  { to: '/accounts-tuition-teachers-in-kolkata', label: 'Accounts' },
+  { to: '/act-tuition-teachers-in-kolkata', label: 'ACT' },
+  { to: '/bengali-tuition-teachers-in-kolkata', label: 'Bengali' },
+  { to: '/biology-tuition-teachers-in-kolkata', label: 'Biology' },
+  { to: '/business-studies-tuition-teachers-in-kolkata', label: 'Business Studies' },
+  { to: '/ca-tuition-teachers-in-kolkata', label: 'CA' },
+  { to: '/cat-tuition-teachers-in-kolkata', label: 'CAT' },
+  { to: '/cfa-tuition-teachers-in-kolkata', label: 'CFA' },
+  { to: '/chemistry-tuition-teachers-in-kolkata', label: 'Chemistry' },
+  { to: '/clat-tuition-teachers-in-kolkata', label: 'CLAT' },
+  { to: '/commerce-tuition-teachers-in-kolkata', label: 'Commerce' },
+  { to: '/commercial-studies-tuition-teachers-in-kolkata', label: 'Commercial Studies' },
+  { to: '/computer-tuition-teachers-in-kolkata', label: 'Computer' },
+  { to: '/drawing-tuition-teachers-in-kolkata', label: 'Drawing' },
+  { to: '/economics-tuition-teachers-in-kolkata', label: 'Economics' },
+  { to: '/english-tuition-teachers-in-kolkata', label: 'English' },
+  { to: '/environmental-science-tuition-teachers-in-kolkata', label: 'Environmental Science' },
+  { to: '/geography-tuition-teachers-in-kolkata', label: 'Geography' },
+  { to: '/gmat-tuition-teachers-in-kolkata', label: 'GMAT' },
+  { to: '/hindi-tuition-teachers-in-kolkata', label: 'Hindi' },
+  { to: '/history-tuition-teachers-in-kolkata', label: 'History' },
+  { to: '/maths-tuition-teachers-in-kolkata', label: 'Maths' },
+  { to: '/nmat-tuition-teachers-in-kolkata', label: 'NMAT' },
+  { to: '/physics-tuition-teachers-in-kolkata', label: 'Physics' },
+  { to: '/political-science-tuition-teachers-in-kolkata', label: 'Political Science' },
+  { to: '/psychology-tuition-teachers-in-kolkata', label: 'Psychology' },
+  { to: '/sat-tuition-teachers-in-kolkata', label: 'SAT' },
+  { to: '/science-tuition-teachers-in-kolkata', label: 'Science' },
+  { to: '/social-studies-tuition-teachers-in-kolkata', label: 'Social Studies' },
+  { to: '/sociology-tuition-teachers-in-kolkata', label: 'Sociology' },
+];
 
 interface PageContent {
   id: string;
@@ -26,22 +70,94 @@ interface FooterProps {
   expandedContent?: string | null; // EXPANDED content from Shikshaqmine for teacher profiles
 }
 
+// Dark panel — VISUAL_LANGUAGE.md §2.1 `#1B1A18` (the `panel` token). Text roles
+// below are picked for 4.5:1+ contrast against that near-black, using only
+// existing tokens/Tailwind built-ins (no new hex values).
+const COL_LABEL = 'text-xs font-medium uppercase tracking-wide text-white/70';
+// Safari still paints a disclosure triangle even with `list-none`.
+const SUMMARY_RESET = '[&::-webkit-details-marker]:hidden';
+const FOOTER_LINK = 'flex min-h-[44px] items-center text-sm text-white/85 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 rounded-lg';
+
+function sanitize(content: string) {
+  if (/<[a-z][\s\S]*>/i.test(content)) {
+    return DOMPurify.sanitize(content, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+      ALLOWED_ATTR: ['href', 'target', 'rel'],
+    });
+  }
+  return DOMPurify.sanitize(content.replace(/\n/g, '<br />'), { ALLOWED_TAGS: ['br'] });
+}
+
+function LinkList({ links }: { links: FooterLink[] }) {
+  return (
+    <div className="grid">
+      {links.map(({ to, label }) => (
+        <Link key={to + label} to={to} className={FOOTER_LINK}>{label}</Link>
+      ))}
+    </div>
+  );
+}
+
+/** Collapsible group — the mobile-compact form of a footer column. */
+function FooterAccordion({ label, links }: { label: string; links: FooterLink[] }) {
+  return (
+    <details className="border-b border-white/10">
+      <summary className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 ${COL_LABEL} ${SUMMARY_RESET}`}>
+        {label}
+        <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+      </summary>
+      <div className="pb-2">
+        <LinkList links={links} />
+      </div>
+    </details>
+  );
+}
+
 export function Footer({ expandedContent }: FooterProps = {}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isExpandedContentExpanded, setIsExpandedContentExpanded] = useState(false);
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [loading, setLoading] = useState(true);
-  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { user, profile } = useAuth();
+  const userRole = (profile?.role as 'student' | 'guardian' | 'teacher') || null;
+  const [isAdmin, setIsAdmin] = useState(false);
+  const dashboardPath = userRole === 'student' ? '/dashboard/student' : userRole === 'guardian' ? '/dashboard/guardian' : userRole === 'teacher' ? '/dashboard/teacher' : null;
+  const [ctaTotals, setCtaTotals] = useState<{ teachers: number | null; papers: number | null; schools: number | null }>({ teachers: null, papers: null, schools: null });
+
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    let cancelled = false;
+    supabase.from('admins').select('id').eq('id', user.id).maybeSingle().then(({ data }) => {
+      if (!cancelled) setIsAdmin(!!data);
+    });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchCtaTotals() {
+      const [teachersRes, papersRes, schoolsRes] = await Promise.all([
+        supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
+        supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+        supabase.from('papers').select('school').eq('is_published', true),
+      ]);
+      if (cancelled) return;
+      const schoolCount = schoolsRes.data ? new Set(schoolsRes.data.map((p) => p.school)).size : null;
+      setCtaTotals({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null, schools: schoolCount });
+    }
+    fetchCtaTotals();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     async function fetchPageContent() {
       try {
         setLoading(true);
-        
+
         const pathname = location.pathname;
-        
+
         if (pathname.startsWith('/tuition-teachers/')) {
           setLoading(false);
           return;
@@ -55,10 +171,10 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           setLoading(false);
           return;
         }
-        
+
         let subjectSlug: string | null = null;
         let boardSlug: string | null = null;
-        
+
         // Known board slugs from boardMapping
         const boardPathSlugs: Record<string, string> = {
           '/cbse-ncert-tuition-teachers-in-kolkata': 'cbse',
@@ -67,11 +183,11 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           '/international-board-tuition-teachers-in-kolkata': 'ib',
           '/state-board-tuition-teachers-in-kolkata': 'state',
         };
-        
+
         // Check if it's a board page first
         if (boardPathSlugs[pathname]) {
           boardSlug = boardPathSlugs[pathname];
-        } 
+        }
         // Check if it's a subject page (pattern: /{subject}-tuition-teachers-in-kolkata)
         // But exclude /all-tuition-teachers-in-kolkata
         else if (pathname !== '/all-tuition-teachers-in-kolkata') {
@@ -80,14 +196,14 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             subjectSlug = subjectMatch[1].toLowerCase();
           }
         }
-        
+
         // Extract board from URL params (e.g., filter_boards=ICSE -> icse)
         // This takes precedence if both pathname and params have board info
         const boardFromUrl = searchParams.get('filter_boards')?.split(',')[0]?.trim();
         if (boardFromUrl) {
           boardSlug = boardFromUrl.toLowerCase();
         }
-        
+
         // Determine page type and build query
         let query = supabase
           .from('page_content')
@@ -151,7 +267,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               .eq('subject_slug', subjectSlug)
               .order('display_order', { ascending: true })
               .limit(1);
-            
+
             if (subjectData && subjectData.length > 0) {
               const content = subjectData[0] as PageContent;
               setPageContent(content);
@@ -159,7 +275,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               return;
             }
           }
-          
+
           // Fallback to general content
           const { data: generalData } = await supabase
             .from('page_content')
@@ -170,14 +286,14 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             .is('board_slug', null)
             .order('display_order', { ascending: true })
             .limit(1);
-          
+
           if (generalData && generalData.length > 0) {
             const content = generalData[0] as PageContent;
             setPageContent(content);
             footerContentCache.set(routeKey, content);
             return;
           }
-          
+
           // Ultimate fallback
           setPageContent({
             id: 'default',
@@ -217,142 +333,278 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     setIsExpanded(false);
   }, [location.pathname, searchParams]);
 
+  const shikshaqLinks: FooterLink[] = [
+    { to: '/', label: 'Home' },
+    { to: '/all-tuition-teachers-in-kolkata', label: 'Browse teachers' },
+    { to: '/past-papers', label: 'Past papers' },
+    ...(dashboardPath ? [{ to: dashboardPath, label: 'Your dashboard' }] : []),
+    { to: '/liked-teachers', label: 'Favourite teachers' },
+    { to: '/about', label: 'About us' },
+    { to: '/recommend-teacher', label: 'Recommend a teacher' },
+  ];
+
+  const supportLinks: FooterLink[] = [
+    { to: '/more', label: 'Help' },
+    { to: '/faq', label: 'FAQ' },
+    { to: '/terms-of-service', label: 'Terms of Service' },
+    { to: '/privacy-policy', label: 'Privacy Policy' },
+    ...(isAdmin ? [
+      { to: '/admin/recommendations', label: 'Admin console' },
+      { to: '/admin/papers', label: 'Admin · upload papers' },
+    ] : []),
+  ];
+
+  const subjectLinks: FooterLink[] = SUBJECT_SEO_LINKS.map(({ to, label }) => ({
+    to,
+    label: `${label} tuition teachers in Kolkata`,
+  }));
+
   return (
-    <footer className="bg-card">
-      {/* Feedback and Join Sections - Side by side on desktop, stacked on mobile */}
-      <div className="container pt-16 pb-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Feedback Section - Blue to Purple Gradient (order-2 on mobile so Join appears first) */}
-          <div className="relative rounded-3xl overflow-hidden bg-blue-600 p-9 order-2 md:order-1">
-            <div className="relative z-10">
-              <h2 className="text-3xl md:text-4xl font-sans text-white mb-4 md:mb-6 leading-tight">
-                Share Your Feedback
-              </h2>
-              <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
-                Share your feedback about the Shikshaq website and help us improve how our platform connects students with the best tuition teachers.
-              </p>
-              <div>
-                <button
-                  onClick={() => setFeedbackModalOpen(true)}
-                  className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-200 shadow-md"
-                >
-                  <MessageCircle className="w-5 h-5 text-black" />
-                  Give Feedback
-                </button>
-              </div>
+    <footer className="bg-panel text-white">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-16">
+        <div className="space-y-7">
+          {/* CTA tiles */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
+            <Link
+              to="/all-tuition-teachers-in-kolkata"
+              className="relative rounded-2xl bg-brand p-4 sm:p-6 text-brand-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute -top-2.5 -right-2.5 rotate-6 rounded-full bg-panel px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.04em] text-white shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0"
+              >
+                Free
+              </span>
+              <span className="block text-lg font-semibold tabular-nums">
+                {ctaTotals.teachers != null ? `${ctaTotals.teachers.toLocaleString('en-IN')} teachers →` : 'Teachers →'}
+              </span>
+              <span className="mt-2 block text-sm">Verified, across Kolkata. No commission.</span>
+            </Link>
+
+            <Link
+              to="/past-papers"
+              className="rounded-2xl bg-white/10 p-4 sm:p-6 transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            >
+              <span className="block text-lg font-semibold tabular-nums text-brand-blue-subtle">
+                {ctaTotals.papers != null ? `${ctaTotals.papers.toLocaleString('en-IN')} papers →` : 'Papers →'}
+              </span>
+              <span className="mt-2 block text-sm text-white/70 tabular-nums">
+                {ctaTotals.schools != null ? `${ctaTotals.schools.toLocaleString('en-IN')} schools. ` : ''}Free, in-page, no download.
+              </span>
+            </Link>
+
+            <Link
+              to="/join"
+              className="rounded-2xl bg-white/10 p-4 sm:p-6 transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            >
+              <span className="block text-lg font-semibold text-white">Teach with us →</span>
+              <span className="mt-2 block text-sm text-white/70">List free. Keep every rupee you charge.</span>
+            </Link>
+          </div>
+
+          {/* Identity + socials */}
+          <div className="space-y-4">
+            <Logo size="nav" onDark />
+            <p className="max-w-prose text-sm text-white/70">
+              Quality tuition teachers in Kolkata, and past papers from Kolkata schools. Free on both counts.
+            </p>
+            <div className="flex gap-2">
+              <a
+                href="mailto:join.shikshaq@gmail.com"
+                aria-label="Email Shikshaq"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-brand-blue-subtle transition-colors duration-150 hover:bg-brand-blue-subtle hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                <Mail className="h-4 w-4" strokeWidth={1.8} aria-hidden />
+              </a>
+              <a
+                href="https://instagram.com/shikshaq.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Shikshaq on Instagram"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors duration-150 hover:bg-brand-subtle hover:text-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                <InstagramIcon className="h-4 w-4" />
+              </a>
+              <a
+                href={getWhatsAppLink('8240980312')}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Shikshaq on WhatsApp"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors duration-150 hover:bg-brand-subtle hover:text-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                <WhatsAppIcon className="h-4 w-4" />
+              </a>
+              <a
+                href={getWhatsAppLink('8240980312')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-[44px] items-center text-sm text-white/85 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 rounded-lg"
+              >
+                Send us a WhatsApp
+              </a>
             </div>
           </div>
 
-          {/* Join as Teacher Section - Orange Gradient (order-1 on mobile so it appears first) */}
-          <div className="relative rounded-3xl overflow-hidden bg-[#FF8000] p-9 order-1 md:order-2">
-            <div className="relative z-10">
-              <h2 className="text-3xl md:text-4xl font-sans text-white mb-4 md:mb-6 leading-tight">
-                Join as a Teacher
-              </h2>
-              <p className="text-white/90 text-base md:text-lg mb-8 md:mb-10 font-sans">
-                Are you a tuition teacher? List yourself for free and connect with students across Kolkata. No fees, no commissions!
-              </p>
-              <div>
-                <Link
-                  to="/join"
-                  className="inline-flex items-center gap-2 bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-200 shadow-md"
-                >
-                  <UserPlus className="w-5 h-5 text-black" />
-                  Register Now
-                </Link>
-              </div>
+          {/* Mobile: collapsible groups, so the footer never becomes a wall of links
+              stacked above the bottom tab bar. Desktop: open columns. */}
+          <div className="lg:hidden">
+            <FooterAccordion label="Shikshaq" links={shikshaqLinks} />
+            <FooterAccordion label="Support & legal" links={supportLinks} />
+            <FooterAccordion label="Teachers by board · Kolkata" links={BOARD_FOOTER_LINKS} />
+            <FooterAccordion label="Tuition teachers by subject in Kolkata" links={subjectLinks} />
+          </div>
+
+          <div className="hidden lg:grid lg:grid-cols-3 lg:gap-6">
+            <div className="space-y-2">
+              <h2 className={COL_LABEL}>Shikshaq</h2>
+              <LinkList links={shikshaqLinks} />
             </div>
+            <div className="space-y-2">
+              <h2 className={COL_LABEL}>Support &amp; legal</h2>
+              <LinkList links={supportLinks} />
+            </div>
+            <div className="space-y-2">
+              <h2 className={COL_LABEL}>Teachers by board · Kolkata</h2>
+              <LinkList links={BOARD_FOOTER_LINKS} />
+            </div>
+          </div>
+
+          <details className="hidden border-t border-white/10 pt-4 lg:block">
+            <summary className={`flex min-h-[44px] cursor-pointer list-none items-center gap-2 ${COL_LABEL} ${SUMMARY_RESET}`}>
+              Tuition teachers by subject in Kolkata
+              <ChevronDown className="h-4 w-4" aria-hidden />
+            </summary>
+            <div className="flex flex-wrap gap-x-6">
+              {subjectLinks.map(({ to, label }) => (
+                <Link key={to} to={to} className={`${FOOTER_LINK} whitespace-nowrap text-xs text-white/70`}>
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </details>
+
+          <div className="rounded-2xl bg-white/10 p-4 text-sm text-white/70">
+            Past papers are the property of the schools that set them. Shikshaq claims no ownership and hosts them as a free community resource.{' '}
+            <Link to="/terms-of-service" className="text-brand-blue-subtle underline-offset-2 hover:underline">Read our full position</Link>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-white/60">
+            <a
+              href="https://ngoaquaterra.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex min-h-[44px] items-center gap-2 transition-opacity duration-150 hover:opacity-70"
+            >
+              <span>© {new Date().getFullYear()} Shikshaq. An AquaTerra Start-up.</span>
+              <img
+                src={aquaterraLogo}
+                alt="AquaTerra"
+                width={64}
+                height={17}
+                loading="lazy"
+                decoding="async"
+                className="h-4 w-auto object-contain opacity-70"
+              />
+            </a>
+            <span>Kolkata, West Bengal, India</span>
+          </div>
+
+          {/* Big wordmark flourish — VISUAL_LANGUAGE §1's "one big typographic device"
+              reading. No cursive/script webfont is loaded anywhere in this project
+              (checked tailwind.config.ts + index.css), and VISUAL_LANGUAGE §0 forbids
+              inventing new tokens/assets. Per the task's fallback instruction, this
+              reaches for the flourish with Geist itself: maximal weight and size,
+              italic, tight tracking, on the dark panel in off-white — re-audited
+              against `02-truus-footer.png` and pushed heavier/bigger (font-black,
+              wider size ramp) so it reads with the same room-filling confidence as
+              the reference's script wordmark instead of a lighter typographic nod.
+              6 stickers now overlap the letterforms directly (not just parked in
+              the four corners), matching the reference's dense scattered cluster. */}
+          {/* pb-6: the bottom-anchored sticker below needs clearance from its own
+              rotation before the fixed mobile BottomNav's floating pill starts —
+              caught during final QA when it was overlapping. */}
+          <div className="relative -mx-1 pt-2 pb-6 sm:pt-3" aria-hidden="true">
+            <p
+              className="select-none whitespace-nowrap text-[19vw] italic font-black leading-none tracking-tighter text-white/95 sm:text-[15vw] lg:text-[168px]"
+            >
+              ShikshAQ
+            </p>
+
+            {/* Sticker cluster on the wordmark — same badge pattern as the "Free" CTA
+                sticker above (rounded, contrasting fill, rotated, small shadow),
+                content grounded in this app's own value props rather than the
+                reference's generic agency emoji. Spread across the full width and
+                pinned to sit ON the wordmark strokes, top and bottom, the way the
+                reference's stickers cross into its lettering rather than framing it. */}
+            <span className="pointer-events-none absolute left-[2%] -top-1 -rotate-6 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-brand-foreground shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+              <span className="inline-flex items-center gap-1">
+                <Star className="h-3 w-3 fill-current" strokeWidth={0} />
+                Verified
+              </span>
+            </span>
+
+            <span className="pointer-events-none absolute left-[24%] top-[8%] rotate-3 rounded-full bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.04em] text-panel shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+              Free, always
+            </span>
+
+            <span className="pointer-events-none absolute left-[46%] top-[42%] -rotate-6 rounded-full bg-brand-blue-subtle p-1.5 text-brand-blue-deep shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:p-2">
+              <Heart className="h-3 w-3 fill-current sm:h-4 sm:w-4" strokeWidth={0} />
+            </span>
+
+            <span className="pointer-events-none absolute right-[20%] top-[10%] rotate-6 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-brand-foreground shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+              0% fee
+            </span>
+
+            <span className="pointer-events-none absolute left-[10%] bottom-[8%] rotate-[8deg] rounded-full bg-white p-1.5 text-panel shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:p-2">
+              <Star className="h-3 w-3 fill-current sm:h-4 sm:w-4" strokeWidth={0} />
+            </span>
+
+            <span className="pointer-events-none absolute right-[2%] bottom-2 -rotate-12 rounded-xl bg-panel px-2 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-white shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+              No commission
+            </span>
           </div>
         </div>
       </div>
 
       {/* Find the best teachers section - EXPANDED content from teacher profiles */}
       {expandedContent && (
-        <div className="container pb-6">
-          <div className="max-w-4xl">
-            <h1 className="text-sm font-normal text-foreground mb-2">
-              Find the best teachers for you
-            </h1>
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pb-10">
+          <div className="max-w-prose">
+            <h2 className="text-lg font-semibold">Find the best teachers for you</h2>
             {isExpandedContentExpanded && (
-              <div 
-                className="text-sm text-muted-foreground mb-2 prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ 
-                  __html: (() => {
-                    const content = expandedContent || '';
-                    // Sanitize content to prevent XSS attacks
-                    let sanitizedContent: string;
-                    // If content contains HTML tags, sanitize it
-                    // Otherwise, convert line breaks to <br /> tags and sanitize
-                    if (/<[a-z][\s\S]*>/i.test(content)) {
-                      sanitizedContent = DOMPurify.sanitize(content, {
-                        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-                        ALLOWED_ATTR: ['href', 'target', 'rel'],
-                      });
-                    } else {
-                      sanitizedContent = DOMPurify.sanitize(content.replace(/\n/g, '<br />'), {
-                        ALLOWED_TAGS: ['br'],
-                      });
-                    }
-                    return sanitizedContent;
-                  })()
-                }}
+              <div
+                className="prose prose-sm mt-2 max-w-none text-sm text-white/70"
+                dangerouslySetInnerHTML={{ __html: sanitize(expandedContent || '') }}
               />
             )}
-            {expandedContent && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsExpandedContentExpanded(!isExpandedContentExpanded)}
-                className="mt-2 p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
-              >
-                {isExpandedContentExpanded ? (
-                  <>
-                    Read less
-                    <ChevronUp className="w-3 h-3 ml-1" />
-                  </>
-                ) : (
-                  <>
-                    Read more
-                    <ChevronDown className="w-3 h-3 ml-1" />
-                  </>
-                )}
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsExpandedContentExpanded(!isExpandedContentExpanded)}
+              className="mt-2 h-11 px-1 -mx-1 text-sm text-white/70 hover:text-white"
+            >
+              {isExpandedContentExpanded ? (
+                <>Read less<ChevronUp className="ml-2 h-4 w-4" /></>
+              ) : (
+                <>Read more<ChevronDown className="ml-2 h-4 w-4" /></>
+              )}
+            </Button>
           </div>
         </div>
       )}
 
       {/* Find the best teachers section */}
       {!loading && pageContent && (
-        <div className="container pb-6">
-          <div className="max-w-4xl">
-            <h1 className="text-sm font-normal text-foreground mb-2">
-              {pageContent.heading}
-            </h1>
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="max-w-prose">
+            <h2 className="text-lg font-semibold">{pageContent.heading}</h2>
             {(isExpanded || pageContent.short_content) && (
-              <div 
-                className="text-sm text-muted-foreground mb-2 prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ 
-                  __html: (() => {
-                    const content = isExpanded 
-                      ? pageContent.full_content 
-                      : (pageContent.short_content || pageContent.full_content);
-                    // Sanitize content to prevent XSS attacks
-                    let sanitizedContent: string;
-                    // If content contains HTML tags, sanitize it
-                    // Otherwise, convert line breaks to <br /> tags and sanitize
-                    if (/<[a-z][\s\S]*>/i.test(content)) {
-                      sanitizedContent = DOMPurify.sanitize(content, {
-                        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-                        ALLOWED_ATTR: ['href', 'target', 'rel'],
-                      });
-                    } else {
-                      sanitizedContent = DOMPurify.sanitize(content.replace(/\n/g, '<br />'), {
-                        ALLOWED_TAGS: ['br'],
-                      });
-                    }
-                    return sanitizedContent;
-                  })()
+              <div
+                className="prose prose-sm mt-2 max-w-none text-sm text-white/70"
+                dangerouslySetInnerHTML={{
+                  __html: sanitize(
+                    isExpanded ? pageContent.full_content : (pageContent.short_content || pageContent.full_content),
+                  ),
                 }}
               />
             )}
@@ -361,261 +613,18 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="mt-2 p-0 h-auto text-xs text-muted-foreground hover:text-foreground"
+                className="mt-2 h-11 px-1 -mx-1 text-sm text-white/70 hover:text-white"
               >
                 {isExpanded ? (
-                  <>
-                    Read less
-                    <ChevronUp className="w-3 h-3 ml-1" />
-                  </>
+                  <>Read less<ChevronUp className="ml-2 h-4 w-4" /></>
                 ) : (
-                  <>
-                    Read more
-                    <ChevronDown className="w-3 h-3 ml-1" />
-                  </>
+                  <>Read more<ChevronDown className="ml-2 h-4 w-4" /></>
                 )}
               </Button>
             )}
           </div>
         </div>
       )}
-
-      {/* Links */}
-      <div className="border-t border-border">
-        <div className="container py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <Logo size="lg" />
-
-            <nav className="flex flex-wrap justify-center gap-6">
-              <Link to="/" className="text-sm md:text-base font-sans font-normal text-foreground/80 hover:text-[#4351FF] transition-colors">
-                Home
-              </Link>
-              <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-sans font-normal text-foreground/80 hover:text-[#4351FF] transition-colors">
-                Browse Teachers
-              </Link>
-              <Link to="/more" className="text-sm md:text-base font-sans font-normal text-foreground/80 hover:text-[#4351FF] transition-colors">
-                Help
-              </Link>
-              <Link
-                to="/terms-of-service"
-                className="text-sm md:text-base font-sans font-normal text-foreground/80 hover:text-[#4351FF] transition-colors"
-                onClick={() => window.scrollTo(0, 0)}
-              >
-                Terms of Service
-              </Link>
-              <Link
-                to="/privacy-policy"
-                className="text-sm md:text-base font-sans font-normal text-foreground/80 hover:text-[#4351FF] transition-colors"
-                onClick={() => window.scrollTo(0, 0)}
-              >
-                Privacy Policy
-              </Link>
-            </nav>
-
-            <div className="flex items-center gap-4">
-              <a
-                href={getWhatsAppLink('8240980312')}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-full bg-muted hover:bg-accent transition-colors"
-              >
-                <WhatsAppIcon className="w-5 h-5 text-foreground" />
-              </a>
-              <a
-                href="mailto:join.shikshaq@gmail.com"
-                className="p-2 rounded-full bg-muted hover:bg-accent transition-colors"
-              >
-                <Mail className="w-5 h-5 text-foreground" />
-              </a>
-              <a
-                href="https://instagram.com/shikshaq.in"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-full bg-muted hover:bg-accent transition-colors"
-              >
-                <InstagramIcon className="w-5 h-5 text-foreground" />
-              </a>
-            </div>
-          </div>
-
-          <div className="mt-8 pt-8 border-t border-border text-center">
-            <a href="https://ngoaquaterra.com" target="_blank" rel="noopener noreferrer" className="hover:opacity-70 transition-opacity">
-              <p className="text-xs sm:text-sm font-sans font-normal text-[#999999]">© {new Date().getFullYear()} Shikshaq. An AquaTerra Start-up.</p>
-              <p className="mt-4 text-xs font-sans font-normal text-[#999999]">brought to you by</p>
-              <div className="mt-2 flex justify-center">
-                <img
-                  src={aquaterraLogo}
-                  alt="AquaTerra"
-                  className="h-8 w-auto object-contain"
-                />
-              </div>
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {/* SEO Subject Links Section */}
-      <div className="border-t border-border bg-muted/30">
-        <div className="container py-6">
-          <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-            Find via SUBJECT
-          </h3>
-          <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs">
-            <Link to="/accounts-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Accounts in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/act-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for ACT in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/bengali-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Bengali in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/biology-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Biology in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/business-studies-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Business Studies in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/ca-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for CA in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/cat-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for CAT in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/cfa-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for CFA in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/chemistry-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Chemistry in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/clat-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for CLAT in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/commerce-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Commerce in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/commercial-studies-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Commercial Studies in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/computer-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Computer in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/drawing-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Drawing in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/economics-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Economics in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/english-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for English in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/environmental-science-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Environmental Science in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/geography-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Geography in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/gmat-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for GMAT in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/hindi-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Hindi in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/history-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for History in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/maths-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Maths in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/nmat-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for NMAT in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/physics-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Physics in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/political-science-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Political Science in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/psychology-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Psychology in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/sat-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for SAT in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/science-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Science in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/sociology-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for Sociology in Kolkata
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* SEO Board Links Section */}
-      <div className="border-t border-border bg-muted/30">
-        <div className="container py-6">
-          <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-            Find via BOARD
-          </h3>
-          <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs">
-            <Link to="/all-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for All teachers in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/cbse-ncert-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for CBSE/NCERT in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/icse-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for ICSE in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/igcse-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for IGCSE in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/international-board-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for International Board in Kolkata
-            </Link>
-            <span className="text-muted-foreground">|</span>
-            <Link to="/state-board-tuition-teachers-in-kolkata" className="text-foreground/80 hover:text-foreground transition-colors">
-              Tuition teachers for State Board in Kolkata
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Feedback Modal */}
-      <FeedbackModal open={feedbackModalOpen} onOpenChange={setFeedbackModalOpen} />
     </footer>
   );
 }

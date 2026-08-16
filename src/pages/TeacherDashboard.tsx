@@ -16,8 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Lock, GraduationCap, Upload, X } from 'lucide-react';
+import { Save, Lock, Upload, X, CircleUserRound } from 'lucide-react';
 import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
 import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 import DOMPurify from 'dompurify';
@@ -26,7 +27,7 @@ import imageCompression from 'browser-image-compression';
 
 const AREAS = [
   // Group 1
-  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba', 
+  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba',
   'New Alipore', 'Southern Avenue', 'Tollygunge', 'Hazra',
   // Group 2
   'Baguihati', 'Belur', 'Howrah', 'Joka', 'Newtown', 'Rajarhat', 'Salt Lake', 'Science City',
@@ -87,7 +88,24 @@ interface TeacherData {
   "Class Size (Group/ Solo)": string | null;
   "Min Fees": number | null;
   "Max Fees": number | null;
+  Slug: string | null;
+  /**
+   * Self-service pause toggle (design_handoff_shikshaq/pages/TeacherDashboard.md "Pause listing").
+   * Column added via supabase/migrations/20260812060000_add_is_paused_to_shikshaqmine.sql — not
+   * yet in the generated Database types, so it's read/written with an `as any` cast below, same
+   * as the pre-existing "Min Fees"/"Max Fees" handling in this file.
+   */
+  is_paused: boolean;
 }
+
+// Profile form field/label/panel styling, on the token system so the long editable form below
+// matches the rest of the page instead of falling back to shadcn's bare default input styling.
+const FIELD_CLASSNAME =
+  'h-auto min-h-12 rounded-lg border-0 bg-background text-base shadow-border focus-visible:ring-0 focus-visible:ring-offset-0';
+const LOCKED_FIELD_CLASSNAME = `${FIELD_CLASSNAME} cursor-not-allowed opacity-70`;
+const LABEL_CLASSNAME = 'mb-1.5 block text-sm font-semibold text-foreground';
+const HELP_TEXT_CLASSNAME = 'text-xs text-muted-foreground';
+const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-background shadow-border';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
@@ -97,6 +115,11 @@ export default function TeacherDashboard() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausing, setPausing] = useState(false);
+  const [upvoteCount, setUpvoteCount] = useState<number | null>(null);
+  const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const profileFormRef = useRef<HTMLDivElement>(null);
 
   // Redirect if not authenticated or not a teacher
   useEffect(() => {
@@ -113,7 +136,7 @@ export default function TeacherDashboard() {
           .select('role')
           .eq('id', user.id)
           .maybeSingle();
-        
+
         if (profile?.role !== 'teacher') {
           navigate('/');
         }
@@ -206,10 +229,13 @@ export default function TeacherDashboard() {
           "Class Size (Group/ Solo)": data["Class Size (Group/ Solo)"] || null,
           "Min Fees": (data as any)["Min Fees"] || null,
           "Max Fees": (data as any)["Max Fees"] || null,
+          Slug: data["Slug"] || null,
+          is_paused: Boolean((data as any)["is_paused"]),
         };
 
         setTeacherData(teacher);
         setImagePreview(teacher["Hero Image"]);
+        setIsPaused(teacher.is_paused);
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error('Error:', error);
@@ -223,6 +249,108 @@ export default function TeacherDashboard() {
     fetchTeacherData();
   }, [user]);
 
+  // Real "Upvotes"/"Reviews" stat-card counts. teacher_upvotes/teacher_comments both key off
+  // teachers_list.id (not the Shikshaqmine row), so this looks that id up by slug first.
+  useEffect(() => {
+    async function fetchCounts() {
+      const slug = teacherData?.Slug;
+      if (!slug) return;
+
+      try {
+        const { data: listRow } = await supabase
+          .from('teachers_list')
+          .select('id')
+          .eq('slug', slug)
+          .maybeSingle();
+
+        if (!listRow) return;
+
+        const [{ count: upvotes }, { count: reviews }] = await Promise.all([
+          supabase.from('teacher_upvotes').select('id', { count: 'exact', head: true }).eq('teacher_id', listRow.id),
+          supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('teacher_id', listRow.id).eq('approved', true),
+        ]);
+
+        setUpvoteCount(upvotes ?? 0);
+        setReviewCount(reviews ?? 0);
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error fetching upvote/review counts:', error);
+        }
+      }
+    }
+
+    fetchCounts();
+  }, [teacherData?.Slug]);
+
+  // "Pause your listing" — confirms, then flips the self-service is_paused flag (see the
+  // TeacherData interface note above), reverting on failure. Scoped to this dashboard's own
+  // status pill today: it does not yet hide the profile from public Browse/search results.
+  const handlePauseToggle = async () => {
+    if (!user || !teacherData) return;
+
+    const nextPaused = !isPaused;
+    const confirmed = window.confirm(
+      nextPaused
+        ? 'Pause your listing? Your profile will show as paused until you resume it.'
+        : 'Resume your listing? Your profile will show as live again.'
+    );
+    if (!confirmed) return;
+
+    const previousPaused = isPaused;
+    setIsPaused(nextPaused); // optimistic
+    setPausing(true);
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!profile?.email) {
+        throw new Error('Email not found');
+      }
+
+      const { error } = await supabase
+        .from('Shikshaqmine')
+        .update({ is_paused: nextPaused } as any)
+        .eq('Email ID', profile.email);
+
+      if (error) throw error;
+
+      setTeacherData((prev) => (prev ? { ...prev, is_paused: nextPaused } : prev));
+      toast.success(nextPaused ? 'Listing paused.' : 'Listing resumed.');
+    } catch (error) {
+      setIsPaused(previousPaused);
+      if (import.meta.env.DEV) {
+        console.error('Error toggling pause state:', error);
+      }
+      toast.error("Couldn't update your listing status. Try again shortly.");
+    } finally {
+      setPausing(false);
+    }
+  };
+
+  // "Request a review" — copies the teacher's public profile link so they can send it to a
+  // current student. No new backend: the review form students use already lives on that page.
+  const handleRequestReview = async () => {
+    const slug = teacherData?.Slug;
+    if (!slug) {
+      toast.error('Add your profile details first.');
+      return;
+    }
+    const url = `${window.location.origin}/tuition-teachers/${slug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Review link copied.');
+    } catch {
+      toast.error('Could not copy the link. Copy it from your profile page instead.');
+    }
+  };
+
+  const scrollToProfileForm = () => {
+    profileFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Helper function to check if value exists in comma-separated string
   const valueExistsInString = (str: string | null, value: string): boolean => {
@@ -234,7 +362,7 @@ export default function TeacherDashboard() {
     setTeacherData((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, [field]: value };
-      
+
       // Auto-clear Featured Subject if it's no longer in the selected Subjects
       if (field === "Subjects") {
         const selectedSubjects = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -242,13 +370,13 @@ export default function TeacherDashboard() {
           updated["Featured Subject"] = null;
         }
       }
-      
+
       // Auto-update Classes Taught when Classes Taught for Backend changes
       if (field === "Classes Taught for Backend") {
         const romanClasses = convertClassesToRoman(value);
         updated["Classes Taught"] = romanClasses;
       }
-      
+
       // Auto-generate WhatsApp link when Phone Number changes
       if (field === "Phone Number") {
         if (value && value.trim()) {
@@ -270,7 +398,7 @@ export default function TeacherDashboard() {
           updated["Link"] = null;
         }
       }
-      
+
       // Clear areas when Location V2 changes
       if (field === "LOCATION V2") {
         const locationV2 = value as string | null;
@@ -283,17 +411,25 @@ export default function TeacherDashboard() {
           updated["TUTOR'S HOME IN THESE AREAS"] = null;
         }
       }
-      
+
       return updated;
     });
   };
 
+  // "Min Fees"/"Max Fees" are the only numeric fields on TeacherData — handleInputChange above is
+  // typed for the string fields that make up the rest of the form, so this is a small dedicated
+  // setter for the two numeric ones rather than widening handleInputChange's value type (which
+  // would remove the string narrowing that its Subjects/Classes Taught/Phone Number branches rely on).
+  const handleFeeChange = (field: 'Min Fees' | 'Max Fees', value: number | null) => {
+    setTeacherData((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
   const handleMultiSelectChange = (field: keyof TeacherData, value: string, checked: boolean) => {
     if (!teacherData) return;
-    
+
     const currentValue = teacherData[field] as string | null;
     const currentArray = currentValue ? currentValue.split(',').map((v) => v.trim()) : [];
-    
+
     let newArray: string[];
     if (checked) {
       newArray = [...currentArray, value].filter((v) => v !== '');
@@ -307,17 +443,17 @@ export default function TeacherDashboard() {
   // Helper function to check if form is valid
   const isFormValid = (): boolean => {
     if (!teacherData) return false;
-    
+
     // Check phone number (must be 10 digits)
     if (!teacherData["Phone Number"] || teacherData["Phone Number"].replace(/\D/g, '').length !== 10) {
       return false;
     }
-    
+
     // Check Location V2 (Place of Teaching)
     if (!teacherData["LOCATION V2"]) {
       return false;
     }
-    
+
     // Check areas based on Location V2
     const locationV2 = teacherData["LOCATION V2"];
     if (locationV2 === "STUDENT'S HOME TUTORING ONLY" || locationV2 === "BOTH OPTIONS LISTED") {
@@ -325,38 +461,38 @@ export default function TeacherDashboard() {
         return false;
       }
     }
-    
+
     if (locationV2 === "TEACHER'S HOME TUTORING" || locationV2 === "BOTH OPTIONS LISTED") {
       if (!teacherData["TUTOR'S HOME IN THESE AREAS"] || !teacherData["TUTOR'S HOME IN THESE AREAS"].trim()) {
         return false;
       }
     }
-    
+
     // Check Subjects (required)
     if (!teacherData.Subjects || !teacherData.Subjects.trim()) {
       return false;
     }
-    
+
     // Check School Boards Catered (required)
     if (!teacherData["School Boards Catered"] || !teacherData["School Boards Catered"].trim()) {
       return false;
     }
-    
+
     // Check Classes Taught (required)
     if (!teacherData["Classes Taught for Backend"] || !teacherData["Classes Taught for Backend"].trim()) {
       return false;
     }
-    
+
     // Check Mode of Teaching (required)
     if (!teacherData["Mode of Teaching"] || !teacherData["Mode of Teaching"].trim()) {
       return false;
     }
-    
+
     // Check Class Size (required)
     if (!teacherData["Class Size (Group/ Solo)"] || !teacherData["Class Size (Group/ Solo)"].trim()) {
       return false;
     }
-    
+
     return true;
   };
 
@@ -383,7 +519,7 @@ export default function TeacherDashboard() {
         if (import.meta.env.DEV) {
           const originalSize = (file.size / 1024 / 1024).toFixed(2);
           const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
-          console.log(`Image compressed: ${originalSize}MB → ${compressedSize}MB`);
+          logger.log(`Image compressed: ${originalSize}MB → ${compressedSize}MB`);
         }
       } catch (compressionError) {
         if (import.meta.env.DEV) {
@@ -424,21 +560,21 @@ export default function TeacherDashboard() {
       if (sanitizedUrl) {
         handleInputChange("Hero Image", sanitizedUrl);
         setImagePreview(sanitizedUrl);
-        
+
         // Delete old image from storage if it exists in the bucket
         if (oldImageUrl && oldImageUrl.includes('hero-images')) {
           // Extract the file path from the URL
           // URL format: https://[project].supabase.co/storage/v1/object/public/hero-images/[path]
           // Or: https://[project].supabase.co/storage/v1/object/sign/hero-images/[path]
           let oldFilePath: string | null = null;
-          
+
           // Try multiple URL patterns
           // Pattern 1: /hero-images/[filename]
           const urlMatch1 = oldImageUrl.match(/\/hero-images\/([^?#]+)/);
           if (urlMatch1 && urlMatch1[1]) {
             oldFilePath = `hero-images/${urlMatch1[1]}`;
           }
-          
+
           // Pattern 2: If URL contains the full path already
           if (!oldFilePath && oldImageUrl.includes('/storage/v1/object/public/hero-images/')) {
             const parts = oldImageUrl.split('/hero-images/');
@@ -447,7 +583,7 @@ export default function TeacherDashboard() {
               oldFilePath = `hero-images/${filename}`;
             }
           }
-          
+
           // Only delete if it's the teacher's own file (contains their user ID)
           if (oldFilePath && oldFilePath.includes(user.id)) {
             try {
@@ -458,11 +594,11 @@ export default function TeacherDashboard() {
               if (oldFilePath.startsWith('hero-images/')) {
                 pathToDelete = oldFilePath.replace('hero-images/', '');
               }
-              
+
               const { error: deleteError } = await supabase.storage
                 .from('hero-images')
                 .remove([pathToDelete]);
-              
+
               if (deleteError) {
                 if (import.meta.env.DEV) {
                   console.warn('Error deleting old image:', deleteError);
@@ -471,7 +607,7 @@ export default function TeacherDashboard() {
                 }
                 // Don't show error to user - old image deletion is not critical
               } else if (import.meta.env.DEV) {
-                console.log('Successfully deleted old image:', pathToDelete);
+                logger.log('Successfully deleted old image:', pathToDelete);
               }
             } catch (deleteErr) {
               if (import.meta.env.DEV) {
@@ -484,7 +620,7 @@ export default function TeacherDashboard() {
             console.warn('User ID:', user.id);
           }
         }
-        
+
         toast.success('Image uploaded successfully');
       } else {
         toast.error('Failed to generate valid image URL');
@@ -676,11 +812,11 @@ export default function TeacherDashboard() {
       if (teacherRecord?.Slug) {
         invalidateTeacherCache(teacherRecord.Slug);
       }
-      
+
       // Invalidate featured teachers cache (they might appear on browse/home)
       removeCache('featured_teachers_browse');
       removeCache('featured_teachers_index');
-      
+
       // Clear all Shikshaqmine chunk caches
       const keys = Object.keys(localStorage);
       keys.forEach(key => {
@@ -704,97 +840,295 @@ export default function TeacherDashboard() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
+        <main className="container pt-8 pb-16">
           <div className="animate-pulse">
-            <div className="h-8 w-48 bg-muted rounded mb-8" />
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-24 bg-muted rounded-lg" />
+            <div className="mb-7 h-8 w-56 rounded-lg bg-muted" />
+            <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-24 rounded-2xl bg-muted" />
+              ))}
+            </div>
+            <div className="grid gap-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-16 rounded-2xl bg-muted" />
               ))}
             </div>
           </div>
-        </div>
+        </main>
         <Footer />
       </div>
     );
   }
 
   if (!teacherData) {
-    return null;
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container py-16 pb-16 text-center sm:py-20">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            {user ? 'Teacher account required' : 'Sign in required'}
+          </h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {user
+              ? "We couldn't find a teacher profile for your account. If you believe this is a mistake, contact support."
+              : 'Please sign in to view your dashboard.'}
+          </p>
+          <Button className="mt-6" onClick={() => navigate(user ? '/' : '/auth')}>
+            {user ? 'Go Home' : 'Sign In'}
+          </Button>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   // Get user email and name (locked fields)
   const userEmail = user?.email || teacherData["Email ID"] || '';
   const userName = teacherData["Title"] || user?.user_metadata?.full_name || '';
 
+  // "{name}, {honorific}" per TeacherDashboard.md's header, same rule TeacherCard.tsx uses:
+  // omit the comma entirely when there's no recognisable honorific.
+  const honorific = teacherData["Sir/Ma'am?"];
+  const displayName = (() => {
+    const name = userName || 'Your profile';
+    if (!honorific) return name;
+    const lower = String(honorific).toLowerCase().trim();
+    let h: string | null = null;
+    if (lower === 'sir' || lower.includes('sir')) h = 'Sir';
+    else if (lower === "ma'am" || lower === 'maam' || lower.includes("ma'am")) h = "Ma'am";
+    return h ? `${name}, ${h}` : name;
+  })();
+
+  // Derived, read-only summary values from the already-fetched teacherData (no new fetching/logic)
+  const subjectsList = (teacherData.Subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const boardsList = (teacherData["School Boards Catered"] || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+  // "subjects · boards · classes · area", per spec.
+  const summaryParts = [
+    subjectsList.length ? subjectsList.slice(0, 3).join(', ') + (subjectsList.length > 3 ? ` +${subjectsList.length - 3} more` : '') : null,
+    boardsList.length ? boardsList.join(', ') : null,
+    teacherData["Classes Taught"] || null,
+    teacherData.Area || null,
+  ].filter(Boolean);
+  const summaryLine = summaryParts.length
+    ? summaryParts.join(' · ')
+    : 'Fill in your subjects, boards, classes and area to complete your profile';
+
+  // Four stat cards per spec, in order: profile views, WhatsApp enquiries, upvotes, reviews.
+  // The first two have no Supabase-backed source today — WhatsApp-click tracking only reaches
+  // GA4/Clarity (src/utils/clarityEvents.ts, gaEvents.ts), never Supabase, and profile views
+  // aren't tracked anywhere yet — so they're shown as honestly untracked rather than a fabricated
+  // number. Upvotes/reviews are real, live counts from teacher_upvotes/teacher_comments.
+  // Squircle stat-tile treatment (learning-education-squircles reference): a different flat
+  // token fill per tile. Kept neutral/mint — no brand orange/blue — so the accent budget stays
+  // spent on the "Save Changes" CTA and the live/paused status pill.
+  const teacherStats = [
+    { label: 'Profile views', value: '—', meta: 'Not tracked yet', fill: 'bg-card shadow-border' },
+    { label: 'Enquiries', value: '—', meta: 'Not tracked yet', fill: 'bg-muted' },
+    { label: 'Upvotes', value: upvoteCount ?? '—', meta: 'All time', fill: 'bg-mint' },
+    { label: 'Reviews', value: reviewCount ?? '—', meta: 'All time', fill: 'bg-card shadow-border' },
+  ];
+
+  // Profile-completeness ring — derived from already-loaded teacherData, no new fetching.
+  // Mirrors the required-field checklist isFormValid() already uses, plus the two optional
+  // fields (description, hero image) that most affect how complete a listing feels.
+  const completenessChecks = [
+    Boolean(teacherData["Phone Number"]),
+    Boolean(teacherData["LOCATION V2"]),
+    Boolean(teacherData.Subjects),
+    Boolean(teacherData["School Boards Catered"]),
+    Boolean(teacherData["Classes Taught for Backend"]),
+    Boolean(teacherData["Mode of Teaching"]),
+    Boolean(teacherData["Class Size (Group/ Solo)"]),
+    Boolean(teacherData["Description"]),
+    Boolean(teacherData["Hero Image"]),
+  ];
+  const completenessFilled = completenessChecks.filter(Boolean).length;
+  const completenessTotal = completenessChecks.length;
+  const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
+
+  // "Recent enquiries" has the same gap: WhatsApp clicks are anonymous (no visitor identity is
+  // ever captured — see WhatsAppRedirect.tsx), so there is no real per-enquiry row to show. This
+  // stays a real, currently-empty list rather than the prototype's sample names/classes.
+  const enquiries: { id: string; initial: string; name: string; meta: string; when: string }[] = [];
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
-      <main className="container pt-32 sm:pt-30 pb-8 md:pt-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <GraduationCap className="w-8 h-8 text-primary" />
-              <h1 className="text-3xl md:text-4xl font-sans text-foreground">
-                Teacher Dashboard
-              </h1>
-            </div>
-            <p className="text-muted-foreground">
-              Manage your profile and teaching information
+
+      <main className="container pt-8 pb-16">
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              {displayName}
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {summaryLine}
             </p>
           </div>
+          <span
+            className={`flex flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
+              isPaused ? 'bg-muted text-warm-prose' : 'bg-mint text-foreground'
+            }`}
+          >
+            {isPaused ? 'Paused' : 'Profile live'}
+          </span>
+        </div>
 
-          {/* Profile Form */}
-          <div className="bg-card rounded-2xl p-6 md:p-8 border border-border space-y-6">
-            {/* Locked Fields Section */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <h2 className="text-xl font-sans text-foreground flex items-center gap-2">
-                <Lock className="w-5 h-5 text-muted-foreground" />
-                Account Information
-              </h2>
-              
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>
-                    Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    value={userName}
-                    disabled
-                    className="bg-muted cursor-not-allowed"
-                  />
+        {/* Stat tiles — squircle treatment, one flat fill per tile */}
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+          {teacherStats.map((st) => (
+            <div key={st.label} className={`rounded-2xl p-4 sm:p-6 ${st.fill}`}>
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {st.label}
+              </div>
+              <div className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-foreground">
+                {st.value}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{st.meta}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Profile completeness — circular progress ring, computed from the loaded teacher data */}
+        <div className="mt-6 flex items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-6">
+          <div
+            className="relative flex h-16 w-16 flex-none items-center justify-center rounded-full"
+            style={{ background: `conic-gradient(hsl(var(--brand)) ${completenessPct * 3.6}deg, hsl(var(--muted)) 0deg)` }}
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card">
+              <CircleUserRound className="h-5 w-5 text-brand" strokeWidth={1.75} aria-hidden="true" />
+            </div>
+          </div>
+          <div>
+            <div className="text-base font-semibold text-foreground">Profile completeness</div>
+            <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+              {completenessFilled}/{completenessTotal} fields · {completenessPct}%
+            </div>
+          </div>
+        </div>
+
+        {/* Recent enquiries */}
+        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          Recent enquiries
+        </h2>
+        {enquiries.length > 0 ? (
+          <>
+            <div className="grid gap-2.5">
+              {enquiries.slice(0, 10).map((en) => (
+                <div
+                  key={en.id}
+                  className="flex flex-wrap items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-5"
+                >
+                  <span className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-[13px] bg-muted text-base font-bold text-foreground">
+                    {en.initial}
+                  </span>
+                  <span className="min-w-[160px] flex-1">
+                    <span className="block text-base font-semibold text-foreground">{en.name}</span>
+                    <span className="mt-0.5 block text-sm text-muted-foreground">{en.meta}</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">{en.when}</span>
+                  <button
+                    type="button"
+                    className="flex min-h-11 flex-none items-center rounded-lg bg-brand px-5 text-sm font-semibold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover active:scale-[0.97]"
+                  >
+                    Reply on WhatsApp
+                  </button>
                 </div>
+              ))}
+            </div>
+            {enquiries.length >= 10 && (
+              <div className="mt-3">
+                <span className="text-sm font-semibold text-warm-meta">See all →</span>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">No enquiries recorded yet.</p>
+        )}
 
-                <div className="space-y-2">
-                  <Label>
-                    Honorific
-                  </Label>
-                  <Input
-                    value={teacherData["Sir/Ma'am?"] || ''}
-                    disabled
-                    className="bg-muted cursor-not-allowed"
-                  />
+        {/* Your profile */}
+        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          Your profile
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+          <button
+            type="button"
+            onClick={scrollToProfileForm}
+            className="block w-full rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
+          >
+            <span className="block text-base font-semibold text-foreground">Edit your profile</span>
+            <span className="mt-1.5 block text-sm text-muted-foreground">
+              Subjects, classes, boards, areas and fee range.
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePauseToggle}
+            disabled={pausing}
+            className="block w-full rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60 sm:p-6"
+          >
+            <span className="block text-base font-semibold text-foreground">
+              {isPaused ? 'Resume your listing' : 'Pause your listing'}
+            </span>
+            <span className="mt-1.5 block text-sm text-muted-foreground">
+              {isPaused
+                ? 'Your profile is hidden from students until you resume it.'
+                : 'Hide your profile from results while your batches are full.'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={handleRequestReview}
+            className="block w-full rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
+          >
+            <span className="block text-base font-semibold text-foreground">Request a review</span>
+            <span className="mt-1.5 block text-sm text-muted-foreground">
+              Send a link to a current student asking them to review you.
+            </span>
+          </button>
+        </div>
+
+        {/* Account Information — locked fields, shown as a stacked list of row cards.
+            Not part of the new spec's top section; kept here, right above the editable form it
+            summarises, since Name/Honorific/Email are real locked account data this page has
+            always surfaced and nowhere else on the page shows them. */}
+        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          Account Information
+        </h2>
+        <div className="mb-6 grid gap-2.5">
+          {[
+            { label: 'Name', value: userName },
+            { label: 'Honorific', value: teacherData["Sir/Ma'am?"] },
+            { label: 'Email ID', value: teacherData["Email ID"] },
+          ].map((row) => (
+            <div
+              key={row.label}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4 shadow-border sm:p-5"
+            >
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {row.label}
                 </div>
-
-                <div className="space-y-2">
-                  <Label>
-                    Email ID <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    value={teacherData["Email ID"] || ''}
-                    disabled
-                    className="bg-muted cursor-not-allowed"
-                  />
+                <div className="mt-1 text-base font-semibold text-foreground">
+                  {row.value || '-'}
                 </div>
               </div>
+              <span className="flex flex-none items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <Lock className="h-3.5 w-3.5" />
+                Locked
+              </span>
             </div>
+          ))}
+        </div>
 
+        {/* Profile Form */}
+        <div ref={profileFormRef} id="profile-form" className="scroll-mt-24 rounded-2xl bg-card p-5 shadow-border sm:p-8">
             {/* Editable Fields Section */}
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-sans text-foreground">Profile Information</h2>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Profile Information</h2>
                 <Button
                   onClick={handleSave}
                   disabled={saving}
@@ -808,8 +1142,8 @@ export default function TeacherDashboard() {
 
               {/* Phone Number */}
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber">
-                  Phone Number <span className="text-red-500">*</span>
+                <Label htmlFor="phoneNumber" className={LABEL_CLASSNAME}>
+                  Phone Number <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="phoneNumber"
@@ -820,15 +1154,18 @@ export default function TeacherDashboard() {
                     handleInputChange("Phone Number", digits || null);
                   }}
                   type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
                   placeholder="10 digit number"
                   maxLength={10}
                   required
+                  className={FIELD_CLASSNAME}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className={HELP_TEXT_CLASSNAME}>
                   Enter 10 digit phone number. WhatsApp link will be auto-generated.
                 </p>
                 {teacherData["Link"] && (
-                  <p className="text-xs text-primary">
+                  <p className="text-xs text-brand-blue">
                     WhatsApp link: {teacherData["Link"]}
                   </p>
                 )}
@@ -836,7 +1173,7 @@ export default function TeacherDashboard() {
 
               {/* Profile Image */}
               <div className="space-y-2">
-                <Label>Profile Image</Label>
+                <Label className={LABEL_CLASSNAME}>Profile Image</Label>
                 {imagePreview && (() => {
                   // Apply DOMPurify as final sanitization — CodeQL recognises it as a known sanitizer
                   const safeSrc = DOMPurify.sanitize(validateImageSrc(imagePreview), {
@@ -844,11 +1181,12 @@ export default function TeacherDashboard() {
                   });
                   if (!safeSrc) return null;
                   return (
-                  <div className="relative w-full max-w-md mb-4">
+                  <div className="relative mb-4 w-full max-w-md">
                     <img
                       src={safeSrc}
                       alt="Hero preview"
-                      className="w-full h-48 object-cover rounded-lg border"
+                      loading="lazy"
+                      className="h-48 w-full rounded-lg object-cover shadow-border"
                     />
                     <Button
                       type="button"
@@ -865,10 +1203,10 @@ export default function TeacherDashboard() {
                   </div>
                   );
                 })()}
-                
+
                 <label
                   htmlFor="heroImageUpload"
-                  className="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors w-fit"
+                  className="flex w-fit cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-muted"
                 >
                   <Upload className="w-4 h-4" />
                   {uploadingImage ? 'Uploading...' : 'Upload Image'}
@@ -881,14 +1219,14 @@ export default function TeacherDashboard() {
                     disabled={uploadingImage}
                   />
                 </label>
-                <p className="text-xs text-muted-foreground">
+                <p className={HELP_TEXT_CLASSNAME}>
                   Max 5MB. Supported formats: JPG, PNG, GIF, WebP
                 </p>
               </div>
 
               {/* Profile Introduction */}
               <div className="space-y-2">
-                <Label htmlFor="description">Profile Introduction</Label>
+                <Label htmlFor="description" className={LABEL_CLASSNAME}>Profile Introduction</Label>
                 <Textarea
                   id="description"
                   value={teacherData["Description"] || ''}
@@ -896,16 +1234,17 @@ export default function TeacherDashboard() {
                   rows={5}
                   placeholder="Write about your teaching experience, methodology, and what makes you unique..."
                   maxLength={1000}
+                  className={`${FIELD_CLASSNAME} min-h-[130px] py-3`}
                 />
-                <p className="text-xs text-muted-foreground">Max 1000 characters</p>
+                <p className={HELP_TEXT_CLASSNAME}>Max 1000 characters</p>
               </div>
 
               {/* Subjects (Multiple Select) */}
               <div className="space-y-2">
-                <Label>
-                  Subjects <span className="text-red-500">*</span>
+                <Label className={LABEL_CLASSNAME}>
+                  Subjects <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
+                <div className={`mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}>
                   {SUBJECTS.map((subject) => {
                     const currentValue = teacherData.Subjects as string | null;
                     const selected = valueExistsInString(currentValue, subject);
@@ -918,7 +1257,7 @@ export default function TeacherDashboard() {
                             handleMultiSelectChange("Subjects", subject, checked as boolean)
                           }
                         />
-                        <Label htmlFor={`subject-${subject}`} className="cursor-pointer text-sm">
+                        <Label htmlFor={`subject-${subject}`} className="cursor-pointer text-sm text-warm-prose">
                           {subject}
                         </Label>
                       </div>
@@ -929,12 +1268,12 @@ export default function TeacherDashboard() {
 
               {/* Featured Subject */}
               <div className="space-y-2">
-                <Label htmlFor="featuredSubject">Featured Subject</Label>
+                <Label htmlFor="featuredSubject" className={LABEL_CLASSNAME}>Featured Subject</Label>
                 <Select
                   value={teacherData["Featured Subject"] || "none"}
                   onValueChange={(value) => handleInputChange("Featured Subject", value === "none" ? null : value)}
                 >
-                  <SelectTrigger id="featuredSubject">
+                  <SelectTrigger id="featuredSubject" className={FIELD_CLASSNAME}>
                     <SelectValue placeholder="Select featured subject" />
                   </SelectTrigger>
                   <SelectContent>
@@ -946,17 +1285,17 @@ export default function TeacherDashboard() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
+                <p className={HELP_TEXT_CLASSNAME}>
                   Choose one of your selected subjects to feature on your profile
                 </p>
               </div>
 
               {/* School Boards Catered */}
               <div className="space-y-2">
-                <Label>
-                  School Boards Catered <span className="text-red-500">*</span>
+                <Label className={LABEL_CLASSNAME}>
+                  School Boards Catered <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex flex-wrap gap-2 mt-2 border rounded-lg p-4">
+                <div className={`mt-2 flex flex-wrap gap-2 p-4 ${OPTION_GROUP_CLASSNAME}`}>
                   {SCHOOL_BOARDS.map((board) => {
                     const currentValue = teacherData["School Boards Catered"] as string | null;
                     const selected = valueExistsInString(currentValue, board);
@@ -969,7 +1308,7 @@ export default function TeacherDashboard() {
                             handleMultiSelectChange("School Boards Catered", board, checked as boolean)
                           }
                         />
-                        <Label htmlFor={`board-${board}`} className="cursor-pointer text-sm">
+                        <Label htmlFor={`board-${board}`} className="cursor-pointer text-sm text-warm-prose">
                           {board}
                         </Label>
                       </div>
@@ -980,13 +1319,13 @@ export default function TeacherDashboard() {
 
               {/* Classes Taught */}
               <div className="space-y-2">
-                <Label>
-                  Classes Taught <span className="text-red-500">*</span>
+                <Label className={LABEL_CLASSNAME}>
+                  Classes Taught <span className="text-destructive">*</span>
                 </Label>
-                <p className="text-xs text-muted-foreground mb-2">
+                <p className={`${HELP_TEXT_CLASSNAME} mb-2`}>
                   Select the classes you teach. Display format will be automatically computed.
                 </p>
-                <div className="flex flex-wrap gap-2 mt-2 border rounded-lg p-4">
+                <div className={`mt-2 flex flex-wrap gap-2 p-4 ${OPTION_GROUP_CLASSNAME}`}>
                   {CLASS_NUMBERS.map((cls) => {
                     const currentValue = teacherData["Classes Taught for Backend"] as string | null;
                     const selected = valueExistsInString(currentValue, cls);
@@ -999,7 +1338,7 @@ export default function TeacherDashboard() {
                             handleMultiSelectChange("Classes Taught for Backend", cls, checked as boolean)
                           }
                         />
-                        <Label htmlFor={`class-${cls}`} className="cursor-pointer text-sm">
+                        <Label htmlFor={`class-${cls}`} className="cursor-pointer text-sm text-warm-prose">
                           {cls}
                         </Label>
                       </div>
@@ -1009,65 +1348,69 @@ export default function TeacherDashboard() {
                 {/* Show Classes Taught (read-only) */}
                 {teacherData["Classes Taught"] && (
                   <div className="mt-2">
-                    <Label className="text-sm text-muted-foreground">Classes Taught (Auto-computed):</Label>
+                    <Label className="text-sm text-warm-meta">Classes Taught (Auto-computed):</Label>
                     <Input
                       value={teacherData["Classes Taught"]}
                       disabled
-                      className="bg-muted cursor-not-allowed mt-1"
+                      className={`${LOCKED_FIELD_CLASSNAME} mt-1`}
                     />
                   </div>
                 )}
               </div>
 
-              {/* Mode of Teaching */}
+              {/* Mode of Teaching — segmented pill toggle (2 fixed options, still multi-select:
+                  a teacher offering both Online and Offline taps both pills on). */}
               <div className="space-y-2">
-                <Label>
-                  Mode of Teaching <span className="text-red-500">*</span>
+                <Label className={LABEL_CLASSNAME}>
+                  Mode of Teaching <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Mode of teaching">
                   {MODE_OF_TEACHING.map((mode) => {
                     const currentValue = teacherData["Mode of Teaching"] as string | null;
                     const selected = valueExistsInString(currentValue, mode);
                     return (
-                      <div key={mode} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`mode-${mode}`}
-                          checked={selected}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange("Mode of Teaching", mode, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`mode-${mode}`} className="cursor-pointer">
-                          {mode}
-                        </Label>
-                      </div>
+                      <button
+                        key={mode}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => handleMultiSelectChange("Mode of Teaching", mode, !selected)}
+                        className={`min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ${
+                          selected
+                            ? 'bg-brand-blue text-brand-blue-foreground'
+                            : 'bg-muted text-foreground hover:bg-accent'
+                        }`}
+                      >
+                        {mode}
+                      </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Structure of classes (stored as Class Size (Group/ Solo)) */}
+              {/* Structure of classes (stored as Class Size (Group/ Solo)) — segmented pill
+                  toggle (2 fixed options), same multi-select semantics as above. */}
               <div className="space-y-2">
-                <Label>
-                  Structure of classes <span className="text-red-500">*</span>
+                <Label className={LABEL_CLASSNAME}>
+                  Structure of classes <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Structure of classes">
                   {CLASS_SIZE.map((size) => {
                     const currentValue = teacherData["Class Size (Group/ Solo)"] as string | null;
                     const selected = valueExistsInString(currentValue, size);
                     return (
-                      <div key={size} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`classSize-${size}`}
-                          checked={selected}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange("Class Size (Group/ Solo)", size, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`classSize-${size}`} className="cursor-pointer">
-                          {size === 'Solo' ? 'One-on-one' : size}
-                        </Label>
-                      </div>
+                      <button
+                        key={size}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => handleMultiSelectChange("Class Size (Group/ Solo)", size, !selected)}
+                        className={`min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ${
+                          selected
+                            ? 'bg-brand-blue text-brand-blue-foreground'
+                            : 'bg-muted text-foreground hover:bg-accent'
+                        }`}
+                      >
+                        {size === 'Solo' ? 'One-on-one' : size}
+                      </button>
                     );
                   })}
                 </div>
@@ -1075,14 +1418,14 @@ export default function TeacherDashboard() {
 
               {/* Place of Teaching (Location V2) */}
               <div className="space-y-2">
-                <Label htmlFor="locationV2">
-                  Place of Teaching <span className="text-red-500">*</span>
+                <Label htmlFor="locationV2" className={LABEL_CLASSNAME}>
+                  Place of Teaching <span className="text-destructive">*</span>
                 </Label>
                 <Select
                   value={teacherData["LOCATION V2"] || "__none__"}
                   onValueChange={(value) => handleInputChange("LOCATION V2", value === "__none__" ? "" : value)}
                 >
-                  <SelectTrigger id="locationV2">
+                  <SelectTrigger id="locationV2" className={FIELD_CLASSNAME}>
                     <SelectValue placeholder="Select place of teaching" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1097,10 +1440,10 @@ export default function TeacherDashboard() {
               {/* Student's Home Areas - Show when Place of Teaching is "STUDENT'S HOME TUTORING ONLY" or "BOTH OPTIONS LISTED" */}
               {(teacherData["LOCATION V2"] === "STUDENT'S HOME TUTORING ONLY" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED") && (
                 <div className="space-y-2">
-                  <Label>
-                    Student's Home in These Areas <span className="text-red-500">*</span>
+                  <Label className={LABEL_CLASSNAME}>
+                    Student's Home in These Areas <span className="text-destructive">*</span>
                   </Label>
-                  <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
+                  <div className={`mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}>
                     {AREAS.map((area) => {
                       const currentValue = teacherData["STUDENT'S HOME IN THESE AREAS"] as string | null;
                       const selected = valueExistsInString(currentValue, area);
@@ -1114,7 +1457,7 @@ export default function TeacherDashboard() {
                             }
                             required={teacherData["LOCATION V2"] === "STUDENT'S HOME TUTORING ONLY" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED"}
                           />
-                          <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm">
+                          <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm text-warm-prose">
                             {area}
                           </Label>
                         </div>
@@ -1127,10 +1470,10 @@ export default function TeacherDashboard() {
               {/* Tutor's Home Areas - Show when Place of Teaching is "TEACHER'S HOME TUTORING" or "BOTH OPTIONS LISTED" */}
               {(teacherData["LOCATION V2"] === "TEACHER'S HOME TUTORING" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED") && (
                 <div className="space-y-2">
-                  <Label>
-                    Tutor's Home in These Areas <span className="text-red-500">*</span>
+                  <Label className={LABEL_CLASSNAME}>
+                    Tutor's Home in These Areas <span className="text-destructive">*</span>
                   </Label>
-                  <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto border rounded-lg p-4">
+                  <div className={`mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}>
                     {AREAS.map((area) => {
                       const currentValue = teacherData["TUTOR'S HOME IN THESE AREAS"] as string | null;
                       const selected = valueExistsInString(currentValue, area);
@@ -1144,7 +1487,7 @@ export default function TeacherDashboard() {
                             }
                             required={teacherData["LOCATION V2"] === "TEACHER'S HOME TUTORING" || teacherData["LOCATION V2"] === "BOTH OPTIONS LISTED"}
                           />
-                          <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm">
+                          <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm text-warm-prose">
                             {area}
                           </Label>
                         </div>
@@ -1156,20 +1499,20 @@ export default function TeacherDashboard() {
 
               {/* Area (read-only, auto-computed) */}
               <div className="space-y-2">
-                <Label>Area (Auto-computed)</Label>
+                <Label className={LABEL_CLASSNAME}>Area (Auto-computed)</Label>
                 <Input
                   value={teacherData["Area"] || 'Will be computed automatically when you save'}
                   disabled
-                  className="bg-muted cursor-not-allowed"
+                  className={LOCKED_FIELD_CLASSNAME}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className={HELP_TEXT_CLASSNAME}>
                   This field is automatically computed from Student's Home Areas and Tutor's Home Areas
                 </p>
               </div>
 
               {/* Educational Qualifications */}
               <div className="space-y-2">
-                <Label htmlFor="qualifications">Educational Qualifications</Label>
+                <Label htmlFor="qualifications" className={LABEL_CLASSNAME}>Educational Qualifications</Label>
                 <Textarea
                   id="qualifications"
                   value={teacherData["Qualifications etc"] || ''}
@@ -1177,13 +1520,14 @@ export default function TeacherDashboard() {
                   rows={3}
                   placeholder="List your educational qualifications, certifications, etc."
                   maxLength={500}
+                  className={`${FIELD_CLASSNAME} min-h-[90px] py-3`}
                 />
-                <p className="text-xs text-muted-foreground">Max 500 characters</p>
+                <p className={HELP_TEXT_CLASSNAME}>Max 500 characters</p>
               </div>
 
               {/* Year you started teaching */}
               <div className="space-y-2">
-                <Label htmlFor="yearsStarted">Year you started teaching</Label>
+                <Label htmlFor="yearsStarted" className={LABEL_CLASSNAME}>Year you started teaching</Label>
                 <Input
                   id="yearsStarted"
                   value={teacherData["Years they started teaching"] || ''}
@@ -1195,51 +1539,51 @@ export default function TeacherDashboard() {
                   placeholder="e.g. 2015"
                   maxLength={4}
                   inputMode="numeric"
+                  className={FIELD_CLASSNAME}
                 />
-                <p className="text-xs text-muted-foreground">Numbers only, up to 4 digits</p>
+                <p className={HELP_TEXT_CLASSNAME}>Numbers only, up to 4 digits</p>
               </div>
 
               {/* Fee range - same line on all screen sizes */}
               <div className="space-y-2">
-                <Label className="text-base">Fee range</Label>
+                <Label className={LABEL_CLASSNAME}>Fee range</Label>
                 <div className="flex flex-row gap-3 sm:gap-4">
                   <div className="flex-1 min-w-0">
-                    <Label htmlFor="minFees" className="text-sm font-normal text-muted-foreground">Min (₹)</Label>
+                    <Label htmlFor="minFees" className="mb-1.5 block text-sm font-normal text-warm-meta">Min (₹)</Label>
                     <Input
                       id="minFees"
                       type="tel"
                       value={teacherData["Min Fees"]?.toString() || ''}
                       onChange={(e) => {
                         const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                        handleInputChange("Min Fees", digits ? parseInt(digits) : null);
+                        handleFeeChange("Min Fees", digits ? parseInt(digits) : null);
                       }}
                       placeholder="e.g., 2000"
                       maxLength={6}
                       inputMode="numeric"
+                      className={FIELD_CLASSNAME}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Label htmlFor="maxFees" className="text-sm font-normal text-muted-foreground">Max (₹)</Label>
+                    <Label htmlFor="maxFees" className="mb-1.5 block text-sm font-normal text-warm-meta">Max (₹)</Label>
                     <Input
                       id="maxFees"
                       type="tel"
                       value={teacherData["Max Fees"]?.toString() || ''}
                       onChange={(e) => {
                         const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                        handleInputChange("Max Fees", digits ? parseInt(digits) : null);
+                        handleFeeChange("Max Fees", digits ? parseInt(digits) : null);
                       }}
                       placeholder="e.g., 5000"
                       maxLength={6}
                       inputMode="numeric"
+                      className={FIELD_CLASSNAME}
                     />
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">Optional</p>
+                <p className={HELP_TEXT_CLASSNAME}>Optional</p>
               </div>
-
-
             </div>
-          </div>
         </div>
       </main>
 
@@ -1247,4 +1591,3 @@ export default function TeacherDashboard() {
     </div>
   );
 }
-

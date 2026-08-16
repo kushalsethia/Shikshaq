@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef, ReactNode } fro
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getCache, setCache, CACHE_TTL, getUserProfileCacheKey } from '@/utils/cache';
+import { logger } from '@/utils/logger';
 
 export interface UserProfile {
   role: string | null;
@@ -56,11 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setProfileLoading(true);
-    supabase
-      .from('profiles')
-      .select('role, full_name, terms_agreement')
-      .eq('id', user.id)
-      .maybeSingle()
+    Promise.resolve(
+      supabase
+        .from('profiles')
+        .select('role, full_name, terms_agreement')
+        .eq('id', user.id)
+        .maybeSingle()
+    )
       .then(({ data }) => {
         if (data) {
           const p: UserProfile = { role: data.role, full_name: data.full_name, terms_agreement: data.terms_agreement };
@@ -248,7 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The trigger handle_new_user() will create the profile automatically when user confirms email
       // We don't need to do anything here - attempting to upsert would fail with 401
       if (import.meta.env.DEV) {
-        console.log('User created but not authenticated yet. Profile will be created by trigger after email confirmation.');
+        logger.log('User created but not authenticated yet. Profile will be created by trigger after email confirmation.');
       }
     }
 

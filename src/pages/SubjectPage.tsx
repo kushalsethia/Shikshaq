@@ -6,7 +6,7 @@ import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
 const SUBJECT_SEO: Record<string, { title: string; description: string }> = {
   '/maths-tuition-teachers-in-kolkata': {
     title: 'Maths Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find experienced Maths tutors in Kolkata for CBSE, ICSE, IGCSE, State Board, and JEE preparation. Connect directly for free — no commission, no middlemen.',
+    description: 'Find experienced Maths tutors in Kolkata for CBSE, ICSE, IGCSE, State Board, and JEE preparation. Connect directly for free. No commission, no middlemen.',
   },
   '/english-tuition-teachers-in-kolkata': {
     title: 'English Tuition Teachers in Kolkata | Shikshaq',
@@ -116,6 +116,14 @@ const SUBJECT_SEO: Record<string, { title: string; description: string }> = {
     title: 'CFA Tuition Teachers in Kolkata | Shikshaq',
     description: 'Find CFA tutors in Kolkata for Chartered Financial Analyst certification preparation. Connect directly for free on Shikshaq.',
   },
+  '/clat-tuition-teachers-in-kolkata': {
+    title: 'CLAT Tuition Teachers in Kolkata | Shikshaq',
+    description: 'Find CLAT tutors in Kolkata for Common Law Admission Test preparation. Connect directly for free on Shikshaq.',
+  },
+  '/social-studies-tuition-teachers-in-kolkata': {
+    title: 'Social Studies Tuition Teachers in Kolkata | Shikshaq',
+    description: 'Find Social Studies tutors in Kolkata covering History, Civics, and Geography. Connect directly for free on Shikshaq.',
+  },
 };
 
 export default function SubjectPage() {
@@ -135,24 +143,17 @@ export default function SubjectPage() {
     const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
     if (metaDesc) metaDesc.setAttribute('content', seo.description);
 
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.rel = 'canonical';
-      document.head.appendChild(canonical);
-    }
-    canonical.href = `https://www.shikshaq.in${pathname}`;
-
+    // Canonical is handled globally by <CanonicalTag>, keyed on pathname.
     return () => {
       document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
       if (metaDesc) {
-        metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board — no commission, no middlemen.');
+        metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board. No commission, no middlemen.');
       }
     };
   }, [pathname]);
 
   if (!filterValue) {
-    return <Browse />;
+    return <Browse manageSeo={!SUBJECT_SEO[pathname]} />;
   }
 
   const filterSubjectsExists = searchParams.has('filter_subjects');
@@ -182,5 +183,5 @@ export default function SubjectPage() {
     hasSetInitialFilterRef.current = true;
   }
 
-  return <Browse />;
+  return <Browse manageSeo={!SUBJECT_SEO[pathname]} />;
 }

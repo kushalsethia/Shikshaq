@@ -158,9 +158,11 @@ export function getTeachersListCacheKey(limit?: number): string {
  * Generate cache key for Shikshaqmine chunk query
  */
 export function getShikshaqmineChunkCacheKey(slugs: string[]): string {
-  // Sort slugs for consistent cache key
+  // Sort slugs for consistent cache key. v2: the query now selects a fixed
+  // column subset instead of '*' — versioned so old full-row cache entries
+  // don't get reused as if they matched the new shape.
   const sortedSlugs = [...slugs].sort().join(',');
-  return `shikshaqmine_chunk_${sortedSlugs}`;
+  return `shikshaqmine_chunk_v2_${sortedSlugs}`;
 }
 
 /**

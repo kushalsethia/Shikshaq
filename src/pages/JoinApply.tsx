@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,11 +13,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 import { toast } from 'sonner';
 import { Loader2, Upload, X, CheckCircle2 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import DOMPurify from 'dompurify';
 import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
+import { getSubjectColors } from '@/utils/subjectColors';
+import { Link } from 'react-router-dom';
 
 // Constants matching AdminTeachers
 const SUBJECTS = [
@@ -34,7 +36,7 @@ const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 
 const BOARDS = ['ICSE/ISC', 'CBSE', 'IGCSE', 'IB', 'State', 'N/A'];
 
 const AREAS = [
-  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba', 
+  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba',
   'New Alipore', 'Southern Avenue', 'Tollygunge', 'Hazra',
   'Baguihati', 'Belur', 'Howrah', 'Joka', 'Newtown', 'Rajarhat', 'Salt Lake', 'Science City',
   'Dum Dum', 'Entally', 'Girish Park', 'Nagarbazar', 'Sealdah', 'Shyam Bazar', 'Tangra',
@@ -49,6 +51,67 @@ const MODE_OF_TEACHING = ['Online', 'Offline'];
 const CLASS_SIZE = ['Group', 'Solo'];
 
 const SIR_MAAM = ['Sir', "Ma'am"];
+
+// Stepper labels per design_handoff_shikshaq/pages/JoinApply.md
+const STEPS = [
+  { label: 'About you' },
+  { label: 'What you teach' },
+  { label: 'Where & fees' },
+  { label: 'Review' },
+];
+
+// Shared token-based classes for form controls, matching the site's design system.
+const fieldClassName = 'h-auto w-full min-h-12 border-0 bg-background rounded-lg ring-1 ring-inset ring-warm-hairline px-[15px] py-[13px] text-base focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-0';
+const textareaClassName = 'w-full border-0 bg-background rounded-lg ring-1 ring-inset ring-warm-hairline px-[15px] py-[13px] text-base focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-0';
+
+function SectionHeading({ mb = 'mb-4', children }: { mb?: string; children: React.ReactNode }) {
+  return (
+    <h2 className={`text-2xl sm:text-3xl font-semibold tracking-tight text-foreground ${mb}`}>
+      {children}
+    </h2>
+  );
+}
+
+function FieldLabel({ htmlFor, mb = 'mb-2', children }: { htmlFor?: string; mb?: string; children: React.ReactNode }) {
+  return (
+    <Label htmlFor={htmlFor} className={`block text-sm font-semibold text-warm-prose ${mb}`}>
+      {children}
+    </Label>
+  );
+}
+
+// Pill: default selected state is the neutral muted fill. Pass `tintClass`
+// for chip groups where a static accent colour is meaningful (boards, areas —
+// tokens known ahead of time). Pass `dynamicTint` only for the sanctioned
+// data-driven case (subject colors from getSubjectColors / subject-palette),
+// per the inline-style exception documented in src/lib/subject-palette.ts.
+function Pill({
+  label,
+  selected,
+  onClick,
+  tintClass,
+  dynamicTint,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+  tintClass?: string;
+  dynamicTint?: { bg: string; color: string };
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`inline-flex items-center min-h-11 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97] ${
+        selected ? (dynamicTint ? '' : tintClass ?? 'bg-muted text-foreground') : 'shikshaq-pill-unselected ring-1 ring-inset ring-warm-hairline text-warm-prose'
+      }`}
+      style={selected && dynamicTint ? { background: dynamicTint.bg, color: dynamicTint.color } : undefined}
+    >
+      {label}
+    </button>
+  );
+}
 
 interface FormData {
   name: string;
@@ -76,6 +139,7 @@ interface FormData {
 }
 
 export default function JoinApply() {
+  const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -124,7 +188,7 @@ export default function JoinApply() {
   const handleMultiSelectChange = (field: keyof FormData, value: string, checked: boolean) => {
     const currentValue = formData[field] as string;
     const currentArray = currentValue ? currentValue.split(',').map((v) => v.trim()) : [];
-    
+
     let newArray: string[];
     if (checked) {
       newArray = [...currentArray, value].filter((v) => v !== '');
@@ -188,18 +252,18 @@ export default function JoinApply() {
 
     // Create preview using object URL (blob URLs are safe for image src)
     const previewUrl = URL.createObjectURL(file);
-    
+
     // Validate that the blob URL is properly formed
     if (!previewUrl.startsWith('blob:')) {
       toast.error('Failed to create image preview');
       return;
     }
-    
+
     // Clean up previous preview URL if it exists
     if (imagePreview && imagePreview.startsWith('blob:')) {
       URL.revokeObjectURL(imagePreview);
     }
-    
+
     setImagePreview(previewUrl);
     // Don't set hero_image_url yet - will be set after upload on submit
   };
@@ -217,7 +281,7 @@ export default function JoinApply() {
       });
 
       if (import.meta.env.DEV) {
-        console.log(`Image compressed from ${file.size / 1024 / 1024} MB to ${compressedFile.size / 1024 / 1024} MB`);
+        logger.log(`Image compressed from ${file.size / 1024 / 1024} MB to ${compressedFile.size / 1024 / 1024} MB`);
       }
 
       // Create a unique filename
@@ -234,9 +298,7 @@ export default function JoinApply() {
         });
 
       if (error) {
-        if (import.meta.env.DEV) {
-          console.error('Upload error:', error);
-        }
+        logger.error('JoinApply.uploadImage', error);
         throw new Error('Image upload failed');
       }
 
@@ -252,9 +314,7 @@ export default function JoinApply() {
 
       return sanitizedUrl;
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Error uploading image:', error);
-      }
+      logger.error('JoinApply.uploadImage.catch', error);
       throw error;
     } finally {
       setUploadingImage(false);
@@ -357,11 +417,11 @@ export default function JoinApply() {
     if (formData.years_started_teaching.trim()) {
       const yearDigits = formData.years_started_teaching.replace(/\D/g, '');
       if (yearDigits.length > 4) {
-        toast.error('Year you started teaching must be at most 4 digits');
+        toast.error('Years of experience must be at most 4 digits');
         return false;
       }
       if (yearDigits.length > 0 && !/^\d{1,4}$/.test(yearDigits)) {
-        toast.error('Year you started teaching must contain only numbers');
+        toast.error('Years of experience must contain only numbers');
         return false;
       }
     }
@@ -446,19 +506,19 @@ export default function JoinApply() {
         });
 
       if (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error submitting application:', error);
+        logger.error('JoinApply.submit', error);
+        if (error.message?.includes('DUPLICATE_PENDING_APPLICATION')) {
+          toast.error('You already have an application under review with this email. We will get back to you soon.');
+        } else {
+          toast.error('Failed to submit application. Please try again.');
         }
-        toast.error('Failed to submit application. Please try again.');
         return;
       }
 
       setSubmitted(true);
       toast.success('Application submitted successfully! We will review it and get back to you soon.');
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Error:', error);
-      }
+      logger.error('JoinApply.submit.catch', error);
       toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setSubmitting(false);
@@ -469,21 +529,22 @@ export default function JoinApply() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
-          <div className="max-w-2xl mx-auto text-center">
-            <div className="bg-card rounded-3xl p-8 border border-border">
-              <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-4">
-                Application Submitted!
-              </h1>
-              <p className="text-lg text-muted-foreground mb-6">
-                Thank you for your interest in joining Shikshaq as a teacher. 
-                We have received your application and will review it shortly.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                You will be notified via email once your application has been reviewed.
-              </p>
+        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
+          <div className="p-6 sm:p-10 rounded-2xl bg-card shadow-border text-center">
+            {/* No semantic "success" token exists in the design system (see final report) —
+                nearest existing token used: mint background + foreground icon. */}
+            <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-8 h-8 text-foreground" />
             </div>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mb-3">
+              Application submitted!
+            </h1>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">
+              Thank you for your interest in joining Shikshaq as a teacher. We have received your application and will review it shortly.
+            </p>
+            <p className="text-sm text-warm-meta">
+              You will be notified via email once your application has been reviewed.
+            </p>
           </div>
         </main>
         <Footer />
@@ -491,365 +552,267 @@ export default function JoinApply() {
     );
   }
 
+  const isLastStep = step === STEPS.length - 1;
+
+  // Validates only the fields shown on the given step, so users get feedback
+  // as they go instead of clicking through 3 blank steps and hitting every
+  // error at once on final submit (which still runs the full validateForm).
+  const validateStep = (stepIndex: number): boolean => {
+    if (stepIndex === 0) {
+      if (!formData.name.trim()) {
+        toast.error('Please enter your name');
+        return false;
+      }
+      if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+        toast.error('Please enter a valid email address');
+        return false;
+      }
+      if (!formData.sir_maam) {
+        toast.error("Please select Sir or Ma'am");
+        return false;
+      }
+      if (formData.phone_number.replace(/\D/g, '').length !== 10) {
+        toast.error('Phone number must be exactly 10 digits');
+        return false;
+      }
+      return true;
+    }
+    if (stepIndex === 1) {
+      if (!formData.subjects.trim()) {
+        toast.error('Please select at least one subject');
+        return false;
+      }
+      if (!formData.school_boards_catered.trim()) {
+        toast.error('Please select at least one school board');
+        return false;
+      }
+      if (!formData.classes_taught_for_backend.trim()) {
+        toast.error('Please select at least one class');
+        return false;
+      }
+      if (!formData.class_size.trim()) {
+        toast.error('Please select at least one structure of classes option');
+        return false;
+      }
+      return true;
+    }
+    if (stepIndex === 2) {
+      if (!formData.location_v2) {
+        toast.error('Please select a location option');
+        return false;
+      }
+      if (formData.location_v2 === "STUDENT'S HOME TUTORING ONLY" && !formData.students_home_areas.trim()) {
+        toast.error("Please select at least one area for Student's Home Tutoring");
+        return false;
+      }
+      if (formData.location_v2 === "TEACHER'S HOME TUTORING" && !formData.tutors_home_areas.trim()) {
+        toast.error("Please select at least one area for Teacher's Home Tutoring");
+        return false;
+      }
+      if (formData.location_v2 === 'BOTH OPTIONS LISTED') {
+        if (!formData.students_home_areas.trim()) {
+          toast.error("Please select at least one area for Student's Home Tutoring");
+          return false;
+        }
+        if (!formData.tutors_home_areas.trim()) {
+          toast.error("Please select at least one area for Teacher's Home Tutoring");
+          return false;
+        }
+      }
+      if (!formData.mode_of_teaching.trim()) {
+        toast.error('Please select at least one mode of teaching');
+        return false;
+      }
+      return true;
+    }
+    return true;
+  };
+
+  const goNext = () => {
+    if (!validateStep(step)) return;
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
+  const goBack = () => setStep((s) => Math.max(s - 1, 0));
+
+  const showStudentAreas = formData.location_v2 === "STUDENT'S HOME TUTORING ONLY" || formData.location_v2 === "BOTH OPTIONS LISTED";
+  const showTutorAreas = formData.location_v2 === "TEACHER'S HOME TUTORING" || formData.location_v2 === "BOTH OPTIONS LISTED";
+
+  // Step 4 summary lines, built from the actual entered values (not placeholders).
+  const selectedSubjectsList = formData.subjects ? formData.subjects.split(',').map((s) => s.trim()).filter(Boolean) : [];
+  const selectedBoardsList = formData.school_boards_catered ? formData.school_boards_catered.split(',').map((s) => s.trim()).filter(Boolean) : [];
+  const selectedClassesList = formData.classes_taught_for_backend ? formData.classes_taught_for_backend.split(',').map((s) => s.trim()).filter(Boolean) : [];
+  const summaryAreas = Array.from(new Set([
+    ...(formData.students_home_areas ? formData.students_home_areas.split(',').map((s) => s.trim()).filter(Boolean) : []),
+    ...(formData.tutors_home_areas ? formData.tutors_home_areas.split(',').map((s) => s.trim()).filter(Boolean) : []),
+  ]));
+  const summaryNameLine = [formData.name.trim(), formData.sir_maam].filter(Boolean).join(', ')
+    + (formData.years_started_teaching.trim() ? ` · ${formData.years_started_teaching.trim()} years` : '');
+  const summaryTeachLine = [
+    selectedSubjectsList.length ? selectedSubjectsList.join(', ') : null,
+    selectedBoardsList.length ? selectedBoardsList.join(', ') : null,
+    selectedClassesList.length ? `Classes ${selectedClassesList.join(', ')}` : null,
+  ].filter(Boolean).join(' · ');
+  const summaryFeeRange = formData.min_fees && formData.max_fees
+    ? `₹${formData.min_fees} – ₹${formData.max_fees} / month`
+    : formData.min_fees
+    ? `From ₹${formData.min_fees} / month`
+    : formData.max_fees
+    ? `Up to ₹${formData.max_fees} / month`
+    : null;
+  const summaryWhereLine = [summaryAreas.length ? summaryAreas.join(', ') : null, summaryFeeRange].filter(Boolean).join(' · ');
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-5xl font-sans text-foreground mb-4">
-              Join Shikshaq as a Teacher
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Fill out the form below to apply. All fields marked with * are required.
-            </p>
-          </div>
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
+        <Link
+          to="/join"
+          className="inline-block text-sm font-semibold text-warm-meta mb-6 no-underline"
+        >
+          ← Why join Shikshaq
+        </Link>
 
-          <form onSubmit={handleSubmit} className="bg-card rounded-3xl p-6 md:p-8 border border-border space-y-8">
-            {/* Basic Information */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
-                Basic Information
-              </h2>
+        {/* Stepper — numerals sit on a connecting rail so the four steps read as one
+            continuous path rather than four loose chips (bolder card-based step
+            presentation per VISUAL_UPGRADE_PLAN, mobile-vibes reference). The current step's
+            numeral is now sized up (h-10 vs h-8) and filled solid brand instead of a same-size
+            ring — at equal size a ring reads as barely different from "done"/"upcoming",
+            which is the "too light a touch" the owner flagged. Logic/order unchanged. */}
+        <div className="mb-3 flex items-center">
+          {STEPS.map((s, i) => {
+            const state = i === step ? 'current' : i < step ? 'done' : 'upcoming';
+            // "done" state uses mint/foreground — see success-token note above; no green
+            // token exists in the design system.
+            const numeralClass =
+              state === 'current'
+                ? 'h-10 w-10 bg-brand text-brand-foreground shadow-border'
+                : state === 'done'
+                ? 'h-8 w-8 bg-mint text-foreground'
+                : 'h-8 w-8 bg-muted text-warm-meta';
+            const labelClass =
+              state === 'current' ? 'font-bold text-foreground' : state === 'done' ? 'text-warm-prose' : 'text-warm-meta';
+            const railClass = state === 'upcoming' ? 'bg-warm-hairline' : 'bg-mint';
+            return (
+              <div key={s.label} className={i === STEPS.length - 1 ? 'flex items-center shrink-0' : 'flex flex-1 items-center'}>
+                <div className="flex shrink-0 flex-col items-center gap-1.5 sm:flex-row sm:gap-2">
+                  <span
+                    className={`flex shrink-0 items-center justify-center rounded-full text-xs font-bold transition-[background-color,color,width,height] duration-150 ${numeralClass}`}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className={`hidden text-sm whitespace-nowrap sm:inline ${labelClass}`}>
+                    {s.label}
+                  </span>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <span className={`mx-2 h-0.5 flex-1 rounded-full transition-colors duration-150 ${railClass}`} aria-hidden="true" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {/* Step label on mobile — the STEPS labels are hidden below sm: so a phone user only
+            ever saw bare numerals with no name for what step they're on. One honest line,
+            drawn from the same STEPS array, no new state. */}
+        <p className="mb-8 text-sm font-semibold text-warm-meta sm:hidden">
+          Step {step + 1} of {STEPS.length} · {STEPS[step].label}
+        </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Name */}
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            // Prevent an Enter keypress in an earlier step from submitting the whole form
+            if (e.key === 'Enter' && !isLastStep && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
+          }}
+          className="p-6 sm:p-8 rounded-2xl bg-card shadow-border"
+        >
+          {/* Step 1: About you */}
+          {step === 0 && (
+            <div className="joinApplyRise">
+              <SectionHeading>About you</SectionHeading>
+
+              <div className="grid gap-4">
+                {/* Full name */}
                 <div>
-                  <Label htmlFor="name">Name *</Label>
+                  <FieldLabel htmlFor="name">Full name *</FieldLabel>
                   <Input
                     id="name"
+                    autoComplete="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="e.g. Ananya Ghosh"
                     maxLength={200}
                     required
+                    className={fieldClassName}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Max 200 characters</p>
+                  <p className="text-xs text-warm-meta mt-2">Max 200 characters</p>
                 </div>
 
                 {/* Email */}
                 <div>
-                  <Label htmlFor="email">Email *</Label>
+                  <FieldLabel htmlFor="email">Email *</FieldLabel>
                   <Input
                     id="email"
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     placeholder="e.g. name@example.com"
                     maxLength={254}
                     required
+                    className={fieldClassName}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Enter a valid email address</p>
+                  <p className="text-xs text-warm-meta mt-2">Enter a valid email address</p>
                 </div>
 
-                {/* Phone Number */}
+                {/* Sir or Ma'am */}
                 <div>
-                  <Label htmlFor="phone_number">Phone Number *</Label>
+                  <FieldLabel>Sir or Ma'am *</FieldLabel>
+                  <div className="flex gap-2">
+                    {SIR_MAAM.map((option) => (
+                      <Pill
+                        key={option}
+                        label={option}
+                        selected={formData.sir_maam === option}
+                        onClick={() => handleInputChange('sir_maam', option)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* WhatsApp number */}
+                <div>
+                  <FieldLabel htmlFor="phone_number">WhatsApp number *</FieldLabel>
                   <Input
                     id="phone_number"
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     value={formData.phone_number}
                     onChange={(e) => {
                       // Only allow digits, limit to 10 digits
                       const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
                       handleInputChange('phone_number', digits);
                     }}
-                    placeholder="10 digit number"
+                    placeholder="10-digit number"
                     maxLength={10}
                     required
+                    className={fieldClassName}
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Enter 10 digit phone number (country code +91 will be added automatically)</p>
+                  <p className="text-xs text-warm-meta mt-2">Country code +91 is added automatically</p>
                 </div>
 
-                {/* Sir/Ma'am */}
+                {/* Years of experience */}
                 <div>
-                  <Label htmlFor="sir_maam">Sir/Ma'am? *</Label>
-                  <Select
-                    value={formData.sir_maam || "__none__"}
-                    onValueChange={(value) => handleInputChange('sir_maam', value === "__none__" ? "" : value)}
-                  >
-                    <SelectTrigger id="sir_maam">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      {SIR_MAAM.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Teaching Details */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
-                Teaching Details
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Subjects */}
-                <div className="md:col-span-2">
-                  <Label>Subjects *</Label>
-                  <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4 border border-border rounded-lg">
-                    {SUBJECTS.map((subject) => {
-                      const selected = valueExistsInString(formData.subjects, subject);
-                      return (
-                        <div key={subject} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`subject-${subject}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('subjects', subject, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`subject-${subject}`} className="cursor-pointer text-sm">
-                            {subject}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Classes Taught */}
-                <div className="md:col-span-2">
-                  <Label>Classes Taught *</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {CLASSES.map((cls) => {
-                      const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
-                      return (
-                        <div key={cls} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`class-${cls}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('classes_taught_for_backend', cls, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`class-${cls}`} className="cursor-pointer">
-                            {cls}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* School Boards Catered */}
-                <div className="md:col-span-2">
-                  <Label>School Boards Catered *</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {BOARDS.map((board) => {
-                      const selected = valueExistsInString(formData.school_boards_catered, board);
-                      return (
-                        <div key={board} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`board-${board}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('school_boards_catered', board, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`board-${board}`} className="cursor-pointer">
-                            {board}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Location V2 */}
-                <div>
-                  <Label htmlFor="location_v2">Location *</Label>
-                  <Select
-                    value={formData.location_v2 || "__none__"}
-                    onValueChange={(value) => handleInputChange('location_v2', value === "__none__" ? "" : value)}
-                  >
-                    <SelectTrigger id="location_v2">
-                      <SelectValue placeholder="Select location option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      <SelectItem value="TEACHER'S HOME TUTORING">Teacher's Home Tutoring Only</SelectItem>
-                      <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's Home Tutoring Only</SelectItem>
-                      <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Featured Subject - only from selected subjects */}
-                <div>
-                  <Label htmlFor="featured_subject">Featured Subject</Label>
-                  <Select
-                    value={(() => {
-                      const selectedSubjects = (formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
-                      const current = formData.featured_subject;
-                      return current && selectedSubjects.includes(current) ? current : 'none';
-                    })()}
-                    onValueChange={(value) => handleInputChange('featured_subject', value === "none" ? "" : value)}
-                  >
-                    <SelectTrigger id="featured_subject">
-                      <SelectValue placeholder="Select featured subject" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {(formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean).map((subject) => (
-                        <SelectItem key={subject} value={subject}>
-                          {subject}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Choose one of your selected subjects to feature on your profile
-                  </p>
-                </div>
-
-                {/* Mode of Teaching */}
-                <div>
-                  <Label>Mode of Teaching *</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {MODE_OF_TEACHING.map((mode) => {
-                      const selected = valueExistsInString(formData.mode_of_teaching, mode);
-                      return (
-                        <div key={mode} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`mode-${mode}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('mode_of_teaching', mode, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`mode-${mode}`} className="cursor-pointer">
-                            {mode}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Structure of classes (stored as class_size) */}
-                <div>
-                  <Label>Structure of classes *</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {CLASS_SIZE.map((size) => {
-                      const selected = valueExistsInString(formData.class_size, size);
-                      return (
-                        <div key={size} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`classSize-${size}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('class_size', size, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`classSize-${size}`} className="cursor-pointer">
-                            {size === 'Solo' ? 'One-on-one' : size}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Student's Home Areas - Show when Location is "STUDENT'S HOME TUTORING ONLY" or "BOTH OPTIONS LISTED" */}
-                {(formData.location_v2 === "STUDENT'S HOME TUTORING ONLY" || formData.location_v2 === "BOTH OPTIONS LISTED") && (
-                  <div className="md:col-span-2">
-                    <Label>Student's Home in These Areas *</Label>
-                    <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4 border border-border rounded-lg">
-                      {AREAS.map((area) => {
-                        const selected = valueExistsInString(formData.students_home_areas, area);
-                        return (
-                          <div key={area} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`student-area-${area}`}
-                              checked={selected}
-                              onCheckedChange={(checked) =>
-                                handleMultiSelectChange('students_home_areas', area, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm">
-                              {area}
-                            </Label>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tutor's Home Areas - Show when Location is "TEACHER'S HOME TUTORING" or "BOTH OPTIONS LISTED" */}
-                {(formData.location_v2 === "TEACHER'S HOME TUTORING" || formData.location_v2 === "BOTH OPTIONS LISTED") && (
-                  <div className="md:col-span-2">
-                    <Label>Tutor's Home in These Areas *</Label>
-                    <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4 border border-border rounded-lg">
-                      {AREAS.map((area) => {
-                        const selected = valueExistsInString(formData.tutors_home_areas, area);
-                        return (
-                          <div key={area} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`tutor-area-${area}`}
-                              checked={selected}
-                              onCheckedChange={(checked) =>
-                                handleMultiSelectChange('tutors_home_areas', area, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm">
-                              {area}
-                            </Label>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Additional Information */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
-                Additional Information
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Profile Introduction */}
-                <div className="md:col-span-2">
-                  <Label htmlFor="description">Profile Introduction</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    rows={5}
-                    placeholder="Tell us about yourself and your teaching approach..."
-                    maxLength={1000}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Max 1000 characters</p>
-                </div>
-
-                {/* Educational Qualifications */}
-                <div className="md:col-span-2">
-                  <Label htmlFor="qualifications_etc">Educational Qualifications</Label>
-                  <Textarea
-                    id="qualifications_etc"
-                    value={formData.qualifications_etc}
-                    onChange={(e) => handleInputChange('qualifications_etc', e.target.value)}
-                    rows={3}
-                    placeholder="Your educational qualifications, certifications, etc."
-                    maxLength={500}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Max 500 characters</p>
-                </div>
-
-                {/* Year you started teaching */}
-                <div>
-                  <Label htmlFor="years_started_teaching">Year you started teaching</Label>
+                  <FieldLabel htmlFor="years_started_teaching">Years of experience</FieldLabel>
                   <Input
                     id="years_started_teaching"
                     value={formData.years_started_teaching}
@@ -857,99 +820,348 @@ export default function JoinApply() {
                       const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
                       handleInputChange('years_started_teaching', digits);
                     }}
-                    placeholder="e.g. 2015"
+                    placeholder="e.g. 12"
                     maxLength={4}
                     inputMode="numeric"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Numbers only, up to 4 digits</p>
-                </div>
-
-                {/* Reference Name */}
-                <div>
-                  <Label htmlFor="reference_name">Student name (for verification) *</Label>
-                  <Input
-                    id="reference_name"
-                    value={formData.reference_name}
-                    onChange={(e) => handleInputChange('reference_name', e.target.value)}
-                    placeholder="Name of a student we can contact"
-                    maxLength={200}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Max 200 characters</p>
-                  <p className="text-xs text-muted-foreground mt-1">We will call them to verify you're a teacher</p>
-                </div>
-
-                {/* Student number for verification */}
-                <div>
-                  <Label htmlFor="reference_number">Student number (for verification) *</Label>
-                  <Input
-                    id="reference_number"
-                    type="tel"
-                    value={formData.reference_number}
-                    onChange={(e) => {
-                      // Only allow digits, limit to 10
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      handleInputChange('reference_number', digits);
-                    }}
-                    placeholder="10 digit number"
-                    maxLength={10}
-                    required
+                    className={fieldClassName}
                   />
                 </div>
+              </div>
+            </div>
+          )}
 
-                {/* Monthly fee range */}
-                <div className="md:col-span-2 space-y-2">
-                  <Label className="text-base">Monthly fee range</Label>
-                  <div className="flex flex-row gap-3 sm:gap-4">
-                    <div className="flex-1 min-w-0">
-                      <Label htmlFor="min_fees" className="text-sm font-normal text-muted-foreground">Min (₹)</Label>
-                      <Input
-                        id="min_fees"
-                        type="tel"
-                        value={formData.min_fees}
-                        onChange={(e) => {
-                          const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                          handleInputChange('min_fees', digits);
-                        }}
-                        placeholder="e.g., 2000"
-                        maxLength={6}
-                        inputMode="numeric"
+          {/* Step 2: What you teach */}
+          {step === 1 && (
+            <div className="joinApplyRise">
+              <SectionHeading>What you teach</SectionHeading>
+
+              {/* Subjects */}
+              <div className="mb-6">
+                <FieldLabel mb="mb-3">Subjects *</FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {SUBJECTS.map((subject) => {
+                    const selected = valueExistsInString(formData.subjects, subject);
+                    const sc = getSubjectColors(subject);
+                    return (
+                      <Pill
+                        key={subject}
+                        label={subject}
+                        selected={selected}
+                        dynamicTint={{ bg: sc.tint, color: sc.titleText }}
+                        onClick={() => handleMultiSelectChange('subjects', subject, !selected)}
                       />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <Label htmlFor="max_fees" className="text-sm font-normal text-muted-foreground">Max (₹)</Label>
-                      <Input
-                        id="max_fees"
-                        type="tel"
-                        value={formData.max_fees}
-                        onChange={(e) => {
-                          const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                          handleInputChange('max_fees', digits);
-                        }}
-                        placeholder="e.g., 5000"
-                        maxLength={6}
-                        inputMode="numeric"
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Boards catered */}
+              <div className="mb-6">
+                <FieldLabel mb="mb-3">Boards catered *</FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {BOARDS.map((board) => {
+                    const selected = valueExistsInString(formData.school_boards_catered, board);
+                    return (
+                      <Pill
+                        key={board}
+                        label={board}
+                        selected={selected}
+                        tintClass="bg-brand-blue-subtle text-brand-blue-deep"
+                        onClick={() => handleMultiSelectChange('school_boards_catered', board, !selected)}
                       />
-                    </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Classes */}
+              <div className="mb-6">
+                <FieldLabel mb="mb-3">Classes *</FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {CLASSES.map((cls) => {
+                    const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
+                    return (
+                      <Pill
+                        key={cls}
+                        label={cls}
+                        selected={selected}
+                        onClick={() => handleMultiSelectChange('classes_taught_for_backend', cls, !selected)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Structure of classes (stored as class_size) */}
+              <div className="mb-6">
+                <FieldLabel mb="mb-3">Structure of classes *</FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {CLASS_SIZE.map((size) => {
+                    const selected = valueExistsInString(formData.class_size, size);
+                    return (
+                      <Pill
+                        key={size}
+                        label={size === 'Solo' ? 'One-on-one' : size}
+                        selected={selected}
+                        onClick={() => handleMultiSelectChange('class_size', size, !selected)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Featured Subject - only from selected subjects */}
+              <div>
+                <FieldLabel htmlFor="featured_subject">Featured subject</FieldLabel>
+                <Select
+                  value={(() => {
+                    const selectedSubjects = (formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
+                    const current = formData.featured_subject;
+                    return current && selectedSubjects.includes(current) ? current : 'none';
+                  })()}
+                  onValueChange={(value) => handleInputChange('featured_subject', value === "none" ? "" : value)}
+                >
+                  <SelectTrigger id="featured_subject" className={fieldClassName}>
+                    <SelectValue placeholder="Select featured subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {(formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean).map((subject) => (
+                      <SelectItem key={subject} value={subject}>
+                        {subject}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-warm-meta mt-2">
+                  Choose one of your selected subjects to feature on your profile
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Where & fees */}
+          {step === 2 && (
+            <div className="joinApplyRise">
+              <SectionHeading>Where &amp; fees</SectionHeading>
+
+              {/* Location */}
+              <div className="mb-6">
+                <FieldLabel htmlFor="location_v2">Location *</FieldLabel>
+                <Select
+                  value={formData.location_v2 || "__none__"}
+                  onValueChange={(value) => handleInputChange('location_v2', value === "__none__" ? "" : value)}
+                >
+                  <SelectTrigger id="location_v2" className={fieldClassName}>
+                    <SelectValue placeholder="Select location option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    <SelectItem value="TEACHER'S HOME TUTORING">Teacher's Home Tutoring Only</SelectItem>
+                    <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's Home Tutoring Only</SelectItem>
+                    <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Student's Home Areas - Show when Location is "STUDENT'S HOME TUTORING ONLY" or "BOTH OPTIONS LISTED" */}
+              {showStudentAreas && (
+                <div className="mb-6">
+                  <FieldLabel mb="mb-3">Areas you teach in (student's home) *</FieldLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {AREAS.map((area) => {
+                      const selected = valueExistsInString(formData.students_home_areas, area);
+                      return (
+                        <Pill
+                          key={area}
+                          label={area}
+                          selected={selected}
+                          tintClass="bg-brand-subtle text-brand-deep"
+                          onClick={() => handleMultiSelectChange('students_home_areas', area, !selected)}
+                        />
+                      );
+                    })}
                   </div>
-                  <p className="text-xs text-muted-foreground">Optional</p>
+                </div>
+              )}
+
+              {/* Tutor's Home Areas - Show when Location is "TEACHER'S HOME TUTORING" or "BOTH OPTIONS LISTED" */}
+              {showTutorAreas && (
+                <div className="mb-6">
+                  <FieldLabel mb="mb-3">Areas you teach in (your home) *</FieldLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {AREAS.map((area) => {
+                      const selected = valueExistsInString(formData.tutors_home_areas, area);
+                      return (
+                        <Pill
+                          key={area}
+                          label={area}
+                          selected={selected}
+                          tintClass="bg-brand-subtle text-brand-deep"
+                          onClick={() => handleMultiSelectChange('tutors_home_areas', area, !selected)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Mode of Teaching */}
+              <div className="mb-6">
+                <FieldLabel mb="mb-3">Mode of teaching *</FieldLabel>
+                <div className="flex flex-wrap gap-2">
+                  {MODE_OF_TEACHING.map((mode) => {
+                    const selected = valueExistsInString(formData.mode_of_teaching, mode);
+                    return (
+                      <Pill
+                        key={mode}
+                        label={mode}
+                        selected={selected}
+                        onClick={() => handleMultiSelectChange('mode_of_teaching', mode, !selected)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Monthly fee range */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <FieldLabel htmlFor="min_fees">Minimum fee / month</FieldLabel>
+                  <Input
+                    id="min_fees"
+                    type="tel"
+                    value={formData.min_fees}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      handleInputChange('min_fees', digits);
+                    }}
+                    placeholder="₹3,000"
+                    maxLength={6}
+                    inputMode="numeric"
+                    className={fieldClassName}
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="max_fees">Maximum fee / month</FieldLabel>
+                  <Input
+                    id="max_fees"
+                    type="tel"
+                    value={formData.max_fees}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      handleInputChange('max_fees', digits);
+                    }}
+                    placeholder="₹5,000"
+                    maxLength={6}
+                    inputMode="numeric"
+                    className={fieldClassName}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-warm-meta mt-2">Fee range is optional</p>
+            </div>
+          )}
+
+          {/* Step 4: Review and send */}
+          {step === 3 && (
+            <div className="joinApplyRise">
+              <SectionHeading mb="mb-3">Review and send</SectionHeading>
+              <p className="text-base leading-relaxed text-muted-foreground mb-6">
+                Our team checks qualifications and existing student references before a profile goes live. That usually takes three working days.
+              </p>
+              <div className="p-4 rounded-2xl bg-background ring-1 ring-inset ring-warm-hairline text-sm leading-loose text-warm-prose mb-6">
+                {summaryNameLine || 'Add your name in step 1'}
+                <br />
+                {summaryTeachLine || 'Add subjects, boards and classes in step 2'}
+                <br />
+                {summaryWhereLine || 'Add areas and a fee range in step 3'}
+              </div>
+
+              <div className="grid gap-6">
+                {/* Profile Introduction */}
+                <div>
+                  <FieldLabel htmlFor="description">Profile introduction</FieldLabel>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    rows={5}
+                    placeholder="Tell us about yourself and your teaching approach..."
+                    maxLength={1000}
+                    className={textareaClassName}
+                  />
+                  <p className="text-xs text-warm-meta mt-2">Max 1000 characters</p>
+                </div>
+
+                {/* Educational Qualifications */}
+                <div>
+                  <FieldLabel htmlFor="qualifications_etc">Educational qualifications</FieldLabel>
+                  <Textarea
+                    id="qualifications_etc"
+                    value={formData.qualifications_etc}
+                    onChange={(e) => handleInputChange('qualifications_etc', e.target.value)}
+                    rows={3}
+                    placeholder="Your educational qualifications, certifications, etc."
+                    maxLength={500}
+                    className={textareaClassName}
+                  />
+                  <p className="text-xs text-warm-meta mt-2">Max 500 characters</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Reference Name */}
+                  <div>
+                    <FieldLabel htmlFor="reference_name">Student name (for verification) *</FieldLabel>
+                    <Input
+                      id="reference_name"
+                      value={formData.reference_name}
+                      onChange={(e) => handleInputChange('reference_name', e.target.value)}
+                      placeholder="Name of a student we can contact"
+                      maxLength={200}
+                      required
+                      className={fieldClassName}
+                    />
+                    <p className="text-xs text-warm-meta mt-2">We will call them to verify you're a teacher</p>
+                  </div>
+
+                  {/* Student number for verification */}
+                  <div>
+                    <FieldLabel htmlFor="reference_number">Student number (for verification) *</FieldLabel>
+                    <Input
+                      id="reference_number"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={formData.reference_number}
+                      onChange={(e) => {
+                        // Only allow digits, limit to 10
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        handleInputChange('reference_number', digits);
+                      }}
+                      placeholder="10-digit number"
+                      maxLength={10}
+                      required
+                      className={fieldClassName}
+                    />
+                  </div>
                 </div>
 
                 {/* Profile Picture */}
-                <div className="md:col-span-2">
-                  <Label htmlFor="hero_image">Profile Picture *</Label>
-                  <div className="space-y-3">
+                <div>
+                  <FieldLabel htmlFor="hero_image">Profile picture *</FieldLabel>
+                  <div className="grid gap-3">
                     {(() => {
                       // Early return if no preview
                       if (!imagePreview) return null;
-                      
+
                       // Sanitize user-controlled image URL to prevent XSS
                       // validateImageSrc ensures only safe URLs (blob, http/https, data:image) are used
                       const validatedUrl = validateImageSrc(imagePreview);
-                      
+
                       // Only render if URL is validated and safe
                       if (!validatedUrl || validatedUrl.length === 0) return null;
-                      
+
                       // Apply DOMPurify.sanitize to break the taint chain — CodeQL recognises
                       // DOMPurify as a known sanitizer, so this stops the
                       // "DOM text reinterpreted as HTML" finding while adding defence-in-depth.
@@ -959,22 +1171,19 @@ export default function JoinApply() {
                         ALLOWED_ATTR: [],
                         KEEP_CONTENT: true,
                       });
-                      
+
                       if (!safeSrc) return null;
-                      
+
                       return (
-                        <div className="relative w-full max-w-md">
+                        <div className="relative w-full max-w-[340px]">
                           <img
                             src={safeSrc}
                             alt="Profile picture preview"
-                            className="w-full h-48 object-cover rounded-lg border"
+                            className="w-full h-[190px] object-cover rounded-2xl ring-1 ring-inset ring-warm-hairline"
                             onError={() => setImagePreview(null)}
                           />
-                          <Button
+                          <button
                             type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute top-2 right-2"
                             onClick={() => {
                               // Clean up object URL if it's a blob URL
                               if (imagePreview && imagePreview.startsWith('blob:')) {
@@ -984,15 +1193,16 @@ export default function JoinApply() {
                               setImagePreview(null);
                               handleInputChange('hero_image_url', '');
                             }}
+                            className="absolute top-2 right-2 flex items-center justify-center w-10 h-10 rounded-full bg-card/90 shadow-border"
                           >
-                            <X className="w-4 h-4" />
-                          </Button>
+                            <X className="w-4 h-4 text-foreground" />
+                          </button>
                         </div>
                       );
                     })()}
                     <label
                       htmlFor="heroImageUpload"
-                      className="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors w-fit"
+                      className="inline-flex items-center gap-2 w-fit min-h-11 px-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline cursor-pointer"
                     >
                       <Upload className="w-4 h-4" />
                       {selectedImageFile ? 'Change Image' : 'Select Image'}
@@ -1005,79 +1215,100 @@ export default function JoinApply() {
                         disabled={submitting}
                       />
                     </label>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedImageFile 
+                    <p className="text-xs text-warm-meta">
+                      {selectedImageFile
                         ? 'Image will be uploaded when you submit the form. Max file size: 5MB'
                         : 'Select a professional photo. Image will be uploaded on form submission. Max file size: 5MB'}
                     </p>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* MOU Consent */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
-                Memorandum of Understanding *
-              </h2>
+                {/* Memorandum of Understanding */}
+                <div className="rounded-2xl bg-background ring-1 ring-inset ring-warm-hairline p-4 grid gap-4">
+                  <p className="text-sm font-semibold text-foreground">
+                    Memorandum of Understanding
+                  </p>
+                  <p className="text-sm leading-relaxed text-warm-prose">
+                    This Memorandum of Understanding confirms that you grant Shikshaq permission to display your submitted profile (name, locality, place of teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and enhancing their learning experience.
+                  </p>
 
-              <div className="bg-muted/50 rounded-lg p-6 space-y-4">
-                <p className="text-sm text-foreground leading-relaxed">
-                  This Memorandum of Understanding confirms that you grant Shikshaq permission to display your submitted profile (name, locality, place of teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and enhancing their learning experience.
-                </p>
+                  <div className="text-sm text-warm-prose">
+                    <p className="font-semibold mb-2">I have read and understood the above Memorandum of Understanding and consent to:</p>
+                    <ol className="list-decimal list-inside grid gap-1.5 ml-2">
+                      <li>Shikshaq displaying my educator profile as previously submitted;</li>
+                      <li>The use of my Whatsapp link to let students land directly on my Whatsapp chat through Shikshaq for communication;</li>
+                      <li>The use of my provided information for student outreach and internal communication;</li>
+                      <li>This digital form serving as a legally binding agreement.</li>
+                    </ol>
+                  </div>
 
-                <p className="text-sm font-medium text-foreground">
-                  Please review the statement below and provide your consent in order to proceed.
-                </p>
-
-                <div className="space-y-2 text-sm text-foreground">
-                  <p><strong>I have read and understood the above Memorandum of Understanding and consent to:</strong></p>
-                  <ol className="list-decimal list-inside space-y-1 ml-2">
-                    <li>Shikshaq displaying my educator profile as previously submitted;</li>
-                    <li>The use of my Whatsapp link to let students land directly on my Whatsapp chat through Shikshaq for communication;</li>
-                    <li>The use of my provided information for student outreach and internal communication;</li>
-                    <li>This digital form serving as a legally binding agreement.</li>
-                  </ol>
-                </div>
-
-                <div className="flex items-start space-x-3 pt-4 border-t border-border">
-                  <Checkbox
-                    id="mou_consent"
-                    checked={formData.mou_consent}
-                    onCheckedChange={(checked) => handleInputChange('mou_consent', checked)}
-                    required
-                  />
-                  <Label htmlFor="mou_consent" className="cursor-pointer text-sm leading-relaxed">
-                    <span className="font-medium">I consent. *</span>
-                  </Label>
+                  <div className="flex items-start gap-3 pt-4 border-t border-warm-hairline">
+                    <Checkbox
+                      id="mou_consent"
+                      checked={formData.mou_consent}
+                      onCheckedChange={(checked) => handleInputChange('mou_consent', checked)}
+                      required
+                    />
+                    <Label htmlFor="mou_consent" className="text-sm leading-relaxed cursor-pointer">
+                      <span className="font-semibold text-foreground">I consent. *</span>
+                    </Label>
+                  </div>
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Submit Button */}
-            <div className="pt-6 border-t border-border">
-              <Button
+          {/* Actions */}
+          <div className="flex flex-wrap gap-2 mt-6">
+            {!isLastStep ? (
+              <button
+                type="button"
+                onClick={goNext}
+                className="active:scale-[0.97] transition-transform duration-150 flex items-center justify-center min-h-[50px] px-6 py-4 rounded-lg text-sm font-semibold bg-foreground text-background"
+              >
+                Continue
+              </button>
+            ) : (
+              <button
                 type="submit"
-                size="lg"
-                className="w-full md:w-auto"
                 disabled={submitting}
+                className="active:scale-[0.97] transition-transform duration-150 flex items-center justify-center gap-2 min-h-[50px] px-6 py-4 rounded-lg text-sm font-semibold bg-brand text-brand-foreground disabled:opacity-75"
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     Submitting...
                   </>
                 ) : (
-                  'Submit Application'
+                  'Send application'
                 )}
-              </Button>
-            </div>
-          </form>
-        </div>
+              </button>
+            )}
+
+            {step > 0 && (
+              <button
+                type="button"
+                onClick={goBack}
+                className="active:scale-[0.97] transition-transform duration-150 flex items-center justify-center min-h-[50px] px-6 py-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline"
+              >
+                Back
+              </button>
+            )}
+          </div>
+        </form>
       </main>
 
       <Footer />
+
+      {/* Step content entry animation and hover feedback for unselected Pill
+          toggles, which otherwise have no cue that they're clickable on a
+          mouse. Uses the contract's whitelisted fade-slide-up motion. */}
+      <style>{`
+        .joinApplyRise { animation: fade-slide-up .28s cubic-bezier(.16,1,.3,1) both; }
+        @media (hover: hover) {
+          .shikshaq-pill-unselected:hover { background-color: hsl(var(--foreground) / 0.04); }
+        }
+      `}</style>
     </div>
   );
 }
-

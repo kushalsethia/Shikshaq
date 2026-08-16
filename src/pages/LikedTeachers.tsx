@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
+import { EmptyResults } from '@/components/EmptyResults';
 import { useAuth } from '@/lib/auth-context';
 import { useLikes } from '@/lib/likes-context';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { Button } from '@/components/ui/button';
-import { Heart, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Heart } from 'lucide-react';
+import { adminToast } from '@/components/AdminConsole';
 
 interface LikedTeacher {
   id: string;
@@ -23,8 +24,11 @@ interface LikedTeacher {
 export default function LikedTeachers() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { likedTeacherIds, loading: likesLoading, isLiked } = useLikes();
-  const [likedTeachers, setLikedTeachers] = useState<LikedTeacher[]>([]);
+  const { likedTeacherIds, loading: likesLoading, toggleLike } = useLikes();
+  // Every teacher we've ever fetched details for this session, keyed by id. Never pruned on
+  // unlike, so an unlike is an instant local filter (optimistic) and Undo is instant too, since
+  // the restored teacher's data is already sitting in this cache — no re-fetch needed either way.
+  const [teacherCache, setTeacherCache] = useState<Map<string, LikedTeacher>>(new Map());
   const [loading, setLoading] = useState(true);
 
   // Ensure user has selected a role
@@ -36,42 +40,33 @@ export default function LikedTeachers() {
       return;
     }
 
-    async function fetchLikedTeachers() {
-      // Don't wait for likesLoading - fetch teachers immediately
-      // We know these are liked teachers since we're on the liked teachers page
-      if (likedTeacherIds.size === 0 && !likesLoading) {
-        setLikedTeachers([]);
-        setLoading(false);
+    async function fetchMissingTeachers() {
+      const missingIds = Array.from(likedTeacherIds).filter((id) => !teacherCache.has(id));
+
+      if (missingIds.length === 0) {
+        if (!likesLoading) setLoading(false);
         return;
       }
 
-      // If likes are still loading but we have some IDs, proceed anyway
-      const teacherIds = Array.from(likedTeacherIds);
-      if (teacherIds.length === 0 && likesLoading) {
-        return; // Wait for likes to load
-      }
-
       try {
-        // First fetch all teachers
         const { data: teachersData, error: teachersError } = await supabase
           .from('teachers_list')
           .select('id, name, slug, image_url, subjects(name, slug)')
-          .in('id', teacherIds);
+          .in('id', missingIds);
 
         if (teachersError) throw teachersError;
 
         if (!teachersData || teachersData.length === 0) {
-          setLikedTeachers([]);
           setLoading(false);
           return;
         }
 
         // Extract all slugs and fetch Sir/Ma'am and Subjects data in a single query
-        const slugs = teachersData.map(t => t.slug);
-          const { data: shikshaqData } = await supabase
-            .from('Shikshaqmine')
-            .select('*')
-            .in('Slug', slugs);
+        const slugs = teachersData.map((t) => t.slug);
+        const { data: shikshaqData } = await supabase
+          .from('Shikshaqmine')
+          .select('*')
+          .in('Slug', slugs);
 
         // Create maps for fast lookup
         const sirMaamMap = new Map<string, string | null>();
@@ -95,34 +90,38 @@ export default function LikedTeachers() {
           .select('name, slug');
 
         // Combine teachers with Sir/Ma'am data and add subjects if missing
-        const teachersWithSirMaam = teachersData.map((teacher) => {
+        const teachersWithSirMaam: LikedTeacher[] = teachersData.map((teacher) => {
           // If no subject from relationship, try to get from Shikshaqmine
           if (!teacher.subjects) {
             const firstSubjectName = subjectsMap.get(teacher.slug);
             if (firstSubjectName && subjectsData) {
               // Try to find matching subject in subjects table
-              const matchingSubject = subjectsData.find((s: any) => 
-                s.name.toLowerCase() === firstSubjectName.toLowerCase()
+              const matchingSubject = subjectsData.find(
+                (s: any) => s.name.toLowerCase() === firstSubjectName.toLowerCase()
               );
               if (matchingSubject) {
                 teacher.subjects = { name: matchingSubject.name, slug: matchingSubject.slug };
               } else {
                 // If no match found, use the name from Shikshaqmine directly
-                teacher.subjects = { 
-                  name: firstSubjectName, 
-                  slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-') 
+                teacher.subjects = {
+                  name: firstSubjectName,
+                  slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-'),
                 };
               }
             }
           }
-          
+
           return {
-          ...teacher,
-          sirMaam: sirMaamMap.get(teacher.slug) || null,
+            ...teacher,
+            sirMaam: sirMaamMap.get(teacher.slug) || null,
           };
         });
 
-        setLikedTeachers(teachersWithSirMaam);
+        setTeacherCache((prev) => {
+          const next = new Map(prev);
+          teachersWithSirMaam.forEach((t) => next.set(t.id, t));
+          return next;
+        });
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error('Error fetching liked teachers:', error);
@@ -132,28 +131,66 @@ export default function LikedTeachers() {
       }
     }
 
-    fetchLikedTeachers();
-  }, [user, likedTeacherIds, navigate]); // Removed likesLoading from dependencies
+    fetchMissingTeachers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, likedTeacherIds, likesLoading, navigate]);
+
+  // Tapping the heart on a card unlikes through useLikes() directly (the same hook this page
+  // reads from), so the grid below already drops the card the instant likedTeacherIds shrinks —
+  // that's the "optimistic" removal. This effect only adds the Undo affordance on top: it diffs
+  // likedTeacherIds against the previous render to notice a removal, then shows a toast whose
+  // Undo button re-likes the same teacher (already cached above, so it reappears instantly too).
+  const prevIdsRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const prev = prevIdsRef.current;
+    if (prev) {
+      prev.forEach((id) => {
+        if (!likedTeacherIds.has(id)) {
+          const teacher = teacherCache.get(id);
+          adminToast(teacher ? `Removed ${teacher.name} from favourites` : 'Removed from favourites', {
+            undo: () => {
+              toggleLike(id);
+            },
+          });
+        }
+      });
+    }
+    prevIdsRef.current = new Set(likedTeacherIds);
+  }, [likedTeacherIds, teacherCache, toggleLike]);
+
+  const likedTeachers = Array.from(likedTeacherIds)
+    .map((id) => teacherCache.get(id))
+    .filter((t): t is LikedTeacher => Boolean(t));
 
   if (!user) {
-    return null; // Will redirect to auth
-  }
-
-  // Show loading only if we don't have any teachers yet
-  if (loading && likedTeachers.length === 0) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
-          <div className="animate-pulse">
-            <div className="h-8 w-48 bg-muted rounded mb-8" />
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="aspect-[4/5] bg-muted rounded-2xl" />
-              ))}
-            </div>
+        <main className="container py-16 pb-16 text-center sm:py-20">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Sign in required</h1>
+          <p className="mt-3 text-sm text-muted-foreground">Please sign in to view your favourite teachers.</p>
+          <Button className="mt-6" onClick={() => navigate('/auth')}>Sign In</Button>
+        </main>
+        <Footer />
+      </div>
+    ); // Will also redirect to auth
+  }
+
+  // Show loading only if we don't have any teachers yet — real emptiness (likedCount === 0 once
+  // both this page's own fetch and the shared likes context have settled) skips straight to the
+  // empty state below instead of skeletons that would never resolve into cards.
+  if ((loading || likesLoading) && likedTeachers.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container pt-8 pb-16">
+          <div className="mb-7 h-8 w-56 animate-shimmer rounded-lg bg-muted" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="aspect-[4/5] animate-shimmer rounded-2xl bg-muted" />
+            ))}
           </div>
-        </div>
+        </main>
         <Footer />
       </div>
     );
@@ -162,43 +199,22 @@ export default function LikedTeachers() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container pt-32 sm:pt-30 pb-8 md:pt-8">
-        {/* Back Button */}
-        <Link
-          to="/all-tuition-teachers-in-kolkata"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to browse
-        </Link>
+      <main className="container pt-8 pb-16">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Favourite teachers</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Saved teachers stay here until you remove them.
+        </p>
 
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <Heart className="w-8 h-8 text-red-500 fill-red-500" />
-          <div>
-            <h1 className="text-3xl font-sans text-foreground">Favourite Teachers</h1>
-            <p className="text-muted-foreground">
-              {likedTeachers.length === 0
-                ? 'No favourite teachers yet'
-                : `${likedTeachers.length} ${likedTeachers.length === 1 ? 'teacher' : 'teachers'} favourited`}
-            </p>
-          </div>
-        </div>
-
-        {/* Teachers Grid */}
         {likedTeachers.length === 0 ? (
-          <div className="text-center py-16">
-            <Heart className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-            <h2 className="text-xl font-sans text-foreground mb-2">No favourite teachers yet</h2>
-            <p className="text-muted-foreground mb-6">
-              Start exploring teachers and favourite the ones you're interested in!
-            </p>
-            <Link to="/all-tuition-teachers-in-kolkata">
-              <Button>Browse Teachers</Button>
-            </Link>
-          </div>
+          <EmptyResults
+            className="mt-6"
+            icon={<Heart className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+            heading="No favourite teachers yet"
+            message="Start exploring teachers and favourite the ones you're interested in."
+            action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
+          />
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {likedTeachers.map((teacher) => (
               <TeacherCard
                 key={teacher.id}
@@ -209,7 +225,8 @@ export default function LikedTeachers() {
                 imageUrl={teacher.image_url || undefined}
                 subjectSlug={teacher.subjects?.slug}
                 sirMaam={teacher.sirMaam}
-                isLiked={true} // All teachers on this page are liked
+                size="md"
+                showUpvotes={false}
               />
             ))}
           </div>
@@ -219,4 +236,3 @@ export default function LikedTeachers() {
     </div>
   );
 }
-

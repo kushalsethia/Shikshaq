@@ -3,12 +3,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, CheckCircle, XCircle, Clock, Lock, User as UserIcon, MessageCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Lock, MessageCircle, Trash2, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
+import { SURFACE_TOKENS, ACCENT_TOKENS } from '@/utils/searchFacets';
+import {
+  AdminConsole,
+  AdminTile,
+  AdminPill,
+  adminRowStyle,
+  adminRowListStyle,
+  adminPrimaryBtnStyle,
+  adminSecondaryBtnStyle,
+  adminDestructiveBtnStyle,
+  adminToast,
+  useAdminGuard,
+} from '@/components/AdminConsole';
 
 interface Comment {
   id: string;
@@ -28,6 +40,7 @@ interface Comment {
     grade: string | null;
     avatar_url: string | null;
   } | null;
+  approver_name: string | null;
   teachers_list: {
     name: string;
     slug: string;
@@ -35,6 +48,7 @@ interface Comment {
 }
 
 const COMMENTS_PAGE_SIZE = 50;
+const TINT = { bg: ACCENT_TOKENS.settledBg, text: ACCENT_TOKENS.settledText }; // #E6F4E6 / #1B5E20 per spec
 
 export default function AdminComments() {
   const { user } = useAuth();
@@ -42,8 +56,6 @@ export default function AdminComments() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [page, setPage] = useState(0);
 
@@ -92,7 +104,7 @@ export default function AdminComments() {
         if (import.meta.env.DEV) {
           console.error('Error fetching comments:', error);
         }
-        toast.error('Failed to load comments');
+        adminToast('Failed to load comments');
         return;
       }
 
@@ -104,8 +116,12 @@ export default function AdminComments() {
         return;
       }
 
-      // Batch fetch: one query for all unique profiles, one for all teachers (avoids N+1)
-      const userIds = [...new Set(rawComments.map((c: { user_id: string }) => c.user_id))];
+      // Batch fetch: one query for all unique profiles (commenters + approving admins), one for all teachers (avoids N+1)
+      const userIds = [...new Set(
+        rawComments.flatMap((c: { user_id: string; approved_by: string | null }) =>
+          c.approved_by ? [c.user_id, c.approved_by] : [c.user_id]
+        )
+      )];
       const teacherIds = [...new Set(rawComments.map((c: { teacher_id: string }) => c.teacher_id))];
 
       const [profilesRes, teachersRes] = await Promise.all([
@@ -130,11 +146,17 @@ export default function AdminComments() {
         (teachersRes.data || []).map((t: { id: string }) => [t.id, t])
       );
 
-      const commentsWithData = rawComments.map((comment: Record<string, unknown>) => ({
-        ...comment,
-        profiles: profilesMap.get(comment.user_id as string) || null,
-        teachers_list: teachersMap.get(comment.teacher_id as string) || null,
-      })) as Comment[];
+      const commentsWithData = rawComments.map((comment: Record<string, unknown>) => {
+        const approver = comment.approved_by
+          ? (profilesMap.get(comment.approved_by as string) as { full_name?: string | null } | undefined)
+          : null;
+        return {
+          ...comment,
+          profiles: profilesMap.get(comment.user_id as string) || null,
+          approver_name: approver?.full_name || (comment.approved_by ? 'an admin' : null),
+          teachers_list: teachersMap.get(comment.teacher_id as string) || null,
+        };
+      }) as unknown as Comment[];
 
       if (append) {
         setComments((prev) => [...prev, ...commentsWithData]);
@@ -147,7 +169,7 @@ export default function AdminComments() {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to load comments');
+      adminToast('Failed to load comments');
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -156,47 +178,11 @@ export default function AdminComments() {
 
   const loadMore = () => fetchComments(true);
 
-  // Check if current user is an admin
+  const { isAdmin, checkingAdmin } = useAdminGuard(user);
+
   useEffect(() => {
-    async function checkAdminStatus() {
-      if (!user) {
-        setCheckingAdmin(false);
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('admins')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (error) {
-          if (import.meta.env.DEV) {
-            console.error('Error checking admin status:', error);
-          }
-          setIsAdmin(false);
-        } else if (data && data.id === user.id) {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error checking admin status:', error);
-        }
-        setIsAdmin(false);
-      } finally {
-        setCheckingAdmin(false);
-        setLoading(false);
-      }
-    }
-
-    checkAdminStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+    if (!isAdmin && !checkingAdmin) setLoading(false);
+  }, [isAdmin, checkingAdmin]);
 
   // Refetch comments when filter changes
   useEffect(() => {
@@ -217,17 +203,17 @@ export default function AdminComments() {
         if (import.meta.env.DEV) {
           console.error('Error approving comment:', error);
         }
-        toast.error('Failed to approve comment');
+        adminToast('Failed to publish comment');
         return;
       }
 
-      toast.success('Comment approved successfully');
+      adminToast('Comment published');
       fetchComments();
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to approve comment');
+      adminToast('Failed to publish comment');
     }
   };
 
@@ -242,17 +228,17 @@ export default function AdminComments() {
         if (import.meta.env.DEV) {
           console.error('Error rejecting comment:', error);
         }
-        toast.error('Failed to reject comment');
+        adminToast('Failed to hide comment');
         return;
       }
 
-      toast.success('Comment rejected and deleted');
+      adminToast('Comment hidden');
       fetchComments();
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to reject comment');
+      adminToast('Failed to hide comment');
     }
   };
 
@@ -271,17 +257,17 @@ export default function AdminComments() {
         if (import.meta.env.DEV) {
           console.error('Error deleting comment:', error);
         }
-        toast.error('Failed to delete comment');
+        adminToast('Failed to delete comment');
         return;
       }
 
-      toast.success('Comment deleted');
+      adminToast('Comment deleted');
       fetchComments();
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);
       }
-      toast.error('Failed to delete comment');
+      adminToast('Failed to delete comment');
     }
   };
 
@@ -339,14 +325,14 @@ export default function AdminComments() {
   // Show loading state while checking admin status
   if (checkingAdmin || loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
+        <div className="container pt-6 sm:pt-8 pb-8 md:pt-8">
           <div className="animate-pulse">
-            <div className="h-8 w-48 bg-muted rounded mb-8" />
+            <div className="h-8 w-48 rounded mb-8" style={{ background: SURFACE_TOKENS.mutedFill }} />
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-32 bg-muted rounded-lg" />
+                <div key={i} className="h-32 rounded-2xl" style={{ background: SURFACE_TOKENS.field, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }} />
               ))}
             </div>
           </div>
@@ -359,16 +345,16 @@ export default function AdminComments() {
   // Show sign-in prompt if not authenticated
   if (!user) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
         <Navbar />
-        <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
+        <main className="container pt-6 sm:pt-8 pb-16 md:pt-16">
           <div className="max-w-md mx-auto">
-            <div className="bg-card rounded-3xl p-8 border border-border shadow-sm text-center">
-              <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h1 className="text-2xl font-sans text-foreground mb-2">
+            <div className="p-8 text-center" style={{ background: SURFACE_TOKENS.field, borderRadius: 24, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+              <Lock className="w-12 h-12 mx-auto mb-4" style={{ color: SURFACE_TOKENS.textTertiary }} />
+              <h1 className="mb-2" style={{ fontSize: 'clamp(20px,2.6vw,26px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>
                 Sign In Required
               </h1>
-              <p className="text-muted-foreground mb-6">
+              <p className="mb-6" style={{ color: SURFACE_TOKENS.textSecondary }}>
                 You need to sign in to access the admin panel.
               </p>
               <Link to="/auth">
@@ -377,7 +363,8 @@ export default function AdminComments() {
               <div className="mt-6">
                 <Link
                   to="/"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-sm transition-colors"
+                  style={{ color: SURFACE_TOKENS.textSecondary }}
                 >
                   <ArrowLeft className="w-4 h-4 inline mr-2" />
                   Back to home
@@ -394,22 +381,20 @@ export default function AdminComments() {
   // Show access denied if user is not an admin
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
         <Navbar />
-        <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
-          <div className="max-w-md mx-auto">
-            <div className="bg-card rounded-3xl p-8 border border-border shadow-sm text-center">
-              <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h1 className="text-2xl font-sans text-foreground mb-2">
-                Access Denied
-              </h1>
-              <p className="text-muted-foreground mb-6">
-                You don't have admin privileges to access this page.
-              </p>
-              <Link to="/">
-                <Button variant="outline">Back to Home</Button>
-              </Link>
-            </div>
+        <main className="container pt-6 sm:pt-8 pb-8 md:pt-8">
+          <div className="max-w-2xl mx-auto text-center">
+            <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>Access Denied</h1>
+            <p className="mb-6" style={{ color: SURFACE_TOKENS.textSecondary }}>
+              You need to be an admin to access this page.
+            </p>
+            <Link to="/">
+              <Button>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Go Home
+              </Button>
+            </Link>
           </div>
         </main>
         <Footer />
@@ -420,210 +405,128 @@ export default function AdminComments() {
   const pendingCount = comments.filter(c => !c.approved).length;
   const approvedCount = comments.filter(c => c.approved).length;
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      
-      <main className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
-        {/* Back Button */}
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to home
-        </Link>
+  const filterTabs: { key: typeof filter; label: string; count: number }[] = [
+    { key: 'pending', label: 'Pending', count: pendingCount },
+    { key: 'approved', label: 'Approved', count: approvedCount },
+    { key: 'all', label: 'All', count: comments.length },
+  ];
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-2">
-            Comment Moderation
-          </h1>
-          <p className="text-muted-foreground">
-            Review and approve comments submitted by users.
+  return (
+    <AdminConsole
+      activeTab="comments"
+      title="Reviews and comments"
+      subtitle="Published student reviews, newest first."
+      tint={TINT}
+      tabCount={pendingCount}
+    >
+      {/* Filter Tabs */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {filterTabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setFilter(tab.key)}
+            style={filter === tab.key ? adminPrimaryBtnStyle : adminSecondaryBtnStyle}
+          >
+            {tab.label} ({tab.count})
+          </button>
+        ))}
+      </div>
+
+      {/* Comments List */}
+      {comments.length === 0 ? (
+        <div className="text-center py-16" style={{ background: SURFACE_TOKENS.field, borderRadius: 16, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
+          <MessageCircle className="w-12 h-12 mx-auto mb-4" style={{ color: SURFACE_TOKENS.textTertiary, opacity: 0.6 }} />
+          <p style={{ color: SURFACE_TOKENS.textSecondary }}>
+            {filter === 'pending'
+              ? 'No pending comments to review.'
+              : filter === 'approved'
+              ? 'No approved comments yet.'
+              : 'No comments found.'}
           </p>
         </div>
+      ) : (
+        <>
+        <div style={adminRowListStyle}>
+          {comments.map((comment) => {
+            const avatarUrl = getCommentAvatar(comment);
+            const initials = getCommentInitials(comment);
+            const authorName = getCommentAuthorName(comment);
+            const authorInfo = getCommentAuthorInfo(comment);
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-border">
-          <button
-            onClick={() => setFilter('pending')}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-              filter === 'pending'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Pending ({pendingCount})
-          </button>
-          <button
-            onClick={() => setFilter('approved')}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-              filter === 'approved'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Approved ({approvedCount})
-          </button>
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-              filter === 'all'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            All ({comments.length})
-          </button>
-        </div>
+            return (
+              <div key={comment.id} style={{ ...adminRowStyle, alignItems: 'flex-start' }}>
+                {avatarUrl ? (
+                  <Avatar className="w-[42px] h-[42px] flex-shrink-0">
+                    <AvatarImage src={avatarUrl} />
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <AdminTile tint={TINT}>{initials}</AdminTile>
+                )}
 
-        {/* Comments List */}
-        {comments.length === 0 ? (
-          <div className="text-center py-16 bg-card rounded-2xl border border-border">
-            <MessageCircle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-            <p className="text-muted-foreground">
-              {filter === 'pending' 
-                ? 'No pending comments to review.' 
-                : filter === 'approved'
-                ? 'No approved comments yet.'
-                : 'No comments found.'}
-            </p>
-          </div>
-        ) : (
-          <>
-          <div className="space-y-4">
-            {comments.map((comment) => {
-              const avatarUrl = getCommentAvatar(comment);
-              const initials = getCommentInitials(comment);
-              const authorName = getCommentAuthorName(comment);
-              const authorInfo = getCommentAuthorInfo(comment);
-              
-              return (
-                <div
-                  key={comment.id}
-                  className="bg-card rounded-2xl p-6 border border-border hover:shadow-lg transition-shadow"
-                >
-                  <div className="flex gap-4">
-                    {/* Avatar */}
-                    <div className="flex-shrink-0">
-                      {avatarUrl ? (
-                        <Avatar className="w-12 h-12">
-                          <AvatarImage src={avatarUrl} />
-                          <AvatarFallback>{initials}</AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <UserIcon className="w-6 h-6 text-primary" />
-                        </div>
-                      )}
-                    </div>
+                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 15.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>
+                      {authorName}
+                    </span>
+                    <AdminPill tone={comment.approved ? 'settled' : 'pending'}>
+                      {comment.approved ? 'Published' : 'Pending'}
+                    </AdminPill>
+                  </div>
+                  <p style={{ marginTop: 4, fontSize: 13, lineHeight: 1.5, color: SURFACE_TOKENS.textTertiary }}>
+                    {[authorInfo, comment.teachers_list?.name || `Teacher ${comment.teacher_id}`, formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                  <p className="whitespace-pre-wrap break-words" style={{ marginTop: 10, color: SURFACE_TOKENS.textPrimary, fontSize: 14.5, lineHeight: 1.55 }}>
+                    {comment.comment}
+                  </p>
 
-                    {/* Comment Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-foreground">
-                              {authorName}
-                            </h4>
-                            {!comment.approved && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-600 border border-yellow-500/20">
-                                <Clock className="w-3 h-3" />
-                                Pending
-                              </span>
-                            )}
-                            {comment.approved && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-600 border border-green-500/20">
-                                <CheckCircle className="w-3 h-3" />
-                                Approved
-                              </span>
-                            )}
-                          </div>
-                          {authorInfo && (
-                            <p className="text-sm text-muted-foreground mb-1">
-                              {authorInfo}
-                            </p>
-                          )}
-                          <Link
-                            to={`/tuition-teachers/${comment.teachers_list?.slug || comment.teacher_id}`}
-                            className="text-sm text-primary hover:underline"
-                          >
-                            {comment.teachers_list?.name || `Teacher ${comment.teacher_id}`}
-                          </Link>
-                        </div>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                  <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 12 }}>
+                    {!comment.approved ? (
+                      <>
+                        <button onClick={() => handleApprove(comment.id)} style={adminPrimaryBtnStyle}>
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          Publish
+                        </button>
+                        <button onClick={() => handleReject(comment.id)} style={adminDestructiveBtnStyle}>
+                          Hide
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-xs" style={{ color: SURFACE_TOKENS.textTertiary }}>
+                          Published {comment.approved_at
+                            ? formatDistanceToNow(new Date(comment.approved_at), { addSuffix: true })
+                            : 'recently'}
+                          {comment.approver_name && <> by {comment.approver_name}</>}
                         </span>
-                      </div>
-                      
-                      <p className="text-foreground whitespace-pre-wrap break-words mb-4">
-                        {comment.comment}
-                      </p>
-
-                      {/* Action Buttons */}
-                      {!comment.approved ? (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprove(comment.id)}
-                            className="gap-2"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleReject(comment.id)}
-                            className="gap-2"
-                          >
-                            <XCircle className="w-4 h-4" />
-                            Reject
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground">
-                            Approved {comment.approved_at 
-                              ? formatDistanceToNow(new Date(comment.approved_at), { addSuffix: true })
-                              : 'recently'}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDelete(comment.id)}
-                            className="gap-2"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+                        <button onClick={() => handleDelete(comment.id)} style={adminDestructiveBtnStyle}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
+        </div>
+        {hasMore && (
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="min-w-[140px] disabled:opacity-60"
+              style={adminSecondaryBtnStyle}
+            >
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
           </div>
-          {hasMore && (
-            <div className="mt-6 flex justify-center">
-              <Button
-                variant="outline"
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="min-w-[140px]"
-              >
-                {loadingMore ? 'Loading…' : 'Load more'}
-              </Button>
-            </div>
-          )}
-        </>
         )}
-      </main>
-
-      <Footer />
-    </div>
+      </>
+      )}
+    </AdminConsole>
   );
 }
-

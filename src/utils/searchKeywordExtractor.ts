@@ -339,7 +339,12 @@ const SUBJECT_NORMALIZATION: Record<string, string> = {
 };
 
 const STOP_WORDS = new Set([
-  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'will', 'with', 'teacher', 'teachers', 'tutor', 'tutors', 'tuition', 'need', 'want', 'looking', 'find'
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'will', 'with', 'teacher', 'teachers', 'tutor', 'tutors', 'tuition', 'need', 'want', 'looking', 'find',
+  // Conversational filler. Without these, "best physics teacher" leaves "best"
+  // as the name query and fuzzy-matches it against real teacher names.
+  // NOTE: do not add 'home' (subject key for Home Science) or 'class'/'classes'
+  // (drive class-number extraction) — STOP_WORDS is checked before matching.
+  'i', 'me', 'my', 'we', 'you', 'best', 'good', 'top', 'great', 'near', 'nearby', 'around', 'please', 'any', 'some', 'someone', 'who', 'can', 'get', 'give', 'show', 'search', 'help'
 ]);
 
 // Experience filter buckets (same as FilterPanel). Map extracted years to bucket value.
@@ -356,11 +361,98 @@ const ADDRESS_INDICATORS = new Set([
 ]);
 
 function normalizeText(text: string): string {
-  return text.toLowerCase().trim();
+  return text
+    .toLowerCase()
+    // Drop apostrophes so "ma'am" and "maam" normalise to the same token.
+    .replace(/['’]/g, '')
+    // Punctuation becomes a separator, so "maths,physics" and "Maths!" tokenise
+    // the same way a space-separated query would. "+", "&" and "-" are kept:
+    // they carry meaning in "10+ years", "Drawing & Painting" and "pre-school".
+    .replace(/[^\p{L}\p{N}+&\-\s]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Optimal string alignment distance (Damerau-Levenshtein restricted to
+ * adjacent transpositions).
+ *
+ * Plain Levenshtein scores a transposition as 2, which would miss the most
+ * common phone typo: "englsih" for "english". Bails out early once the
+ * distance cannot beat `max`.
+ */
+function editDistance(a: string, b: string, max: number): number {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+
+  let prev2: number[] = [];
+  let prev: number[] = Array.from({ length: b.length + 1 }, (_, j) => j);
+  let curr: number[] = [];
+
+  for (let i = 1; i <= a.length; i++) {
+    curr = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let v = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        v = Math.min(v, prev2[j - 2] + 1);
+      }
+      curr[j] = v;
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > max) return max + 1;
+    prev2 = prev;
+    prev = curr;
+  }
+  return prev[b.length];
+}
+
+/**
+ * Typo-tolerant lookup against a controlled vocabulary.
+ *
+ * Only runs as a last resort, after every exact subject/area/board match has
+ * failed, so a correctly spelled term never reaches it. Kept deliberately
+ * tight — one edit for short words, two for long ones, and the first letter
+ * must match — because the tokens that land here are usually teacher names,
+ * and a loose threshold would turn a name into a subject filter.
+ */
+function fuzzyVocabMatch(word: string, vocab: Iterable<string>): string | null {
+  if (word.length < 5) return null;
+  const budget = word.length >= 8 ? 2 : 1;
+
+  let best: string | null = null;
+  let bestDist = budget + 1;
+
+  for (const term of vocab) {
+    // Multi-word vocabulary entries aren't comparable to a single token.
+    if (term.length < 5 || term.includes(' ')) continue;
+    if (term[0] !== word[0]) continue;
+    const d = editDistance(word, term, budget);
+    if (d < bestDist) {
+      bestDist = d;
+      best = term;
+      if (d === 1) break;
+    }
+  }
+  return bestDist <= budget ? best : null;
+}
+
+/**
+ * Removes a vocabulary term from the query as a whole word.
+ *
+ * Deliberately anchored: an unanchored replace lets the key "math" eat the
+ * middle of "mathematics" and leave "ematics" behind, which then gets fuzzy
+ * matched against teacher names. Escaped too, since these terms come from the
+ * subjects table and may contain regex characters.
+ */
+function stripTerm(text: string, term: string): string {
+  if (!term) return text;
+  return text.replace(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegex(term)}(?![\\p{L}\\p{N}])`, 'giu'), ' ');
 }
 
 export function extractFiltersFromQuery(query: string, subjects?: { name: string; slug: string }[]): Partial<FilterState> {
@@ -670,9 +762,35 @@ export function extractFiltersFromQuery(query: string, subjects?: { name: string
     // E. Mode & Size
     if (word === 'online' || word === 'offline') {
       extractedFilters.modeOfTeaching!.push(word.charAt(0).toUpperCase() + word.slice(1));
+      continue;
     }
     if (word === 'group' || word === 'solo') {
       extractedFilters.classSize!.push(word.charAt(0).toUpperCase() + word.slice(1));
+      continue;
+    }
+
+    // F. Typo fallback — last resort, so correctly spelled terms never reach it.
+    // Without this, "phyics" or "englsih" extracted nothing at all and the whole
+    // query fell through to a name search that could not match either.
+    const fuzzySubjectKey = fuzzyVocabMatch(word, Object.keys(SUBJECT_NORMALIZATION));
+    if (fuzzySubjectKey) {
+      const subject = SUBJECT_NORMALIZATION[fuzzySubjectKey];
+      if (!extractedFilters.subjects!.includes(subject)) extractedFilters.subjects!.push(subject);
+      continue;
+    }
+
+    const fuzzyAreaKey = fuzzyVocabMatch(word, Object.keys(AREA_NORMALIZATION));
+    if (fuzzyAreaKey) {
+      const area = AREA_NORMALIZATION[fuzzyAreaKey];
+      if (!extractedFilters.areas!.includes(area)) extractedFilters.areas!.push(area);
+      continue;
+    }
+
+    const fuzzyArea = fuzzyVocabMatch(word, AREAS.map(a => a.toLowerCase()));
+    if (fuzzyArea) {
+      const area = AREAS.find(a => a.toLowerCase() === fuzzyArea);
+      if (area && !extractedFilters.areas!.includes(area)) extractedFilters.areas!.push(area);
+      continue;
     }
   }
 
@@ -704,20 +822,21 @@ export function extractNameFromQuery(query: string, extractedFilters: Partial<Fi
   // Build subject normalization dynamically if subjects are provided
   const SUBJECT_NORMALIZATION = subjects ? buildSubjectNormalization(subjects) : BASE_SUBJECT_NORMALIZATION;
 
-  let remainingQuery = query.toLowerCase().trim();
-  
+  let remainingQuery = normalizeText(query);
+
   // Remove extracted subjects from query
   if (extractedFilters.subjects && extractedFilters.subjects.length > 0) {
     extractedFilters.subjects.forEach(subject => {
-      const subjectLower = subject.toLowerCase();
       // Remove subject and its variations
-      remainingQuery = remainingQuery.replace(new RegExp(subjectLower, 'gi'), '');
-      // Also check normalization map
-      Object.entries(SUBJECT_NORMALIZATION).forEach(([key, value]) => {
-        if (value === subject) {
-          remainingQuery = remainingQuery.replace(new RegExp(key, 'gi'), '');
-        }
-      });
+      remainingQuery = stripTerm(remainingQuery, subject.toLowerCase());
+      // Also check normalization map. Longest keys first so "mathematics" is
+      // consumed whole rather than "math" clipping it to "ematics".
+      Object.entries(SUBJECT_NORMALIZATION)
+        .filter(([, value]) => value === subject)
+        .sort(([a], [b]) => b.length - a.length)
+        .forEach(([key]) => {
+          remainingQuery = stripTerm(remainingQuery, key);
+        });
     });
   }
 
@@ -734,21 +853,21 @@ export function extractNameFromQuery(query: string, extractedFilters: Partial<Fi
   // Remove extracted areas from query
   if (extractedFilters.areas && extractedFilters.areas.length > 0) {
     extractedFilters.areas.forEach(area => {
-      const areaLower = area.toLowerCase();
-      remainingQuery = remainingQuery.replace(new RegExp(areaLower, 'gi'), '');
-      // Also check normalization map
-      Object.entries(AREA_NORMALIZATION).forEach(([key, value]) => {
-        if (value === area) {
-          remainingQuery = remainingQuery.replace(new RegExp(key, 'gi'), '');
-        }
-      });
+      remainingQuery = stripTerm(remainingQuery, area.toLowerCase());
+      // Also check normalization map (longest alias first)
+      Object.entries(AREA_NORMALIZATION)
+        .filter(([, value]) => value === area)
+        .sort(([a], [b]) => b.length - a.length)
+        .forEach(([key]) => {
+          remainingQuery = stripTerm(remainingQuery, key);
+        });
     });
   }
 
   // Remove extracted boards from query
   if (extractedFilters.boards && extractedFilters.boards.length > 0) {
     extractedFilters.boards.forEach(board => {
-      remainingQuery = remainingQuery.replace(new RegExp(board.toLowerCase(), 'gi'), '');
+      remainingQuery = stripTerm(remainingQuery, board.toLowerCase());
     });
   }
 
@@ -762,7 +881,19 @@ export function extractNameFromQuery(query: string, extractedFilters: Partial<Fi
   // Remove stop words and clean up
   const words = remainingQuery.split(/\s+/).filter(w => {
     const word = w.trim();
-    return word.length > 0 && !STOP_WORDS.has(word);
+    if (word.length === 0 || STOP_WORDS.has(word)) return false;
+
+    // A misspelled term that the extractor resolved fuzzily is still sitting
+    // here verbatim — stripTerm only removes correctly spelled aliases. Left in,
+    // "phyics" would extract Physics *and* run a name search for "phyics" that
+    // matches nobody, which is worse than not understanding the typo at all.
+    const fuzzySubject = fuzzyVocabMatch(word, Object.keys(SUBJECT_NORMALIZATION));
+    if (fuzzySubject && extractedFilters.subjects?.includes(SUBJECT_NORMALIZATION[fuzzySubject])) return false;
+
+    const fuzzyArea = fuzzyVocabMatch(word, Object.keys(AREA_NORMALIZATION));
+    if (fuzzyArea && extractedFilters.areas?.includes(AREA_NORMALIZATION[fuzzyArea])) return false;
+
+    return true;
   });
 
   return words.join(' ').trim();

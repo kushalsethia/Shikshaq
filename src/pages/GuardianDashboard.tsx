@@ -4,6 +4,8 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { TeacherCard } from '@/components/TeacherCard';
+import { EmptyResults } from '@/components/EmptyResults';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,13 +18,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Lock, Users } from 'lucide-react';
+import { Save, Lock, Users, Heart, CircleUserRound } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLikes } from '@/lib/likes-context';
+import { useStudiesWith } from '@/lib/studies-with-context';
 
 interface Subject {
   id: string;
   name: string;
   slug: string;
+}
+
+interface SavedTeacher {
+  id: string;
+  name: string;
+  slug: string;
+  image_url: string | null;
+  subjects: { name: string; slug: string } | null;
+  sirMaam?: string | null;
 }
 
 interface Profile {
@@ -40,6 +53,15 @@ interface Profile {
   student_school_board: string | null;
 }
 
+// Profile form field/label/panel styling, on the token system so the editable form matches
+// the rest of the page instead of falling back to shadcn's bare default input styling.
+const FIELD_CLASSNAME =
+  'h-auto min-h-12 rounded-lg border-0 bg-background text-base shadow-border focus-visible:ring-0 focus-visible:ring-offset-0';
+const LOCKED_FIELD_CLASSNAME = `${FIELD_CLASSNAME} cursor-not-allowed opacity-70`;
+const LABEL_CLASSNAME = 'mb-1.5 block text-sm font-semibold text-foreground';
+const SECTION_HEADING_CLASSNAME = 'text-lg font-semibold text-foreground';
+const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-background shadow-border';
+
 export default function GuardianDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -49,6 +71,10 @@ export default function GuardianDashboard() {
   const [studentSubjects, setStudentSubjects] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { likedTeacherIds, likedCount, loading: likesLoading } = useLikes();
+  const { studiesWithCount } = useStudiesWith();
+  const [savedTeachers, setSavedTeachers] = useState<SavedTeacher[]>([]);
+  const [savedTeachersLoading, setSavedTeachersLoading] = useState(true);
   const [formData, setFormData] = useState({
     phone: '',
     address: '',
@@ -80,12 +106,20 @@ export default function GuardianDashboard() {
       }
 
       try {
-        // Fetch profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        // These four queries are independent of one another (profile and guardianSubjects are
+        // keyed off user.id, subjects and the Shikshaqmine board list are global lookups) so
+        // they run concurrently via Promise.all instead of four sequential round-trips.
+        const [
+          { data: profileData, error: profileError },
+          { data: subjectsData },
+          { data: shikshaqData },
+          { data: guardianSubjectsData },
+        ] = await Promise.all([
+          supabase.from('profiles').select('*').eq('id', user.id).single(),
+          supabase.from('subjects').select('*').order('name'),
+          supabase.from('Shikshaqmine').select('"School Boards Catered"'),
+          supabase.from('guardian_student_subjects').select('subject_id').eq('guardian_id', user.id),
+        ]);
 
         if (profileError) {
           if (import.meta.env.DEV) {
@@ -95,7 +129,7 @@ export default function GuardianDashboard() {
           return;
         }
 
-        setProfile(profileData);
+        setProfile(profileData as Profile);
 
         // Populate form
         if (profileData) {
@@ -110,20 +144,9 @@ export default function GuardianDashboard() {
           });
         }
 
-        // Fetch all subjects
-        const { data: subjectsData } = await supabase
-          .from('subjects')
-          .select('*')
-          .order('name');
-
         if (subjectsData) {
           setSubjects(subjectsData);
         }
-
-        // Fetch unique boards from Shikshaqmine table
-        const { data: shikshaqData } = await supabase
-          .from('Shikshaqmine')
-          .select('"School Boards Catered"');
 
         const boardSet = new Set<string>();
         if (shikshaqData) {
@@ -142,16 +165,10 @@ export default function GuardianDashboard() {
         }
 
         // Convert to array and sort, or use default list if none found
-        const uniqueBoards = boardSet.size > 0 
+        const uniqueBoards = boardSet.size > 0
           ? Array.from(boardSet).sort()
           : ['CBSE', 'ICSE', 'IGCSE', 'IB', 'State Board'];
         setBoards(uniqueBoards);
-
-        // Fetch guardian's selected subjects for student
-        const { data: guardianSubjectsData } = await supabase
-          .from('guardian_student_subjects')
-          .select('subject_id')
-          .eq('guardian_id', user.id);
 
         if (guardianSubjectsData) {
           setStudentSubjects(guardianSubjectsData.map(s => s.subject_id));
@@ -167,6 +184,63 @@ export default function GuardianDashboard() {
 
     fetchData();
   }, [user]);
+
+  // Fetch full teacher records for the guardian's saved (liked) teachers
+  useEffect(() => {
+    async function fetchSavedTeachers() {
+      if (likesLoading) return;
+
+      if (likedTeacherIds.size === 0) {
+        setSavedTeachers([]);
+        setSavedTeachersLoading(false);
+        return;
+      }
+
+      try {
+        const teacherIds = Array.from(likedTeacherIds);
+        const { data: teachersData, error: teachersError } = await supabase
+          .from('teachers_list')
+          .select('id, name, slug, image_url, subjects(name, slug)')
+          .in('id', teacherIds);
+
+        if (teachersError) throw teachersError;
+
+        if (!teachersData || teachersData.length === 0) {
+          setSavedTeachers([]);
+          setSavedTeachersLoading(false);
+          return;
+        }
+
+        const slugs = teachersData.map((t) => t.slug);
+        const { data: shikshaqData } = await supabase
+          .from('Shikshaqmine')
+          .select('*')
+          .in('Slug', slugs);
+
+        const sirMaamMap = new Map<string, string | null>();
+        if (shikshaqData) {
+          shikshaqData.forEach((record: any) => {
+            sirMaamMap.set(record.Slug, record["Sir/Ma'am?"] || null);
+          });
+        }
+
+        setSavedTeachers(
+          teachersData.map((teacher) => ({
+            ...teacher,
+            sirMaam: sirMaamMap.get(teacher.slug) || null,
+          }))
+        );
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error fetching saved teachers:', error);
+        }
+      } finally {
+        setSavedTeachersLoading(false);
+      }
+    }
+
+    fetchSavedTeachers();
+  }, [likedTeacherIds, likesLoading]);
 
   // Helper function to convert yyyy-mm-dd to dd-mm-yyyy
   const formatDateForDisplay = (dateStr: string | null): string => {
@@ -200,17 +274,17 @@ export default function GuardianDashboard() {
     if (!dateStr) return false;
     const match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
     if (!match) return false;
-    
+
     const [, day, month, year] = match;
     const dayNum = parseInt(day, 10);
     const monthNum = parseInt(month, 10);
     const yearNum = parseInt(year, 10);
-    
+
     // Basic validation
     if (monthNum < 1 || monthNum > 12) return false;
     if (dayNum < 1 || dayNum > 31) return false;
     if (yearNum < 1900 || yearNum > 2100) return false;
-    
+
     // Check if date is valid (e.g., not 31 Feb)
     const date = new Date(yearNum, monthNum - 1, dayNum);
     return (
@@ -224,10 +298,10 @@ export default function GuardianDashboard() {
   const formatDateInput = (value: string): string => {
     // Remove all non-digit characters
     const digits = value.replace(/\D/g, '');
-    
+
     // Limit to 8 digits (ddmmyyyy)
     const limitedDigits = digits.slice(0, 8);
-    
+
     // Format as dd-mm-yyyy
     if (limitedDigits.length === 0) return '';
     if (limitedDigits.length <= 2) return limitedDigits;
@@ -237,7 +311,7 @@ export default function GuardianDashboard() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'phone') {
       // For phone number, only allow numeric characters
       const numericValue = value.replace(/\D/g, '');
@@ -345,7 +419,7 @@ export default function GuardianDashboard() {
         .single();
 
       if (updatedProfile) {
-        setProfile(updatedProfile);
+        setProfile(updatedProfile as Profile);
       }
 
       toast.success('Profile updated successfully');
@@ -363,12 +437,17 @@ export default function GuardianDashboard() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container pt-32 sm:pt-[120px] pb-8 md:pt-8">
+        <div className="container pt-8 pb-8">
           <div className="animate-pulse">
-            <div className="h-8 w-48 bg-muted rounded mb-8" />
+            <div className="mb-8 h-8 w-48 rounded-lg bg-muted" />
+            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-24 rounded-2xl bg-muted" />
+              ))}
+            </div>
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-24 bg-muted rounded-lg" />
+                <div key={i} className="h-24 rounded-lg bg-muted" />
               ))}
             </div>
           </div>
@@ -379,61 +458,175 @@ export default function GuardianDashboard() {
   }
 
   if (!profile || profile.role !== 'guardian') {
-    return null;
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container py-16 pb-16 text-center sm:py-20">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            {user ? 'Guardian account required' : 'Sign in required'}
+          </h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            {user
+              ? 'This dashboard is only available to guardian accounts.'
+              : 'Please sign in to view your dashboard.'}
+          </p>
+          <Button className="mt-6" onClick={() => navigate(user ? '/' : '/auth')}>
+            {user ? 'Go Home' : 'Sign In'}
+          </Button>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   // Get user email and name from auth (locked fields)
   const userEmail = user?.email || profile.email || '';
-  const userName = user?.user_metadata?.full_name || 
-                   user?.user_metadata?.name || 
-                   profile.full_name || 
+  const userName = user?.user_metadata?.full_name ||
+                   user?.user_metadata?.name ||
+                   profile.full_name ||
                    '';
+  const firstName = userName.split(' ')[0] || 'there';
+
+  const subLineParts = [
+    userEmail,
+    profile.student_name ? `Student: ${profile.student_name}` : null,
+    profile.student_grade ? `Class ${profile.student_grade}` : null,
+    profile.student_school_board || null,
+  ].filter(Boolean);
+
+  // Squircle stat-tile treatment (learning-education-squircles reference): a different flat
+  // token fill per tile. Kept neutral/mint — no brand orange/blue — so the accent budget stays
+  // spent on the "Save Changes" CTA.
+  const dashboardStats = [
+    { label: 'teachers you study with', value: studiesWithCount, fill: 'bg-card shadow-border' },
+    { label: 'teachers saved', value: likedCount, fill: 'bg-mint' },
+    { label: 'subjects selected', value: studentSubjects.length, fill: 'bg-muted' },
+  ];
+
+  // Profile-completeness ring — derived from already-loaded form state, no new fetching.
+  const completenessChecks = [
+    Boolean(formData.phone),
+    Boolean(formData.address),
+    Boolean(formData.relationship_to_student),
+    Boolean(formData.student_name),
+    Boolean(formData.student_date_of_birth),
+    Boolean(formData.student_grade),
+    Boolean(formData.student_school_board),
+    studentSubjects.length > 0,
+  ];
+  const completenessFilled = completenessChecks.filter(Boolean).length;
+  const completenessTotal = completenessChecks.length;
+  const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
-      <main className="container pt-32 sm:pt-30 pb-8 md:pt-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <Users className="w-8 h-8 text-primary" />
-              <h1 className="text-3xl md:text-4xl font-sans text-foreground">
-                Guardian Dashboard
-              </h1>
-            </div>
-            <p className="text-muted-foreground">
-              Manage your profile and student details
-            </p>
-          </div>
 
+      <main className="container pt-8 pb-16">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <Users className="h-7 w-7 text-brand-deep" />
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            Hi, {firstName}
+          </h1>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {subLineParts.length > 0 ? subLineParts.join(' · ') : 'Manage your profile and student details'}
+        </p>
+
+        {/* Stat tiles — squircle treatment, one flat fill per tile */}
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
+          {dashboardStats.map((st) => (
+            <div key={st.label} className={`rounded-2xl p-4 sm:p-6 ${st.fill}`}>
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {st.label}
+              </div>
+              <div className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-foreground">
+                {st.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Saved teachers */}
+        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Teachers you saved</h2>
+        {savedTeachersLoading ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="aspect-[4/5] animate-shimmer rounded-2xl bg-muted" />
+            ))}
+          </div>
+        ) : savedTeachers.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+            {savedTeachers.map((teacher) => (
+              <TeacherCard
+                key={teacher.id}
+                id={teacher.id}
+                name={teacher.name}
+                slug={teacher.slug}
+                subject={teacher.subjects?.name || 'Tuition Teacher'}
+                subjectSlug={teacher.subjects?.slug}
+                imageUrl={teacher.image_url || undefined}
+                sirMaam={teacher.sirMaam}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyResults
+            icon={<Heart className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+            heading="No saved teachers yet"
+            message="Tap the heart on any teacher's profile to save them here for later."
+            action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
+          />
+        )}
+
+        {/* Profile completeness — circular progress ring, computed from the loaded profile fields */}
+        <div className="mx-auto mt-11 flex max-w-4xl items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-6">
+          <div
+            className="relative flex h-16 w-16 flex-none items-center justify-center rounded-full"
+            style={{ background: `conic-gradient(hsl(var(--brand)) ${completenessPct * 3.6}deg, hsl(var(--muted)) 0deg)` }}
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card">
+              <CircleUserRound className="h-5 w-5 text-brand" strokeWidth={1.75} aria-hidden="true" />
+            </div>
+          </div>
+          <div>
+            <div className="text-base font-semibold text-foreground">Profile completeness</div>
+            <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+              {completenessFilled}/{completenessTotal} fields · {completenessPct}%
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-4xl">
           {/* Profile Form */}
-          <div className="bg-card rounded-2xl p-6 md:p-8 border border-border space-y-6">
+          <div className="mt-6 space-y-6 rounded-2xl bg-card p-5 shadow-border sm:p-8">
             {/* Locked Fields Section */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <h2 className="text-xl font-sans text-foreground flex items-center gap-2">
-                <Lock className="w-5 h-5 text-muted-foreground" />
+            <div className="space-y-4 border-b border-border pb-6">
+              <h2 className={`${SECTION_HEADING_CLASSNAME} flex items-center gap-2`}>
+                <Lock className="h-5 w-5 text-warm-meta" />
                 Account Information (Not Changeable)
               </h2>
-              
+
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Name</Label>
+                  <Label htmlFor="accountName" className={LABEL_CLASSNAME}>Name</Label>
                   <Input
+                    id="accountName"
                     value={userName}
                     disabled
-                    className="bg-muted cursor-not-allowed"
+                    className={LOCKED_FIELD_CLASSNAME}
                   />
                   <p className="text-xs text-muted-foreground">Imported from Google Auth</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label htmlFor="accountEmail" className={LABEL_CLASSNAME}>Email</Label>
                   <Input
+                    id="accountEmail"
                     value={userEmail}
                     disabled
-                    className="bg-muted cursor-not-allowed"
+                    className={LOCKED_FIELD_CLASSNAME}
                   />
                   <p className="text-xs text-muted-foreground">Imported from Google Auth</p>
                 </div>
@@ -441,12 +634,12 @@ export default function GuardianDashboard() {
             </div>
 
             {/* Guardian Information Section */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <h2 className="text-xl font-sans text-foreground">Guardian Information</h2>
+            <div className="space-y-4 border-b border-border pb-6">
+              <h2 className={SECTION_HEADING_CLASSNAME}>Guardian Information</h2>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number (Optional)</Label>
+                  <Label htmlFor="phone" className={LABEL_CLASSNAME}>Phone Number (Optional)</Label>
                   <Input
                     id="phone"
                     name="phone"
@@ -456,30 +649,48 @@ export default function GuardianDashboard() {
                     onChange={handleInputChange}
                     maxLength={10}
                     inputMode="numeric"
+                    className={FIELD_CLASSNAME}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="relationship_to_student">Relationship to Student (Optional)</Label>
-                  <Select
-                    value={formData.relationship_to_student || "__none__"}
-                    onValueChange={(value) => setFormData({ ...formData, relationship_to_student: value === "__none__" ? "" : value })}
-                  >
-                    <SelectTrigger id="relationship_to_student">
-                      <SelectValue placeholder="Select relationship" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      <SelectItem value="parent">Parent</SelectItem>
-                      <SelectItem value="sister/brother">Sister/Brother</SelectItem>
-                      <SelectItem value="grandparent">Grandparent</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className={LABEL_CLASSNAME}>Relationship to Student (Optional)</Label>
+                  {/* Segmented pill toggle — 4 fixed options, the dominant filter pattern per the
+                      squircles reference. Tap the active pill again to clear the selection. */}
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Relationship to student">
+                    {[
+                      { value: 'parent', label: 'Parent' },
+                      { value: 'sister/brother', label: 'Sister/Brother' },
+                      { value: 'grandparent', label: 'Grandparent' },
+                      { value: 'other', label: 'Other' },
+                    ].map((option) => {
+                      const selected = formData.relationship_to_student === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              relationship_to_student: selected ? '' : option.value,
+                            })
+                          }
+                          className={`min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ${
+                            selected
+                              ? 'bg-brand-blue text-brand-blue-foreground'
+                              : 'bg-muted text-foreground hover:bg-accent'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="address">Address (Optional)</Label>
+                  <Label htmlFor="address" className={LABEL_CLASSNAME}>Address (Optional)</Label>
                   <Textarea
                     id="address"
                     name="address"
@@ -487,6 +698,7 @@ export default function GuardianDashboard() {
                     value={formData.address}
                     onChange={handleInputChange}
                     rows={3}
+                    className={`${FIELD_CLASSNAME} min-h-[88px] py-3`}
                   />
                 </div>
               </div>
@@ -494,11 +706,11 @@ export default function GuardianDashboard() {
 
             {/* Student Details Section */}
             <div className="space-y-4">
-              <h2 className="text-xl font-sans text-foreground">Student Details</h2>
+              <h2 className={SECTION_HEADING_CLASSNAME}>Student Details</h2>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="student_name">Student Name (Optional)</Label>
+                  <Label htmlFor="student_name" className={LABEL_CLASSNAME}>Student Name (Optional)</Label>
                   <Input
                     id="student_name"
                     name="student_name"
@@ -506,11 +718,12 @@ export default function GuardianDashboard() {
                     placeholder="Enter student's name"
                     value={formData.student_name}
                     onChange={handleInputChange}
+                    className={FIELD_CLASSNAME}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="student_date_of_birth">Student Date of Birth (Optional)</Label>
+                  <Label htmlFor="student_date_of_birth" className={LABEL_CLASSNAME}>Student Date of Birth (Optional)</Label>
                   <Input
                     id="student_date_of_birth"
                     name="student_date_of_birth"
@@ -519,10 +732,10 @@ export default function GuardianDashboard() {
                     value={formData.student_date_of_birth}
                     onChange={handleInputChange}
                     maxLength={10}
-                    className="w-full"
+                    className={`w-full ${FIELD_CLASSNAME}`}
                   />
                   {formData.student_date_of_birth && !isValidDateFormat(formData.student_date_of_birth) && (
-                    <p className="text-xs text-red-500">Please enter a valid date in DD-MM-YYYY format</p>
+                    <p className="text-sm text-destructive">Please enter a valid date in DD-MM-YYYY format</p>
                   )}
                   {profile.student_age && (
                     <p className="text-xs text-muted-foreground">Age: {profile.student_age} years</p>
@@ -530,12 +743,12 @@ export default function GuardianDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="student_grade">Student Class/Grade (Optional)</Label>
+                  <Label htmlFor="student_grade" className={LABEL_CLASSNAME}>Student Class/Grade (Optional)</Label>
                   <Select
                     value={formData.student_grade || "__none__"}
                     onValueChange={(value) => setFormData({ ...formData, student_grade: value === "__none__" ? "" : value })}
                   >
-                    <SelectTrigger id="student_grade">
+                    <SelectTrigger id="student_grade" className={FIELD_CLASSNAME}>
                       <SelectValue placeholder="Select class/grade" />
                     </SelectTrigger>
                     <SelectContent>
@@ -561,12 +774,12 @@ export default function GuardianDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="student_school_board">Student School Board (Optional)</Label>
+                  <Label htmlFor="student_school_board" className={LABEL_CLASSNAME}>Student School Board (Optional)</Label>
                   <Select
                     value={formData.student_school_board || "__none__"}
                     onValueChange={(value) => setFormData({ ...formData, student_school_board: value === "__none__" ? "" : value })}
                   >
-                    <SelectTrigger id="student_school_board">
+                    <SelectTrigger id="student_school_board" className={FIELD_CLASSNAME}>
                       <SelectValue placeholder="Select school board" />
                     </SelectTrigger>
                     <SelectContent>
@@ -583,8 +796,10 @@ export default function GuardianDashboard() {
 
               {/* Subjects Selection */}
               <div className="space-y-3 pt-4 border-t border-border">
-                <Label>Subjects Interested In (Optional)</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-4 border border-border rounded-lg">
+                <Label className={LABEL_CLASSNAME}>Subjects Interested In (Optional)</Label>
+                <div
+                  className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}
+                >
                   {subjects.map((subject) => (
                     <div key={subject.id} className="flex items-center space-x-2">
                       <Checkbox
@@ -594,7 +809,7 @@ export default function GuardianDashboard() {
                       />
                       <Label
                         htmlFor={`subject-${subject.id}`}
-                        className="text-sm font-normal cursor-pointer"
+                        className="cursor-pointer text-sm font-normal text-warm-prose"
                       >
                         {subject.name}
                       </Label>
@@ -602,7 +817,7 @@ export default function GuardianDashboard() {
                   ))}
                 </div>
                 {subjects.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No subjects available</p>
+                  <p className="text-sm text-warm-meta">No subjects available</p>
                 )}
               </div>
             </div>
@@ -627,4 +842,3 @@ export default function GuardianDashboard() {
     </div>
   );
 }
-

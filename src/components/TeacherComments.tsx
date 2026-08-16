@@ -324,7 +324,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
       <div className="flex items-center gap-3 mb-6">
         <MessageCircle className="w-6 h-6 text-foreground" />
         <h2 className="text-2xl font-sans text-foreground">Reviews</h2>
-        <span className="text-muted-foreground">({comments.length})</span>
+        <span className="text-muted-foreground tabular-nums">({comments.length})</span>
       </div>
 
       {/* Comment Form - Only for authenticated users */}
@@ -489,7 +489,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-foreground">
+                        <h4 className="font-medium text-foreground truncate">
                           {getCommentAuthorName(comment)}
                         </h4>
                         {!comment.approved && user && comment.user_id === user.id && (
@@ -516,7 +516,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                           size="sm"
                           onClick={() => handleDeleteComment(comment.id)}
                           disabled={deletingCommentId === comment.id}
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                          className="h-10 w-10 p-0 text-muted-foreground hover:text-destructive"
                           title="Delete comment"
                         >
                           {deletingCommentId === comment.id ? (
@@ -544,7 +544,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                 onClick={() => setVisibleCommentsCount(prev => prev + 5)}
                 className="gap-2"
               >
-                Load more reviews ({comments.length - visibleCommentsCount} remaining)
+                Load more reviews (<span className="tabular-nums">{comments.length - visibleCommentsCount}</span> remaining)
               </Button>
             </div>
           )}

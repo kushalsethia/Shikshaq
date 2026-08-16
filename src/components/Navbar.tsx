@@ -1,39 +1,43 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, ExternalLink, BookMarked, FileText, ClipboardList } from 'lucide-react';
-import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
-import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Home, Search, HelpCircle, Menu, Heart, Shield, GraduationCap, Users, MessageSquare,
+  ThumbsUp, ExternalLink, BookMarked, FileText, ClipboardList, Info, type LucideIcon,
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/Logo';
-import { getWhatsAppLink } from '@/utils/whatsapp';
-import { validateImageSrc } from '@/utils/imageSanitizer';
+import { logger } from '@/utils/logger';
+import { useExitPresence } from '@/hooks/useExitPresence';
+import { useSearchExpanded } from '@/hooks/useSearchExpanded';
+import {
+  Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+} from '@/components/ui/sheet';
+import { ExpandableTabs, type ExpandableTab } from '@/components/ui/expandable-tabs';
+
+const NAV_TABS: ExpandableTab[] = [
+  { to: '/', label: 'Home', icon: Home, isActive: (p) => p === '/' },
+  { to: '/all-tuition-teachers-in-kolkata', label: 'Teachers', icon: GraduationCap, isActive: (p) => p.endsWith('-tuition-teachers-in-kolkata') },
+  { to: '/past-papers', label: 'Papers', icon: FileText, isActive: (p) => p === '/past-papers' },
+  { to: '/about', label: 'About', icon: Info, isActive: (p) => p === '/about' },
+];
+
+const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2';
 
 export function Navbar() {
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const lastScrollY = useRef(0);
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
   const { user, signOut, profile } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const userRole = (profile?.role as 'student' | 'guardian' | 'teacher') || null;
 
-  // Check if user is an admin (profile/role now comes from auth context)
   useEffect(() => {
     async function checkAdminStatus() {
       if (!user) {
         setIsAdmin(false);
         return;
       }
-
       try {
         const { data: adminData, error: adminError } = await supabase
           .from('admins')
@@ -42,391 +46,251 @@ export function Navbar() {
           .maybeSingle();
 
         if (adminError) {
-          if (import.meta.env.DEV) {
-            console.log('Error checking admin status:', adminError.message);
-          }
+          if (import.meta.env.DEV) logger.log('Error checking admin status:', adminError.message);
           setIsAdmin(false);
-        } else if (adminData && adminData.id === user.id) {
-          setIsAdmin(true);
         } else {
-          setIsAdmin(false);
+          setIsAdmin(Boolean(adminData));
         }
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error:', error);
-        }
+        if (import.meta.env.DEV) console.error('Error:', error);
         setIsAdmin(false);
       }
     }
-
     checkAdminStatus();
   }, [user]);
 
-  // Handle scroll detection for collapsing main navbar on mobile
+  // Close the mobile sheet on route change
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollPosition = Math.max(0, window.scrollY); // Prevent negative values
-      const previousScrollY = lastScrollY.current;
-      
-      // Use hysteresis with smoother thresholds
-      // Scrolling down: trigger at 10px (slightly higher to prevent immediate jump)
-      // Scrolling up: hide when back at top (0px) but keep state until fully at top
-      if (scrollPosition > previousScrollY) {
-        // Scrolling down
-        setIsScrolled(scrollPosition > 10);
-      } else if (scrollPosition < previousScrollY) {
-        // Scrolling up - only hide when fully at top
-        setIsScrolled(scrollPosition > 0);
-      }
-      // If scrollPosition === previousScrollY, keep current state
-      
-      lastScrollY.current = scrollPosition;
-    };
+    setMenuOpen(false);
+  }, [location.pathname]);
 
-    // Check initial scroll position
-    lastScrollY.current = Math.max(0, window.scrollY);
-    handleScroll();
+  const searchExpanded = useSearchExpanded();
+  const initial = (user?.email?.charAt(0) || '?').toUpperCase();
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+  // Nav track dissolve — VISUAL_LANGUAGE.md §9: the header's hairline/backdrop
+  // fades in once the page has scrolled past 48px, distinguishing "at top" from
+  // "scrolled" states. `prefers-reduced-motion` makes the transition instant via
+  // the global guard in index.css, so no separate branch is needed here.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 48);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const navItems = [
-    { path: '/', label: 'Home', icon: Home },
-    { path: '/all-tuition-teachers-in-kolkata', label: 'Browse', icon: Search },
-    { path: '/past-papers', label: 'PYQs', icon: FileText },
-  ];
-
-  const isActive = (path: string) => location.pathname === path;
-  const isBrowsePage = location.pathname === '/all-tuition-teachers-in-kolkata';
-  // Check if we're on a subject page (pattern: /{subject}-tuition-teachers-in-kolkata)
-  const isSubjectPage = /^\/[^\/]+-tuition-teachers-in-kolkata$/.test(location.pathname);
-
   return (
-    <>
-      <header className={`${isScrolled && !isBrowsePage && !isSubjectPage ? 'md:sticky fixed' : 'sticky'} top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 transition-transform duration-300 ease-in-out ${
-        isScrolled && !isBrowsePage && !isSubjectPage ? 'md:translate-y-0 -translate-y-full' : ''
-      }`}>
-        <div className="container mx-auto px-4">
-          <nav className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Logo size="md" desktopSize="lg" />
+    <header
+      className={`sticky top-0 backdrop-blur transition-colors duration-300 border-b ${
+        scrolled ? 'border-border bg-background/95' : 'border-transparent bg-background/70'
+      } ${searchExpanded ? 'z-30' : 'z-50'}`}
+    >
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+        {/* Mobile: short bar — logo + a single action. The bottom tab bar carries navigation. */}
+        <div className="flex h-14 items-center justify-between gap-4 lg:hidden">
+          <Logo size="nav" className="flex-none" />
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-1 bg-muted/50 rounded-full p-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`nav-link relative ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
-              >
-                <item.icon className={`w-4 h-4 ${isActive(item.path) ? 'text-[#FF8B16]' : ''}`} />
-                {item.label}
-                {isActive(item.path) && (
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-1 rounded-full" style={{ backgroundColor: '#FF8B16' }} />
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger
+              aria-label="Open menu"
+              className={`flex h-11 w-11 flex-none items-center justify-center rounded-full text-foreground shadow-border transition-colors duration-150 hover:bg-muted active:scale-[0.97] ${FOCUS_RING}`}
+            >
+              <Menu className="h-5 w-5" aria-hidden />
+            </SheetTrigger>
+
+            <SheetContent
+              side="bottom"
+              className="max-h-[80vh] overflow-y-auto rounded-t-2xl border-border bg-card p-4 pb-[env(safe-area-inset-bottom)]"
+            >
+              <SheetHeader className="pb-2">
+                <SheetTitle className="text-lg font-semibold">Menu</SheetTitle>
+              </SheetHeader>
+
+              <nav className="grid gap-1 pb-4">
+                <SheetLink to="/all-tuition-teachers-in-kolkata" icon={Search} label="Browse teachers" />
+                <SheetLink to="/past-papers" icon={FileText} label="Past papers" />
+                <hr className="my-2 border-border" />
+                <SheetLink to="/about" icon={Info} label="About us" />
+                <SheetLink to="/join" icon={ExternalLink} label="Join as a teacher" />
+                <SheetLink to="/more" icon={HelpCircle} label="Help" />
+                <SheetLink to="/faq" icon={HelpCircle} label="FAQ" />
+
+                {user ? (
+                  <>
+                    <hr className="my-2 border-border" />
+                    {userRole === 'student' && <SheetLink to="/dashboard/student" icon={GraduationCap} label="Student dashboard" />}
+                    {userRole === 'guardian' && <SheetLink to="/dashboard/guardian" icon={Users} label="Guardian dashboard" />}
+                    {userRole === 'teacher' && <SheetLink to="/dashboard/teacher" icon={GraduationCap} label="Teacher's dashboard" />}
+                    <SheetLink to="/liked-teachers" icon={Heart} label="Favourite teachers" />
+                    {userRole === 'student' && <SheetLink to="/my-teachers" icon={BookMarked} label="My teachers" />}
+                    {isAdmin && (
+                      <>
+                        <SheetLink to="/admin/recommendations" icon={Shield} label="Admin: Recommendations" />
+                        <SheetLink to="/admin/teachers" icon={GraduationCap} label="Admin: Teachers" />
+                        <SheetLink to="/admin/applications" icon={ClipboardList} label="Admin: Applications" />
+                        <SheetLink to="/admin/papers" icon={FileText} label="Admin: Past papers" />
+                      </>
+                    )}
+                    <button
+                      onClick={async () => {
+                        try {
+                          await signOut();
+                        } finally {
+                          window.location.href = '/';
+                        }
+                      }}
+                      className={`flex min-h-[44px] items-center rounded-lg px-3 text-base font-semibold text-destructive transition-colors duration-150 hover:bg-muted ${FOCUS_RING}`}
+                    >
+                      Sign out
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => navigate('/auth')}
+                    className={`mt-2 flex min-h-[44px] items-center justify-center rounded-lg bg-brand px-4 text-base font-semibold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover active:scale-[0.97] ${FOCUS_RING}`}
+                  >
+                    Sign in
+                  </button>
                 )}
-              </Link>
-            ))}
+              </nav>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        {/* Desktop: full navigation */}
+        <div className="hidden h-16 items-center gap-6 lg:flex">
+          <Logo size="nav" className="flex-none" />
+
+          <div
+            className={`flex flex-1 justify-center rounded-full transition-all duration-300 ${
+              scrolled ? 'bg-transparent p-0' : 'bg-warm-muted/70 p-1'
+            }`}
+          >
+            <ExpandableTabs
+              tabs={NAV_TABS}
+              pathname={location.pathname}
+              theme="light"
+              className="max-w-md"
+            />
           </div>
 
-          {/* Right Side - Mobile and Desktop */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-none items-center gap-3">
             <Link
               to="/join"
-              className="hidden md:block text-sm font-medium text-foreground/60 hover:text-foreground"
+              className={`flex min-h-[44px] items-center whitespace-nowrap rounded-lg px-2 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground ${FOCUS_RING}`}
             >
               Join as a teacher
             </Link>
-
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={user.user_metadata?.avatar_url ? validateImageSrc(user.user_metadata.avatar_url) : undefined} alt={user.email || ''} />
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {user.email?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem className="text-muted-foreground text-sm">
-                    {user.email}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {userRole === 'student' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard/student" className="flex items-center gap-2">
-                        <GraduationCap className="w-4 h-4" />
-                        Student Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {userRole === 'guardian' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard/guardian" className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        Guardian Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {userRole === 'teacher' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard/teacher" className="flex items-center gap-2">
-                        <GraduationCap className="w-4 h-4" />
-                        Teacher's Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem asChild>
-                    <Link to="/liked-teachers" className="flex items-center gap-2">
-                      <Heart className="w-4 h-4" />
-                      Favourite Teachers
-                    </Link>
-                  </DropdownMenuItem>
-                  {userRole === 'student' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/my-teachers" className="flex items-center gap-2">
-                        <BookMarked className="w-4 h-4" />
-                        My Teachers
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {isAdmin && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/recommendations" className="flex items-center gap-2">
-                          <Shield className="w-4 h-4" />
-                          Recommendations
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/comments" className="flex items-center gap-2">
-                          <MessageSquare className="w-4 h-4" />
-                          Comments
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/upvotes" className="flex items-center gap-2">
-                          <ThumbsUp className="w-4 h-4" />
-                          Upvotes
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/feedback" className="flex items-center gap-2">
-                          <MessageSquare className="w-4 h-4" />
-                          Feedback
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/teachers" className="flex items-center gap-2">
-                          <GraduationCap className="w-4 h-4" />
-                          Teachers
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/applications" className="flex items-center gap-2">
-                          <ClipboardList className="w-4 h-4" />
-                          Applications
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={async () => {
-                      try {
-                        await signOut();
-                        // Small delay to ensure state is cleared before redirect
-                        setTimeout(() => {
-                          window.location.href = '/';
-                        }, 100);
-                      } catch (error) {
-                        // Even if signOut throws, redirect to home
-                        window.location.href = '/';
-                      }
-                    }} 
-                    className="text-destructive"
-                  >
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <UserMenu user={user} userRole={userRole} isAdmin={isAdmin} signOut={signOut} initial={initial} />
             ) : (
-              <Link to="/auth">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <LogIn className="w-4 h-4" />
-                  <span className="hidden sm:inline">Sign in</span>
-                </Button>
+              <Link
+                to="/auth"
+                className={`flex min-h-[44px] items-center whitespace-nowrap rounded-lg bg-brand px-4 text-sm font-semibold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover active:scale-[0.97] ${FOCUS_RING}`}
+              >
+                Sign in
               </Link>
             )}
-
-            {/* Mobile Menu Button */}
-            <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden"
-                >
-                  {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 md:hidden">
-                <DropdownMenuItem asChild>
-                  <Link
-                    to="/"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-2 ${location.pathname === '/' ? 'bg-primary/10 text-primary font-semibold' : ''}`}
-                  >
-                    <Home className="w-4 h-4" />
-                    Home
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link
-                    to="/all-tuition-teachers-in-kolkata"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-2 ${location.pathname === '/all-tuition-teachers-in-kolkata' ? 'bg-primary/10 text-primary font-semibold' : ''}`}
-                  >
-                    <Search className="w-4 h-4" />
-                    Browse
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link
-                    to="/past-papers"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-2 ${location.pathname === '/past-papers' ? 'bg-primary/10 text-primary font-semibold' : ''}`}
-                  >
-                    <FileText className="w-4 h-4" />
-                    PYQs
-                  </Link>
-                </DropdownMenuItem>
-                {user && userRole === 'teacher' && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard/teacher" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 text-primary font-medium">
-                        <GraduationCap className="w-4 h-4" />
-                        View Profile
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-                <DropdownMenuItem asChild>
-                  <Link to="/more" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
-                    <HelpCircle className="w-4 h-4" />
-                    Help
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/faq" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
-                    <HelpCircle className="w-4 h-4" />
-                    FAQ
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/join" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
-                    <ExternalLink className="w-4 h-4" />
-                    Join as a teacher
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <div className="px-2 py-1.5">
-                  <div className="flex items-center gap-3 justify-center">
-                    <a
-                      href="mailto:join.shikshaq@gmail.com"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="p-2 rounded-lg hover:bg-muted transition-colors"
-                      aria-label="Gmail"
-                    >
-                      <Mail className="w-5 h-5" />
-                    </a>
-                    <a
-                      href="https://instagram.com/shikshaq.in"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="p-2 rounded-lg hover:bg-muted transition-colors"
-                      aria-label="Instagram"
-                    >
-                      <InstagramIcon className="w-5 h-5" />
-                    </a>
-                    <a
-                      href={getWhatsAppLink('8240980312')}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="p-2 rounded-lg hover:bg-muted transition-colors"
-                      aria-label="WhatsApp"
-                    >
-                      <WhatsAppIcon className="w-5 h-5" />
-                    </a>
-                  </div>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
-        </nav>
+        </div>
       </div>
     </header>
+  );
+}
 
-    {/* Mobile Floating Navigation Bar - Below Main Navbar */}
-    {isBrowsePage || isSubjectPage ? (
-      <div className="md:hidden sticky top-16 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
-        <div className="container mx-auto px-4">
-          <nav className="flex items-center justify-around h-14">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`relative flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-                  isActive(item.path)
-                    ? 'text-[#FF8B16]'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{item.label}</span>
-                {isActive(item.path) && (
-                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-1 rounded-full" style={{ backgroundColor: '#FF8B16' }} />
-                )}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </div>
-    ) : (
-      <div className={`md:hidden fixed left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-[top] duration-300 ease-in-out ${
-        isScrolled ? 'top-0' : 'top-16'
-      }`}>
-        <div className="container mx-auto px-4">
-          <nav className="flex items-center justify-around h-14">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`relative flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-                  isActive(item.path)
-                    ? 'text-[#FF8B16]'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{item.label}</span>
-                {isActive(item.path) && (
-                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-1 rounded-full" style={{ backgroundColor: '#FF8B16' }} />
-                )}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </div>
-    )}
-    </>
+function SheetLink({ to, icon: Icon, label }: { to: string; icon: LucideIcon; label: string }) {
+  return (
+    <SheetClose asChild>
+      <Link
+        to={to}
+        className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 text-base font-medium text-foreground transition-colors duration-150 hover:bg-muted ${FOCUS_RING}`}
+      >
+        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
+        {label}
+      </Link>
+    </SheetClose>
+  );
+}
+
+interface UserMenuProps {
+  user: NonNullable<ReturnType<typeof useAuth>['user']>;
+  userRole: 'student' | 'guardian' | 'teacher' | null;
+  isAdmin: boolean;
+  signOut: ReturnType<typeof useAuth>['signOut'];
+  initial: string;
+}
+
+function UserMenu({ user, userRole, isAdmin, signOut, initial }: UserMenuProps) {
+  const [open, setOpen] = useState(false);
+  const menuPresence = useExitPresence(open);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Account menu"
+        aria-expanded={open}
+        className={`flex h-11 w-11 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-brand-subtle active:scale-[0.97] ${FOCUS_RING}`}
+      >
+        {initial}
+      </button>
+      {menuPresence.mounted && (
+        <>
+          <div onClick={() => setOpen(false)} className="fixed inset-0 z-50" />
+          <div
+            className={`absolute right-0 top-full z-[51] mt-2 grid min-w-[220px] gap-1 rounded-2xl bg-card p-2 shadow-border-hover ${
+              menuPresence.closing ? 'animate-accordion-up' : 'animate-fade-slide-up'
+            }`}
+          >
+            <div className="truncate px-3 py-2 text-xs text-muted-foreground">{user.email}</div>
+            <hr className="border-border" />
+            {userRole === 'student' && <DropdownLink to="/dashboard/student" icon={GraduationCap} label="Student dashboard" onClick={() => setOpen(false)} />}
+            {userRole === 'guardian' && <DropdownLink to="/dashboard/guardian" icon={Users} label="Guardian dashboard" onClick={() => setOpen(false)} />}
+            {userRole === 'teacher' && <DropdownLink to="/dashboard/teacher" icon={GraduationCap} label="Teacher's dashboard" onClick={() => setOpen(false)} />}
+            <DropdownLink to="/liked-teachers" icon={Heart} label="Favourite teachers" onClick={() => setOpen(false)} />
+            {userRole === 'student' && <DropdownLink to="/my-teachers" icon={BookMarked} label="My teachers" onClick={() => setOpen(false)} />}
+            {isAdmin && (
+              <>
+                <hr className="border-border" />
+                <DropdownLink to="/admin/recommendations" icon={Shield} label="Recommendations" onClick={() => setOpen(false)} />
+                <DropdownLink to="/admin/comments" icon={MessageSquare} label="Comments" onClick={() => setOpen(false)} />
+                <DropdownLink to="/admin/upvotes" icon={ThumbsUp} label="Upvotes" onClick={() => setOpen(false)} />
+                <DropdownLink to="/admin/feedback" icon={MessageSquare} label="Feedback" onClick={() => setOpen(false)} />
+                <DropdownLink to="/admin/teachers" icon={GraduationCap} label="Teachers" onClick={() => setOpen(false)} />
+                <DropdownLink to="/admin/applications" icon={ClipboardList} label="Applications" onClick={() => setOpen(false)} />
+                <DropdownLink to="/admin/papers" icon={FileText} label="Past papers" onClick={() => setOpen(false)} />
+              </>
+            )}
+            <hr className="border-border" />
+            <button
+              onClick={async () => {
+                setOpen(false);
+                try {
+                  await signOut();
+                } finally {
+                  window.location.href = '/';
+                }
+              }}
+              className={`flex min-h-[44px] items-center rounded-lg px-3 text-sm font-semibold text-destructive transition-colors duration-150 hover:bg-muted ${FOCUS_RING}`}
+            >
+              Sign out
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DropdownLink({ to, icon: Icon, label, onClick }: { to: string; icon: LucideIcon; label: string; onClick: () => void }) {
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className={`flex min-h-[44px] items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted ${FOCUS_RING}`}
+    >
+      <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
+      {label}
+    </Link>
   );
 }

@@ -4,7 +4,6 @@
 # Default crawler rules
 User-agent: *
 Allow: /
-Crawl-delay: 1
 
 # Block private/authenticated pages
 Disallow: /auth
@@ -19,10 +18,18 @@ Disallow: /signup-success
 Disallow: /liked-teachers
 Disallow: /my-teachers
 
+# Block the application form itself (no unique searchable content, thin/duplicate
+# risk vs. /join which already ranks for "join as tuition teacher" intent) —
+# still reachable and crawlable via /join's link, just not indexed standalone.
+Disallow: /join/apply
+
 # Block deprecated/redirect routes
 Disallow: /help
 Disallow: /teacher/
 Disallow: /404
+
+# Block click-tracking interstitials
+Disallow: /*/whatsapp-click
 
 # Block API endpoints
 Disallow: /api/
