@@ -144,6 +144,7 @@ export default function TeacherProfile() {
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<TeacherReview[]>([]);
+  const [showAllReviews, setShowAllReviews] = useState(false);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const { user } = useAuth();
   const { isLiked, toggleLike } = useLikes();
@@ -704,7 +705,12 @@ export default function TeacherProfile() {
         </Link>
 
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-          {/* Left column */}
+          {/* Left column. Tried `sticky` here to keep the photo in view against the
+              taller text column — reverted: this site sets a global `overflow-x: hidden`
+              on <html> (needed to contain the decorative blob shapes), which breaks
+              viewport-relative `position: sticky` in this browser engine. Not worth
+              touching a global, site-wide overflow rule for one column on one page.
+              The review cap below (3, was unbounded) is the real fix for the height gap. */}
           <div className="relative">
             {/* Organic blob decoration behind the photo — mobile-vibes-event-app reference
                 (soft blob shapes as background decoration). Purely ornamental, tokens only,
@@ -823,6 +829,25 @@ export default function TeacherProfile() {
               </div>
             )}
 
+            {/* Primary CTA — the single accented action on this page (§7, §12): WhatsApp
+                contact. Moved up to sit right after subjects/stats instead of after the
+                description AND every review — a critique found it buried as the literal
+                last element on the page, under ~12 unedited testimonials, competing with
+                (and losing to) that wall of text. Nothing should out-scroll this button. */}
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-muted p-6">
+              <p className="max-w-[44ch] text-sm leading-6 text-warm-prose">
+                Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
+              </p>
+              <button
+                type="button"
+                onClick={handleWhatsAppClick}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3.5 text-sm font-semibold text-brand-foreground transition-transform duration-150 hover:bg-brand-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
+              >
+                <WhatsAppIcon className="h-[17px] w-[17px] text-brand-foreground" />
+                Contact via WhatsApp
+              </button>
+            </div>
+
             {descriptionHtml && (
               <>
                 <SectionHeading>Little more about {firstName}</SectionHeading>
@@ -846,11 +871,16 @@ export default function TeacherProfile() {
               </>
             )}
 
+            {/* Reviews capped to 3 with an explicit expand — a critique found this
+                rendering all ~12 raw testimonials unfiltered, which (a) is the single
+                largest, least-curated block of content on the page, the opposite of the
+                product's own "aesthetic and minimalist" bar, and (b) was blowing this
+                column's height wildly past the photo column's, since nothing bounded it. */}
             {!reviewsLoading && reviews.length > 0 && (
               <>
                 <SectionHeading>What students say</SectionHeading>
                 <div className="grid gap-2.5">
-                  {reviews.map((review) => (
+                  {(showAllReviews ? reviews : reviews.slice(0, 3)).map((review) => (
                     <div key={review.id} className="rounded-2xl bg-card p-5 shadow-border">
                       <p className="text-sm leading-6 text-warm-prose">{review.comment}</p>
                       <p className="mt-2.5 text-xs font-semibold text-warm-meta">
@@ -860,23 +890,17 @@ export default function TeacherProfile() {
                     </div>
                   ))}
                 </div>
+                {!showAllReviews && reviews.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllReviews(true)}
+                    className="flex min-h-11 w-fit items-center rounded-full bg-muted px-5 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-border active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    Show all {reviews.length} reviews
+                  </button>
+                )}
               </>
             )}
-
-            {/* Primary CTA — the single accented action on this page (§7, §12): WhatsApp contact. */}
-            <div className="mt-7 flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-muted p-6">
-              <p className="max-w-[44ch] text-sm leading-6 text-warm-prose">
-                Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
-              </p>
-              <button
-                type="button"
-                onClick={handleWhatsAppClick}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3.5 text-sm font-semibold text-brand-foreground transition-transform duration-150 hover:bg-brand-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
-              >
-                <WhatsAppIcon className="h-[17px] w-[17px] text-brand-foreground" />
-                Contact via WhatsApp
-              </button>
-            </div>
           </div>
         </div>
       </main>

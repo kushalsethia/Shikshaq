@@ -9,6 +9,12 @@ export interface ExpandableTab {
   label: string;
   icon: LucideIcon;
   isActive: (pathname: string) => boolean;
+  /** Mode color for the active fill (VISUAL_LANGUAGE §2.2: teacher-mode
+   *  surfaces are brand orange, papers-mode surfaces are brand blue).
+   *  Defaults to 'brand' — set 'brand-blue' on tabs whose destination is
+   *  the papers flow so the nav's active-tab color actually matches which
+   *  audience mode the user is in, instead of always being orange. */
+  accent?: 'brand' | 'brand-blue';
 }
 
 /**
@@ -57,6 +63,8 @@ export function ExpandableTabs({
         const active = tab.isActive(pathname);
         const expanded = active || peekIndex === index;
         const Icon = tab.icon;
+        const accentBg = tab.accent === 'brand-blue' ? 'bg-brand-blue' : 'bg-brand';
+        const accentRing = tab.accent === 'brand-blue' ? 'focus-visible:ring-brand-blue' : 'focus-visible:ring-brand';
 
         return (
           <li
@@ -73,10 +81,10 @@ export function ExpandableTabs({
               onMouseLeave={() => setPeekIndex((v) => (v === index ? null : v))}
               onFocus={() => !active && setPeekIndex(index)}
               onBlur={() => setPeekIndex((v) => (v === index ? null : v))}
-              className={`relative flex h-11 w-full items-center justify-center gap-1.5 overflow-hidden rounded-full transition-[background-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.94] ${
+              className={`relative flex h-11 w-full items-center justify-center gap-1.5 overflow-hidden rounded-full transition-[background-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 ${accentRing} focus-visible:ring-offset-2 active:scale-[0.94] ${
                 isDark
-                  ? `focus-visible:ring-offset-panel ${active ? 'bg-brand' : ''}`
-                  : `focus-visible:ring-offset-background ${active ? 'bg-brand shadow-border-hover' : 'text-foreground hover:bg-muted'}`
+                  ? `focus-visible:ring-offset-panel ${active ? accentBg : ''}`
+                  : `focus-visible:ring-offset-background ${active ? `${accentBg} shadow-border-hover` : 'text-foreground hover:bg-muted'}`
               }`}
             >
               <Icon

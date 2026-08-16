@@ -73,6 +73,24 @@ const SUBJECT_ALIASES: Record<string, string> = {
 
 const cache = new Map<string, SubjectColorSet>();
 
+/** WCAG contrast ratio between an HSL color and white — see the matching
+ *  comment in src/lib/subject-palette.ts's paletteFromSeed for why this
+ *  exists: seed.dark is intent carried from the spec's exact h/s/l values,
+ *  not a guarantee of real 4.5:1 contrast, and a few seeds' solids land
+ *  under that threshold despite reading as "dark" at a glance. */
+function whiteContrastRatio(h: number, s: number, l: number): number {
+  const sat = s / 100;
+  const lig = l / 100;
+  const a = sat * Math.min(lig, 1 - lig);
+  const channel = (n: number) => {
+    const k = (n + h / 30) % 12;
+    return lig - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+  };
+  const toLinear = (v: number) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  const luminance = 0.2126 * toLinear(channel(0)) + 0.7152 * toLinear(channel(8)) + 0.0722 * toLinear(channel(4));
+  return (1.0 + 0.05) / (luminance + 0.05);
+}
+
 /**
  * Resolve the colour set for a subject name (e.g. "Maths", "Computers",
  * "History & Civics"). Unknown/unseeded subjects get the neutral fallback.
@@ -93,7 +111,7 @@ export function getSubjectColors(subjectName: string | null | undefined): Subjec
         solid: `hsl(${seed.h} ${seed.s}% ${seed.l}%)`,
         titleText: `hsl(${seed.h} 45% 26%)`,
         metaText: `hsl(${seed.h} 28% 34%)`,
-        badgeText: seed.dark ? '#fff' : '#1F1F1F',
+        badgeText: whiteContrastRatio(seed.h, seed.s, seed.l) >= 4.5 ? '#fff' : '#1F1F1F',
       };
 
   cache.set(key, result);

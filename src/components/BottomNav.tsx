@@ -11,9 +11,11 @@ const DASHBOARD_PATHS = ['/dashboard/student', '/dashboard/guardian', '/dashboar
  * Hidden from `lg:` up, where the top Navbar carries navigation instead.
  *
  * Dark floating pill, detached from the screen edge. The active tab expands
- * to reveal its label next to the icon on a solid brand-orange background —
- * built on the shared `ExpandableTabs` primitive (framer-motion width/opacity
- * animation, active state driven by route via `useLocation()`).
+ * to reveal its label next to the icon on a solid mode-color background —
+ * brand orange for teacher-mode destinations, brand blue for the papers
+ * destination (VISUAL_LANGUAGE §2.2's two-mode color system) — built on the
+ * shared `ExpandableTabs` primitive (framer-motion width/opacity animation,
+ * active state driven by route via `useLocation()`).
  */
 export function BottomNav() {
   const location = useLocation();
@@ -43,6 +45,7 @@ export function BottomNav() {
       label: 'Papers',
       icon: FileText,
       isActive: (p) => p.startsWith('/past-papers'),
+      accent: 'brand-blue',
     },
     {
       to: accountPath,

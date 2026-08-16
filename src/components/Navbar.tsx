@@ -18,7 +18,7 @@ import { ExpandableTabs, type ExpandableTab } from '@/components/ui/expandable-t
 const NAV_TABS: ExpandableTab[] = [
   { to: '/', label: 'Home', icon: Home, isActive: (p) => p === '/' },
   { to: '/all-tuition-teachers-in-kolkata', label: 'Teachers', icon: GraduationCap, isActive: (p) => p.endsWith('-tuition-teachers-in-kolkata') },
-  { to: '/past-papers', label: 'Papers', icon: FileText, isActive: (p) => p === '/past-papers' },
+  { to: '/past-papers', label: 'Papers', icon: FileText, isActive: (p) => p.startsWith('/past-papers'), accent: 'brand-blue' },
   { to: '/about', label: 'About', icon: Info, isActive: (p) => p === '/about' },
 ];
 

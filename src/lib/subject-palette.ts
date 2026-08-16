@@ -119,14 +119,43 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${channel(0)}${channel(8)}${channel(4)}`;
 }
 
-/** Derive the five roles from a seed. Exported so new seeds can be added. */
+/** WCAG relative luminance of a `#RRGGBB` hex color (sRGB, no alpha). */
+function relativeLuminance(hex: string): number {
+  const [r, g, b] = [hex.slice(1, 3), hex.slice(3, 5), hex.slice(5, 7)].map((c) => {
+    const v = parseInt(c, 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two `#RRGGBB` hex colors. */
+function contrastRatio(a: string, b: string): number {
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
+  const [lighter, darker] = la > lb ? [la, lb] : [lb, la];
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/** Derive the five roles from a seed. Exported so new seeds can be added.
+ *
+ * `seed.dark` is the *intent* ("this solid color reads as a dark surface")
+ * carried over from VISUAL_LANGUAGE §3's exact h/s/l values, which are not
+ * ours to alter. But intent and measured contrast drifted apart for a few
+ * seeds (science/commerce/computer/hindi's solids land at 45-55% lightness —
+ * legible-looking but under 4.5:1 against white for body text). Rather than
+ * silently repaint the spec's colors, badgeText is picked by an actual WCAG
+ * contrast check against the real rendered solid, falling back to the dark
+ * NEUTRAL_TEXT reading whenever white wouldn't clear AA — the color stays
+ * exactly what the spec says, only which text sits on top of it changes. */
 export function paletteFromSeed(seed: SubjectSeed): SubjectPalette {
+  const solid = hslToHex(seed.h, seed.s, seed.l);
+  const badgeText = contrastRatio(solid, WHITE) >= 4.5 ? WHITE : NEUTRAL_TEXT;
   return {
     tint: hslToHex(seed.h, seed.s, TINT_L),
-    solid: hslToHex(seed.h, seed.s, seed.l),
+    solid,
     text: hslToHex(seed.h, TEXT_S, TEXT_L),
     meta: hslToHex(seed.h, META_S, META_L),
-    badgeText: seed.dark ? WHITE : NEUTRAL_TEXT,
+    badgeText,
   };
 }
 

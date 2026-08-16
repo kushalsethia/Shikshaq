@@ -23,6 +23,7 @@ import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKey
 import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
+import { getSubjectPalette } from '@/lib/subject-palette';
 
 
 interface Teacher {
@@ -1250,52 +1251,85 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
       <Navbar />
 
       <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-12">
-        <Link
-          to="/"
-          className="shikshaq-tap -mt-1.5 mb-3.5 inline-flex min-h-11 items-center py-1 text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
-        >
-          ← Home
-        </Link>
-        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-none">{getHeading()}</h1>
-        <div className="mt-3 flex items-end justify-between gap-2.5">
-          {/* Bold numeric stat callout (WAVE2_INSPO.md ref 05 — the "250 / Top" device),
-              replacing the old plain-text count line. Real data, not a placeholder. */}
-          <p className="flex items-baseline gap-2">
-            <span className="text-4xl sm:text-5xl font-bold leading-none tabular-nums text-brand-blue">
-              {loading ? '–' : teachers.length}
-            </span>
-            <span className="text-sm font-medium text-warm-secondary">
-              {loading ? 'Loading…' : teachers.length === 1 ? 'teacher matches' : 'teachers match'}
-            </span>
-          </p>
-
-          {/* HelpCircle anchor for the one-time "see papers instead" nudge. Deliberately placed
-              inline in the header row, not floating — Chatbot.tsx already owns a fixed
-              bottom-right "Ask AI" button on every page, and a second floating control there
-              would collide with/be confused for it. */}
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => handleSearchModeChange('papers')}
-              aria-label="Looking for exam papers instead? See past papers"
-              className="shikshaq-tap flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-warm-secondary shadow-border">
-                <HelpCircle size={17} />
+        {/* Gradient hero band — same device PastPapers/PaperResults use, so this
+            (the other most-trafficked page in the app) reads as the same product
+            instead of a flat white header. Constrained to main's own box rather
+            than full viewport bleed — this page's <main> carries the max-w-6xl
+            constraint directly (no separate full-width CONTAINER wrapper like
+            PastPapers has), and restructuring that for one gradient wasn't worth
+            the risk across a 1500-line file with a lot of filter/query logic
+            below it. Negative margin brings it flush to main's own edges. */}
+        <div className="-mx-4 -mt-4 rounded-b-[32px] bg-gradient-to-b from-brand-blue-subtle to-background px-4 pb-6 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pb-8 sm:pt-6 lg:-mx-8 lg:px-8">
+          <Link
+            to="/"
+            className="shikshaq-tap -mt-1.5 mb-3.5 inline-flex min-h-11 items-center py-1 text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+          >
+            ← Home
+          </Link>
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-none">{getHeading()}</h1>
+          <div className="mt-3 flex items-end justify-between gap-2.5">
+            {/* Bold numeric stat callout (WAVE2_INSPO.md ref 05 — the "250 / Top" device),
+                replacing the old plain-text count line. Real data, not a placeholder. */}
+            <p className="flex items-baseline gap-2">
+              <span className="text-4xl sm:text-5xl font-bold leading-none tabular-nums text-brand-blue">
+                {loading ? '–' : teachers.length}
               </span>
-            </button>
-            <Nudge
-              id="browse-see-papers"
-              message="Looking for exam papers instead? Tap here →"
-              onCtaClick={() => handleSearchModeChange('papers')}
-              align="right"
-            />
-          </div>
-        </div>
+              <span className="text-sm font-medium text-warm-secondary">
+                {loading ? 'Loading…' : teachers.length === 1 ? 'teacher matches' : 'teachers match'}
+              </span>
+            </p>
 
-        <div ref={searchControlWrapRef} className="mt-5 max-w-[820px]">
-          <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
-        </div>
+            {/* HelpCircle anchor for the one-time "see papers instead" nudge. Deliberately placed
+                inline in the header row, not floating — Chatbot.tsx already owns a fixed
+                bottom-right "Ask AI" button on every page, and a second floating control there
+                would collide with/be confused for it. */}
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => handleSearchModeChange('papers')}
+                aria-label="Looking for exam papers instead? See past papers"
+                className="shikshaq-tap flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-warm-secondary shadow-border">
+                  <HelpCircle size={17} />
+                </span>
+              </button>
+              <Nudge
+                id="browse-see-papers"
+                message="Looking for exam papers instead? Tap here →"
+                onCtaClick={() => handleSearchModeChange('papers')}
+                align="right"
+              />
+            </div>
+          </div>
+
+          <div ref={searchControlWrapRef} className="mt-5 max-w-[820px]">
+            <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
+          </div>
+
+          {/* Subject quick-picks — colorful, using the site's own strongest visual asset
+              (getSubjectPalette, the same tinted system the home page's subject grid uses)
+              instead of a plain grey dropdown as the primary way to narrow by subject.
+              A first attempt here was just a background gradient, which read as
+              imperceptible — this is the actual visible move: real color, on the page,
+              not behind it. Default-view only, same gating as the featured shelf below. */}
+          {isDefaultView && sortedSubjectsForDisplay.length > 0 && (
+            <div className="mt-6 flex flex-wrap gap-2.5">
+              {sortedSubjectsForDisplay.slice(0, 10).map((subject) => {
+                const palette = getSubjectPalette(subject.name);
+                return (
+                  <button
+                    key={subject.id}
+                    onClick={() => handleSubjectChange(subject.slug)}
+                    className="flex min-h-11 items-center rounded-full px-4 text-sm font-bold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                    style={{ backgroundColor: palette.solid, color: palette.badgeText }}
+                  >
+                    {subject.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
         {/* Featured teachers shelf — horizontal-scroll, drop-shadowed cards on the default
             (unfiltered, un-searched) view only, mirroring the PastPapers.tsx "Recently added"
@@ -1328,6 +1362,8 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
             </div>
           </div>
         )}
+        </div>
+        {/* ^ closes the gradient hero band opened above the "← Home" link */}
 
         {/* Structured filters (subject/class quick-pick + the advanced FilterPanel dialog)
             aren't part of the literal Browse.md mockup — that only models the applied-filter

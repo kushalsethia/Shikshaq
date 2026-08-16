@@ -19,13 +19,20 @@ import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache'
 
 // Real production shortcut destinations — the same routes the search results navigate to.
 // Surfaced as quick chips under the hero because most users tap rather than type.
-const SHORTCUTS: { label: string; to: string }[] = [
-  { label: 'Maths tutors', to: '/maths-tuition-teachers-in-kolkata' },
-  { label: 'ICSE teachers', to: '/icse-tuition-teachers-in-kolkata' },
-  { label: 'Class 10', to: '/all-tuition-teachers-in-kolkata?filter_classes=10' },
-  { label: 'English tuition', to: '/english-tuition-teachers-in-kolkata' },
-  { label: 'Class 12 papers', to: '/past-papers/results?filter_classes=12' },
-  { label: 'Tutors near Salt Lake', to: '/all-tuition-teachers-in-kolkata?filter_areas=Salt%20Lake' },
+// `subject` keys into getSubjectPalette for a real tint; `mode` is a flat
+// fallback (brand-orange for teacher-mode destinations, brand-blue for
+// papers-mode) for the shortcuts that aren't literally a subject (board,
+// class, location). Same device as Browse's subject-pill row — this row
+// was the same flat bg-card pattern Browse's dropdowns were before that
+// fix, and a light background tint alone already proved too subtle to
+// register as a real change.
+const SHORTCUTS: { label: string; to: string; subject?: string; mode?: 'brand' | 'brand-blue' }[] = [
+  { label: 'Maths tutors', to: '/maths-tuition-teachers-in-kolkata', subject: 'Maths' },
+  { label: 'ICSE teachers', to: '/icse-tuition-teachers-in-kolkata', mode: 'brand-blue' },
+  { label: 'Class 10', to: '/all-tuition-teachers-in-kolkata?filter_classes=10', mode: 'brand' },
+  { label: 'English tuition', to: '/english-tuition-teachers-in-kolkata', subject: 'English' },
+  { label: 'Class 12 papers', to: '/past-papers/results?filter_classes=12', mode: 'brand-blue' },
+  { label: 'Tutors near Salt Lake', to: '/all-tuition-teachers-in-kolkata?filter_areas=Salt%20Lake', mode: 'brand' },
 ];
 
 // Generic icon cycle for the hero's subject-tile row — decorative, not the
@@ -373,16 +380,29 @@ export default function Index() {
               {/* Quick chips — horizontal scroll row on mobile, wrapped rows on desktop. */}
               <div className="-mx-4 overflow-x-auto px-4 scrollbar-hide sm:mx-0 sm:px-0">
                 <ul className="flex w-max items-center gap-2 sm:w-full sm:flex-wrap">
-                  {SHORTCUTS.map((s) => (
-                    <li key={s.label}>
-                      <Link
-                        to={s.to}
-                        className="inline-flex h-11 items-center whitespace-nowrap rounded-full bg-card px-4 text-sm font-medium text-foreground shadow-border transition-colors duration-150 hover:bg-muted active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-                      >
-                        {s.label}
-                      </Link>
-                    </li>
-                  ))}
+                  {SHORTCUTS.map((s) => {
+                    const palette = s.subject ? getSubjectPalette(s.subject) : null;
+                    const style = palette
+                      ? { backgroundColor: palette.solid, color: palette.badgeText }
+                      : undefined;
+                    const modeClass =
+                      !palette && s.mode === 'brand-blue'
+                        ? 'bg-brand-blue text-white'
+                        : !palette
+                          ? 'bg-brand text-brand-foreground'
+                          : '';
+                    return (
+                      <li key={s.label}>
+                        <Link
+                          to={s.to}
+                          style={style}
+                          className={`inline-flex h-11 items-center whitespace-nowrap rounded-full px-4 text-sm font-bold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${modeClass}`}
+                        >
+                          {s.label}
+                        </Link>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
 

@@ -9,6 +9,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
 import { getSubjectPalette } from '@/lib/subject-palette';
+import { getWhatsAppLink } from '@/utils/whatsapp';
 
 interface Paper {
   id: string;
@@ -216,6 +217,47 @@ export default function PastPapers() {
               </div>
             </section>
           )}
+
+          {/* Honest empty state — the shelf above only renders when there ARE
+              recent papers, and with zero papers in the collection that
+              condition silently vanishes, leaving a visitor scrolling
+              straight from the hero into bare filter chrome with no signal
+              that there's no content yet. totalPapers === 0 (not null/
+              loading) means the fetch completed and genuinely found
+              nothing — show that honestly instead of pretending the shelf
+              devices below (By school/subject/board) are the real content. */}
+          {totalPapers === 0 && (
+            <section className={`${CONTAINER} pb-10`}>
+              <div className="flex flex-col items-start gap-4 rounded-4xl bg-card p-6 shadow-border sm:p-8">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-blue-subtle">
+                  <FileText className="h-6 w-6 text-brand-blue-deep" strokeWidth={1.75} aria-hidden="true" />
+                </span>
+                <div className="space-y-1.5">
+                  <h2 className="text-xl font-bold tracking-tight sm:text-2xl">The collection is just getting started</h2>
+                  <p className="max-w-prose text-sm text-muted-foreground sm:text-base">
+                    We're still gathering papers from Kolkata schools — nothing's uploaded yet. Ask for the one you need and
+                    we'll add it, or find a teacher who can help in the meantime.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    href={`${getWhatsAppLink('8240980312')}?text=${encodeURIComponent("Hi! I'm looking for a past paper on Shikshaq — could you add it?")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-h-11 items-center rounded-full bg-brand-blue px-6 text-sm font-semibold text-white transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                  >
+                    Request a paper
+                  </a>
+                  <button
+                    onClick={() => navigate('/all-tuition-teachers-in-kolkata')}
+                    className="flex min-h-11 items-center rounded-full bg-muted px-6 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-border active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    Browse teachers instead
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
 
         {/* --------------------------------------------------------- By school */}
@@ -333,30 +375,47 @@ export default function PastPapers() {
             {/* Rules #9: orange never carries white text, so this heading is dark
                 even though the prototype's spec copy called it a white h2. */}
             <h2 className="mb-6 text-[clamp(23px,3vw,34px)] font-bold leading-none text-foreground">By class &amp; board</h2>
-            <div className="flex flex-wrap gap-3">
-              {PAPER_CLASSES.map((c) => (
-                <button
-                  key={`class-${c}`}
-                  onClick={() => navigate(`/past-papers/results?filter_classes=${encodeURIComponent(c)}`)}
-                  className="flex min-h-11 items-center rounded-full bg-card px-[22px] text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-muted active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  Class {c}
-                </button>
-              ))}
-              {BOARDS.map((b) => (
-                <button
-                  key={`board-${b}`}
-                  onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
-                  className="flex min-h-11 items-center gap-2 rounded-full bg-brand-blue-subtle px-[22px] text-sm font-semibold text-brand-blue-deep transition-colors duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  {b}
-                  {boardCounts[b] > 0 && (
-                    <span className="rounded-full bg-brand-blue px-2 py-0.5 text-xs font-bold tabular-nums text-white">
-                      {boardCounts[b]}
-                    </span>
-                  )}
-                </button>
-              ))}
+
+            {/* Split into two labeled groups instead of one 17-pill unbroken block —
+                a critique flagged 12 class + 5 board pills as a single undifferentiated
+                choice list, the first decision point on the page. Sub-labels don't reduce
+                the real count (all 17 destinations still need to exist), but chunking with
+                a clear heading per group is the framework's own prescribed fix when the
+                underlying options can't be cut. */}
+            <div className="space-y-5">
+              <div>
+                <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-[.04em] text-foreground/60">Class</p>
+                <div className="flex flex-wrap gap-3">
+                  {PAPER_CLASSES.map((c) => (
+                    <button
+                      key={`class-${c}`}
+                      onClick={() => navigate(`/past-papers/results?filter_classes=${encodeURIComponent(c)}`)}
+                      className="flex min-h-11 items-center rounded-full bg-card px-[22px] text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-muted active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      Class {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-[.04em] text-foreground/60">Board</p>
+                <div className="flex flex-wrap gap-3">
+                  {BOARDS.map((b) => (
+                    <button
+                      key={`board-${b}`}
+                      onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
+                      className="flex min-h-11 items-center gap-2 rounded-full bg-brand-blue-subtle px-[22px] text-sm font-semibold text-brand-blue-deep transition-colors duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      {b}
+                      {boardCounts[b] > 0 && (
+                        <span className="rounded-full bg-brand-blue px-2 py-0.5 text-xs font-bold tabular-nums text-white">
+                          {boardCounts[b]}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </section>
