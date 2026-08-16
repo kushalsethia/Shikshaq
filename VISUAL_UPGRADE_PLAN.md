@@ -208,3 +208,69 @@ work was lost, both retries verified the final state cleanly). Audit findings:
   reverted mock data, no test credentials available), and all 8 admin pages (no admin account
   available). Both flagged clearly by their respective agents and again here — do a real
   signed-in pass on these before considering the dashboards/admin work fully done.
+
+---
+
+## Second overnight pass (2026-08-16, same day — owner review + fixes)
+
+The owner reviewed the first pass live and pushed back hard: devices were technically present
+but composed too lightly, buried too deep in the page (past-papers specifically was called
+"nothing like" its reference), and there was too much wasted spacing site-wide. This pass:
+
+**Rebuilt directly by the orchestrator (not delegated):**
+- `PastPapers.tsx` — added a `bg-gradient-to-b from-brand-blue-subtle to-background` hero band
+  (recreates the reference's colored-header energy with locked tokens), moved the "Recently
+  added" shelf to sit directly under the headline (was buried after two full-bleed colored
+  slabs), consolidated two redundant stat devices into one, tightened `SECTION` from
+  `py-16/20/24` to `py-8/10/12` (dense utility page, not a marketing page).
+- `OnboardingModal.tsx` — full rebuild from a small dialog/bottom-sheet to a full-bleed
+  `fixed inset-0` dark carousel per the "first-time-popup-design" reference: dominant flat-color
+  organic shape per screen (not a small blob tucked behind a tiny icon), centered layout,
+  full-width bright pill CTA. Also fixed a real bug in the process: the light-sheet version's
+  "neutral" screen used a `bg-white/10` blob at `blur-md`, which on the dark panel read as a
+  grey smudge rather than a shape (white loses almost all presence at 10% opacity there) — the
+  full rebuild uses brand-tinted shapes at higher opacity throughout.
+
+**8 parallel agents** — 4 full top-to-bottom redesigns (Home, Browse, About, Auth — About had
+never been touched before and was still 100% raw inline hex) plus 4 re-audits of the first
+pass's already-"completed" work (Footer+Nav, Dashboards+Admin+performance, TeacherProfile+Join,
+PaperResults+PaperReader) against the same higher bar the PastPapers rebuild set. Every agent
+was explicitly told to open and look at the actual reference image files, not just read
+descriptions, and to judge the first pass critically rather than assume it was sufficient.
+
+**Real bugs found and fixed along the way** (beyond the visual work):
+- N+1 query in `AdminFeedback.tsx` (one profile fetch per row) → batched into one `.in()` query.
+- Sequential (non-parallel) independent Supabase queries in `StudentDashboard.tsx` and
+  `GuardianDashboard.tsx` → `Promise.all()`.
+- Missing `loading="lazy"` on a `TeacherDashboard.tsx` image.
+- A real §13 a11y/data-honesty violation in `About.tsx` (bare "0" instead of the em-dash
+  fallback for a zero stat).
+- A stray hardcoded hex in `AdminTeachers.tsx` → swapped for the existing `ACCENT_TOKENS`.
+- `BottomNav` overlapping page content on `Auth.tsx` at short viewport heights (no bottom
+  clearance) — fixed as a byproduct of the spacing pass there.
+
+**Documented but not fixed** (flagged for a human, not urgent enough for a same-night fix):
+- `TeacherDashboard.tsx` fetches the signed-in user's profile row twice across two separate
+  effects — redundant round-trip, left alone since combining touches auth-redirect timing that
+  needs a real account to verify against.
+- `AdminTeachers.tsx` has its own duplicate admin-check instead of using the shared
+  `useAdminGuard` hook other admin pages use — not a bug, just inconsistent, worth consolidating.
+
+**Infrastructure note:** attempted to set up a Supabase dev branch with seed data so data-
+dependent sections (paper shelves, stat callouts) could be visually verified with real content
+instead of guessing from empty states — blocked, branching requires the Pro plan and this
+project isn't on it. Owner chose to continue without it; the safe workaround (inject mock data
+client-side, screenshot, fully revert, confirm via `git diff` nothing debug-related remains) was
+used throughout by every agent that needed to see a populated state.
+
+**Verification, this pass:** typecheck zero errors, build succeeds clean, zero new hardcoded hex
+anywhere in the diff (re-confirmed via full grep), zero leftover debug/mock markers in the
+codebase. Browser-pane screenshot tool had intermittent rendering artifacts tonight (screenshots
+occasionally showed cropped/cut-off content) — confirmed independently by at least 4 different
+agents to be a tool-side capture bug, not real DOM state, by cross-checking with
+`getBoundingClientRect()`/`elementFromPoint()` every time it happened. Trust the DOM checks over
+a suspicious screenshot in this codebase's session history.
+
+**Still not live-verified with a real account:** dashboards and admin pages (same limitation as
+the first pass — no test credentials, no seed-data branch available). This is the one thing a
+human still needs to do that no amount of further agent work can substitute for.

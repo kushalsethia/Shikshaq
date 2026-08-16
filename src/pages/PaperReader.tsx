@@ -240,40 +240,48 @@ export default function PaperReader() {
 
       <div className="pr-hide-print"><Navbar /></div>
 
-      <main className={`flex-1 ${CONTAINER} pb-16 pt-7`}>
-        <Link
-          to="/past-papers"
-          className="pr-hide-print mb-[18px] inline-flex min-h-11 items-center text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          ← Back to papers
-        </Link>
+      {/* Subtle continuation of the same hero token used on PastPapers.tsx /
+          PaperResults.tsx — kept to just the title/meta block, not the reading
+          area itself, so it reads as "same product" without competing with
+          the PDF the student is here to focus on. */}
+      <div className="pr-hide-print bg-gradient-to-b from-brand-blue-subtle to-background">
+        <div className={`${CONTAINER} pb-6 pt-7`}>
+          <Link
+            to="/past-papers"
+            className="mb-[18px] inline-flex min-h-11 items-center text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            ← Back to papers
+          </Link>
 
-        <div className="pr-hide-print mb-3.5 flex flex-wrap gap-1.5">
-          {colors && (
-            <span
-              className="inline-flex items-center rounded-full px-[11px] py-[5px] text-xs font-semibold"
-              style={{ backgroundColor: colors.solid, color: colors.badgeText }}
-            >
-              {paper.subject}
-            </span>
-          )}
-          <span className={tagPillClass('muted')}>Class {paper.class}</span>
-          <span className={tagPillClass('blue')}>{paper.board}</span>
-          <span className={tagPillClass('muted')}>{paper.exam_type}</span>
-          <span className={tagPillClass('muted')}>{paper.year}</span>
+          <div className="mb-3.5 flex flex-wrap gap-1.5">
+            {colors && (
+              <span
+                className="inline-flex items-center rounded-full px-[11px] py-[5px] text-xs font-semibold"
+                style={{ backgroundColor: colors.solid, color: colors.badgeText }}
+              >
+                {paper.subject}
+              </span>
+            )}
+            <span className={tagPillClass('muted')}>Class {paper.class}</span>
+            <span className={tagPillClass('blue')}>{paper.board}</span>
+            <span className={tagPillClass('muted')}>{paper.exam_type}</span>
+            <span className={tagPillClass('muted')}>{paper.year}</span>
+          </div>
+
+          <h1 className="text-[clamp(24px,3.2vw,36px)] font-bold leading-[1.03] text-foreground">{paper.title}</h1>
+
+          <div className="mt-3 flex flex-wrap gap-4 text-base font-medium text-warm-prose">
+            <span>{paper.school}</span>
+            <span>·</span>
+            <span>{paper.exam_type}</span>
+            <span>·</span>
+            <span>{paper.year}</span>
+          </div>
         </div>
+      </div>
 
-        <h1 className="pr-hide-print text-[clamp(24px,3.2vw,36px)] font-bold leading-[1.03] text-foreground">{paper.title}</h1>
-
-        <div className="pr-hide-print mt-3 flex flex-wrap gap-4 text-base font-medium text-warm-prose">
-          <span>{paper.school}</span>
-          <span>·</span>
-          <span>{paper.exam_type}</span>
-          <span>·</span>
-          <span>{paper.year}</span>
-        </div>
-
-        <div className="mt-4 rounded-xl bg-muted px-4 py-[11px] text-sm leading-relaxed text-warm-prose">
+      <main className={`flex-1 ${CONTAINER} pb-16 pt-6`}>
+        <div className="rounded-xl bg-muted px-4 py-[11px] text-sm leading-relaxed text-warm-prose">
           This paper is the property of {paper.school}. Shikshaq claims no ownership and hosts it as a free community resource.{' '}
           <a
             href={requestRemovalUrl(paper)}

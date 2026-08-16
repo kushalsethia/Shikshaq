@@ -36,6 +36,7 @@ interface Teacher {
   subjects_from_shikshaq?: string | null;
   classes_taught?: string | null;
   mode_of_teaching?: string | null;
+  is_featured?: boolean | null;
 }
 
 interface Subject {
@@ -639,7 +640,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
         if (!teachersData) {
           let query = supabase
             .from('teachers_list')
-            .select('id, name, slug, image_url, bio, location, subjects(name, slug)')
+            .select('id, name, slug, image_url, bio, location, is_featured, subjects(name, slug)')
             .order('is_featured', { ascending: false })
             .order('name')
             .limit(limit);
@@ -1102,6 +1103,20 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
       : []),
   ];
 
+  // Whether the page is showing the unfiltered, un-searched default view — the only
+  // context where a "Featured teachers" shelf makes sense (mixing it into an already-
+  // filtered/searched result set would be confusing, and would mean re-deriving which
+  // featured teachers also match the active filters for no real benefit).
+  const isDefaultView = !searchParams.get('q') && !selectedSubject && !selectedClass && filterChips.length === 0;
+
+  // Horizontal shelf source (VISUAL_UPGRADE_PLAN.md / WAVE2_INSPO.md ref 05, the
+  // books-app shelf) — real is_featured teachers already in hand from the main fetch,
+  // not a separate query or invented data.
+  const featuredTeachers = useMemo(() => {
+    if (!isDefaultView) return [];
+    return teachers.filter((t) => t.is_featured).slice(0, 8);
+  }, [teachers, isDefaultView]);
+
   // Subjects in display order for Browse dropdowns (UI only)
   const sortedSubjectsForDisplay = useMemo(() => {
     return [...subjects].sort((a, b) => {
@@ -1234,7 +1249,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-5 sm:pt-8 pb-16">
+      <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-12">
         <Link
           to="/"
           className="shikshaq-tap -mt-1.5 mb-3.5 inline-flex min-h-11 items-center py-1 text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
@@ -1242,9 +1257,16 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           ← Home
         </Link>
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-none">{getHeading()}</h1>
-        <div className="mt-2 flex items-center justify-between gap-2.5">
-          <p className="text-sm text-muted-foreground tabular-nums">
-            {loading ? 'Loading…' : `${teachers.length} teachers match`}
+        <div className="mt-3 flex items-end justify-between gap-2.5">
+          {/* Bold numeric stat callout (WAVE2_INSPO.md ref 05 — the "250 / Top" device),
+              replacing the old plain-text count line. Real data, not a placeholder. */}
+          <p className="flex items-baseline gap-2">
+            <span className="text-4xl sm:text-5xl font-bold leading-none tabular-nums text-brand-blue">
+              {loading ? '–' : teachers.length}
+            </span>
+            <span className="text-sm font-medium text-warm-secondary">
+              {loading ? 'Loading…' : teachers.length === 1 ? 'teacher matches' : 'teachers match'}
+            </span>
           </p>
 
           {/* HelpCircle anchor for the one-time "see papers instead" nudge. Deliberately placed
@@ -1274,6 +1296,38 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
         <div ref={searchControlWrapRef} className="mt-5 max-w-[820px]">
           <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
         </div>
+
+        {/* Featured teachers shelf — horizontal-scroll, drop-shadowed cards on the default
+            (unfiltered, un-searched) view only, mirroring the PastPapers.tsx "Recently added"
+            shelf pattern for consistency and the books-app shelf reference (ref 05). Real
+            is_featured data from the main fetch, not a static/decorative row. */}
+        {!loading && featuredTeachers.length > 0 && (
+          <div className="mt-6">
+            <h2 className="mb-3 text-lg font-semibold tracking-tight">Featured teachers</h2>
+            <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {featuredTeachers.map((teacher) => {
+                const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
+                const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+                const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
+                return (
+                  <div key={teacher.id} className="w-[150px] flex-none snap-start sm:w-[170px]">
+                    <TeacherCard
+                      id={teacher.id}
+                      name={teacher.name}
+                      slug={teacher.slug}
+                      subject={firstSubject}
+                      subjectSlug={teacher.subjects?.slug}
+                      imageUrl={teacher.image_url ?? undefined}
+                      sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
+                      isFeatured
+                      size="sm"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Structured filters (subject/class quick-pick + the advanced FilterPanel dialog)
             aren't part of the literal Browse.md mockup — that only models the applied-filter
@@ -1371,6 +1425,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
                     imageUrl={teacher.image_url ?? undefined}
                     sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
                     meta={meta || undefined}
+                    isFeatured={!!teacher.is_featured}
                     size="sm"
                   />
                 );

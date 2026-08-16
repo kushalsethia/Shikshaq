@@ -106,12 +106,20 @@ export default function GuardianDashboard() {
       }
 
       try {
-        // Fetch profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        // These four queries are independent of one another (profile and guardianSubjects are
+        // keyed off user.id, subjects and the Shikshaqmine board list are global lookups) so
+        // they run concurrently via Promise.all instead of four sequential round-trips.
+        const [
+          { data: profileData, error: profileError },
+          { data: subjectsData },
+          { data: shikshaqData },
+          { data: guardianSubjectsData },
+        ] = await Promise.all([
+          supabase.from('profiles').select('*').eq('id', user.id).single(),
+          supabase.from('subjects').select('*').order('name'),
+          supabase.from('Shikshaqmine').select('"School Boards Catered"'),
+          supabase.from('guardian_student_subjects').select('subject_id').eq('guardian_id', user.id),
+        ]);
 
         if (profileError) {
           if (import.meta.env.DEV) {
@@ -136,20 +144,9 @@ export default function GuardianDashboard() {
           });
         }
 
-        // Fetch all subjects
-        const { data: subjectsData } = await supabase
-          .from('subjects')
-          .select('*')
-          .order('name');
-
         if (subjectsData) {
           setSubjects(subjectsData);
         }
-
-        // Fetch unique boards from Shikshaqmine table
-        const { data: shikshaqData } = await supabase
-          .from('Shikshaqmine')
-          .select('"School Boards Catered"');
 
         const boardSet = new Set<string>();
         if (shikshaqData) {
@@ -172,12 +169,6 @@ export default function GuardianDashboard() {
           ? Array.from(boardSet).sort()
           : ['CBSE', 'ICSE', 'IGCSE', 'IB', 'State Board'];
         setBoards(uniqueBoards);
-
-        // Fetch guardian's selected subjects for student
-        const { data: guardianSubjectsData } = await supabase
-          .from('guardian_student_subjects')
-          .select('subject_id')
-          .eq('guardian_id', user.id);
 
         if (guardianSubjectsData) {
           setStudentSubjects(guardianSubjectsData.map(s => s.subject_id));

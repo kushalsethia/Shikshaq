@@ -673,33 +673,35 @@ export default function JoinApply() {
           ← Why join Shikshaq
         </Link>
 
-        {/* Stepper — numerals now sit on a connecting rail so the four steps read as one
+        {/* Stepper — numerals sit on a connecting rail so the four steps read as one
             continuous path rather than four loose chips (bolder card-based step
-            presentation per VISUAL_UPGRADE_PLAN, mobile-vibes reference). Ring instead of
-            flat bg on the current step gives it a touch more weight. Logic/order unchanged. */}
-        <div className="mb-8 flex items-center">
+            presentation per VISUAL_UPGRADE_PLAN, mobile-vibes reference). The current step's
+            numeral is now sized up (h-10 vs h-8) and filled solid brand instead of a same-size
+            ring — at equal size a ring reads as barely different from "done"/"upcoming",
+            which is the "too light a touch" the owner flagged. Logic/order unchanged. */}
+        <div className="mb-3 flex items-center">
           {STEPS.map((s, i) => {
             const state = i === step ? 'current' : i < step ? 'done' : 'upcoming';
             // "done" state uses mint/foreground — see success-token note above; no green
             // token exists in the design system.
             const numeralClass =
               state === 'current'
-                ? 'bg-card text-foreground ring-2 ring-foreground'
+                ? 'h-10 w-10 bg-brand text-brand-foreground shadow-border'
                 : state === 'done'
-                ? 'bg-mint text-foreground'
-                : 'bg-muted text-warm-meta';
+                ? 'h-8 w-8 bg-mint text-foreground'
+                : 'h-8 w-8 bg-muted text-warm-meta';
             const labelClass =
-              state === 'current' ? 'text-foreground' : state === 'done' ? 'text-warm-prose' : 'text-warm-meta';
+              state === 'current' ? 'font-bold text-foreground' : state === 'done' ? 'text-warm-prose' : 'text-warm-meta';
             const railClass = state === 'upcoming' ? 'bg-warm-hairline' : 'bg-mint';
             return (
               <div key={s.label} className={i === STEPS.length - 1 ? 'flex items-center shrink-0' : 'flex flex-1 items-center'}>
                 <div className="flex shrink-0 flex-col items-center gap-1.5 sm:flex-row sm:gap-2">
                   <span
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors duration-150 ${numeralClass}`}
+                    className={`flex shrink-0 items-center justify-center rounded-full text-xs font-bold transition-[background-color,color,width,height] duration-150 ${numeralClass}`}
                   >
                     {i + 1}
                   </span>
-                  <span className={`hidden text-sm font-semibold whitespace-nowrap sm:inline ${labelClass}`}>
+                  <span className={`hidden text-sm whitespace-nowrap sm:inline ${labelClass}`}>
                     {s.label}
                   </span>
                 </div>
@@ -710,6 +712,12 @@ export default function JoinApply() {
             );
           })}
         </div>
+        {/* Step label on mobile — the STEPS labels are hidden below sm: so a phone user only
+            ever saw bare numerals with no name for what step they're on. One honest line,
+            drawn from the same STEPS array, no new state. */}
+        <p className="mb-8 text-sm font-semibold text-warm-meta sm:hidden">
+          Step {step + 1} of {STEPS.length} · {STEPS[step].label}
+        </p>
 
         <form
           onSubmit={handleSubmit}

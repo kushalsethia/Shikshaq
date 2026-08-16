@@ -9,6 +9,7 @@ import { Footer } from '@/components/Footer';
 import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
+  AdminStatTiles,
   AdminTile,
   adminRowStyle,
   adminRowListStyle,
@@ -154,6 +155,15 @@ export default function AdminUpvotes() {
       tint={TINT}
       tabCount={upvoteStats.length}
     >
+      {upvoteStats.length > 0 && (
+        <AdminStatTiles
+          stats={[
+            { label: 'Teachers with upvotes', value: upvoteStats.length },
+            { label: 'Total upvotes', value: upvoteStats.reduce((sum, s) => sum + s.upvote_count, 0) },
+            { label: 'Top score', value: upvoteStats[0]?.upvote_count ?? 0 },
+          ]}
+        />
+      )}
       {upvoteStats.length === 0 ? (
         <div className="text-center py-16" style={{ background: SURFACE_TOKENS.field, borderRadius: 16, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
           <ThumbsUp className="w-16 h-16 mx-auto mb-4" style={{ color: SURFACE_TOKENS.textTertiary, opacity: 0.6 }} />

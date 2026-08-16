@@ -11,6 +11,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { SURFACE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
+  AdminStatTiles,
   AdminTile,
   AdminPill,
   adminRowStyle,
@@ -97,25 +98,27 @@ export default function AdminFeedback() {
         return;
       }
 
-      // Fetch profiles for logged-in users
-      const feedbackWithData = await Promise.all(
-        (data || []).map(async (item) => {
-          let profileData = null;
-          if (item.user_id && !item.is_guest) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('id, full_name, email, avatar_url')
-              .eq('id', item.user_id)
-              .maybeSingle();
-            profileData = profile;
-          }
+      // Batch fetch: one query for all unique logged-in-user profiles instead of one query per
+      // feedback row (was N+1 — every row awaited its own round-trip sequentially inside the
+      // Promise.all callback's `await`, since each callback still ran one query per item).
+      const rows = data || [];
+      const userIds = [...new Set(
+        rows.filter((item) => item.user_id && !item.is_guest).map((item) => item.user_id as string)
+      )];
 
-          return {
-            ...item,
-            profiles: profileData,
-          };
-        })
-      );
+      const { data: profilesData } = userIds.length > 0
+        ? await supabase
+            .from('profiles')
+            .select('id, full_name, email, avatar_url')
+            .in('id', userIds)
+        : { data: [] };
+
+      const profilesMap = new Map((profilesData || []).map((p) => [p.id, p]));
+
+      const feedbackWithData = rows.map((item) => ({
+        ...item,
+        profiles: item.user_id && !item.is_guest ? profilesMap.get(item.user_id) || null : null,
+      }));
 
       setFeedback(feedbackWithData);
     } catch (error) {
@@ -287,6 +290,20 @@ export default function AdminFeedback() {
       tint={TINT}
       tabCount={feedback.length}
     >
+      {feedback.length > 0 && (
+        <AdminStatTiles
+          stats={[
+            { label: 'Total responses', value: feedback.length },
+            {
+              label: 'Average rating',
+              value: (feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length).toFixed(1),
+            },
+            { label: 'Guest', value: feedback.filter((f) => f.is_guest).length },
+            { label: 'Logged in', value: feedback.filter((f) => !f.is_guest).length },
+          ]}
+        />
+      )}
+
       {/* Filter Tabs */}
       <div className="mb-4 flex gap-2 flex-wrap">
         {filterTabs.map((tab) => (

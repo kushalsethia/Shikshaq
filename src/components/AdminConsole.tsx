@@ -450,6 +450,46 @@ export const adminFieldStyle: CSSProperties = {
   minHeight: 48,
 };
 
+/**
+ * Squircle stat-tile row for admin console headers — the same device the dashboards use
+ * (learning-education-squircles reference: a different flat token fill per tile). Admin pages
+ * are internal tools so this stays a small, single-row summary rather than the dashboards'
+ * bigger hero treatment — but a page of nothing but rows and pills reads as flat, and this is
+ * a free device to reuse since it only ever renders numbers each page has already fetched.
+ */
+export function AdminStatTiles({ stats }: { stats: { label: string; value: number | string }[] }) {
+  const fills = [SURFACE_TOKENS.field, MODE_TOKENS.papers.tintBg, SURFACE_TOKENS.mutedFill, ACCENT_TOKENS.settledBg];
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${Math.min(stats.length, 4)}, minmax(0,1fr))`,
+        gap: 10,
+        marginBottom: 18,
+      }}
+    >
+      {stats.map((st, i) => (
+        <div
+          key={st.label}
+          style={{
+            borderRadius: 18,
+            padding: '14px 16px',
+            background: fills[i % fills.length],
+            boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.02em', textTransform: 'uppercase', color: SURFACE_TOKENS.textTertiary }}>
+            {st.label}
+          </div>
+          <div style={{ marginTop: 4, fontSize: 24, fontWeight: 700, color: SURFACE_TOKENS.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
+            {st.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const adminPanelStyle: CSSProperties = {
   background: SURFACE_TOKENS.field,
   boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,

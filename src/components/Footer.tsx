@@ -361,10 +361,10 @@ export function Footer({ expandedContent }: FooterProps = {}) {
 
   return (
     <footer className="bg-panel text-white">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
-        <div className="space-y-8">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-16">
+        <div className="space-y-7">
           {/* CTA tiles */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
             <Link
               to="/all-tuition-teachers-in-kolkata"
               className="relative rounded-2xl bg-brand p-4 sm:p-6 text-brand-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
@@ -513,14 +513,19 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               reading. No cursive/script webfont is loaded anywhere in this project
               (checked tailwind.config.ts + index.css), and VISUAL_LANGUAGE §0 forbids
               inventing new tokens/assets. Per the task's fallback instruction, this
-              reaches for the flourish with Geist itself: very large size, italic,
-              tight tracking, on the dark panel in off-white. */}
+              reaches for the flourish with Geist itself: maximal weight and size,
+              italic, tight tracking, on the dark panel in off-white — re-audited
+              against `02-truus-footer.png` and pushed heavier/bigger (font-black,
+              wider size ramp) so it reads with the same room-filling confidence as
+              the reference's script wordmark instead of a lighter typographic nod.
+              6 stickers now overlap the letterforms directly (not just parked in
+              the four corners), matching the reference's dense scattered cluster. */}
           {/* pb-6: the bottom-anchored sticker below needs clearance from its own
               rotation before the fixed mobile BottomNav's floating pill starts —
               caught during final QA when it was overlapping. */}
-          <div className="relative pt-4 pb-6" aria-hidden="true">
+          <div className="relative -mx-1 pt-2 pb-6 sm:pt-3" aria-hidden="true">
             <p
-              className="select-none text-6xl italic font-semibold leading-none tracking-tighter text-white/90 sm:text-8xl lg:text-9xl"
+              className="select-none whitespace-nowrap text-[19vw] italic font-black leading-none tracking-tighter text-white/95 sm:text-[15vw] lg:text-[168px]"
             >
               ShikshAQ
             </p>
@@ -528,20 +533,30 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             {/* Sticker cluster on the wordmark — same badge pattern as the "Free" CTA
                 sticker above (rounded, contrasting fill, rotated, small shadow),
                 content grounded in this app's own value props rather than the
-                reference's generic agency emoji. */}
-            <span className="pointer-events-none absolute left-[4%] -top-1 -rotate-6 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-brand-foreground shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+                reference's generic agency emoji. Spread across the full width and
+                pinned to sit ON the wordmark strokes, top and bottom, the way the
+                reference's stickers cross into its lettering rather than framing it. */}
+            <span className="pointer-events-none absolute left-[2%] -top-1 -rotate-6 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-brand-foreground shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
               <span className="inline-flex items-center gap-1">
                 <Star className="h-3 w-3 fill-current" strokeWidth={0} />
                 Verified
               </span>
             </span>
 
-            <span className="pointer-events-none absolute right-[6%] top-[38%] rotate-3 rounded-full bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.04em] text-panel shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+            <span className="pointer-events-none absolute left-[24%] top-[8%] rotate-3 rounded-full bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.04em] text-panel shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
               Free, always
             </span>
 
-            <span className="pointer-events-none absolute left-[22%] bottom-[6%] rotate-[8deg] rounded-full bg-brand-blue-subtle p-1.5 text-brand-blue-deep shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:p-2">
+            <span className="pointer-events-none absolute left-[46%] top-[42%] -rotate-6 rounded-full bg-brand-blue-subtle p-1.5 text-brand-blue-deep shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:p-2">
               <Heart className="h-3 w-3 fill-current sm:h-4 sm:w-4" strokeWidth={0} />
+            </span>
+
+            <span className="pointer-events-none absolute right-[20%] top-[10%] rotate-6 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-brand-foreground shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+              0% fee
+            </span>
+
+            <span className="pointer-events-none absolute left-[10%] bottom-[8%] rotate-[8deg] rounded-full bg-white p-1.5 text-panel shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:p-2">
+              <Star className="h-3 w-3 fill-current sm:h-4 sm:w-4" strokeWidth={0} />
             </span>
 
             <span className="pointer-events-none absolute right-[2%] bottom-2 -rotate-12 rounded-xl bg-panel px-2 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-white shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
@@ -553,7 +568,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
 
       {/* Find the best teachers section - EXPANDED content from teacher profiles */}
       {expandedContent && (
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pb-10">
           <div className="max-w-prose">
             <h2 className="text-lg font-semibold">Find the best teachers for you</h2>
             {isExpandedContentExpanded && (

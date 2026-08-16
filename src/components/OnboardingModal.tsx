@@ -5,13 +5,16 @@ import { cn } from "@/lib/utils";
 import { hasSeenOnboarding, markOnboardingSeen } from "@/lib/onboarding";
 
 // First-time-visitor onboarding. Shows once per browser (localStorage flag),
-// never again after dismissal — see src/lib/onboarding.ts. Built on Radix
-// Dialog primitives directly (not the shadcn DialogContent wrapper) so the
-// dark-panel look in VISUAL_LANGUAGE §2.1 can be fully custom while still
-// getting Radix's built-in focus trap, Escape-to-close, and portal for free.
+// never again after dismissal — see src/lib/onboarding.ts.
 //
-// DESIGN_SYSTEM §11: modals become sheets on mobile (bottom-anchored,
-// rounded-t-2xl), centered dialogs are sm: and up.
+// Full-bleed dark carousel, rebuilt per the "first-time-popup-design"
+// reference (docs/wave2-inspo — described in WAVE2_INSPO.md/
+// VISUAL_UPGRADE_PLAN.md since no file was given for it): each screen is
+// dominated by one large flat-color abstract shape as the hero graphic,
+// a bold headline below it, pagination dots, and a bright pill CTA — not a
+// small dialog card. Built on Radix Dialog primitives directly (not the
+// shadcn DialogContent wrapper) so this fully custom full-screen look can
+// still get Radix's focus trap, Escape-to-close, and portal for free.
 //
 // Screen-to-screen motion is a plain CSS transform transition (translate-x),
 // not framer-motion — DESIGN_SYSTEM §6 reserves framer-motion for the nav
@@ -52,10 +55,30 @@ const SCREENS: Screen[] = [
   },
 ];
 
-const MODE_STYLES: Record<ScreenMode, { chip: string; icon: string; blob: string }> = {
-  neutral: { chip: "bg-white/10 text-white/70", icon: "bg-white/10 text-white", blob: "bg-white/10" },
-  teachers: { chip: "bg-brand/20 text-brand", icon: "bg-brand text-white", blob: "bg-brand/25" },
-  papers: { chip: "bg-brand-blue/20 text-brand-blue", icon: "bg-brand-blue text-white", blob: "bg-brand-blue/25" },
+// Each screen gets a dominant flat-color shape (the reference's hero
+// graphic) plus a matching accent for the eyebrow chip, icon tile, and CTA.
+// bg-panel stays the page ground throughout — only the shape and accents
+// shift between screens, so the carousel reads as one product, not three
+// disconnected colors.
+const MODE_STYLES: Record<ScreenMode, { chip: string; icon: string; shape: string; cta: string }> = {
+  neutral: {
+    chip: "bg-brand/20 text-brand",
+    icon: "bg-brand text-white",
+    shape: "bg-brand/25",
+    cta: "bg-brand text-white",
+  },
+  teachers: {
+    chip: "bg-brand/20 text-brand",
+    icon: "bg-brand text-white",
+    shape: "bg-brand/25",
+    cta: "bg-brand text-white",
+  },
+  papers: {
+    chip: "bg-brand-blue/20 text-brand-blue",
+    icon: "bg-brand-blue text-white",
+    shape: "bg-brand-blue/25",
+    cta: "bg-brand-blue text-white",
+  },
 };
 
 export function OnboardingModal() {
@@ -83,22 +106,19 @@ export function OnboardingModal() {
     <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        {/* Full-bleed: fills the viewport on every breakpoint (not a sheet
+            growing into a centered card at sm:+) — the reference is a
+            full-screen carousel at every size. */}
         <DialogPrimitive.Content
           className={cn(
-            "fixed z-[100] flex flex-col overflow-hidden bg-panel text-white shadow-lg outline-none",
-            // Mobile: bottom sheet. Desktop (sm:+): centered dialog.
-            "inset-x-0 bottom-0 rounded-t-2xl",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-            "sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl",
-            "sm:data-[state=closed]:slide-out-to-bottom-0 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95"
+            "fixed inset-0 z-[100] flex flex-col overflow-hidden bg-panel text-white shadow-lg outline-none",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+            "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          {/* Drag-handle affordance, mobile sheet only (§11) */}
-          <div className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-white/20 sm:hidden" aria-hidden="true" />
-
           <DialogPrimitive.Close
-            className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full text-white/70 transition-colors duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full text-white/70 transition-colors duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-6 sm:top-6"
             aria-label="Skip onboarding"
           >
             <X className="h-5 w-5" aria-hidden="true" />
@@ -110,9 +130,9 @@ export function OnboardingModal() {
           </DialogPrimitive.Description>
 
           {/* Track: CSS transform transition only, no framer-motion (§6) */}
-          <div className="overflow-hidden">
+          <div className="flex-1 overflow-hidden">
             <div
-              className="flex transition-transform duration-300 ease-out"
+              className="flex h-full transition-transform duration-300 ease-out"
               style={{ transform: `translateX(-${step * 100}%)` }}
             >
               {SCREENS.map((screen, i) => {
@@ -121,40 +141,44 @@ export function OnboardingModal() {
                 return (
                   <div
                     key={screen.title}
-                    className="relative w-full shrink-0 overflow-hidden px-6 pb-8 pt-12 sm:px-8"
+                    className="flex h-full w-full shrink-0 flex-col items-center justify-center overflow-hidden px-6 pb-10 pt-16 text-center sm:px-10"
                     aria-hidden={i !== step}
                   >
-                    {/* Large flat-color abstract blob behind the icon — VISUAL_UPGRADE_PLAN's
-                        first-time-popup-design reference calls for a hero graphic per screen;
-                        an organic (non-rectangular) CSS shape stands in for a bespoke SVG asset,
-                        kept purely decorative so it never competes with the copy or the CTA. */}
-                    <div
-                      className={cn(
-                        "absolute -left-6 -top-8 h-32 w-32 rounded-[60%_40%_30%_70%/60%_30%_70%_40%] blur-md",
-                        styles.blob
-                      )}
-                      aria-hidden="true"
-                    />
-                    <div className={cn("relative z-10 mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg", styles.icon)}>
-                      <Icon className="h-6 w-6" aria-hidden="true" />
+                    {/* Dominant hero shape — the reference's defining device.
+                        Sized to be the clear focal point of the screen, not
+                        a background texture. */}
+                    <div className="relative mb-8 flex h-40 w-40 items-center justify-center sm:h-48 sm:w-48">
+                      <div
+                        className={cn(
+                          "absolute inset-0 rounded-[62%_38%_35%_65%/60%_35%_65%_40%]",
+                          styles.shape
+                        )}
+                        aria-hidden="true"
+                      />
+                      <div className={cn("relative flex h-20 w-20 items-center justify-center rounded-2xl shadow-lg sm:h-24 sm:w-24", styles.icon)}>
+                        <Icon className="h-9 w-9 sm:h-10 sm:w-10" aria-hidden="true" />
+                      </div>
                     </div>
+
                     <span
                       className={cn(
-                        "relative z-10 mb-3 inline-block rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide",
+                        "mb-4 inline-block rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide",
                         styles.chip
                       )}
                     >
                       {screen.eyebrow}
                     </span>
-                    <h2 className="relative z-10 text-2xl font-semibold tracking-tight sm:text-[28px]">{screen.title}</h2>
-                    <p className="relative z-10 mt-3 max-w-prose text-sm text-white/70">{screen.body}</p>
+                    <h2 className="max-w-sm text-[28px] font-semibold leading-tight tracking-tight sm:max-w-md sm:text-[34px]">
+                      {screen.title}
+                    </h2>
+                    <p className="mt-4 max-w-sm text-sm text-white/60 sm:max-w-md sm:text-base">{screen.body}</p>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-4 border-t border-white/10 px-6 py-4 sm:px-8">
+          <div className="flex flex-col items-center gap-6 px-6 pb-10 sm:pb-12">
             <div className="flex items-center gap-2" role="tablist" aria-label="Onboarding progress">
               {SCREENS.map((screen, i) => (
                 <button
@@ -176,7 +200,10 @@ export function OnboardingModal() {
               <button
                 type="button"
                 onClick={dismiss}
-                className="flex h-11 min-w-[44px] items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-panel transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className={cn(
+                  "flex h-12 w-full max-w-xs items-center justify-center rounded-full px-8 text-sm font-semibold transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
+                  MODE_STYLES[SCREENS[step].mode].cta
+                )}
               >
                 Get started
               </button>
@@ -184,7 +211,10 @@ export function OnboardingModal() {
               <button
                 type="button"
                 onClick={() => setStep((s) => Math.min(s + 1, SCREENS.length - 1))}
-                className="flex h-11 min-w-[44px] items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-panel transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className={cn(
+                  "flex h-12 w-full max-w-xs items-center justify-center rounded-full px-8 text-sm font-semibold transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
+                  MODE_STYLES[SCREENS[step].mode].cta
+                )}
               >
                 Next
               </button>

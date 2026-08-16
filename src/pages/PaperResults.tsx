@@ -166,19 +166,34 @@ export default function PaperResults() {
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
       <main className="flex-1">
-        <div className={`${CONTAINER} pb-16 pt-6 sm:pt-8`}>
-          <Link
-            to="/past-papers"
-            className="-m-1 mb-3 inline-flex min-h-11 items-center p-1 text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            ← Past Papers
-          </Link>
-          <h1 className="text-[clamp(25px,3.4vw,38px)] font-bold leading-none text-foreground">{heading}</h1>
-          <p className="mt-2 text-sm tabular-nums text-muted-foreground">
-            {loading ? 'Loading…' : `${total} paper${total === 1 ? '' : 's'}`}
-          </p>
+        {/* Lighter continuation of PastPapers.tsx's gradient hero — same token,
+            shallower band since this is a results list, not a landing page. */}
+        <div className="bg-gradient-to-b from-brand-blue-subtle to-background">
+          <div className={`${CONTAINER} pb-8 pt-6 sm:pt-8`}>
+            <Link
+              to="/past-papers"
+              className="-m-1 mb-3 inline-flex min-h-11 items-center p-1 text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              ← Past Papers
+            </Link>
+            <h1 className="text-[clamp(25px,3.4vw,38px)] font-bold leading-none text-foreground">{heading}</h1>
 
-          <div className="my-5">
+            {/* Bold-numeral stat callout, same weight/tracking/tabular-nums
+                treatment as PastPapers.tsx's totalPapers callout, scaled down
+                since this is a filtered subset rather than the whole collection. */}
+            <div className="mt-4 flex items-baseline gap-2.5">
+              <span className="text-2xl font-extrabold tabular-nums tracking-[-.02em] text-foreground">
+                {loading ? '—' : total.toLocaleString('en-IN')}
+              </span>
+              <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">
+                paper{total === 1 ? '' : 's'}{loading ? '' : ' found'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${CONTAINER} pb-16 pt-6 sm:pt-8`}>
+          <div className="mb-5">
             <FilterChips
               mode="papers"
               chips={filterChips}

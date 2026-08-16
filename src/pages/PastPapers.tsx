@@ -30,7 +30,10 @@ interface SchoolStat {
 }
 
 const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
-const SECTION = 'py-16 sm:py-20 lg:py-24';
+// Tighter than the marketing-page SECTION rhythm (py-16..24) — this is a
+// dense utility page stacking several full-bleed colored slabs; that much
+// air between them read as wasted space rather than breathing room.
+const SECTION = 'py-8 sm:py-10 lg:py-12';
 
 const PAPER_CLASSES = CLASSES.filter((c) => c !== 'UG');
 
@@ -148,56 +151,72 @@ export default function PastPapers() {
       <Navbar />
       <main className="flex-1">
         {/* ------------------------------------------------------------- Hero */}
-        <section className={`${CONTAINER} pb-8 pt-12 sm:pt-16 lg:pt-20`}>
-          <span className="inline-flex items-center rounded-full bg-brand-blue-subtle px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-[.04em] text-brand-blue-deep">
-            Free community resource
-          </span>
-          <h1 className="mt-5 max-w-3xl text-[clamp(31px,5.2vw,60px)] font-normal leading-[.95] tracking-[-.055em] text-foreground">
-            Past papers from <span className="font-extrabold">Kolkata schools</span>, shared by students, <span className="font-extrabold">for students</span>.
-          </h1>
-          <p className="mt-6 max-w-prose text-base text-muted-foreground sm:text-lg">
-            Real question papers set by real schools. Nothing to pay for, nothing to download, nothing hidden.
-          </p>
-          <div className="mt-7 max-w-3xl">
-            <SearchControl align="flex-start" stackedToggle initialMode="papers" onModeChange={handleSearchModeChange} />
-          </div>
-
-          {/* Device: momentum/highlight banner. Real, currently-queryable coverage
-              stat (subjects + boards already fetched into subjectCounts/
-              boardCounts) instead of the reference's fabricated "streak" /
-              "ahead of 81% of readers" claim. */}
-          {subjectsCovered > 0 && featuredBoards.length > 0 && (
-            <div className="mt-6 flex max-w-3xl items-center gap-3 rounded-2xl bg-brand-blue-subtle px-4 py-3">
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-blue text-sm font-extrabold tabular-nums text-white">
-                {subjectsCovered}
-              </span>
-              <p className="text-sm font-semibold text-brand-blue-deep">
-                Papers across {subjectsCovered} subject{subjectsCovered === 1 ? '' : 's'} and {featuredBoards.length} board{featuredBoards.length === 1 ? '' : 's'} ({BOARDS.filter((b) => boardCounts[b]).join(', ')}) — all free to read.
-              </p>
+        {/* Gradient band recreates the reference's colored-header energy with
+            our own locked blue token instead of its purple — fades to the
+            page ground by the time the shelf below starts, so it reads as
+            one hero moment, not a jarring color block. */}
+        <div className="bg-gradient-to-b from-brand-blue-subtle to-background">
+          <section className={`${CONTAINER} pb-10 pt-12 sm:pt-16 lg:pt-20`}>
+            <span className="inline-flex items-center rounded-full bg-card px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-[.04em] text-brand-blue-deep">
+              Free community resource
+            </span>
+            <h1 className="mt-5 max-w-3xl text-[clamp(31px,5.2vw,60px)] font-normal leading-[.95] tracking-[-.055em] text-foreground">
+              Past papers from <span className="font-extrabold">Kolkata schools</span>, shared by students, <span className="font-extrabold">for students</span>.
+            </h1>
+            <p className="mt-6 max-w-prose text-base text-muted-foreground sm:text-lg">
+              Real question papers set by real schools. Nothing to pay for, nothing to download, nothing hidden.
+            </p>
+            <div className="mt-7 max-w-3xl">
+              <SearchControl align="flex-start" stackedToggle initialMode="papers" onModeChange={handleSearchModeChange} />
             </div>
-          )}
 
-          {/* Device (c): bold numeric stat callout, restyling the existing
-              "Browse all X papers" line rather than adding a new element. */}
-          {totalPapers != null && totalPapers > 0 && (
-            <button
-              onClick={() => navigate('/past-papers/results?view=all')}
-              className="mt-6 flex min-h-11 w-fit items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-border transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              <span className="text-3xl font-extrabold tabular-nums tracking-[-.02em] text-foreground">
-                {totalPapers.toLocaleString('en-IN')}
-              </span>
-              <span className="flex flex-col items-start leading-tight">
-                <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">
-                  paper{totalPapers === 1 ? '' : 's'}
+            {/* Single consolidated stat line — was two overlapping devices
+                (a momentum banner and a separate "browse all" callout) doing
+                the same job of "here's how much is here." One honest,
+                currently-queryable number instead of the reference's
+                fabricated "streak" claim, styled with the same bold-numeral
+                weight as its "250 / Top" callout. */}
+            {totalPapers != null && totalPapers > 0 && (
+              <button
+                onClick={() => navigate('/past-papers/results?view=all')}
+                className="mt-7 flex min-h-11 w-fit items-center gap-3 rounded-2xl bg-card px-4 py-3 shadow-border transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <span className="text-3xl font-extrabold tabular-nums tracking-[-.02em] text-foreground">
+                  {totalPapers.toLocaleString('en-IN')}
                 </span>
-                <span className="flex items-center gap-1 text-sm font-semibold text-brand-blue-deep">
-                  Browse all <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="flex flex-col items-start leading-tight">
+                  <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">
+                    paper{totalPapers === 1 ? '' : 's'}
+                    {subjectsCovered > 0 && featuredBoards.length > 0
+                      ? ` · ${subjectsCovered} subject${subjectsCovered === 1 ? '' : 's'} · ${featuredBoards.length} board${featuredBoards.length === 1 ? '' : 's'}`
+                      : ''}
+                  </span>
+                  <span className="flex items-center gap-1 text-sm font-semibold text-brand-blue-deep">
+                    Browse all <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
                 </span>
-              </span>
-            </button>
+              </button>
+            )}
+          </section>
+
+          {/* ----------------------------------------------------- Recently added */}
+          {/* Device (a): horizontal-scroll paper-cover shelf, reusing PaperCard.
+              Moved to sit directly under the hero (was buried below two full
+              slabs) — this is the second thing the reference shows, right
+              after its headline, and it's the page's actual "browse" moment. */}
+          {recentPapers.length > 0 && (
+            <section className={`${CONTAINER} pb-10`}>
+              <h2 className="mb-5 text-2xl font-semibold tracking-tight sm:text-3xl">Recently added</h2>
+              <div className="flex snap-x snap-mandatory gap-[18px] overflow-x-auto border-b border-border pb-6 scrollbar-hide sm:grid sm:snap-none sm:grid-cols-2 sm:border-none sm:overflow-visible sm:pb-0 lg:grid-cols-3">
+                {recentPapers.map((p) => (
+                  <div key={p.id} className="w-[260px] flex-none snap-start sm:w-auto">
+                    <PaperCard paper={p} variant="recent" sticker={isNewThisWeek(p.created_at) ? 'New this week' : undefined} />
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
-        </section>
+        </div>
 
         {/* --------------------------------------------------------- By school */}
         {schoolStats.length > 0 && (
@@ -341,23 +360,6 @@ export default function PastPapers() {
             </div>
           </div>
         </section>
-
-        {/* ----------------------------------------------------- Recently added */}
-        {/* Device (a): horizontal-scroll paper-cover shelf, reusing PaperCard —
-            mobile-first snap-scroll row (DESIGN_SYSTEM §11), wraps into a grid
-            once there's room at sm: and up. */}
-        {recentPapers.length > 0 && (
-          <section className={`${CONTAINER} ${SECTION} pt-0`}>
-            <h2 className="mb-5 text-2xl font-semibold tracking-tight sm:text-3xl">Recently added</h2>
-            <div className="flex snap-x snap-mandatory gap-[18px] overflow-x-auto border-b border-border pb-6 scrollbar-hide sm:grid sm:snap-none sm:grid-cols-2 sm:border-none sm:overflow-visible sm:pb-0 lg:grid-cols-3">
-              {recentPapers.map((p) => (
-                <div key={p.id} className="w-[260px] flex-none snap-start sm:w-auto">
-                  <PaperCard paper={p} variant="recent" sticker={isNewThisWeek(p.created_at) ? 'New this week' : undefined} />
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* ------------------------------------------------------------ 3 steps */}
         <section className={`${CONTAINER} ${SECTION} pt-0`}>

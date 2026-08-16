@@ -4,7 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Heart, ArrowUp, Clock, Wallet, Users } from 'lucide-react';
+import { Heart, ArrowUp, Clock, Wallet, Users, ShieldCheck } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
@@ -133,7 +133,10 @@ function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <h2 className="mt-8 mb-3 text-lg font-semibold text-foreground">{children}</h2>;
+  // mt-6 (was mt-8) — teacher profiles stack many blocks (subjects, review, areas,
+  // testimonials) and the extra 8px per gap compounded into visibly loose rhythm
+  // by the time you scroll past 4-5 sections. Tightened per owner's spacing note.
+  return <h2 className="mt-6 mb-3 text-lg font-semibold text-foreground">{children}</h2>;
 }
 
 export default function TeacherProfile() {
@@ -706,13 +709,16 @@ export default function TeacherProfile() {
             {/* Organic blob decoration behind the photo — mobile-vibes-event-app reference
                 (soft blob shapes as background decoration). Purely ornamental, tokens only,
                 sits behind everything (-z-10) so it can never interfere with the photo or
-                the floating action buttons on top of it. */}
+                the floating action buttons on top of it. Sized up from the first pass — at
+                h-40/h-32 these read as a faint smudge behind the photo edge rather than the
+                bold background shape the reference shows; scaled ~35% bigger and pushed
+                further off-frame so more of the blob is actually visible past the card. */}
             <div
-              className="absolute -left-4 -top-6 -z-10 h-40 w-40 rounded-[55%_45%_65%_35%/50%_40%_60%_50%] bg-brand-subtle sm:-left-8 sm:-top-8 sm:h-56 sm:w-56"
+              className="absolute -left-8 -top-10 -z-10 h-52 w-52 rounded-[55%_45%_65%_35%/50%_40%_60%_50%] bg-brand-subtle sm:-left-14 sm:-top-14 sm:h-72 sm:w-72"
               aria-hidden="true"
             />
             <div
-              className="absolute -bottom-6 -right-4 -z-10 hidden h-32 w-32 rounded-[40%_60%_35%_65%/55%_35%_65%_45%] bg-brand-blue-subtle sm:block"
+              className="absolute -bottom-10 -right-8 -z-10 hidden h-40 w-40 rounded-[40%_60%_35%_65%/55%_35%_65%_45%] bg-brand-blue-subtle sm:block sm:h-52 sm:w-52"
               aria-hidden="true"
             />
 
@@ -733,6 +739,23 @@ export default function TeacherProfile() {
                   <span className="text-6xl font-bold text-foreground/20" aria-hidden="true">
                     {teacher.name.charAt(0)}
                   </span>
+                </div>
+              )}
+
+              {/* Verified badge — floating circular icon-button over the hero photo,
+                  opposite corner from the heart/upvote pair. Real data (teacher.is_verified),
+                  not decoration for its own sake: it's the one piece of trust signal
+                  DESIGN_SYSTEM §12 calls out ("reassurance: verification...") that wasn't
+                  visually surfaced anywhere on this page before. Informational, not
+                  actionable — brand-blue tint reads as a badge, never a second CTA next to
+                  the WhatsApp button below. */}
+              {teacher.is_verified && (
+                <div
+                  className="absolute left-2.5 top-2.5 flex h-11 items-center gap-1.5 rounded-full bg-brand-blue px-3.5 shadow-border"
+                  aria-hidden="true"
+                >
+                  <ShieldCheck size={15} className="text-white" strokeWidth={2.3} />
+                  <span className="text-xs font-bold text-white">Verified</span>
                 </div>
               )}
 
@@ -765,7 +788,15 @@ export default function TeacherProfile() {
           </div>
 
           {/* Right column */}
-          <div>
+          <div className="relative">
+            {/* Third blob behind the name/headline — the right column was left completely flat
+                by the first pass while the left column got two shapes; this closes that gap so
+                the blob decoration reads as one composition rather than a one-sided accent.
+                Well clear of the WhatsApp CTA further down, -z-10, never intercepts clicks. */}
+            <div
+              className="absolute -right-6 -top-8 -z-10 hidden h-44 w-44 rounded-[45%_55%_60%_40%/40%_55%_45%_60%] bg-brand-subtle lg:block"
+              aria-hidden="true"
+            />
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
               {formatDisplayName(teacher.name, teacher.sir_maam)}
             </h1>

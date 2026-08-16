@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { Logo } from '@/components/Logo';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
@@ -360,15 +360,21 @@ export default function Auth() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1">
-        <div className="max-w-[470px] mx-auto px-4 sm:px-6 pt-6 sm:pt-12 pb-16">
-          <div className="text-center mb-6">
-            <Logo size="lg" className="justify-center" />
+      <main className="flex-1 pb-20 lg:pb-0">
+        <div className="max-w-[470px] mx-auto px-4 sm:px-6 pt-4 sm:pt-8 pb-12">
+          <div className="text-center mb-5">
+            <span className="relative inline-flex">
+              <Logo size="lg" className="justify-center" />
+              <Sparkles
+                className="animate-sparkle absolute -right-3 -top-2 h-[14px] w-[14px] text-brand-blue opacity-0 [animation-delay:.3s]"
+                aria-hidden="true"
+              />
+            </span>
           </div>
 
           {/* Segmented tab pill — Sign in / Create account */}
           {!showResetPassword && (
-            <div className="flex gap-1 p-1 rounded-2xl bg-muted mb-6">
+            <div className="flex gap-1 p-1 rounded-2xl bg-muted mb-5">
               <button
                 type="button"
                 onClick={() => switchAuthMode(true)}
@@ -386,10 +392,16 @@ export default function Auth() {
             </div>
           )}
 
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
-            {showResetPassword ? 'Reset your password' : isLogin ? 'Welcome back' : 'Create your account'}
+          <h1 className="text-3xl sm:text-4xl font-normal tracking-tight leading-[.95] text-foreground">
+            {showResetPassword ? (
+              'Reset your password'
+            ) : isLogin ? (
+              <>Welcome <span className="font-extrabold">back.</span></>
+            ) : (
+              <>Join the <span className="font-extrabold">tutor hunt.</span></>
+            )}
           </h1>
-          <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+          <p className="mt-2 text-base leading-relaxed text-muted-foreground">
             {showResetPassword
               ? 'Enter your new password below'
               : isLogin
@@ -404,7 +416,7 @@ export default function Auth() {
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                className="shikshaq-tap flex items-center justify-center gap-2 w-full min-h-11 mt-6 p-4 rounded-lg bg-card shadow-border text-base font-semibold text-foreground"
+                className="shikshaq-tap flex items-center justify-center gap-2 w-full min-h-11 mt-5 p-4 rounded-lg bg-card shadow-border text-base font-semibold text-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98]"
               >
                 <GoogleIcon size={20} />
                 Continue with Google
@@ -458,8 +470,9 @@ export default function Auth() {
               <button
                 type="submit"
                 disabled={loading}
-                className="shikshaq-tap w-full min-h-[52px] p-4 rounded-lg bg-foreground text-background text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                className="shikshaq-tap flex w-full min-h-[52px] items-center justify-center gap-2 p-4 rounded-lg bg-foreground text-background text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
               >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                 {loading ? 'Updating password...' : 'Update Password'}
               </button>
             </form>
@@ -582,8 +595,9 @@ export default function Auth() {
                       type="button"
                       onClick={handleForgotPassword}
                       disabled={loading}
-                      className="shikshaq-tap flex-1 min-h-12 rounded-lg bg-foreground text-background text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="shikshaq-tap flex flex-1 min-h-12 items-center justify-center gap-2 rounded-lg bg-foreground text-background text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                     >
+                      {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                       {loading ? 'Sending...' : 'Send Reset Link'}
                     </button>
                   </div>
@@ -617,8 +631,9 @@ export default function Auth() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="shikshaq-tap w-full min-h-[52px] p-4 rounded-lg bg-foreground text-background text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="shikshaq-tap flex w-full min-h-[52px] items-center justify-center gap-2 p-4 rounded-lg bg-foreground text-background text-base font-semibold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:active:scale-100"
                 >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                   {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
                 </button>
               )}

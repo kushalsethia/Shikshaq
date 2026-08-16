@@ -18,6 +18,7 @@ import { validateImageSrc } from '@/utils/imageSanitizer';
 import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
+  AdminStatTiles,
   AdminTile,
   AdminPill,
   adminRowStyle,
@@ -295,6 +296,8 @@ export default function AdminApplications() {
   };
 
   const pendingCount = applications.filter((a) => a.status === 'pending').length;
+  const approvedCount = applications.filter((a) => a.status === 'approved').length;
+  const rejectedCount = applications.filter((a) => a.status === 'rejected').length;
 
   if (checkingAdmin || loading) {
     return (
@@ -348,6 +351,15 @@ export default function AdminApplications() {
       tint={TINT}
       tabCount={pendingCount}
     >
+      <AdminStatTiles
+        stats={[
+          { label: 'Total', value: applications.length },
+          { label: 'Pending', value: pendingCount },
+          { label: 'Approved', value: approvedCount },
+          { label: 'Rejected', value: rejectedCount },
+        ]}
+      />
+
       {/* Filters and Search */}
       <div className="mb-4 flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">

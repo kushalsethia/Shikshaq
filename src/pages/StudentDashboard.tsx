@@ -114,12 +114,18 @@ export default function StudentDashboard() {
       }
 
       try {
-        // Fetch profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        // These three queries are independent of one another (profile keyed off user.id,
+        // subjects is a global lookup table, studentSubjects keyed off user.id) so they run
+        // concurrently via Promise.all instead of three sequential round-trips.
+        const [
+          { data: profileData, error: profileError },
+          { data: subjectsData },
+          { data: studentSubjectsData },
+        ] = await Promise.all([
+          supabase.from('profiles').select('*').eq('id', user.id).single(),
+          supabase.from('subjects').select('*').order('name'),
+          supabase.from('student_subjects').select('subject_id').eq('student_id', user.id),
+        ]);
 
         if (profileError) {
           if (import.meta.env.DEV) {
@@ -144,21 +150,9 @@ export default function StudentDashboard() {
           });
         }
 
-        // Fetch all subjects
-        const { data: subjectsData } = await supabase
-          .from('subjects')
-          .select('*')
-          .order('name');
-
         if (subjectsData) {
           setSubjects(subjectsData);
         }
-
-        // Fetch student's selected subjects
-        const { data: studentSubjectsData } = await supabase
-          .from('student_subjects')
-          .select('subject_id')
-          .eq('student_id', user.id);
 
         if (studentSubjectsData) {
           setStudentSubjects(studentSubjectsData.map(s => s.subject_id));

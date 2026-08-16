@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
+  AdminStatTiles,
   AdminTile,
   AdminPill,
   adminRowStyle,
@@ -279,6 +280,16 @@ export default function AdminRecommendations() {
       tint={TINT}
       tabCount={pendingCount}
     >
+      {recommendations.length > 0 && (
+        <AdminStatTiles
+          stats={[
+            { label: 'Total', value: recommendations.length },
+            { label: 'Pending', value: recommendations.filter((r) => r.status === 'pending').length },
+            { label: 'Contacted', value: recommendations.filter((r) => r.status === 'contacted').length },
+            { label: 'Onboarded', value: recommendations.filter((r) => r.status === 'onboarded').length },
+          ]}
+        />
+      )}
       {recommendations.length === 0 ? (
         <div className="text-center py-16" style={{ background: SURFACE_TOKENS.field, borderRadius: 16, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
           <p style={{ color: SURFACE_TOKENS.textSecondary }}>No recommendations yet.</p>

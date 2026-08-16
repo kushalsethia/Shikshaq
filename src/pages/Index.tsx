@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, BookOpen, FileText, GraduationCap, Sparkles, Users } from 'lucide-react';
+import { Atom, ArrowRight, BookOpen, Calculator, FileText, Globe, GraduationCap, Landmark, Sparkles, Users } from 'lucide-react';
 import { EmptyResults } from '@/components/EmptyResults';
 import { supabase } from '@/integrations/supabase/client';
+import { getSubjectPalette } from '@/lib/subject-palette';
 import { Navbar } from '@/components/Navbar';
 import { SearchControl } from '@/components/SearchControl';
 import { HowItWorks } from '@/components/HowItWorks';
@@ -27,8 +28,16 @@ const SHORTCUTS: { label: string; to: string }[] = [
   { label: 'Tutors near Salt Lake', to: '/all-tuition-teachers-in-kolkata?filter_areas=Salt%20Lake' },
 ];
 
+// Generic icon cycle for the hero's subject-tile row — decorative, not the
+// canonical per-subject icon map (that lives in SubjectCard.tsx, out of scope).
+const HERO_SUBJECT_ICONS = [Calculator, Atom, Globe, Landmark];
+
 const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
 const SECTION = 'py-16 sm:py-20 lg:py-24';
+// Dense, card-grid sections (Featured teachers, Explore by subject) sit back-to-back
+// on the home page — the hero-scale rhythm reads as wasted air between them. One
+// spacing step down, still on the §4 scale (12/16/20), keeps the page moving.
+const SECTION_TIGHT = 'py-12 sm:py-16 lg:py-20';
 const SKELETON = 'bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer';
 
 interface Teacher {
@@ -376,6 +385,35 @@ export default function Index() {
                   ))}
                 </ul>
               </div>
+
+              {/* Colorful subject icon tiles — the Ruang-Edit reference's row of
+                  saturated rounded-square icon tiles under the headline
+                  (docs/wave2-inspo/01-ruang-edit-landing.png), applied literally
+                  rather than left on the shelf. Desktop-only so the mandated
+                  mobile hero (contract §11: headline → subtext → search → chips,
+                  fits in one 375×812 viewport) is untouched. Real subjects, real
+                  counts, subject-palette colors only — no new hex. */}
+              {subjects.length > 0 && (
+                <ul className="hidden items-center gap-3 lg:flex">
+                  {subjects.slice(0, 4).map((s, i) => {
+                    const palette = getSubjectPalette(s.name);
+                    const Icon = HERO_SUBJECT_ICONS[i % HERO_SUBJECT_ICONS.length];
+                    return (
+                      <li key={s.id}>
+                        <Link
+                          to={`/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(s.name)}`}
+                          aria-label={`${s.name} tutors`}
+                          title={s.name}
+                          className="flex h-14 w-14 items-center justify-center rounded-2xl transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                          style={{ backgroundColor: palette.solid }}
+                        >
+                          <Icon className="h-6 w-6" style={{ color: palette.badgeText }} strokeWidth={2} aria-hidden="true" />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
 
             {/* Hero stat cluster — desktop-only, VISUAL_LANGUAGE §8. DOM structure
@@ -446,7 +484,7 @@ export default function Index() {
         <HomeActivitySection />
 
         {/* ----------------------------------------------------- Featured teachers */}
-        <section className={`${CONTAINER} ${SECTION}`}>
+        <section className={`${CONTAINER} ${SECTION_TIGHT}`}>
           <div className="space-y-8">
             <div className="flex items-baseline justify-between gap-4">
               <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Featured teachers</h2>
@@ -502,7 +540,7 @@ export default function Index() {
         </section>
 
         {/* ------------------------------------------- Bento: subjects and papers */}
-        <section className={`${CONTAINER} ${SECTION}`}>
+        <section className={`${CONTAINER} ${SECTION_TIGHT}`}>
           <div className="space-y-8">
             <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Explore by subject</h2>
 

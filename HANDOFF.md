@@ -1,11 +1,16 @@
 # ShikshAQ Design Rebuild — Handoff
 
 **Branch:** `feat/dual-search-past-papers`
-**Status:** foundation, character pass, Wave 2 (token migration across all pages), and an
-overnight "visual upgrade" pass (layout/composition reverse-engineered from 8+ reference images,
-admin pages included by owner override, all pre-existing TS errors fixed — zero project-wide)
-are all complete and committed. See `VISUAL_UPGRADE_PLAN.md` for the full device-by-device
-mapping and the final reconciliation audit's findings.
+**Status:** foundation, character pass, Wave 2 (token migration across all pages), and TWO
+overnight "visual upgrade" passes are complete. The first pass was reviewed by the owner and
+judged too light-touch (devices added but composed timidly, buried deep in pages, too much
+wasted spacing); a second pass rebuilt the worst offender (past-papers page) directly, rebuilt
+onboarding as a full-bleed dark carousel, did full top-to-bottom redesigns of Home/Browse/About/
+Auth, and re-audited every page from the first pass against a higher, more literal bar. Real
+bugs were found and fixed along the way (an N+1 query, sequential-query waterfalls, a footer
+sticker clipping the mobile nav, a stray hardcoded hex, several TypeScript errors). Zero
+TypeScript errors project-wide, zero new hardcoded hex colors anywhere in either pass. See
+`VISUAL_UPGRADE_PLAN.md` for the full device-by-device mapping and both passes' findings.
 **Date:** 2026-08-16
 
 ---

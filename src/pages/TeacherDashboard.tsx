@@ -1185,6 +1185,7 @@ export default function TeacherDashboard() {
                     <img
                       src={safeSrc}
                       alt="Hero preview"
+                      loading="lazy"
                       className="h-48 w-full rounded-lg object-cover shadow-border"
                     />
                     <Button
