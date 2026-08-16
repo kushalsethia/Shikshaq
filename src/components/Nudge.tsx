@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { SURFACE_TOKENS } from '@/utils/searchFacets';
 
 /**
  * Reusable "seen once" coachmark bubble. Renders nothing until `delayMs` after mount, then shows
@@ -105,17 +104,15 @@ export function Nudge({
     <div
       ref={containerRef}
       role="status"
+      // Position and side are genuinely dynamic per-caller values (which edge
+      // of the anchor, which alignment) — the sanctioned inline-style
+      // exception for computed/dynamic values (DESIGN_SYSTEM §1.2). Color,
+      // radius, shadow and motion all come from tokens/utilities below.
       style={{
         position: 'absolute',
-        zIndex: 40,
         [placement === 'bottom' ? 'top' : 'bottom']: 'calc(100% + 12px)',
         [edgeSide]: 0,
         width: 232,
-        padding: '11px 30px 11px 14px',
-        borderRadius: 12,
-        background: SURFACE_TOKENS.ink,
-        boxShadow: '0 10px 28px rgba(0,0,0,.22)',
-        animation: 'shikshaq-nudge-in .22s cubic-bezier(.2,.9,.2,1)',
         // The bubble can visually overhang nearby interactive elements on tight mobile layouts
         // (e.g. a search field just below its anchor). pointer-events:none here — reenabled on
         // its own buttons below — means it never intercepts taps meant for whatever's underneath;
@@ -123,6 +120,7 @@ export function Nudge({
         // element beneath it AND still bubbles to the document click listener that dismisses it.
         pointerEvents: 'none',
       }}
+      className="z-40 animate-pop rounded-xl bg-panel py-3 pl-4 pr-8 shadow-lg"
     >
       <span
         aria-hidden="true"
@@ -130,25 +128,18 @@ export function Nudge({
           position: 'absolute',
           [placement === 'bottom' ? 'top' : 'bottom']: -4,
           [edgeSide]: 16,
-          width: 9,
-          height: 9,
-          background: SURFACE_TOKENS.ink,
-          transform: 'rotate(45deg)',
         }}
+        className="h-2 w-2 rotate-45 bg-panel"
       />
 
       <button
         type="button"
         onClick={dismiss}
         aria-label="Dismiss"
-        style={{
-          position: 'absolute', top: 6, right: 6, width: 22, height: 22,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          borderRadius: '50%', color: 'rgba(255,255,255,.55)',
-          pointerEvents: 'auto',
-        }}
+        className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full text-white/55 transition-colors duration-tap hover:text-white"
+        style={{ pointerEvents: 'auto' }}
       >
-        <X size={12} />
+        <X size={12} aria-hidden="true" />
       </button>
 
       {onCtaClick ? (
@@ -158,20 +149,14 @@ export function Nudge({
             dismiss();
             onCtaClick();
           }}
-          style={{ display: 'block', width: '100%', textAlign: 'left', fontSize: 12.5, fontWeight: 500, lineHeight: 1.4, color: '#fff', pointerEvents: 'auto' }}
+          className="block w-full text-left text-meta font-medium leading-snug text-white"
+          style={{ pointerEvents: 'auto' }}
         >
           {message}
         </button>
       ) : (
-        <p style={{ fontSize: 12.5, fontWeight: 500, lineHeight: 1.4, color: '#fff' }}>{message}</p>
+        <p className="text-meta font-medium leading-snug text-white">{message}</p>
       )}
-
-      <style>{`
-        @keyframes shikshaq-nudge-in {
-          from { opacity: 0; transform: translateY(-4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

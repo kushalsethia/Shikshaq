@@ -26,11 +26,24 @@ interface PaperCardProps {
   sticker?: string;
 }
 
+/**
+ * A paper is a MILESTONE on the wayfinding spine (VISUAL_DIRECTION §2), so the
+ * card is built as a route marker: subject signpost chip, then the title, then
+ * the school, then a distance-marker footer carrying class + board + year in
+ * tabular numerals so a column of cards compares cleanly.
+ *
+ * CRISP surface (VISUAL_DIRECTION §4): these always live inside a scrollable
+ * list of comparable items, so there is deliberately NO rotation, tape, torn
+ * edge or grain here — not even on the `sticker`, which was previously
+ * rotated 5deg. It is now a flat, square-on badge that pops in.
+ *
+ * Every value except subject color is a Tailwind token. The previous
+ * implementation styled the entire card with inline `style` (including nine
+ * inline font sizes and two raw `hsl(var(--foreground) / …)` literals), which
+ * violated DESIGN_SYSTEM §1.1/§1.2 and §3. Subject color via getSubjectPalette()
+ * is the one sanctioned inline-style exception.
+ */
 export function PaperCard({ paper, variant = 'result', sticker }: PaperCardProps) {
-  // VISUAL_LANGUAGE §3 subject palette — the ONE sanctioned source for subject
-  // color. Was previously reading from the now-superseded src/utils/subjectColors.ts;
-  // both implementations agreed on the formula, but subject-palette.ts is the
-  // canonical one going forward (per HANDOFF.md §4).
   const colors = getSubjectPalette(paper.subject);
   const isCompact = variant === 'compact';
   const isRecent = variant === 'recent';
@@ -46,117 +59,73 @@ export function PaperCard({ paper, variant = 'result', sticker }: PaperCardProps
   return (
     <Link
       to={`/past-papers/${paper.id}`}
-      className="shikshaq-paper-card"
-      style={{
-        position: 'relative',
-        display: 'block',
-        padding: isRecent ? 22 : 20,
-        borderRadius: 20,
-        background: colors.tint,
-        textAlign: 'left',
-      }}
+      className={`shikshaq-paper-card relative flex h-full flex-col rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+        isCompact ? 'p-4' : 'p-4 sm:p-6'
+      }`}
+      style={{ backgroundColor: colors.tint }}
     >
       {isRecent && sticker && (
-        // VISUAL_LANGUAGE §1.5 — tilted, overhanging sticker. White text on
-        // near-black (`--foreground`, which is the handoff's #1F1F1F), not a raw
-        // hex literal.
-        <span
-          style={{
-            position: 'absolute',
-            top: -11,
-            right: 16,
-            transform: 'rotate(5deg)',
-            padding: '6px 12px',
-            borderRadius: 999,
-            background: 'hsl(var(--foreground))',
-            color: 'white',
-            fontSize: 11,
-            fontWeight: 700,
-          }}
-        >
+        <span className="animate-pop absolute -top-2 right-4 rounded-full bg-foreground px-3 py-1 text-label font-bold uppercase text-background">
           {sticker}
         </span>
       )}
 
       {!isCompact && (
-        <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+        <span className="mb-3 flex flex-wrap items-center gap-2">
+          {/* Signpost = subject (VISUAL_DIRECTION §2). Pointed end, subject fill. */}
           <span
-            style={{
-              padding: '4px 10px',
-              borderRadius: 999,
-              background: colors.solid,
-              color: colors.badgeText,
-              fontSize: 11,
-              fontWeight: 600,
-            }}
+            className="signpost inline-flex min-h-6 items-center py-1 pl-3 text-label font-bold uppercase"
+            style={{ backgroundColor: colors.solid, color: colors.badgeText }}
           >
             {paper.subject}
           </span>
+          {/* Route marker = board, distance marker = class. Tabular so a grid
+              of cards lines its numerals up column-to-column. */}
           <span
-            style={{
-              padding: '4px 10px',
-              borderRadius: 999,
-              background: 'hsl(var(--foreground) / 0.07)',
-              fontSize: 11,
-              fontWeight: 600,
-            }}
+            className="inline-flex min-h-6 items-center rounded-full px-3 py-1 text-label font-bold uppercase tabular-nums"
+            style={{ backgroundColor: colors.tint, color: colors.text, boxShadow: `inset 0 0 0 1px ${colors.meta}` }}
           >
-            Class {paper.class} {paper.board}
+            Class {paper.class} · {paper.board}
           </span>
         </span>
       )}
 
       <span
-        style={{
-          display: 'block',
-          fontSize: isRecent ? 21 : isResult ? 20 : 19,
-          fontWeight: 700,
-          letterSpacing: '-.035em',
-        }}
+        className={`block break-words ${isCompact ? 'text-card-title' : 'text-card-title-lg'} font-bold`}
+        style={{ color: colors.text }}
       >
         {paper.title}
       </span>
 
-      <span
-        style={{
-          display: 'block',
-          marginTop: isRecent ? 6 : 5,
-          fontSize: isCompact ? 13.5 : 14,
-          fontWeight: 500,
-          color: colors.meta,
-        }}
-      >
+      <span className="mt-1 block break-words text-meta font-medium" style={{ color: colors.meta }}>
         {paper.school}
       </span>
 
       {stats.length > 0 && (
-        <span style={{ display: 'flex', gap: 14, marginTop: 16, fontSize: 12, fontWeight: 500, color: colors.meta }}>
+        <span className="mt-3 flex flex-wrap gap-4 text-meta font-medium" style={{ color: colors.meta }}>
           {stats.map(({ icon: Icon, label }) => (
-            <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Icon size={13} color={colors.meta} strokeWidth={2} />
+            <span key={label} className="flex items-center gap-2">
+              <Icon size={13} strokeWidth={2} aria-hidden="true" />
               {label}
             </span>
           ))}
         </span>
       )}
 
+      {/* mt-auto anchors the footer so every card in a row shares one baseline
+          regardless of how many lines the title wraps to (DESIGN_SYSTEM §13). */}
       {(isRecent || isResult) && (
         <span
-          style={{
-            display: 'block',
-            marginTop: isRecent ? 14 : 16,
-            paddingTop: isRecent ? 12 : 13,
-            fontSize: isRecent ? 11.5 : 12,
-            color: colors.meta,
-            boxShadow: 'inset 0 1px 0 hsl(var(--foreground) / 0.09)',
-          }}
+          className="mt-auto flex items-center justify-between gap-3 pt-4 text-label"
+          style={{ color: colors.meta, boxShadow: `inset 0 1px 0 ${colors.meta}` }}
         >
-          Paper © {paper.school}
+          <span className="truncate">Paper © {paper.school}</span>
+          <span className="flex-none font-bold tabular-nums">{paper.year}</span>
         </span>
       )}
 
       {isCompact && (
-        <span style={{ display: 'block', marginTop: 14, fontSize: 12, color: colors.meta }}>
+        <span className="mt-3 block text-meta tabular-nums" style={{ color: colors.meta }}>
           {paper.board} · Class {paper.class} · {paper.exam_type} {paper.year}
         </span>
       )}

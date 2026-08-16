@@ -332,6 +332,7 @@ export type Database = {
           "Featured Subject": string | null
           "Hero Image": string | null
           id: number
+          is_paused: boolean
           Link: string | null
           "LOCATION V2": string | null
           "Max Fees": number | null
@@ -367,6 +368,7 @@ export type Database = {
           "Featured Subject"?: string | null
           "Hero Image"?: string | null
           id?: number
+          is_paused?: boolean
           Link?: string | null
           "LOCATION V2"?: string | null
           "Max Fees"?: number | null
@@ -402,6 +404,7 @@ export type Database = {
           "Featured Subject"?: string | null
           "Hero Image"?: string | null
           id?: number
+          is_paused?: boolean
           Link?: string | null
           "LOCATION V2"?: string | null
           "Max Fees"?: number | null

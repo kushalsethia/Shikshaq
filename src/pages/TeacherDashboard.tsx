@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Save, Lock, Upload, X, CircleUserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
@@ -91,12 +102,23 @@ interface TeacherData {
   Slug: string | null;
   /**
    * Self-service pause toggle (design_handoff_shikshaq/pages/TeacherDashboard.md "Pause listing").
-   * Column added via supabase/migrations/20260812060000_add_is_paused_to_shikshaqmine.sql — not
-   * yet in the generated Database types, so it's read/written with an `as any` cast below, same
-   * as the pre-existing "Min Fees"/"Max Fees" handling in this file.
+   * Column added via supabase/migrations/20260812060000_add_is_paused_to_shikshaqmine.sql — this
+   * migration has been applied to the live database, but src/integrations/supabase/types.ts has
+   * not yet been regenerated, so the generated Shikshaqmine Row/Update types below still don't
+   * know about it. Read/written below via `ShikshaqmineRowWithPause`/`ShikshaqmineUpdateWithPause`
+   * (narrow additions of just this one column) instead of a blanket `as any`, same as the
+   * pre-existing "Min Fees"/"Max Fees" handling in this file. Once the types are regenerated,
+   * these two aliases and their casts can be dropped in favor of the real generated types.
    */
   is_paused: boolean;
 }
+
+type ShikshaqmineRow = Database['public']['Tables']['Shikshaqmine']['Row'];
+type ShikshaqmineUpdate = Database['public']['Tables']['Shikshaqmine']['Update'];
+/** `data` from a `Shikshaqmine` select, with the not-yet-generated `is_paused` column added. */
+type ShikshaqmineRowWithPause = ShikshaqmineRow & { is_paused: boolean | null };
+/** Payload for a `Shikshaqmine` update that includes the not-yet-generated `is_paused` column. */
+type ShikshaqmineUpdateWithPause = ShikshaqmineUpdate & { is_paused: boolean };
 
 // Profile form field/label/panel styling, on the token system so the long editable form below
 // matches the rest of the page instead of falling back to shadcn's bare default input styling.
@@ -117,8 +139,13 @@ export default function TeacherDashboard() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [pausing, setPausing] = useState(false);
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const [upvoteCount, setUpvoteCount] = useState<number | null>(null);
   const [reviewCount, setReviewCount] = useState<number | null>(null);
+  // Set when the Shikshaqmine lookup/write by profile.email fails to find a matching row — lets
+  // the "not found" screen tell the teacher which email to reference when contacting support,
+  // instead of the old dead-end "Teacher profile not found" toast with no recovery path.
+  const [lookupFailedEmail, setLookupFailedEmail] = useState<string | null>(null);
   const profileFormRef = useRef<HTMLDivElement>(null);
 
   // Redirect if not authenticated or not a teacher
@@ -183,7 +210,9 @@ export default function TeacherDashboard() {
         }
 
         if (!data) {
-          toast.error('Teacher profile not found. Please contact support.');
+          // profile.email didn't match any "Email ID" in Shikshaqmine — surface the email so the
+          // teacher has something concrete to give support instead of a dead-end toast.
+          setLookupFailedEmail(profile.email);
           setLoading(false);
           return;
         }
@@ -230,7 +259,7 @@ export default function TeacherDashboard() {
           "Min Fees": (data as any)["Min Fees"] || null,
           "Max Fees": (data as any)["Max Fees"] || null,
           Slug: data["Slug"] || null,
-          is_paused: Boolean((data as any)["is_paused"]),
+          is_paused: Boolean((data as ShikshaqmineRowWithPause)["is_paused"]),
         };
 
         setTeacherData(teacher);
@@ -282,20 +311,14 @@ export default function TeacherDashboard() {
     fetchCounts();
   }, [teacherData?.Slug]);
 
-  // "Pause your listing" — confirms, then flips the self-service is_paused flag (see the
-  // TeacherData interface note above), reverting on failure. Scoped to this dashboard's own
-  // status pill today: it does not yet hide the profile from public Browse/search results.
+  // "Pause your listing" — flips the self-service is_paused flag (see the TeacherData interface
+  // note above), reverting on failure. Browse/search now filter on is_paused too (see Browse.tsx),
+  // so pausing here does hide the profile from public results, not just this dashboard's pill.
+  // Confirmation is handled by the AlertDialog below (pauseDialogOpen); this just performs the toggle.
   const handlePauseToggle = async () => {
     if (!user || !teacherData) return;
 
     const nextPaused = !isPaused;
-    const confirmed = window.confirm(
-      nextPaused
-        ? 'Pause your listing? Your profile will show as paused until you resume it.'
-        : 'Resume your listing? Your profile will show as live again.'
-    );
-    if (!confirmed) return;
-
     const previousPaused = isPaused;
     setIsPaused(nextPaused); // optimistic
     setPausing(true);
@@ -313,7 +336,7 @@ export default function TeacherDashboard() {
 
       const { error } = await supabase
         .from('Shikshaqmine')
-        .update({ is_paused: nextPaused } as any)
+        .update({ is_paused: nextPaused } as ShikshaqmineUpdateWithPause)
         .eq('Email ID', profile.email);
 
       if (error) throw error;
@@ -735,7 +758,9 @@ export default function TeacherDashboard() {
         .maybeSingle();
 
       if (!profile?.email) {
-        toast.error('Email not found. Please contact support.');
+        toast.error(
+          "We couldn't find an email on your account, so we can't save your listing. Contact support@shikshaq.com for help."
+        );
         setSaving(false);
         return;
       }
@@ -794,6 +819,16 @@ export default function TeacherDashboard() {
         .eq('Email ID', profile.email)
         .maybeSingle();
 
+      // No matching "Email ID" row to update — same email-match fragility as the initial fetch.
+      // Surface it with a concrete next step instead of a silent no-op save.
+      if (!teacherRecord) {
+        toast.error(
+          `We couldn't find a listing matching ${profile.email}. Contact support@shikshaq.com with this email so we can fix the mismatch.`
+        );
+        setSaving(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('Shikshaqmine')
         .update(updateData)
@@ -803,7 +838,7 @@ export default function TeacherDashboard() {
         if (import.meta.env.DEV) {
           console.error('Error updating teacher data:', error);
         }
-        toast.error('Failed to update profile');
+        toast.error('Failed to update profile. Please try again, or contact support@shikshaq.com if it persists.');
         setSaving(false);
         return;
       }
@@ -861,6 +896,38 @@ export default function TeacherDashboard() {
   }
 
   if (!teacherData) {
+    // Email-match failure: profile.email had no matching "Email ID" row in Shikshaqmine. Give the
+    // teacher a concrete next step — their account email to quote to support — rather than a
+    // generic "account required" dead end.
+    if (lookupFailedEmail) {
+      return (
+        <div className="min-h-screen bg-background">
+          <Navbar />
+          <main className="container py-16 pb-16 text-center sm:py-20">
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              We couldn't find your teacher listing
+            </h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Your account email doesn't match any listing in our system, so we can't load your
+              profile. This usually means your listing was created under a different email address.
+            </p>
+            <p className="mt-4 text-sm font-semibold text-foreground">
+              Contact support at{' '}
+              <a href="mailto:support@shikshaq.com" className="text-brand-blue underline underline-offset-2">
+                support@shikshaq.com
+              </a>{' '}
+              and include this email:
+            </p>
+            <p className="mt-1 text-sm font-semibold text-brand-blue">{lookupFailedEmail}</p>
+            <Button className="mt-6" onClick={() => navigate('/')}>
+              Go Home
+            </Button>
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -914,17 +981,24 @@ export default function TeacherDashboard() {
     ? summaryParts.join(' · ')
     : 'Fill in your subjects, boards, classes and area to complete your profile';
 
-  // Four stat cards per spec, in order: profile views, WhatsApp enquiries, upvotes, reviews.
-  // The first two have no Supabase-backed source today — WhatsApp-click tracking only reaches
-  // GA4/Clarity (src/utils/clarityEvents.ts, gaEvents.ts), never Supabase, and profile views
-  // aren't tracked anywhere yet — so they're shown as honestly untracked rather than a fabricated
-  // number. Upvotes/reviews are real, live counts from teacher_upvotes/teacher_comments.
+  // Two stat cards, both real, live counts from teacher_upvotes/teacher_comments.
+  //
+  // "Profile views" and "Enquiries" tiles were removed rather than shipped as permanent
+  // placeholders. Neither has a real data source today: WhatsApp-click tracking
+  // (src/pages/WhatsAppRedirect.tsx) only reaches GA4/Clarity, never Supabase, and profile
+  // views aren't tracked anywhere. A real "Enquiries" count would need, at minimum:
+  //   1. A Supabase table (e.g. `whatsapp_clicks(teacher_id, created_at)`, insert-only, with an
+  //      RLS policy that allows anonymous inserts scoped to a valid teacher id) written to from
+  //      WhatsAppRedirect.tsx at the point it already calls trackWhatsAppClick/trackWhatsAppClickGA.
+  //   2. A read path here (count query keyed by teachers_list.id, same join this file already
+  //      does for upvotes/reviews above) once that table exists.
+  //   3. Regenerating src/integrations/supabase/types.ts after the migration lands.
+  // That's a schema change outside this file's ownership, so the tiles are removed instead of
+  // left showing '—' forever.
   // Squircle stat-tile treatment (learning-education-squircles reference): a different flat
   // token fill per tile. Kept neutral/mint — no brand orange/blue — so the accent budget stays
   // spent on the "Save Changes" CTA and the live/paused status pill.
   const teacherStats = [
-    { label: 'Profile views', value: '—', meta: 'Not tracked yet', fill: 'bg-card shadow-border' },
-    { label: 'Enquiries', value: '—', meta: 'Not tracked yet', fill: 'bg-muted' },
     { label: 'Upvotes', value: upvoteCount ?? '—', meta: 'All time', fill: 'bg-mint' },
     { label: 'Reviews', value: reviewCount ?? '—', meta: 'All time', fill: 'bg-card shadow-border' },
   ];
@@ -946,11 +1020,6 @@ export default function TeacherDashboard() {
   const completenessFilled = completenessChecks.filter(Boolean).length;
   const completenessTotal = completenessChecks.length;
   const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
-
-  // "Recent enquiries" has the same gap: WhatsApp clicks are anonymous (no visitor identity is
-  // ever captured — see WhatsAppRedirect.tsx), so there is no real per-enquiry row to show. This
-  // stays a real, currently-empty list rather than the prototype's sample names/classes.
-  const enquiries: { id: string; initial: string; name: string; meta: string; when: string }[] = [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -977,7 +1046,7 @@ export default function TeacherDashboard() {
         </div>
 
         {/* Stat tiles — squircle treatment, one flat fill per tile */}
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
           {teacherStats.map((st) => (
             <div key={st.label} className={`rounded-2xl p-4 sm:p-6 ${st.fill}`}>
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1009,45 +1078,6 @@ export default function TeacherDashboard() {
           </div>
         </div>
 
-        {/* Recent enquiries */}
-        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Recent enquiries
-        </h2>
-        {enquiries.length > 0 ? (
-          <>
-            <div className="grid gap-2.5">
-              {enquiries.slice(0, 10).map((en) => (
-                <div
-                  key={en.id}
-                  className="flex flex-wrap items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-5"
-                >
-                  <span className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-[13px] bg-muted text-base font-bold text-foreground">
-                    {en.initial}
-                  </span>
-                  <span className="min-w-[160px] flex-1">
-                    <span className="block text-base font-semibold text-foreground">{en.name}</span>
-                    <span className="mt-0.5 block text-sm text-muted-foreground">{en.meta}</span>
-                  </span>
-                  <span className="text-xs text-muted-foreground">{en.when}</span>
-                  <button
-                    type="button"
-                    className="flex min-h-11 flex-none items-center rounded-lg bg-brand px-5 text-sm font-semibold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover active:scale-[0.97]"
-                  >
-                    Reply on WhatsApp
-                  </button>
-                </div>
-              ))}
-            </div>
-            {enquiries.length >= 10 && (
-              <div className="mt-3">
-                <span className="text-sm font-semibold text-warm-meta">See all →</span>
-              </div>
-            )}
-          </>
-        ) : (
-          <p className="mt-4 text-sm text-muted-foreground">No enquiries recorded yet.</p>
-        )}
-
         {/* Your profile */}
         <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Your profile
@@ -1065,7 +1095,7 @@ export default function TeacherDashboard() {
           </button>
           <button
             type="button"
-            onClick={handlePauseToggle}
+            onClick={() => setPauseDialogOpen(true)}
             disabled={pausing}
             className="block w-full rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60 sm:p-6"
           >
@@ -1586,6 +1616,32 @@ export default function TeacherDashboard() {
             </div>
         </div>
       </main>
+
+      <AlertDialog open={pauseDialogOpen} onOpenChange={setPauseDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isPaused ? 'Resume your listing?' : 'Pause your listing?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isPaused
+                ? 'Your profile will show as live and reappear in Browse and search results.'
+                : 'Your profile will be hidden from Browse and search results until you resume it.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setPauseDialogOpen(false);
+                handlePauseToggle();
+              }}
+            >
+              {isPaused ? 'Resume' : 'Pause'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Footer />
     </div>

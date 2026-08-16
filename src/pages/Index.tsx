@@ -4,6 +4,7 @@ import { Atom, ArrowRight, BookOpen, Calculator, FileText, Globe, GraduationCap,
 import { EmptyResults } from '@/components/EmptyResults';
 import { supabase } from '@/integrations/supabase/client';
 import { getSubjectPalette } from '@/lib/subject-palette';
+import { SpeechTag, StarburstBadge } from '@/components/devices';
 import { Navbar } from '@/components/Navbar';
 import { SearchControl } from '@/components/SearchControl';
 import { HowItWorks } from '@/components/HowItWorks';
@@ -16,6 +17,7 @@ import { HomeGreeting } from '@/components/HomeGreeting';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache';
+import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
 
 // Real production shortcut destinations — the same routes the search results navigate to.
 // Surfaced as quick chips under the hero because most users tap rather than type.
@@ -80,41 +82,30 @@ export default function Index() {
     const localBusinessScript = document.createElement('script');
     localBusinessScript.type = 'application/ld+json';
     localBusinessScript.id = 'homepage-localbusiness-schema';
-    localBusinessScript.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "LocalBusiness",
-      "@id": "https://www.shikshaq.in/#localbusiness",
-      "name": "Shikshaq",
-      "description": "Free online tutor-student matchmaking platform serving Kolkata and surrounding areas",
-      "url": "https://www.shikshaq.in",
-      "telephone": "+91-8240980312",
-      "email": "support@shikshaq.in",
-      "address": { "@type": "PostalAddress", "addressLocality": "Kolkata", "addressRegion": "West Bengal", "addressCountry": "IN" },
-      "priceRange": "Free",
-      "openingHoursSpecification": { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], "opens": "08:00", "closes": "22:00", "timezone": "Asia/Kolkata" },
-      "areaServed": ["Kolkata", "Howrah", "Salt Lake", "Jadavpur", "Bhowanipore", "Ballygunge", "New Town", "Garia", "Tollygunge", "Behala"],
-      "sameAs": ["https://www.instagram.com/ngo.aquaterra/", "https://www.facebook.com/shikshaqkolkata/"]
-    });
+    localBusinessScript.textContent = JSON.stringify(generateLocalBusinessSchema());
 
     const serviceScript = document.createElement('script');
     serviceScript.type = 'application/ld+json';
     serviceScript.id = 'homepage-service-schema';
-    serviceScript.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "Service",
-      "@id": "https://www.shikshaq.in/#service",
-      "name": "Free Tutor-Student Connection Service",
-      "description": "Connect with verified tutors for personalized tuition in your locality. Free platform for both students and educators.",
-      "serviceType": "Educational Tutoring Service",
-      "provider": { "@type": "EducationalOrganization", "name": "Shikshaq", "url": "https://www.shikshaq.in" },
-      "areaServed": "Kolkata",
-      "availableChannel": { "@type": "ServiceChannel", "serviceUrl": "https://www.shikshaq.in/all-tuition-teachers-in-kolkata", "servicePhone": "+91-8240980312" },
-      "offers": [
-        { "@type": "Offer", "name": "Subject-Based Tutor Search", "description": "Find tutors for Mathematics, Physics, Chemistry, Biology, English, and more", "price": "0", "priceCurrency": "INR" },
-        { "@type": "Offer", "name": "Online Tuition", "description": "Connect with tutors offering online classes", "price": "0", "priceCurrency": "INR" },
-        { "@type": "Offer", "name": "Offline/Home Tuition", "description": "Find tutors offering offline/home tuition in your area", "price": "0", "priceCurrency": "INR" }
-      ]
-    });
+    serviceScript.textContent = JSON.stringify(
+      generateServiceSchema({
+        id: 'https://www.shikshaq.in/#service',
+        name: 'Free Tutor-Student Connection Service',
+        description:
+          'Connect with verified tutors for personalized tuition in your locality. Free platform for both students and educators.',
+        serviceType: 'Educational Tutoring Service',
+        areaServed: 'Kolkata',
+        availableChannel: {
+          serviceUrl: 'https://www.shikshaq.in/all-tuition-teachers-in-kolkata',
+          servicePhone: '+91-8240980312',
+        },
+        offers: [
+          { '@type': 'Offer', name: 'Subject-Based Tutor Search', description: 'Find tutors for Mathematics, Physics, Chemistry, Biology, English, and more', price: '0', priceCurrency: 'INR' },
+          { '@type': 'Offer', name: 'Online Tuition', description: 'Connect with tutors offering online classes', price: '0', priceCurrency: 'INR' },
+          { '@type': 'Offer', name: 'Offline/Home Tuition', description: 'Find tutors offering offline/home tuition in your area', price: '0', priceCurrency: 'INR' },
+        ],
+      })
+    );
 
     document.head.appendChild(localBusinessScript);
     document.head.appendChild(serviceScript);
@@ -241,13 +232,20 @@ export default function Index() {
 
   useEffect(() => {
     async function fetchStats() {
-      const [teachersRes, papersRes, schoolsRes] = await Promise.all([
-        supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
-        supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
-        supabase.from('papers').select('school').eq('is_published', true),
-      ]);
-      const distinctSchools = schoolsRes.data ? new Set(schoolsRes.data.map((p) => p.school)).size : 0;
-      setStats({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null, schools: distinctSchools });
+      try {
+        const [teachersRes, papersRes, schoolsRes] = await Promise.all([
+          supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
+          supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+          supabase.from('papers').select('school').eq('is_published', true),
+        ]);
+        const distinctSchools = schoolsRes.data ? new Set(schoolsRes.data.map((p) => p.school)).size : 0;
+        setStats({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null, schools: distinctSchools });
+      } catch (error) {
+        // Stats are decorative proof-of-scale numbers with a copy fallback
+        // already built into every call site (§13 "never advertise emptiness") —
+        // leaving `stats` at its null-initialized state is enough to fail soft.
+        if (import.meta.env.DEV) console.error('Error fetching homepage stats:', error);
+      }
     }
     fetchStats();
   }, []);
@@ -261,10 +259,10 @@ export default function Index() {
 
       <main id="main-content" className="pb-20 lg:pb-0">
         {/* ------------------------------------------------------------- Hero */}
-        <section className={`${CONTAINER} pt-6 pb-12 sm:pt-12 sm:pb-16 lg:pt-16 lg:pb-20`}>
+        <section className={`ground-graph relative ${CONTAINER} pt-6 pb-12 sm:pt-12 sm:pb-16 lg:pt-16 lg:pb-20`}>
           <div className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-12">
             <div className="space-y-6">
-              <div className="relative space-y-3">
+              <div className="relative space-y-4">
                 {/* Sparkles — desktop-only per VISUAL_LANGUAGE §7; index.css hard-disables
                     the animation below 1024px, hidden entirely on mobile so nothing static
                     is left behind. */}
@@ -281,23 +279,47 @@ export default function Index() {
                   className="animate-sparkle absolute left-12 top-6 hidden h-[7px] w-[7px] rounded-[2px] bg-brand opacity-0 [animation-delay:1s] lg:block"
                 />
 
-                {/* Blur-in entrance, staggered — VISUAL_LANGUAGE §7 heroSwap. */}
+                {/* Blur-in entrance, staggered — VISUAL_LANGUAGE §7 heroSwap. Mixed-weight
+                    headline built on Archivo's weight AND width axes (DESIGN_SYSTEM/VISUAL_DIRECTION
+                    §5): the lead-in is a narrow, normal-weight cut; the payoff word is the full-width,
+                    black cut. `marker-highlight` on the key word (device A, REFERENCE_DEVICES.md's
+                    single highest-value device) so the headline reads as art-directed, not typed. */}
                 <h1
-                  className="animate-hero-swap [animation-delay:40ms] text-[clamp(34px,5.6vw,66px)] font-normal leading-[.95] tracking-[-.055em]"
+                  className="animate-hero-swap [animation-delay:40ms] font-display text-display-hero font-normal [font-stretch:85%]"
                 >
-                  Find a tuition teacher{' '}
+                  Find a{' '}
+                  <span
+                    className="marker-highlight marker-highlight--tilt"
+                    style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
+                  >
+                    tuition teacher
+                  </span>{' '}
                   <span
                     aria-hidden="true"
                     className="relative mx-[0.06em] inline-flex h-[0.62em] w-[0.62em] -translate-y-[0.08em] items-center justify-center rounded-full bg-brand align-middle"
                   >
                     <Sparkles className="h-[0.62em] w-[0.62em] text-white" strokeWidth={2.5} aria-hidden="true" />
                   </span>{' '}
-                  <span className="font-extrabold">in Kolkata.</span>
+                  <span className="font-black [font-stretch:125%]">in Kolkata.</span>
                 </h1>
-                <p className="animate-hero-swap max-w-prose text-base text-muted-foreground [animation-delay:80ms]">
-                  Search verified tutors by subject, class and locality, then message them yourself on
-                  WhatsApp. Students can also read past papers from Kolkata schools, free.
-                </p>
+
+                {/* Annotations instead of a flat subtitle line (REFERENCE_DEVICES.md
+                    device D) — floated speech-tags carry the proof numbers and scope,
+                    a StarburstBadge carries the one real headline number. Still answers
+                    "what is this" in 3 seconds: teachers, papers, free, Kolkata. */}
+                <div className="animate-hero-swap flex flex-wrap items-center gap-2 [animation-delay:70ms]">
+                  <SpeechTag tail="bottom-left" dotColor="hsl(var(--brand))" tilt={-1.5}>
+                    Verified tutors, message on WhatsApp
+                  </SpeechTag>
+                  <SpeechTag tail="bottom-right" dotColor="hsl(var(--brand-blue))" tilt={1.5}>
+                    Past papers, free to read
+                  </SpeechTag>
+                  {stats.teachers != null && (
+                    <StarburstBadge variant="burst" color="hsl(var(--brand-blue))" tilt={-6} size={68} className="ml-1">
+                      <span className="tabular-nums">{stats.teachers.toLocaleString('en-IN')}+</span>
+                    </StarburstBadge>
+                  )}
+                </div>
               </div>
 
               {/* The search field is the largest interactive element on the page. */}
@@ -312,14 +334,21 @@ export default function Index() {
                   Teachers = saturated orange slab, papers = neutral card, mirroring
                   the mode colors and keeping the pair from reading as two identical
                   blocks. */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-5 pt-1">
+                {/* The fork — hero-scale, Cluster A full permission (VISUAL_DIRECTION §4).
+                    Thick outline + hard offset shadow gives each destination the die-cut
+                    sticker read; a few degrees of opposite rotation keeps the pair from
+                    reading as one flat block while the rigid 3-row stack (icon/title/meta,
+                    `mt-auto` pinning the meta row) preserves the known wrap-alignment fix —
+                    do not swap back to `justify-center`. Exactly one sticker treatment per
+                    card, so neither tile also gets tape/halftone. */}
                 <Link
                   to="/all-tuition-teachers-in-kolkata"
-                  className="flex flex-col rounded-2xl bg-brand p-4 text-brand-foreground shadow-glow-brand transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                  className="outline-thick outline-offset-shadow sticker-rotate-sm flex flex-col rounded-2xl bg-brand p-4 text-brand-foreground transition-transform duration-lift ease-settle hover:-translate-y-1 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
                 >
                   <GraduationCap className="mb-2 h-5 w-5 flex-none" aria-hidden="true" />
-                  <span className="text-base font-semibold leading-snug">Find a teacher</span>
-                  <span className="mt-auto pt-1 text-xs text-brand-foreground/80">
+                  <span className="text-card-title-lg font-display font-bold leading-snug">Find a teacher</span>
+                  <span className="mt-auto pt-1 text-meta text-brand-foreground/80">
                     {stats.teachers != null ? (
                       <span className="tabular-nums">{stats.teachers.toLocaleString('en-IN')} verified tutors</span>
                     ) : (
@@ -330,11 +359,11 @@ export default function Index() {
 
                 <Link
                   to="/past-papers"
-                  className="flex flex-col rounded-2xl bg-card p-4 shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                  className="outline-thick outline-offset-shadow sticker-rotate-md-rev flex flex-col rounded-2xl bg-card p-4 transition-transform duration-lift ease-settle hover:-translate-y-1 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
                 >
                   <FileText className="mb-2 h-5 w-5 flex-none text-brand-blue" aria-hidden="true" />
-                  <span className="text-base font-semibold leading-snug">Past papers</span>
-                  <span className="mt-auto pt-1 text-xs text-muted-foreground">
+                  <span className="text-card-title-lg font-display font-bold leading-snug">Past papers</span>
+                  <span className="mt-auto pt-1 text-meta text-muted-foreground">
                     {/* Zero is treated like "unknown": advertising an empty library
                         undersells the product, so fall back to the generic line. */}
                     {stats.papers ? (
@@ -372,7 +401,7 @@ export default function Index() {
                         />
                       ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-meta text-muted-foreground pr-16 sm:pr-0">
                   Real teachers across ICSE, CBSE and State Board — with photos, subjects and localities.
                 </p>
               </div>
@@ -507,10 +536,10 @@ export default function Index() {
         <section className={`${CONTAINER} ${SECTION_TIGHT}`}>
           <div className="space-y-8">
             <div className="flex items-baseline justify-between gap-4">
-              <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Featured teachers</h2>
+              <h2 className="text-section-head font-display font-bold">Featured teachers</h2>
               <Link
                 to="/all-tuition-teachers-in-kolkata"
-                className="inline-flex h-11 flex-none items-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium text-brand-blue transition-colors duration-150 hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                className="inline-flex h-11 flex-none items-center gap-2 whitespace-nowrap rounded-lg text-body-secondary font-medium text-brand-blue transition-colors duration-hover hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               >
                 View all
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -524,9 +553,9 @@ export default function Index() {
                 ))}
               </div>
             ) : featuredTeachers.length > 0 ? (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-6">
+              <div className="stagger-children grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-6">
                 {featuredTeachers.map((t, i) => (
-                  <div key={t.id} className="animate-card-reveal" style={{ animationDelay: `${Math.min(i, 5) * 40}ms` }}>
+                  <div key={t.id} className="animate-card-reveal">
                     <TeacherCard
                       id={t.id}
                       name={t.name}
@@ -562,15 +591,15 @@ export default function Index() {
         {/* ------------------------------------------- Bento: subjects and papers */}
         <section className={`${CONTAINER} ${SECTION_TIGHT}`}>
           <div className="space-y-8">
-            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Explore by subject</h2>
+            <h2 className="text-section-head font-display font-bold">Explore by subject</h2>
 
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            <div className="stagger-children grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
               {/* Papers tile — the bento's large cell, restating the students' path.
                   Rounded saturated slab (VISUAL_LANGUAGE §1.1): indigo, `rounded-4xl`,
                   inset by the section gutter via the grid it sits in — never full-bleed. */}
               <Link
                 to="/past-papers"
-                className="col-span-2 flex flex-col justify-between rounded-4xl bg-brand-blue p-6 text-white shadow-glow-brand-blue transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 sm:p-8 lg:col-span-2 lg:row-span-2"
+                className="animate-card-reveal col-span-2 flex flex-col justify-between rounded-4xl bg-brand-blue p-6 text-white shadow-glow-brand-blue transition-transform duration-lift ease-settle hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 sm:p-8 lg:col-span-2 lg:row-span-2"
               >
                 <div className="space-y-3">
                   <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-[11.5px] font-bold uppercase tracking-[.04em] text-white">
@@ -598,8 +627,8 @@ export default function Index() {
               {loading && subjects.length === 0 ? (
                 [...Array(6)].map((_, i) => <div key={i} className={`h-28 rounded-2xl ${SKELETON}`} />)
               ) : subjects.length > 0 ? (
-                subjects.map((s, i) => (
-                  <div key={s.id} className="animate-card-reveal" style={{ animationDelay: `${Math.min(i, 5) * 40}ms` }}>
+                subjects.map((s) => (
+                  <div key={s.id} className="animate-card-reveal">
                     <SubjectCard
                       name={s.name}
                       slug={s.slug}

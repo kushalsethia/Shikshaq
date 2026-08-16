@@ -59,7 +59,7 @@ const SELECTED_TINT: Record<SearchMode, string> = {
  * VISUAL_LANGUAGE §3: "Subject is the one facet that escapes the orange/indigo
  * mode color," applied "everywhere ... filter pills, and selected-facet states." */
 function isSubjectChipKey(key: string): boolean {
-  return key.startsWith('subjects:') || key === 'filter_subjects';
+  return key.startsWith('subjects:') || key.startsWith('filter_subjects:') || key === 'filter_subjects';
 }
 
 export function FilterChips({
@@ -75,7 +75,7 @@ export function FilterChips({
   const hasRow = chips.length > 0 || Boolean(onEditSearch) || Boolean(handoff);
   if (!hasRow) return null;
 
-  const pillBase = `flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS}`;
+  const pillBase = `flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${FOCUS}`;
 
   return (
     <div className={className} style={style}>

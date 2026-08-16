@@ -7,6 +7,7 @@ import { ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { Logo } from '@/components/Logo';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
+import { CutPaperShape } from '@/components/devices';
 
 const FIELD_BASE =
   'w-full box-border min-h-12 px-4 py-3 rounded-lg bg-card text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline shikshaq-auth-field';
@@ -362,14 +363,26 @@ export default function Auth() {
       {/* Main Content */}
       <main className="flex-1 pb-20 lg:pb-0">
         <div className="max-w-[470px] mx-auto px-4 sm:px-6 pt-4 sm:pt-8 pb-12">
-          <div className="text-center mb-5">
-            <span className="relative inline-flex">
-              <Logo size="lg" className="justify-center" />
-              <Sparkles
-                className="animate-sparkle absolute -right-3 -top-2 h-[14px] w-[14px] text-brand-blue opacity-0 [animation-delay:.3s]"
-                aria-hidden="true"
-              />
-            </span>
+          {/* First-fold opening — graph-paper ground + a cut-paper mark instead of
+              logo-on-blank-white. Confined to the header block only; the form
+              below stays a crisp, unadorned surface (§4). */}
+          <div className="ground-graph relative -mx-4 mb-5 overflow-hidden rounded-2xl px-4 pb-6 pt-6 sm:-mx-6 sm:px-6">
+            <CutPaperShape
+              variant="squiggle"
+              color="hsl(var(--brand-blue))"
+              size={120}
+              outlined={false}
+              className="pointer-events-none absolute -right-2 top-2 hidden opacity-70 sm:block"
+            />
+            <div className="relative text-center">
+              <span className="relative inline-flex">
+                <Logo size="lg" className="justify-center" />
+                <Sparkles
+                  className="animate-sparkle absolute -right-3 -top-2 h-[14px] w-[14px] text-brand-blue opacity-0 [animation-delay:.3s]"
+                  aria-hidden="true"
+                />
+              </span>
+            </div>
           </div>
 
           {/* Segmented tab pill — Sign in / Create account */}
@@ -392,13 +405,29 @@ export default function Auth() {
             </div>
           )}
 
-          <h1 className="text-3xl sm:text-4xl font-normal tracking-tight leading-[.95] text-foreground">
+          <h1 className="font-display text-3xl sm:text-4xl font-normal tracking-tight leading-[.95] text-foreground">
             {showResetPassword ? (
               'Reset your password'
             ) : isLogin ? (
-              <>Welcome <span className="font-extrabold">back.</span></>
+              <>
+                Welcome{' '}
+                <span
+                  className="marker-highlight marker-highlight--tilt font-extrabold"
+                  style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
+                >
+                  back.
+                </span>
+              </>
             ) : (
-              <>Join the <span className="font-extrabold">tutor hunt.</span></>
+              <>
+                Join the{' '}
+                <span
+                  className="marker-highlight marker-highlight--tilt font-extrabold"
+                  style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
+                >
+                  tutor hunt.
+                </span>
+              </>
             )}
           </h1>
           <p className="mt-2 text-base leading-relaxed text-muted-foreground">
@@ -535,7 +564,7 @@ export default function Auth() {
                           setErrors({});
                           setFormData({ ...formData, password: '' });
                         }}
-                        className="shikshaq-tap text-sm font-semibold text-brand-blue"
+                        className="shikshaq-tap -my-3 inline-flex min-h-11 items-center px-1 text-sm font-semibold text-brand-blue"
                       >
                         Forgot password?
                       </button>
@@ -644,10 +673,20 @@ export default function Auth() {
           {!showResetPassword && !showForgotPassword && (
             <p className="mt-4 text-xs leading-relaxed text-warm-meta">
               By continuing you agree to our{' '}
-              <Link to="/terms-of-service" className="text-brand-blue font-semibold">Terms of Service</Link>
+              <Link
+                to="/terms-of-service"
+                className="-my-3.5 inline-flex min-h-11 items-center px-0.5 align-middle text-brand-blue font-semibold"
+              >
+                Terms of Service
+              </Link>
               {' '}and{' '}
-              <Link to="/privacy-policy" className="text-brand-blue font-semibold">Privacy Policy</Link>.
-              {' '}Your number is never shared with a teacher until you message them.
+              <Link
+                to="/privacy-policy"
+                className="-my-3.5 inline-flex min-h-11 items-center px-0.5 align-middle text-brand-blue font-semibold"
+              >
+                Privacy Policy
+              </Link>
+              . Your number is never shared with a teacher until you message them.
             </p>
           )}
         </div>

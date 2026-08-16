@@ -21,19 +21,26 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
-        serif: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
+        /* `serif` used to duplicate the sans stack verbatim — a lie, since
+           nothing about it was serif. Repointed at the new display grotesk
+           (task item #1) rather than removed: several later agents will want
+           a `font-serif` escape hatch for "heavy display type" call sites
+           that don't fit the tokenized `text-display-*` scale below (e.g. a
+           one-off oversized numeral). Wide-heavy Archivo axis settings live
+           on `fontFamily.display`; `serif` is a plain alias to the same
+           family so both names resolve identically — pick `font-display` for
+           new work, `font-serif` only exists for that escape-hatch case. */
+        serif: ['Archivo', 'system-ui', '-apple-system', 'sans-serif'],
+        /* VISUAL_LANGUAGE character layer — heavy expressive grotesk for
+           display type only. Variable font, both axes (width 62-125,
+           weight 100-900) loaded in index.html so `font-display font-black`
+           (wght 900) and stretched/condensed variants are all reachable via
+           arbitrary `[font-stretch:*]` if a later agent needs them. Body
+           copy stays on `font-sans` (Geist) always — never use this for body
+           text or long-form copy. */
+        display: ['Archivo', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
-        /* @deprecated — legacy literal-hex classes. DESIGN_SYSTEM.md §2 bans
-           these in src/**; use `brand` / `brand-blue` / `bg-background` /
-           `text-foreground` instead. DELETE this block once
-           `grep -rn "shikshaq-\(orange\|blue\|beige\|dark\)" src/` is empty.
-           Kept alive only so in-flight migrations don't break the build. */
-        'shikshaq-beige': '#F9F5F1',
-        'shikshaq-dark': '#1F1F1F',
-        'shikshaq-orange': '#FF8000',
-        'shikshaq-blue': '#4351FF',
-
         /* Brand accents — DESIGN_SYSTEM.md §2. Accents, not surfaces. */
         brand: {
           DEFAULT: "hsl(var(--brand))",           // #FF8000
@@ -80,6 +87,22 @@ export default {
         /* Mint stat-card fill — VISUAL_LANGUAGE.md §8. */
         mint: "var(--mint)",                              // #E3F7EC
 
+        /* Facet/status accents promoted from searchFacets.ts — see index.css
+           for the collision notes on facet-destructive vs destructive, and
+           surface-panel-light vs panel. */
+        success: {
+          DEFAULT: "var(--success)",
+          "subtle-bg": "var(--success-subtle-bg)",
+          "subtle-text": "var(--success-subtle-text)",
+        },
+        whatsapp: {
+          DEFAULT: "var(--whatsapp)",
+          text: "var(--whatsapp-text)",
+        },
+        "indigo-link-on-dark": "var(--indigo-link-on-dark)",
+        "facet-destructive": "var(--facet-destructive)",
+        "surface-panel-light": "var(--surface-panel-light)",
+
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -113,12 +136,6 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        cream: {
-          DEFAULT: "hsl(var(--cream))",
-          dark: "hsl(var(--cream-dark))",
-        },
-        charcoal: "hsl(var(--charcoal))",
-        "warm-gray": "hsl(var(--warm-gray))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -152,6 +169,119 @@ export default {
         "glow-brand-blue": "var(--shadow-glow-brand-blue)",
         "card-bone": "var(--shadow-card-bone)",
         "card-mint": "var(--shadow-card-mint)",
+      },
+      /* ---- Unified type scale (task #2) -------------------------------------
+         ONE scale, as real fontSize tokens (each entry: [size, {lineHeight,
+         letterSpacing}]). Replaces BOTH prior systems:
+           - DESIGN_SYSTEM.md §3's Tailwind-class scale (text-4xl font-semibold
+             tracking-tight, etc.) — those classes still work, but new code
+             should prefer the named tokens below so tracking/leading travel
+             with the size instead of being re-typed at every call site.
+           - VISUAL_LANGUAGE.md §4's arbitrary clamp()-in-inline-style scale
+             (`style={{ fontSize: 'clamp(34px,5.6vw,66px)' }}`) — every one of
+             those clamps is reproduced here verbatim as a token, so no call
+             site ever needs an inline style for type again.
+
+         Mapping old -> new (mechanical migration for later agents):
+           DESIGN_SYSTEM §3 "Display (hero h1)"      -> text-display-hero
+           DESIGN_SYSTEM §3 "Page title (h1)"        -> text-page-title
+           DESIGN_SYSTEM §3 "Section (h2)"           -> text-section-head
+           DESIGN_SYSTEM §3 "Subsection (h3)"        -> text-subsection
+           DESIGN_SYSTEM §3 "Card title (h4)"        -> text-card-title
+           DESIGN_SYSTEM §3 "Body"                   -> text-body
+           DESIGN_SYSTEM §3 "Secondary body"         -> text-body-secondary
+           DESIGN_SYSTEM §3 "Meta / caption"         -> text-meta
+           DESIGN_SYSTEM §3 "Label / eyebrow"        -> text-label (pair with
+                                                         uppercase tracking-wide
+                                                         font-semibold utility
+                                                         classes as before)
+           VISUAL_LANGUAGE §4 "Home H1"              -> text-display-hero
+                                                         (same clamp(34px,5.6vw,66px))
+           VISUAL_LANGUAGE §4 "Section H2"           -> text-section-head
+                                                         (same clamp(23px,3vw,34px))
+           VISUAL_LANGUAGE §4 "Subject card name"    -> text-card-title-lg (23px)
+           VISUAL_LANGUAGE §4 "Paper card title"     -> text-card-title-lg
+                                                         (20-21px, use the 21px token)
+           VISUAL_LANGUAGE §4 "Lede paragraph"       -> text-lede (17px)
+           VISUAL_LANGUAGE §4 "Body" (15px)          -> text-body-secondary
+           VISUAL_LANGUAGE §4 "Card meta" (13.5px)   -> text-meta
+           VISUAL_LANGUAGE §4 "Uppercase label"      -> text-label (11.5px, use
+                                                         with the .label-uppercase
+                                                         utility in index.css for
+                                                         the 0.04em tracking + 700)
+
+         Display sizes get tight negative tracking per the task brief. Fluid
+         sizes use clamp() so they're tokenized AND responsive — no arbitrary
+         values needed at call sites. Non-fluid sizes (card title, body, meta,
+         label) come from the exact VISUAL_LANGUAGE §4 px values since those
+         were never meant to be fluid. */
+      fontSize: {
+        "display-hero": ["clamp(2.125rem, 1.7rem + 2.1vw, 4.125rem)", { lineHeight: "0.95", letterSpacing: "-0.03em" }],
+        "page-title": ["clamp(1.75rem, 1.55rem + 1vw, 2.5rem)", { lineHeight: "1.05", letterSpacing: "-0.025em" }],
+        "section-head": ["clamp(1.4375rem, 1.28rem + 0.75vw, 2.125rem)", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
+        subsection: ["1.125rem", { lineHeight: "1.3", letterSpacing: "-0.01em" }],
+        "card-title": ["1rem", { lineHeight: "1.35", letterSpacing: "-0.01em" }],
+        "card-title-lg": ["1.4375rem", { lineHeight: "1.15", letterSpacing: "-0.04em" }],
+        lede: ["1.0625rem", { lineHeight: "1.55", letterSpacing: "0" }],
+        body: ["1rem", { lineHeight: "1.5", letterSpacing: "0" }],
+        "body-secondary": ["0.9375rem", { lineHeight: "1.6", letterSpacing: "0" }],
+        meta: ["0.84375rem", { lineHeight: "1.4", letterSpacing: "0" }],
+        label: ["0.71875rem", { lineHeight: "1.2", letterSpacing: "0.04em" }],
+      },
+      /* ---- Spacing (task #5) -------------------------------------------------
+         DESIGN_SYSTEM.md §4 only ever *documented* an allowed step list
+         (1,2,3,4,6,8,12,16,20,24); nothing in config enforced it, so `p-5` /
+         `gap-7` / arbitrary `[13px]` values still typecheck and build fine —
+         they always did, because those are just core Tailwind spacing scale
+         entries that were never removed. This does NOT add new spacing steps
+         (the documented list is already 1:1 with Tailwind's default scale, so
+         there is nothing to "add" as tokens) — it narrows `spacing` to expose
+         ONLY the approved steps plus the values components already depend on
+         (0, px, full, and the fractional/percentage keys Tailwind ships by
+         default for flex/grid utilities), which is the closest this file can
+         get to making the rule mechanically enforceable. NOTE: this still
+         does not block arbitrary bracket values like `p-[13px]` — Tailwind's
+         arbitrary-value syntax bypasses the `spacing` theme key entirely by
+         design. That half of the rule genuinely needs a lint rule (e.g. an
+         eslint-plugin-tailwindcss rule or a stylelint regex over the built
+         class list), which is out of scope for this token layer. */
+      spacing: {
+        0: "0px",
+        px: "1px",
+        1: "0.25rem",
+        2: "0.5rem",
+        3: "0.75rem",
+        4: "1rem",
+        6: "1.5rem",
+        8: "2rem",
+        12: "3rem",
+        16: "4rem",
+        20: "5rem",
+        24: "6rem",
+      },
+      /* ---- Motion vocabulary (task #4) --------------------------------------
+         Named duration/easing tokens so components stop hand-rolling
+         `transition-colors duration-150`. Values chosen to match what's
+         already in use across the app (150ms colour/press transitions per
+         DESIGN_SYSTEM.md §6, 200-300ms for lift/elevation, the §7
+         cubic-bezier(.16,1,.3,1) "settle" curve already used by fade-slide-up/
+         card-reveal/hero-swap/fan-in). Reach for `duration-tap` /
+         `duration-hover` / `ease-settle` etc. instead of typing raw ms values.
+         `--duration-tap` / `--duration-hover` are also exposed on the
+         CSS-variable layer in index.css so the same numbers are usable
+         outside Tailwind's transition-duration utility (e.g. inside a
+         @keyframes % step or a JS spring config). */
+      transitionDuration: {
+        tap: "150ms",
+        hover: "200ms",
+        lift: "300ms",
+        pop: "400ms",
+        entrance: "500ms",
+      },
+      transitionTimingFunction: {
+        settle: "cubic-bezier(0.16, 1, 0.3, 1)",
+        tap: "ease-out",
+        pop: "cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
       /* DESIGN_SYSTEM.md §6 — permitted motion ONLY. The other 27
          keyframes/animations (scale-pop, blur-reveal, glow-pulse, icon-spin,
@@ -214,6 +344,16 @@ export default {
           "0%, 100%": { transform: "translateY(0) rotate(var(--bob-rotate, 0deg))" },
           "50%": { transform: "translateY(-9px) rotate(var(--bob-rotate, 0deg))" },
         },
+
+        /* ---- Motion vocabulary additions (task #4) -------------------------
+           `pop` — sticker/badge appearance matching the reference energy: a
+           slight overshoot scale-in, using the new `pop` easing token above.
+           Pairs with `.sticker` / `.tape-*` utilities in index.css. Finite,
+           not ambient — safe to use anywhere, no desktop-only guard needed. */
+        pop: {
+          from: { opacity: "0", transform: "scale(0.8)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -229,6 +369,13 @@ export default {
         sparkle: "sparkle 2.6s ease-in-out infinite",
         "fan-in": "fanIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
         bob: "bob 6s ease-in-out infinite",
+
+        /* Task #4 addition. Use with an `animation-delay` utility (Tailwind
+           core supports `[animation-delay:80ms]`) per staggered list item for
+           entrance choreography — see the `.stagger-children` utility in
+           index.css for a no-JS way to stagger a list/grid's direct children
+           automatically without hand-writing a delay per item. */
+        pop: "pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both",
       },
     },
   },

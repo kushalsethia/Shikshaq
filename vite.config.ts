@@ -36,6 +36,12 @@ export default defineConfig({
             '@radix-ui/react-toast',
           ],
           'supabase-vendor': ['@supabase/supabase-js'],
+          // Split out libs that are pulled into the eager main bundle (used by
+          // components imported directly in App.tsx / Index.tsx) so they cache
+          // independently from app code and fetch in parallel over HTTP/2.
+          'motion-vendor': ['framer-motion'],
+          'dompurify-vendor': ['dompurify'],
+          'search-vendor': ['fuse.js'],
         },
       },
     },

@@ -173,7 +173,7 @@ export function HomeActivitySection() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Heart className="h-5 w-5 text-brand" strokeWidth={2} aria-hidden="true" />
-            <h2 className="text-xl font-semibold tracking-tight">Favourites</h2>
+            <h2 className="text-subsection font-display font-bold">Favourites</h2>
           </div>
 
           {!user ? (
@@ -222,7 +222,7 @@ export function HomeActivitySection() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-brand-blue" strokeWidth={2} aria-hidden="true" />
-            <h2 className="text-xl font-semibold tracking-tight">Recently visited</h2>
+            <h2 className="text-subsection font-display font-bold">Recently visited</h2>
           </div>
 
           {recent.length > 0 ? (

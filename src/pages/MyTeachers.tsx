@@ -11,6 +11,7 @@ import { useRequireRole } from '@/hooks/use-require-role';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, ArrowLeft, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { PageHeader, CutPaperShape } from '@/components/devices';
 
 interface MyTeacher {
   id: string;
@@ -171,35 +172,59 @@ export default function MyTeachers() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container pt-8 pb-16">
-        {/* Back Button */}
+
+      <PageHeader
+        eyebrow="Your list"
+        title={
+          <>
+            The teachers you{' '}
+            <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand))' }}>
+              study with
+            </span>
+          </>
+        }
+        lede={
+          myTeachers.length === 0
+            ? 'Mark a teacher as "studies with" from their profile and they turn up here.'
+            : `${myTeachers.length} ${myTeachers.length === 1 ? 'teacher' : 'teachers'} you study with, in one place.`
+        }
+        accent="hsl(var(--brand))"
+        ground="graph"
+      >
         <Link
           to="/dashboard/student"
-          className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground"
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-warm-prose transition-colors duration-150 hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to dashboard
         </Link>
+      </PageHeader>
 
-        {/* Header */}
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">My Teachers</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {myTeachers.length === 0
-            ? 'Teachers you study with will show up here'
-            : `${myTeachers.length} ${myTeachers.length === 1 ? 'teacher' : 'teachers'} you study with`}
-        </p>
-
+      <main className="container pt-8 pb-16">
         {/* Teachers Grid */}
         {myTeachers.length === 0 ? (
-          <EmptyResults
-            className="mt-6"
-            icon={<GraduationCap className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-            heading="No teachers yet"
-            message="Start exploring teachers and indicate which ones you study with."
-            action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
-          />
+          <div className="relative mt-2 overflow-hidden">
+            <CutPaperShape
+              variant="star"
+              color="hsl(var(--brand))"
+              size={64}
+              className="pointer-events-none absolute -left-3 -top-3 hidden opacity-90 sm:block"
+            />
+            <CutPaperShape
+              variant="blob"
+              color="hsl(var(--brand-blue))"
+              size={72}
+              className="pointer-events-none absolute -bottom-4 -right-3 hidden opacity-90 sm:block"
+            />
+            <EmptyResults
+              icon={<GraduationCap className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+              heading="No teachers yet"
+              message="Open any teacher's profile and mark them as 'studies with' — they'll show up here so you can find them again fast."
+              action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
+            />
+          </div>
         ) : (
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+          <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {myTeachers.map((teacher) => (
               <div key={teacher.id} className="relative">
                 <TeacherCard

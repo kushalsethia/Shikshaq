@@ -152,8 +152,16 @@ export default function SubjectPage() {
     };
   }, [pathname]);
 
+  // Templated first-fold label (VISUAL_DIRECTION.md §9a): the SEO title is
+  // always "{Subject} Tuition Teachers in Kolkata | Shikshaq", so the subject
+  // name is everything before " Tuition" — reused rather than duplicating a
+  // second subject-name table that could drift from SUBJECT_SEO.
+  const seoEntry = SUBJECT_SEO[pathname];
+  const subjectLabel = seoEntry ? seoEntry.title.split(' Tuition')[0] : null;
+  const pageContext = subjectLabel ? { kind: 'subject' as const, label: subjectLabel } : undefined;
+
   if (!filterValue) {
-    return <Browse manageSeo={!SUBJECT_SEO[pathname]} />;
+    return <Browse manageSeo={!SUBJECT_SEO[pathname]} pageContext={pageContext} />;
   }
 
   const filterSubjectsExists = searchParams.has('filter_subjects');
@@ -183,5 +191,5 @@ export default function SubjectPage() {
     hasSetInitialFilterRef.current = true;
   }
 
-  return <Browse manageSeo={!SUBJECT_SEO[pathname]} />;
+  return <Browse manageSeo={!SUBJECT_SEO[pathname]} pageContext={pageContext} />;
 }

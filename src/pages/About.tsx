@@ -5,6 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
+import { PageHeader } from '@/components/devices';
 
 const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
 const SECTION = 'py-16 sm:py-20 lg:py-24';
@@ -55,28 +56,27 @@ export default function About() {
 
       <main className="pb-20 lg:pb-0">
         {/* ------------------------------------------------------------ Hero */}
-        <section className={`${CONTAINER} pt-6 pb-4 sm:pt-12 lg:pt-16`}>
-          <div className="relative max-w-3xl space-y-3">
-            <span
-              aria-hidden="true"
-              className="animate-sparkle absolute -left-2 -top-3 hidden h-[9px] w-[9px] rounded-[3px] bg-brand opacity-0 [animation-delay:.1s] lg:block"
-            />
-            <span
-              aria-hidden="true"
-              className="animate-sparkle absolute left-24 -top-1 hidden h-[6px] w-[6px] rounded-[2px] bg-brand-blue opacity-0 [animation-delay:.55s] lg:block"
-            />
-            <p className="animate-fade-slide-up text-xs font-medium uppercase tracking-wide text-brand">About us</p>
-            <h1 className="animate-fade-slide-up [animation-delay:40ms] text-[clamp(30px,4.6vw,52px)] font-normal leading-[.98] tracking-[-.05em]">
+        <PageHeader
+          eyebrow="About us"
+          title={
+            <>
               Tuition in Kolkata,{' '}
-              <span className="font-extrabold">without the middleman</span>.
-            </h1>
-            <p className="animate-fade-slide-up max-w-prose text-base leading-[1.65] text-muted-foreground [animation-delay:80ms] sm:text-lg">
-              Shikshaq started because finding a tuition teacher in this city runs on word of mouth, and word of mouth runs out fast. We list teachers, students contact them directly, and no money passes through us.
-            </p>
-          </div>
-
-          {/* Stat cluster — tilted cards, real live counts, never a bare zero */}
-          <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+              <span
+                className="marker-highlight marker-highlight--pill"
+                style={{ '--marker-color': 'hsl(var(--brand-blue))' } as React.CSSProperties}
+              >
+                without the middleman
+              </span>
+              .
+            </>
+          }
+          lede="Shikshaq started because finding a tuition teacher in this city runs on word of mouth, and word of mouth runs out fast. We list teachers, students contact them directly, and no money passes through us."
+          accent="hsl(var(--brand))"
+          ground="graph"
+        >
+          {/* Stat cluster — tilted cards, real live counts, never a bare zero.
+              The header's functional slot: the concrete proof that backs the claim above. */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {aboutStats.map((st, i) => (
               <div
                 key={st.label}
@@ -92,7 +92,7 @@ export default function About() {
               </div>
             ))}
           </div>
-        </section>
+        </PageHeader>
 
         {/* --------------------------------------------------------- Principles */}
         <section className={`${CONTAINER} ${SECTION} pt-8 sm:pt-10 lg:pt-12`}>

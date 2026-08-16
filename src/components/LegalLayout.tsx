@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { PageHeader } from '@/components/devices';
 
 export interface LegalSection {
   title: string;
@@ -33,45 +34,49 @@ interface LegalLayoutProps {
 
 /**
  * Shared shell for the three legal/ownership routes (pages/Legal.md).
- * Renders the 720px prose column, the section list, and the cross-link pill
- * row. Each route supplies its own title, "last updated" line, and sections.
+ * Renders the PageHeader opening, the 720px prose column, the section list,
+ * and the cross-link pill row. Each route supplies its own title, "last
+ * updated" line, and sections. Legal body copy stays plain per
+ * VISUAL_DIRECTION.md §9a — only the opening gets a designed treatment.
  */
 export function LegalLayout({ title, lastUpdated, sections, currentPath }: LegalLayoutProps) {
+  const isPrivacy = currentPath === '/privacy-policy';
+  const accent = isPrivacy ? 'hsl(var(--brand-blue))' : 'hsl(var(--brand))';
+
   return (
-    <div style={{ minHeight: '100vh', background: '#F9F5F1' }}>
+    <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: 'clamp(28px,5vw,56px) clamp(16px,3vw,28px) 56px' }}>
-        <h1 style={{ fontSize: 'clamp(26px,3.6vw,38px)', lineHeight: 1.02, fontWeight: 700, color: '#1F1F1F' }}>{title}</h1>
-        <p style={{ marginTop: 10, fontSize: 13, color: '#8B837A' }}>{lastUpdated}</p>
+      <PageHeader
+        eyebrow="Legal"
+        title={title}
+        lede={`${lastUpdated}. Plain, accurate, and unchanged in substance — restyled, not rewritten.`}
+        accent={accent}
+        ground="ruled"
+      />
 
-        <div style={{ marginTop: 30, display: 'grid', gap: 26 }}>
+      <div className="mx-auto max-w-[720px] px-4 pb-14 pt-10 sm:px-7">
+        <div className="grid gap-6">
           {sections.map((section) => (
             <section key={section.title}>
-              <h2 style={{ fontSize: 21, fontWeight: 700, marginBottom: 10, color: '#1F1F1F' }}>{section.title}</h2>
+              <h2 className="mb-2.5 text-subsection font-semibold text-foreground">{section.title}</h2>
               {section.body}
             </section>
           ))}
         </div>
 
-        <div style={{ marginTop: 32, display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        <div className="mt-8 flex flex-wrap gap-2.5">
           {LEGAL_PAGES.map((page) => {
             const isCurrent = page.to === currentPath;
             return (
               <Link
                 key={page.to}
                 to={page.to}
-                className={isCurrent ? 'shikshaq-legal-pill' : 'shikshaq-outline-btn'}
-                style={{
-                  padding: '11px 18px',
-                  borderRadius: 999,
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  transition: 'filter .15s ease, background-color .15s ease',
-                  ...(isCurrent
-                    ? { background: '#EDEEFF', color: '#2E3AD6' }
-                    : { boxShadow: '0 0 0 1px #E7DFD5', color: '#4A443E' }),
-                }}
+                className={
+                  isCurrent
+                    ? 'min-h-11 rounded-full bg-brand-blue-subtle px-[18px] py-[11px] text-[13.5px] font-semibold text-brand-blue-deep transition-[filter] duration-150 hover:brightness-95'
+                    : 'min-h-11 rounded-full px-[18px] py-[11px] text-[13.5px] font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-foreground/5'
+                }
               >
                 {page.label}
               </Link>
@@ -81,13 +86,6 @@ export function LegalLayout({ title, lastUpdated, sections, currentPath }: Legal
       </div>
 
       <Footer />
-
-      <style>{`
-        @media (hover: hover) {
-          .shikshaq-legal-pill:hover { filter: brightness(0.96); }
-          .shikshaq-outline-btn:hover { background-color: rgba(31,31,31,.05); }
-        }
-      `}</style>
     </div>
   );
 }

@@ -9,6 +9,7 @@
  */
 
 import { useEffect } from 'react';
+import { generateFAQPageSchema } from '@/utils/structuredDataGenerators';
 
 const SITE_URL = 'https://www.shikshaq.in';
 
@@ -29,20 +30,10 @@ export interface FAQSchemaProps {
  */
 export function FAQSchema({ faqs, url = '/faq' }: FAQSchemaProps) {
   useEffect(() => {
-    const schema = {
-      '@context': 'https://schema.org',
-      '@type': 'FAQPage',
-      '@id': `${SITE_URL}${url}#faqpage`,
+    const schema = generateFAQPageSchema({
       url: `${SITE_URL}${url}`,
-      mainEntity: faqs.map((faq) => ({
-        '@type': 'Question',
-        name: faq.question,
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: faq.answer,
-        },
-      })),
-    };
+      faqs,
+    });
 
     // Remove existing FAQ schema
     const existing = document.getElementById('faq-schema');

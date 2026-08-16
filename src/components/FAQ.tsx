@@ -55,56 +55,26 @@ export function FAQ({ items = FAQ_ITEMS.slice(0, 4), questionSize = 17, heading 
         return (
           <div
             key={faq.question}
-            style={{ borderRadius: 16, background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}
+            className="rounded-2xl bg-card shadow-border"
           >
             <button
               type="button"
               onClick={() => setOpenIndex(isOpen ? null : index)}
               aria-expanded={isOpen}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 16,
-                width: '100%',
-                minHeight: 44,
-                padding: '18px 22px',
-                fontWeight: 600,
-                fontSize: questionSize,
-                textAlign: 'left',
-                color: '#1F1F1F',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: 16,
-                cursor: 'pointer',
-              }}
+              className="flex min-h-11 w-full items-center justify-between gap-4 rounded-2xl border-0 bg-transparent px-[22px] py-[18px] text-left font-semibold text-foreground cursor-pointer"
+              style={{ fontSize: questionSize }}
             >
               <span>{faq.question}</span>
               <span
                 aria-hidden="true"
-                style={{
-                  flexShrink: 0,
-                  fontSize: 19,
-                  lineHeight: 1,
-                  color: '#8B837A',
-                  transform: isOpen ? 'rotate(45deg)' : 'none',
-                  transition: 'transform .2s ease',
-                }}
+                className="flex-shrink-0 text-warm-meta transition-transform duration-200"
+                style={{ fontSize: 19, lineHeight: 1, transform: isOpen ? 'rotate(45deg)' : 'none' }}
               >
                 +
               </span>
             </button>
             {isOpen && (
-              <p
-                style={{
-                  margin: 0,
-                  padding: '0 22px 20px',
-                  fontSize: 15,
-                  lineHeight: 1.65,
-                  color: '#666',
-                  animation: 'shikshaq-faq-rise .22s ease-out',
-                }}
-              >
+              <p className="m-0 px-[22px] pb-5 text-[15px] leading-relaxed text-warm-secondary animate-[shikshaq-faq-rise_.22s_ease-out]">
                 {faq.answer}
               </p>
             )}
@@ -117,8 +87,8 @@ export function FAQ({ items = FAQ_ITEMS.slice(0, 4), questionSize = 17, heading 
   return (
     <>
       {heading ? (
-        <section id="faq" className="scroll-mt-20" style={{ maxWidth: 820, margin: '0 auto', padding: '60px clamp(16px,3vw,28px) 20px' }}>
-          <h2 style={{ fontSize: 'clamp(23px,3vw,34px)', lineHeight: 1, fontWeight: 700, textAlign: 'center', marginBottom: 26, color: '#1F1F1F' }}>
+        <section id="faq" className="scroll-mt-20 mx-auto max-w-[820px] px-4 py-[60px] sm:px-7">
+          <h2 className="mb-[26px] text-center font-display text-display-hero leading-none text-foreground">
             Common queries answered
           </h2>
           {accordion}

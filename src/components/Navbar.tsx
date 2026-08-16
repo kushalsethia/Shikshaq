@@ -14,12 +14,15 @@ import {
   Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
 } from '@/components/ui/sheet';
 import { ExpandableTabs, type ExpandableTab } from '@/components/ui/expandable-tabs';
+import {
+  BROWSE_PATH, isHomeActive, isBrowseActive, isPapersActive, isAboutActive, getDashboardLink, type UserRole,
+} from '@/lib/nav-config';
 
 const NAV_TABS: ExpandableTab[] = [
-  { to: '/', label: 'Home', icon: Home, isActive: (p) => p === '/' },
-  { to: '/all-tuition-teachers-in-kolkata', label: 'Teachers', icon: GraduationCap, isActive: (p) => p.endsWith('-tuition-teachers-in-kolkata') },
-  { to: '/past-papers', label: 'Papers', icon: FileText, isActive: (p) => p.startsWith('/past-papers'), accent: 'brand-blue' },
-  { to: '/about', label: 'About', icon: Info, isActive: (p) => p === '/about' },
+  { to: '/', label: 'Home', icon: Home, isActive: isHomeActive },
+  { to: BROWSE_PATH, label: 'Teachers', icon: GraduationCap, isActive: isBrowseActive },
+  { to: '/past-papers', label: 'Papers', icon: FileText, isActive: isPapersActive, accent: 'brand-blue' },
+  { to: '/about', label: 'About', icon: Info, isActive: isAboutActive },
 ];
 
 const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2';
@@ -30,7 +33,8 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, signOut, profile } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
-  const userRole = (profile?.role as 'student' | 'guardian' | 'teacher') || null;
+  const userRole = (profile?.role as UserRole) || null;
+  const dashboardLink = getDashboardLink(userRole);
 
   useEffect(() => {
     async function checkAdminStatus() {
@@ -118,9 +122,13 @@ export function Navbar() {
                 {user ? (
                   <>
                     <hr className="my-2 border-border" />
-                    {userRole === 'student' && <SheetLink to="/dashboard/student" icon={GraduationCap} label="Student dashboard" />}
-                    {userRole === 'guardian' && <SheetLink to="/dashboard/guardian" icon={Users} label="Guardian dashboard" />}
-                    {userRole === 'teacher' && <SheetLink to="/dashboard/teacher" icon={GraduationCap} label="Teacher's dashboard" />}
+                    {dashboardLink && (
+                      <SheetLink
+                        to={dashboardLink.to}
+                        icon={userRole === 'guardian' ? Users : GraduationCap}
+                        label={dashboardLink.label}
+                      />
+                    )}
                     <SheetLink to="/liked-teachers" icon={Heart} label="Favourite teachers" />
                     {userRole === 'student' && <SheetLink to="/my-teachers" icon={BookMarked} label="My teachers" />}
                     {isAdmin && (
@@ -214,7 +222,7 @@ function SheetLink({ to, icon: Icon, label }: { to: string; icon: LucideIcon; la
 
 interface UserMenuProps {
   user: NonNullable<ReturnType<typeof useAuth>['user']>;
-  userRole: 'student' | 'guardian' | 'teacher' | null;
+  userRole: UserRole;
   isAdmin: boolean;
   signOut: ReturnType<typeof useAuth>['signOut'];
   initial: string;
@@ -223,6 +231,7 @@ interface UserMenuProps {
 function UserMenu({ user, userRole, isAdmin, signOut, initial }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const menuPresence = useExitPresence(open);
+  const dashboardLink = getDashboardLink(userRole);
 
   return (
     <div className="relative">
@@ -244,9 +253,14 @@ function UserMenu({ user, userRole, isAdmin, signOut, initial }: UserMenuProps) 
           >
             <div className="truncate px-3 py-2 text-xs text-muted-foreground">{user.email}</div>
             <hr className="border-border" />
-            {userRole === 'student' && <DropdownLink to="/dashboard/student" icon={GraduationCap} label="Student dashboard" onClick={() => setOpen(false)} />}
-            {userRole === 'guardian' && <DropdownLink to="/dashboard/guardian" icon={Users} label="Guardian dashboard" onClick={() => setOpen(false)} />}
-            {userRole === 'teacher' && <DropdownLink to="/dashboard/teacher" icon={GraduationCap} label="Teacher's dashboard" onClick={() => setOpen(false)} />}
+            {dashboardLink && (
+              <DropdownLink
+                to={dashboardLink.to}
+                icon={userRole === 'guardian' ? Users : GraduationCap}
+                label={dashboardLink.label}
+                onClick={() => setOpen(false)}
+              />
+            )}
             <DropdownLink to="/liked-teachers" icon={Heart} label="Favourite teachers" onClick={() => setOpen(false)} />
             {userRole === 'student' && <DropdownLink to="/my-teachers" icon={BookMarked} label="My teachers" onClick={() => setOpen(false)} />}
             {isAdmin && (

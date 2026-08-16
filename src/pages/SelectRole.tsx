@@ -16,6 +16,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
+import { StarburstBadge } from '@/components/devices';
 
 const FIELD_CLASS =
   'w-full min-h-12 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline px-4 shikshaq-role-field';
@@ -203,7 +204,7 @@ export default function SelectRole() {
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="px-4 sm:px-6 pt-6 sm:pt-12 pb-16 text-center">
-          <p className="mb-4 text-base text-muted-foreground">You must be signed in to continue.</p>
+          <h1 className="mb-4 text-page-title text-foreground">You must be signed in to continue.</h1>
           <button
             onClick={() => navigate(isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth')}
             className="active:scale-[0.98] transition-transform duration-150 min-h-12 px-6 rounded-lg bg-foreground text-background text-base font-bold"
@@ -220,15 +221,28 @@ export default function SelectRole() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
-      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16">
-        <div className="w-full max-w-[480px]">
-          <div className="text-center mb-8">
-            <Logo size="lg" className="mx-auto mb-4" />
-            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
-              Complete your profile
+      <main className="ground-graph relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:px-6 sm:py-16">
+        <div className="relative w-full max-w-[480px]">
+          <div className="mb-8 text-center">
+            <div className="relative mx-auto mb-4 inline-block">
+              <Logo size="lg" className="mx-auto" />
+              <StarburstBadge
+                color="hsl(var(--brand-blue))"
+                size={54}
+                tilt={-10}
+                className="absolute -right-8 -top-5 hidden sm:inline-grid"
+              >
+                Almost
+              </StarburstBadge>
+            </div>
+            <h1 className="font-display text-display-hero leading-tight tracking-tight text-foreground">
+              One quick{' '}
+              <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand))' }}>
+                thing
+              </span>
             </h1>
             <p className="mt-2 text-base leading-relaxed text-muted-foreground">
-              Please select whether you are a student or guardian
+              Are you the one studying, or looking after someone who is?
             </p>
           </div>
 

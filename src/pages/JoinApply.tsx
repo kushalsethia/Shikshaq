@@ -16,11 +16,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { toast } from 'sonner';
 import { Loader2, Upload, X, CheckCircle2 } from 'lucide-react';
-import imageCompression from 'browser-image-compression';
 import DOMPurify from 'dompurify';
 import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 import { getSubjectColors } from '@/utils/subjectColors';
 import { Link } from 'react-router-dom';
+import { NumberedIndex } from '@/components/devices';
 
 // Constants matching AdminTeachers
 const SUBJECTS = [
@@ -272,7 +272,8 @@ export default function JoinApply() {
     try {
       setUploadingImage(true);
 
-      // Compress image
+      // Compress image (loaded on demand — only needed once a user picks an image)
+      const { default: imageCompression } = await import('browser-image-compression');
       const compressedFile = await imageCompression(file, {
         maxSizeMB: 1,
         maxWidthOrHeight: 1920,
@@ -668,10 +669,39 @@ export default function JoinApply() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
         <Link
           to="/join"
-          className="inline-block text-sm font-semibold text-warm-meta mb-6 no-underline"
+          className="-my-3 inline-flex min-h-11 items-center text-sm font-semibold text-warm-meta no-underline"
         >
           ← Why join Shikshaq
         </Link>
+
+        {/* Real opening fold for the wizard, shown once before step 1 — a heavy
+            display headline plus a NumberedIndex overview of all four steps so the
+            ~20-field form reads as navigable rather than daunting up front. */}
+        {step === 0 && (
+          <div className="mt-6 mb-8">
+            <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">
+              Join as a{' '}
+              <span
+                className="marker-highlight marker-highlight--pill"
+                style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
+              >
+                tuition teacher
+              </span>
+            </h1>
+            <p className="mt-2 max-w-prose text-base leading-relaxed text-muted-foreground">
+              Four short steps, about five minutes. No commission, no listing fee.
+            </p>
+            <NumberedIndex
+              className="mt-2"
+              items={[
+                { key: '1', title: 'About you', description: 'Name, contact and years of experience.', color: 'hsl(var(--brand))' },
+                { key: '2', title: 'What you teach', description: 'Subjects, boards and classes.', color: 'hsl(var(--brand-blue))' },
+                { key: '3', title: 'Where & fees', description: 'Areas you teach in and your monthly rate.', color: 'hsl(var(--brand))' },
+                { key: '4', title: 'Review', description: 'Confirm details and send for verification.', color: 'hsl(var(--brand-blue))' },
+              ]}
+            />
+          </div>
+        )}
 
         {/* Stepper — numerals sit on a connecting rail so the four steps read as one
             continuous path rather than four loose chips (bolder card-based step

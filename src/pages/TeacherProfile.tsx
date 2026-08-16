@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Heart, ArrowUp, Clock, Wallet, Users, ShieldCheck } from 'lucide-react';
+import { Heart, ArrowUp, Clock, Wallet, Users, ShieldCheck, Lock } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
@@ -18,6 +18,13 @@ import DOMPurify from 'dompurify';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { saveAuthRedirect } from '@/utils/authRedirect';
 import { recordVisit } from '@/lib/recently-visited';
+import { TeacherComments } from '@/components/TeacherComments';
+import { CutPaperShape, SpeechTag, TicketShape } from '@/components/devices';
+import {
+  generateTeacherPersonSchema,
+  generateBreadcrumbSchema,
+  generatePersonReviewSchema,
+} from '@/utils/structuredDataGenerators';
 
 interface Teacher {
   id: string;
@@ -56,13 +63,6 @@ interface Teacher {
   max_fees?: number | null; // The "Max Fees" field from Shikshaqmine table
 }
 
-interface TeacherReview {
-  id: string;
-  comment: string;
-  authorName: string;
-  authorInfo: string;
-}
-
 // "{name}, {honorific}" per pages/TeacherProfile.md's h1 spec (same honorific rule as TeacherCard).
 function formatDisplayName(name: string, sirMaam?: string | null): string {
   if (!sirMaam) return name;
@@ -99,7 +99,7 @@ function SubjectTag({ label }: { label: string }) {
   const palette = getSubjectPalette(label);
   return (
     <span
-      className="inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold"
+      className="animate-pop inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold"
       style={{ backgroundColor: palette.tint, color: palette.text }}
     >
       {label}
@@ -114,20 +114,21 @@ function ModeTag({ label, variant }: { label: string; variant: 'blue' | 'brand' 
       ? 'bg-brand-blue-subtle text-brand-blue-deep'
       : 'bg-brand-subtle text-brand-deep';
   return (
-    <span className={`inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold ${classes}`}>
+    <span className={`animate-pop inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold ${classes}`}>
       {label}
     </span>
   );
 }
 
+// Cluster D — editorial data-viz: big honest tabular numbers, no chartjunk.
 function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-card p-4 shadow-border">
+    <div className="animate-card-reveal rounded-2xl bg-card p-4 shadow-border">
       <div className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-warm-meta">
         <Icon size={13} className="text-warm-meta" strokeWidth={2} aria-hidden="true" />
         {label}
       </div>
-      <div className="tabular-nums text-xl font-bold text-foreground">{value}</div>
+      <div className="font-display tabular-nums text-2xl font-bold tracking-tight text-foreground">{value}</div>
     </div>
   );
 }
@@ -143,14 +144,16 @@ export default function TeacherProfile() {
   const { slug } = useParams<{ slug: string }>();
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
-  const [reviews, setReviews] = useState<TeacherReview[]>([]);
-  const [showAllReviews, setShowAllReviews] = useState(false);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
   const { user } = useAuth();
   const { isLiked, toggleLike } = useLikes();
   const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
   const navigate = useNavigate();
   const location = useLocation();
+  // Tracks whether the primary WhatsApp CTA panel is on-screen, so a floating
+  // mobile CTA can take over once it scrolls out of view — the single success
+  // action for the whole product must stay reachable the entire scroll (task #1).
+  const [primaryCtaVisible, setPrimaryCtaVisible] = useState(true);
+  const primaryCtaRef = useRef<HTMLDivElement>(null);
 
   // Redirects to role selection / teacher terms agreement when needed.
   useRequireRole();
@@ -296,65 +299,17 @@ export default function TeacherProfile() {
     fetchTeacher();
   }, [slug]);
 
-  // "What students say" — approved teacher_comments only, per pages/TeacherProfile.md.
-  // Rows without an `approved` column yet (pre-moderation data) default to approved, matching
-  // the same backwards-compatibility rule TeacherComments.tsx uses.
+  // Observe the primary CTA panel so the floating mobile CTA only appears
+  // once the "real" one has scrolled out of view (not on top of it).
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchReviews() {
-      if (!teacher) return;
-      setReviewsLoading(true);
-
-      const { data: commentsData, error } = await supabase
-        .from('teacher_comments')
-        .select('id, comment, created_at, user_id, is_anonymous, approved')
-        .eq('teacher_id', teacher.id)
-        .order('created_at', { ascending: false });
-
-      if (error || !commentsData || commentsData.length === 0) {
-        if (!cancelled) {
-          setReviews([]);
-          setReviewsLoading(false);
-        }
-        return;
-      }
-
-      const approvedComments = commentsData.filter((c: any) => (c.approved ?? true) === true);
-      const userIds = [...new Set(approvedComments.filter((c: any) => !c.is_anonymous).map((c: any) => c.user_id))];
-
-      let profilesMap = new Map<string, any>();
-      if (userIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from('public_profiles')
-          .select('id, full_name, role, school_college, grade')
-          .in('id', userIds);
-        profilesMap = new Map((profilesData || []).map((p: any) => [p.id, p]));
-      }
-
-      const mapped: TeacherReview[] = approvedComments.map((c: any) => {
-        const profile = c.is_anonymous ? null : profilesMap.get(c.user_id);
-        const authorName = !c.is_anonymous && profile?.full_name ? profile.full_name : 'Anonymous';
-        let authorInfo = '';
-        if (!c.is_anonymous && profile) {
-          if (profile.role === 'guardian') authorInfo = 'Guardian';
-          else if (profile.role === 'student') {
-            authorInfo = [profile.school_college, profile.grade ? `Grade ${profile.grade}` : null].filter(Boolean).join(' • ');
-          }
-        }
-        return { id: c.id, comment: c.comment, authorName, authorInfo };
-      });
-
-      if (!cancelled) {
-        setReviews(mapped);
-        setReviewsLoading(false);
-      }
-    }
-
-    fetchReviews();
-    return () => {
-      cancelled = true;
-    };
+    const node = primaryCtaRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setPrimaryCtaVisible(entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
   }, [teacher?.id]);
 
   // Record this visit for the home page's "Recently visited" section
@@ -373,6 +328,7 @@ export default function TeacherProfile() {
   // Add teacher profile JSON-LD structured data
   useEffect(() => {
     if (!teacher || !teacher.slug) return;
+    let cancelled = false;
 
     // Helper function to convert comma-separated string to array
     const toArray = (value: string | null | undefined): string[] => {
@@ -396,143 +352,78 @@ export default function TeacherProfile() {
     const subjects = teacher.subjects_from_shikshaq ? toArray(teacher.subjects_from_shikshaq) : [];
     const classesTaught = teacher.classes_taught_for_backend ? toArray(teacher.classes_taught_for_backend) : [];
     const qualifications = teacher.qualifications_etc || null;
-    const review1 = teacher.review_1 || null;
-    const review2 = teacher.review_2 || null;
-    const review3 = teacher.review_3 || null;
 
     // Person schema (basic info)
-    const personScript = document.createElement('script');
-    personScript.type = 'application/ld+json';
-    personScript.id = 'teacher-profile-person-schema';
-    personScript.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "Person",
-      "@id": `${teacherUrl}#person`,
-      "name": teacherName,
-      "description": teacherDescription || undefined,
-      "url": teacherUrl,
-      "jobTitle": "Tutor",
-      ...(phoneNumber && { "telephone": phoneNumber }),
-      ...(area && {
-        "address": {
-          "@type": "PostalAddress",
-          "addressLocality": area,
-          "addressRegion": "West Bengal",
-          "addressCountry": "IN"
-        }
-      }),
-      ...(qualifications && {
-        "hasCredential": [
-          {
-            "@type": "EducationalOccupationalCredential",
-            "name": qualifications
-          }
-        ]
-      }),
-      ...(subjects.length > 0 && { "knowsAbout": subjects }),
-      ...(classesTaught.length > 0 && { "teaches": classesTaught }),
-      ...(area && {
-        "workLocation": {
-          "@type": "Place",
-          "name": area
-        }
-      }),
-      "memberOf": {
-        "@type": "EducationalOrganization",
-        "name": "Shikshaq",
-        "url": "https://www.shikshaq.in"
-      },
-      ...(phoneNumber && {
-        "contactPoint": {
-          "@type": "ContactPoint",
-          "contactType": "Direct Contact",
-          "telephone": phoneNumber,
-          "contactOption": "TollFree"
-        }
-      })
+    const personSchema = generateTeacherPersonSchema({
+      url: teacherUrl,
+      name: teacherName,
+      description: teacherDescription || undefined,
+      phoneNumber,
+      area,
+      qualifications,
+      subjects,
+      classesTaught,
     });
 
     // BreadcrumbList schema
+    const breadcrumbItems = [
+      { name: 'Home', url: 'https://www.shikshaq.in' },
+      { name: 'Tuition Teachers', url: 'https://www.shikshaq.in/all-tuition-teachers-in-kolkata' },
+      ...(subjectSlug && subjectName ? [{ name: subjectName, url: subjectUrl }] : []),
+      { name: teacherName, url: teacherUrl },
+    ];
+    const breadcrumbSchema = generateBreadcrumbSchema(breadcrumbItems, `${teacherUrl}#breadcrumb`);
+
+    const personScript = document.createElement('script');
+    personScript.type = 'application/ld+json';
+    personScript.id = 'teacher-profile-person-schema';
+    personScript.textContent = JSON.stringify(personSchema);
+
     const breadcrumbScript = document.createElement('script');
     breadcrumbScript.type = 'application/ld+json';
     breadcrumbScript.id = 'teacher-profile-breadcrumb-schema';
-    const breadcrumbItems = [
-      {
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Home",
-        "item": "https://www.shikshaq.in"
-      },
-      {
-        "@type": "ListItem",
-        "position": 2,
-        "name": "Tuition Teachers",
-        "item": "https://www.shikshaq.in/all-tuition-teachers-in-kolkata"
-      }
-    ];
+    breadcrumbScript.textContent = JSON.stringify(breadcrumbSchema);
 
-    if (subjectSlug && subjectName) {
-      breadcrumbItems.push({
-        "@type": "ListItem",
-        "position": 3,
-        "name": subjectName,
-        "item": subjectUrl
-      });
-    }
-
-    breadcrumbItems.push({
-      "@type": "ListItem",
-      "position": breadcrumbItems.length + 1,
-      "name": teacherName,
-      "item": teacherUrl
-    });
-
-    breadcrumbScript.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      "@id": `${teacherUrl}#breadcrumb`,
-      "itemListElement": breadcrumbItems
-    });
-
-    // Person schema with reviews (if reviews exist)
-    const reviewsForSchema = [review1, review2, review3].filter(Boolean);
-    let reviewScript = null;
-    if (reviewsForSchema.length > 0) {
-      reviewScript = document.createElement('script');
-      reviewScript.type = 'application/ld+json';
-      reviewScript.id = 'teacher-profile-reviews-schema';
-
-      const reviewItems = reviewsForSchema.map(review => ({
-        "@type": "Review",
-        "author": {
-          "@type": "Person",
-          "name": "Student"
-        },
-        "reviewRating": {
-          "@type": "Rating",
-          "ratingValue": "5"
-        },
-        "reviewBody": review
-      }));
-
-      reviewScript.textContent = JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "Person",
-        "@id": `${teacherUrl}#reviews`,
-        "name": teacherName,
-        "review": reviewItems
-      });
-    }
-
-    // Add scripts to head
     document.head.appendChild(personScript);
     document.head.appendChild(breadcrumbScript);
-    if (reviewScript) {
-      document.head.appendChild(reviewScript);
-    }
+
+    // Reviews: sourced from `teacher_comments` — the real, user-submitted,
+    // moderated reviews (same table TeacherComments renders on-page) — rather
+    // than the legacy `Shikshaqmine.review_1/2/3` columns, which are static
+    // imported text with no moderation trail. Only approved comments are
+    // eligible (RLS also enforces this for the anon client), and no rating is
+    // ever attached — see generatePersonReviewSchema for why.
+    (async () => {
+      const { data: comments } = await supabase
+        .from('teacher_comments')
+        .select('comment, approved')
+        .eq('teacher_id', teacher.id)
+        .eq('approved', true)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (cancelled) return;
+
+      const reviewSchema = generatePersonReviewSchema({
+        url: teacherUrl,
+        name: teacherName,
+        reviews: (comments || [])
+          .filter((c) => c.comment && c.comment.trim())
+          .map((c) => ({ author: 'Student', reviewBody: c.comment as string })),
+      });
+
+      if (reviewSchema) {
+        const reviewScript = document.createElement('script');
+        reviewScript.type = 'application/ld+json';
+        reviewScript.id = 'teacher-profile-reviews-schema';
+        reviewScript.textContent = JSON.stringify(reviewSchema);
+        document.head.appendChild(reviewScript);
+      }
+    })();
 
     // Cleanup: remove scripts when component unmounts or teacher changes
     return () => {
+      cancelled = true;
       const existingPerson = document.getElementById('teacher-profile-person-schema');
       const existingBreadcrumb = document.getElementById('teacher-profile-breadcrumb-schema');
       const existingReviews = document.getElementById('teacher-profile-reviews-schema');
@@ -667,6 +558,13 @@ export default function TeacherProfile() {
     : [];
   const boardsList = parseCommaList(teacher.boards_taught);
   const taughtAreas = getTaughtAreas(teacher);
+  const classesList = parseCommaList(teacher.classes_taught || teacher.classes_taught_for_backend);
+
+  // Destination-fold accent — the whole first fold (marker highlight on the
+  // headline, the missing-photo illustration, the WhatsApp ticket) is driven
+  // by the teacher's primary subject color instead of a flat brand default.
+  const primarySubject = subjectsList[0] || null;
+  const accentPalette = getSubjectPalette(primarySubject);
 
   const feesValue =
     teacher.min_fees != null && teacher.max_fees != null
@@ -740,9 +638,15 @@ export default function TeacherProfile() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                /* VISUAL_LANGUAGE §1.4 — diagonal-stripe placeholder for missing photos. */
-                <div className="stripe-placeholder flex h-full w-full items-center justify-center">
-                  <span className="text-6xl font-bold text-foreground/20" aria-hidden="true">
+                /* VISUAL_DIRECTION §9a — "illustration-first imagery": a teacher with no
+                   photo gets a subject-colored cut-paper mark instead of the old diagonal-
+                   stripe placeholder, so a missing photo reads as intentional, not broken. */
+                <div
+                  className="flex h-full w-full items-center justify-center"
+                  style={{ backgroundColor: accentPalette.tint }}
+                >
+                  <CutPaperShape variant="blob" color={accentPalette.solid} size={200} className="absolute" />
+                  <span className="relative font-display text-6xl font-black" style={{ color: accentPalette.text }} aria-hidden="true">
                     {teacher.name.charAt(0)}
                   </span>
                 </div>
@@ -756,11 +660,14 @@ export default function TeacherProfile() {
                   actionable — brand-blue tint reads as a badge, never a second CTA next to
                   the WhatsApp button below. */}
               {teacher.is_verified && (
+                // Was `aria-hidden="true"` on the whole badge, which hid a real trust
+                // signal (DESIGN_SYSTEM §12) from screen readers entirely. Only the
+                // decorative icon is hidden now; the badge itself announces via its text.
                 <div
-                  className="absolute left-2.5 top-2.5 flex h-11 items-center gap-1.5 rounded-full bg-brand-blue px-3.5 shadow-border"
-                  aria-hidden="true"
+                  role="status"
+                  className="animate-pop absolute left-2.5 top-2.5 flex h-11 items-center gap-1.5 rounded-full bg-brand-blue px-3.5 shadow-border"
                 >
-                  <ShieldCheck size={15} className="text-white" strokeWidth={2.3} />
+                  <ShieldCheck size={15} className="text-white" strokeWidth={2.3} aria-hidden="true" />
                   <span className="text-xs font-bold text-white">Verified</span>
                 </div>
               )}
@@ -770,24 +677,44 @@ export default function TeacherProfile() {
                   Same handlers/aria as before; presentation only. Secondary to the WhatsApp
                   CTA per DESIGN_SYSTEM §12 — quiet bone-on-blur chips, not accent-colored. */}
               <div className="absolute right-2.5 top-2.5 flex flex-col gap-2">
+                {/* Task #2 — heart/upvote/WhatsApp all silently gated on sign-in, only
+                    discovered on click. A small lock badge signals the requirement up
+                    front for signed-out visitors, without blocking or nagging anyone
+                    already signed in (badge simply doesn't render for them). */}
                 <button
                   type="button"
                   onClick={handleHeartClick}
-                  aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
+                  aria-label={liked ? 'Remove from favourites' : user ? 'Add to favourites' : 'Add to favourites (sign in required)'}
                   aria-pressed={liked}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-card/90 shadow-border backdrop-blur-sm transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
+                  className="relative flex h-11 w-11 items-center justify-center rounded-full bg-card/90 shadow-border backdrop-blur-sm transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
                 >
                   <Heart size={17} className={liked ? 'fill-destructive text-destructive' : 'text-foreground/70'} />
+                  {!user && (
+                    <span
+                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-background"
+                      aria-hidden="true"
+                    >
+                      <Lock size={9} strokeWidth={2.5} />
+                    </span>
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={handleUpvoteClick}
-                  aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
+                  aria-label={upvoted ? 'Remove upvote' : user ? 'Upvote teacher' : 'Upvote teacher (sign in required)'}
                   aria-pressed={upvoted}
-                  className="flex h-11 min-w-11 items-center justify-center gap-1 rounded-full bg-card/90 px-2.5 shadow-border backdrop-blur-sm transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
+                  className="relative flex h-11 min-w-11 items-center justify-center gap-1 rounded-full bg-card/90 px-2.5 shadow-border backdrop-blur-sm transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
                 >
                   <ArrowUp size={15} className="text-brand-blue" strokeWidth={2.2} />
                   <span className="tabular-nums text-xs font-semibold text-foreground">{upvoteCount}</span>
+                  {!user && (
+                    <span
+                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-background"
+                      aria-hidden="true"
+                    >
+                      <Lock size={9} strokeWidth={2.5} />
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
@@ -803,12 +730,42 @@ export default function TeacherProfile() {
               className="absolute -right-6 -top-8 -z-10 hidden h-44 w-44 rounded-[45%_55%_60%_40%/40%_55%_45%_60%] bg-brand-subtle lg:block"
               aria-hidden="true"
             />
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            {/* Destination fold — floated SpeechTag annotations (board / area /
+                experience) instead of a boring subtitle line, ahead of the heavy
+                display headline. This is the end of the wayfinding journey, so it
+                gets the same loud treatment as the WhatsApp CTA below it. */}
+            {(boardsList.length > 0 || teacher.area || teacher.experience_years) && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {boardsList.length > 0 && (
+                  <SpeechTag tail="bottom-left" dotColor="hsl(var(--brand-blue))">{boardsList.join(' + ')}</SpeechTag>
+                )}
+                {teacher.area && (
+                  <SpeechTag tail="bottom-right" tilt={-2} dotColor={accentPalette.solid}>{teacher.area}</SpeechTag>
+                )}
+                {teacher.experience_years && (
+                  <SpeechTag tail="top-left" tilt={2}>{teacher.experience_years}+ years teaching</SpeechTag>
+                )}
+              </div>
+            )}
+
+            <h1 className="font-display text-4xl font-black leading-[0.98] tracking-tight text-foreground sm:text-5xl">
               {formatDisplayName(teacher.name, teacher.sir_maam)}
             </h1>
 
+            {primarySubject && (
+              <p className="mt-2 font-display text-xl font-bold text-foreground sm:text-2xl">
+                Teaches{' '}
+                <span
+                  className="marker-highlight marker-highlight--pill"
+                  style={{ '--marker-color': accentPalette.solid } as React.CSSProperties}
+                >
+                  {primarySubject}
+                </span>
+              </p>
+            )}
+
             {(subjectsList.length > 0 || boardsList.length > 0 || teacher.area) && (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="stagger-children mt-4 flex flex-wrap gap-2">
                 {subjectsList.map((subject) => (
                   <SubjectTag key={subject} label={subject} />
                 ))}
@@ -819,13 +776,20 @@ export default function TeacherProfile() {
               </div>
             )}
 
-            {hasStats && (
-              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {hasStats ? (
+              <div className="stagger-children mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {teacher.experience_years && (
                   <StatCard icon={Clock} label="Experience" value={`${teacher.experience_years}+ years`} />
                 )}
                 {feesValue && <StatCard icon={Wallet} label="Fees / month" value={feesValue} />}
                 {classSizeValue && <StatCard icon={Users} label="Class size" value={classSizeValue} />}
+              </div>
+            ) : (
+              // Task #3 — a teacher with none of the three stats used to silently
+              // render no stat block at all. That reads as broken, not honest, so it
+              // gets an explicit line instead of empty space.
+              <div className="mt-6 rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
+                Experience, fees, and class size aren't listed yet — ask {firstName} directly on WhatsApp.
               </div>
             )}
 
@@ -834,18 +798,35 @@ export default function TeacherProfile() {
                 description AND every review — a critique found it buried as the literal
                 last element on the page, under ~12 unedited testimonials, competing with
                 (and losing to) that wall of text. Nothing should out-scroll this button. */}
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-muted p-6">
+            {/* The single success action for the whole product (VISUAL_DIRECTION §12) —
+                the destination of the wayfinding journey. LOUD is permitted here: thick
+                outline + offset shadow reads as "arrival", not decoration. */}
+            <div
+              ref={primaryCtaRef}
+              className="mt-6 flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-muted p-6"
+            >
               <p className="max-w-[44ch] text-sm leading-6 text-warm-prose">
                 Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
+                {!user && (
+                  <span className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-brand-blue">
+                    <Lock size={11} strokeWidth={2.5} aria-hidden="true" />
+                    Sign in to message — quick, one tap.
+                  </span>
+                )}
               </p>
-              <button
-                type="button"
-                onClick={handleWhatsAppClick}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3.5 text-sm font-semibold text-brand-foreground transition-transform duration-150 hover:bg-brand-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
-              >
-                <WhatsAppIcon className="h-[17px] w-[17px] text-brand-foreground" />
-                Contact via WhatsApp
-              </button>
+              {/* Device Q — Ticket shape. Messaging a teacher is the product's only
+                  success action, so it gets the "arrival" treatment: a notched ticket
+                  instead of a plain button. */}
+              <TicketShape background="hsl(var(--brand))" textColor="#FFFFFF">
+                <button
+                  type="button"
+                  onClick={handleWhatsAppClick}
+                  className="whatsapp-pulse-once flex min-h-11 items-center justify-center gap-2 text-sm font-semibold text-brand-foreground transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand motion-reduce:transition-none"
+                >
+                  <WhatsAppIcon className="h-[17px] w-[17px] text-brand-foreground" />
+                  Contact via WhatsApp
+                </button>
+              </TicketShape>
             </div>
 
             {descriptionHtml && (
@@ -858,52 +839,54 @@ export default function TeacherProfile() {
               </>
             )}
 
-            {taughtAreas.length > 0 && (
+            {classesList.length > 0 && (
               <>
-                <SectionHeading>Where they teach</SectionHeading>
-                <div className="flex flex-wrap gap-2">
-                  {taughtAreas.map((area) => (
-                    <span key={area} className="rounded-full bg-muted px-3.5 py-2 text-sm font-medium text-foreground">
-                      {area}
+                <SectionHeading>Classes taught</SectionHeading>
+                <div className="stagger-children flex flex-wrap gap-2">
+                  {classesList.map((cls) => (
+                    <span key={cls} className="animate-card-reveal rounded-full bg-muted px-3.5 py-2 text-sm font-medium text-foreground">
+                      {cls}
                     </span>
                   ))}
                 </div>
               </>
             )}
 
-            {/* Reviews capped to 3 with an explicit expand — a critique found this
-                rendering all ~12 raw testimonials unfiltered, which (a) is the single
-                largest, least-curated block of content on the page, the opposite of the
-                product's own "aesthetic and minimalist" bar, and (b) was blowing this
-                column's height wildly past the photo column's, since nothing bounded it. */}
-            {!reviewsLoading && reviews.length > 0 && (
+            {taughtAreas.length > 0 && (
               <>
-                <SectionHeading>What students say</SectionHeading>
-                <div className="grid gap-2.5">
-                  {(showAllReviews ? reviews : reviews.slice(0, 3)).map((review) => (
-                    <div key={review.id} className="rounded-2xl bg-card p-5 shadow-border">
-                      <p className="text-sm leading-6 text-warm-prose">{review.comment}</p>
-                      <p className="mt-2.5 text-xs font-semibold text-warm-meta">
-                        {review.authorName}
-                        {review.authorInfo ? ` • ${review.authorInfo}` : ''}
-                      </p>
-                    </div>
+                <SectionHeading>Where they teach</SectionHeading>
+                <div className="stagger-children flex flex-wrap gap-2">
+                  {taughtAreas.map((area) => (
+                    <span key={area} className="animate-card-reveal rounded-full bg-muted px-3.5 py-2 text-sm font-medium text-foreground">
+                      {area}
+                    </span>
                   ))}
                 </div>
-                {!showAllReviews && reviews.length > 3 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllReviews(true)}
-                    className="flex min-h-11 w-fit items-center rounded-full bg-muted px-5 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-border active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    Show all {reviews.length} reviews
-                  </button>
-                )}
               </>
             )}
           </div>
         </div>
+
+        <TeacherComments teacherId={teacher.id} />
       </main>
+
+      {/* Floating mobile CTA — task #1: the WhatsApp button must stay reachable as
+          the parent reads the whole profile, not just while the panel above is on
+          screen. Desktop's two-column layout keeps the real CTA within easy reach,
+          so this is mobile-only. Sits above the fixed bottom nav bar (h-16 + safe
+          area), never fights it for the thumb zone. */}
+      {!primaryCtaVisible && (
+        <div className="animate-pop fixed inset-x-4 bottom-20 z-40 lg:hidden">
+          <button
+            type="button"
+            onClick={handleWhatsAppClick}
+            className="sticker outline-offset-shadow flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-brand px-6 text-base font-bold text-brand-foreground transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
+          >
+            <WhatsAppIcon className="h-5 w-5 text-brand-foreground" />
+            Contact via WhatsApp
+          </button>
+        </div>
+      )}
 
       <Footer expandedContent={teacher.expanded || null} />
     </div>

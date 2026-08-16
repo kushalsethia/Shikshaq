@@ -128,15 +128,52 @@
     --shadow-card-bone: 0 0 0 1px #E7DFD5, 0 10px 26px rgba(0, 0, 0, 0.07);
     --shadow-card-mint: 0 10px 26px rgba(0, 0, 0, 0.06);
 
-    /* Custom colors */
-    --cream: 40 33% 96%;
-    --cream-dark: 35 25% 92%;
-    --charcoal: 30 10% 15%;
-    --warm-gray: 30 10% 45%;
+    /* ---- Facet/status accent tokens ---------------------------------------
+       Promoted from src/utils/searchFacets.ts's old ACCENT_TOKENS/SURFACE_TOKENS
+       object, which re-declared these as raw JS hex with no link back to a CSS
+       variable. searchFacets.ts now reads these vars instead of owning the
+       literals; the exported object shapes/keys there are unchanged so no
+       consumer broke.
+
+       Two collisions were resolved while promoting:
+       - `destructive`: searchFacets had its own #E5484D, distinct from the
+         site-wide --destructive (#EF4444-ish, HSL 0 84% 60%) used by
+         bg-destructive/text-destructive everywhere else. They render visually
+         different reds. Since no visual change is in scope, both are kept as
+         separate tokens rather than merged — --destructive stays the sitewide
+         one, --facet-destructive is the narrower admin/search-facet one.
+       - `panel`: searchFacets had #F4EEE7 (a light warm panel fill), which
+         collided in NAME ONLY with --panel-dark (#1B1A18, the near-black
+         footer slab already exposed as the `panel` Tailwind color). These are
+         two unrelated colors that happened to share a short name. Kept both:
+         --panel-dark is unchanged, the light one is now --surface-panel-light. */
+    --success: #228B22;
+    --success-subtle-bg: #E6F4E6;   /* "settled" badge background */
+    --success-subtle-text: #1B5E20; /* "settled" badge text */
+    --whatsapp: #25D366;            /* WhatsApp brand green */
+    --whatsapp-text: #0B3D1F;       /* text/icon color on the WhatsApp CTA */
+    --indigo-link-on-dark: #8B93FF; /* Papers-mode link color on dark surfaces */
+    --facet-destructive: #E5484D;   /* admin/search-facet error red — see note above, NOT the same as --destructive */
+    --surface-panel-light: #F4EEE7; /* light warm panel fill — see note above, NOT the same as --panel-dark */
 
     /* Fonts */
     --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
     --font-serif: 'Geist', system-ui, -apple-system, sans-serif;
+
+    /* ---- Motion tokens (character-layer task #4) --------------------------
+       Same numbers as tailwind.config.ts's transitionDuration/transitionTimingFunction
+       extensions, exposed as CSS custom properties so they're usable outside a
+       `duration-*`/`ease-*` utility class — e.g. inside a hand-written
+       @keyframes percentage step, or a JS spring/animation config that reads
+       computed style. Keep these two definitions in sync by hand; there is no
+       build-time link between a Tailwind theme value and a CSS var. */
+    --duration-tap: 150ms;
+    --duration-hover: 200ms;
+    --duration-lift: 300ms;
+    --duration-pop: 400ms;
+    --duration-entrance: 500ms;
+    --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
 
     --sidebar-background: 40 33% 96%;
     --sidebar-foreground: 30 10% 25%;
@@ -168,32 +205,29 @@
   
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Geist', system-ui, -apple-system, sans-serif;
+    /* No font-family here — Tailwind's font-sans (tailwind.config.ts) already
+       resolves to the identical Geist stack; redeclaring it was a no-op. */
     font-weight: 500; /* Geist Regular */
   }
 
   h1 {
-    font-family: 'Geist', system-ui, -apple-system, sans-serif;
     font-weight: 600;
     letter-spacing: -0.05em;
     text-wrap: balance;
   }
 
   h2 {
-    font-family: 'Geist', system-ui, -apple-system, sans-serif;
     font-weight: 600;
     letter-spacing: -0.05em;
     text-wrap: balance;
   }
 
   h3 {
-    font-family: 'Geist', system-ui, -apple-system, sans-serif;
     font-weight: 600;
     text-wrap: balance;
   }
 
   h4 {
-    font-family: 'Geist', system-ui, -apple-system, sans-serif;
     font-weight: 500;
     text-wrap: balance;
   }
@@ -214,7 +248,6 @@
   .text-xs,
   p.text-muted-foreground,
   span.text-muted-foreground {
-    font-family: 'Geist', system-ui, -apple-system, sans-serif;
     font-weight: 400; /* Geist Regular — 300 hurt contrast at small sizes */
   }
 }
@@ -514,6 +547,193 @@ input[type="date"].date-input-left,
   }
 }
 
+/* =============================================================================
+   CHARACTER LAYER — task #3. "Loud moments" toolkit: outline/sticker/tape/
+   halftone/signpost. Per the brief these are reserved for hero, empty states,
+   onboarding, success moments, footer, and chip/card scale wayfinding — NOT
+   for restyling scannable list/grid surfaces (that stays crisp per the
+   "crisp skeleton, loud moments" direction). Placed outside @layer, same as
+   `.stripe-placeholder` and the reduced-motion guards below, so these survive
+   regardless of how a later agent's className scan resolves them.
+
+   Every utility here takes color via `currentColor` or a `--outline-color`
+   custom property the CALLER sets (e.g. `style={{ '--outline-color': subject.solid }}`
+   or a Tailwind arbitrary property `[--outline-color:theme(colors.brand.DEFAULT)]`),
+   so none of them hardcode a color — they compose with any subject-palette or
+   brand color per the task's hard constraint.
+   ============================================================================= */
+
+/* ---- Outline system -------------------------------------------------------
+   Thick-black-outline treatment — the single most consistent element across
+   the references. `--outline-width` and `--outline-color` are overridable;
+   defaults are a 3px near-black line, since "thick black outline" is the
+   default reading of the reference grammar. Use `.outline-thick` alone for
+   the line only; add `.outline-offset-shadow` for the solid offset
+   drop-shadow that gives the sticker/keycap look (no blur, hard edge). */
+.outline-thick {
+  --outline-width: 3px;
+  --outline-color: hsl(var(--foreground));
+  outline: var(--outline-width) solid var(--outline-color);
+  outline-offset: -1px;
+}
+
+.outline-offset-shadow {
+  --shadow-offset-x: 4px;
+  --shadow-offset-y: 4px;
+  --shadow-color: hsl(var(--foreground));
+  box-shadow: var(--shadow-offset-x) var(--shadow-offset-y) 0 0 var(--shadow-color);
+}
+
+/* ---- Sticker ---------------------------------------------------------------
+   Die-cut look: white keyline ring + thick outline + slight rotation.
+   Composable with any background color set by the caller (the element's own
+   `background`). Rotation variants give the "playful 3-8deg" range called
+   for in the brief; apply exactly one. `.sticker` alone is keyline+outline
+   with no offset shadow — pair with `.outline-offset-shadow` for the full
+   pinned-sticker look. */
+.sticker {
+  --outline-color: hsl(var(--foreground));
+  border-radius: inherit;
+  box-shadow:
+    0 0 0 4px #FFFFFF,
+    0 0 0 7px var(--outline-color);
+}
+
+.sticker-rotate-sm { transform: rotate(-3deg); }
+.sticker-rotate-md { transform: rotate(5deg); }
+.sticker-rotate-lg { transform: rotate(-7deg); }
+.sticker-rotate-md-rev { transform: rotate(-5deg); }
+.sticker-rotate-lg-rev { transform: rotate(7deg); }
+
+/* ---- Tape / torn paper ------------------------------------------------------
+   Artifact treatment for "pinning" cards, e.g. an onboarding step or a
+   featured-teacher moment. `.tape` is a single strip positioned at the top;
+   `.tape--corner-*` offer alternate placements. Color is a translucent warm
+   neutral by default (reads as masking tape on any card fill) but honors
+   `--tape-color` if the caller wants a tinted strip. `.torn-edge` gives a
+   torn-paper bottom edge via a repeating conic-gradient mask — cheap, no
+   image request. */
+.tape {
+  --tape-color: rgba(249, 245, 241, 0.85);
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 72px;
+  height: 26px;
+  background: var(--tape-color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  z-index: 1;
+}
+
+.tape--corner-left {
+  left: 14%;
+  transform: rotate(-6deg);
+}
+
+.tape--corner-right {
+  left: auto;
+  right: 14%;
+  transform: rotate(6deg);
+}
+
+.torn-edge {
+  --torn-size: 12px;
+  mask-image: conic-gradient(from -45deg at bottom, #000 90deg, transparent 0);
+  mask-size: var(--torn-size) var(--torn-size);
+  mask-repeat: repeat-x;
+  mask-position: bottom;
+}
+
+/* ---- Halftone / riso grain ---------------------------------------------------
+   Subtle texture overlay, cheap to render — pure CSS radial-gradient dot
+   pattern, no image request. Apply to a `position: relative` container; the
+   texture lives on `::after` so it never intercepts pointer events and never
+   fights the element's own background. Opacity is intentionally low (riso
+   "grain", not a loud pattern). Color follows `currentColor` via
+   `--halftone-color` so it can sit on light or dark/tinted fills. */
+.halftone-overlay {
+  position: relative;
+}
+
+.halftone-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  --halftone-color: currentColor;
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 6px 6px;
+  opacity: 0.06;
+  color: var(--halftone-color);
+}
+
+/* ---- Signpost ----------------------------------------------------------------
+   The wayfinding primitive — a directional pointer shape for subject/board
+   chips, cards, and section headers. Three scales share one clip-path family
+   (a rectangle with one pointed end) so the metaphor stays legible whether
+   it's a small chip or a full section-header banner. Background/text color
+   always comes from the caller (subject-palette `solid`/`tint`, brand, etc.)
+   — nothing here is hardcoded.
+
+   `.signpost` — chip scale (pill body + pointed right end), pairs with
+     inline padding that leaves room for the point (`padding-right` already
+     accounts for it).
+   `.signpost-card` — card scale, pointed left edge, for a subject/board card
+     that reads as a route marker.
+   `.signpost-header` — section-header scale, a wide banner with a pointed
+     right end, sized for a page/section title bar. */
+.signpost {
+  --signpost-point: 10px;
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--signpost-point)) 0,
+    100% 50%,
+    calc(100% - var(--signpost-point)) 100%,
+    0 100%
+  );
+  padding-right: calc(var(--signpost-point) + 0.75rem);
+}
+
+.signpost-card {
+  --signpost-point: 16px;
+  clip-path: polygon(
+    var(--signpost-point) 0,
+    100% 0,
+    100% 100%,
+    var(--signpost-point) 100%,
+    0 50%
+  );
+  padding-left: calc(var(--signpost-point) + 0.5rem);
+}
+
+.signpost-header {
+  --signpost-point: 22px;
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--signpost-point)) 0,
+    100% 50%,
+    calc(100% - var(--signpost-point)) 100%,
+    0 100%
+  );
+  padding-right: calc(var(--signpost-point) + 1.5rem);
+}
+
+/* ---- Entrance choreography (task #4) -----------------------------------------
+   Staggers a list/grid's direct children with `animate-card-reveal` (the
+   existing whitelisted entrance) without hand-writing a delay per item.
+   Caps at 6 items per DESIGN_SYSTEM.md §6's "stagger 40ms, cap at 6 items" —
+   items past the 6th share the 6th's delay rather than climbing forever.
+   Usage: put `.stagger-children` on the grid/list container and
+   `animate-card-reveal` on each child; no per-item inline style needed. */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 40ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(n+6) { animation-delay: 200ms; }
+
 /* On touch devices, sticky :hover states shouldn't latch after a tap.
    (Previously this block also forced `transition-property` on every element
    and promoted every img/button to its own GPU layer via translateZ(0) —
@@ -524,4 +744,246 @@ input[type="date"].date-input-left,
     transform: none;
     box-shadow: none;
   }
+}
+
+/* =============================================================================
+   REFERENCE DEVICE LIBRARY — pure-CSS devices. See REFERENCE_DEVICES.md for
+   the letter-to-device mapping and src/components/devices/README.md for full
+   usage docs (this file only carries the devices that don't need React
+   structure/props). Placed outside @layer, same as `.stripe-placeholder`
+   above, so class-scan purging can never drop them. Every device takes color
+   via a caller-set custom property (`--marker-color`, `--grid-line-color`,
+   etc.) or `currentColor` — never a hardcoded hex, per the task's hard
+   constraint. Colors should come from a token or `getSubjectPalette()`.
+   ============================================================================= */
+
+/* NOTE: Device A (marker highlight) and Device I (graph/ruled ground) are
+   NOT re-declared here — they already exist further below as `.marker-highlight`
+   (+ `--pill` / `--tilt` / `--outlined` variants) and `.ground-graph` /
+   `.ground-graph--fine` / `.ground-ruled` under the "REFERENCE DEVICES" block.
+   Use those. This block only adds the devices not covered elsewhere. */
+
+/* ---- G. Torn-paper banner ---------------------------------------------------
+   `.torn-edge` (above) gives a torn edge mask on one side of an element.
+   `.torn-banner` extends it into a full strip: torn top AND bottom, for a
+   section header or shelf-header label carrying a title. Color is the
+   element's own background (caller sets it); the mask punches the paper-tear
+   silhouette out of both the top and bottom edges via two stacked
+   conic-gradient masks. */
+.torn-banner {
+  --torn-size: 14px;
+  position: relative;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  mask-image:
+    conic-gradient(from -45deg at bottom, #000 90deg, transparent 0),
+    conic-gradient(from 135deg at top, #000 90deg, transparent 0);
+  mask-size: var(--torn-size) var(--torn-size), var(--torn-size) var(--torn-size);
+  mask-repeat: repeat-x, repeat-x;
+  mask-position: bottom, top;
+  -webkit-mask-image:
+    conic-gradient(from -45deg at bottom, #000 90deg, transparent 0),
+    conic-gradient(from 135deg at top, #000 90deg, transparent 0);
+  -webkit-mask-size: var(--torn-size) var(--torn-size), var(--torn-size) var(--torn-size);
+  -webkit-mask-repeat: repeat-x, repeat-x;
+  -webkit-mask-position: bottom, top;
+}
+
+/* ---- H. Halftone dot ground — strengthened -----------------------------------
+   `.halftone-overlay` (above) is deliberately subtle (0.06 opacity "riso
+   grain"). Per REFERENCE_DEVICES.md §H this device is "near-unused" and the
+   brief calls for genuinely saturated, high-impact application on loud
+   surfaces (first-fold color bands, empty-state cards, footer, onboarding).
+   `.halftone-overlay-strong` is the same dot-screen mechanism at a much
+   bolder opacity and slightly larger dot for a true printed/riso feel —
+   apply this one, not the base variant, on loud-surface color bands. */
+.halftone-overlay-strong::after {
+  background-size: 9px 9px;
+  opacity: 0.16;
+}
+
+/* ---- I. Graph / grid paper ground -------------------------------------------
+   CSS repeating-linear-gradient grid, two densities. The single most
+   on-theme ground for an exam-paper library — reads as "school exercise
+   book" instantly. Apply to a `position:relative` container (or the page
+   background directly); line color/opacity configurable via
+   `--grid-line-color`, defaults to a faint warm-neutral line that reads on
+   the warm bone ground.
+   `.grid-paper-fine`  — dense squared graph-paper grid (12px cells).
+   `.grid-paper-ruled` — wider horizontal ruled-notebook lines (28px). */
+.grid-paper-fine {
+  --grid-line-color: rgba(31, 31, 31, 0.07);
+  background-image:
+    repeating-linear-gradient(0deg, var(--grid-line-color) 0 1px, transparent 1px 12px),
+    repeating-linear-gradient(90deg, var(--grid-line-color) 0 1px, transparent 1px 12px);
+}
+
+.grid-paper-ruled {
+  --grid-line-color: rgba(31, 31, 31, 0.09);
+  background-image: repeating-linear-gradient(
+    0deg,
+    var(--grid-line-color) 0 1px,
+    transparent 1px 28px
+  );
+}
+
+/* ---- O. Signpost cluster — chip-scale extension ------------------------------
+   `.signpost` / `.signpost-card` / `.signpost-header` (above) give the single
+   pointed-plate shape at three scales. `.signpost-plate` is the cluster unit:
+   a signpost-header-scale plate sized for stacking several on a post (see
+   `<SignpostCluster>` in src/components/devices/ for the stacked React
+   composition with per-plate rotation and color). Kept here since it's a pure
+   shape utility with no state. */
+.signpost-plate {
+  --signpost-point: 14px;
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--signpost-point)) 0,
+    100% 50%,
+    calc(100% - var(--signpost-point)) 100%,
+    0 100%
+  );
+  padding: 0.6rem 1.4rem 0.6rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* ---- Q. Ticket / coupon shape ------------------------------------------------
+   Semicircular notches bitten out of the left and right edges, plus an
+   optional dashed tear line. The notch geometry is a fixed-radius mask so it
+   holds up at any element width — see `<TicketShape>` for the React wrapper
+   that also renders the dashed divider at a caller-supplied position. */
+.ticket-notched {
+  --notch-radius: 10px;
+  --notch-color: var(--warm-page, #F9F5F1);
+  mask-image:
+    radial-gradient(circle var(--notch-radius) at 0 50%, transparent 99%, #000 100%),
+    radial-gradient(circle var(--notch-radius) at 100% 50%, transparent 99%, #000 100%);
+  mask-composite: intersect;
+  -webkit-mask-image:
+    radial-gradient(circle var(--notch-radius) at 0 50%, transparent 99%, #000 100%),
+    radial-gradient(circle var(--notch-radius) at 100% 50%, transparent 99%, #000 100%);
+  -webkit-mask-composite: source-in, source-in;
+}
+
+/* ============================================================================
+   REFERENCE DEVICES — see REFERENCE_DEVICES.md for the source image of each.
+   Owner ruling (VISUAL_DIRECTION.md §9a): the ground stays LIGHT — dark footer
+   only. So saturated color and heavy display type carry the impact. These
+   devices are deliberately bold; timid tints were already rejected once.
+   All colors come from tokens or a caller-set custom property. No new hex
+   beyond the shared near-black ink already used by the outline system.
+   ========================================================================== */
+
+/* ---- Device A: Marker highlight --------------------------------------------
+   Reference: Lots Art ("ILLUSTRATION" on yellow, "YOUR BRAND" on a green pill),
+   Chuckle deck ("CREATIVE", "JOY"). A highlighter block sitting BEHIND one or
+   two words of a headline, slightly larger than the text.
+
+   Implemented with box-decoration-break so it survives line wrapping — a
+   headline that breaks mid-highlight still paints both fragments correctly,
+   which a pseudo-element approach cannot do.
+
+   Usage: <span class="marker-highlight" style={{'--marker-color': palette.solid}}>word</span>
+   Variants: .marker-highlight--pill (rounded), .marker-highlight--tilt (rotated) */
+.marker-highlight {
+  --marker-color: hsl(var(--brand));
+  background-color: var(--marker-color);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0.06em 0.24em;
+  margin: 0 -0.06em;
+  border-radius: 3px;
+}
+
+.marker-highlight--pill {
+  border-radius: 999px;
+  padding: 0.06em 0.42em;
+}
+
+.marker-highlight--tilt {
+  display: inline-block;
+  transform: rotate(-1.5deg);
+}
+
+/* Outlined variant — highlight plus the structural black line, for a
+   first-fold headline that needs maximum presence on the light ground. */
+.marker-highlight--outlined {
+  box-shadow: 0 0 0 3px hsl(var(--foreground));
+}
+
+/* ---- Device I: Graph / ruled paper ground -----------------------------------
+   Reference: pltm (fine graph grid), OVERFLOW (blue grid), My Confession.
+   The most on-theme ground available to an exam-paper product — it reads
+   instantly as a school exercise book.
+
+   `.ground-graph` is squared paper; `.ground-ruled` is lined paper with a
+   margin rule. Both are pure gradients: no image request, no layout cost.
+   Line color and cell size are overridable. */
+.ground-graph {
+  --graph-line: rgba(31, 31, 31, 0.07);
+  --graph-cell: 22px;
+  background-image:
+    linear-gradient(to right, var(--graph-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--graph-line) 1px, transparent 1px);
+  background-size: var(--graph-cell) var(--graph-cell);
+}
+
+.ground-graph--fine {
+  --graph-cell: 11px;
+}
+
+.ground-ruled {
+  --rule-line: rgba(31, 31, 31, 0.08);
+  --rule-height: 28px;
+  background-image: linear-gradient(to bottom, transparent calc(var(--rule-height) - 1px), var(--rule-line) calc(var(--rule-height) - 1px));
+  background-size: 100% var(--rule-height);
+}
+
+/* ---- Device J: Wavy / scalloped divider -------------------------------------
+   Reference: bitesized (red-to-cream wave edge), Truus.
+   A section boundary that is a wave or scallop instead of a straight line.
+   Applied to a band element; masks its own bottom (or top) edge so the band
+   colour tears into the next section. Flip with --divider-flip: -1. */
+.divider-wave {
+  --wave-size: 26px;
+  --divider-flip: 1;
+  -webkit-mask-image: radial-gradient(var(--wave-size) at 50% 0, transparent 99%, #000 101%);
+  mask-image: radial-gradient(var(--wave-size) at 50% 0, transparent 99%, #000 101%);
+  -webkit-mask-size: calc(var(--wave-size) * 2) 100%;
+  mask-size: calc(var(--wave-size) * 2) 100%;
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+}
+
+.divider-scallop {
+  --scallop-size: 20px;
+  -webkit-mask-image: radial-gradient(circle at 50% 100%, #000 var(--scallop-size), transparent calc(var(--scallop-size) + 1px));
+  mask-image: radial-gradient(circle at 50% 100%, #000 var(--scallop-size), transparent calc(var(--scallop-size) + 1px));
+  -webkit-mask-size: calc(var(--scallop-size) * 2) 100%;
+  mask-size: calc(var(--scallop-size) * 2) 100%;
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+}
+
+/* ---- Device K: Marquee ticker ------------------------------------------------
+   Reference: Skate the City ("Skate Park + Skate Park +"), Mershe.
+   A thin saturated band of repeating text. Infinite motion is otherwise banned
+   (DESIGN_SYSTEM.md §6), so this is the one sanctioned exception and it is
+   frozen entirely under prefers-reduced-motion by the universal kill-switch,
+   and static below lg like the other ambient motion. */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 28s linear infinite;
+}
+
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (max-width: 1023px) {
+  .marquee-track { animation: none; }
 }

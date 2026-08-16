@@ -8,11 +8,44 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { trackWhatsAppClick } from '@/utils/clarityEvents';
 import { trackWhatsAppClickGA } from '@/utils/gaEvents';
+import { FAQSchema, type FAQItem } from '@/components/FAQSchema';
+import { PageHeader, NumberedIndex } from '@/components/devices';
 
 interface HelpTopic {
   title: string;
   body: string;
 }
+
+// FAQPage JSON-LD content for this page. Kept separate from FALLBACK_TOPICS
+// (which are display copy, possibly overridden from page_content) — these are
+// the fixed platform-level Q&A Google indexes for this route.
+const HELP_FAQS: FAQItem[] = [
+  {
+    question: 'Is Shikshaq completely free?',
+    answer:
+      'Yes, Shikshaq is completely free for both students and tutors. There are no registration fees, subscription charges, or hidden costs.',
+  },
+  {
+    question: 'How do I find a tutor on Shikshaq?',
+    answer:
+      'Simply visit shikshaq.in and use our search filters to find tutors by subject, board, class, location, and teaching mode. Browse verified tutor profiles and contact them directly.',
+  },
+  {
+    question: 'Does Shikshaq handle payments?',
+    answer:
+      'No, Shikshaq does not handle any payments. All fees are negotiated directly between students and tutors. We are a connection-only platform.',
+  },
+  {
+    question: 'How are tutors verified on Shikshaq?',
+    answer:
+      'All tutors undergo a verification process that includes educational qualification verification and identity verification.',
+  },
+  {
+    question: 'Which areas does Shikshaq serve?',
+    answer:
+      'Shikshaq currently serves Kolkata and surrounding areas including Howrah, Salt Lake, Jadavpur, Bhowanipore, Ballygunge, and many other localities.',
+  },
+];
 
 // Fallback topics, used until page_content carries a page_type support can
 // edit for this page (see the Help.tsx handoff report — the live table's
@@ -27,6 +60,8 @@ const FALLBACK_TOPICS: HelpTopic[] = [
   { title: 'Getting a paper removed', body: 'Schools can use the removal link on any paper or in the reader header. We unpublish first, which is immediate and reversible.' },
   { title: 'Joining as a teacher', body: 'Apply through Join as a teacher. It is a four-step form and there is no listing fee, ever.' },
 ];
+
+const TOPIC_COLORS = ['hsl(var(--brand))', 'hsl(var(--brand-blue))'];
 
 export default function Help() {
   usePageMeta(
@@ -53,69 +88,6 @@ export default function Help() {
     fetchTopics();
   }, []);
 
-  // Add FAQPage JSON-LD structured data
-  useEffect(() => {
-    const faqPageScript = document.createElement('script');
-    faqPageScript.type = 'application/ld+json';
-    faqPageScript.id = 'helppage-faqpage-schema';
-    faqPageScript.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "@id": "https://www.shikshaq.in/faq#faqpage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "Is Shikshaq completely free?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes, Shikshaq is completely free for both students and tutors. There are no registration fees, subscription charges, or hidden costs."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How do I find a tutor on Shikshaq?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Simply visit shikshaq.in and use our search filters to find tutors by subject, board, class, location, and teaching mode. Browse verified tutor profiles and contact them directly."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Does Shikshaq handle payments?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "No, Shikshaq does not handle any payments. All fees are negotiated directly between students and tutors. We are a connection-only platform."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How are tutors verified on Shikshaq?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "All tutors undergo a verification process that includes educational qualification verification and identity verification."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Which areas does Shikshaq serve?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Shikshaq currently serves Kolkata and surrounding areas including Howrah, Salt Lake, Jadavpur, Bhowanipore, Ballygunge, and many other localities."
-          }
-        }
-      ]
-    });
-
-    // Add script to head
-    document.head.appendChild(faqPageScript);
-
-    // Cleanup: remove script when component unmounts
-    return () => {
-      const existingFaqPage = document.getElementById('helppage-faqpage-schema');
-      if (existingFaqPage) existingFaqPage.remove();
-    };
-  }, []);
-
   const handleWhatsAppClick = () => {
     trackWhatsAppClick('help-page');
     trackWhatsAppClickGA('help-page');
@@ -123,40 +95,47 @@ export default function Help() {
 
   return (
     <div className="min-h-screen bg-background">
+      <FAQSchema faqs={HELP_FAQS} url="/more" />
       <Navbar />
 
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
-        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">Help</h1>
-        <p className="mt-3 max-w-prose text-base text-muted-foreground">
-          Short answers to the things people actually write in about. If none of it fits, message us on WhatsApp and a person replies.
-        </p>
+      <PageHeader
+        eyebrow="Support"
+        title={
+          <>
+            We reply{' '}
+            <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand-blue))' }}>
+              fast
+            </span>
+          </>
+        }
+        lede="Short answers to the things people actually write in about. If none of it fits, a person replies on WhatsApp."
+        tags={[{ label: '8am – 10pm' }, { label: 'Mon – Sat' }]}
+        accent="hsl(var(--brand-blue))"
+        ground="ruled"
+      >
+        <a
+          href={getWhatsAppLink('8240980312')}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleWhatsAppClick}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-mint px-6 py-3 text-sm font-bold text-foreground transition-transform duration-150 active:scale-[0.97]"
+        >
+          <WhatsAppIcon className="h-4 w-4 text-foreground" />
+          Message Shikshaq
+        </a>
+      </PageHeader>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-8">
-          {topics.map((topic) => (
-            <div key={topic.title} className="p-4 sm:p-6 rounded-2xl bg-card shadow-border">
-              <h3 className="text-base font-semibold text-foreground mb-2">{topic.title}</h3>
-              <p className="text-sm text-muted-foreground">{topic.body}</p>
-            </div>
-          ))}
-        </div>
+      <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+        <NumberedIndex
+          items={topics.map((topic, i) => ({
+            key: topic.title,
+            title: topic.title,
+            description: topic.body,
+            color: TOPIC_COLORS[i % TOPIC_COLORS.length],
+          }))}
+        />
 
-        <div className="mt-6 p-4 sm:p-6 rounded-2xl bg-muted flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-warm-prose max-w-prose">
-            Still stuck? We answer on WhatsApp between 8am and 10pm, Monday to Saturday.
-          </p>
-          <a
-            href={getWhatsAppLink('8240980312')}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleWhatsAppClick}
-            className="min-h-12 px-6 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 bg-mint text-foreground"
-          >
-            <WhatsAppIcon className="w-4 h-4 text-foreground" />
-            Message Shikshaq
-          </a>
-        </div>
-
-        <p className="mt-6 text-xs text-warm-meta">
+        <p className="mt-10 text-xs text-warm-meta">
           Got feedback instead of a question?{' '}
           <button
             type="button"

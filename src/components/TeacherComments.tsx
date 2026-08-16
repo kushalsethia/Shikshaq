@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { MessageCircle, Send, User, Clock, Trash2 } from 'lucide-react';
+import { MessageCircle, Send, User, Clock, Trash2, Sparkles, CheckCircle2, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { validateImageSrc } from '@/utils/imageSanitizer';
@@ -47,6 +47,10 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
   const [error, setError] = useState<string | null>(null);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [visibleCommentsCount, setVisibleCommentsCount] = useState(5);
+  // Success moment (task #4) — LOUD is permitted here, it's an arrival not a
+  // comparison. Distinguishes the immediate-post case from the anonymous
+  // approval-queue case, since those are genuinely different outcomes.
+  const [justSubmitted, setJustSubmitted] = useState<'approved' | 'pending' | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<{
     full_name: string | null;
     role: string | null;
@@ -206,13 +210,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
 
       setNewComment('');
       setIsAnonymous(false);
-      
-      // Show different success messages based on approval status
-      if (approved) {
-        toast.success('Your review has been posted successfully!');
-      } else {
-        toast.success('Your review has been submitted and is pending approval');
-      }
+      setJustSubmitted(approved ? 'approved' : 'pending');
       await fetchComments(); // Refresh comments
       setVisibleCommentsCount(5); // Reset to show first 5 comments
     } catch (err: any) {
@@ -322,10 +320,47 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
   return (
     <div className="mt-12 border-t border-border pt-8 px-4 md:px-0 min-w-0">
       <div className="flex items-center gap-3 mb-6">
-        <MessageCircle className="w-6 h-6 text-foreground" />
-        <h2 className="text-2xl font-sans text-foreground">Reviews</h2>
+        <MessageCircle className="w-6 h-6 text-foreground" aria-hidden="true" />
+        <h2 className="text-section-head text-foreground">Reviews</h2>
         <span className="text-muted-foreground tabular-nums">({comments.length})</span>
       </div>
+
+      {/* Post-submission success — LOUD moment (task #4). Anonymous reviews go to
+          an approval queue, which is a genuinely different outcome from an
+          immediately-live review, so it gets its own copy rather than one
+          generic "thanks" message. */}
+      {justSubmitted && (
+        <div
+          role="status"
+          className="sticker sticker-rotate-sm outline-offset-shadow animate-pop relative mb-8 flex items-start gap-3 rounded-2xl bg-brand-subtle p-5"
+        >
+          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground">
+            {justSubmitted === 'approved' ? (
+              <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <Clock className="h-5 w-5" aria-hidden="true" />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-lg font-bold tracking-tight text-brand-deep">
+              {justSubmitted === 'approved' ? "Posted! Thanks for sharing." : 'Sent for approval'}
+            </p>
+            <p className="mt-1 text-sm text-warm-prose">
+              {justSubmitted === 'approved'
+                ? 'Your review is live for other parents and students to see.'
+                : "Anonymous reviews are checked by our team first — yours will appear here once it's approved."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setJustSubmitted(null)}
+            aria-label="Dismiss"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-brand-deep/70 transition-colors duration-tap hover:bg-brand/10 hover:text-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       {/* Comment Form - Only for authenticated users */}
       {user ? (
@@ -424,11 +459,14 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
           </div>
         </form>
       ) : (
-        <div className="mb-8 p-4 bg-muted rounded-lg text-center">
-          <p className="text-muted-foreground">
+        // Signals the sign-in requirement up front rather than gating on click
+        // (task #2) — this panel replaces the form entirely for signed-out
+        // visitors, so there's no click to discover the wall on.
+        <div className="mb-8 rounded-2xl bg-muted p-6 text-center">
+          <p className="text-sm text-muted-foreground">
             <Button
               variant="link"
-              className="p-0 h-auto text-foreground underline"
+              className="h-auto p-0 text-foreground underline"
               onClick={() => {
                 saveAuthRedirect(location.pathname);
                 navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
@@ -458,18 +496,26 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
           ))}
         </div>
       ) : comments.length === 0 ? (
-        <div className="text-center py-12">
-          <MessageCircle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-          <p className="text-muted-foreground">No reviews yet. Be the first to share your thoughts!</p>
+        // "No reviews yet" is one of VISUAL_DIRECTION §4's named LOUD moments —
+        // the single highest-leverage empty state on this page, since a new
+        // teacher profile will sit at zero reviews for a while.
+        <div className="sticker sticker-rotate-sm outline-offset-shadow animate-pop mx-auto max-w-sm rounded-2xl bg-card px-6 py-10 text-center">
+          <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-subtle">
+            <Sparkles className="h-6 w-6 text-brand-deep" aria-hidden="true" />
+          </span>
+          <p className="font-display text-xl font-bold tracking-tight text-foreground">No reviews yet</p>
+          <p className="mx-auto mt-2 max-w-[32ch] text-sm text-muted-foreground">
+            Be the first parent or student to share how it went.
+          </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="stagger-children space-y-6">
           {comments.slice(0, visibleCommentsCount).map((comment) => {
             const avatarUrl = getCommentAvatar(comment);
             const initials = getCommentInitials(comment);
-            
+
             return (
-              <div key={comment.id} className="flex gap-4">
+              <div key={comment.id} className="animate-card-reveal flex gap-4">
                 {/* Avatar */}
                 <div className="flex-shrink-0">
                   {avatarUrl ? (
@@ -518,6 +564,7 @@ export function TeacherComments({ teacherId }: TeacherCommentsProps) {
                           disabled={deletingCommentId === comment.id}
                           className="h-10 w-10 p-0 text-muted-foreground hover:text-destructive"
                           title="Delete comment"
+                          aria-label="Delete comment"
                         >
                           {deletingCommentId === comment.id ? (
                             <Clock className="w-4 h-4 animate-spin" />

@@ -118,7 +118,7 @@ export function OnboardingModal() {
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <DialogPrimitive.Close
-            className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full text-white/70 transition-colors duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-6 sm:top-6"
+            className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full text-white/70 transition-colors duration-tap hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-6 sm:top-6"
             aria-label="Skip onboarding"
           >
             <X className="h-5 w-5" aria-hidden="true" />
@@ -132,7 +132,7 @@ export function OnboardingModal() {
           {/* Track: CSS transform transition only, no framer-motion (§6) */}
           <div className="flex-1 overflow-hidden">
             <div
-              className="flex h-full transition-transform duration-300 ease-out"
+              className="flex h-full transition-transform duration-lift ease-settle"
               style={{ transform: `translateX(-${step * 100}%)` }}
             >
               {SCREENS.map((screen, i) => {
@@ -146,7 +146,9 @@ export function OnboardingModal() {
                   >
                     {/* Dominant hero shape — the reference's defining device.
                         Sized to be the clear focal point of the screen, not
-                        a background texture. */}
+                        a background texture. Loud surface (VISUAL_DIRECTION
+                        §4: onboarding is a pure moment) — the icon tile is a
+                        die-cut sticker that pops in, not a fade. */}
                     <div className="relative mb-8 flex h-40 w-40 items-center justify-center sm:h-48 sm:w-48">
                       <div
                         className={cn(
@@ -155,23 +157,28 @@ export function OnboardingModal() {
                         )}
                         aria-hidden="true"
                       />
-                      <div className={cn("relative flex h-20 w-20 items-center justify-center rounded-2xl shadow-lg sm:h-24 sm:w-24", styles.icon)}>
+                      <div
+                        className={cn(
+                          "sticker sticker-rotate-sm outline-offset-shadow relative flex h-20 w-20 animate-pop items-center justify-center rounded-2xl sm:h-24 sm:w-24",
+                          styles.icon
+                        )}
+                      >
                         <Icon className="h-9 w-9 sm:h-10 sm:w-10" aria-hidden="true" />
                       </div>
                     </div>
 
                     <span
                       className={cn(
-                        "mb-4 inline-block rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide",
+                        "mb-4 inline-block rounded-full px-3 py-1 text-label font-medium uppercase tracking-wide",
                         styles.chip
                       )}
                     >
                       {screen.eyebrow}
                     </span>
-                    <h2 className="max-w-sm text-[28px] font-semibold leading-tight tracking-tight sm:max-w-md sm:text-[34px]">
+                    <h2 className="max-w-sm text-page-title font-display font-semibold leading-tight tracking-tight sm:max-w-md">
                       {screen.title}
                     </h2>
-                    <p className="mt-4 max-w-sm text-sm text-white/60 sm:max-w-md sm:text-base">{screen.body}</p>
+                    <p className="mt-4 max-w-sm text-body-secondary text-white/60 sm:max-w-md">{screen.body}</p>
                   </div>
                 );
               })}
@@ -188,11 +195,16 @@ export function OnboardingModal() {
                   aria-selected={i === step}
                   aria-label={`Go to screen ${i + 1} of ${SCREENS.length}`}
                   onClick={() => setStep(i)}
-                  className={cn(
-                    "h-2 rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-                    i === step ? "w-6 bg-white" : "w-2 bg-white/30"
-                  )}
-                />
+                  className="flex h-11 w-11 items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "h-2 rounded-full transition-colors duration-hover",
+                      i === step ? "w-6 bg-white" : "w-2 bg-white/30"
+                    )}
+                  />
+                </button>
               ))}
             </div>
 
@@ -201,7 +213,7 @@ export function OnboardingModal() {
                 type="button"
                 onClick={dismiss}
                 className={cn(
-                  "flex h-12 w-full max-w-xs items-center justify-center rounded-full px-8 text-sm font-semibold transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
+                  "flex h-12 w-full max-w-xs items-center justify-center rounded-full px-8 text-sm font-semibold transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
                   MODE_STYLES[SCREENS[step].mode].cta
                 )}
               >
@@ -212,7 +224,7 @@ export function OnboardingModal() {
                 type="button"
                 onClick={() => setStep((s) => Math.min(s + 1, SCREENS.length - 1))}
                 className={cn(
-                  "flex h-12 w-full max-w-xs items-center justify-center rounded-full px-8 text-sm font-semibold transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
+                  "flex h-12 w-full max-w-xs items-center justify-center rounded-full px-8 text-sm font-semibold transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
                   MODE_STYLES[SCREENS[step].mode].cta
                 )}
               >

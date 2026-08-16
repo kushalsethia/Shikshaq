@@ -55,23 +55,19 @@ const BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'];
 
 const CLASS_SIZE = ['Group', 'Solo'];
 
-const AREAS = [
-  // Group 1
-  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba', 
-  'New Alipore', 'Southern Avenue', 'Tollygunge', 'Hazra',
-  // Group 2
-  'Baguihati', 'Belur', 'Howrah', 'Joka', 'Newtown', 'Rajarhat', 'Salt Lake', 'Science City',
-  // Group 3
-  'Dum Dum', 'Entally', 'Girish Park', 'Nagarbazar', 'Sealdah', 'Shyam Bazar', 'Tangra',
-  // Group 4
-  'Camac Street', 'College Street', 'Elgin', 'Minto Park', 'Park Street', 'Park Circus',
-  // Group 5
-  'Kankurgachi', 'Laketown', 'Phoolbagan', 'Ultadanga',
-  // Group 6
-  'Anandapur', 'Parnasree', 'Rabindra Nagar',
-  // Group 7
-  'Hooghly'
-].sort();
+// Same 45 areas, now surfaced as named geographic groups instead of one flat,
+// alphabetised list (audit finding: the grouping existed in the data shape but
+// was invisible in the UI). Each group renders as its own labelled cluster in
+// the panel, with a search-within box above all of them for the rest.
+const AREA_GROUPS: { label: string; areas: string[] }[] = [
+  { label: 'South Kolkata', areas: ['Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba', 'New Alipore', 'Southern Avenue', 'Tollygunge', 'Hazra'] },
+  { label: 'Salt Lake & New Town', areas: ['Baguihati', 'Belur', 'Howrah', 'Joka', 'Newtown', 'Rajarhat', 'Salt Lake', 'Science City'] },
+  { label: 'North Kolkata', areas: ['Dum Dum', 'Entally', 'Girish Park', 'Nagarbazar', 'Sealdah', 'Shyam Bazar', 'Tangra'] },
+  { label: 'Central Kolkata', areas: ['Camac Street', 'College Street', 'Elgin', 'Minto Park', 'Park Street', 'Park Circus'] },
+  { label: 'East Kolkata', areas: ['Kankurgachi', 'Laketown', 'Phoolbagan', 'Ultadanga'] },
+  { label: 'South East Kolkata', areas: ['Anandapur', 'Parnasree', 'Rabindra Nagar'] },
+  { label: 'Greater Kolkata', areas: ['Hooghly'] },
+];
 
 const MODE_OF_TEACHING = ['Online', 'Offline'];
 
@@ -84,6 +80,15 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
   const [isScrolled, setIsScrolled] = useState(false);
   const lastScrollY = useRef(0);
   const sheetContentRef = useRef<HTMLDivElement>(null);
+  // Search-within-areas (audit finding: ~45 chips in one flat unsearchable list).
+  // Filters the visible groups client-side; doesn't touch onFilterChange/filter state.
+  const [areaQuery, setAreaQuery] = useState('');
+  const filteredAreaGroups = areaQuery.trim()
+    ? AREA_GROUPS.map((g) => ({
+        label: g.label,
+        areas: g.areas.filter((a) => a.toLowerCase().includes(areaQuery.trim().toLowerCase())),
+      })).filter((g) => g.areas.length > 0)
+    : AREA_GROUPS;
 
   // Handle scroll detection for sticky header - similar to navbar behavior
   useEffect(() => {
@@ -205,7 +210,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={subject}
                   onClick={() => toggleFilter('subjects', subject)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
                     filters.subjects.includes(subject)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -225,7 +230,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={cls}
                   onClick={() => toggleFilter('classes', cls)}
-                  className={`w-12 h-12 rounded-full text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] flex items-center justify-center ${
+                  className={`w-12 h-12 rounded-full text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 flex items-center justify-center ${
                     filters.classes.includes(cls)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -245,7 +250,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={board}
                   onClick={() => toggleFilter('boards', board)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
                     filters.boards.includes(board)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -265,7 +270,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={size}
                   onClick={() => toggleFilter('classSize', size)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
                     filters.classSize.includes(size)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -277,24 +282,54 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
             </div>
           </div>
 
-          {/* Areas */}
+          {/* Areas — grouped by geography (was one flat 45-chip list with the
+              grouping invisible), plus a search-within box for narrowing fast. */}
           <div>
-            <h3 className="text-lg font-medium mb-4">Areas</h3>
-            <div className="flex flex-wrap gap-2">
-              {AREAS.map((area) => (
-                <button
-                  key={area}
-                  onClick={() => toggleFilter('areas', area)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
-                    filters.areas.includes(area)
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {area}
-                </button>
-              ))}
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-lg font-medium">Areas</h3>
+              {filters.areas.length > 0 && (
+                <span className="rounded-full bg-brand px-2.5 py-0.5 text-label font-bold tabular-nums text-foreground">
+                  {filters.areas.length}
+                </span>
+              )}
             </div>
+            <Input
+              type="search"
+              value={areaQuery}
+              onChange={(e) => setAreaQuery(e.target.value)}
+              placeholder="Search areas…"
+              aria-label="Search areas"
+              className="mb-4 h-11"
+            />
+            {filteredAreaGroups.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No areas match &ldquo;{areaQuery}&rdquo;.</p>
+            ) : (
+              <div className="space-y-5">
+                {filteredAreaGroups.map((group) => (
+                  <div key={group.label}>
+                    <p className="mb-2 text-label font-medium uppercase tracking-wide text-muted-foreground">
+                      {group.label}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {group.areas.map((area) => (
+                        <button
+                          key={area}
+                          onClick={() => toggleFilter('areas', area)}
+                          aria-pressed={filters.areas.includes(area)}
+                          className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
+                            filters.areas.includes(area)
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          {area}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Mode of teaching */}
@@ -305,7 +340,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={mode}
                   onClick={() => toggleFilter('modeOfTeaching', mode)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
                     filters.modeOfTeaching.includes(mode)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -325,7 +360,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={place}
                   onClick={() => toggleFilter('placeOfTeaching', place)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
                     filters.placeOfTeaching.includes(place)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'

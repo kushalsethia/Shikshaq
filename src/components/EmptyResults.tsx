@@ -36,35 +36,41 @@ const FOCUS =
 
 /**
  * The canonical empty state (DESIGN_SYSTEM.md §9): icon, one-line explanation,
- * one action. Keeps the page shell intact — this replaces only the section body,
- * never the whole screen.
+ * one action. This is a LOUD surface per VISUAL_DIRECTION.md §4 — the user is
+ * never comparing anything here, so full Cluster A collage vocabulary applies.
+ * Framed as a wrong turn, not a failure (§2): the sticker badge is the
+ * "you've wandered off the map" marker, and the relax-filter options render as
+ * signposted alternate routes (`.signpost`) rather than plain pills — each one
+ * is a way forward, never just an apology. Keeps the page shell intact — this
+ * replaces only the section body, never the whole screen.
  */
 export function EmptyResults({ heading, message, options, action, icon, className, style }: EmptyResultsProps) {
   const hasRow = Boolean((options && options.length > 0) || action);
 
   return (
     <div
-      className={`flex flex-col items-center rounded-2xl bg-card p-6 text-center shadow-border sm:p-12 ${className ?? ''}`}
+      className={`halftone-overlay relative flex flex-col items-center overflow-hidden rounded-2xl bg-card p-6 text-center shadow-border sm:p-12 ${className ?? ''}`}
       style={style}
     >
-      {/* VISUAL_LANGUAGE §1.4's stripe texture, reused here per its own doc comment
-          ("any empty media box") so the empty state reads as designed texture
-          rather than a bare apologetic icon circle. */}
-      <span className="stripe-placeholder mb-4 flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground">
-        {icon ?? <SearchX className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+      {/* Die-cut sticker badge — the "wrong turn" marker. Pops in with a
+          slight overshoot rather than fading, per VISUAL_DIRECTION §7. */}
+      <span
+        className="sticker sticker-rotate-sm outline-offset-shadow relative z-10 mb-5 flex h-16 w-16 shrink-0 animate-pop items-center justify-center rounded-full bg-brand/15 text-brand"
+      >
+        {icon ?? <SearchX className="h-7 w-7" strokeWidth={2} aria-hidden="true" />}
       </span>
 
-      <h3 className="text-lg font-semibold text-foreground">{heading}</h3>
-      <p className="mt-2 max-w-prose text-sm text-muted-foreground">{message}</p>
+      <h3 className="relative z-10 text-card-title-lg font-display font-semibold text-foreground">{heading}</h3>
+      <p className="relative z-10 mt-2 max-w-prose text-body-secondary text-muted-foreground">{message}</p>
 
       {hasRow && (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+        <div className="stagger-children relative z-10 mt-6 flex flex-wrap items-center justify-center gap-3">
           {options?.map((option, i) => (
             <button
               key={`${option.label}-${i}`}
               type="button"
               onClick={option.onClick}
-              className={`flex min-h-11 items-center rounded-full bg-muted px-4 text-sm font-medium text-foreground transition-colors duration-150 active:scale-[0.97] ${FOCUS}`}
+              className={`signpost flex min-h-11 animate-card-reveal items-center bg-muted pl-4 text-sm font-medium text-foreground transition-colors duration-hover active:scale-[0.97] ${FOCUS}`}
             >
               {option.label}
             </button>
@@ -73,7 +79,7 @@ export function EmptyResults({ heading, message, options, action, icon, classNam
             <button
               type="button"
               onClick={action.onClick}
-              className={`flex min-h-11 items-center rounded-lg bg-brand px-6 text-sm font-medium text-brand-foreground transition-colors duration-150 hover:bg-brand-hover active:scale-[0.97] ${FOCUS}`}
+              className={`flex min-h-11 animate-card-reveal items-center rounded-lg bg-brand px-6 text-sm font-medium text-brand-foreground transition-colors duration-hover hover:bg-brand-hover active:scale-[0.97] ${FOCUS}`}
             >
               {action.label}
             </button>

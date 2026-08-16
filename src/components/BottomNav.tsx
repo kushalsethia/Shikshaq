@@ -2,9 +2,9 @@ import { useLocation } from 'react-router-dom';
 import { Home, Search, FileText, User } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { ExpandableTabs, type ExpandableTab } from '@/components/ui/expandable-tabs';
-
-const BROWSE_PATH = '/all-tuition-teachers-in-kolkata';
-const DASHBOARD_PATHS = ['/dashboard/student', '/dashboard/guardian', '/dashboard/teacher'];
+import {
+  BROWSE_PATH, isHomeActive, isBrowseActive, isPapersActive, isAccountActive, getAccountPath, type UserRole,
+} from '@/lib/nav-config';
 
 /**
  * Primary navigation on mobile (see DESIGN_SYSTEM §11 "Bottom navigation").
@@ -21,37 +21,29 @@ export function BottomNav() {
   const location = useLocation();
   const { user, profile } = useAuth();
 
-  const role = (profile?.role as 'student' | 'guardian' | 'teacher' | null) || null;
-  const accountPath = !user
-    ? '/auth'
-    : role === 'student'
-      ? '/dashboard/student'
-      : role === 'guardian'
-        ? '/dashboard/guardian'
-        : role === 'teacher'
-          ? '/dashboard/teacher'
-          : '/select-role';
+  const role = (profile?.role as UserRole) || null;
+  const accountPath = getAccountPath(user, role);
 
   const tabs: ExpandableTab[] = [
-    { to: '/', label: 'Home', icon: Home, isActive: (p) => p === '/' },
+    { to: '/', label: 'Home', icon: Home, isActive: isHomeActive },
     {
       to: BROWSE_PATH,
       label: 'Browse',
       icon: Search,
-      isActive: (p) => p === '/browse' || p.endsWith('-tuition-teachers-in-kolkata'),
+      isActive: isBrowseActive,
     },
     {
       to: '/past-papers',
       label: 'Papers',
       icon: FileText,
-      isActive: (p) => p.startsWith('/past-papers'),
+      isActive: isPapersActive,
       accent: 'brand-blue',
     },
     {
       to: accountPath,
       label: 'Account',
       icon: User,
-      isActive: (p) => p === '/auth' || p === '/select-role' || DASHBOARD_PATHS.includes(p),
+      isActive: isAccountActive,
     },
   ];
 

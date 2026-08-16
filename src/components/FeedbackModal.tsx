@@ -93,7 +93,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md rounded-2xl p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-left text-lg sm:text-xl font-bold text-foreground">
+          <DialogTitle className="text-left text-subsection font-display font-semibold text-foreground">
             Feedback
           </DialogTitle>
         </DialogHeader>
@@ -101,17 +101,19 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
         <div className="space-y-4 sm:space-y-6 mt-2 sm:mt-4 overflow-x-hidden w-full">
           {/* Heading */}
           <div className="text-center">
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1 sm:mb-2">
+            <h2 className="text-card-title-lg font-display font-semibold text-foreground mb-1 sm:mb-2">
               Give us a feedback!
             </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               Your input is important for us. We take customer feedback very seriously.
             </p>
           </div>
 
           {/* Mood quick-select — how do you feel about this? Same 1-5 scale as the
-              rating the submission handler already expects (see feedbackData below);
-              this is a restyle of the selector, not a new field. */}
+              rating the submission handler already expects (see feedbackData below).
+              A supporting moment (VISUAL_DIRECTION §4): each tap pops the newly
+              selected icon in with `animate-pop` rather than just re-coloring it, so
+              choosing a mood reads as a small delightful commit, not a form field. */}
           <div className="w-full">
             <p className="text-center text-sm font-medium text-foreground mb-2 sm:mb-3">
               How do you feel about this?
@@ -126,13 +128,14 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                     onClick={() => setSelectedEmoji(id)}
                     aria-pressed={isSelected}
                     aria-label={label}
-                    className="flex flex-col items-center gap-1.5 flex-1 min-w-0"
+                    className="flex min-h-11 flex-1 min-w-0 flex-col items-center gap-1.5 active:scale-[0.97] transition-transform duration-tap"
                   >
                     <span
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-[transform,box-shadow,background-color] duration-150 ${
+                      key={isSelected ? `${id}-on` : `${id}-off`}
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors duration-hover ${
                         isSelected
-                          ? `bg-muted ${tone} ring-2 ring-brand scale-110`
-                          : 'bg-muted text-muted-foreground scale-100 hover:scale-105'
+                          ? `animate-pop bg-muted ${tone} ring-2 ring-brand`
+                          : 'bg-muted text-muted-foreground'
                       }`}
                     >
                       <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />

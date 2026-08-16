@@ -93,7 +93,7 @@ function TeacherCardComponent({
        §7: one bold title, everything else text-sm text-muted-foreground. */
     <Link
       to={`/tuition-teachers/${slug}`}
-      className="group block overflow-hidden rounded-2xl bg-card shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group block overflow-hidden rounded-2xl bg-card shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-1 hover:shadow-border-hover active:scale-[0.98] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-muted">
         {imageUrl ? (
@@ -118,7 +118,7 @@ function TeacherCardComponent({
             including teacher-card badges). Inline style is the sanctioned exception for
             getSubjectPalette values (subject-palette.ts). */}
         <span
-          className="absolute left-2 top-2 inline-flex max-w-[calc(100%-4rem)] items-center truncate rounded-full px-3 py-1 text-xs font-medium"
+          className="signpost absolute left-2 top-2 inline-flex max-w-[calc(100%-4rem)] items-center truncate py-1 pl-3 text-label font-medium"
           style={{ backgroundColor: palette.solid, color: palette.badgeText }}
         >
           {subject}
@@ -129,7 +129,7 @@ function TeacherCardComponent({
             "never on more than a third of the cards in a grid" ceiling. */}
         {isFeatured && (
           <span
-            className="absolute -top-2.5 right-4 rotate-6 rounded-full bg-panel px-3 py-1 text-[11px] font-bold text-white motion-reduce:rotate-0"
+            className="animate-pop absolute -top-2.5 right-4 rotate-6 rounded-full bg-panel px-3 py-1 text-label font-bold text-white motion-reduce:rotate-0 motion-reduce:animate-none"
             aria-hidden="true"
           >
             Featured
@@ -143,7 +143,7 @@ function TeacherCardComponent({
             onClick={handleHeartClick}
             aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
             aria-pressed={liked}
-            className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full transition-transform duration-tap ease-tap active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-card shadow-border">
               <Heart
@@ -157,7 +157,7 @@ function TeacherCardComponent({
 
         {/* Upvote count — read-only pill, size 'md' only */}
         {showUpvotes && (
-          <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-card px-3 py-1 text-xs font-medium tabular-nums text-muted-foreground shadow-border">
+          <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-card px-3 py-1 text-meta font-medium tabular-nums text-muted-foreground shadow-border">
             <ArrowUp className="h-3 w-3" strokeWidth={2.25} aria-hidden="true" />
             {upvoteCount}
           </span>
@@ -167,12 +167,14 @@ function TeacherCardComponent({
       {/* Body */}
       <div className="p-3 sm:p-4">
         <h3
-          className={`line-clamp-2 break-words font-semibold text-foreground ${isSm ? 'text-sm' : 'text-base'}`}
+          className={`line-clamp-2 break-words font-display font-semibold text-foreground ${isSm ? 'text-card-title' : 'text-card-title-lg'}`}
           title={displayName}
         >
           {displayName}
         </h3>
-        {!isSm && meta && <p className="mt-1 truncate text-sm text-muted-foreground">{meta}</p>}
+        {meta && (
+          <p className={`mt-1 truncate text-muted-foreground ${isSm ? 'text-meta' : 'text-body-secondary'}`}>{meta}</p>
+        )}
       </div>
     </Link>
   );

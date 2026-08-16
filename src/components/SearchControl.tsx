@@ -132,6 +132,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   }, [ensureLoaded]);
 
   const reveal = expanded || field !== null;
+
+  // The facet row animates open from max-h-0. During that transition the browser can leave
+  // it mid-scroll (observed at scrollLeft ≈ 75 on first paint at 375px), hiding the first
+  // facet chips before the user has touched anything. Reset to the start whenever it opens.
+  const facetRowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (reveal && facetRowRef.current) facetRowRef.current.scrollLeft = 0;
+  }, [reveal]);
+
   // Only the stacked-toggle wrapper below reads this — the bar, facet row, and scrim
   // stay tied to `reveal` so the rest of the expand/collapse choreography is untouched.
   const stackedToggleVisible = stackedToggle && (reveal || alwaysShowModeToggle);
@@ -249,8 +258,14 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
   const openPaper = useCallback((p: PaperHit) => {
     if (trimmedQ) addRecentSearch(trimmedQ, 'papers');
-    if (p.file_url) {
-      window.open(p.file_url, '_blank', 'noopener,noreferrer');
+    // Always route through the reader. This previously did
+    // `window.open(p.file_url)`, handing out the raw public bucket URL and
+    // walking straight past the reader's sign-in wall, its visit tracking and
+    // its redistribution notice — so the "gate" wasn't one for anybody who
+    // arrived via search. Papers without a file still fall back to a filtered
+    // browse rather than a dead click.
+    if (p.id) {
+      navigate(`/past-papers/${p.id}`);
     } else {
       navigate(`/past-papers?q=${encodeURIComponent(`${p.title} ${p.school}`)}`);
     }
@@ -409,12 +424,27 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               reveal ? 'mt-3 max-h-40 opacity-100' : 'invisible mt-0 max-h-0 opacity-0'
             }`}
           >
-            <div
-              className={`flex snap-x items-center gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible ${
-                align === 'center' ? 'sm:justify-center' : 'sm:justify-start'
-              }`}
-            >
-              <span className={`${sectionLabel} flex-none`}>Narrow it</span>
+            <div className="relative">
+              {/* The "Narrow it" label lives OUTSIDE the scroller. It used to be the scroller's
+                  first child, which meant it scrolled away from the very chips it labels — and
+                  because this row animates open (max-h-0 → max-h-40), the browser landed it at
+                  scrollLeft ≈ 75 on first paint, so mobile users never saw it at all. */}
+              <span className={`${sectionLabel} mb-1.5 block ${align === 'center' ? 'sm:text-center' : ''}`}>
+                Narrow it
+              </span>
+              {/* Scroll cue (§8/§11): the facet row hides its own scrollability on mobile with
+                  no affordance — a trailing edge fade signals "more chips this way" without
+                  a border/shadow stack. sm:hidden since the row wraps instead of scrolling at sm+. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent sm:hidden"
+              />
+              <div
+                ref={facetRowRef}
+                className={`flex snap-x items-center gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible ${
+                  align === 'center' ? 'sm:justify-center' : 'sm:justify-start'
+                }`}
+              >
               {facetKeys.map((key) => {
                 const Icon = FACET_ICON[key];
                 const selected = selections[key].length > 0;
@@ -447,6 +477,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                   Clear
                 </button>
               )}
+              </div>
             </div>
           </div>
 

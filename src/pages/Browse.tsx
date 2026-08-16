@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef, type CSSProperties } from 'react';
 import { useSearchParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
@@ -24,6 +24,7 @@ import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
 import { getSubjectPalette } from '@/lib/subject-palette';
+import { PageHeader } from '@/components/devices';
 
 
 interface Teacher {
@@ -54,6 +55,16 @@ interface BrowseProps {
    * tags with the generic "All Tuition Teachers" copy.
    */
   manageSeo?: boolean;
+  /**
+   * Set by SubjectPage/BoardPage so the ~35 SEO landing routes get the
+   * templated, subject/board-coloured first fold (VISUAL_DIRECTION.md §9a:
+   * "one templated fold, subject-coloured... so all 35 feel bespoke but are
+   * built and maintained once"). `label` is the human-readable subject/board
+   * name (e.g. "Maths", "ICSE") used to drive both the palette lookup and
+   * the headline copy. Omitted on the generic /all-tuition-teachers-in-kolkata
+   * route.
+   */
+  pageContext?: { kind: 'subject' | 'board'; label: string };
 }
 
 /**
@@ -285,7 +296,97 @@ function filterShikshaqRecords(recordsToFilter: any[], effectiveFilters: FilterS
   });
 }
 
-export default function Browse({ manageSeo = true }: BrowseProps = {}) {
+// Columns filterShikshaqRecords() and the enrichment step actually read (verified by
+// grepping every `record.X` / `record["X"]` access in this file). `is_paused` is added
+// separately per-query with a fail-soft retry (see runShikshaqQuery/runChunk below) so a
+// missing column never takes down the whole query the way it did before.
+const SHIKSHAQ_COLUMNS =
+  'Slug, Subjects, "Classes Taught for Backend", "Classes Taught", "School Boards Catered", "Class Size (Group/ Solo)", Area, "Mode of Teaching", "Place of Teaching", "Min Fees", "Max Fees", "Sir/Ma\'am?", "Years they started teaching"';
+
+// PostgREST's `.or()` filter-string syntax uses `,` to separate conditions and `%`/`_` as
+// ILIKE wildcards — strip them from user-supplied filter values so they can't break the
+// query string or widen a match in an unintended way.
+function escOrValue(v: string): string {
+  return v.replace(/[%_,()]/g, '');
+}
+
+function orIlike(column: string, values: string[]): string {
+  return values.map((v) => `${column}.ilike.%${escOrValue(v)}%`).join(',');
+}
+
+/**
+ * Broad, deliberately over-inclusive server-side prefilter over Shikshaqmine: every
+ * condition is a plain substring ILIKE, so it can't reproduce filterShikshaqRecords'
+ * exact whole-token-boundary matching (e.g. "5" here would also match "15"). That's fine
+ * — every row this returns is re-checked by filterShikshaqRecords client-side before
+ * reaching the UI. What this must NEVER do is exclude a row filterShikshaqRecords would
+ * have accepted, so each OR list mirrors (or widens) filterShikshaqRecords' synonym
+ * handling for the two subject aliases that don't share a substring relationship
+ * (Accountancy/Accounts, Social Studies/History & Civics/Geography — the Computer(s) and
+ * Drawing variants are already covered because one is a substring of the other).
+ */
+function applyServerPrefilters(query: any, f: FilterState) {
+  if (f.subjects.length > 0) {
+    const expanded = f.subjects.flatMap((s) => {
+      const lower = s.toLowerCase();
+      if (lower === 'accountancy') return [s, 'Accounts'];
+      if (lower === 'social studies') return [s, 'History & Civics', 'Geography'];
+      return [s];
+    });
+    query = query.or(orIlike('Subjects', expanded));
+  }
+  if (f.classes.length > 0) {
+    // Both the backend (token) and display (free-text) class columns can carry a match.
+    query = query.or([orIlike('Classes Taught for Backend', f.classes), orIlike('Classes Taught', f.classes)].join(','));
+  }
+  if (f.boards.length > 0) query = query.or(orIlike('School Boards Catered', f.boards));
+  if (f.classSize.length > 0) query = query.or(orIlike('Class Size (Group/ Solo)', f.classSize));
+  if (f.areas.length > 0) query = query.or(orIlike('Area', f.areas));
+  if (f.modeOfTeaching.length > 0) query = query.or(orIlike('Mode of Teaching', f.modeOfTeaching));
+  if (f.placeOfTeaching.length > 0) query = query.or(orIlike('Place of Teaching', f.placeOfTeaching));
+  // Fee-overlap prefilter, widened with "OR unset" on each side so teachers who only have
+  // one of Min/Max Fees populated (handled specially by filterShikshaqRecords) aren't lost.
+  if (f.maxFees != null) query = query.or(`Min Fees.lte.${f.maxFees},Min Fees.is.null`);
+  if (f.minFees != null) query = query.or(`Max Fees.gte.${f.minFees},Max Fees.is.null`);
+  // minExperience is NOT prefiltered: "Years they started teaching" is a free-text column
+  // and the exact arithmetic (currentYear - yearStarted) already runs cheaply client-side
+  // over the (now much smaller) candidate set, so pushing it server-side buys nothing.
+  return query;
+}
+
+/**
+ * Applies the active sort to the FULL result set (never just the visible page), so
+ * "Load more" batches stay in the same order as what's already on screen. Pure function
+ * so the sort control can re-order via cached data (see lastEnrichedRef) without a
+ * network round trip when only the sort — not the filters/search — changed.
+ */
+function applySortOrder(list: any[], sortParam: string, upvoteMap: Map<string, number>): any[] {
+  if (sortParam === 'name') {
+    return [...list].sort((a, b) => a.name.localeCompare(b.name));
+  }
+  if (sortParam === 'experience') {
+    const currentYear = new Date().getFullYear();
+    return [...list].sort((a, b) => {
+      const expA = a._yearStarted ? currentYear - a._yearStarted : -Infinity;
+      const expB = b._yearStarted ? currentYear - b._yearStarted : -Infinity;
+      return expB - expA || a.name.localeCompare(b.name);
+    });
+  }
+  if (sortParam === 'fees') {
+    return [...list].sort((a, b) => {
+      const feeA = a._minFees ?? Infinity;
+      const feeB = b._minFees ?? Infinity;
+      return feeA - feeB || a.name.localeCompare(b.name);
+    });
+  }
+  // 'upvotes' (default)
+  return [...list].sort((a, b) => {
+    const diff = (upvoteMap.get(b.id) || 0) - (upvoteMap.get(a.id) || 0);
+    return diff !== 0 ? diff : a.name.localeCompare(b.name);
+  });
+}
+
+export default function Browse({ manageSeo = true, pageContext }: BrowseProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -350,12 +451,24 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Ref to debounce filter-driven refetches
   const fetchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  // Monotonically increasing id guarding against out-of-order fetch responses: typing quickly
+  // can fire overlapping requests, and without this the LAST TO RESOLVE (not the last issued)
+  // would win and overwrite newer results with a stale response.
+  const fetchIdRef = useRef(0);
+  // Whether the base teachers_list fetch hit the pagination safety cap (see MAX_TEACHER_PAGES
+  // below) and some teachers are therefore not represented in this result set.
+  const [resultsTruncated, setResultsTruncated] = useState(false);
   // Wraps SearchControl so "Edit search" can focus its input, which re-expands it
   const searchControlWrapRef = useRef<HTMLDivElement>(null);
   // Snapshot of the Shikshaqmine records + effective filters behind the most recent
   // fetch, so the EmptyResults "relax a filter" options can be computed with real
   // counts (components/EmptyResults.md) without a second Supabase round trip.
   const lastQueryRef = useRef<{ shikshaqRecords: any[]; effectiveFilters: FilterState } | null>(null);
+  // Cache of the last fetch's enriched (pre-sort) result set + upvote counts, keyed by the
+  // searchParams that determined it (everything EXCEPT `sort`). Lets the sort control
+  // re-order the whole result set with zero network round trips when only `sort` changes.
+  const lastFetchKeyRef = useRef<string | null>(null);
+  const lastEnrichedRef = useRef<{ enriched: any[]; upvoteMap: Map<string, number> } | null>(null);
 
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
@@ -585,21 +698,45 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
 
   useEffect(() => {
     async function fetchTeachers() {
+      // Claim this fetch's id so we can tell, when it resolves, whether a newer fetch
+      // (triggered by the user changing the query/filters again) has since superseded it.
+      const myFetchId = ++fetchIdRef.current;
+      const isStale = () => fetchIdRef.current !== myFetchId;
+
       // Don't fetch if subjects haven't loaded yet (needed for subject filtering)
       if (subjects.length === 0 && searchParams.get('subject')) {
         return;
       }
-      
+
+      const sortParam = searchParams.get('sort') || 'upvotes';
+      const nonSortParams = new URLSearchParams(searchParams);
+      nonSortParams.delete('sort');
+      const nonSortKey = nonSortParams.toString();
+
+      // If ONLY the sort control changed, re-order the already-fetched result set from
+      // cache instead of re-running the whole query — the sort applies to the full result
+      // set either way, so there's nothing new to fetch.
+      if (lastFetchKeyRef.current === nonSortKey && lastEnrichedRef.current) {
+        const { enriched, upvoteMap } = lastEnrichedRef.current;
+        const sorted = applySortOrder(enriched, sortParam, upvoteMap);
+        setAllTeachersData(sorted);
+        const pageSize = 24;
+        setDisplayedTeachers(sorted.slice(0, pageSize));
+        setTeachers(sorted);
+        setHasMore(sorted.length > pageSize);
+        return;
+      }
+
       // Reset infinite scroll when filters/search change
       setDisplayedTeachers([]);
       setAllTeachersData([]);
       setHasMore(true);
-      
+
       // Clear any existing loading timeout
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
       }
-      
+
       // If there's a search query, show loading immediately to prevent flash of all teachers
       const searchQuery = searchParams.get('q');
       if (searchQuery && searchQuery.trim().length >= 2) {
@@ -610,131 +747,16 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
         setLoading(true);
       }, 150);
       }
-      
+
       try {
-        // First, get teachers from teachers_list with a reasonable limit
-        const searchQuery = searchParams.get('q');
         const subjectFilter = searchParams.get('subject');
         const classFilter = searchParams.get('class');
+        const selectCols = 'id, name, slug, image_url, bio, location, is_featured, subjects(name, slug)';
 
-        // Check if we have active filters or search (for conditional Shikshaqmine fetch)
-        const hasFiltersOrSearch = searchQuery || subjectFilter || classFilter || 
-          filters.subjects.length > 0 || filters.classes.length > 0 ||
-          filters.boards.length > 0 || filters.classSize.length > 0 ||
-          filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
-          filters.placeOfTeaching.length > 0 || filters.minExperience != null;
-
-        // Fetch all teachers (up to 200) for infinite scroll
-        const limit = 200;
-        
-        // Check cache for teachers list (only when no filters/search - cached data won't have filters applied)
-        let teachersData = null;
-        if (!hasFiltersOrSearch) {
-          const cacheKey = getTeachersListCacheKey(limit);
-          const cached = getCache<any[]>(cacheKey);
-          if (cached) {
-            teachersData = cached;
-          }
-        }
-
-        // Fetch from API if not in cache
-        if (!teachersData) {
-          let query = supabase
-            .from('teachers_list')
-            .select('id, name, slug, image_url, bio, location, is_featured, subjects(name, slug)')
-            .order('is_featured', { ascending: false })
-            .order('name')
-            .limit(limit);
-
-          // Don't filter by subject at database level - we'll filter using Shikshaqmine data
-          // This allows matching all subjects a teacher teaches, not just the featured one
-          const { data, error } = await query;
-          
-          if (error) {
-            if (import.meta.env.DEV) {
-              console.error('Error fetching teachers:', error);
-            }
-            if (loadingTimeoutRef.current) {
-              clearTimeout(loadingTimeoutRef.current);
-            }
-            setLoading(false);
-            return;
-          }
-
-          if (!data) {
-            setTeachers([]);
-            if (loadingTimeoutRef.current) {
-              clearTimeout(loadingTimeoutRef.current);
-            }
-            setLoading(false);
-            return;
-          }
-
-          teachersData = data;
-          
-          // Cache the teachers list (only if no filters/search - we want fresh data when filtering)
-                  if (!hasFiltersOrSearch) {
-            const cacheKey = getTeachersListCacheKey(limit);
-            setCache(cacheKey, teachersData, CACHE_TTL.TEACHERS_LIST);
-          }
-        }
-
-        // Fetch Shikshaqmine data for filtering and enrichment
-        let allShikshaqData = null;
-        if (teachersData && teachersData.length > 0) {
-          const teacherSlugs = teachersData.map(t => t.slug);
-          
-          // Chunked parallel queries (50 per chunk) so this scales past 300+ teachers
-          const chunkSize = 50;
-          const chunks = [];
-          for (let i = 0; i < teacherSlugs.length; i += chunkSize) {
-            chunks.push(teacherSlugs.slice(i, i + chunkSize));
-          }
-          
-          const shikshaqPromises = chunks
-            .filter(chunk => chunk.length > 0)
-            .map(async (chunk) => {
-              const cacheKey = getShikshaqmineChunkCacheKey(chunk);
-              const cached = getCache<any[]>(cacheKey);
-              if (cached) {
-                return { data: cached, error: null };
-              }
-              
-              // Column list is every field filterShikshaqRecords() and the
-              // enrichment step below actually read (verified by grepping
-              // every `record.X` / `record["X"]` access in this file) — not
-              // '*', which pulled ~20 unused columns (Description, bios,
-              // review text, phone numbers, etc.) per 50-slug chunk.
-              const result = await supabase
-                .from('Shikshaqmine')
-                .select('Slug, Subjects, "Classes Taught for Backend", "Classes Taught", "School Boards Catered", "Class Size (Group/ Solo)", Area, "Mode of Teaching", "Place of Teaching", "Min Fees", "Max Fees", "Sir/Ma\'am?", "Years they started teaching"')
-                .in('Slug', chunk);
-              
-              if (result.data && !result.error) {
-                setCache(cacheKey, result.data, CACHE_TTL.SHIKSHAQMINE_CHUNK);
-              }
-              
-              return result;
-            });
-          
-          const shikshaqResults = await Promise.all(shikshaqPromises);
-          allShikshaqData = shikshaqResults.flatMap(result => result.data || []);
-          
-          if (shikshaqResults.some(result => result.error)) {
-            if (import.meta.env.DEV) {
-              console.error('Error fetching some Shikshaqmine data');
-            }
-          }
-        }
-
-        // Now filter based on Shikshaqmine table data
-        let filteredTeachers = teachersData;
-
-        // Read ALL filters from searchParams for consistency (source of truth)
-        // This ensures filters persist even when state might be temporarily out of sync
+        // ---- Compute effective filters up front (decides the fetch strategy below) ----
         const minFeesParam = searchParams.get('filter_minFees');
         const maxFeesParam = searchParams.get('filter_maxFees');
-        const urlFilters = {
+        const urlFilters: FilterState = {
           subjects: parseArrayParam(searchParams.get('filter_subjects')),
           classes: parseArrayParam(searchParams.get('filter_classes')),
           boards: parseArrayParam(searchParams.get('filter_boards')),
@@ -747,46 +769,35 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           minExperience: searchParams.get('filter_experience') || null,
         };
 
-        // Include class from dropdown in filters (combine URL param and filter panel selections)
+        // Include class/subject from the quick-pick dropdowns (combine with filter panel selections)
         const classFromDropdown = (selectedClass && selectedClass !== 'all') ? selectedClass : null;
         const classFromUrl = (classFilter && classFilter !== 'all') ? classFilter : null;
-        const allClassFilters = new Set([
+        const effectiveClassFilters = Array.from(new Set([
           ...urlFilters.classes,
           ...(classFromDropdown ? [classFromDropdown] : []),
-          ...(classFromUrl ? [classFromUrl] : [])
-        ]);
-        const effectiveClassFilters = Array.from(allClassFilters);
+          ...(classFromUrl ? [classFromUrl] : []),
+        ]));
 
-        // Include subject from dropdown in filters (combine URL param and filter panel selections)
         let effectiveSubjectFilters = [...urlFilters.subjects];
         if (subjectFilter && subjectFilter !== 'all') {
-          // Find the subject name from the subjects list to match against Shikshaqmine data
-          const selectedSubject = subjects.find(s => s.slug === subjectFilter);
-          if (selectedSubject) {
-            // Add to filters if not already present
-            if (!effectiveSubjectFilters.includes(selectedSubject.name)) {
-              effectiveSubjectFilters = [...effectiveSubjectFilters, selectedSubject.name];
+          const selSubject = subjects.find(s => s.slug === subjectFilter);
+          if (selSubject) {
+            if (!effectiveSubjectFilters.includes(selSubject.name)) {
+              effectiveSubjectFilters = [...effectiveSubjectFilters, selSubject.name];
             }
-          } else {
-            // If subject not found in subjects list, try to use the slug as a fallback
-            // This handles cases where subjects haven't loaded yet
-            if (import.meta.env.DEV) {
-              console.warn('Subject not found in subjects list:', subjectFilter);
-            }
+          } else if (import.meta.env.DEV) {
+            console.warn('Subject not found in subjects list:', subjectFilter);
           }
         }
 
-        const hasActiveFilters = effectiveSubjectFilters.length > 0 || effectiveClassFilters.length > 0 || 
-            urlFilters.boards.length > 0 || urlFilters.classSize.length > 0 || 
+        const hasActiveFilters = effectiveSubjectFilters.length > 0 || effectiveClassFilters.length > 0 ||
+            urlFilters.boards.length > 0 || urlFilters.classSize.length > 0 ||
             urlFilters.areas.length > 0 || urlFilters.modeOfTeaching.length > 0 ||
             urlFilters.placeOfTeaching.length > 0 ||
             urlFilters.minFees != null || urlFilters.maxFees != null ||
             urlFilters.minExperience != null;
 
-        // Apply filters (extracted from search query or URL params)
-        // If we have a search query, extract filters directly to ensure they're applied immediately
-        // This prevents showing all teachers before filters are applied
-        let effectiveFilters = {
+        let effectiveFilters: FilterState = {
           subjects: effectiveSubjectFilters,
           classes: effectiveClassFilters,
           boards: urlFilters.boards,
@@ -799,10 +810,10 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           minExperience: urlFilters.minExperience,
         };
 
-        // Extract filters from search query if present (apply immediately, don't wait for state update)
-        // If there's a search query, REPLACE all filters with extracted ones (clear previous search)
+        // If there's a search query, REPLACE all filters with ones extracted from it
+        // (don't merge with previous filter-panel selections).
         let extractedFilters: Partial<FilterState> = {};
-          if (searchQuery && searchQuery.trim().length >= 2) {
+        if (searchQuery && searchQuery.trim().length >= 2) {
           extractedFilters = extractFiltersFromQuery(searchQuery, subjects);
           // When query is exactly a subject-only term (e.g. "neet", "ap"), treat as subject filter only so
           // we don't run name search and match similar names (e.g. "Neeta", "Aparna")
@@ -814,8 +825,6 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
               extractedFilters = { ...extractedFilters, subjects: [...(extractedFilters.subjects || []), subj] };
             }
           }
-          // Replace all filters with extracted ones (don't merge with previous search)
-          // Note: Fees and experience are not extracted from search query, keep URL values
           effectiveFilters = {
             subjects: extractedFilters.subjects || [],
             classes: extractedFilters.classes || [],
@@ -830,156 +839,302 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           };
         }
 
-        // Check if we have any active filters after extraction
-        const hasActiveFiltersAfterExtraction = 
-          effectiveFilters.subjects.length > 0 || 
+        const hasActiveFiltersAfterExtraction =
+          effectiveFilters.subjects.length > 0 ||
           effectiveFilters.classes.length > 0 ||
-          effectiveFilters.boards.length > 0 || 
-          effectiveFilters.classSize.length > 0 || 
-          effectiveFilters.areas.length > 0 || 
+          effectiveFilters.boards.length > 0 ||
+          effectiveFilters.classSize.length > 0 ||
+          effectiveFilters.areas.length > 0 ||
           effectiveFilters.modeOfTeaching.length > 0 ||
           effectiveFilters.placeOfTeaching.length > 0 ||
           effectiveFilters.minFees != null ||
           effectiveFilters.maxFees != null ||
           effectiveFilters.minExperience != null;
 
-        // Smart Search Logic: Handle both Name Search and Filters
-        // Strategy: 
-        // 1. If filters found, extract name part from remaining query
-        // 2. If no filters found, treat entire query as name search
-        // 3. When both present, prioritize name matches but apply filters
-        let namePart = '';
-        let nameSearchResults: Teacher[] = [];
-        let nameSearchResultsWithScores: Array<{ item: Teacher; score: number }> = [];
-        
-        if (searchQuery && searchQuery.trim().length >= 3) {
-          if (hasActiveFiltersAfterExtraction) {
-            // Extract name part from query (e.g., "aparna chemistry" -> "aparna")
-            namePart = extractNameFromQuery(searchQuery, extractedFilters, subjects);
-            if (namePart.length >= 3) {
-              // Both name and filters present - search with scores for prioritization
-              nameSearchResultsWithScores = searchByNameWithScores(teachersData, namePart);
-              nameSearchResults = nameSearchResultsWithScores.map(r => r.item);
+        // Name search needs to fuzzy-scan every teacher's name — it can't be pushed
+        // server-side without a dedicated search index/RPC, so that path keeps the
+        // original full-fetch strategy. Structural filters WITHOUT a name search are the
+        // common case this hook is optimizing (every "Apply filter" click) and get the
+        // new server-side-prefiltered path below.
+        const isNameSearch = !!(searchQuery && searchQuery.trim().length >= 3);
+
+        const TEACHER_PAGE_SIZE = 500;
+        const MAX_TEACHER_PAGES = 6; // safety cap: up to 3000 teachers fetched per query
+        const limit = TEACHER_PAGE_SIZE * MAX_TEACHER_PAGES;
+        let truncated = false;
+        let teachersData: any[] = [];
+        let allShikshaqData: any[] | null = null;
+        let filteredTeachers: any[] = [];
+
+        if (hasActiveFiltersAfterExtraction && !isNameSearch) {
+          // ---- Server-side filtered path ----
+          // Query Shikshaqmine FIRST with a broad server-side prefilter (applyServerPrefilters),
+          // then fetch only the teachers_list rows that survived it — instead of fetching every
+          // teacher and every teacher's Shikshaqmine row on every filter change.
+          const SHIKSHAQ_PREFILTER_LIMIT = 1500;
+          const runShikshaqQuery = async (withPaused: boolean) => {
+            let q = (supabase.from('Shikshaqmine').select(SHIKSHAQ_COLUMNS + (withPaused ? ', is_paused' : '')) as any);
+            q = applyServerPrefilters(q, effectiveFilters);
+            return q.limit(SHIKSHAQ_PREFILTER_LIMIT);
+          };
+
+          let shikRes = await runShikshaqQuery(true);
+          if (isStale()) return;
+          if (shikRes.error) {
+            // is_paused may not exist in this environment — fail soft and retry without it
+            // rather than losing the whole filtered result set over one column.
+            if (import.meta.env.DEV) {
+              console.warn('Shikshaqmine prefilter (with is_paused) failed, retrying without it:', shikRes.error.message);
             }
-          } else {
-            // No filters found - treat entire query as name search
-            nameSearchResults = searchByName(teachersData, searchQuery.trim());
+            shikRes = await runShikshaqQuery(false);
+            if (isStale()) return;
           }
-        }
 
-        // Apply search logic: Name Search OR Filters OR Both
-        if (nameSearchResults.length > 0 && !hasActiveFiltersAfterExtraction) {
-          // B. Pure Name Search! Show these specific teachers directly
-          filteredTeachers = nameSearchResults;
-        } else if (allShikshaqData && hasActiveFiltersAfterExtraction) {
-          // A. Apply the extracted filters (existing filter logic)
-          const recordsToFilter = allShikshaqData;
-          
-          const matchingSlugs = filterShikshaqRecords(recordsToFilter, effectiveFilters)
-            .map((record: any) => record.Slug);
+          const candidateRecords: any[] = shikRes.error ? [] : (shikRes.data || []);
+          if (shikRes.error && import.meta.env.DEV) {
+            console.error('Error fetching Shikshaqmine prefilter:', shikRes.error.message);
+          }
+          allShikshaqData = candidateRecords;
 
-          // Snapshot the exact records + filters this query used, so the empty state
-          // (below) can compute real "drop one filter" counts instead of a static option.
-          lastQueryRef.current = { shikshaqRecords: recordsToFilter, effectiveFilters };
+          // Exact-match pass: the server prefilter above is deliberately over-inclusive
+          // (plain substring ILIKE), so re-run the real predicate to restore exact
+          // token-boundary semantics before this reaches the UI or EmptyResults.
+          const matchingRecords = filterShikshaqRecords(candidateRecords, effectiveFilters);
+          lastQueryRef.current = { shikshaqRecords: candidateRecords, effectiveFilters };
 
-          // Filter teachers by matching slugs
-          filteredTeachers = teachersData.filter(teacher => 
-            matchingSlugs.includes(teacher.slug)
-          );
+          let matchingSlugs = matchingRecords.map((r: any) => r.Slug).filter(Boolean);
+          if (candidateRecords.some((r: any) => 'is_paused' in r)) {
+            const pausedSlugs = new Set(candidateRecords.filter((r: any) => r.is_paused).map((r: any) => r.Slug));
+            matchingSlugs = matchingSlugs.filter((slug) => !pausedSlugs.has(slug));
+          }
 
-          // If we also have name search results, prioritize name matches
-          if (nameSearchResultsWithScores.length > 0) {
-            // Create a map of name match scores for quick lookup
-            const nameScoreMap = new Map<string, number>();
-            nameSearchResultsWithScores.forEach(({ item, score }) => {
-              nameScoreMap.set(item.slug, score);
-            });
+          if (matchingSlugs.length > 0) {
+            const chunkSize = 200;
+            const chunks: string[][] = [];
+            for (let i = 0; i < matchingSlugs.length; i += chunkSize) chunks.push(matchingSlugs.slice(i, i + chunkSize));
+            const results = await Promise.all(
+              chunks.map((chunk) => supabase.from('teachers_list').select(selectCols).in('slug', chunk))
+            );
+            if (isStale()) return;
+            teachersData = results.flatMap((r) => r.data || []);
+          }
 
-            // Separate teachers into: name matches (with scores) and non-name matches
-            const nameMatches: Array<{ teacher: Teacher; score: number }> = [];
-            const nonNameMatches: Teacher[] = [];
+          truncated = candidateRecords.length >= SHIKSHAQ_PREFILTER_LIMIT;
+          filteredTeachers = teachersData;
+        } else {
+          // ---- Full-fetch path (name search, or the unfiltered default view) ----
+          const hasFiltersOrSearch = !!searchQuery || hasActiveFilters;
 
-            filteredTeachers.forEach(teacher => {
-              const nameScore = nameScoreMap.get(teacher.slug);
-              if (nameScore !== undefined) {
-                nameMatches.push({ teacher, score: nameScore });
+          let cachedTeachers: { rows: any[]; truncated: boolean } | null = null;
+          if (!hasFiltersOrSearch) {
+            const cacheKey = getTeachersListCacheKey(limit);
+            cachedTeachers = getCache<{ rows: any[]; truncated: boolean }>(cacheKey);
+          }
+
+          if (cachedTeachers) {
+            teachersData = cachedTeachers.rows;
+            truncated = cachedTeachers.truncated;
           } else {
-                nonNameMatches.push(teacher);
+            const { data: firstPage, error, count } = await supabase
+              .from('teachers_list')
+              .select(selectCols, { count: 'exact' })
+              .order('is_featured', { ascending: false })
+              .order('name')
+              .range(0, TEACHER_PAGE_SIZE - 1);
+
+            if (isStale()) return;
+
+            if (error || !firstPage) {
+              if (error && import.meta.env.DEV) {
+                console.error('Error fetching teachers:', error);
               }
-            });
+              setTeachers([]);
+              if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+              setLoading(false);
+              return;
+            }
 
-            // Sort name matches by score (lower = better match)
-            nameMatches.sort((a, b) => a.score - b.score);
+            let allPages: any[] = firstPage;
+            const totalCount = count ?? firstPage.length;
 
-            // Combine: name matches first (sorted by relevance), then non-name matches
-            filteredTeachers = [
-              ...nameMatches.map(m => m.teacher),
-              ...nonNameMatches
-            ];
+            for (let page = 1; page < MAX_TEACHER_PAGES && allPages.length < totalCount; page++) {
+              const from = page * TEACHER_PAGE_SIZE;
+              const to = from + TEACHER_PAGE_SIZE - 1;
+              const { data: nextPage, error: pageError } = await supabase
+                .from('teachers_list')
+                .select(selectCols)
+                .order('is_featured', { ascending: false })
+                .order('name')
+                .range(from, to);
+
+              if (isStale()) return;
+              if (pageError || !nextPage) break;
+              allPages = allPages.concat(nextPage);
+            }
+
+            truncated = totalCount > allPages.length;
+            teachersData = allPages;
+
+            if (!hasFiltersOrSearch) {
+              const cacheKey = getTeachersListCacheKey(limit);
+              setCache(cacheKey, { rows: teachersData, truncated }, CACHE_TTL.TEACHERS_LIST);
+            }
           }
-        } else if ((searchQuery || hasActiveFilters) && !allShikshaqData) {
-          // If we have search query or filters but no Shikshaqmine data
-          if (searchQuery && !hasActiveFiltersAfterExtraction) {
-            // Fall back to fuzzy name search if no filters found
-            filteredTeachers = searchByName(teachersData, searchQuery.trim());
-          } else if (hasActiveFiltersAfterExtraction) {
-            // If we have filters but no Shikshaqmine data, show empty results
-            // (can't filter without Shikshaqmine data)
+
+          if (teachersData.length > 0) {
+            const teacherSlugs = teachersData.map((t) => t.slug);
+            const chunkSize = 50;
+            const chunks: string[][] = [];
+            for (let i = 0; i < teacherSlugs.length; i += chunkSize) chunks.push(teacherSlugs.slice(i, i + chunkSize));
+
+            const runChunk = async (chunk: string[], withPaused: boolean) => {
+              const cacheKey = getShikshaqmineChunkCacheKey(chunk) + (withPaused ? '_ispaused' : '_nopaused');
+              const cached = getCache<any[]>(cacheKey);
+              if (cached) return { data: cached, error: null as any };
+              const result = await (supabase
+                .from('Shikshaqmine')
+                .select(SHIKSHAQ_COLUMNS + (withPaused ? ', is_paused' : '')) as any)
+                .in('Slug', chunk);
+              if (result.data && !result.error) setCache(cacheKey, result.data, CACHE_TTL.SHIKSHAQMINE_CHUNK);
+              return result;
+            };
+
+            const nonEmptyChunks = chunks.filter((c) => c.length > 0);
+            let shikshaqResults = await Promise.all(nonEmptyChunks.map((c) => runChunk(c, true)));
+            if (isStale()) return;
+            if (shikshaqResults.some((r) => r.error)) {
+              // is_paused select rejected (column missing in this environment) — fail soft,
+              // retry the whole batch without it rather than losing all teacher data, the
+              // way a bad column reference in the shared select did previously.
+              if (import.meta.env.DEV) {
+                console.warn('Shikshaqmine fetch (with is_paused) failed, retrying without it');
+              }
+              shikshaqResults = await Promise.all(nonEmptyChunks.map((c) => runChunk(c, false)));
+              if (isStale()) return;
+            }
+
+            allShikshaqData = shikshaqResults.flatMap((r) => r.data || []);
+            if (shikshaqResults.some((r) => r.error) && import.meta.env.DEV) {
+              console.error('Error fetching some Shikshaqmine data');
+            }
+
+            if (allShikshaqData.some((r: any) => 'is_paused' in r)) {
+              const pausedSlugs = new Set(allShikshaqData.filter((r: any) => r.is_paused).map((r: any) => r.Slug));
+              if (pausedSlugs.size > 0) teachersData = teachersData.filter((t) => !pausedSlugs.has(t.slug));
+            }
+          }
+
+          filteredTeachers = teachersData;
+
+          // Smart Search Logic: Handle both Name Search and Filters
+          // 1. If filters found, extract name part from remaining query
+          // 2. If no filters found, treat entire query as name search
+          // 3. When both present, prioritize name matches but apply filters
+          let namePart = '';
+          let nameSearchResults: Teacher[] = [];
+          let nameSearchResultsWithScores: Array<{ item: Teacher; score: number }> = [];
+
+          if (isNameSearch) {
+            if (hasActiveFiltersAfterExtraction) {
+              namePart = extractNameFromQuery(searchQuery!, extractedFilters, subjects);
+              if (namePart.length >= 3) {
+                nameSearchResultsWithScores = searchByNameWithScores(teachersData, namePart);
+                nameSearchResults = nameSearchResultsWithScores.map((r) => r.item);
+              }
+            } else {
+              nameSearchResults = searchByName(teachersData, searchQuery!.trim());
+            }
+          }
+
+          if (nameSearchResults.length > 0 && !hasActiveFiltersAfterExtraction) {
+            filteredTeachers = nameSearchResults;
+          } else if (allShikshaqData && hasActiveFiltersAfterExtraction) {
+            const recordsToFilter = allShikshaqData;
+            const matchingSlugs = filterShikshaqRecords(recordsToFilter, effectiveFilters).map((r: any) => r.Slug);
+            lastQueryRef.current = { shikshaqRecords: recordsToFilter, effectiveFilters };
+            filteredTeachers = teachersData.filter((t) => matchingSlugs.includes(t.slug));
+
+            if (nameSearchResultsWithScores.length > 0) {
+              const nameScoreMap = new Map<string, number>();
+              nameSearchResultsWithScores.forEach(({ item, score }) => nameScoreMap.set(item.slug, score));
+              const nameMatches: Array<{ teacher: Teacher; score: number }> = [];
+              const nonNameMatches: Teacher[] = [];
+              filteredTeachers.forEach((teacher) => {
+                const score = nameScoreMap.get(teacher.slug);
+                if (score !== undefined) nameMatches.push({ teacher, score });
+                else nonNameMatches.push(teacher);
+              });
+              nameMatches.sort((a, b) => a.score - b.score);
+              filteredTeachers = [...nameMatches.map((m) => m.teacher), ...nonNameMatches];
+            }
+          } else if ((searchQuery || hasActiveFilters) && !allShikshaqData) {
+            if (searchQuery && !hasActiveFiltersAfterExtraction) {
+              filteredTeachers = searchByName(teachersData, searchQuery.trim());
+            } else if (hasActiveFiltersAfterExtraction) {
+              filteredTeachers = [];
+            } else {
+              filteredTeachers = teachersData;
+            }
+          } else if (searchQuery && !hasActiveFiltersAfterExtraction && nameSearchResults.length === 0) {
             filteredTeachers = [];
-          } else {
-            // No search query and no filters - show all teachers
-            filteredTeachers = teachersData;
           }
-        } else if (searchQuery && !hasActiveFiltersAfterExtraction && nameSearchResults.length === 0) {
-          // C. No filters found AND no names found - show empty results
-          filteredTeachers = [];
         }
 
-        // Create a map of slug to Shikshaqmine data for enrichment
-        const shikshaqMap = new Map();
+        setResultsTruncated(truncated);
+
+        // ---- Enrichment (shared by both fetch paths) ----
+        const shikshaqMap = new Map<string, any>();
         if (allShikshaqData) {
           allShikshaqData.forEach((record: any) => {
             shikshaqMap.set(record.Slug, {
               subjects: record.Subjects,
-              classes: record["Classes Taught"],
-              modeOfTeaching: record["Mode of Teaching"],
+              classes: record['Classes Taught'],
+              modeOfTeaching: record['Mode of Teaching'],
               sirMaam: record["Sir/Ma'am?"],
               area: record.Area || null,
+              minFees: record['Min Fees'] != null ? Number(record['Min Fees']) : null,
+              yearStarted: record['Years they started teaching'] ? parseInt(record['Years they started teaching']) : null,
             });
           });
         }
 
-        // Enrich teachers with Shikshaqmine data
-        const enrichedTeachers = filteredTeachers.map(teacher => {
-          const shikshaqInfo = shikshaqMap.get(teacher.slug);
+        const enrichedTeachers = filteredTeachers.map((teacher) => {
+          const info = shikshaqMap.get(teacher.slug);
           return {
             ...teacher,
-            subjects_from_shikshaq: shikshaqInfo?.subjects || null,
-            classes_taught: shikshaqInfo?.classes || null,
-            mode_of_teaching: shikshaqInfo?.modeOfTeaching || null,
-            sir_maam: shikshaqInfo?.sirMaam || null,
-            area: shikshaqInfo?.area || null,
+            subjects_from_shikshaq: info?.subjects || null,
+            classes_taught: info?.classes || null,
+            mode_of_teaching: info?.modeOfTeaching || null,
+            sir_maam: info?.sirMaam || null,
+            area: info?.area || null,
+            _minFees: info?.minFees ?? null,
+            _yearStarted: info?.yearStarted ?? null,
           };
         });
 
-        // Sort: upvotes desc, then name (pages/Browse.md "Data" section).
-        let sortedTeachers = enrichedTeachers;
+        // Upvote counts are fetched unconditionally (not just when sortParam === 'upvotes')
+        // so switching the sort control later can re-order from cache without a refetch.
+        let upvoteMap = new Map<string, number>();
         if (enrichedTeachers.length > 0) {
           const teacherIds = enrichedTeachers.map((t) => t.id);
           const { data: upvoteRows } = await supabase
             .from('teacher_upvote_stats')
             .select('teacher_id, upvote_count')
             .in('teacher_id', teacherIds);
-          const upvoteMap = new Map<string, number>(
-            (upvoteRows || []).map((r: any) => [r.teacher_id, r.upvote_count || 0])
-          );
-          sortedTeachers = [...enrichedTeachers].sort((a, b) => {
-            const diff = (upvoteMap.get(b.id) || 0) - (upvoteMap.get(a.id) || 0);
-            return diff !== 0 ? diff : a.name.localeCompare(b.name);
-          });
+          if (isStale()) return;
+          upvoteMap = new Map((upvoteRows || []).map((r: any) => [r.teacher_id, r.upvote_count || 0]));
         }
 
-        // Store all teachers
+        // A newer fetch (from a filter/query change that happened while this one was in
+        // flight) has already superseded this response — discard it instead of clobbering
+        // the newer results with stale ones.
+        if (isStale()) return;
+
+        lastFetchKeyRef.current = nonSortKey;
+        lastEnrichedRef.current = { enriched: enrichedTeachers, upvoteMap };
+
+        const sortedTeachers = applySortOrder(enrichedTeachers, sortParam, upvoteMap);
+
         setAllTeachersData(sortedTeachers);
         // Page size 24 with an explicit "Load more" button, never infinite scroll (Browse.md).
         const pageSize = 24;
@@ -991,6 +1146,9 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           console.error('Error fetching teachers:', error);
         }
       } finally {
+        // Only the most recent fetch owns the loading indicator; a stale fetch finishing
+        // later must not flip loading back off underneath the active one.
+        if (isStale()) return;
         // Clear loading timeout and set loading to false
         if (loadingTimeoutRef.current) {
           clearTimeout(loadingTimeoutRef.current);
@@ -1009,7 +1167,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
     fetchDebounceRef.current = setTimeout(() => {
       fetchTeachers();
     }, debounceMs);
-    
+
     return () => {
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
@@ -1040,6 +1198,19 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
       searchParams.delete('class');
     }
     setSearchParams(searchParams);
+  };
+
+  // Sort control state lives directly in the `sort` URL param (no separate React state
+  // needed) so it round-trips through back/forward and share links like every other filter.
+  const currentSort = searchParams.get('sort') || 'upvotes';
+  const handleSortChange = (value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value && value !== 'upvotes') {
+      newParams.set('sort', value);
+    } else {
+      newParams.delete('sort');
+    }
+    setSearchParams(newParams);
   };
 
   // The search bar's Teachers/Papers toggle doubles as the page-mode switch —
@@ -1088,11 +1259,31 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
     setFilters({ ...filters, [category]: filters[category].filter((v) => v !== value) });
   };
 
-  // Chip per selected value from the advanced filter panel (URL params filter_*).
-  // Quick-filter subject/class (the two Selects above) and the free-text q are
-  // deliberately not represented here — the spec scopes FilterChips to filter_* only.
+  // The quick-pick Subject/Class dropdowns (selectedSubject/selectedClass, URL params
+  // `subject`/`class`) and the advanced FilterPanel (filters.subjects/classes, URL params
+  // `filter_subjects`/`filter_classes`) are two separate state systems merged with Sets at
+  // fetch time (see effectiveSubjectFilters/effectiveClassFilters above). Resolved here to
+  // display names/values so the chip row can show BOTH systems' active values as one
+  // deduplicated set — a subject picked from the dropdown that's already in the panel's
+  // list isn't shown twice, and either chip removes the value from whichever system holds it.
+  const quickPickSubjectName = useMemo(() => {
+    if (!selectedSubject || selectedSubject === 'all') return null;
+    const subject = subjects.find((s) => s.slug === selectedSubject);
+    return subject?.name || null;
+  }, [selectedSubject, subjects]);
+  const quickPickClassValue = selectedClass && selectedClass !== 'all' ? selectedClass : null;
+
+  // Chip per selected value from BOTH the quick-pick dropdowns and the advanced filter
+  // panel (URL params filter_*). The free-text q is deliberately not represented here —
+  // the spec scopes FilterChips to filter_* (plus the quick-pick subject/class) only.
   const filterChips: FilterChipItem[] = [
+    ...(quickPickSubjectName && !filters.subjects.includes(quickPickSubjectName)
+      ? [{ key: `subjects:${quickPickSubjectName}`, label: quickPickSubjectName, onRemove: () => handleSubjectChange('all') }]
+      : []),
     ...filters.subjects.map((v) => ({ key: `subjects:${v}`, label: v, onRemove: () => removeArrayFilterValue('subjects', v) })),
+    ...(quickPickClassValue && !filters.classes.includes(quickPickClassValue)
+      ? [{ key: `classes:${quickPickClassValue}`, label: `Class ${quickPickClassValue}`, onRemove: () => handleClassChange('all') }]
+      : []),
     ...filters.classes.map((v) => ({ key: `classes:${v}`, label: `Class ${v}`, onRemove: () => removeArrayFilterValue('classes', v) })),
     ...filters.boards.map((v) => ({ key: `boards:${v}`, label: v, onRemove: () => removeArrayFilterValue('boards', v) })),
     ...filters.classSize.map((v) => ({ key: `classSize:${v}`, label: v === 'Solo' ? 'One-on-one' : v, onRemove: () => removeArrayFilterValue('classSize', v) })),
@@ -1246,38 +1437,101 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
     }));
   }, [loading, displayedTeachers.length, filters]);
 
+  // Templated first-fold copy/colour (VISUAL_DIRECTION.md §9a "SEO subject/board
+  // pages" ruling + REFERENCE_DEVICES.md's wayfinding table: subject = signpost,
+  // board = route marker/secondary). Subjects get their real getSubjectPalette()
+  // colour; boards (not subject-coded) use brand blue as the "route marker"
+  // secondary accent. Falls back to brand orange for the generic /all- route.
+  // `getSubjectPalette` already degrades unknown subjects to a legible neutral
+  // (never grey-on-grey), so subjects outside the 8 seeds — e.g. Bengali — still
+  // read as intentional rather than broken.
+  const subjectPaletteForContext = pageContext?.kind === 'subject' ? getSubjectPalette(pageContext.label) : null;
+  const headerAccent = subjectPaletteForContext?.solid ?? (pageContext?.kind === 'board' ? 'hsl(var(--brand-blue))' : 'hsl(var(--brand))');
+  const headerBandText = subjectPaletteForContext?.badgeText ?? '#FFFFFF';
+  const headerEyebrow = pageContext ? (pageContext.kind === 'subject' ? 'Subject' : 'Board') : 'Directory';
+  const headerTitle = pageContext ? (
+    pageContext.kind === 'subject' ? (
+      <>
+        Find{' '}
+        <span className="marker-highlight marker-highlight--pill" style={{ '--marker-color': headerAccent } as CSSProperties}>
+          {pageContext.label}
+        </span>{' '}
+        teachers in Kolkata
+      </>
+    ) : (
+      <>
+        <span className="marker-highlight marker-highlight--pill" style={{ '--marker-color': headerAccent } as CSSProperties}>
+          {pageContext.label}
+        </span>{' '}
+        tuition teachers in Kolkata
+      </>
+    )
+  ) : (
+    <>
+      Find your{' '}
+      <span className="marker-highlight marker-highlight--pill" style={{ '--marker-color': headerAccent } as CSSProperties}>
+        tuition teacher
+      </span>
+    </>
+  );
+  // Search/filters in progress get the exact, precise heading instead of the
+  // decorative templated one — the loud fold is for arriving, not for reading
+  // narrowed-down results (VISUAL_DIRECTION.md §4's "crisp where comparing").
+  const finalHeaderTitle = isDefaultView ? headerTitle : getHeading();
+  const headerLede = pageContext
+    ? pageContext.kind === 'subject'
+      ? `Verified ${pageContext.label} tutors across every board and class. Message directly on WhatsApp — no commission, no middlemen.`
+      : `Verified tutors experienced with the ${pageContext.label} curriculum, across every subject and class. Message directly, no commission.`
+    : 'Verified tutors across every subject, board and class in Kolkata. Message directly on WhatsApp — no commission, no middlemen.';
+  const headerTags = [
+    { label: `${loading ? '…' : teachers.length} teacher${teachers.length === 1 ? '' : 's'} match`, dotColor: headerAccent },
+    { label: 'CBSE · ICSE · IGCSE · IB · State' },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
       <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-12">
-        {/* Gradient hero band — same device PastPapers/PaperResults use, so this
-            (the other most-trafficked page in the app) reads as the same product
-            instead of a flat white header. Constrained to main's own box rather
-            than full viewport bleed — this page's <main> carries the max-w-6xl
-            constraint directly (no separate full-width CONTAINER wrapper like
-            PastPapers has), and restructuring that for one gradient wasn't worth
-            the risk across a 1500-line file with a lot of filter/query logic
-            below it. Negative margin brings it flush to main's own edges. */}
-        <div className="-mx-4 -mt-4 rounded-b-[32px] bg-gradient-to-b from-brand-blue-subtle to-background px-4 pb-6 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pb-8 sm:pt-6 lg:-mx-8 lg:px-8">
+        {/* THE FIRST-FOLD SYSTEM (VISUAL_DIRECTION.md §9a). Templated by
+            PageHeader so this page and all ~35 SEO subject/board routes it
+            renders share one designed opening, varied only by accent colour
+            and copy (pageContext, derived above from SubjectPage/BoardPage).
+            Bleeds to the viewport edge at each breakpoint, same as the old
+            gradient band did, so it still reads as a full-width fold. */}
+        <PageHeader
+          eyebrow={headerEyebrow}
+          title={finalHeaderTitle}
+          lede={headerLede}
+          tags={headerTags}
+          badge={{ label: 'Free', color: 'hsl(var(--brand-blue))' }}
+          accent={headerAccent}
+          ground="graph"
+          className="-mx-4 -mt-4 sm:-mx-6 sm:-mt-6 lg:-mx-8"
+        >
           <Link
             to="/"
-            className="shikshaq-tap -mt-1.5 mb-3.5 inline-flex min-h-11 items-center py-1 text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+            className="shikshaq-tap -mt-1 mb-3 inline-flex min-h-11 items-center py-1 text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
           >
             ← Home
           </Link>
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-none">{getHeading()}</h1>
-          <div className="mt-3 flex items-end justify-between gap-2.5">
-            {/* Bold numeric stat callout (WAVE2_INSPO.md ref 05 — the "250 / Top" device),
-                replacing the old plain-text count line. Real data, not a placeholder. */}
-            <p className="flex items-baseline gap-2">
-              <span className="text-4xl sm:text-5xl font-bold leading-none tabular-nums text-brand-blue">
-                {loading ? '–' : teachers.length}
-              </span>
-              <span className="text-sm font-medium text-warm-secondary">
-                {loading ? 'Loading…' : teachers.length === 1 ? 'teacher matches' : 'teachers match'}
-              </span>
+
+          {!loading && resultsTruncated && (
+            <p className="mb-3 text-xs font-medium text-warm-meta">
+              Showing the first {teachers.length} results — narrow your search to see more.
             </p>
+          )}
+
+          <div className="flex items-start gap-2">
+            {/* The functional slot — search stays live and usable inside the loud
+                fold, per the "eyecandy AND functional" ruling. */}
+            {/* min-w-0 is load-bearing: a flex item defaults to min-width:auto, so
+                without it this refused to shrink below its content and rendered
+                484px wide inside a 375px viewport, pushing the teacher grid off
+                screen and clipping cards. */}
+            <div ref={searchControlWrapRef} className="min-w-0 max-w-[820px] flex-1">
+              <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
+            </div>
 
             {/* HelpCircle anchor for the one-time "see papers instead" nudge. Deliberately placed
                 inline in the header row, not floating — Chatbot.tsx already owns a fixed
@@ -1303,18 +1557,12 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
             </div>
           </div>
 
-          <div ref={searchControlWrapRef} className="mt-5 max-w-[820px]">
-            <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
-          </div>
-
           {/* Subject quick-picks — colorful, using the site's own strongest visual asset
               (getSubjectPalette, the same tinted system the home page's subject grid uses)
               instead of a plain grey dropdown as the primary way to narrow by subject.
-              A first attempt here was just a background gradient, which read as
-              imperceptible — this is the actual visible move: real color, on the page,
-              not behind it. Default-view only, same gating as the featured shelf below. */}
+              Default-view only, same gating as the featured shelf below. */}
           {isDefaultView && sortedSubjectsForDisplay.length > 0 && (
-            <div className="mt-6 flex flex-wrap gap-2.5">
+            <div className="mt-5 flex flex-wrap gap-2.5">
               {sortedSubjectsForDisplay.slice(0, 10).map((subject) => {
                 const palette = getSubjectPalette(subject.name);
                 return (
@@ -1330,6 +1578,7 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
               })}
             </div>
           )}
+        </PageHeader>
 
         {/* Featured teachers shelf — horizontal-scroll, drop-shadowed cards on the default
             (unfiltered, un-searched) view only, mirroring the PastPapers.tsx "Recently added"
@@ -1362,65 +1611,78 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
             </div>
           </div>
         )}
-        </div>
-        {/* ^ closes the gradient hero band opened above the "← Home" link */}
 
         {/* Structured filters (subject/class quick-pick + the advanced FilterPanel dialog)
             aren't part of the literal Browse.md mockup — that only models the applied-filter
             row below — but they're the only way to set board/class-size/mode/area/fees/
             experience filters at all, so they stay. Sized to the 44px touch-target rule. */}
         <div className="mt-5">
-          {/* flex-nowrap + flex-1/min-w-0 selects so this genuinely fits on one line down to a
-              375px viewport instead of just wrapping onto a second line — the fixed w-[150px]/
-              w-[130px] triggers used to overflow narrow screens. Selects revert to their original
-              fixed desktop widths at sm+; the "More filters" button never shrinks (shrink-0) so
-              its active-count badge stays legible, and the two selects give way to it first. */}
-          <div className="flex flex-nowrap items-center gap-2">
-            <Select value={selectedSubject} onValueChange={handleSubjectChange}>
-              <SelectTrigger className="h-11 text-sm flex-1 min-w-0 sm:flex-none sm:w-[150px]">
-                <SelectValue placeholder="Subject" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Subjects</SelectItem>
-                {sortedSubjectsForDisplay.map((subject) => (
-                  <SelectItem key={subject.id} value={subject.slug}>
-                    {subject.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Two-row layout at base (375px): Subject/Class share a row as equal-width grid
+              cells (no more shrinking selects to fit), "More filters" gets its own full-width
+              row below so its active-count badge is never squeezed. At sm+ everything collapses
+              back onto one row, selects reverting to fixed widths, matching prior desktop layout. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-none">
+              <Select value={selectedSubject} onValueChange={handleSubjectChange}>
+                <SelectTrigger className="h-11 text-sm w-full min-w-0 sm:w-[150px]">
+                  <SelectValue placeholder="Subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subjects</SelectItem>
+                  {sortedSubjectsForDisplay.map((subject) => (
+                    <SelectItem key={subject.id} value={subject.slug}>
+                      {subject.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Select value={selectedClass} onValueChange={handleClassChange}>
-              <SelectTrigger className="h-11 text-sm flex-1 min-w-0 sm:flex-none sm:w-[130px]">
-                <SelectValue placeholder="Class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                {CLASSES.map((cls) => (
-                  <SelectItem key={cls} value={cls}>
-                    {cls === 'UG' ? 'UG' : `Class ${cls}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select value={selectedClass} onValueChange={handleClassChange}>
+                <SelectTrigger className="h-11 text-sm w-full min-w-0 sm:w-[130px]">
+                  <SelectValue placeholder="Class" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {CLASSES.map((cls) => (
+                    <SelectItem key={cls} value={cls}>
+                      {cls === 'UG' ? 'UG' : `Class ${cls}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <button
               onClick={() => setFilterPanelOpen(true)}
-              className="shikshaq-outline-btn shrink-0 flex items-center gap-1.5 sm:gap-[7px] min-h-11 px-2.5 sm:px-[15px] py-2 rounded-lg text-xs sm:text-[13px] font-semibold text-foreground shadow-border transition-colors duration-150"
+              className="shikshaq-outline-btn flex w-full items-center justify-center gap-2 min-h-11 px-4 py-2 rounded-lg text-sm font-semibold text-foreground shadow-border transition-colors duration-150 sm:w-auto sm:justify-start"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <SlidersHorizontal className="w-4 h-4 shrink-0" />
               <span className="whitespace-nowrap">More filters</span>
               {(filters.subjects.length > 0 || filters.classes.length > 0 ||
                 filters.boards.length > 0 || filters.classSize.length > 0 ||
                 filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
                 filters.placeOfTeaching.length > 0 || filters.minExperience != null) && (
-                <span className="rounded-full bg-brand px-[7px] py-px text-[11px] font-bold text-foreground">
+                <span className="rounded-full bg-brand px-2 py-0.5 text-label font-bold tabular-nums text-foreground">
                   {filters.subjects.length + filters.classes.length + filters.boards.length +
                    filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
                    filters.placeOfTeaching.length + (filters.minExperience != null ? 1 : 0)}
                 </span>
               )}
             </button>
+
+            {/* Sort applies to the whole fetched result set (not just the visible page),
+                so it stays correct across "Load more" batches — see applySortOrder. */}
+            <Select value={currentSort} onValueChange={handleSortChange}>
+              <SelectTrigger className="h-11 text-sm w-full min-w-0 sm:w-[170px] sm:flex-none">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="upvotes">Most upvoted</SelectItem>
+                <SelectItem value="name">Name A–Z</SelectItem>
+                <SelectItem value="experience">Most experienced</SelectItem>
+                <SelectItem value="fees">Lowest fees</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -1435,12 +1697,31 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
           className="mt-5 mb-[22px]"
         />
 
-        {/* Teachers List */}
+        {/* Teachers List. Section framing goes loud here (coloured band, oversized
+            display-type header) while the grid and its cards stay crisp — the
+            "Cards stay CRISP; section framing goes loud" ruling. Skipped for the
+            empty state, which already gets its own loud treatment. */}
+        {(loading || displayedTeachers.length > 0) && (
+          <div
+            className="halftone-overlay-strong relative mb-5 flex items-center justify-between gap-3 overflow-hidden rounded-2xl px-5 py-4"
+            style={{ background: headerAccent, color: headerBandText }}
+          >
+            <h2 className="font-display text-2xl font-black tracking-tight sm:text-3xl">
+              {isDefaultView ? 'All teachers' : 'Matching teachers'}
+            </h2>
+            <span
+              className="rounded-full px-3 py-1 text-sm font-bold tabular-nums"
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+            >
+              {loading ? '…' : teachers.length}
+            </span>
+          </div>
+        )}
         {loading ? (
           <TeacherCardSkeletons count={8} />
         ) : displayedTeachers.length > 0 ? (
           <div>
-            <div className="shikshaq-teacher-grid animate-card-reveal">
+            <div className="shikshaq-teacher-grid stagger-children">
               {displayedTeachers.map((teacher) => {
                 // Prefer subjects_from_shikshaq; on browse page limit to 5 subjects (profile page shows all)
                 const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
@@ -1451,19 +1732,20 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
                 const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
 
                 return (
-                  <TeacherCard
-                    key={teacher.id}
-                    id={teacher.id}
-                    name={teacher.name}
-                    slug={teacher.slug}
-                    subject={firstSubject}
-                    subjectSlug={teacher.subjects?.slug}
-                    imageUrl={teacher.image_url ?? undefined}
-                    sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
-                    meta={meta || undefined}
-                    isFeatured={!!teacher.is_featured}
-                    size="sm"
-                  />
+                  <div key={teacher.id} className="animate-card-reveal">
+                    <TeacherCard
+                      id={teacher.id}
+                      name={teacher.name}
+                      slug={teacher.slug}
+                      subject={firstSubject}
+                      subjectSlug={teacher.subjects?.slug}
+                      imageUrl={teacher.image_url ?? undefined}
+                      sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
+                      meta={meta || undefined}
+                      isFeatured={!!teacher.is_featured}
+                      size="sm"
+                    />
+                  </div>
                 );
               })}
             </div>
@@ -1527,15 +1809,22 @@ export default function Browse({ manageSeo = true }: BrowseProps = {}) {
            auto-fill minmax math, which can collapse to a single column on narrow phones) so
            mobile genuinely gets a compact 2-up grid of size='sm' cards. Reverts to the original
            auto-fill minmax(220px,1fr) desktop/tablet layout at sm+. */
+        /* minmax(0, 1fr) rather than a bare 1fr: a lone 1fr means minmax(auto, 1fr),
+           and that auto floor is the item's min-content width — so a card with a long
+           unbreakable string (a teacher name, an area) forced its column past its
+           share. Measured at 375px this produced columns of 240.85px + 198.675px
+           inside a 343px grid, pushing cards to x=465 and clipping them off screen.
+           NOTE: this whole block lives inside a JS template literal — never use a
+           backtick in these comments, it terminates the string and 500s the route. */
         .shikshaq-teacher-grid {
           display: grid;
           gap: 12px;
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         @media (min-width: 640px) {
           .shikshaq-teacher-grid {
             gap: 18px;
-            grid-template-columns: repeat(auto-fill, minmax(220px,1fr));
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
           }
         }
       `}</style>

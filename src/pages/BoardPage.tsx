@@ -52,8 +52,15 @@ export default function BoardPage() {
     };
   }, [pathname]);
 
+  // Templated first-fold label (VISUAL_DIRECTION.md §9a): the SEO title is
+  // always "{Board} Tuition Teachers in Kolkata | Shikshaq", so the board
+  // name is everything before " Tuition".
+  const seoEntry = BOARD_SEO[pathname];
+  const boardLabel = seoEntry ? seoEntry.title.split(' Tuition')[0] : null;
+  const pageContext = boardLabel ? { kind: 'board' as const, label: boardLabel } : undefined;
+
   if (!filterValue) {
-    return <Browse manageSeo={!BOARD_SEO[pathname]} />;
+    return <Browse manageSeo={!BOARD_SEO[pathname]} pageContext={pageContext} />;
   }
 
   const filterBoardsExists = searchParams.has('filter_boards');
@@ -83,5 +90,5 @@ export default function BoardPage() {
     hasSetInitialFilterRef.current = true;
   }
 
-  return <Browse manageSeo={!BOARD_SEO[pathname]} />;
+  return <Browse manageSeo={!BOARD_SEO[pathname]} pageContext={pageContext} />;
 }

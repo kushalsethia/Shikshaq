@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { logger } from '@/utils/logger';
+import { PageHeader } from '@/components/devices';
 
 const FIELD_BASE =
   'w-full box-border min-h-12 px-4 py-3 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline shikshaq-recommend-field';
@@ -111,15 +112,25 @@ export default function RecommendTeacher() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
-        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
-          Recommend a teacher
-        </h1>
-        <p className="mt-3 max-w-prose text-base leading-relaxed text-muted-foreground">
-          Tell us who taught you well. We contact them, verify their experience, and list them only if they agree.
-        </p>
+      <PageHeader
+        eyebrow="Word of mouth"
+        title={
+          <>
+            Know someone who{' '}
+            <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand))' }}>
+              taught you well
+            </span>
+            ?
+          </>
+        }
+        lede="Tell us about them. We contact them, verify their experience, and list them only if they agree."
+        tags={[{ label: 'Takes a minute' }, { label: 'Free to submit' }]}
+        accent="hsl(var(--brand))"
+        ground="ruled"
+      />
 
-        <div className="mt-8 p-6 sm:p-8 rounded-2xl bg-card shadow-border">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-16">
+        <div className="p-6 sm:p-8 rounded-2xl bg-card shadow-border">
           {submitted ? (
             <div className="text-center py-2">
               <p className="text-lg font-semibold text-foreground">

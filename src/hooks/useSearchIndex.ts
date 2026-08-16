@@ -35,21 +35,54 @@ let teachersCache: TeacherHit[] | null = null;
 let papersCache: PaperHit[] | null = null;
 let loadPromise: Promise<void> | null = null;
 
+// Raised from 500 (which had no ORDER BY, so which 500 rows you got — and therefore which
+// teachers were searchable at all — was undefined) to 2000, with a deterministic order so the
+// same rows are always included. 2000 is the practical ceiling for teachers searchable via the
+// name/subject/location Fuse index today; past that, teachers again become unsearchable and this
+// cap would need to be paginated properly (mirroring Browse.tsx's paginated fetch).
+const TEACHER_INDEX_LIMIT = 2000;
+const PAPER_INDEX_LIMIT = 500;
+
 async function loadIndex(): Promise<void> {
   const [teachersRes, papersRes] = await Promise.all([
     supabase
       .from('teachers_list')
       .select('id,name,slug,subjects,location,honorific')
-      .limit(500),
+      .order('name', { ascending: true })
+      .order('id', { ascending: true })
+      .limit(TEACHER_INDEX_LIMIT),
     supabase
       .from('papers')
       .select('id,title,school,subject,class,board,exam_type,year,file_url')
       .eq('is_published', true)
       .order('year', { ascending: false })
-      .limit(500),
+      .order('id', { ascending: true })
+      .limit(PAPER_INDEX_LIMIT),
   ]);
 
-  teachersCache = teachersRes.data ?? [];
+  let teachersData = teachersRes.data ?? [];
+
+  // Exclude paused listings (Shikshaqmine.is_paused — the self-service pause toggle teachers
+  // flip from their dashboard). Kept as its own query that fails soft ON PURPOSE: migration
+  // 20260812060000_add_is_paused_to_shikshaqmine.sql has not been applied to the live database,
+  // so this errors with 42703 and returns no rows. That costs us the pause filter and nothing
+  // else — the search index still builds. Do NOT merge this column into the main teachers
+  // select; doing that in Browse rejected the whole query and wiped out all teacher data.
+  if (teachersData.length > 0) {
+    const { data: pausedRows, error: pausedError } = await (supabase
+      .from('Shikshaqmine')
+      .select('Slug') as any)
+      .eq('is_paused', true);
+    if (pausedError && import.meta.env.DEV) {
+      console.warn('Search index: pause filter skipped —', pausedError.message);
+    }
+    const pausedSlugs = new Set((pausedRows ?? []).map((r: any) => r.Slug));
+    if (pausedSlugs.size > 0) {
+      teachersData = teachersData.filter((t) => !pausedSlugs.has(t.slug));
+    }
+  }
+
+  teachersCache = teachersData;
   papersCache = papersRes.data ?? [];
 }
 

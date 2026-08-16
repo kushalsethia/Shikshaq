@@ -3,6 +3,7 @@ import { Footer } from '@/components/Footer';
 import { Link } from 'react-router-dom';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { IndianRupee, MessageCircle, Heart, ShieldCheck, Sparkles, type LucideIcon } from 'lucide-react';
+import { StarburstBadge, SpeechTag } from '@/components/devices';
 
 const BENEFITS: { title: string; body: string; icon: LucideIcon; tile: string }[] = [
   {
@@ -60,6 +61,17 @@ export default function Join() {
         />
 
         <main className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16 lg:pt-20 pb-10">
+          {/* Starburst replaces the flat pill chip — same message, loud device. */}
+          <StarburstBadge
+            variant="burst"
+            color="hsl(var(--brand-blue))"
+            tilt={-6}
+            size={92}
+            className="absolute right-4 top-6 hidden sm:grid lg:right-10"
+          >
+            No fees
+          </StarburstBadge>
+
           <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-[.04em] text-brand-deep">
             <Sparkles size={12} aria-hidden="true" />
             No commission, ever
@@ -68,15 +80,26 @@ export default function Join() {
           {/* Mixed-weight, oversized headline — scaled up from the first pass's 3xl/5xl to
               match the clamp-based "display" scale PastPapers.tsx uses for its hero, per the
               owner's direction that devices were "composed too lightly." Base weight 400,
-              payoff phrase in weight 800 (VISUAL_LANGUAGE §4). */}
-          <h1 className="mt-5 max-w-3xl text-[clamp(31px,5.2vw,58px)] font-normal leading-[.98] tracking-[-.04em] text-foreground">
+              payoff phrase carries the marker-highlight device instead of plain color weight
+              alone, per VISUAL_DIRECTION §9a's "every first fold gets a designed opening." */}
+          <h1 className="mt-5 max-w-3xl font-display text-[clamp(31px,5.2vw,58px)] font-normal leading-[.98] tracking-[-.04em] text-foreground">
             Teach on Shikshaq.{' '}
-            <span className="font-extrabold text-brand">Keep every rupee.</span>
+            <span
+              className="marker-highlight marker-highlight--tilt font-extrabold"
+              style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
+            >
+              Keep every rupee.
+            </span>
           </h1>
 
-          <p className="mt-5 max-w-prose text-base sm:text-lg leading-relaxed text-muted-foreground">
-            We list local tuition teachers, students contact you directly on WhatsApp, and we take nothing from what you charge. There is no listing fee either.
-          </p>
+          <div className="mt-5 flex flex-wrap items-start gap-3">
+            <p className="max-w-prose text-base sm:text-lg leading-relaxed text-muted-foreground">
+              We list local tuition teachers, students contact you directly on WhatsApp, and we take nothing from what you charge. There is no listing fee either.
+            </p>
+            <SpeechTag tail="top-left" dotColor="hsl(var(--brand-blue))" tilt={-2} className="hidden sm:inline-flex">
+              Reviewed in ~3 working days
+            </SpeechTag>
+          </div>
 
           <Link
             to="/join/apply"

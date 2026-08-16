@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Lock } from 'lucide-react';
+import { Check, ExternalLink, Lock, Maximize2 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { EmptyResults } from '@/components/EmptyResults';
@@ -11,6 +11,7 @@ import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { saveAuthRedirect } from '@/utils/authRedirect';
 import { recordVisit } from '@/lib/recently-visited';
+import { StarburstBadge } from '@/components/devices';
 
 interface Paper {
   id: string;
@@ -32,6 +33,8 @@ interface SiblingPaper {
 
 const CONTAINER = 'mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8';
 const SKELETON = 'bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer';
+const FOCUS =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 /**
  * NOTE on scope vs. the design_handoff spec (pages/PaperReader.md):
@@ -57,12 +60,19 @@ const SKELETON = 'bg-gradient-to-r from-muted via-background to-muted bg-[length
  *    index grid, since both require question-level data that doesn't exist
  *    (an invented count would violate the "live Supabase data, never
  *    fabricated" rule harder than omitting it does).
- *  - Approximates the progress bar from window scroll across the paper-body
- *    card's extent, since the PDF renders in the browser's native (often
- *    cross-origin) viewer whose internal scroll position isn't readable —
- *    true page-level tracking would need a JS PDF renderer (e.g. pdfjs-dist),
- *    which is a real dependency addition outside a page-only, no-dev-server
- *    task.
+ *  - Ships NO reading-progress indicator. There used to be one: a bar across
+ *    the top of the page fed by window scroll across the paper-body card's
+ *    bounding box. It was a lie. The card is a single fixed-height block, so
+ *    the bar hit ~100% the moment that block scrolled past the viewport,
+ *    whether the student had read one page or forty — and the PDF renders in
+ *    the browser's native (often cross-origin) viewer whose internal scroll
+ *    position is not readable, so nothing honest could be computed from the
+ *    page at all. Rather than dress a fake number up as a smaller fake number,
+ *    it is gone. The viewer instead offers real controls (full screen, open in
+ *    a new tab) which are the things a student actually wanted when they
+ *    reached for the scrollbar on a phone.
+ *  - Deliberately does NOT imply "continue reading" / reading history exists
+ *    (VISUAL_DIRECTION §9.2): there is no reading-progress table in the DB.
  *  - Skips "reading a paper records to history" — needs a new table plus
  *    StudentDashboard wiring, both out of this task's file scope.
  */
@@ -78,8 +88,7 @@ export default function PaperReader() {
   const [loadError, setLoadError] = useState(false);
   const [siblings, setSiblings] = useState<SiblingPaper[]>([]);
   const [openedAt] = useState(() => new Date());
-  const [progress, setProgress] = useState(0);
-  const bodyRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -146,24 +155,14 @@ export default function PaperReader() {
     paper ? `${paper.subject} Class ${paper.class} ${paper.board} paper from ${paper.school}, shared free on Shikshaq.` : 'Read a free past year question paper on Shikshaq.'
   );
 
-  // Progress bar: proxy for "reading progress" using how far the window has
-  // scrolled across the paper-body card's own extent (see the file-level note
-  // on why this can't track the PDF's own internal scroll).
-  useEffect(() => {
-    function onScroll() {
-      const el = bodyRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const viewportH = window.innerHeight || 1;
-      const total = rect.height - viewportH;
-      if (total <= 0) { setProgress(rect.top <= 0 ? 1 : 0); return; }
-      const scrolled = -rect.top;
-      setProgress(Math.min(1, Math.max(0, scrolled / total)));
-    }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [paper]);
+  // Full-screen the viewer shell (not the iframe itself, so the watermark
+  // layer above it travels with it). Presentation only — no data, no history.
+  function openFullScreen() {
+    const el = viewerRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void el.requestFullscreen?.();
+  }
 
   const currentIndex = useMemo(() => siblings.findIndex((s) => s.id === id), [siblings, id]);
   const prevPaper = currentIndex > 0 ? siblings[currentIndex - 1] : null;
@@ -187,13 +186,13 @@ export default function PaperReader() {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
-        <main className={`flex-1 ${CONTAINER} pb-16 pt-7`}>
-          <div className={`mb-[18px] h-4 w-[120px] rounded-lg ${SKELETON}`} />
-          <div className={`mb-3.5 h-5 w-[280px] rounded-full ${SKELETON}`} />
-          <div className={`h-9 w-[70%] max-w-[560px] rounded-[10px] ${SKELETON}`} />
-          <div className="mt-6 grid grid-cols-1 gap-9 sm:grid-cols-[2fr,1fr]">
-            <div className={`h-[480px] rounded-2xl ${SKELETON}`} />
-            <div className={`h-[220px] rounded-2xl ${SKELETON}`} />
+        <main className={`flex-1 ${CONTAINER} pb-16 pt-6`}>
+          <div className={`mb-4 h-4 w-32 rounded-lg ${SKELETON}`} />
+          <div className={`mb-3 h-6 w-72 max-w-full rounded-full ${SKELETON}`} />
+          <div className={`h-12 w-3/4 max-w-xl rounded-lg ${SKELETON}`} />
+          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-[2fr,1fr] sm:gap-8">
+            <div className={`h-96 rounded-2xl ${SKELETON}`} />
+            <div className={`h-56 rounded-2xl ${SKELETON}`} />
           </div>
         </main>
         <Footer />
@@ -225,19 +224,16 @@ export default function PaperReader() {
   }
 
   const tagPillClass = (variant: 'muted' | 'blue') =>
-    `inline-flex items-center rounded-full px-[11px] py-[5px] text-xs font-semibold ${
+    `inline-flex min-h-6 items-center rounded-full px-3 py-1 text-label font-bold uppercase tabular-nums ${
       variant === 'blue' ? 'bg-brand-blue-subtle text-brand-blue-deep' : 'bg-muted text-foreground'
     }`;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <div className="pr-hide-print h-[3px] bg-muted">
-        <div
-          className="h-full bg-brand-blue transition-[width] duration-300 ease-out"
-          style={{ width: `${progress * 100}%` }}
-        />
-      </div>
-
+      {/* The fake reading-progress bar that used to sit here is gone on
+          purpose — see the file-level note. Nothing replaces it: an honest
+          "you are viewing this paper" indicator is what the page title
+          already is. */}
       <div className="pr-hide-print"><Navbar /></div>
 
       {/* Subtle continuation of the same hero token used on PastPapers.tsx /
@@ -245,18 +241,19 @@ export default function PaperReader() {
           area itself, so it reads as "same product" without competing with
           the PDF the student is here to focus on. */}
       <div className="pr-hide-print bg-gradient-to-b from-brand-blue-subtle to-background">
-        <div className={`${CONTAINER} pb-6 pt-7`}>
+        <div className={`${CONTAINER} pb-6 pt-6`}>
           <Link
             to="/past-papers"
-            className="mb-[18px] inline-flex min-h-11 items-center text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className={`mb-4 inline-flex min-h-11 items-center text-body-secondary font-semibold text-muted-foreground transition-colors duration-tap ease-tap hover:text-foreground ${FOCUS}`}
           >
             ← Back to papers
           </Link>
 
-          <div className="mb-3.5 flex flex-wrap gap-1.5">
+          <div className="mb-3 flex flex-wrap gap-2">
             {colors && (
+              // Signpost = subject, the milestone's category marker.
               <span
-                className="inline-flex items-center rounded-full px-[11px] py-[5px] text-xs font-semibold"
+                className="signpost inline-flex min-h-6 items-center py-1 pl-3 text-label font-bold uppercase"
                 style={{ backgroundColor: colors.solid, color: colors.badgeText }}
               >
                 {paper.subject}
@@ -268,9 +265,9 @@ export default function PaperReader() {
             <span className={tagPillClass('muted')}>{paper.year}</span>
           </div>
 
-          <h1 className="text-[clamp(24px,3.2vw,36px)] font-bold leading-[1.03] text-foreground">{paper.title}</h1>
+          <h1 className="text-page-title font-display font-bold text-foreground">{paper.title}</h1>
 
-          <div className="mt-3 flex flex-wrap gap-4 text-base font-medium text-warm-prose">
+          <div className="mt-3 flex flex-wrap gap-4 text-body font-medium tabular-nums text-warm-prose">
             <span>{paper.school}</span>
             <span>·</span>
             <span>{paper.exam_type}</span>
@@ -281,7 +278,7 @@ export default function PaperReader() {
       </div>
 
       <main className={`flex-1 ${CONTAINER} pb-16 pt-6`}>
-        <div className="rounded-xl bg-muted px-4 py-[11px] text-sm leading-relaxed text-warm-prose">
+        <div className="rounded-lg bg-muted px-4 py-3 text-body-secondary text-warm-prose">
           This paper is the property of {paper.school}. Shikshaq claims no ownership and hosts it as a free community resource.{' '}
           <a
             href={requestRemovalUrl(paper)}
@@ -293,70 +290,157 @@ export default function PaperReader() {
           </a>
         </div>
 
-        <div className="pr-hide-print mt-2.5 flex items-center gap-2 text-xs text-warm-meta">
-          <Lock size={14} strokeWidth={2} aria-hidden="true" />
-          This page is watermarked with your account and the time you opened it.
-        </div>
+        {/* Only true once there IS an account to watermark with — this used to
+            render for signed-out visitors too, where it was simply false. */}
+        {signedIn && (
+          <div className="pr-hide-print mt-3 flex items-center gap-2 text-meta text-warm-meta">
+            <Lock size={14} strokeWidth={2} aria-hidden="true" />
+            This page is watermarked with your account and the time you opened it.
+          </div>
+        )}
 
-        <div className="pr-hide-print mt-6 grid grid-cols-1 gap-9 sm:grid-cols-[2fr,1fr]">
+        <div className="pr-hide-print mt-6 grid grid-cols-1 gap-6 sm:grid-cols-[2fr,1fr] sm:gap-8">
           {/* ---------------- Paper body ---------------- */}
           <div
-            ref={bodyRef}
-            className={`${signedIn ? 'p-5 pb-0 sm:p-9 sm:pb-0' : 'p-0 min-h-[420px]'} relative select-none overflow-hidden rounded-2xl bg-card shadow-border`}
+            className={`${signedIn ? 'p-3 pb-0 sm:p-6 sm:pb-0' : 'p-0'} relative select-none overflow-hidden rounded-2xl bg-card shadow-border`}
             onContextMenu={(e) => e.preventDefault()}
             onCopy={(e) => e.preventDefault()}
           >
             {signedIn ? (
               paper.file_url ? (
-                <div className="relative h-[78vh] min-h-[480px]">
-                  <iframe
-                    title={paper.title}
-                    src={`${paper.file_url}#toolbar=0&navpanes=0`}
-                    className="h-full w-full rounded-t-lg border-0"
-                  />
-                  {/* Watermark layer: absolute, decorative, pointer-events none so
-                      the iframe underneath stays fully interactive (scroll/zoom). */}
-                  <div className="pointer-events-none absolute inset-0 z-[2] overflow-hidden" aria-hidden="true">
-                    <div className="absolute -left-[20%] -top-[20%] flex flex-col gap-[26px] [transform:rotate(-24deg)_scale(1.7)]">
-                      {Array.from({ length: 14 }).map((_, i) => (
-                        <span
-                          key={i}
-                          className="block whitespace-nowrap font-mono text-[10px] font-semibold tracking-[.06em] text-foreground/[.075]"
-                          style={{ marginLeft: (i % 3) * 40 }}
-                        >
-                          {(user?.email || 'shikshaq')} · {openedAt.toLocaleString('en-IN')}
-                        </span>
-                      ))}
+                <>
+                  {/* Viewer controls. The embedded native PDF viewer's pinch-zoom
+                      is unreliable on mobile Safari and there is no custom
+                      zoom/pagination here (adding a JS PDF renderer is out of
+                      scope), so the honest fix is to give the student a way OUT
+                      of the embed: full screen, or the browser's own viewer in a
+                      new tab where zoom and page controls actually work.
+                      This does not "unlock" anything — file_url is a public
+                      bucket URL and always was. */}
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={openFullScreen}
+                      className={`flex min-h-11 items-center gap-2 rounded-full bg-muted px-4 text-body-secondary font-semibold text-foreground transition-colors duration-tap ease-tap hover:bg-border active:scale-[0.97] ${FOCUS}`}
+                    >
+                      <Maximize2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                      Full screen
+                    </button>
+                    <a
+                      href={paper.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex min-h-11 items-center gap-2 rounded-full bg-muted px-4 text-body-secondary font-semibold text-foreground transition-colors duration-tap ease-tap hover:bg-border active:scale-[0.97] ${FOCUS}`}
+                    >
+                      <ExternalLink className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                      Open in a new tab
+                    </a>
+                  </div>
+
+                  {/* Taller than the old fixed 78vh on phones, and sized in dvh
+                      so the mobile URL bar collapsing doesn't clip the page. */}
+                  <div
+                    ref={viewerRef}
+                    className="relative h-[78dvh] min-h-96 overflow-hidden rounded-lg bg-background"
+                  >
+                    <iframe
+                      title={paper.title}
+                      src={`${paper.file_url}#toolbar=0&navpanes=0&view=FitH`}
+                      className="h-full w-full border-0"
+                    />
+                    {/* Watermark layer: absolute, decorative, pointer-events none so
+                        the iframe underneath stays fully interactive (scroll/zoom). */}
+                    <div className="pointer-events-none absolute inset-0 z-[2] overflow-hidden" aria-hidden="true">
+                      <div className="absolute -left-20 -top-20 flex flex-col gap-6 [transform:rotate(-24deg)_scale(1.7)]">
+                        {Array.from({ length: 14 }).map((_, i) => (
+                          <span
+                            key={i}
+                            className="block whitespace-nowrap font-mono text-label font-semibold text-foreground/[.075]"
+                            style={{ marginLeft: (i % 3) * 40 }}
+                          >
+                            {(user?.email || 'shikshaq')} · {openedAt.toLocaleString('en-IN')}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                </>
               ) : (
-                <div className="px-6 py-12 text-center text-base text-muted-foreground">
-                  This paper's file hasn't been uploaded yet. Check back soon, or use "Request removal" above if this looks wrong.
+                <div className="pb-6">
+                  <EmptyResults
+                    className="bg-transparent shadow-none"
+                    heading="This paper's file hasn't been uploaded yet"
+                    message='The listing is here but the PDF itself is still missing. Check back soon — or use "Request removal" above if this listing looks wrong.'
+                    action={{ label: 'Browse other papers', onClick: () => navigate('/past-papers') }}
+                  />
                 </div>
               )
             ) : (
               // Signed-out: no file_url ever reaches the DOM here.
-              <div className="px-4 pb-11 pt-6 sm:px-10 sm:pt-9">
-                <div className="mx-auto max-w-[520px] rounded-2xl bg-background p-8 text-center shadow-border">
-                  <h2 className="mb-3 text-[27px] font-bold leading-tight text-foreground">Sign in to read the rest of this paper</h2>
-                  <p className="mb-[22px] text-base leading-relaxed text-muted-foreground">
-                    We ask for an account so every paper can be attributed to the student who shared it, and so we can stop anyone bulk-copying the collection. That's the whole reason. It's free and takes a minute.
+              // LOUD moment (VISUAL_DIRECTION §4) — nothing is being compared,
+              // the student is stuck, and this is the one screen on the papers
+              // surface where the design has to actually persuade. Thick
+              // outline + offset shadow + halftone + a pinned sticker, and the
+              // reason stated plainly instead of a bare wall.
+              <div className="halftone-overlay-strong relative overflow-hidden bg-brand-blue-subtle px-4 pb-12 pt-12 sm:px-8">
+                <div className="pointer-events-none absolute right-4 top-2 sm:right-8">
+                  <StarburstBadge variant="burst" color="hsl(var(--brand))" tilt={8} size={72}>
+                    Free
+                  </StarburstBadge>
+                </div>
+
+                <div className="outline-thick outline-offset-shadow mx-auto max-w-2xl rounded-2xl bg-card p-6 text-center sm:p-12">
+                  <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-blue">
+                    <Lock className="h-8 w-8 text-white" strokeWidth={2} aria-hidden="true" />
+                  </span>
+
+                  <h2 className="text-page-title font-display font-black text-foreground">
+                    One <span className="marker-highlight marker-highlight--pill">free account</span>,<br />the whole collection.
+                  </h2>
+
+                  <p className="mx-auto mt-4 max-w-prose text-lede text-warm-prose">
+                    We ask for an account so every paper can be attributed to the student who shared it, and so we
+                    can stop anyone bulk-copying the collection. That's the whole reason. It's free and takes a minute.
                   </p>
-                  <div className="flex flex-wrap justify-center gap-2.5">
+
+                  {/* Concrete, checkable specifics beat an abstract pitch —
+                      all three are facts about this exact paper. */}
+                  <ul className="mx-auto mt-6 grid max-w-md gap-2 text-left">
+                    {[
+                      `${paper.subject}, Class ${paper.class} ${paper.board} — ${paper.school}`,
+                      `${paper.exam_type} ${paper.year}, as it was actually set`,
+                      'Free forever, no card, no charge per paper',
+                    ].map((line) => (
+                      <li key={line} className="flex items-start gap-3 rounded-lg bg-muted px-4 py-3 text-body-secondary text-foreground">
+                        <Check className="mt-1 h-4 w-4 flex-none text-brand-blue" strokeWidth={3} aria-hidden="true" />
+                        <span className="break-words">{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* One primary action (§7); "Create an account" is the same
+                      destination and stays visually quieter. */}
+                  <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
                     <button
                       onClick={goToAuth}
-                      className="flex min-h-11 items-center rounded-lg bg-brand-blue px-[22px] text-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-blue-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                      className={`flex min-h-12 items-center justify-center rounded-full bg-brand-blue px-8 text-body font-semibold text-white transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS}`}
                     >
-                      Sign in
+                      Sign in to read this paper
                     </button>
                     <button
                       onClick={goToAuth}
-                      className="flex min-h-11 items-center rounded-lg px-[22px] text-sm font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-muted active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className={`flex min-h-12 items-center justify-center rounded-full bg-muted px-8 text-body font-semibold text-foreground transition-colors duration-tap ease-tap hover:bg-border active:scale-[0.97] ${FOCUS}`}
                     >
                       Create an account
                     </button>
                   </div>
+
+                  <button
+                    onClick={() => navigate('/past-papers')}
+                    className={`mt-6 inline-flex min-h-11 items-center rounded-lg px-3 text-body-secondary font-semibold text-brand-blue-deep underline transition-colors duration-tap ease-tap hover:text-foreground ${FOCUS}`}
+                  >
+                    Keep browsing papers instead
+                  </button>
                 </div>
               </div>
             )}
@@ -364,28 +448,35 @@ export default function PaperReader() {
 
           {/* ---------------- Rail ---------------- */}
           <div className="pr-rail">
-            <div className="rounded-2xl bg-muted px-4 py-3.5 text-xs leading-relaxed text-warm-prose">
-              No download, no print. Papers are for reading here only.
+            {/* Redistribution copy — deliberately says "please don't", not
+                "you can't". Downloading and printing are NOT blocked (public
+                bucket URL); do not reintroduce any claim that they are. */}
+            <div className="rounded-2xl bg-muted px-4 py-3 text-meta text-warm-prose">
+              These papers are shared for personal study only. Please don't redistribute or reupload them elsewhere — schools can request removal any time.
             </div>
 
+            {/* Route markers along the same stretch of road: the previous and
+                next paper in this subject/class/board run. This is sibling
+                navigation, NOT reading history — nothing here claims the
+                student has read anything (VISUAL_DIRECTION §9.2). */}
             {signedIn && (prevPaper || nextPaper) && (
-              <div className="mt-3.5 grid gap-2">
+              <div className="mt-4 grid gap-2">
                 {prevPaper && (
                   <Link
                     to={`/past-papers/${prevPaper.id}`}
-                    className="block rounded-2xl bg-card px-4 py-3.5 shadow-border transition-colors duration-150 hover:bg-muted"
+                    className={`flex min-h-11 flex-col justify-center rounded-2xl bg-card px-4 py-3 shadow-border transition-colors duration-tap ease-tap hover:bg-muted ${FOCUS}`}
                   >
-                    <span className="block text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-meta">Previous</span>
-                    <span className="mt-1 block text-sm font-semibold text-foreground">{prevPaper.title} ({prevPaper.year})</span>
+                    <span className="block text-label font-bold uppercase text-warm-meta">← Previous</span>
+                    <span className="mt-1 block break-words text-body-secondary font-semibold tabular-nums text-foreground">{prevPaper.title} ({prevPaper.year})</span>
                   </Link>
                 )}
                 {nextPaper && (
                   <Link
                     to={`/past-papers/${nextPaper.id}`}
-                    className="block rounded-2xl bg-card px-4 py-3.5 shadow-border transition-colors duration-150 hover:bg-muted"
+                    className={`flex min-h-11 flex-col justify-center rounded-2xl bg-card px-4 py-3 shadow-border transition-colors duration-tap ease-tap hover:bg-muted ${FOCUS}`}
                   >
-                    <span className="block text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-meta">Next</span>
-                    <span className="mt-1 block text-sm font-semibold text-foreground">{nextPaper.title} ({nextPaper.year})</span>
+                    <span className="block text-label font-bold uppercase text-warm-meta">Next →</span>
+                    <span className="mt-1 block break-words text-body-secondary font-semibold tabular-nums text-foreground">{nextPaper.title} ({nextPaper.year})</span>
                   </Link>
                 )}
               </div>
@@ -398,6 +489,19 @@ export default function PaperReader() {
 
       <style>{`
         @media print {
+          /*
+           * NOTE: .pr-hide-print is applied to the grid wrapping the paper
+           * body (including the iframe) further up, so Ctrl+P no longer
+           * renders the PDF itself, not just the chrome around it. This is
+           * still only a client-side print stylesheet, not real access
+           * control: file_url points at a PUBLIC Supabase storage bucket
+           * URL, visible in the network tab and directly openable/
+           * downloadable/printable outside this page regardless of what
+           * this stylesheet does. Real enforcement requires server-side
+           * changes out of this page's scope — short-lived signed URLs
+           * and/or an authenticated proxy endpoint that streams the PDF
+           * instead of exposing a public bucket URL.
+           */
           .pr-hide-print { display: none !important; }
         }
         .pr-rail {

@@ -11,6 +11,7 @@ import { useRequireRole } from '@/hooks/use-require-role';
 import { Button } from '@/components/ui/button';
 import { Heart } from 'lucide-react';
 import { adminToast } from '@/components/AdminConsole';
+import { PageHeader, CutPaperShape } from '@/components/devices';
 
 interface LikedTeacher {
   id: string;
@@ -199,22 +200,46 @@ export default function LikedTeachers() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container pt-8 pb-16">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Favourite teachers</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Saved teachers stay here until you remove them.
-        </p>
 
+      <PageHeader
+        eyebrow="Saved"
+        title={
+          <>
+            Teachers you{' '}
+            <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand-blue))' }}>
+              liked
+            </span>
+          </>
+        }
+        lede="Saved teachers stay here until you remove them — tap the heart on any profile to add one."
+        accent="hsl(var(--brand-blue))"
+        ground="graph"
+      />
+
+      <main className="container pt-8 pb-16">
         {likedTeachers.length === 0 ? (
-          <EmptyResults
-            className="mt-6"
-            icon={<Heart className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-            heading="No favourite teachers yet"
-            message="Start exploring teachers and favourite the ones you're interested in."
-            action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
-          />
+          <div className="relative mt-2 overflow-hidden">
+            <CutPaperShape
+              variant="squiggle"
+              color="hsl(var(--brand-blue))"
+              size={80}
+              className="pointer-events-none absolute -left-4 -top-2 hidden opacity-90 sm:block"
+            />
+            <CutPaperShape
+              variant="star"
+              color="hsl(var(--brand))"
+              size={56}
+              className="pointer-events-none absolute -bottom-3 -right-2 hidden opacity-90 sm:block"
+            />
+            <EmptyResults
+              icon={<Heart className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+              heading="No favourite teachers yet"
+              message="Tap the heart on any teacher's card to save them here, so you can compare and come back later."
+              action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
+            />
+          </div>
         ) : (
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+          <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {likedTeachers.map((teacher) => (
               <TeacherCard
                 key={teacher.id}

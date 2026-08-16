@@ -22,6 +22,12 @@ import { Save, Lock, Heart, BookOpen, CircleUserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLikes } from '@/lib/likes-context';
 import { PaperCard, type PaperCardPaper } from '@/components/PaperCard';
+import {
+  formatDateForDisplay,
+  formatDateForDatabase,
+  isValidDateFormat,
+  formatDateInput,
+} from '@/lib/date-helpers';
 
 interface Subject {
   id: string;
@@ -248,73 +254,6 @@ export default function StudentDashboard() {
     fetchPapersContributed();
   }, [user]);
 
-  // Helper function to convert yyyy-mm-dd to dd-mm-yyyy
-  const formatDateForDisplay = (dateStr: string | null): string => {
-    if (!dateStr) return '';
-    // If already in dd-mm-yyyy format, return as is
-    if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
-    // If in yyyy-mm-dd format, convert to dd-mm-yyyy
-    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const [year, month, day] = dateStr.split('-');
-      return `${day}-${month}-${year}`;
-    }
-    return dateStr;
-  };
-
-  // Helper function to convert dd-mm-yyyy to yyyy-mm-dd for database
-  const formatDateForDatabase = (dateStr: string): string | null => {
-    if (!dateStr || !dateStr.trim()) return null;
-    // If in dd-mm-yyyy format, convert to yyyy-mm-dd
-    const match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-    if (match) {
-      const [, day, month, year] = match;
-      return `${year}-${month}-${day}`;
-    }
-    // If already in yyyy-mm-dd format, return as is
-    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
-    return null;
-  };
-
-  // Helper function to validate dd-mm-yyyy date format
-  const isValidDateFormat = (dateStr: string): boolean => {
-    if (!dateStr) return false;
-    const match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-    if (!match) return false;
-
-    const [, day, month, year] = match;
-    const dayNum = parseInt(day, 10);
-    const monthNum = parseInt(month, 10);
-    const yearNum = parseInt(year, 10);
-
-    // Basic validation
-    if (monthNum < 1 || monthNum > 12) return false;
-    if (dayNum < 1 || dayNum > 31) return false;
-    if (yearNum < 1900 || yearNum > 2100) return false;
-
-    // Check if date is valid (e.g., not 31 Feb)
-    const date = new Date(yearNum, monthNum - 1, dayNum);
-    return (
-      date.getFullYear() === yearNum &&
-      date.getMonth() === monthNum - 1 &&
-      date.getDate() === dayNum
-    );
-  };
-
-  // Helper function to format date input as user types (dd-mm-yyyy)
-  const formatDateInput = (value: string): string => {
-    // Remove all non-digit characters
-    const digits = value.replace(/\D/g, '');
-
-    // Limit to 8 digits (ddmmyyyy)
-    const limitedDigits = digits.slice(0, 8);
-
-    // Format as dd-mm-yyyy
-    if (limitedDigits.length === 0) return '';
-    if (limitedDigits.length <= 2) return limitedDigits;
-    if (limitedDigits.length <= 4) return `${limitedDigits.slice(0, 2)}-${limitedDigits.slice(2)}`;
-    return `${limitedDigits.slice(0, 2)}-${limitedDigits.slice(2, 4)}-${limitedDigits.slice(4)}`;
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
@@ -411,7 +350,9 @@ export default function StudentDashboard() {
       }
 
       // Update student subjects
-      // Delete existing subjects
+      // Delete existing subjects. If this fails, stop here rather than inserting on top of
+      // whatever rows are already there (which would create duplicates) and telling the user
+      // the save succeeded when the subjects half of it didn't.
       const { error: deleteError } = await supabase
         .from('student_subjects')
         .delete()
@@ -421,6 +362,9 @@ export default function StudentDashboard() {
         if (import.meta.env.DEV) {
           console.error('Error deleting subjects:', deleteError);
         }
+        toast.error('Failed to update subjects');
+        setSaving(false);
+        return;
       }
 
       // Insert new subjects
@@ -619,8 +563,10 @@ export default function StudentDashboard() {
           />
         )}
 
-        {/* Continue reading */}
-        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Continue reading</h2>
+        {/* Recently opened papers — no reading-progress/resume feature exists (see comment near
+            readingHistory above), so the copy here promises only what actually happens: papers
+            you've opened, not a synced reading position. */}
+        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Recently opened papers</h2>
         {readingHistory.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
             {readingHistory.map(({ paper }) => (
@@ -630,8 +576,8 @@ export default function StudentDashboard() {
         ) : (
           <EmptyResults
             icon={<BookOpen className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-            heading="Nothing read yet"
-            message="Papers you open will show up here so you can pick up where you left off."
+            heading="Nothing opened yet"
+            message="Papers you open will show up here so you can find them again quickly."
             action={{ label: 'Browse past papers', onClick: () => navigate('/past-papers') }}
           />
         )}
