@@ -73,7 +73,15 @@ export default function AdminRecommendations() {
         return;
       }
 
-      setRecommendations(data || []);
+      const VALID_STATUSES: Recommendation['status'][] = ['pending', 'contacted', 'onboarded', 'rejected'];
+      const normalized: Recommendation[] = (data || []).map((row) => ({
+        ...row,
+        status: (VALID_STATUSES as string[]).includes(row.status)
+          ? (row.status as Recommendation['status'])
+          : 'pending',
+      }));
+
+      setRecommendations(normalized);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);

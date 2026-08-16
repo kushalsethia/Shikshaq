@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, FileText, Heart, GraduationCap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +34,86 @@ interface FavouriteTeacher {
 
 const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
 const SECTION = 'py-16 sm:py-20 lg:py-24';
+
+// Cap how many favourites the card-stack cycles through — matches the "peek a couple
+// cards behind" device from the monday.com reference (04-monday-recently-visited-
+// favourites.png), not meant to be a full paginator for every saved teacher.
+const STACK_CAP = 4;
+
+/**
+ * Card-stack preview for Favourites (VISUAL_UPGRADE_PLAN.md row 1, ref 04) — one full,
+ * interactive TeacherCard up front with 1-2 decorative cards peeking out behind it at a
+ * slight offset/angle, plus pagination dots to bring a different favourite to the front.
+ * Only the front card is a real link; the peeking cards are aria-hidden decoration so no
+ * new, oddly-ordered tab stops get introduced.
+ */
+function FavouritesStack({ favourites }: { favourites: FavouriteTeacher[] }) {
+  const [frontIndex, setFrontIndex] = useState(0);
+  const shown = useMemo(() => favourites.slice(0, STACK_CAP), [favourites]);
+
+  // Rotate the array so `frontIndex` is first — front card + up to 2 peeking behind it.
+  const ordered = useMemo(() => {
+    const i = frontIndex % shown.length;
+    return [...shown.slice(i), ...shown.slice(0, i)];
+  }, [shown, frontIndex]);
+
+  const front = ordered[0];
+  const backLayers = ordered.slice(1, 3);
+  const overflowCount = favourites.length - shown.length;
+
+  return (
+    <div>
+      <div className="relative mx-auto w-full max-w-[220px] sm:mx-0">
+        {backLayers.map((t, i) => {
+          const depth = i + 1; // 1 = closest peek, 2 = furthest
+          return (
+            <div
+              key={t.id}
+              aria-hidden="true"
+              className="absolute inset-0 rounded-2xl bg-card shadow-border transition-transform duration-300 motion-reduce:transition-none"
+              style={{
+                transform: `translate(${depth * 10}px, ${depth * -10}px) rotate(${depth % 2 ? 5 : -5}deg) scale(${1 - depth * 0.05})`,
+                zIndex: 10 - depth,
+              }}
+            />
+          );
+        })}
+        <div className="relative" style={{ zIndex: 10 }}>
+          <TeacherCard
+            key={front.id}
+            id={front.id}
+            name={front.name}
+            slug={front.slug}
+            subject={front.subjects?.name || 'Tuition Teacher'}
+            subjectSlug={front.subjects?.slug}
+            imageUrl={front.image_url ?? undefined}
+            size="sm"
+          />
+        </div>
+      </div>
+
+      {shown.length > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-1.5 sm:justify-start">
+          {shown.map((t, i) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setFrontIndex(i)}
+              aria-label={`Show ${t.name} in favourites preview`}
+              aria-current={ordered[0].id === t.id}
+              className={`h-1.5 rounded-full transition-all duration-150 ${
+                ordered[0].id === t.id ? 'w-4 bg-brand' : 'w-1.5 bg-hairline'
+              }`}
+            />
+          ))}
+          {overflowCount > 0 && (
+            <span className="ml-1 text-xs text-warm-secondary">+{overflowCount} more</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * "Your activity" — Favourites (account-linked via likes-context, same
@@ -111,20 +191,19 @@ export function HomeActivitySection() {
                 <div key={i} className="aspect-[4/5] animate-shimmer rounded-2xl bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%]" />
               ))}
             </div>
-          ) : favourites.length > 0 ? (
+          ) : favourites.length > 1 ? (
+            <FavouritesStack favourites={favourites} />
+          ) : favourites.length === 1 ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {favourites.map((t) => (
-                <TeacherCard
-                  key={t.id}
-                  id={t.id}
-                  name={t.name}
-                  slug={t.slug}
-                  subject={t.subjects?.name || 'Tuition Teacher'}
-                  subjectSlug={t.subjects?.slug}
-                  imageUrl={t.image_url ?? undefined}
-                  size="sm"
-                />
-              ))}
+              <TeacherCard
+                id={favourites[0].id}
+                name={favourites[0].name}
+                slug={favourites[0].slug}
+                subject={favourites[0].subjects?.name || 'Tuition Teacher'}
+                subjectSlug={favourites[0].subjects?.slug}
+                imageUrl={favourites[0].image_url ?? undefined}
+                size="sm"
+              />
             </div>
           ) : (
             <div className="flex flex-col items-start gap-1 rounded-2xl border border-hairline bg-warm-card p-6">

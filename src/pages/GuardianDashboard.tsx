@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Lock, Users, Heart } from 'lucide-react';
+import { Save, Lock, Users, Heart, CircleUserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLikes } from '@/lib/likes-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
@@ -121,7 +121,7 @@ export default function GuardianDashboard() {
           return;
         }
 
-        setProfile(profileData);
+        setProfile(profileData as Profile);
 
         // Populate form
         if (profileData) {
@@ -428,7 +428,7 @@ export default function GuardianDashboard() {
         .single();
 
       if (updatedProfile) {
-        setProfile(updatedProfile);
+        setProfile(updatedProfile as Profile);
       }
 
       toast.success('Profile updated successfully');
@@ -503,11 +503,29 @@ export default function GuardianDashboard() {
     profile.student_school_board || null,
   ].filter(Boolean);
 
+  // Squircle stat-tile treatment (learning-education-squircles reference): a different flat
+  // token fill per tile. Kept neutral/mint — no brand orange/blue — so the accent budget stays
+  // spent on the "Save Changes" CTA.
   const dashboardStats = [
-    { label: 'teachers you study with', value: studiesWithCount },
-    { label: 'teachers saved', value: likedCount },
-    { label: 'subjects selected', value: studentSubjects.length },
+    { label: 'teachers you study with', value: studiesWithCount, fill: 'bg-card shadow-border' },
+    { label: 'teachers saved', value: likedCount, fill: 'bg-mint' },
+    { label: 'subjects selected', value: studentSubjects.length, fill: 'bg-muted' },
   ];
+
+  // Profile-completeness ring — derived from already-loaded form state, no new fetching.
+  const completenessChecks = [
+    Boolean(formData.phone),
+    Boolean(formData.address),
+    Boolean(formData.relationship_to_student),
+    Boolean(formData.student_name),
+    Boolean(formData.student_date_of_birth),
+    Boolean(formData.student_grade),
+    Boolean(formData.student_school_board),
+    studentSubjects.length > 0,
+  ];
+  const completenessFilled = completenessChecks.filter(Boolean).length;
+  const completenessTotal = completenessChecks.length;
+  const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
 
   return (
     <div className="min-h-screen bg-background">
@@ -525,10 +543,10 @@ export default function GuardianDashboard() {
           {subLineParts.length > 0 ? subLineParts.join(' · ') : 'Manage your profile and student details'}
         </p>
 
-        {/* Stat tiles */}
+        {/* Stat tiles — squircle treatment, one flat fill per tile */}
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
           {dashboardStats.map((st) => (
-            <div key={st.label} className="rounded-2xl bg-card p-4 shadow-border sm:p-6">
+            <div key={st.label} className={`rounded-2xl p-4 sm:p-6 ${st.fill}`}>
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {st.label}
               </div>
@@ -571,9 +589,27 @@ export default function GuardianDashboard() {
           />
         )}
 
+        {/* Profile completeness — circular progress ring, computed from the loaded profile fields */}
+        <div className="mx-auto mt-11 flex max-w-4xl items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-6">
+          <div
+            className="relative flex h-16 w-16 flex-none items-center justify-center rounded-full"
+            style={{ background: `conic-gradient(hsl(var(--brand)) ${completenessPct * 3.6}deg, hsl(var(--muted)) 0deg)` }}
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card">
+              <CircleUserRound className="h-5 w-5 text-brand" strokeWidth={1.75} aria-hidden="true" />
+            </div>
+          </div>
+          <div>
+            <div className="text-base font-semibold text-foreground">Profile completeness</div>
+            <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+              {completenessFilled}/{completenessTotal} fields · {completenessPct}%
+            </div>
+          </div>
+        </div>
+
         <div className="mx-auto max-w-4xl">
           {/* Profile Form */}
-          <div className="mt-11 space-y-6 rounded-2xl bg-card p-5 shadow-border sm:p-8">
+          <div className="mt-6 space-y-6 rounded-2xl bg-card p-5 shadow-border sm:p-8">
             {/* Locked Fields Section */}
             <div className="space-y-4 border-b border-border pb-6">
               <h2 className={`${SECTION_HEADING_CLASSNAME} flex items-center gap-2`}>
@@ -627,22 +663,39 @@ export default function GuardianDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="relationship_to_student" className={LABEL_CLASSNAME}>Relationship to Student (Optional)</Label>
-                  <Select
-                    value={formData.relationship_to_student || "__none__"}
-                    onValueChange={(value) => setFormData({ ...formData, relationship_to_student: value === "__none__" ? "" : value })}
-                  >
-                    <SelectTrigger id="relationship_to_student" className={FIELD_CLASSNAME}>
-                      <SelectValue placeholder="Select relationship" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      <SelectItem value="parent">Parent</SelectItem>
-                      <SelectItem value="sister/brother">Sister/Brother</SelectItem>
-                      <SelectItem value="grandparent">Grandparent</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className={LABEL_CLASSNAME}>Relationship to Student (Optional)</Label>
+                  {/* Segmented pill toggle — 4 fixed options, the dominant filter pattern per the
+                      squircles reference. Tap the active pill again to clear the selection. */}
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Relationship to student">
+                    {[
+                      { value: 'parent', label: 'Parent' },
+                      { value: 'sister/brother', label: 'Sister/Brother' },
+                      { value: 'grandparent', label: 'Grandparent' },
+                      { value: 'other', label: 'Other' },
+                    ].map((option) => {
+                      const selected = formData.relationship_to_student === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              relationship_to_student: selected ? '' : option.value,
+                            })
+                          }
+                          className={`min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ${
+                            selected
+                              ? 'bg-brand-blue text-brand-blue-foreground'
+                              : 'bg-muted text-foreground hover:bg-accent'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">

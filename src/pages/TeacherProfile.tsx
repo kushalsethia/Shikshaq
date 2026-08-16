@@ -702,7 +702,20 @@ export default function TeacherProfile() {
 
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
           {/* Left column */}
-          <div>
+          <div className="relative">
+            {/* Organic blob decoration behind the photo — mobile-vibes-event-app reference
+                (soft blob shapes as background decoration). Purely ornamental, tokens only,
+                sits behind everything (-z-10) so it can never interfere with the photo or
+                the floating action buttons on top of it. */}
+            <div
+              className="absolute -left-4 -top-6 -z-10 h-40 w-40 rounded-[55%_45%_65%_35%/50%_40%_60%_50%] bg-brand-subtle sm:-left-8 sm:-top-8 sm:h-56 sm:w-56"
+              aria-hidden="true"
+            />
+            <div
+              className="absolute -bottom-6 -right-4 -z-10 hidden h-32 w-32 rounded-[40%_60%_35%_65%/55%_35%_65%_45%] bg-brand-blue-subtle sm:block"
+              aria-hidden="true"
+            />
+
             <div className="relative aspect-[4/5] overflow-hidden rounded-2xl shadow-border">
               {teacher.image_url ? (
                 <img
@@ -722,29 +735,32 @@ export default function TeacherProfile() {
                   </span>
                 </div>
               )}
-            </div>
 
-            <div className="mt-3.5 flex gap-2">
-              <button
-                type="button"
-                onClick={handleHeartClick}
-                aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
-                aria-pressed={liked}
-                className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg p-3 text-sm font-semibold shadow-border transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
-              >
-                <Heart size={15} className={liked ? 'fill-destructive text-destructive' : 'text-foreground/70'} />
-                Favourite
-              </button>
-              <button
-                type="button"
-                onClick={handleUpvoteClick}
-                aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
-                aria-pressed={upvoted}
-                className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg p-3 text-sm font-semibold shadow-border transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
-              >
-                <ArrowUp size={15} className="text-brand-blue" strokeWidth={2.2} />
-                <span className="tabular-nums">{upvoteCount}</span>
-              </button>
+              {/* Favourite / upvote — floating circular icon-buttons over the hero photo
+                  (mobile-vibes-event-app reference) instead of a flat button row below it.
+                  Same handlers/aria as before; presentation only. Secondary to the WhatsApp
+                  CTA per DESIGN_SYSTEM §12 — quiet bone-on-blur chips, not accent-colored. */}
+              <div className="absolute right-2.5 top-2.5 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleHeartClick}
+                  aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
+                  aria-pressed={liked}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-card/90 shadow-border backdrop-blur-sm transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
+                >
+                  <Heart size={17} className={liked ? 'fill-destructive text-destructive' : 'text-foreground/70'} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUpvoteClick}
+                  aria-label={upvoted ? 'Remove upvote' : 'Upvote teacher'}
+                  aria-pressed={upvoted}
+                  className="flex h-11 min-w-11 items-center justify-center gap-1 rounded-full bg-card/90 px-2.5 shadow-border backdrop-blur-sm transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
+                >
+                  <ArrowUp size={15} className="text-brand-blue" strokeWidth={2.2} />
+                  <span className="tabular-nums text-xs font-semibold text-foreground">{upvoteCount}</span>
+                </button>
+              </div>
             </div>
           </div>
 

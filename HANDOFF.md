@@ -1,10 +1,12 @@
 # ShikshAQ Design Rebuild — Handoff
 
 **Branch:** `feat/dual-search-past-papers`
-**Status:** foundation + home/nav wave complete, character pass complete, BottomNav rebuilt,
-new Recently Visited/Favourites home feature added. Wave 2 (Browse, TeacherProfile, past-papers
-flow, auth/join flow, dashboards, legal/utility) is planned but not started — see §5.
-**Date:** 2026-08-14
+**Status:** foundation, character pass, Wave 2 (token migration across all pages), and an
+overnight "visual upgrade" pass (layout/composition reverse-engineered from 8+ reference images,
+admin pages included by owner override, all pre-existing TS errors fixed — zero project-wide)
+are all complete and committed. See `VISUAL_UPGRADE_PLAN.md` for the full device-by-device
+mapping and the final reconciliation audit's findings.
+**Date:** 2026-08-16
 
 ---
 

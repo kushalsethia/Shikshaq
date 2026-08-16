@@ -673,30 +673,39 @@ export default function JoinApply() {
           ← Why join Shikshaq
         </Link>
 
-        {/* Stepper */}
-        <div className="flex flex-wrap gap-4 mb-8">
+        {/* Stepper — numerals now sit on a connecting rail so the four steps read as one
+            continuous path rather than four loose chips (bolder card-based step
+            presentation per VISUAL_UPGRADE_PLAN, mobile-vibes reference). Ring instead of
+            flat bg on the current step gives it a touch more weight. Logic/order unchanged. */}
+        <div className="mb-8 flex items-center">
           {STEPS.map((s, i) => {
             const state = i === step ? 'current' : i < step ? 'done' : 'upcoming';
             // "done" state uses mint/foreground — see success-token note above; no green
             // token exists in the design system.
             const numeralClass =
               state === 'current'
-                ? 'bg-card text-foreground'
+                ? 'bg-card text-foreground ring-2 ring-foreground'
                 : state === 'done'
                 ? 'bg-mint text-foreground'
                 : 'bg-muted text-warm-meta';
             const labelClass =
               state === 'current' ? 'text-foreground' : state === 'done' ? 'text-warm-prose' : 'text-warm-meta';
+            const railClass = state === 'upcoming' ? 'bg-warm-hairline' : 'bg-mint';
             return (
-              <div key={s.label} className="flex items-center gap-2">
-                <span
-                  className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 text-xs font-bold transition-colors duration-150 ${numeralClass}`}
-                >
-                  {i + 1}
-                </span>
-                <span className={`text-sm font-semibold whitespace-nowrap ${labelClass}`}>
-                  {s.label}
-                </span>
+              <div key={s.label} className={i === STEPS.length - 1 ? 'flex items-center shrink-0' : 'flex flex-1 items-center'}>
+                <div className="flex shrink-0 flex-col items-center gap-1.5 sm:flex-row sm:gap-2">
+                  <span
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors duration-150 ${numeralClass}`}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className={`hidden text-sm font-semibold whitespace-nowrap sm:inline ${labelClass}`}>
+                    {s.label}
+                  </span>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <span className={`mx-2 h-0.5 flex-1 rounded-full transition-colors duration-150 ${railClass}`} aria-hidden="true" />
+                )}
               </div>
             );
           })}

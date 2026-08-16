@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, BookOpen, FileText, GraduationCap, Users } from 'lucide-react';
+import { ArrowRight, BookOpen, FileText, GraduationCap, Sparkles, Users } from 'lucide-react';
 import { EmptyResults } from '@/components/EmptyResults';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
@@ -270,6 +270,12 @@ export default function Index() {
                   className="animate-hero-swap [animation-delay:40ms] text-[clamp(34px,5.6vw,66px)] font-normal leading-[.95] tracking-[-.055em]"
                 >
                   Find a tuition teacher{' '}
+                  <span
+                    aria-hidden="true"
+                    className="relative mx-[0.06em] inline-flex h-[0.62em] w-[0.62em] -translate-y-[0.08em] items-center justify-center rounded-full bg-brand align-middle"
+                  >
+                    <Sparkles className="h-[0.62em] w-[0.62em] text-white" strokeWidth={2.5} aria-hidden="true" />
+                  </span>{' '}
                   <span className="font-extrabold">in Kolkata.</span>
                 </h1>
                 <p className="animate-hero-swap max-w-prose text-base text-muted-foreground [animation-delay:80ms]">

@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Lock, Upload, X } from 'lucide-react';
+import { Save, Lock, Upload, X, CircleUserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
@@ -414,6 +414,14 @@ export default function TeacherDashboard() {
 
       return updated;
     });
+  };
+
+  // "Min Fees"/"Max Fees" are the only numeric fields on TeacherData — handleInputChange above is
+  // typed for the string fields that make up the rest of the form, so this is a small dedicated
+  // setter for the two numeric ones rather than widening handleInputChange's value type (which
+  // would remove the string narrowing that its Subjects/Classes Taught/Phone Number branches rely on).
+  const handleFeeChange = (field: 'Min Fees' | 'Max Fees', value: number | null) => {
+    setTeacherData((prev) => (prev ? { ...prev, [field]: value } : prev));
   };
 
   const handleMultiSelectChange = (field: keyof TeacherData, value: string, checked: boolean) => {
@@ -911,12 +919,33 @@ export default function TeacherDashboard() {
   // GA4/Clarity (src/utils/clarityEvents.ts, gaEvents.ts), never Supabase, and profile views
   // aren't tracked anywhere yet — so they're shown as honestly untracked rather than a fabricated
   // number. Upvotes/reviews are real, live counts from teacher_upvotes/teacher_comments.
+  // Squircle stat-tile treatment (learning-education-squircles reference): a different flat
+  // token fill per tile. Kept neutral/mint — no brand orange/blue — so the accent budget stays
+  // spent on the "Save Changes" CTA and the live/paused status pill.
   const teacherStats = [
-    { label: 'Profile views', value: '—', meta: 'Not tracked yet' },
-    { label: 'Enquiries', value: '—', meta: 'Not tracked yet' },
-    { label: 'Upvotes', value: upvoteCount ?? '—', meta: 'All time' },
-    { label: 'Reviews', value: reviewCount ?? '—', meta: 'All time' },
+    { label: 'Profile views', value: '—', meta: 'Not tracked yet', fill: 'bg-card shadow-border' },
+    { label: 'Enquiries', value: '—', meta: 'Not tracked yet', fill: 'bg-muted' },
+    { label: 'Upvotes', value: upvoteCount ?? '—', meta: 'All time', fill: 'bg-mint' },
+    { label: 'Reviews', value: reviewCount ?? '—', meta: 'All time', fill: 'bg-card shadow-border' },
   ];
+
+  // Profile-completeness ring — derived from already-loaded teacherData, no new fetching.
+  // Mirrors the required-field checklist isFormValid() already uses, plus the two optional
+  // fields (description, hero image) that most affect how complete a listing feels.
+  const completenessChecks = [
+    Boolean(teacherData["Phone Number"]),
+    Boolean(teacherData["LOCATION V2"]),
+    Boolean(teacherData.Subjects),
+    Boolean(teacherData["School Boards Catered"]),
+    Boolean(teacherData["Classes Taught for Backend"]),
+    Boolean(teacherData["Mode of Teaching"]),
+    Boolean(teacherData["Class Size (Group/ Solo)"]),
+    Boolean(teacherData["Description"]),
+    Boolean(teacherData["Hero Image"]),
+  ];
+  const completenessFilled = completenessChecks.filter(Boolean).length;
+  const completenessTotal = completenessChecks.length;
+  const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
 
   // "Recent enquiries" has the same gap: WhatsApp clicks are anonymous (no visitor identity is
   // ever captured — see WhatsAppRedirect.tsx), so there is no real per-enquiry row to show. This
@@ -947,10 +976,10 @@ export default function TeacherDashboard() {
           </span>
         </div>
 
-        {/* Stat tiles */}
+        {/* Stat tiles — squircle treatment, one flat fill per tile */}
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
           {teacherStats.map((st) => (
-            <div key={st.label} className="rounded-2xl bg-card p-4 shadow-border sm:p-6">
+            <div key={st.label} className={`rounded-2xl p-4 sm:p-6 ${st.fill}`}>
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {st.label}
               </div>
@@ -960,6 +989,24 @@ export default function TeacherDashboard() {
               <div className="mt-1 text-xs text-muted-foreground">{st.meta}</div>
             </div>
           ))}
+        </div>
+
+        {/* Profile completeness — circular progress ring, computed from the loaded teacher data */}
+        <div className="mt-6 flex items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-6">
+          <div
+            className="relative flex h-16 w-16 flex-none items-center justify-center rounded-full"
+            style={{ background: `conic-gradient(hsl(var(--brand)) ${completenessPct * 3.6}deg, hsl(var(--muted)) 0deg)` }}
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card">
+              <CircleUserRound className="h-5 w-5 text-brand" strokeWidth={1.75} aria-hidden="true" />
+            </div>
+          </div>
+          <div>
+            <div className="text-base font-semibold text-foreground">Profile completeness</div>
+            <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+              {completenessFilled}/{completenessTotal} fields · {completenessPct}%
+            </div>
+          </div>
         </div>
 
         {/* Recent enquiries */}
@@ -1310,55 +1357,59 @@ export default function TeacherDashboard() {
                 )}
               </div>
 
-              {/* Mode of Teaching */}
+              {/* Mode of Teaching — segmented pill toggle (2 fixed options, still multi-select:
+                  a teacher offering both Online and Offline taps both pills on). */}
               <div className="space-y-2">
                 <Label className={LABEL_CLASSNAME}>
                   Mode of Teaching <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Mode of teaching">
                   {MODE_OF_TEACHING.map((mode) => {
                     const currentValue = teacherData["Mode of Teaching"] as string | null;
                     const selected = valueExistsInString(currentValue, mode);
                     return (
-                      <div key={mode} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`mode-${mode}`}
-                          checked={selected}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange("Mode of Teaching", mode, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`mode-${mode}`} className="cursor-pointer text-warm-prose">
-                          {mode}
-                        </Label>
-                      </div>
+                      <button
+                        key={mode}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => handleMultiSelectChange("Mode of Teaching", mode, !selected)}
+                        className={`min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ${
+                          selected
+                            ? 'bg-brand-blue text-brand-blue-foreground'
+                            : 'bg-muted text-foreground hover:bg-accent'
+                        }`}
+                      >
+                        {mode}
+                      </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Structure of classes (stored as Class Size (Group/ Solo)) */}
+              {/* Structure of classes (stored as Class Size (Group/ Solo)) — segmented pill
+                  toggle (2 fixed options), same multi-select semantics as above. */}
               <div className="space-y-2">
                 <Label className={LABEL_CLASSNAME}>
                   Structure of classes <span className="text-destructive">*</span>
                 </Label>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2" role="group" aria-label="Structure of classes">
                   {CLASS_SIZE.map((size) => {
                     const currentValue = teacherData["Class Size (Group/ Solo)"] as string | null;
                     const selected = valueExistsInString(currentValue, size);
                     return (
-                      <div key={size} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`classSize-${size}`}
-                          checked={selected}
-                          onCheckedChange={(checked) =>
-                            handleMultiSelectChange("Class Size (Group/ Solo)", size, checked as boolean)
-                          }
-                        />
-                        <Label htmlFor={`classSize-${size}`} className="cursor-pointer text-warm-prose">
-                          {size === 'Solo' ? 'One-on-one' : size}
-                        </Label>
-                      </div>
+                      <button
+                        key={size}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => handleMultiSelectChange("Class Size (Group/ Solo)", size, !selected)}
+                        className={`min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ${
+                          selected
+                            ? 'bg-brand-blue text-brand-blue-foreground'
+                            : 'bg-muted text-foreground hover:bg-accent'
+                        }`}
+                      >
+                        {size === 'Solo' ? 'One-on-one' : size}
+                      </button>
                     );
                   })}
                 </div>
@@ -1504,7 +1555,7 @@ export default function TeacherDashboard() {
                       value={teacherData["Min Fees"]?.toString() || ''}
                       onChange={(e) => {
                         const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                        handleInputChange("Min Fees", digits ? parseInt(digits) : null);
+                        handleFeeChange("Min Fees", digits ? parseInt(digits) : null);
                       }}
                       placeholder="e.g., 2000"
                       maxLength={6}
@@ -1520,7 +1571,7 @@ export default function TeacherDashboard() {
                       value={teacherData["Max Fees"]?.toString() || ''}
                       onChange={(e) => {
                         const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                        handleInputChange("Max Fees", digits ? parseInt(digits) : null);
+                        handleFeeChange("Max Fees", digits ? parseInt(digits) : null);
                       }}
                       placeholder="e.g., 5000"
                       maxLength={6}

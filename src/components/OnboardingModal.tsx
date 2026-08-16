@@ -52,10 +52,10 @@ const SCREENS: Screen[] = [
   },
 ];
 
-const MODE_STYLES: Record<ScreenMode, { chip: string; icon: string }> = {
-  neutral: { chip: "bg-white/10 text-white/70", icon: "bg-white/10 text-white" },
-  teachers: { chip: "bg-brand/20 text-brand", icon: "bg-brand text-white" },
-  papers: { chip: "bg-brand-blue/20 text-brand-blue", icon: "bg-brand-blue text-white" },
+const MODE_STYLES: Record<ScreenMode, { chip: string; icon: string; blob: string }> = {
+  neutral: { chip: "bg-white/10 text-white/70", icon: "bg-white/10 text-white", blob: "bg-white/10" },
+  teachers: { chip: "bg-brand/20 text-brand", icon: "bg-brand text-white", blob: "bg-brand/25" },
+  papers: { chip: "bg-brand-blue/20 text-brand-blue", icon: "bg-brand-blue text-white", blob: "bg-brand-blue/25" },
 };
 
 export function OnboardingModal() {
@@ -121,22 +121,33 @@ export function OnboardingModal() {
                 return (
                   <div
                     key={screen.title}
-                    className="w-full shrink-0 px-6 pb-8 pt-12 sm:px-8"
+                    className="relative w-full shrink-0 overflow-hidden px-6 pb-8 pt-12 sm:px-8"
                     aria-hidden={i !== step}
                   >
-                    <div className={cn("mb-6 inline-flex h-11 w-11 items-center justify-center rounded-2xl", styles.icon)}>
-                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    {/* Large flat-color abstract blob behind the icon — VISUAL_UPGRADE_PLAN's
+                        first-time-popup-design reference calls for a hero graphic per screen;
+                        an organic (non-rectangular) CSS shape stands in for a bespoke SVG asset,
+                        kept purely decorative so it never competes with the copy or the CTA. */}
+                    <div
+                      className={cn(
+                        "absolute -left-6 -top-8 h-32 w-32 rounded-[60%_40%_30%_70%/60%_30%_70%_40%] blur-md",
+                        styles.blob
+                      )}
+                      aria-hidden="true"
+                    />
+                    <div className={cn("relative z-10 mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg", styles.icon)}>
+                      <Icon className="h-6 w-6" aria-hidden="true" />
                     </div>
                     <span
                       className={cn(
-                        "mb-3 inline-block rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide",
+                        "relative z-10 mb-3 inline-block rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide",
                         styles.chip
                       )}
                     >
                       {screen.eyebrow}
                     </span>
-                    <h2 className="text-2xl font-semibold tracking-tight">{screen.title}</h2>
-                    <p className="mt-3 max-w-prose text-sm text-white/70">{screen.body}</p>
+                    <h2 className="relative z-10 text-2xl font-semibold tracking-tight sm:text-[28px]">{screen.title}</h2>
+                    <p className="relative z-10 mt-3 max-w-prose text-sm text-white/70">{screen.body}</p>
                   </div>
                 );
               })}

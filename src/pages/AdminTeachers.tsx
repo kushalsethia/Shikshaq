@@ -23,7 +23,7 @@ import imageCompression from 'browser-image-compression';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { invalidateTeacherCache, removeCache } from '@/utils/cache';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
-import { SURFACE_TOKENS } from '@/utils/searchFacets';
+import { SURFACE_TOKENS, ACCENT_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
   adminFieldStyle,
@@ -773,7 +773,7 @@ export default function AdminTeachers() {
 
                   {/* Classes Taught for Backend - display is auto-computed */}
                   <div>
-                    <Label style={labelStyle}>Classes Taught <span style={{ color: '#B3261E' }}>*</span></Label>
+                    <Label style={labelStyle}>Classes Taught <span style={{ color: ACCENT_TOKENS.destructive }}>*</span></Label>
                     <p className="mb-2" style={{ fontSize: 12, color: SURFACE_TOKENS.textTertiary }}>
                       Select the classes. Display format will be automatically computed.
                     </p>

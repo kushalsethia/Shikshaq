@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import { Mail, ChevronDown, ChevronUp, Star, Heart } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { Button } from '@/components/ui/button';
@@ -515,12 +515,39 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               inventing new tokens/assets. Per the task's fallback instruction, this
               reaches for the flourish with Geist itself: very large size, italic,
               tight tracking, on the dark panel in off-white. */}
-          <p
-            aria-hidden="true"
-            className="select-none pt-4 text-6xl italic font-semibold leading-none tracking-tighter text-white/90 sm:text-8xl lg:text-9xl"
-          >
-            ShikshAQ
-          </p>
+          {/* pb-6: the bottom-anchored sticker below needs clearance from its own
+              rotation before the fixed mobile BottomNav's floating pill starts —
+              caught during final QA when it was overlapping. */}
+          <div className="relative pt-4 pb-6" aria-hidden="true">
+            <p
+              className="select-none text-6xl italic font-semibold leading-none tracking-tighter text-white/90 sm:text-8xl lg:text-9xl"
+            >
+              ShikshAQ
+            </p>
+
+            {/* Sticker cluster on the wordmark — same badge pattern as the "Free" CTA
+                sticker above (rounded, contrasting fill, rotated, small shadow),
+                content grounded in this app's own value props rather than the
+                reference's generic agency emoji. */}
+            <span className="pointer-events-none absolute left-[4%] -top-1 -rotate-6 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-brand-foreground shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+              <span className="inline-flex items-center gap-1">
+                <Star className="h-3 w-3 fill-current" strokeWidth={0} />
+                Verified
+              </span>
+            </span>
+
+            <span className="pointer-events-none absolute right-[6%] top-[38%] rotate-3 rounded-full bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.04em] text-panel shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+              Free, always
+            </span>
+
+            <span className="pointer-events-none absolute left-[22%] bottom-[6%] rotate-[8deg] rounded-full bg-brand-blue-subtle p-1.5 text-brand-blue-deep shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:p-2">
+              <Heart className="h-3 w-3 fill-current sm:h-4 sm:w-4" strokeWidth={0} />
+            </span>
+
+            <span className="pointer-events-none absolute right-[2%] bottom-2 -rotate-12 rounded-xl bg-panel px-2 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-white shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+              No commission
+            </span>
+          </div>
         </div>
       </div>
 

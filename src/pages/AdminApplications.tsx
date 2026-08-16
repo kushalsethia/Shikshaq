@@ -104,8 +104,21 @@ export default function AdminApplications() {
         return;
       }
 
-      setApplications(data || []);
-      setFilteredApplications(data || []);
+      const VALID_APP_STATUSES: TeacherApplication['status'][] = ['pending', 'approved', 'rejected'];
+      const VALID_TEXTED_STATUSES: TeacherApplication['texted_status'][] = ['not_texted', 'texted', 'follow_up'];
+      const normalized: TeacherApplication[] = (data || []).map((row) => ({
+        ...row,
+        sir_maam: row.sir_maam === 'Sir' || row.sir_maam === "Ma'am" ? row.sir_maam : 'Sir',
+        status: (VALID_APP_STATUSES as string[]).includes(row.status)
+          ? (row.status as TeacherApplication['status'])
+          : 'pending',
+        texted_status: (VALID_TEXTED_STATUSES as string[]).includes(row.texted_status)
+          ? (row.texted_status as TeacherApplication['texted_status'])
+          : 'not_texted',
+      }));
+
+      setApplications(normalized);
+      setFilteredApplications(normalized);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);

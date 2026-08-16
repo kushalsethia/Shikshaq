@@ -73,10 +73,10 @@ export function ExpandableTabs({
               onMouseLeave={() => setPeekIndex((v) => (v === index ? null : v))}
               onFocus={() => !active && setPeekIndex(index)}
               onBlur={() => setPeekIndex((v) => (v === index ? null : v))}
-              className={`relative flex h-11 w-full items-center justify-center gap-1.5 overflow-hidden rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.94] ${
+              className={`relative flex h-11 w-full items-center justify-center gap-1.5 overflow-hidden rounded-full transition-[background-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.94] ${
                 isDark
                   ? `focus-visible:ring-offset-panel ${active ? 'bg-brand' : ''}`
-                  : `focus-visible:ring-offset-background ${active ? 'bg-card shadow-border text-brand' : 'text-foreground hover:bg-muted'}`
+                  : `focus-visible:ring-offset-background ${active ? 'bg-brand shadow-border-hover' : 'text-foreground hover:bg-muted'}`
               }`}
             >
               <Icon
@@ -86,7 +86,7 @@ export function ExpandableTabs({
                       ? 'text-white'
                       : 'text-white/50'
                     : active
-                      ? 'text-brand'
+                      ? 'text-white'
                       : 'text-muted-foreground'
                 }`}
                 strokeWidth={active ? 2.25 : 1.8}
@@ -102,17 +102,11 @@ export function ExpandableTabs({
                 }}
                 transition={{ duration: prefersReducedMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className={`relative z-10 overflow-hidden whitespace-nowrap text-xs font-medium motion-reduce:transition-none ${
-                  isDark ? 'text-white' : active ? 'text-brand' : 'text-foreground'
+                  isDark ? 'text-white' : active ? 'text-white' : 'text-foreground'
                 }`}
               >
                 {tab.label}
               </motion.span>
-              {!isDark && active && (
-                <span
-                  aria-hidden
-                  className="absolute -bottom-px left-1/2 h-1 w-5 -translate-x-1/2 rounded-full bg-brand"
-                />
-              )}
             </NavLink>
           </li>
         );

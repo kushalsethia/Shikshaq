@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Lock, Heart, BookOpen } from 'lucide-react';
+import { Save, Lock, Heart, BookOpen, CircleUserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLikes } from '@/lib/likes-context';
 import { PaperCard, type PaperCardPaper } from '@/components/PaperCard';
@@ -129,7 +129,7 @@ export default function StudentDashboard() {
           return;
         }
 
-        setProfile(profileData);
+        setProfile(profileData as Profile);
 
         // Populate form
         if (profileData) {
@@ -458,7 +458,7 @@ export default function StudentDashboard() {
         .single();
 
       if (updatedProfile) {
-        setProfile(updatedProfile);
+        setProfile(updatedProfile as Profile);
       }
 
       toast.success('Profile updated successfully');
@@ -532,15 +532,33 @@ export default function StudentDashboard() {
   ].filter(Boolean);
 
   // Labels and order are literal, per design_handoff_shikshaq/pages/StudentDashboard.md.
+  // Squircle stat-tile treatment (learning-education-squircles reference): each tile gets a
+  // different flat token fill instead of three identical cards. Fills stay neutral/mint —
+  // no brand orange/blue here — so the accent budget stays spent on the single "Save Changes" CTA.
   const dashboardStats = [
-    { label: 'Papers read', value: papersReadCount },
-    { label: 'Favourite teachers', value: likedCount },
-    { label: 'Papers contributed', value: papersContributedCount },
+    { label: 'Papers read', value: papersReadCount, fill: 'bg-card shadow-border' },
+    { label: 'Favourite teachers', value: likedCount, fill: 'bg-mint' },
+    { label: 'Papers contributed', value: papersContributedCount, fill: 'bg-muted' },
   ];
 
   const SAVED_TEACHERS_SHOWN = 8;
   const shownSavedTeachers = savedTeachers.slice(0, SAVED_TEACHERS_SHOWN);
   const hasMoreSavedTeachers = likedCount > shownSavedTeachers.length;
+
+  // Profile-completeness ring — derived purely from already-loaded form state (no new fetching),
+  // for the circular-progress device from the squircles reference. Real fields, real fraction.
+  const completenessChecks = [
+    Boolean(formData.phone),
+    Boolean(formData.date_of_birth),
+    Boolean(formData.school_college),
+    Boolean(formData.grade),
+    Boolean(formData.school_board),
+    Boolean(formData.address),
+    studentSubjects.length > 0,
+  ];
+  const completenessFilled = completenessChecks.filter(Boolean).length;
+  const completenessTotal = completenessChecks.length;
+  const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
 
   return (
     <div className="min-h-screen bg-background">
@@ -553,10 +571,10 @@ export default function StudentDashboard() {
           {subLineParts.length > 0 ? subLineParts.join(' · ') : 'Manage your profile and preferences'}
         </p>
 
-        {/* Stat tiles */}
+        {/* Stat tiles — squircle treatment, one flat fill per tile */}
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
           {dashboardStats.map((st) => (
-            <div key={st.label} className="rounded-2xl bg-card p-4 shadow-border sm:p-6">
+            <div key={st.label} className={`rounded-2xl p-4 sm:p-6 ${st.fill}`}>
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {st.label}
               </div>
@@ -624,9 +642,27 @@ export default function StudentDashboard() {
           />
         )}
 
+        {/* Profile completeness — circular progress ring, computed from the loaded profile fields */}
+        <div className="mt-11 flex items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-6">
+          <div
+            className="relative flex h-16 w-16 flex-none items-center justify-center rounded-full"
+            style={{ background: `conic-gradient(hsl(var(--brand)) ${completenessPct * 3.6}deg, hsl(var(--muted)) 0deg)` }}
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card">
+              <CircleUserRound className="h-5 w-5 text-brand" strokeWidth={1.75} aria-hidden="true" />
+            </div>
+          </div>
+          <div>
+            <div className="text-base font-semibold text-foreground">Profile completeness</div>
+            <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+              {completenessFilled}/{completenessTotal} fields · {completenessPct}%
+            </div>
+          </div>
+        </div>
+
         <div>
           {/* Profile Form */}
-          <div className="mt-11 space-y-6 rounded-2xl bg-card p-5 shadow-border sm:p-8">
+          <div className="mt-6 space-y-6 rounded-2xl bg-card p-5 shadow-border sm:p-8">
             {/* Locked Fields Section */}
             <div className="space-y-4 border-b border-border pb-6">
               <h2 className={`${SECTION_HEADING_CLASSNAME} flex items-center gap-2`}>
@@ -763,24 +799,32 @@ export default function StudentDashboard() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="school_board" className={LABEL_CLASSNAME}>School Board (Optional)</Label>
-                  <Select
-                    value={formData.school_board || "__none__"}
-                    onValueChange={(value) => setFormData({ ...formData, school_board: value === "__none__" ? "" : value })}
-                  >
-                    <SelectTrigger id="school_board" className={FIELD_CLASSNAME}>
-                      <SelectValue placeholder="Select school board" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      {schoolBoards.map((board) => (
-                        <SelectItem key={board} value={board}>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className={LABEL_CLASSNAME}>School Board (Optional)</Label>
+                  {/* Segmented pill toggle — 5 fixed options, the dominant filter pattern per the
+                      squircles reference. Tap the active pill again to clear the selection. */}
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="School board">
+                    {schoolBoards.map((board) => {
+                      const selected = formData.school_board === board;
+                      return (
+                        <button
+                          key={board}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            setFormData({ ...formData, school_board: selected ? '' : board })
+                          }
+                          className={`min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ${
+                            selected
+                              ? 'bg-brand-blue text-brand-blue-foreground'
+                              : 'bg-muted text-foreground hover:bg-accent'
+                          }`}
+                        >
                           {board}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="space-y-2">

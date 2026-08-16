@@ -328,9 +328,14 @@ export default function PastPapers() {
                 <button
                   key={`board-${b}`}
                   onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
-                  className="flex min-h-11 items-center rounded-full bg-brand-blue-subtle px-[22px] text-sm font-semibold text-brand-blue-deep transition-colors duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="flex min-h-11 items-center gap-2 rounded-full bg-brand-blue-subtle px-[22px] text-sm font-semibold text-brand-blue-deep transition-colors duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {b}
+                  {boardCounts[b] > 0 && (
+                    <span className="rounded-full bg-brand-blue px-2 py-0.5 text-xs font-bold tabular-nums text-white">
+                      {boardCounts[b]}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -344,7 +349,7 @@ export default function PastPapers() {
         {recentPapers.length > 0 && (
           <section className={`${CONTAINER} ${SECTION} pt-0`}>
             <h2 className="mb-5 text-2xl font-semibold tracking-tight sm:text-3xl">Recently added</h2>
-            <div className="flex snap-x snap-mandatory gap-[18px] overflow-x-auto scrollbar-hide sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible lg:grid-cols-3">
+            <div className="flex snap-x snap-mandatory gap-[18px] overflow-x-auto border-b border-border pb-6 scrollbar-hide sm:grid sm:snap-none sm:grid-cols-2 sm:border-none sm:overflow-visible sm:pb-0 lg:grid-cols-3">
               {recentPapers.map((p) => (
                 <div key={p.id} className="w-[260px] flex-none snap-start sm:w-auto">
                   <PaperCard paper={p} variant="recent" sticker={isNewThisWeek(p.created_at) ? 'New this week' : undefined} />

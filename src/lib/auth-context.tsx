@@ -57,11 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setProfileLoading(true);
-    supabase
-      .from('profiles')
-      .select('role, full_name, terms_agreement')
-      .eq('id', user.id)
-      .maybeSingle()
+    Promise.resolve(
+      supabase
+        .from('profiles')
+        .select('role, full_name, terms_agreement')
+        .eq('id', user.id)
+        .maybeSingle()
+    )
       .then(({ data }) => {
         if (data) {
           const p: UserProfile = { role: data.role, full_name: data.full_name, terms_agreement: data.terms_agreement };
