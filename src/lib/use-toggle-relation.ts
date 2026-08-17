@@ -253,6 +253,15 @@ export function useToggleRelation(opts: UseToggleRelationOptions): UseToggleRela
          will fail again identically and where a Retry button would be a lie. */
       const retry = { label: 'Retry', onClick: () => void toggleRef.current?.(targetId) };
 
+      /* micro-01-keeping-things.png: the success pill "appears for 4s, holds an
+         Undo". Undo is the same toggle run again, which is exactly what makes
+         these actions safe to take without thinking — the sheet's own subtitle
+         is "save, like, follow — all optimistic, all reversible", and reversible
+         was the half that was missing. 4s to match the spec; the default is
+         shorter and an Undo you cannot reach is decoration. */
+      const undo = { label: 'Undo', onClick: () => void toggleRef.current?.(targetId) };
+      const undoToast = { action: undo, duration: 4000 };
+
       const revert = () => {
         setIds((prev) => {
           const next = new Set(prev);
@@ -282,7 +291,7 @@ export function useToggleRelation(opts: UseToggleRelationOptions): UseToggleRela
             throw error;
           }
 
-          toast.success(messages.removeSuccess);
+          toast.success(messages.removeSuccess, undoToast);
           return false;
         } else {
           const { error } = await (supabase as any).from(table).insert({ [ownerColumn]: userId, [targetColumn]: targetId });
@@ -309,7 +318,7 @@ export function useToggleRelation(opts: UseToggleRelationOptions): UseToggleRela
             throw error;
           }
 
-          toast.success(messages.addSuccess);
+          toast.success(messages.addSuccess, undoToast);
           return true;
         }
       } catch (error: any) {
