@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Users } from 'lucide-react';
+import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Users, Lock } from 'lucide-react';
 import { SearchControl } from '@/components/SearchControl';
 import { Footer } from '@/components/Footer';
 import { EmptyResults } from '@/components/EmptyResults';
@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
 import { getSubjectPalette, paletteFromSeed, SUBJECT_SEEDS } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
-import { PageHeader, PillRow } from '@/components/devices';
+import { PillRow } from '@/components/devices';
 import { useAuth } from '@/lib/auth-context';
 import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
 import { IconDisc } from '@/components/ui/icon-disc';
@@ -77,13 +77,6 @@ const PAPER_PROMISES = [
   { icon: Users, title: 'Shared by students', body: "The collection grows as students who've sat these exams share their papers." },
   { icon: ShieldCheck, title: 'Removed on request', body: 'Any school that wants a paper taken down can have it removed, no argument.' },
 ];
-
-// A paper counts as "new" for the Recently added stickers when it was added
-// within the last week — factual, derived from created_at, never marketing copy.
-function isNewThisWeek(createdAt: string): boolean {
-  const ageMs = Date.now() - new Date(createdAt).getTime();
-  return ageMs >= 0 && ageMs <= 7 * 24 * 60 * 60 * 1000;
-}
 
 /**
  * Unified loading treatment. Previously each section rendered the moment its
@@ -214,8 +207,6 @@ export default function PastPapers() {
     "Hi! I'm looking for a past paper on Shikshaq — could you add it?"
   )}`;
 
-  const hasNewThisWeek = recentPapers.some((p) => isNewThisWeek(p.created_at));
-
   if (hasFilters) {
     return <Navigate to={`/past-papers/results?${searchParams.toString()}`} replace />;
   }
@@ -224,61 +215,100 @@ export default function PastPapers() {
     <div className="flex min-h-screen flex-col bg-background">
       <main className="flex-1">
         {/* ------------------------------------------------------------- Hero */}
-        {/* THE first fold. Graph-paper ground (device I) is the most on-theme
-            surface on the whole site — it reads as a school exercise book
-            before a single word loads. Marker-highlight (A) on the emphasised
-            phrase, SpeechTag counts (D, via PageHeader's `tags`) carrying live
-            papers/schools numbers instead of a boring subtitle line, and a
-            "New this week" starburst (C) when the data actually supports it —
-            never a fabricated claim. SearchControl stays the functional slot
-            inside the fold per the "eyecandy yet functional" ruling. */}
-        <PageHeader
-          eyebrow="Free community resource"
-          title={
-            <>
-              Past papers from{' '}
-              {/* Papers mode is indigo throughout — the marker defaults to the
-                  orange brand token, which must not appear on this page. The
-                  override is a token reference, not a literal colour. White
-                  copy on the saturated indigo, since the dark ink the orange
-                  marker uses would not clear contrast here. */}
-              <span
-                className="marker-highlight marker-highlight--pill text-white"
-                style={{ '--marker-color': 'hsl(var(--brand-blue))' } as React.CSSProperties}
-              >
-                Kolkata schools
-              </span>
-              , shared by students, for students.
-            </>
-          }
-          lede="Real question papers set by real schools. Free to read, free to search, nothing hidden."
-          tags={
-            !loading && !loadError && totalPapers != null && totalPapers > 0
-              ? [
-                  { label: `${totalPapers.toLocaleString('en-IN')} paper${totalPapers === 1 ? '' : 's'}` },
-                  ...(schoolStats.length > 0 ? [{ label: `${schoolStats.length} school${schoolStats.length === 1 ? '' : 's'}`, dotColor: 'hsl(var(--brand-blue))' }] : []),
-                ]
-              : undefined
-          }
-          badge={hasNewThisWeek ? { label: 'New this week', color: 'hsl(var(--brand-blue))' } : undefined}
-          accent="hsl(var(--brand-blue))"
-          ground="graph"
-        >
-          <SearchControl align="flex-start" stackedToggle initialMode="papers" onModeChange={handleSearchModeChange} />
+        {/* D4 "Papers library" hero: saturated indigo band with two soft
+            radial blobs, a centered Archivo-900 headline, lede, sign-in CTA,
+            and a dashed shelf tray peeking covers out of the band's bottom
+            edge. The mockup's headline ("You have 12 new papers waiting on
+            your shelf") and the streak/goal-ring pill both depend on
+            per-user data this schema does not have (no streak table, no
+            per-user new-paper count) — DROPPED per the data-honesty rule.
+            The headline instead states the one number that IS a real query
+            result: the total published paper count. */}
+        <div className="relative overflow-hidden bg-brand-blue px-4 pb-0 pt-10 sm:px-6 sm:pt-14 lg:px-8">
+          <span aria-hidden className="pointer-events-none absolute -left-10 top-5 h-[180px] w-[180px] rounded-full bg-white/[.06] sm:h-[240px] sm:w-[240px]" />
+          <span aria-hidden className="pointer-events-none absolute -right-10 top-16 h-[210px] w-[210px] rounded-full bg-white/[.06] sm:h-[280px] sm:w-[280px]" />
 
-          {/* Single consolidated stat line, kept as the functional "browse
-              everything" handoff — held back until the fetch resolves so it
-              doesn't pop in after the rest of the fold has already settled. */}
-          {!loading && !loadError && totalPapers != null && totalPapers > 0 && (
-            <button
-              onClick={() => navigate('/past-papers/results')}
-              className={`mt-6 flex min-h-11 w-fit items-center gap-2 rounded-full bg-brand-blue px-6 text-body-secondary font-semibold text-white transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
-            >
-              Browse every paper
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </button>
+          <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
+            <h1 className="font-display text-[34px] font-black leading-[.98] tracking-[-0.03em] text-white sm:text-[52px] lg:text-[74px] lg:leading-[.94]">
+              {!loading && !loadError && totalPapers != null && totalPapers > 0
+                ? <>{totalPapers.toLocaleString('en-IN')} past papers,<br />free to read</>
+                : <>Past papers from<br />Kolkata schools</>}
+            </h1>
+            <p className="mt-3 max-w-[62ch] text-[15px] leading-[1.55] text-white/[.82] sm:mt-4 sm:text-[17.5px]">
+              {schoolStats.length > 0
+                ? `From ${schoolStats.length} school${schoolStats.length === 1 ? '' : 's'} across JAC, CBSE and ICSE, classes 9 to 12. Free to read, with marking schemes where the boards publish them.`
+                : 'JAC, CBSE and ICSE, classes 9 to 12. Free to read, with marking schemes where the boards publish them.'}
+            </p>
+            {!user ? (
+              <Link
+                to="/auth"
+                className={`mt-5 flex h-[54px] min-h-11 w-fit items-center gap-2.5 rounded-full bg-warm-card px-[26px] text-[16px] font-extrabold text-brand-blue-deep transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
+              >
+                <Lock className="h-[18px] w-[18px]" strokeWidth={2.4} aria-hidden="true" />
+                Sign in free to read
+              </Link>
+            ) : (
+              <button
+                onClick={() => navigate('/past-papers/results')}
+                className={`mt-5 flex h-[54px] min-h-11 w-fit items-center gap-2.5 rounded-full bg-warm-card px-[26px] text-[16px] font-extrabold text-brand-blue-deep transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
+              >
+                Browse every paper
+                <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+
+          {/* Shelf tray: covers peeking out of the indigo band. Dashed
+              border, radius 28px on top only, no bottom border — literal
+              per D4. Falls back to nothing (not an empty dashed box) while
+              papers are still loading or the catalogue is empty. */}
+          {!loading && !loadError && recentPapers.length > 0 && (
+            <div className="relative mx-auto mt-10 max-w-[1000px] rounded-t-[28px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pt-5 sm:px-[26px] sm:pt-[26px]">
+              <div className="flex items-end justify-center gap-3 overflow-x-auto pb-0 sm:gap-[18px] sm:overflow-visible">
+                {recentPapers.slice(0, 5).map((p) => (
+                  <PaperCover
+                    key={p.id}
+                    paper={p}
+                    href={`/past-papers/${p.id}`}
+                    locked={!user}
+                    size="desktop"
+                    className="!h-[176px] !w-[128px] flex-none sm:!h-[210px] sm:!w-[150px]"
+                  />
+                ))}
+              </div>
+            </div>
           )}
-        </PageHeader>
+        </div>
+
+        {/* ------------------------------------------------------ Board tabs */}
+        {/* D4: board tabs with live counts, mirrored on mobile. Real counts
+            from boardCounts (already fetched for the By subject/board
+            toggle below) — never a placeholder. */}
+        {!loading && !loadError && featuredBoards.length > 0 && (
+          <section className={`${CONTAINER} flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border pb-3 pt-6`}>
+            {featuredBoards.map((b) => (
+              <button
+                key={b}
+                onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
+                className={`flex min-h-11 items-center gap-2 whitespace-nowrap font-display text-[17px] font-extrabold tracking-[-0.02em] text-foreground transition-colors duration-tap ease-tap hover:text-brand-blue ${FOCUS_BLUE}`}
+              >
+                {b}
+                <span className="inline-flex h-[26px] min-w-[26px] items-center justify-center rounded-full bg-brand-blue-subtle px-[9px] font-sans text-[12.5px] font-bold text-brand-blue-deep tabular-nums">
+                  {boardCounts[b]}
+                </span>
+              </button>
+            ))}
+          </section>
+        )}
+
+        {/* D4's hero drops the search bar entirely (it's a hand-off frame,
+            not a functional prototype). "Design wins, keep functionality" —
+            the filtered-search entry point is a real feature this page
+            currently exposes, so it stays, just relocated below the hero
+            instead of living inside it. */}
+        <section className={`${CONTAINER} pt-6`}>
+          <SearchControl align="flex-start" stackedToggle initialMode="papers" onModeChange={handleSearchModeChange} />
+        </section>
 
         <div className="bg-gradient-to-b from-brand-blue-subtle to-background pt-8">
           {loading && <ShelfSkeleton />}
