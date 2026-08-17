@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check, ExternalLink, Lock, Maximize2 } from 'lucide-react';
+import { ExternalLink, Lock, Maximize2 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { EmptyResults } from '@/components/EmptyResults';
@@ -9,9 +9,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
-import { saveAuthRedirect } from '@/utils/authRedirect';
 import { recordVisit } from '@/lib/recently-visited';
-import { StarburstBadge } from '@/components/devices';
+import { GateSheet } from '@/components/auth/gate-sheet';
+import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
 
 interface Paper {
   id: string;
@@ -89,6 +89,7 @@ export default function PaperReader() {
   const [siblings, setSiblings] = useState<SiblingPaper[]>([]);
   const [openedAt] = useState(() => new Date());
   const viewerRef = useRef<HTMLDivElement>(null);
+  const [gateOpen, setGateOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -168,10 +169,17 @@ export default function PaperReader() {
   const prevPaper = currentIndex > 0 ? siblings[currentIndex - 1] : null;
   const nextPaper = currentIndex >= 0 && currentIndex < siblings.length - 1 ? siblings[currentIndex + 1] : null;
 
-  function goToAuth() {
-    saveAuthRedirect(`/past-papers/${id}`);
-    navigate('/auth');
-  }
+  const signedIn = !authLoading && !!user;
+
+  // Opens the gate sheet automatically once we know the visitor is signed
+  // out and the paper metadata (not the file) has resolved — design.md §6.5:
+  // "never fetch the paper before auth". file_url only ever reaches the DOM
+  // in the `signedIn` branch below.
+  useEffect(() => {
+    if (!loading && !authLoading && paper && !signedIn) setGateOpen(true);
+    else setGateOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, authLoading, !!paper, signedIn]);
 
   function requestRemovalUrl(p: Paper): string {
     const message = `Hi! I'd like to request removal of a paper on Shikshaq: "${p.title}" (${p.school}, ${p.subject} Class ${p.class} ${p.board}, ${p.year}). Paper ID: ${p.id}.`;
@@ -179,7 +187,6 @@ export default function PaperReader() {
   }
 
   const colors = paper ? getSubjectPalette(paper.subject) : null;
-  const signedIn = !authLoading && !!user;
 
   // ---------------- Loading shell ----------------
   if (loading || authLoading) {
@@ -205,7 +212,7 @@ export default function PaperReader() {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
-        <main className={`flex-1 ${CONTAINER} pb-16 pt-7`}>
+        <main className={`flex-1 ${CONTAINER} pb-16 pt-8`}>
           <Link
             to="/past-papers"
             className="mb-[18px] inline-flex min-h-11 items-center text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -278,17 +285,9 @@ export default function PaperReader() {
       </div>
 
       <main className={`flex-1 ${CONTAINER} pb-16 pt-6`}>
-        <div className="rounded-lg bg-muted px-4 py-3 text-body-secondary text-warm-prose">
-          This paper is the property of {paper.school}. Shikshaq claims no ownership and hosts it as a free community resource.{' '}
-          <a
-            href={requestRemovalUrl(paper)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-brand-blue-deep underline"
-          >
-            Request removal
-          </a>
-        </div>
+        {/* F4 — permanent strip under the header, regardless of sign-in state.
+            School name is per-paper data, never static copy. */}
+        <DisclaimerStrip school={paper.school} reportHref={requestRemovalUrl(paper)} />
 
         {/* Only true once there IS an account to watermark with — this used to
             render for signed-out visitors too, where it was simply false. */}
@@ -376,70 +375,36 @@ export default function PaperReader() {
                 </div>
               )
             ) : (
-              // Signed-out: no file_url ever reaches the DOM here.
-              // LOUD moment (VISUAL_DIRECTION §4) — nothing is being compared,
-              // the student is stuck, and this is the one screen on the papers
-              // surface where the design has to actually persuade. Thick
-              // outline + offset shadow + halftone + a pinned sticker, and the
-              // reason stated plainly instead of a bare wall.
-              <div className="halftone-overlay-strong relative overflow-hidden bg-brand-blue-subtle px-4 pb-12 pt-12 sm:px-8">
-                <div className="pointer-events-none absolute right-4 top-2 sm:right-8">
-                  <StarburstBadge variant="burst" color="hsl(var(--brand))" tilt={8} size={72}>
-                    Free
-                  </StarburstBadge>
+              // Signed-out: no file_url ever reaches the DOM here. design.md
+              // §6.5 — the gate is a bottom sheet over a BLURRED page, not a
+              // full inline wall. This is the blurred page: real paper meta
+              // (title/subject/school), no PDF, `select-none` + blur so
+              // nothing behind the sheet is actually readable.
+              <div className="relative overflow-hidden rounded-2xl">
+                <div aria-hidden className="pointer-events-none select-none blur-md" style={{ backgroundColor: colors?.tint }}>
+                  <div className="flex h-[60dvh] min-h-80 flex-col justify-end p-6 sm:p-12">
+                    <span
+                      className="mb-3 inline-flex w-fit items-center rounded-full px-3 py-1 text-label font-bold uppercase"
+                      style={{ backgroundColor: colors?.solid, color: colors?.badgeText }}
+                    >
+                      {paper.subject}
+                    </span>
+                    <span className="block h-6 w-3/4 rounded bg-foreground/10" />
+                    <span className="mt-3 block h-4 w-1/2 rounded bg-foreground/10" />
+                    <span className="mt-8 block h-3 w-full rounded bg-foreground/10" />
+                    <span className="mt-2 block h-3 w-full rounded bg-foreground/10" />
+                    <span className="mt-2 block h-3 w-2/3 rounded bg-foreground/10" />
+                  </div>
                 </div>
 
-                <div className="outline-thick outline-offset-shadow mx-auto max-w-2xl rounded-2xl bg-card p-6 text-center sm:p-12">
-                  <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-blue">
-                    <Lock className="h-8 w-8 text-white" strokeWidth={2} aria-hidden="true" />
-                  </span>
-
-                  <h2 className="text-page-title font-display font-black text-foreground">
-                    One <span className="marker-highlight marker-highlight--pill">free account</span>,<br />the whole collection.
-                  </h2>
-
-                  <p className="mx-auto mt-4 max-w-prose text-lede text-warm-prose">
-                    We ask for an account so every paper can be attributed to the student who shared it, and so we
-                    can stop anyone bulk-copying the collection. That's the whole reason. It's free and takes a minute.
-                  </p>
-
-                  {/* Concrete, checkable specifics beat an abstract pitch —
-                      all three are facts about this exact paper. */}
-                  <ul className="mx-auto mt-6 grid max-w-md gap-2 text-left">
-                    {[
-                      `${paper.subject}, Class ${paper.class} ${paper.board} — ${paper.school}`,
-                      `${paper.exam_type} ${paper.year}, as it was actually set`,
-                      'Free forever, no card, no charge per paper',
-                    ].map((line) => (
-                      <li key={line} className="flex items-start gap-3 rounded-lg bg-muted px-4 py-3 text-body-secondary text-foreground">
-                        <Check className="mt-1 h-4 w-4 flex-none text-brand-blue" strokeWidth={3} aria-hidden="true" />
-                        <span className="break-words">{line}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* One primary action (§7); "Create an account" is the same
-                      destination and stays visually quieter. */}
-                  <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
-                    <button
-                      onClick={goToAuth}
-                      className={`flex min-h-12 items-center justify-center rounded-full bg-brand-blue px-8 text-body font-semibold text-white transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS}`}
-                    >
-                      Sign in to read this paper
-                    </button>
-                    <button
-                      onClick={goToAuth}
-                      className={`flex min-h-12 items-center justify-center rounded-full bg-muted px-8 text-body font-semibold text-foreground transition-colors duration-tap ease-tap hover:bg-border active:scale-[0.97] ${FOCUS}`}
-                    >
-                      Create an account
-                    </button>
-                  </div>
-
+                <div className="absolute inset-0 flex items-center justify-center bg-foreground/10 p-4">
                   <button
-                    onClick={() => navigate('/past-papers')}
-                    className={`mt-6 inline-flex min-h-11 items-center rounded-lg px-3 text-body-secondary font-semibold text-brand-blue-deep underline transition-colors duration-tap ease-tap hover:text-foreground ${FOCUS}`}
+                    type="button"
+                    onClick={() => setGateOpen(true)}
+                    className={`flex min-h-12 items-center gap-2 rounded-full bg-brand-blue px-8 text-body font-semibold text-white shadow-glow-brand-blue transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS}`}
                   >
-                    Keep browsing papers instead
+                    <Lock className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
+                    Sign in to read this paper
                   </button>
                 </div>
               </div>
@@ -486,6 +451,13 @@ export default function PaperReader() {
       </main>
 
       <div className="pr-hide-print"><Footer /></div>
+
+      <GateSheet
+        open={gateOpen}
+        onOpenChange={setGateOpen}
+        redirectTo={`/past-papers/${id}`}
+        flavor="papers"
+      />
 
       <style>{`
         @media print {

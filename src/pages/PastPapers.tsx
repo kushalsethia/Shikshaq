@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Users } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { SearchControl } from '@/components/SearchControl';
 import { Footer } from '@/components/Footer';
-import { PaperCard } from '@/components/PaperCard';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +11,8 @@ import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
 import { getSubjectPalette, paletteFromSeed, SUBJECT_SEEDS } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { PageHeader, PillRow } from '@/components/devices';
+import { useAuth } from '@/lib/auth-context';
+import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
 
 // Cycled (not hashed) for pure visual variety across the class/board pill
 // walls — these are not subject-coded lists, so there's no "correct" mapping
@@ -115,6 +116,7 @@ export default function PastPapers() {
   );
 
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [schoolStats, setSchoolStats] = useState<SchoolStat[]>([]);
   const [recentPapers, setRecentPapers] = useState<Paper[]>([]);
@@ -261,7 +263,7 @@ export default function PastPapers() {
           {!loading && !loadError && totalPapers != null && totalPapers > 0 && (
             <button
               onClick={() => navigate('/past-papers/results')}
-              className={`mt-6 flex min-h-11 w-fit items-center gap-2 rounded-full bg-brand-blue px-5 text-body-secondary font-semibold text-white transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
+              className={`mt-6 flex min-h-11 w-fit items-center gap-2 rounded-full bg-brand-blue px-6 text-body-secondary font-semibold text-white transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
             >
               Browse every paper
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -273,16 +275,34 @@ export default function PastPapers() {
           {loading && <ShelfSkeleton />}
 
           {/* ----------------------------------------------------- Recently added */}
+          {/* C-055: papers as objects standing on a shelf ledge, not a row of
+              cards — PaperCover (C2) + ShelfLedge (C4). Locked covers (26px
+              lock disc) when signed out, per design.md §6.5: browsing is
+              open, opening is not. */}
           {!loading && !loadError && recentPapers.length > 0 && (
             <section className={`${CONTAINER} pb-12`}>
-              <h2 className="mb-6 text-section-head font-display font-bold">Recently added</h2>
-              <div className="stagger-children -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-6 scrollbar-hide sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
-                {recentPapers.map((p) => (
-                  <div key={p.id} className="w-64 flex-none animate-card-reveal snap-start motion-reduce:animate-none sm:w-auto">
-                    <PaperCard paper={p} variant="recent" sticker={isNewThisWeek(p.created_at) ? 'New this week' : undefined} />
-                  </div>
-                ))}
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-section-head font-display font-bold">Recently added</h2>
+                {!user && (
+                  <Link
+                    to="/auth"
+                    className={`flex min-h-11 items-center rounded-full bg-brand-blue-subtle px-4 text-body-secondary font-semibold text-brand-blue-deep transition-colors duration-tap ease-tap hover:bg-brand-blue/20 ${FOCUS_BLUE}`}
+                  >
+                    Sign in to read
+                  </Link>
+                )}
               </div>
+              <ShelfLedge>
+                {recentPapers.map((p) => (
+                  <PaperCover
+                    key={p.id}
+                    paper={p}
+                    href={`/past-papers/${p.id}`}
+                    locked={!user}
+                    className="animate-card-reveal motion-reduce:animate-none"
+                  />
+                ))}
+              </ShelfLedge>
             </section>
           )}
 

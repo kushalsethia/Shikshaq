@@ -3,13 +3,14 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUp, FileText } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { PaperCard } from '@/components/PaperCard';
+import { PaperSheetCard } from '@/components/papers/paper-sheet-card';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { PageHeader } from '@/components/devices';
+import { useAuth } from '@/lib/auth-context';
 
 interface Paper {
   id: string;
@@ -44,6 +45,7 @@ function sanitizeForIlike(value: string): string {
 
 export default function PaperResults() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const q = searchParams.get('q') || '';
@@ -306,7 +308,7 @@ export default function PaperResults() {
               <div className="stagger-children grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                 {papers.map((p) => (
                   <div key={p.id} className="animate-card-reveal motion-reduce:animate-none">
-                    <PaperCard paper={p} variant="result" />
+                    <PaperSheetCard paper={p} locked={!user} />
                   </div>
                 ))}
               </div>

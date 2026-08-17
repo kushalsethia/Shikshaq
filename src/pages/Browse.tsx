@@ -1451,48 +1451,21 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
   // `getSubjectPalette` already degrades unknown subjects to a legible neutral
   // (never grey-on-grey), so subjects outside the 8 seeds — e.g. Bengali — still
   // read as intentional rather than broken.
+  // pageContext (SubjectPage/BoardPage) still drives a themed accent used on
+  // the h1's sub-line for the ~35 SEO routes, so they keep reading as
+  // bespoke even though the control block itself is the standard near-black
+  // (design.md §1 control block is one fixed treatment, not per-route).
   const subjectPaletteForContext = pageContext?.kind === 'subject' ? getSubjectPalette(pageContext.label) : null;
-  const headerAccent = subjectPaletteForContext?.solid ?? (pageContext?.kind === 'board' ? 'hsl(var(--brand-blue))' : 'hsl(var(--brand))');
-  const headerBandText = subjectPaletteForContext?.badgeText ?? '#FFFFFF';
-  const headerEyebrow = pageContext ? (pageContext.kind === 'subject' ? 'Subject' : 'Board') : 'Directory';
-  const headerTitle = pageContext ? (
-    pageContext.kind === 'subject' ? (
-      <>
-        Find{' '}
-        <span className="marker-highlight marker-highlight--pill" style={{ '--marker-color': headerAccent } as CSSProperties}>
-          {pageContext.label}
-        </span>{' '}
-        teachers in Kolkata
-      </>
-    ) : (
-      <>
-        <span className="marker-highlight marker-highlight--pill" style={{ '--marker-color': headerAccent } as CSSProperties}>
-          {pageContext.label}
-        </span>{' '}
-        tuition teachers in Kolkata
-      </>
-    )
-  ) : (
-    <>
-      Find your{' '}
-      <span className="marker-highlight marker-highlight--pill" style={{ '--marker-color': headerAccent } as CSSProperties}>
-        tuition teacher
-      </span>
-    </>
-  );
-  // Search/filters in progress get the exact, precise heading instead of the
-  // decorative templated one — the loud fold is for arriving, not for reading
-  // narrowed-down results (VISUAL_DIRECTION.md §4's "crisp where comparing").
-  const finalHeaderTitle = isDefaultView ? headerTitle : getHeading();
-  const headerLede = pageContext
+  const headerAccent = subjectPaletteForContext?.solid ?? (pageContext?.kind === 'board' ? 'hsl(var(--brand-blue))' : null);
+  // getHeading() already gives the exact, precise "All {subject} teachers in
+  // Kolkata"-style heading pageContext needs; the h1 below uses the real
+  // count instead (design.md's binding Browse spec), so pageContext's
+  // heading text becomes the sub-line, not a separate templated title.
+  const pageContextLine = pageContext
     ? pageContext.kind === 'subject'
-      ? `Verified ${pageContext.label} tutors across every board and class. Message directly on WhatsApp — no commission, no middlemen.`
-      : `Verified tutors experienced with the ${pageContext.label} curriculum, across every subject and class. Message directly, no commission.`
-    : 'Verified tutors across every subject, board and class in Kolkata. Message directly on WhatsApp — no commission, no middlemen.';
-  const headerTags = [
-    { label: `${loading ? '…' : teachers.length} teacher${teachers.length === 1 ? '' : 's'} match`, dotColor: headerAccent },
-    { label: 'CBSE · ICSE · IGCSE · IB · State' },
-  ];
+      ? `${pageContext.label} teachers`
+      : `${pageContext.label} board`
+    : null;
 
   // Sub-line under the h1 -- copy.md Section 4 gives "Maths . Class 10 . within
   // 5 km of Lalpur" as an illustrative example; there is no real distance/radius
@@ -1502,7 +1475,7 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
   const activeSubjectLabel = quickPickSubjectName || filters.subjects[0] || null;
   const activeClassLabel = quickPickClassValue ? `Class ${quickPickClassValue}` : filters.classes[0] ? `Class ${filters.classes[0]}` : null;
   const activeAreaLabel = filters.areas[0] || null;
-  const subLineParts = [activeSubjectLabel, activeClassLabel, activeAreaLabel].filter(Boolean) as string[];
+  const subLineParts = [pageContextLine, activeSubjectLabel, activeClassLabel, activeAreaLabel].filter(Boolean) as string[];
   const resultCountLabel = loading ? '...' : teachers.length;
   const sortPills: { value: string; label: string }[] = [
     { value: 'upvotes', label: 'Most upvoted' },
@@ -1534,7 +1507,12 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
           {resultCountLabel} teacher{teachers.length === 1 ? '' : 's'}
         </h1>
         {subLineParts.length > 0 && (
-          <p className="mt-1 text-body-secondary text-white/70">{subLineParts.join(' · ')}</p>
+          <p
+            className="mt-1 text-body-secondary text-white/70"
+            style={headerAccent ? { color: headerAccent } : undefined}
+          >
+            {subLineParts.join(' · ')}
+          </p>
         )}
 
         {!loading && resultsTruncated && (
@@ -1550,7 +1528,7 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
         {/* Subject quick-picks -- default view only. Restrained tint/text
             pairing so ten hues side by side don't read as candy. */}
         {isDefaultView && sortedSubjectsForDisplay.length > 0 && (
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             {sortedSubjectsForDisplay.slice(0, 10).map((subject) => {
               const palette = getSubjectPalette(subject.name);
               return (
@@ -1720,7 +1698,7 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
 
               {/* Page size 24, explicit "Load more" -- never infinite scroll. */}
               {hasMore ? (
-                <div className="mt-7 flex justify-center">
+                <div className="mt-8 flex justify-center">
                   <Button variant="muted" size={46} onClick={handleLoadMore}>
                     Load more
                   </Button>

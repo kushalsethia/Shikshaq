@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import type { LucideIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Heart, ArrowUp, Clock, Wallet, Users, ShieldCheck, Lock } from 'lucide-react';
+import { Heart, Share2, ArrowLeft, Clock, Wallet, Users, ShieldCheck } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
@@ -16,10 +15,15 @@ import { getSubjectPalette } from '@/lib/subject-palette';
 import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey } from '@/utils/cache';
 import DOMPurify from 'dompurify';
 import { validateImageSrc } from '@/utils/imageSanitizer';
-import { saveAuthRedirect } from '@/utils/authRedirect';
 import { recordVisit } from '@/lib/recently-visited';
 import { TeacherComments } from '@/components/TeacherComments';
-import { CutPaperShape, SpeechTag } from '@/components/devices';
+import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
+import { Button } from '@/components/ui/button';
+import { PreFooter } from '@/components/layout/PreFooter';
+import { BottomNavSpacer } from '@/components/layout/PageContainer';
+import { SignInSheet } from '@/components/SignInSheet';
+import { toast } from 'sonner';
+import { BROWSE_PATH } from '@/lib/nav-config';
 import {
   generateTeacherPersonSchema,
   generateBreadcrumbSchema,
@@ -37,33 +41,32 @@ interface Teacher {
   whatsapp_number: string | null;
   is_verified: boolean;
   subjects: { name: string; slug: string } | null;
-  subjects_text?: string | null; // The subjects text field from teachers_list
-  subjects_from_shikshaq?: string | null; // The "Subjects" field from Shikshaqmine table
-  classes?: string | null; // The classes text field from teachers_list
-  classes_taught?: string | null; // The "Classes Taught" field from Shikshaqmine table
-  classes_taught_for_backend?: string | null; // The "Classes Taught for Backend" field from Shikshaqmine table
-  sir_maam?: string | null; // The "Sir/Ma'am?" field from Shikshaqmine table
-  area?: string | null; // The "Area" field from Shikshaqmine table
-  boards_taught?: string | null; // The "School Boards Catered" field from Shikshaqmine table
-  class_size?: string | null; // The "Class Size (Group/ Solo)" field from Shikshaqmine table
-  mode_of_teaching?: string | null; // The "Mode of Teaching" field from Shikshaqmine table
-  place_of_teaching?: string | null; // The "Place of Teaching" field from Shikshaqmine table (auto-computed from Location V2)
-  location_v2?: string | null; // The "Location V2" field from Shikshaqmine table
-  students_home_areas?: string | null; // The "student's home in these areas" field from Shikshaqmine table
-  tutors_home_areas?: string | null; // The "Tutor's home in these areas" field from Shikshaqmine table
-  expanded?: string | null; // The "EXPANDED" field from Shikshaqmine table
-  description?: string | null; // The "Description" field from Shikshaqmine table
-  qualifications_etc?: string | null; // The "Qualifications etc" field from Shikshaqmine table
-  teaching_since?: string | null; // The "Years they started teaching" field from Shikshaqmine table
-  review_1?: string | null; // The "Review 1" field from Shikshaqmine table
-  review_2?: string | null; // The "Review 2" field from Shikshaqmine table
-  review_3?: string | null; // The "Review 3" field from Shikshaqmine table
-  whatsapp_link?: string | null; // The "Link" field from Shikshaqmine table
-  min_fees?: number | null; // The "Min Fees" field from Shikshaqmine table
-  max_fees?: number | null; // The "Max Fees" field from Shikshaqmine table
+  subjects_text?: string | null;
+  subjects_from_shikshaq?: string | null;
+  classes?: string | null;
+  classes_taught?: string | null;
+  classes_taught_for_backend?: string | null;
+  sir_maam?: string | null;
+  area?: string | null;
+  boards_taught?: string | null;
+  class_size?: string | null;
+  mode_of_teaching?: string | null;
+  place_of_teaching?: string | null;
+  location_v2?: string | null;
+  students_home_areas?: string | null;
+  tutors_home_areas?: string | null;
+  expanded?: string | null;
+  description?: string | null;
+  qualifications_etc?: string | null;
+  teaching_since?: string | null;
+  review_1?: string | null;
+  review_2?: string | null;
+  review_3?: string | null;
+  whatsapp_link?: string | null;
+  min_fees?: number | null;
+  max_fees?: number | null;
 }
 
-// "{name}, {honorific}" per pages/TeacherProfile.md's h1 spec (same honorific rule as TeacherCard).
 function formatDisplayName(name: string, sirMaam?: string | null): string {
   if (!sirMaam) return name;
   const lower = String(sirMaam).toLowerCase().trim();
@@ -78,8 +81,6 @@ function parseCommaList(value: string | null | undefined): string[] {
   return value.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
-// "Where they teach" pills: merges student's-home and tutor's-home areas depending on which
-// modes location_v2 flags, deduped. No sub-labels — the page spec has one flat pill list.
 function getTaughtAreas(teacher: Teacher): string[] {
   const locationV2 = teacher.location_v2;
   if (!locationV2) return [];
@@ -93,9 +94,7 @@ function getTaughtAreas(teacher: Teacher): string[] {
   return Array.from(new Set([...studentsAreas, ...tutorsAreas]));
 }
 
-// Subject tag — subject-tinted per VISUAL_LANGUAGE §3, via getSubjectPalette (the sanctioned
-// inline-style exception for dynamic, data-driven subject color).
-function SubjectTag({ label }: { label: string }) {
+function SubjectPill({ label }: { label: string }) {
   const palette = getSubjectPalette(label);
   return (
     <span
@@ -107,12 +106,8 @@ function SubjectTag({ label }: { label: string }) {
   );
 }
 
-// Board / area tags — fixed mode colors (brand-blue for boards, brand for area), token classes only.
-function ModeTag({ label, variant }: { label: string; variant: 'blue' | 'brand' }) {
-  const classes =
-    variant === 'blue'
-      ? 'bg-brand-blue-subtle text-brand-blue-deep'
-      : 'bg-brand-subtle text-brand-deep';
+function TagPill({ label, variant }: { label: string; variant: 'blue' | 'brand' }) {
+  const classes = variant === 'blue' ? 'bg-brand-blue-subtle text-brand-blue-deep' : 'bg-brand-subtle text-brand-deep';
   return (
     <span className={`animate-pop inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold ${classes}`}>
       {label}
@@ -120,8 +115,15 @@ function ModeTag({ label, variant }: { label: string; variant: 'blue' | 'brand' 
   );
 }
 
-// Cluster D — editorial data-viz: big honest tabular numbers, no chartjunk.
-function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+function SpeechChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="animate-pop inline-flex items-center rounded-full bg-card/90 px-3 py-1.5 text-xs font-semibold text-foreground shadow-border backdrop-blur-sm">
+      {children}
+    </span>
+  );
+}
+
+function StatTile({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: string }) {
   return (
     <div className="animate-card-reveal rounded-2xl bg-card p-4 shadow-border">
       <div className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-warm-meta">
@@ -134,9 +136,6 @@ function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
-  // mt-6 (was mt-8) — teacher profiles stack many blocks (subjects, review, areas,
-  // testimonials) and the extra 8px per gap compounded into visibly loose rhythm
-  // by the time you scroll past 4-5 sections. Tightened per owner's spacing note.
   return <h2 className="mt-6 mb-3 text-lg font-semibold text-foreground">{children}</h2>;
 }
 
@@ -149,25 +148,23 @@ export default function TeacherProfile() {
   const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
   const navigate = useNavigate();
   const location = useLocation();
-  // Tracks whether the primary WhatsApp CTA panel is on-screen, so a floating
-  // mobile CTA can take over once it scrolls out of view — the single success
-  // action for the whole product must stay reachable the entire scroll (task #1).
   const [primaryCtaVisible, setPrimaryCtaVisible] = useState(true);
   const primaryCtaRef = useRef<HTMLDivElement>(null);
+  // design.md §3 — WhatsApp / save taps while signed out open a soft sheet,
+  // never a route change; after auth the visitor continues to what they tapped.
+  const [signInSheetOpen, setSignInSheetOpen] = useState(false);
+  const [signInIntent, setSignInIntent] = useState<'message' | 'save'>('message');
 
-  // Redirects to role selection / teacher terms agreement when needed.
   useRequireRole();
 
   useEffect(() => {
     async function fetchTeacher() {
       if (!slug) return;
 
-      // Check cache for teacher profile
       const teacherCacheKey = getTeacherProfileCacheKey(slug);
       let teacherData = getCache<any>(teacherCacheKey);
 
       if (!teacherData) {
-        // Fetch teacher from teachers_list
         const { data } = await supabase
           .from('teachers_list')
           .select('*, subjects(name, slug)')
@@ -176,12 +173,10 @@ export default function TeacherProfile() {
 
         if (data) {
           teacherData = data;
-          // Cache teacher profile
           setCache(teacherCacheKey, teacherData, CACHE_TTL.TEACHER_PROFILE);
         }
       }
 
-      // Fetch all data from Shikshaqmine table
       let sirMaam = null;
       let subjectsFromShikshaq = null;
       let classesTaught = null;
@@ -207,7 +202,6 @@ export default function TeacherProfile() {
       let shikshaqData: any = null;
       if (teacherData) {
         try {
-          // Check cache for Shikshaqmine data
           const shikshaqCacheKey = getShikshaqmineBySlugCacheKey(slug);
           shikshaqData = getCache<any>(shikshaqCacheKey);
 
@@ -224,39 +218,38 @@ export default function TeacherProfile() {
               }
             } else if (data) {
               shikshaqData = data;
-              // Cache Shikshaqmine data
               setCache(shikshaqCacheKey, shikshaqData, CACHE_TTL.SHIKSHAQMINE);
             }
           }
 
           if (shikshaqData) {
-            // Access the columns with special characters
             sirMaam = (shikshaqData as any)["Sir/Ma'am?"];
-            subjectsFromShikshaq = (shikshaqData as any)["Subjects"];
-            classesTaught = (shikshaqData as any)["Classes Taught"];
-            classesTaughtForBackend = (shikshaqData as any)["Classes Taught for Backend"];
-            area = (shikshaqData as any)["Area"];
-            boardsTaught = (shikshaqData as any)["School Boards Catered"];
-            classSize = (shikshaqData as any)["Class Size (Group/ Solo)"];
-            modeOfTeaching = (shikshaqData as any)["Mode of Teaching"];
-            placeOfTeaching = (shikshaqData as any)["Place of Teaching"];
-            locationV2 = (shikshaqData as any)["LOCATION V2"] || (shikshaqData as any)["Location V2"] || (shikshaqData as any)["location_v2"];
-            studentsHomeAreas = (shikshaqData as any)["STUDENT'S HOME IN THESE AREAS"] || (shikshaqData as any)["student's home in these areas"] || (shikshaqData as any)["Student's home in these areas"];
+            subjectsFromShikshaq = (shikshaqData as any)['Subjects'];
+            classesTaught = (shikshaqData as any)['Classes Taught'];
+            classesTaughtForBackend = (shikshaqData as any)['Classes Taught for Backend'];
+            area = (shikshaqData as any)['Area'];
+            boardsTaught = (shikshaqData as any)['School Boards Catered'];
+            classSize = (shikshaqData as any)['Class Size (Group/ Solo)'];
+            modeOfTeaching = (shikshaqData as any)['Mode of Teaching'];
+            placeOfTeaching = (shikshaqData as any)['Place of Teaching'];
+            locationV2 = (shikshaqData as any)['LOCATION V2'] || (shikshaqData as any)['Location V2'] || (shikshaqData as any)['location_v2'];
+            studentsHomeAreas =
+              (shikshaqData as any)["STUDENT'S HOME IN THESE AREAS"] ||
+              (shikshaqData as any)["student's home in these areas"] ||
+              (shikshaqData as any)["Student's home in these areas"];
             tutorsHomeAreas = (shikshaqData as any)["TUTOR'S HOME IN THESE AREAS"] || (shikshaqData as any)["Tutor's home in these areas"];
-            expanded = (shikshaqData as any)["EXPANDED"] || (shikshaqData as any)["Expanded"] || (shikshaqData as any)["expanded"];
-            description = (shikshaqData as any)["Description"];
-            qualificationsEtc = (shikshaqData as any)["Qualifications etc"];
-            teachingSinceRaw = (shikshaqData as any)["Years they started teaching"] ?? null;
-            review1 = (shikshaqData as any)["Review 1"];
-            review2 = (shikshaqData as any)["Review 2"];
-            review3 = (shikshaqData as any)["Review 3"];
-            whatsappLink = (shikshaqData as any)["Link"] || (shikshaqData as any)["link"];
-            // Fees - INTEGER columns from Supabase
-            const minFeesRaw = (shikshaqData as any)["Min Fees"];
-            const maxFeesRaw = (shikshaqData as any)["Max Fees"];
-            // Convert to number if not null/undefined, preserve 0 values
-            minFees = (minFeesRaw != null && minFeesRaw !== undefined) ? Number(minFeesRaw) : null;
-            maxFees = (maxFeesRaw != null && maxFeesRaw !== undefined) ? Number(maxFeesRaw) : null;
+            expanded = (shikshaqData as any)['EXPANDED'] || (shikshaqData as any)['Expanded'] || (shikshaqData as any)['expanded'];
+            description = (shikshaqData as any)['Description'];
+            qualificationsEtc = (shikshaqData as any)['Qualifications etc'];
+            teachingSinceRaw = (shikshaqData as any)['Years they started teaching'] ?? null;
+            review1 = (shikshaqData as any)['Review 1'];
+            review2 = (shikshaqData as any)['Review 2'];
+            review3 = (shikshaqData as any)['Review 3'];
+            whatsappLink = (shikshaqData as any)['Link'] || (shikshaqData as any)['link'];
+            const minFeesRaw = (shikshaqData as any)['Min Fees'];
+            const maxFeesRaw = (shikshaqData as any)['Max Fees'];
+            minFees = minFeesRaw != null && minFeesRaw !== undefined ? Number(minFeesRaw) : null;
+            maxFees = maxFeesRaw != null && maxFeesRaw !== undefined ? Number(maxFeesRaw) : null;
           }
         } catch (err) {
           if (import.meta.env.DEV) {
@@ -266,7 +259,6 @@ export default function TeacherProfile() {
       }
 
       if (teacherData) {
-        // Add all the data to the teacher object
         setTeacher({
           ...teacherData,
           sir_maam: sirMaam,
@@ -299,21 +291,34 @@ export default function TeacherProfile() {
     fetchTeacher();
   }, [slug]);
 
-  // Observe the primary CTA panel so the floating mobile CTA only appears
-  // once the "real" one has scrolled out of view (not on top of it).
+  // Auto-continue after sign-in — see handleWhatsAppClick's sessionStorage flag.
+  useEffect(() => {
+    if (!user || !teacher) return;
+    let pending: string | null = null;
+    try {
+      pending = sessionStorage.getItem('shikshaq_pending_whatsapp');
+    } catch {
+      return;
+    }
+    if (pending && pending === teacher.slug) {
+      try {
+        sessionStorage.removeItem('shikshaq_pending_whatsapp');
+      } catch {
+        /* ok */
+      }
+      const url = resolveTeacherWhatsAppUrl(teacher.whatsapp_link);
+      navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, { state: { url, name: teacher.name } });
+    }
+  }, [user, teacher]);
+
   useEffect(() => {
     const node = primaryCtaRef.current;
     if (!node) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setPrimaryCtaVisible(entry.isIntersecting),
-      { threshold: 0 }
-    );
+    const observer = new IntersectionObserver(([entry]) => setPrimaryCtaVisible(entry.isIntersecting), { threshold: 0 });
     observer.observe(node);
     return () => observer.disconnect();
   }, [teacher?.id]);
 
-  // Record this visit for the home page's "Recently visited" section
-  // (device-local only, see src/lib/recently-visited.ts).
   useEffect(() => {
     if (!teacher || !teacher.slug) return;
     recordVisit({
@@ -325,19 +330,17 @@ export default function TeacherProfile() {
     });
   }, [teacher?.id]);
 
-  // Add teacher profile JSON-LD structured data
   useEffect(() => {
     if (!teacher || !teacher.slug) return;
     let cancelled = false;
 
-    // Helper function to convert comma-separated string to array
     const toArray = (value: string | null | undefined): string[] => {
       if (!value || typeof value !== 'string') return [];
-      return value.split(',').map(s => s.trim()).filter(Boolean);
+      return value.split(',').map((s) => s.trim()).filter(Boolean);
     };
 
-    // Get subject slug for breadcrumb
-    const subjectSlug = teacher.subjects?.slug ||
+    const subjectSlug =
+      teacher.subjects?.slug ||
       (teacher.subjects_from_shikshaq
         ? teacher.subjects_from_shikshaq.toLowerCase().replace(/\s+/g, '-').split(',')[0].trim()
         : null);
@@ -353,7 +356,6 @@ export default function TeacherProfile() {
     const classesTaught = teacher.classes_taught_for_backend ? toArray(teacher.classes_taught_for_backend) : [];
     const qualifications = teacher.qualifications_etc || null;
 
-    // Person schema (basic info)
     const personSchema = generateTeacherPersonSchema({
       url: teacherUrl,
       name: teacherName,
@@ -365,7 +367,6 @@ export default function TeacherProfile() {
       classesTaught,
     });
 
-    // BreadcrumbList schema
     const breadcrumbItems = [
       { name: 'Home', url: 'https://www.shikshaq.in' },
       { name: 'Tuition Teachers', url: 'https://www.shikshaq.in/all-tuition-teachers-in-kolkata' },
@@ -388,11 +389,7 @@ export default function TeacherProfile() {
     document.head.appendChild(breadcrumbScript);
 
     // Reviews: sourced from `teacher_comments` — the real, user-submitted,
-    // moderated reviews (same table TeacherComments renders on-page) — rather
-    // than the legacy `Shikshaqmine.review_1/2/3` columns, which are static
-    // imported text with no moderation trail. Only approved comments are
-    // eligible (RLS also enforces this for the anon client), and no rating is
-    // ever attached — see generatePersonReviewSchema for why.
+    // moderated reviews — never a fabricated rating (O-02 is unresolved).
     (async () => {
       const { data: comments } = await supabase
         .from('teacher_comments')
@@ -421,19 +418,14 @@ export default function TeacherProfile() {
       }
     })();
 
-    // Cleanup: remove scripts when component unmounts or teacher changes
     return () => {
       cancelled = true;
-      const existingPerson = document.getElementById('teacher-profile-person-schema');
-      const existingBreadcrumb = document.getElementById('teacher-profile-breadcrumb-schema');
-      const existingReviews = document.getElementById('teacher-profile-reviews-schema');
-      if (existingPerson) existingPerson.remove();
-      if (existingBreadcrumb) existingBreadcrumb.remove();
-      if (existingReviews) existingReviews.remove();
+      document.getElementById('teacher-profile-person-schema')?.remove();
+      document.getElementById('teacher-profile-breadcrumb-schema')?.remove();
+      document.getElementById('teacher-profile-reviews-schema')?.remove();
     };
   }, [teacher]);
 
-  // Title/description — canonical is handled globally by <CanonicalTag> in App.tsx.
   const getMetaValue = (value: string | null | undefined, fallback = '') => value || fallback;
   const metaSubjects = getMetaValue(teacher?.subjects_from_shikshaq || teacher?.subjects?.name, 'subjects');
   const metaClasses = getMetaValue(teacher?.classes_taught || teacher?.classes_taught_for_backend, 'classes');
@@ -456,35 +448,23 @@ export default function TeacherProfile() {
 
   usePageMeta(pageTitle, pageDescription);
 
-  const backHref = (location.state as { fromBrowse?: string })?.fromBrowse ?? '/all-tuition-teachers-in-kolkata';
+  const backHref = (location.state as { fromBrowse?: string })?.fromBrowse ?? BROWSE_PATH;
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
+        <div className="h-[280px] w-full animate-shimmer bg-muted" />
         <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
-          <div className="mb-5 h-4 w-32 animate-shimmer rounded-lg bg-muted" />
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-            <div>
-              <div className="aspect-[4/5] animate-shimmer rounded-2xl bg-muted" />
-              <div className="mt-3.5 flex gap-2">
-                <div className="h-11 flex-1 animate-shimmer rounded-lg bg-muted" />
-                <div className="h-11 flex-1 animate-shimmer rounded-lg bg-muted" />
-              </div>
-            </div>
-            <div>
-              <div className="h-10 w-2/3 animate-shimmer rounded-lg bg-muted" />
-              <div className="mt-4 flex gap-2">
-                <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
-                <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
-                <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
-              </div>
-              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
-                <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
-                <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
-              </div>
-            </div>
+          <div className="h-8 w-2/3 animate-shimmer rounded-lg bg-muted" />
+          <div className="mt-4 flex gap-2">
+            <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
+            <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
+          </div>
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
+            <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
+            <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
           </div>
         </main>
         <Footer />
@@ -498,30 +478,25 @@ export default function TeacherProfile() {
         <Navbar />
         <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 text-center sm:px-6 sm:py-8 lg:px-8">
           <h1 className="mb-4 text-3xl font-semibold tracking-tight sm:text-4xl">Teacher not found</h1>
-          <p className="mb-6 text-sm text-muted-foreground">
-            The teacher you're looking for doesn't exist or has been removed.
-          </p>
-          <Link
-            to="/all-tuition-teachers-in-kolkata"
-            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          >
-            Browse all teachers
-          </Link>
+          <p className="mb-6 text-sm text-muted-foreground">The teacher you're looking for doesn't exist or has been removed.</p>
+          <Button asChild variant="primary" size={44}>
+            <Link to={BROWSE_PATH}>Browse all teachers</Link>
+          </Button>
         </main>
         <Footer />
       </div>
     );
   }
 
-  const requireAuth = () => {
-    saveAuthRedirect(location.pathname);
-    navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
+  const openSignInSheet = (intent: 'message' | 'save') => {
+    setSignInIntent(intent);
+    setSignInSheetOpen(true);
   };
 
   const handleHeartClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!user) {
-      requireAuth();
+      openSignInSheet('save');
       return;
     }
     await toggleLike(teacher.id);
@@ -530,19 +505,45 @@ export default function TeacherProfile() {
   const handleUpvoteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!user) {
-      requireAuth();
+      openSignInSheet('save');
       return;
     }
     await toggleUpvote(teacher.id);
   };
 
   const handleWhatsAppClick = () => {
+    const url = resolveTeacherWhatsAppUrl(teacher.whatsapp_link);
     if (!user) {
-      requireAuth();
+      // design.md §3 — "after auth, continue straight to the redirect that was
+      // tapped": flag the intent so the effect above fires the moment `user`
+      // becomes truthy on this same page (post sign-in redirect lands back here).
+      try {
+        sessionStorage.setItem('shikshaq_pending_whatsapp', teacher.slug);
+      } catch {
+        /* storage unavailable — sign-in still works, just without auto-continue */
+      }
+      openSignInSheet('message');
       return;
     }
-    const url = resolveTeacherWhatsAppUrl(teacher.whatsapp_link);
     navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, { state: { url, name: teacher.name } });
+  };
+
+  const handleShareClick = async () => {
+    const shareUrl = `https://www.shikshaq.in/tuition-teachers/${teacher.slug}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: teacher.name, url: shareUrl });
+        return;
+      } catch {
+        // fall through to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Link copied');
+    } catch {
+      // clipboard unavailable — no-op, share button stays non-fatal
+    }
   };
 
   const liked = isLiked(teacher.id);
@@ -559,16 +560,9 @@ export default function TeacherProfile() {
   const boardsList = parseCommaList(teacher.boards_taught);
   const taughtAreas = getTaughtAreas(teacher);
   const classesList = parseCommaList(teacher.classes_taught || teacher.classes_taught_for_backend);
-  // Both fetched and already used in <title>/JSON-LD (see the SEO block above)
-  // but never rendered anywhere a visitor could actually see them — same class
-  // of bug as the classes_taught fix. Mode of teaching (Offline/Online) and
-  // qualifications are genuinely decision-relevant for a parent choosing a tutor.
   const modeList = parseCommaList(teacher.mode_of_teaching);
   const qualificationsText = teacher.qualifications_etc?.trim() || null;
 
-  // Destination-fold accent — the whole first fold (marker highlight on the
-  // headline, the missing-photo illustration, the WhatsApp ticket) is driven
-  // by the teacher's primary subject color instead of a flat brand default.
   const primarySubject = subjectsList[0] || null;
   const accentPalette = getSubjectPalette(primarySubject);
 
@@ -585,8 +579,6 @@ export default function TeacherProfile() {
 
   const firstName = teacher.name.trim().split(/\s+/)[0] || teacher.name;
 
-  // Sanitize the description: allow rich formatting when the field already has HTML,
-  // otherwise treat it as plain text with line breaks.
   const descriptionHtml = teacher.description
     ? /<[a-z][\s\S]*>/i.test(teacher.description)
       ? DOMPurify.sanitize(teacher.description, {
@@ -596,164 +588,82 @@ export default function TeacherProfile() {
       : DOMPurify.sanitize(teacher.description.replace(/\n/g, '<br />'), { ALLOWED_TAGS: ['br'] })
     : null;
 
+  const areaLabel = teacher.area || 'Kolkata';
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
-        <Link
-          to={backHref}
-          className="mb-5 inline-flex items-center text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          ← Back to results
-        </Link>
-
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-          {/* Left column. Tried `sticky` here to keep the photo in view against the
-              taller text column — reverted: this site sets a global `overflow-x: hidden`
-              on <html> (needed to contain the decorative blob shapes), which breaks
-              viewport-relative `position: sticky` in this browser engine. Not worth
-              touching a global, site-wide overflow rule for one column on one page.
-              The review cap below (3, was unbounded) is the real fix for the height gap. */}
-          <div className="relative">
-            {/* Organic blob decoration behind the photo — mobile-vibes-event-app reference
-                (soft blob shapes as background decoration). Purely ornamental, tokens only,
-                sits behind everything (-z-10) so it can never interfere with the photo or
-                the floating action buttons on top of it. Sized up from the first pass — at
-                h-40/h-32 these read as a faint smudge behind the photo edge rather than the
-                bold background shape the reference shows; scaled ~35% bigger and pushed
-                further off-frame so more of the blob is actually visible past the card. */}
-            <div
-              className="absolute -left-8 -top-10 -z-10 h-52 w-52 rounded-[55%_45%_65%_35%/50%_40%_60%_50%] bg-brand-subtle sm:-left-14 sm:-top-14 sm:h-72 sm:w-72"
-              aria-hidden="true"
-            />
-            <div
-              className="absolute -bottom-10 -right-8 -z-10 hidden h-40 w-40 rounded-[40%_60%_35%_65%/55%_35%_65%_45%] bg-brand-blue-subtle sm:block sm:h-52 sm:w-52"
-              aria-hidden="true"
-            />
-
-            <div className="relative aspect-[4/5] overflow-hidden rounded-2xl shadow-border">
-              {teacher.image_url ? (
-                <img
-                  src={validateImageSrc(teacher.image_url)}
-                  alt={teacher.name}
-                  width={800}
-                  height={1000}
-                  decoding="async"
-                  fetchPriority="high"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                /* VISUAL_DIRECTION §9a — "illustration-first imagery": a teacher with no
-                   photo gets a subject-colored cut-paper mark instead of the old diagonal-
-                   stripe placeholder, so a missing photo reads as intentional, not broken. */
-                <div
-                  className="flex h-full w-full items-center justify-center"
-                  style={{ backgroundColor: accentPalette.tint }}
-                >
-                  <CutPaperShape variant="blob" color={accentPalette.solid} size={200} className="absolute" />
-                  <span className="relative font-display text-6xl font-black" style={{ color: accentPalette.text }} aria-hidden="true">
-                    {teacher.name.charAt(0)}
-                  </span>
-                </div>
-              )}
-
-              {/* Verified badge — floating circular icon-button over the hero photo,
-                  opposite corner from the heart/upvote pair. Real data (teacher.is_verified),
-                  not decoration for its own sake: it's the one piece of trust signal
-                  DESIGN_SYSTEM §12 calls out ("reassurance: verification...") that wasn't
-                  visually surfaced anywhere on this page before. Informational, not
-                  actionable — brand-blue tint reads as a badge, never a second CTA next to
-                  the WhatsApp button below. */}
-              {teacher.is_verified && (
-                // Was `aria-hidden="true"` on the whole badge, which hid a real trust
-                // signal (DESIGN_SYSTEM §12) from screen readers entirely. Only the
-                // decorative icon is hidden now; the badge itself announces via its text.
-                <div
-                  role="status"
-                  className="animate-pop absolute left-2.5 top-2.5 flex h-11 items-center gap-1.5 rounded-full bg-brand-blue px-3.5 shadow-border"
-                >
-                  <ShieldCheck size={15} className="text-white" strokeWidth={2.3} aria-hidden="true" />
-                  <span className="text-xs font-bold text-white">Verified</span>
-                </div>
-              )}
-
-              {/* Favourite / upvote — floating circular icon-buttons over the hero photo
-                  (mobile-vibes-event-app reference) instead of a flat button row below it.
-                  Same handlers/aria as before; presentation only. Secondary to the WhatsApp
-                  CTA per DESIGN_SYSTEM §12 — quiet bone-on-blur chips, not accent-colored. */}
-              <div className="absolute right-2.5 top-2.5 flex flex-col gap-2">
-                {/* Task #2 — heart/upvote/WhatsApp all silently gated on sign-in, only
-                    discovered on click. A small lock badge signals the requirement up
-                    front for signed-out visitors, without blocking or nagging anyone
-                    already signed in (badge simply doesn't render for them). */}
-                <button
-                  type="button"
-                  onClick={handleHeartClick}
-                  aria-label={liked ? 'Remove from favourites' : user ? 'Add to favourites' : 'Add to favourites (sign in required)'}
-                  aria-pressed={liked}
-                  className="relative flex h-11 w-11 items-center justify-center rounded-full bg-card/90 shadow-border backdrop-blur-sm transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
-                >
-                  <Heart size={17} className={liked ? 'fill-destructive text-destructive' : 'text-foreground/70'} />
-                  {!user && (
-                    <span
-                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-background"
-                      aria-hidden="true"
-                    >
-                      <Lock size={9} strokeWidth={2.5} />
-                    </span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleUpvoteClick}
-                  aria-label={upvoted ? 'Remove upvote' : user ? 'Upvote teacher' : 'Upvote teacher (sign in required)'}
-                  aria-pressed={upvoted}
-                  className="relative flex h-11 min-w-11 items-center justify-center gap-1 rounded-full bg-card/90 px-2.5 shadow-border backdrop-blur-sm transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
-                >
-                  <ArrowUp size={15} className="text-brand-blue" strokeWidth={2.2} />
-                  <span className="tabular-nums text-xs font-semibold text-foreground">{upvoteCount}</span>
-                  {!user && (
-                    <span
-                      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-foreground text-background"
-                      aria-hidden="true"
-                    >
-                      <Lock size={9} strokeWidth={2.5} />
-                    </span>
-                  )}
-                </button>
-              </div>
-            </div>
+      {/* Photo header — design.md §4 "Teacher profile (S3)": 280px photo header
+          with back/save/share circles and board/area/experience speech chips. */}
+      <div className="relative h-[280px] w-full overflow-hidden">
+        {teacher.image_url ? (
+          <img
+            src={validateImageSrc(teacher.image_url)}
+            alt={teacher.name}
+            width={1200}
+            height={280}
+            decoding="async"
+            fetchPriority="high"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full" style={{ backgroundColor: accentPalette.tint }}>
+            <StripePlaceholder name={teacher.name} initialSize={110} className="h-full w-full" />
           </div>
+        )}
 
-          {/* Right column */}
-          <div className="relative">
-            {/* Third blob behind the name/headline — the right column was left completely flat
-                by the first pass while the left column got two shapes; this closes that gap so
-                the blob decoration reads as one composition rather than a one-sided accent.
-                Well clear of the WhatsApp CTA further down, -z-10, never intercepts clicks. */}
-            <div
-              className="absolute -right-6 -top-8 -z-10 hidden h-44 w-44 rounded-[45%_55%_60%_40%/40%_55%_45%_60%] bg-brand-subtle lg:block"
-              aria-hidden="true"
-            />
-            {/* Destination fold — floated SpeechTag annotations (board / area /
-                experience) instead of a boring subtitle line, ahead of the heavy
-                display headline. This is the end of the wayfinding journey, so it
-                gets the same loud treatment as the WhatsApp CTA below it. */}
-            {(boardsList.length > 0 || teacher.area || teacher.experience_years) && (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {boardsList.length > 0 && (
-                  <SpeechTag tail="bottom-left" dotColor="hsl(var(--brand-blue))">{boardsList.join(' + ')}</SpeechTag>
-                )}
-                {teacher.area && (
-                  <SpeechTag tail="bottom-right" tilt={-2} dotColor={accentPalette.solid}>{teacher.area}</SpeechTag>
-                )}
-                {teacher.experience_years && (
-                  <SpeechTag tail="top-left" tilt={2}>{teacher.experience_years}+ years teaching</SpeechTag>
-                )}
-              </div>
-            )}
+        <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 via-transparent to-transparent" aria-hidden="true" />
 
+        <button
+          type="button"
+          onClick={() => navigate(backHref)}
+          aria-label="Back to results"
+          className="absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-card/90 shadow-border backdrop-blur-sm transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <ArrowLeft size={18} className="text-foreground" aria-hidden="true" />
+        </button>
+
+        <div className="absolute right-4 top-4 flex gap-2">
+          <button
+            type="button"
+            onClick={handleHeartClick}
+            aria-label={liked ? 'Remove from favourites' : 'Save teacher'}
+            aria-pressed={liked}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-card/90 shadow-border backdrop-blur-sm transition-transform duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <Heart size={17} className={liked ? 'fill-destructive text-destructive' : 'text-foreground/70'} />
+          </button>
+          <button
+            type="button"
+            onClick={handleShareClick}
+            aria-label="Share teacher"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-card/90 shadow-border backdrop-blur-sm transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <Share2 size={16} className="text-foreground/70" aria-hidden="true" />
+          </button>
+        </div>
+
+        {teacher.is_verified && (
+          <div role="status" className="animate-pop absolute left-4 bottom-4 flex h-9 items-center gap-1.5 rounded-full bg-brand-blue px-3 shadow-border">
+            <ShieldCheck size={14} className="text-white" strokeWidth={2.3} aria-hidden="true" />
+            <span className="text-xs font-bold text-white">Verified</span>
+          </div>
+        )}
+
+        {(boardsList.length > 0 || teacher.area || teacher.experience_years) && (
+          <div className="absolute inset-x-4 bottom-4 flex flex-wrap justify-end gap-2">
+            {boardsList.length > 0 && <SpeechChip>{boardsList.join(' + ')}</SpeechChip>}
+            {teacher.area && <SpeechChip>{teacher.area}</SpeechChip>}
+            {teacher.experience_years && <SpeechChip>{teacher.experience_years}+ years</SpeechChip>}
+          </div>
+        )}
+      </div>
+
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
+        {/* Desktop: 1fr / 384px grid. Left = name card + prose sections. Right = sticky contact card. */}
+        <div className="lg:grid lg:grid-cols-[1fr_384px] lg:gap-8">
+          <div className="min-w-0">
             <h1 className="font-display text-4xl font-black leading-[0.98] tracking-tight text-foreground sm:text-5xl">
               {formatDisplayName(teacher.name, teacher.sir_maam)}
             </h1>
@@ -773,75 +683,48 @@ export default function TeacherProfile() {
             {(subjectsList.length > 0 || boardsList.length > 0 || teacher.area) && (
               <div className="stagger-children mt-4 flex flex-wrap gap-2">
                 {subjectsList.map((subject) => (
-                  <SubjectTag key={subject} label={subject} />
+                  <SubjectPill key={subject} label={subject} />
                 ))}
                 {boardsList.map((board) => (
-                  <ModeTag key={board} label={board} variant="blue" />
+                  <TagPill key={board} label={board} variant="blue" />
                 ))}
-                {teacher.area && <ModeTag label={teacher.area} variant="brand" />}
+                {teacher.area && <TagPill label={teacher.area} variant="brand" />}
               </div>
             )}
 
             {hasStats ? (
               <div className="stagger-children mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {teacher.experience_years && (
-                  <StatCard icon={Clock} label="Experience" value={`${teacher.experience_years}+ years`} />
-                )}
-                {feesValue && <StatCard icon={Wallet} label="Fees / month" value={feesValue} />}
-                {classSizeValue && <StatCard icon={Users} label="Class size" value={classSizeValue} />}
+                {teacher.experience_years && <StatTile icon={Clock} label="Experience" value={`${teacher.experience_years}+ years`} />}
+                {feesValue && <StatTile icon={Wallet} label="Fees / month" value={feesValue} />}
+                {classSizeValue && <StatTile icon={Users} label="Class size" value={classSizeValue} />}
               </div>
             ) : (
-              // Task #3 — a teacher with none of the three stats used to silently
-              // render no stat block at all. That reads as broken, not honest, so it
-              // gets an explicit line instead of empty space.
               <div className="mt-6 rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
                 Experience, fees, and class size aren't listed yet — ask {firstName} directly on WhatsApp.
               </div>
             )}
 
-            {/* Primary CTA — the single accented action on this page (§7, §12): WhatsApp
-                contact. Moved up to sit right after subjects/stats instead of after the
-                description AND every review — a critique found it buried as the literal
-                last element on the page, under ~12 unedited testimonials, competing with
-                (and losing to) that wall of text. Nothing should out-scroll this button. */}
-            {/* The single success action for the whole product (VISUAL_DIRECTION §12) —
-                the destination of the wayfinding journey. LOUD is permitted here: thick
-                outline + offset shadow reads as "arrival", not decoration. */}
-            <div
-              ref={primaryCtaRef}
-              className="mt-6 flex flex-wrap items-center justify-between gap-5 rounded-2xl bg-muted p-6"
-            >
+            {/* Contact panel — mobile/tablet only; desktop's contact card lives in
+                the sticky right column below. Green WhatsApp CTA (design.md §4). */}
+            <div ref={primaryCtaRef} className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-muted p-6 lg:hidden">
               <p className="max-w-[44ch] text-sm leading-6 text-warm-prose">
                 Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
                 {!user && (
                   <span className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-brand-blue">
-                    <Lock size={11} strokeWidth={2.5} aria-hidden="true" />
                     Sign in to message — quick, one tap.
                   </span>
                 )}
               </p>
-              {/* Messaging a teacher is the product's only success action. Previously
-                  a notched "ticket shape" device — user feedback called it out as
-                  gimmicky/cheap-looking on the one button that matters most. Replaced
-                  with a plain, confident solid pill: size and color carry the weight
-                  instead of a novelty silhouette. */}
-              <button
-                type="button"
-                onClick={handleWhatsAppClick}
-                className="whatsapp-pulse-once flex h-12 min-h-11 items-center justify-center gap-2 rounded-full bg-brand px-6 text-sm font-semibold text-brand-foreground shadow-border-hover transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 motion-reduce:transition-none"
-              >
-                <WhatsAppIcon className="h-[17px] w-[17px] text-brand-foreground" />
-                Contact via WhatsApp
-              </button>
+              <Button variant="whatsapp" size={52} onClick={handleWhatsAppClick} className="whatsapp-pulse-once">
+                <WhatsAppIcon className="h-[17px] w-[17px]" />
+                Message on WhatsApp
+              </Button>
             </div>
 
             {descriptionHtml && (
               <>
-                <SectionHeading>Little more about {firstName}</SectionHeading>
-                <div
-                  className="max-w-prose text-base leading-7 text-warm-prose [&_p+p]:mt-3"
-                  dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-                />
+                <SectionHeading>About {firstName}</SectionHeading>
+                <div className="max-w-prose text-base leading-7 text-warm-prose [&_p+p]:mt-3" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
               </>
             )}
 
@@ -862,9 +745,9 @@ export default function TeacherProfile() {
               <>
                 <SectionHeading>Where they teach</SectionHeading>
                 <div className="stagger-children flex flex-wrap gap-2">
-                  {taughtAreas.map((area) => (
-                    <span key={area} className="animate-card-reveal rounded-full bg-muted px-3.5 py-2 text-sm font-medium text-foreground">
-                      {area}
+                  {taughtAreas.map((a) => (
+                    <span key={a} className="animate-card-reveal rounded-full bg-muted px-3.5 py-2 text-sm font-medium text-foreground">
+                      {a}
                     </span>
                   ))}
                 </div>
@@ -890,29 +773,77 @@ export default function TeacherProfile() {
                 <p className="max-w-prose text-base leading-7 text-warm-prose">{qualificationsText}</p>
               </>
             )}
+
+            <TeacherComments teacherId={teacher.id} subject={primarySubject} />
+
+            {/* Sentence footer — scoped to this teacher's subject and area. */}
+            <p className="mt-8 text-base text-warm-prose">
+              Looking for more{' '}
+              <Link to={BROWSE_PATH} className="font-semibold text-foreground underline underline-offset-2">
+                {primarySubject || 'tuition'} teachers near {areaLabel}
+              </Link>
+              ?
+            </p>
           </div>
+
+          {/* Right column — desktop only: sticky near-black contact card + "not the right fit" panel. */}
+          <aside className="mt-8 hidden lg:mt-0 lg:block">
+            <div className="lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-4">
+              <div className="rounded-3xl bg-panel p-6 text-background shadow-border">
+                {feesValue && <p className="text-sm text-background/70">{feesValue}</p>}
+                <Button variant="whatsapp" size={54} onClick={handleWhatsAppClick} className="whatsapp-pulse-once mt-4 w-full">
+                  <WhatsAppIcon className="h-[18px] w-[18px]" />
+                  Message on WhatsApp
+                </Button>
+                <div className="mt-3 flex gap-2">
+                  <Button variant="ghost" size={44} onClick={handleHeartClick} className="flex-1 text-background hover:bg-background/10">
+                    <Heart size={16} className={liked ? 'fill-destructive text-destructive' : ''} aria-hidden="true" />
+                    Save
+                  </Button>
+                  <Button variant="ghost" size={44} onClick={handleShareClick} className="flex-1 text-background hover:bg-background/10">
+                    <Share2 size={15} aria-hidden="true" />
+                    Share
+                  </Button>
+                </div>
+                {!user && <p className="mt-3 text-xs text-background/70">Sign in to message — quick, one tap.</p>}
+                <ul className="mt-4 space-y-2 text-xs text-background/70">
+                  {teacher.is_verified && <li>ID and degree verified by ShikshAQ</li>}
+                  <li>Fees are settled directly with the teacher. Shikshaq takes no commission.</li>
+                </ul>
+              </div>
+
+              <div className="rounded-2xl bg-brand-subtle p-6">
+                <p className="font-display text-base font-bold text-brand-deep">Not the right fit?</p>
+                <p className="mt-1 text-sm text-warm-prose">
+                  See other {primarySubject || 'tuition'} teachers near {areaLabel}.
+                </p>
+                <Link to={BROWSE_PATH} className="mt-3 inline-block text-sm font-semibold text-brand-deep underline underline-offset-2">
+                  See them all →
+                </Link>
+              </div>
+            </div>
+          </aside>
         </div>
 
-        <TeacherComments teacherId={teacher.id} />
+        <PreFooter variant="B2" className="mt-12" />
       </main>
 
-      {/* Floating mobile CTA — task #1: the WhatsApp button must stay reachable as
-          the parent reads the whole profile, not just while the panel above is on
-          screen. Desktop's two-column layout keeps the real CTA within easy reach,
-          so this is mobile-only. Sits above the fixed bottom nav bar (h-16 + safe
-          area), never fights it for the thumb zone. */}
+      {/* Floating mobile CTA — the WhatsApp button must stay reachable as the
+          parent reads the whole profile, not just while the panel above is on
+          screen. Desktop's sticky contact card keeps the CTA in reach, so this
+          is mobile-only. Sits above the fixed bottom nav bar. */}
       {!primaryCtaVisible && (
         <div className="animate-pop fixed inset-x-4 bottom-20 z-40 lg:hidden">
-          <button
-            type="button"
-            onClick={handleWhatsAppClick}
-            className="sticker outline-offset-shadow flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-brand px-6 text-base font-bold text-brand-foreground transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none"
-          >
-            <WhatsAppIcon className="h-5 w-5 text-brand-foreground" />
-            Contact via WhatsApp
-          </button>
+          <Button variant="whatsapp" size={54} onClick={handleWhatsAppClick} className="sticker outline-offset-shadow w-full">
+            <WhatsAppIcon className="h-5 w-5" />
+            {feesValue ? `${feesValue} · Message` : 'Message on WhatsApp'}
+          </Button>
         </div>
       )}
+
+      <BottomNavSpacer />
+
+      <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent={signInIntent} />
 
       <Footer expandedContent={teacher.expanded || null} />
     </div>
