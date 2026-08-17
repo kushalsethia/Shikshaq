@@ -239,8 +239,18 @@ export default function PastPapers() {
           title={
             <>
               Past papers from{' '}
-              <span className="marker-highlight marker-highlight--pill">Kolkata schools</span>, shared by
-              students, for students.
+              {/* Papers mode is indigo throughout — the marker defaults to the
+                  orange brand token, which must not appear on this page. The
+                  override is a token reference, not a literal colour. White
+                  copy on the saturated indigo, since the dark ink the orange
+                  marker uses would not clear contrast here. */}
+              <span
+                className="marker-highlight marker-highlight--pill text-white"
+                style={{ '--marker-color': 'hsl(var(--brand-blue))' } as React.CSSProperties}
+              >
+                Kolkata schools
+              </span>
+              , shared by students, for students.
             </>
           }
           lede="Real question papers set by real schools. Free to read, free to search, nothing hidden."
@@ -253,7 +263,7 @@ export default function PastPapers() {
               : undefined
           }
           badge={hasNewThisWeek ? { label: 'New this week', color: 'hsl(var(--brand-blue))' } : undefined}
-          accent="hsl(var(--brand))"
+          accent="hsl(var(--brand-blue))"
           ground="graph"
         >
           <SearchControl align="flex-start" stackedToggle initialMode="papers" onModeChange={handleSearchModeChange} />
@@ -327,7 +337,9 @@ export default function PastPapers() {
           {isEmptyCatalogue && (
             <section className={`${CONTAINER} pb-12`}>
               <div className="halftone-overlay outline-thick outline-offset-shadow relative rounded-4xl bg-brand-blue-subtle p-6 sm:p-12">
-                <span className="sticker sticker-rotate-md animate-pop absolute -top-3 right-6 rounded-full bg-brand px-4 py-1 text-label font-bold uppercase text-foreground motion-reduce:animate-none">
+                {/* Indigo, not the orange brand token — papers mode carries no
+                    orange (devices.md §5 sticker, tone=papers). */}
+                <span className="sticker sticker-rotate-md animate-pop absolute -top-3 right-6 rounded-full bg-brand-blue px-4 py-1 text-label font-bold uppercase text-white motion-reduce:animate-none">
                   Day one
                 </span>
                 <EmptyResults
