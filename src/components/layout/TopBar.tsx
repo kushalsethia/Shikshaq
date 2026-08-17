@@ -60,7 +60,7 @@ function LogoOrTourTrigger() {
     );
   }
 
-  return <Logo className="h-8 w-auto" onDark priority />;
+  return <Logo className="tap-44 h-8 w-auto" onDark priority />;
 }
 
 export function TopBar({ className }: { className?: string }) {

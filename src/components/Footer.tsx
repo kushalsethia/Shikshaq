@@ -476,7 +476,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
 
             {/* Identity */}
             <div className="space-y-3 border-t border-white/10 pt-8">
-              <Logo size="nav" onDark />
+              <Logo size="nav" onDark className="tap-44" />
               <p className="max-w-prose text-sm text-white/70">
                 Quality tuition teachers in Kolkata, and past papers from Kolkata schools. Free on both counts.
               </p>
@@ -580,7 +580,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
 
             <div className="rounded-2xl bg-white/10 p-4 text-sm text-white/70">
               Past papers are the property of the schools that set them. Shikshaq claims no ownership and hosts them as a free community resource.{' '}
-              <Link to="/terms-of-service" className="text-brand-blue-subtle underline-offset-2 hover:underline">Read our full position</Link>
+              <Link to="/terms-of-service" className="tap-44 text-brand-blue-subtle underline-offset-2 hover:underline">Read our full position</Link>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-white/60">

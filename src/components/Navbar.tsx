@@ -37,7 +37,7 @@ function LogoOrTourTrigger() {
     return (
       <Logo
         size="nav"
-        className="flex-none"
+        className="tap-44 flex-none"
         ariaLabel="How ShikshAQ works"
         priority
         onClick={(e) => {
@@ -48,7 +48,7 @@ function LogoOrTourTrigger() {
     );
   }
 
-  return <Logo size="nav" className="flex-none" priority />;
+  return <Logo size="nav" className="tap-44 flex-none" priority />;
 }
 
 export function Navbar() {
