@@ -544,7 +544,12 @@ export default function Index() {
               to="/all-tuition-teachers-in-kolkata"
               className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-lg text-body-secondary font-medium text-brand-blue transition-colors duration-150 hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
-              All teachers
+              {/* desktop-01-home.png labels this "All 312 teachers", not a bare
+                  "All teachers" — the number is the reason to click, and it is
+                  the same real count already shown in the hero, so nothing new
+                  is claimed. Falls back to the bare label until stats load
+                  rather than flashing a placeholder number. */}
+              {(stats.teachers ?? 0) > 0 ? `All ${stats.teachers} teachers` : 'All teachers'}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
