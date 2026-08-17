@@ -295,13 +295,6 @@ export default function AdminComments() {
     return '';
   };
 
-  const getCommentAvatar = (comment: Comment): string | null => {
-    if (comment.is_anonymous) {
-      return null;
-    }
-    return comment.profiles?.avatar_url || null;
-  };
-
   const getCommentInitials = (comment: Comment): string => {
     if (comment.is_anonymous) {
       return 'A';
@@ -402,6 +395,13 @@ export default function AdminComments() {
     { key: 'all', label: 'All', count: comments.length },
   ];
 
+  const commentColumns: AdminTableColumn[] = [
+    { key: 'review', label: 'Review', width: '2.4fr' },
+    { key: 'about', label: 'About', width: '1.3fr' },
+    { key: 'state', label: 'State', width: '0.9fr' },
+    { key: 'actions', label: '', width: '1fr' },
+  ];
+
   return (
     <AdminConsole
       activeTab="comments"
@@ -437,73 +437,30 @@ export default function AdminComments() {
         </div>
       ) : (
         <>
-        <div style={adminRowListStyle}>
-          {comments.map((comment) => {
-            const avatarUrl = getCommentAvatar(comment);
-            const initials = getCommentInitials(comment);
+        <AdminTable
+          columns={commentColumns}
+          rows={comments.map((comment): AdminTableRow => {
             const authorName = getCommentAuthorName(comment);
             const authorInfo = getCommentAuthorInfo(comment);
+            const teacherName = comment.teachers_list?.name || `Teacher ${comment.teacher_id}`;
+            const publishedMeta = comment.approved
+              ? `Published ${comment.approved_at ? formatDistanceToNow(new Date(comment.approved_at), { addSuffix: true }) : 'recently'}${comment.approver_name ? ` by ${comment.approver_name}` : ''}`
+              : [authorInfo, formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })].filter(Boolean).join(' · ');
 
-            return (
-              <div key={comment.id} style={{ ...adminRowStyle, alignItems: 'flex-start' }}>
-                {avatarUrl ? (
-                  <Avatar className="w-[42px] h-[42px] flex-shrink-0">
-                    <AvatarImage src={avatarUrl} />
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
-                ) : (
-                  <AdminTile tint={TINT}>{initials}</AdminTile>
-                )}
-
-                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 15.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>
-                      {authorName}
-                    </span>
-                    <AdminPill tone={comment.approved ? 'settled' : 'pending'}>
-                      {comment.approved ? 'Published' : 'Pending'}
-                    </AdminPill>
-                  </div>
-                  <p style={{ marginTop: 4, fontSize: 13, lineHeight: 1.5, color: SURFACE_TOKENS.textTertiary }}>
-                    {[authorInfo, comment.teachers_list?.name || `Teacher ${comment.teacher_id}`, formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
-                  <p className="whitespace-pre-wrap break-words" style={{ marginTop: 10, color: SURFACE_TOKENS.textPrimary, fontSize: 14.5, lineHeight: 1.55 }}>
-                    {comment.comment}
-                  </p>
-
-                  <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 12 }}>
-                    {!comment.approved ? (
-                      <>
-                        <button onClick={() => handleApprove(comment.id)} style={adminPrimaryBtnStyle}>
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          Publish
-                        </button>
-                        <button onClick={() => handleReject(comment.id)} style={adminDestructiveBtnStyle}>
-                          Hide
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-xs" style={{ color: SURFACE_TOKENS.textTertiary }}>
-                          Published {comment.approved_at
-                            ? formatDistanceToNow(new Date(comment.approved_at), { addSuffix: true })
-                            : 'recently'}
-                          {comment.approver_name && <> by {comment.approver_name}</>}
-                        </span>
-                        <button onClick={() => handleDelete(comment.id)} style={adminDestructiveBtnStyle}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
+            return {
+              id: comment.id,
+              initial: getCommentInitials(comment),
+              title: `"${comment.comment}"`,
+              subtitle: [authorName, publishedMeta].filter(Boolean).join(' — '),
+              cells: [teacherName],
+              tone: comment.approved ? 'ok' : 'wait',
+              tag: comment.approved ? 'Published' : 'Pending',
+              actionLabel: comment.approved ? 'Delete' : 'Publish',
+              onAction: () => (comment.approved ? handleDelete(comment.id) : handleApprove(comment.id)),
+              onOverflow: comment.approved ? undefined : () => handleReject(comment.id),
+            };
           })}
-        </div>
+        />
         {hasMore && (
           <div className="mt-6 flex justify-center">
             <button

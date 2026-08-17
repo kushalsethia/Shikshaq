@@ -18,18 +18,15 @@ import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
   AdminStatTiles,
-  AdminTile,
-  AdminPill,
-  adminRowStyle,
-  adminRowListStyle,
   adminPrimaryBtnStyle,
   adminSecondaryBtnStyle,
   adminFieldStyle,
+  adminPanelStyle,
   adminToast,
   useAdminGuard,
   useReviewerNames,
-  type AdminPillTone,
 } from '@/components/AdminConsole';
+import { AdminTable, type AdminTableColumn, type AdminTableRow, type AdminPillTone } from '@/pages/admin/AdminTable';
 
 interface Recommendation {
   id: string;
@@ -179,17 +176,24 @@ export default function AdminRecommendations() {
   const pillTone = (status: Recommendation['status']): AdminPillTone => {
     switch (status) {
       case 'onboarded':
-        return 'settled';
+        return 'ok';
       case 'rejected':
-        return 'destructive';
+        return 'bad';
       case 'contacted':
-        return 'flagged';
+        return 'info';
       default:
-        return 'pending';
+        return 'wait';
     }
   };
 
   const pendingCount = recommendations.filter((r) => r.status === 'pending').length;
+
+  const recommendationColumns: AdminTableColumn[] = [
+    { key: 'recommendation', label: 'Recommendation', width: '2.2fr' },
+    { key: 'contact', label: 'Contact', width: '1.3fr' },
+    { key: 'status', label: 'Status', width: '0.9fr' },
+    { key: 'actions', label: '', width: '1.1fr' },
+  ];
 
   // Show loading state while checking admin status
   if (checkingAdmin || loading) {
@@ -291,106 +295,90 @@ export default function AdminRecommendations() {
           <p style={{ color: SURFACE_TOKENS.textSecondary }}>No recommendations yet.</p>
         </div>
       ) : (
-        <div style={adminRowListStyle}>
-          {recommendations.map((rec) => {
+        <AdminTable
+          columns={recommendationColumns}
+          rows={recommendations.map((rec): AdminTableRow => {
             const initials = rec.teacher_name?.trim().charAt(0).toUpperCase() || '?';
-            const isEditing = editingId === rec.id;
-            return (
-              <div key={rec.id} style={{ ...adminRowStyle, alignItems: isEditing ? 'flex-start' : 'center' }}>
-                <AdminTile tint={TINT}>{initials}</AdminTile>
-                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 15.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>
-                      {rec.teacher_name}
-                    </span>
-                    <AdminPill tone={pillTone(rec.status)}>
-                      {rec.status.charAt(0).toUpperCase() + rec.status.slice(1)}
-                    </AdminPill>
-                  </div>
-                  <p style={{ marginTop: 4, fontSize: 13, lineHeight: 1.5, color: SURFACE_TOKENS.textTertiary }}>
-                    Recommended by {rec.recommender_name} &middot;{' '}
-                    <a href={`tel:${rec.teacher_contact}`} className="hover:underline" style={{ color: SURFACE_TOKENS.textTertiary }}>
-                      <Phone className="w-3 h-3 inline -mt-0.5 mr-1" />
-                      {rec.teacher_contact}
-                    </a>
-                    {rec.approved_at && (
-                      <> &middot; Reviewed by {rec.approved_by ? (reviewerNames[rec.approved_by] || 'an admin') : 'an admin'}, {formatDistanceToNow(new Date(rec.approved_at), { addSuffix: true })}</>
-                    )}
-                  </p>
+            const reviewedMeta = rec.approved_at
+              ? `Reviewed by ${rec.approved_by ? reviewerNames[rec.approved_by] || 'an admin' : 'an admin'}, ${formatDistanceToNow(new Date(rec.approved_at), { addSuffix: true })}`
+              : null;
 
-                  {isEditing && (
-                    <div className="mt-4 space-y-4" style={{ maxWidth: 520 }}>
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium mb-2 block" style={{ color: SURFACE_TOKENS.textSecondary }}>
-                            Status
-                          </label>
-                          <Select value={editStatus} onValueChange={setEditStatus}>
-                            <SelectTrigger className="h-auto border-0" style={adminFieldStyle}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="contacted">Contacted</SelectItem>
-                              <SelectItem value="onboarded">Onboarded</SelectItem>
-                              <SelectItem value="rejected">Rejected</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium mb-2 block" style={{ color: SURFACE_TOKENS.textSecondary }}>
-                            Notes
-                          </label>
-                          <Textarea
-                            value={editNotes}
-                            onChange={(e) => setEditNotes(e.target.value)}
-                            placeholder="Add notes..."
-                            rows={3}
-                            className="border-0"
-                            style={adminFieldStyle}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        <button onClick={() => handleSave(rec.id)} style={adminPrimaryBtnStyle}>
-                          Save
-                        </button>
-                        <button onClick={() => setEditingId(null)} style={adminSecondaryBtnStyle}>
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {!isEditing && (
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      onClick={() => handleQuickStatus(rec.id, 'contacted')}
-                      disabled={busyId === rec.id}
-                      style={adminPrimaryBtnStyle}
-                      className="disabled:opacity-60"
-                    >
-                      Contact
-                    </button>
-                    <button
-                      onClick={() => handleQuickStatus(rec.id, 'rejected')}
-                      disabled={busyId === rec.id}
-                      style={adminSecondaryBtnStyle}
-                      className="disabled:opacity-60"
-                    >
-                      Dismiss
-                    </button>
-                    <button onClick={() => handleEdit(rec)} style={adminSecondaryBtnStyle}>
-                      Edit
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
+            return {
+              id: rec.id,
+              initial: initials,
+              title: rec.teacher_name,
+              subtitle: [`Recommended by ${rec.recommender_name}`, reviewedMeta].filter(Boolean).join(' · '),
+              cells: [
+                <a
+                  key="contact"
+                  href={`tel:${rec.teacher_contact}`}
+                  className="inline-flex items-center gap-1 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Phone className="h-3 w-3" aria-hidden="true" />
+                  {rec.teacher_contact}
+                </a>,
+              ],
+              tone: pillTone(rec.status),
+              tag: rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
+              actionLabel: 'Contact',
+              onAction: () => handleQuickStatus(rec.id, 'contacted'),
+              onOverflow: () => handleEdit(rec),
+            };
           })}
-        </div>
+        />
       )}
+
+      {editingId && (() => {
+        const rec = recommendations.find((r) => r.id === editingId);
+        if (!rec) return null;
+        return (
+          <div className="mt-4 space-y-4" style={{ ...adminPanelStyle, padding: 20, maxWidth: 560 }}>
+            <div className="text-sm font-bold" style={{ color: SURFACE_TOKENS.textPrimary }}>
+              Editing {rec.teacher_name}
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block" style={{ color: SURFACE_TOKENS.textSecondary }}>
+                  Status
+                </label>
+                <Select value={editStatus} onValueChange={setEditStatus}>
+                  <SelectTrigger className="h-auto border-0" style={adminFieldStyle}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="contacted">Contacted</SelectItem>
+                    <SelectItem value="onboarded">Onboarded</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block" style={{ color: SURFACE_TOKENS.textSecondary }}>
+                  Notes
+                </label>
+                <Textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Add notes..."
+                  rows={3}
+                  className="border-0"
+                  style={adminFieldStyle}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => handleSave(rec.id)} style={adminPrimaryBtnStyle}>
+                Save
+              </button>
+              <button onClick={() => setEditingId(null)} style={adminSecondaryBtnStyle}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </AdminConsole>
   );
 }

@@ -142,6 +142,32 @@ export default function AdminUpvotes() {
     );
   }
 
+  // AdminTable pattern (admin-01-teacher-approvals.png chrome): teacher identity
+  // in the first column, the live upvote count as a plain cell, rank as the
+  // state pill, and the row action opens the teacher's public profile.
+  const upvoteColumns: AdminTableColumn[] = [
+    { key: 'teacher', label: 'Teacher', width: '2.4fr' },
+    { key: 'upvotes', label: 'Upvotes', width: '1.4fr' },
+    { key: 'rank', label: 'Rank', width: '1fr' },
+    { key: 'actions', label: '', width: '140px' },
+  ];
+
+  const upvoteRows: AdminTableRow[] = upvoteStats.map((stat, index) => ({
+    id: stat.teacher_id,
+    initial: stat.teacher_name?.trim().charAt(0).toUpperCase() || '?',
+    title: stat.teacher_name,
+    cells: [
+      <span key="count" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <ThumbsUp className="w-3.5 h-3.5" style={{ color: UPVOTE_ICON_COLOR }} />
+        {stat.upvote_count} upvote{stat.upvote_count === 1 ? '' : 's'}
+      </span>,
+    ],
+    tone: index === 0 ? 'ok' : 'info',
+    tag: `#${index + 1}`,
+    actionLabel: 'View profile',
+    onAction: () => navigate(`/tuition-teachers/${stat.teacher_slug}`),
+  }));
+
   return (
     <AdminConsole
       activeTab="upvotes"
@@ -165,25 +191,7 @@ export default function AdminUpvotes() {
           <p style={{ color: SURFACE_TOKENS.textSecondary }}>No upvotes yet.</p>
         </div>
       ) : (
-        <div style={adminRowListStyle}>
-          {upvoteStats.map((stat, index) => (
-            <div key={stat.teacher_id} style={adminRowStyle}>
-              <AdminTile tint={TINT}>#{index + 1}</AdminTile>
-              <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                <div style={{ fontSize: 15.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>
-                  {stat.teacher_name}
-                </div>
-                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: SURFACE_TOKENS.textTertiary }}>
-                  <ThumbsUp className="w-3.5 h-3.5" style={{ color: UPVOTE_ICON_COLOR }} />
-                  {stat.upvote_count} upvote{stat.upvote_count === 1 ? '' : 's'}
-                </div>
-              </div>
-              <Link to={`/tuition-teachers/${stat.teacher_slug}`}>
-                <button style={adminSecondaryBtnStyle}>View Profile</button>
-              </Link>
-            </div>
-          ))}
-        </div>
+        <AdminTable columns={upvoteColumns} rows={upvoteRows} />
       )}
     </AdminConsole>
   );
