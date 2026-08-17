@@ -428,9 +428,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
   // §0.10, brief WORDMARK STICKERS note).
   const wordmarkStickers = useMemo(() => {
     const list: string[] = [];
-    if (ctaTotals.teachers != null) list.push(`${ctaTotals.teachers.toLocaleString('en-IN')} tutors`);
+    if (ctaTotals.teachers) list.push(`${ctaTotals.teachers.toLocaleString('en-IN')} tutors`);
     list.push('no commission');
-    if (ctaTotals.papers != null) list.push(`${ctaTotals.papers.toLocaleString('en-IN')} free papers`);
+    if (ctaTotals.papers) list.push(`${ctaTotals.papers.toLocaleString('en-IN')} free papers`);
     return list;
   }, [ctaTotals.teachers, ctaTotals.papers]);
 
@@ -466,7 +466,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 slots={builderMode === 'teachers' ? teacherSlots : paperSlots}
                 onChange={handleSlotChange}
                 onSubmit={handleSubmit}
-                count={builderMode === 'teachers' ? (ctaTotals.teachers ?? undefined) : (ctaTotals.papers ?? undefined)}
+                count={builderMode === 'teachers' ? (ctaTotals.teachers || undefined) : (ctaTotals.papers || undefined)}
               />
             </div>
 
