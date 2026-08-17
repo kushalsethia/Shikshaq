@@ -10,6 +10,16 @@ import { saveAuthRedirect } from '@/utils/authRedirect';
 import { ReviewCard, type ReviewCardData } from '@/components/reviews/review-card';
 import { WriteReviewSheet } from '@/components/reviews/write-review-sheet';
 import { ListLoading, ListError } from '@/components/ui/list-states';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Comment {
   id: string;
@@ -73,6 +83,10 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  /* Which review the confirm dialog is asking about. micro-06-non-negotiables
+     rule 4 forbids a browser alert for a confirmation; window.confirm is also
+     unstyled, unbranded, and on iOS says "localhost says". */
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [visibleCommentsCount, setVisibleCommentsCount] = useState(5);
   const [writeSheetOpen, setWriteSheetOpen] = useState(false);
   // Success moment (task #4) — LOUD is permitted here, it's an arrival not a
@@ -193,10 +207,7 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
 
   async function handleDeleteComment(commentId: string) {
     if (!user) return;
-
-    if (!window.confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
-      return;
-    }
+    setPendingDeleteId(null);
 
     try {
       setDeletingCommentId(commentId);
@@ -369,7 +380,7 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
                     )}
                     <button
                       type="button"
-                      onClick={() => handleDeleteComment(c.id)}
+                      onClick={() => setPendingDeleteId(c.id)}
                       disabled={deletingCommentId === c.id}
                       className="inline-flex items-center gap-1 font-semibold text-destructive transition-colors duration-150 hover:underline"
                     >
@@ -399,6 +410,31 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
         error={error}
         onSubmit={handleSubmit}
       />
+
+      {/* In-design confirm, replacing window.confirm. Rule 4 of
+          micro-06-non-negotiables rules out a browser alert, and beyond the
+          rule this one is worth having: window.confirm renders unstyled, blocks
+          the whole tab, and on iOS Safari prefixes the message with the site's
+          hostname — so a user deleting their own review was reading
+          "localhost says" over a bone-and-orange page. */}
+      <AlertDialog open={pendingDeleteId !== null} onOpenChange={(o) => !o && setPendingDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this review?</AlertDialogTitle>
+            <AlertDialogDescription>
+              It disappears from the teacher&rsquo;s profile straight away. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => pendingDeleteId && handleDeleteComment(pendingDeleteId)}
+            >
+              Delete review
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
