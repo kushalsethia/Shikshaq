@@ -1,0 +1,268 @@
+/**
+ * Shared data-layer for the teachers_list <-> Shikshaqmine relationship.
+ *
+ * teachers_list is the derived/synced subset table (lowercase `slug`).
+ * Shikshaqmine is the wide, human-authored source-of-truth table (columns
+ * with spaces and apostrophes: "Sir/Ma'am?", "Subjects", "Classes Taught",
+ * "LOCATION V2", "STUDENT'S HOME IN THESE AREAS", "Slug", ...).
+ *
+ * There is no database-level FK between the two — every page used to
+ * re-implement this join in JavaScript, each with its own casing, chunking,
+ * caching and `select('*')` calls. This module is the ONE place that does it.
+ *
+ * A real fix would be a database VIEW joining the two tables; see
+ * supabase/migrations/20260817000000_teachers_with_shikshaqmine_view.sql
+ * for a drafted (NOT applied) version of that.
+ */
+import { supabase } from '@/integrations/supabase/client';
+import {
+  getCache,
+  setCache,
+  CACHE_TTL,
+  getShikshaqmineChunkCacheKey,
+  getShikshaqmineBySlugCacheKey,
+} from '@/utils/cache';
+
+// Supabase/PostgREST has a practical limit on `.in()` list size and URL
+// length; chunk any bulk slug/id lookup to stay well under it.
+const CHUNK_SIZE = 150;
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+/** Minimal Shikshaqmine row shape used across pages (Sir/Ma'am + fallback subject). */
+export interface ShikshaqmineBasic {
+  Slug: string;
+  sirMaam: string | null;
+  firstSubject: string | null;
+}
+
+/**
+ * Fetch a lean Shikshaqmine slice (Slug, "Sir/Ma'am?", Subjects) for a set of
+ * slugs, chunked and cached. This replaces the `select('*')` + manual
+ * chunking that used to live in LikedTeachers/MyTeachers/StudentDashboard/
+ * GuardianDashboard.
+ */
+export async function getShikshaqmineBasicBySlugs(slugs: string[]): Promise<Map<string, ShikshaqmineBasic>> {
+  const map = new Map<string, ShikshaqmineBasic>();
+  const uniqueSlugs = Array.from(new Set(slugs.filter(Boolean)));
+  if (uniqueSlugs.length === 0) return map;
+
+  const missing: string[] = [];
+  for (const slug of uniqueSlugs) {
+    const cached = getCache<ShikshaqmineBasic>(getShikshaqmineBySlugCacheKey(slug) + '_basic');
+    if (cached) map.set(slug, cached);
+    else missing.push(slug);
+  }
+  if (missing.length === 0) return map;
+
+  for (const group of chunk(missing, CHUNK_SIZE)) {
+    const cacheKey = getShikshaqmineChunkCacheKey(group) + '_basic';
+    let rows = getCache<any[]>(cacheKey);
+
+    if (!rows) {
+      const { data, error } = await (supabase
+        .from('Shikshaqmine')
+        .select('"Slug","Sir/Ma\'am?","Subjects"') as any)
+        .in('Slug', group);
+
+      if (error) {
+        if (import.meta.env.DEV) console.warn('getShikshaqmineBasicBySlugs error:', error);
+        continue;
+      }
+      rows = data ?? [];
+      setCache(cacheKey, rows, CACHE_TTL.SHIKSHAQMINE_CHUNK);
+    }
+
+    for (const record of rows as any[]) {
+      const slug = record.Slug as string;
+      if (!slug) continue;
+      const subjectsRaw: string | null = record.Subjects ?? null;
+      const firstSubject = subjectsRaw ? subjectsRaw.split(',')[0].trim() || null : null;
+      const basic: ShikshaqmineBasic = {
+        Slug: slug,
+        sirMaam: record["Sir/Ma'am?"] ?? null,
+        firstSubject,
+      };
+      map.set(slug, basic);
+      setCache(getShikshaqmineBySlugCacheKey(slug) + '_basic', basic, CACHE_TTL.SHIKSHAQMINE);
+    }
+  }
+
+  return map;
+}
+
+export interface TeacherCardLite {
+  id: string;
+  name: string;
+  slug: string;
+  image_url: string | null;
+  subjects: { name: string; slug: string } | null;
+  sirMaam?: string | null;
+}
+
+/**
+ * teachers_list rows for a set of ids, enriched with Sir/Ma'am (and a
+ * fallback subject derived from Shikshaqmine.Subjects when teachers_list has
+ * no `subjects` relationship row). Used by LikedTeachers, MyTeachers,
+ * StudentDashboard and GuardianDashboard's "saved teachers" lists.
+ */
+export async function getTeachersByIds(ids: string[]): Promise<TeacherCardLite[]> {
+  const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+  if (uniqueIds.length === 0) return [];
+
+  const results: TeacherCardLite[] = [];
+  for (const group of chunk(uniqueIds, CHUNK_SIZE)) {
+    const { data, error } = await supabase
+      .from('teachers_list')
+      .select('id, name, slug, image_url, subjects(name, slug)')
+      .in('id', group);
+
+    if (error) throw error;
+    if (data) results.push(...(data as any[]));
+  }
+
+  if (results.length === 0) return [];
+
+  const slugs = results.map((t) => t.slug);
+  const [basicMap, subjectsTableData] = await Promise.all([
+    getShikshaqmineBasicBySlugs(slugs),
+    supabase.from('subjects').select('name, slug').then((r) => r.data ?? []),
+  ]);
+
+  return results.map((teacher) => {
+    const basic = basicMap.get(teacher.slug);
+    let subjects = teacher.subjects as { name: string; slug: string } | null;
+    if (!subjects && basic?.firstSubject) {
+      const match = subjectsTableData.find(
+        (s: any) => s.name.toLowerCase() === basic.firstSubject!.toLowerCase()
+      );
+      subjects = match
+        ? { name: match.name, slug: match.slug }
+        : { name: basic.firstSubject, slug: basic.firstSubject.toLowerCase().replace(/\s+/g, '-') };
+    }
+    return {
+      ...teacher,
+      subjects,
+      sirMaam: basic?.sirMaam ?? null,
+    };
+  });
+}
+
+/** Full Shikshaqmine profile fields used by the teacher profile page. */
+export interface ShikshaqmineProfile {
+  sirMaam: string | null;
+  subjectsFromShikshaq: string | null;
+  classesTaught: string | null;
+  classesTaughtForBackend: string | null;
+  area: string | null;
+  boardsTaught: string | null;
+  classSize: string | null;
+  modeOfTeaching: string | null;
+  placeOfTeaching: string | null;
+  locationV2: string | null;
+  studentsHomeAreas: string | null;
+  tutorsHomeAreas: string | null;
+  expanded: string | null;
+  description: string | null;
+  qualificationsEtc: string | null;
+  teachingSinceRaw: string | number | null;
+  review1: string | null;
+  review2: string | null;
+  review3: string | null;
+  whatsappLink: string | null;
+  minFees: number | null;
+  maxFees: number | null;
+}
+
+const PROFILE_COLUMNS =
+  '"Slug","Sir/Ma\'am?","Subjects","Classes Taught","Classes Taught for Backend","Area","School Boards Catered","Class Size (Group/ Solo)","Mode of Teaching","Place of Teaching","LOCATION V2","STUDENT\'S HOME IN THESE AREAS","TUTOR\'S HOME IN THESE AREAS","EXPANDED","Description","Qualifications etc","Years they started teaching","Review 1","Review 2","Review 3","Link","Min Fees","Max Fees"';
+
+function mapShikshaqmineProfileRow(row: any): ShikshaqmineProfile {
+  return {
+    sirMaam: row["Sir/Ma'am?"] ?? null,
+    subjectsFromShikshaq: row['Subjects'] ?? null,
+    classesTaught: row['Classes Taught'] ?? null,
+    classesTaughtForBackend: row['Classes Taught for Backend'] ?? null,
+    area: row['Area'] ?? null,
+    boardsTaught: row['School Boards Catered'] ?? null,
+    classSize: row['Class Size (Group/ Solo)'] ?? null,
+    modeOfTeaching: row['Mode of Teaching'] ?? null,
+    placeOfTeaching: row['Place of Teaching'] ?? null,
+    locationV2: row['LOCATION V2'] ?? row['Location V2'] ?? row['location_v2'] ?? null,
+    studentsHomeAreas:
+      row["STUDENT'S HOME IN THESE AREAS"] ??
+      row["student's home in these areas"] ??
+      row["Student's home in these areas"] ??
+      null,
+    tutorsHomeAreas: row["TUTOR'S HOME IN THESE AREAS"] ?? row["Tutor's home in these areas"] ?? null,
+    expanded: row['EXPANDED'] ?? row['Expanded'] ?? row['expanded'] ?? null,
+    description: row['Description'] ?? null,
+    qualificationsEtc: row['Qualifications etc'] ?? null,
+    teachingSinceRaw: row['Years they started teaching'] ?? null,
+    review1: row['Review 1'] ?? null,
+    review2: row['Review 2'] ?? null,
+    review3: row['Review 3'] ?? null,
+    whatsappLink: row['Link'] ?? row['link'] ?? null,
+    minFees: row['Min Fees'] != null ? Number(row['Min Fees']) : null,
+    maxFees: row['Max Fees'] != null ? Number(row['Max Fees']) : null,
+  };
+}
+
+/** Fetch the full Shikshaqmine profile slice for one slug, cached. */
+export async function getShikshaqmineProfileBySlug(slug: string): Promise<ShikshaqmineProfile | null> {
+  const cacheKey = getShikshaqmineBySlugCacheKey(slug);
+  const cached = getCache<any>(cacheKey);
+  if (cached) return mapShikshaqmineProfileRow(cached);
+
+  const { data, error } = await (supabase.from('Shikshaqmine').select(PROFILE_COLUMNS) as any)
+    .eq('Slug', slug)
+    .maybeSingle();
+
+  if (error) {
+    if (import.meta.env.DEV) console.warn('getShikshaqmineProfileBySlug error:', error);
+    return null;
+  }
+  if (!data) return null;
+  setCache(cacheKey, data, CACHE_TTL.SHIKSHAQMINE);
+  return mapShikshaqmineProfileRow(data);
+}
+
+/** teachers_list row (with subjects relation) joined with the Shikshaqmine profile slice, by slug. */
+export async function getTeacherBySlug<T = any>(slug: string): Promise<{ teacher: T | null; shikshaqmine: ShikshaqmineProfile | null }> {
+  const teacherCacheKey = `teacher_profile_row_${slug}`;
+  let teacherData = getCache<T>(teacherCacheKey);
+
+  if (!teacherData) {
+    const { data, error } = await supabase
+      .from('teachers_list')
+      .select('*, subjects(name, slug)')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    if (error) {
+      if (import.meta.env.DEV) console.warn('getTeacherBySlug (teachers_list) error:', error);
+    } else if (data) {
+      teacherData = data as unknown as T;
+      setCache(teacherCacheKey, teacherData, CACHE_TTL.TEACHER_PROFILE);
+    }
+  }
+
+  const shikshaqmine = teacherData ? await getShikshaqmineProfileBySlug(slug) : null;
+  return { teacher: teacherData ?? null, shikshaqmine };
+}
+
+/** Only the WhatsApp link for a slug — used by the WhatsApp redirect interstitial. */
+export async function getWhatsAppLinkBySlug(slug: string): Promise<string | null> {
+  const { data, error } = await (supabase.from('Shikshaqmine').select('"Link"') as any)
+    .eq('Slug', slug)
+    .maybeSingle();
+  if (error) {
+    if (import.meta.env.DEV) console.warn('getWhatsAppLinkBySlug error:', error);
+    return null;
+  }
+  return (data as Record<string, string> | null)?.['Link'] ?? null;
+}

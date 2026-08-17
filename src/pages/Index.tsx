@@ -167,9 +167,11 @@ export default function Index() {
         }
 
         const desiredSubjects = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
-        const [subjectsRes, upvotesRes, allTeachersRes, papersRes] = await Promise.all([
+        const [subjectsRes, upvoteStatsRes, allTeachersRes, papersRes] = await Promise.all([
           supabase.from('subjects').select('*').in('name', desiredSubjects).limit(10),
-          supabase.from('teacher_upvotes').select('teacher_id'),
+          // teacher_upvote_stats is a pre-aggregated view (teacher_id, upvote_count) —
+          // avoids pulling every teacher_upvotes row down and counting client-side.
+          supabase.from('teacher_upvote_stats').select('teacher_id, upvote_count').order('upvote_count', { ascending: false }).limit(6),
           supabase
             .from('teachers_list')
             .select('id, name, slug, image_url, is_verified, subject_id, classes, subjects(name, slug), subjects_text:subjects')
@@ -177,7 +179,15 @@ export default function Index() {
           supabase.from('papers').select('board, class').eq('is_published', true),
         ]);
 
-        if (subjectsRes.error || upvotesRes.error) {
+        if (subjectsRes.error || upvoteStatsRes.error || allTeachersRes.error || papersRes.error) {
+          if (import.meta.env.DEV) {
+            console.error('Index.fetchData error:', {
+              subjects: subjectsRes.error,
+              upvoteStats: upvoteStatsRes.error,
+              teachers: allTeachersRes.error,
+              papers: papersRes.error,
+            });
+          }
           setLoadError(true);
           setLoading(false);
           return;
@@ -189,10 +199,8 @@ export default function Index() {
         // randomly so the grid never renders fewer than 6 tiles when upvotes
         // are sparse.
         let teachersData: typeof allTeachers = [];
-        if (upvotesRes.data && upvotesRes.data.length > 0) {
-          const upvoteCounts = new Map<string, number>();
-          upvotesRes.data.forEach((u) => upvoteCounts.set(u.teacher_id, (upvoteCounts.get(u.teacher_id) || 0) + 1));
-          const topIds = Array.from(upvoteCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id]) => id);
+        if (upvoteStatsRes.data && upvoteStatsRes.data.length > 0) {
+          const topIds = upvoteStatsRes.data.map((u) => u.teacher_id).filter(Boolean) as string[];
           const teacherMap = new Map(allTeachers.map((t) => [t.id, t]));
           teachersData = topIds.map((id) => teacherMap.get(id)).filter(Boolean) as typeof allTeachers;
         }
@@ -297,6 +305,9 @@ export default function Index() {
           supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
           supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('approved', true),
         ]);
+        if (teachersRes.error && import.meta.env.DEV) console.error('Index.fetchStats teachers error:', teachersRes.error);
+        if (papersRes.error && import.meta.env.DEV) console.error('Index.fetchStats papers error:', papersRes.error);
+        if (reviewsRes.error && import.meta.env.DEV) console.error('Index.fetchStats reviews error:', reviewsRes.error);
         setStats({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null, reviews: reviewsRes.count ?? null });
       } catch (error) {
         if (import.meta.env.DEV) console.error('Error fetching homepage stats:', error);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { getTeachersByIds } from '@/lib/teachers';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { useAuth } from '@/lib/auth-context';
@@ -58,75 +58,13 @@ export default function MyTeachers() {
       }
 
       try {
-        // First fetch all teachers
-        const { data: teachersData, error: teachersError } = await supabase
-          .from('teachers_list')
-          .select('id, name, slug, image_url, subjects(name, slug)')
-          .in('id', teacherIds);
+        const teachersWithSirMaam = await getTeachersByIds(teacherIds);
 
-        if (teachersError) throw teachersError;
-
-        if (!teachersData || teachersData.length === 0) {
+        if (teachersWithSirMaam.length === 0) {
           setMyTeachers([]);
           setLoading(false);
           return;
         }
-
-        // Extract all slugs and fetch Sir/Ma'am and Subjects data in a single query
-        const slugs = teachersData.map((t) => t.slug);
-        const { data: shikshaqData } = await supabase
-          .from('Shikshaqmine')
-          .select('*')
-          .in('Slug', slugs);
-
-        // Create maps for fast lookup
-        const sirMaamMap = new Map<string, string | null>();
-        const subjectsMap = new Map<string, string>(); // slug -> first subject name
-        if (shikshaqData) {
-          shikshaqData.forEach((record: any) => {
-            sirMaamMap.set(record.Slug, record["Sir/Ma'am?"] || null);
-            // Extract first subject from comma-separated Subjects field
-            if (record.Subjects) {
-              const firstSubject = record.Subjects.split(',')[0].trim();
-              if (firstSubject) {
-                subjectsMap.set(record.Slug, firstSubject);
-              }
-            }
-          });
-        }
-
-        // Fetch subjects table for matching
-        const { data: subjectsData } = await supabase
-          .from('subjects')
-          .select('name, slug');
-
-        // Combine teachers with Sir/Ma'am data and add subjects if missing
-        const teachersWithSirMaam = teachersData.map((teacher) => {
-          // If no subject from relationship, try to get from Shikshaqmine
-          if (!teacher.subjects) {
-            const firstSubjectName = subjectsMap.get(teacher.slug);
-            if (firstSubjectName && subjectsData) {
-              // Try to find matching subject in subjects table
-              const matchingSubject = subjectsData.find(
-                (s: any) => s.name.toLowerCase() === firstSubjectName.toLowerCase()
-              );
-              if (matchingSubject) {
-                teacher.subjects = { name: matchingSubject.name, slug: matchingSubject.slug };
-              } else {
-                // If no match found, use the name from Shikshaqmine directly
-                teacher.subjects = {
-                  name: firstSubjectName,
-                  slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-'),
-                };
-              }
-            }
-          }
-
-          return {
-            ...teacher,
-            sirMaam: sirMaamMap.get(teacher.slug) || null,
-          };
-        });
 
         setMyTeachers(teachersWithSirMaam);
       } catch (err) {

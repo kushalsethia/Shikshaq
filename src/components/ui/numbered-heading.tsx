@@ -38,27 +38,37 @@ const NumberedHeading = React.forwardRef<HTMLElement, NumberedHeadingProps>(
     const Heading = as as React.ElementType;
     return (
       <div className={cn("flex flex-col gap-3", className)} {...props}>
-        <Heading
-          ref={ref}
-          className={cn(
-            "font-display font-extrabold text-section-head lg:text-page-title",
-            onDark ? "text-background" : "text-foreground",
-          )}
-        >
-          <span className="block">{line1}</span>
-          <span className="flex items-baseline gap-3">
-            <span
-              aria-hidden
-              className={cn(
-                "text-label font-bold tracking-[0.07em]",
-                onDark ? "text-background/55" : "text-warm-label",
-              )}
-            >
-              {ordinal}
-            </span>
-            <span>{line2}</span>
+        {/* The ordinal is DECORATIVE and must sit OUTSIDE the heading element.
+            It was previously an aria-hidden span inside it, which kept the
+            accessible name clean but still polluted textContent — so the h2
+            extracted as "Start with the teachers01parents pick", which is what
+            a search snippet or any text scrape would read. Absolute positioning
+            keeps the drawn layout identical. */}
+        <div className="relative">
+          <span
+            aria-hidden
+            className={cn(
+              "absolute left-0 top-[1.35em] text-label font-bold tracking-[0.07em]",
+              onDark ? "text-background/55" : "text-warm-label",
+            )}
+          >
+            {ordinal}
           </span>
-        </Heading>
+          <Heading
+            ref={ref}
+            className={cn(
+              "font-display font-extrabold text-section-head lg:text-page-title",
+              onDark ? "text-background" : "text-foreground",
+            )}
+          >
+            {/* The literal space between the two lines matters: `block` affects
+                layout but contributes no whitespace to textContent, so without
+                it the heading extracts as "Start with the teachersparents pick"
+                for a search snippet or a screen reader. */}
+            <span className="block">{line1}</span>{" "}
+            <span className="block pl-8">{line2}</span>
+          </Heading>
+        </div>
         {support ? (
           <p
             className={cn(

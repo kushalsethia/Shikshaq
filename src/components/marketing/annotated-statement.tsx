@@ -86,10 +86,18 @@ export interface AnnotatedStatementProps extends React.HTMLAttributes<HTMLDivEle
   statement: React.ReactNode;
   pills: AnnotatedPill[];
   align?: "left" | "center";
+  /**
+   * Heading level for the statement. This IS the page title on About and
+   * Contact, so it defaults to h1 — rendering it as a plain div left both
+   * routes with no h1 at all (design.md §7 requires exactly one, and it is the
+   * primary on-page SEO signal). Pass "div" only where a real h1 exists above.
+   */
+  as?: "h1" | "h2" | "div";
 }
 
 const AnnotatedStatement = React.forwardRef<HTMLDivElement, AnnotatedStatementProps>(
-  ({ className, statement, pills, align = "left", ...props }, ref) => {
+  ({ className, statement, pills, align = "left", as = "h1", ...props }, ref) => {
+    const Statement = as as React.ElementType;
     return (
       <div
         ref={ref}
@@ -100,7 +108,7 @@ const AnnotatedStatement = React.forwardRef<HTMLDivElement, AnnotatedStatementPr
         )}
         {...props}
       >
-        <div
+        <Statement
           className={cn(
             "font-display font-black leading-[0.94] tracking-[-0.05em] text-foreground",
             "text-[44px] sm:text-[56px] lg:text-[80px]",
@@ -108,7 +116,7 @@ const AnnotatedStatement = React.forwardRef<HTMLDivElement, AnnotatedStatementPr
           )}
         >
           {statement}
-        </div>
+        </Statement>
 
         {/* Pill overlay — a 2x3 grid spanning the statement's own box, per-anchor
             placement rather than fixed px tied to string length (see file header). */}

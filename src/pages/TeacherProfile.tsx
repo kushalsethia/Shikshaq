@@ -11,7 +11,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getSubjectPalette } from '@/lib/subject-palette';
-import { getCache, setCache, CACHE_TTL, getTeacherProfileCacheKey, getShikshaqmineBySlugCacheKey } from '@/utils/cache';
+import { getTeacherBySlug } from '@/lib/teachers';
 import DOMPurify from 'dompurify';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { recordVisit } from '@/lib/recently-visited';
@@ -167,131 +167,46 @@ export default function TeacherProfile() {
     async function fetchTeacher() {
       if (!slug) return;
 
-      const teacherCacheKey = getTeacherProfileCacheKey(slug);
-      let teacherData = getCache<any>(teacherCacheKey);
+      try {
+        const { teacher: teacherData, shikshaqmine } = await getTeacherBySlug<any>(slug);
 
-      if (!teacherData) {
-        const { data } = await supabase
-          .from('teachers_list')
-          .select('*, subjects(name, slug)')
-          .eq('slug', slug)
-          .maybeSingle();
-
-        if (data) {
-          teacherData = data;
-          setCache(teacherCacheKey, teacherData, CACHE_TTL.TEACHER_PROFILE);
+        if (teacherData) {
+          setTeacher({
+            ...teacherData,
+            sir_maam: shikshaqmine?.sirMaam ?? null,
+            subjects_from_shikshaq: shikshaqmine?.subjectsFromShikshaq ?? null,
+            classes_taught: shikshaqmine?.classesTaught ?? null,
+            classes_taught_for_backend: shikshaqmine?.classesTaughtForBackend ?? null,
+            area: shikshaqmine?.area ?? null,
+            boards_taught: shikshaqmine?.boardsTaught ?? null,
+            class_size: shikshaqmine?.classSize ?? null,
+            mode_of_teaching: shikshaqmine?.modeOfTeaching ?? null,
+            place_of_teaching: shikshaqmine?.placeOfTeaching ?? null,
+            location_v2: shikshaqmine?.locationV2 ?? null,
+            students_home_areas: shikshaqmine?.studentsHomeAreas ?? null,
+            tutors_home_areas: shikshaqmine?.tutorsHomeAreas ?? null,
+            expanded: shikshaqmine?.expanded ?? null,
+            description: shikshaqmine?.description ?? null,
+            qualifications_etc: shikshaqmine?.qualificationsEtc ?? null,
+            teaching_since:
+              shikshaqmine?.teachingSinceRaw != null && String(shikshaqmine.teachingSinceRaw).trim() !== ''
+                ? String(shikshaqmine.teachingSinceRaw).trim()
+                : null,
+            review_1: shikshaqmine?.review1 ?? null,
+            review_2: shikshaqmine?.review2 ?? null,
+            review_3: shikshaqmine?.review3 ?? null,
+            whatsapp_link: shikshaqmine?.whatsappLink ?? null,
+            min_fees: shikshaqmine?.minFees ?? null,
+            max_fees: shikshaqmine?.maxFees ?? null,
+          } as Teacher);
         }
-      }
-
-      let sirMaam = null;
-      let subjectsFromShikshaq = null;
-      let classesTaught = null;
-      let classesTaughtForBackend = null;
-      let area = null;
-      let boardsTaught = null;
-      let classSize = null;
-      let modeOfTeaching = null;
-      let placeOfTeaching = null;
-      let locationV2 = null;
-      let studentsHomeAreas = null;
-      let tutorsHomeAreas = null;
-      let expanded = null;
-      let description = null;
-      let qualificationsEtc = null;
-      let teachingSinceRaw: string | number | null = null;
-      let review1 = null;
-      let review2 = null;
-      let review3 = null;
-      let whatsappLink = null;
-      let minFees = null;
-      let maxFees = null;
-      let shikshaqData: any = null;
-      if (teacherData) {
-        try {
-          const shikshaqCacheKey = getShikshaqmineBySlugCacheKey(slug);
-          shikshaqData = getCache<any>(shikshaqCacheKey);
-
-          if (!shikshaqData) {
-            const { data, error } = await supabase
-              .from('Shikshaqmine')
-              .select('*')
-              .eq('Slug', slug)
-              .maybeSingle();
-
-            if (error) {
-              if (import.meta.env.DEV) {
-                console.warn('Error fetching from Shikshaqmine:', error);
-              }
-            } else if (data) {
-              shikshaqData = data;
-              setCache(shikshaqCacheKey, shikshaqData, CACHE_TTL.SHIKSHAQMINE);
-            }
-          }
-
-          if (shikshaqData) {
-            sirMaam = (shikshaqData as any)["Sir/Ma'am?"];
-            subjectsFromShikshaq = (shikshaqData as any)['Subjects'];
-            classesTaught = (shikshaqData as any)['Classes Taught'];
-            classesTaughtForBackend = (shikshaqData as any)['Classes Taught for Backend'];
-            area = (shikshaqData as any)['Area'];
-            boardsTaught = (shikshaqData as any)['School Boards Catered'];
-            classSize = (shikshaqData as any)['Class Size (Group/ Solo)'];
-            modeOfTeaching = (shikshaqData as any)['Mode of Teaching'];
-            placeOfTeaching = (shikshaqData as any)['Place of Teaching'];
-            locationV2 = (shikshaqData as any)['LOCATION V2'] || (shikshaqData as any)['Location V2'] || (shikshaqData as any)['location_v2'];
-            studentsHomeAreas =
-              (shikshaqData as any)["STUDENT'S HOME IN THESE AREAS"] ||
-              (shikshaqData as any)["student's home in these areas"] ||
-              (shikshaqData as any)["Student's home in these areas"];
-            tutorsHomeAreas = (shikshaqData as any)["TUTOR'S HOME IN THESE AREAS"] || (shikshaqData as any)["Tutor's home in these areas"];
-            expanded = (shikshaqData as any)['EXPANDED'] || (shikshaqData as any)['Expanded'] || (shikshaqData as any)['expanded'];
-            description = (shikshaqData as any)['Description'];
-            qualificationsEtc = (shikshaqData as any)['Qualifications etc'];
-            teachingSinceRaw = (shikshaqData as any)['Years they started teaching'] ?? null;
-            review1 = (shikshaqData as any)['Review 1'];
-            review2 = (shikshaqData as any)['Review 2'];
-            review3 = (shikshaqData as any)['Review 3'];
-            whatsappLink = (shikshaqData as any)['Link'] || (shikshaqData as any)['link'];
-            const minFeesRaw = (shikshaqData as any)['Min Fees'];
-            const maxFeesRaw = (shikshaqData as any)['Max Fees'];
-            minFees = minFeesRaw != null && minFeesRaw !== undefined ? Number(minFeesRaw) : null;
-            maxFees = maxFeesRaw != null && maxFeesRaw !== undefined ? Number(maxFeesRaw) : null;
-          }
-        } catch (err) {
-          if (import.meta.env.DEV) {
-            console.warn('Error accessing Shikshaqmine table:', err);
-          }
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('Error fetching teacher profile:', err);
         }
+      } finally {
+        setLoading(false);
       }
-
-      if (teacherData) {
-        setTeacher({
-          ...teacherData,
-          sir_maam: sirMaam,
-          subjects_from_shikshaq: subjectsFromShikshaq,
-          classes_taught: classesTaught,
-          classes_taught_for_backend: classesTaughtForBackend,
-          area: area,
-          boards_taught: boardsTaught,
-          class_size: classSize,
-          mode_of_teaching: modeOfTeaching,
-          place_of_teaching: placeOfTeaching,
-          location_v2: locationV2,
-          students_home_areas: studentsHomeAreas,
-          tutors_home_areas: tutorsHomeAreas,
-          expanded: expanded,
-          description: description,
-          qualifications_etc: qualificationsEtc,
-          teaching_since: teachingSinceRaw != null && String(teachingSinceRaw).trim() !== '' ? String(teachingSinceRaw).trim() : null,
-          review_1: review1,
-          review_2: review2,
-          review_3: review3,
-          whatsapp_link: whatsappLink,
-          min_fees: minFees ?? null,
-          max_fees: maxFees ?? null,
-        } as Teacher);
-      }
-      setLoading(false);
     }
 
     fetchTeacher();

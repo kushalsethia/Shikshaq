@@ -41,8 +41,12 @@ export function SEOContentBlock({
             {content.intro}
           </p>
 
+          {/* Lower-casing the label blindly produced "What a good icse tutor
+              covers" on every board route and on acronym subjects (ISC, IGCSE,
+              CBSE, SAT, CAT, CA, CFA, CLAT). Acronyms keep their case; ordinary
+              words are lower-cased so the sentence still reads naturally. */}
           <h2 className="mt-8 mb-3 text-lg font-bold tracking-tight text-foreground">
-            What a good {label.toLowerCase()} tutor covers
+            What a good {/^[A-Z0-9&\s/-]+$/.test(label) ? label : label.toLowerCase()} tutor covers
           </h2>
           <ul className="grid gap-2.5">
             {content.covers.map((item) => (

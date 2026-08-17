@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { getWhatsAppLinkBySlug } from '@/lib/teachers';
 import { resolveTeacherWhatsAppUrl, isWhatsAppUrl } from '@/utils/whatsapp';
 import { trackWhatsAppClick } from '@/utils/clarityEvents';
 import { trackWhatsAppClickGA } from '@/utils/gaEvents';
@@ -79,15 +80,10 @@ export default function WhatsAppRedirect() {
         }
         setName((teacher as { name?: string }).name ?? null);
 
-        const { data: mine } = await supabase
-          .from('Shikshaqmine')
-          .select('"Link"')
-          .eq('Slug', slug)
-          .maybeSingle();
+        const rawLink = await getWhatsAppLinkBySlug(slug);
 
         if (cancelled) return;
 
-        const rawLink = (mine as Record<string, string> | null)?.['Link'] ?? null;
         target = resolveTeacherWhatsAppUrl(rawLink);
       }
 

@@ -9,6 +9,7 @@ import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { Button } from '@/components/ui/button';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 // S21 — one typographic statement on a faint grid ground ("a straight line
 // between a parent and a teacher"), three tilted annotation pills, an origin
@@ -40,6 +41,9 @@ export default function About() {
         supabase.from('papers').select('school').eq('is_published', true),
       ]);
       if (cancelled) return;
+      if (teachersRes.error) logger.error('About.fetchStats.teachers', teachersRes.error);
+      if (papersRes.error) logger.error('About.fetchStats.papers', papersRes.error);
+      if (schoolsRes.error) logger.error('About.fetchStats.schools', schoolsRes.error);
       const distinctSchools = schoolsRes.data ? new Set(schoolsRes.data.map((p) => p.school)).size : null;
       setStats({
         teachers: teachersRes.count ?? null,

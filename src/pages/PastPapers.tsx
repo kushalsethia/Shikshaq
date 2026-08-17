@@ -232,7 +232,7 @@ export default function PastPapers() {
             <h1 className="font-display text-[34px] font-black leading-[.98] tracking-[-0.03em] text-white sm:text-[52px] lg:text-[74px] lg:leading-[.94]">
               {!loading && !loadError && totalPapers != null && totalPapers > 0
                 ? <>{totalPapers.toLocaleString('en-IN')} past papers,<br />free to read</>
-                : <>Past papers from<br />Kolkata schools</>}
+                : <>Past papers from{' '}<br />Kolkata schools</>}
             </h1>
             <p className="mt-3 max-w-[62ch] text-[15px] leading-[1.55] text-white/[.82] sm:mt-4 sm:text-[17.5px]">
               {schoolStats.length > 0
@@ -588,7 +588,7 @@ export default function PastPapers() {
         {/* ------------------------------------------------------------ 3 steps */}
         <section className={`${CONTAINER} ${SECTION} pt-0`}>
           <h2 className="mb-8 text-center text-section-head font-display font-bold">
-            Three steps, no cost,<br />no catch.
+            Three steps, no cost,{' '}<br />no catch.
           </h2>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
             {PAPER_STEPS.map((step) => (

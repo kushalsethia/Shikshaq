@@ -11,6 +11,7 @@ import { WordmarkBleed } from '@/components/layout/WordmarkBleed';
 import { SentenceBuilder, type SentenceSlot } from '@/components/home/SentenceBuilder';
 import { SUBJECTS, CLASSES, AREAS, BOARDS } from '@/utils/searchFacets';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 import { useAuth } from '@/lib/auth-context';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import DOMPurify from 'dompurify';
@@ -166,6 +167,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
         supabase.from('papers').select('school').eq('is_published', true),
       ]);
       if (cancelled) return;
+      if (teachersRes.error) logger.error('Footer.fetchCtaTotals.teachers', teachersRes.error);
+      if (papersRes.error) logger.error('Footer.fetchCtaTotals.papers', papersRes.error);
+      if (schoolsRes.error) logger.error('Footer.fetchCtaTotals.schools', schoolsRes.error);
       const uniqueSchools = schoolsRes.data ? Array.from(new Set(schoolsRes.data.map((p) => p.school))).sort() : [];
       setCtaTotals({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null, schools: schoolsRes.data ? uniqueSchools.length : null });
       setSchoolOptions(uniqueSchools);

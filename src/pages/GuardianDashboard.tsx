@@ -4,6 +4,7 @@ import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
 import { PageContainer, ControlBlock, BottomNavSpacer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
+import { getTeachersByIds } from '@/lib/teachers';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { ListLoading, ListEmpty } from '@/components/ui/list-states';
@@ -120,6 +121,7 @@ export default function GuardianDashboard() {
   const { studiesWithCount } = useStudiesWith();
   const [savedTeachers, setSavedTeachers] = useState<SavedTeacher[]>([]);
   const [savedTeachersLoading, setSavedTeachersLoading] = useState(true);
+  const [savedTeachersError, setSavedTeachersError] = useState(false);
   const [formData, setFormData] = useState({
     phone: '',
     address: '',
@@ -238,47 +240,20 @@ export default function GuardianDashboard() {
       if (likedTeacherIds.size === 0) {
         setSavedTeachers([]);
         setSavedTeachersLoading(false);
+        setSavedTeachersError(false);
         return;
       }
 
+      setSavedTeachersError(false);
       try {
         const teacherIds = Array.from(likedTeacherIds);
-        const { data: teachersData, error: teachersError } = await supabase
-          .from('teachers_list')
-          .select('id, name, slug, image_url, subjects(name, slug)')
-          .in('id', teacherIds);
-
-        if (teachersError) throw teachersError;
-
-        if (!teachersData || teachersData.length === 0) {
-          setSavedTeachers([]);
-          setSavedTeachersLoading(false);
-          return;
-        }
-
-        const slugs = teachersData.map((t) => t.slug);
-        const { data: shikshaqData } = await supabase
-          .from('Shikshaqmine')
-          .select('*')
-          .in('Slug', slugs);
-
-        const sirMaamMap = new Map<string, string | null>();
-        if (shikshaqData) {
-          shikshaqData.forEach((record: any) => {
-            sirMaamMap.set(record.Slug, record["Sir/Ma'am?"] || null);
-          });
-        }
-
-        setSavedTeachers(
-          teachersData.map((teacher) => ({
-            ...teacher,
-            sirMaam: sirMaamMap.get(teacher.slug) || null,
-          }))
-        );
+        const teachersWithSirMaam = await getTeachersByIds(teacherIds);
+        setSavedTeachers(teachersWithSirMaam);
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error('Error fetching saved teachers:', error);
         }
+        setSavedTeachersError(true);
       } finally {
         setSavedTeachersLoading(false);
       }
