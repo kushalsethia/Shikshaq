@@ -1,6 +1,20 @@
 import type { Config } from "tailwindcss";
 
 export default {
+  /* micro-06-non-negotiables rule 6: "Hover effects are desktop-only; on touch
+     the same state arrives on press instead." Without this flag Tailwind emits
+     bare `:hover`, which a touch browser fires on tap and then LEAVES APPLIED
+     until you tap something else — so a tapped teacher card stayed lifted and
+     shadowed while you read it, and every `hover:-translate-y-0.5` on the site
+     behaved as a sticky post-tap state rather than a hover.
+
+     `hoverOnlyWhenSupported` wraps every hover: utility in
+     @media (hover: hover), so they apply on a mouse and never on a finger. The
+     `active:` states that carry the press feedback are untouched. One flag,
+     because the alternative is hand-guarding several hundred call sites. */
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   darkMode: ["class"],
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
