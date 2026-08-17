@@ -563,7 +563,12 @@ export default function TeacherProfile() {
                       width={224}
                       height={280}
                       decoding="async"
-                      fetchPriority="high"
+                      /* React 18 does not recognise `fetchPriority` as a prop —
+                         it warns and drops it. (React 19 added it.) Spreading
+                         the lowercase HTML attribute emits the real thing.
+                         This is the profile's LCP image, so the hint is worth
+                         keeping rather than removing. */
+                      {...({ fetchpriority: 'high' } as Record<string, string>)}
                       className="h-full w-full object-cover"
                     />
                   ) : (
