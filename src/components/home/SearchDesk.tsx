@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { SearchControl } from '@/components/SearchControl';
+import { HeroFieldSearch } from '@/components/home/HeroFieldSearch';
 import { Chip } from '@/components/ui/chip';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import type { SearchMode } from '@/utils/searchFacets';
@@ -32,7 +33,16 @@ export function SearchDesk({ onModeChange, className = '' }: SearchDeskProps) {
 
   return (
     <div className={`rounded-3xl bg-card p-4 shadow-border-hover sm:p-6 ${className}`}>
-      <SearchControl align="flex-start" stackedToggle alwaysShowModeToggle onModeChange={onModeChange} />
+      {/* Two devices, one search. desktop-01-home.png puts three labelled
+          dropdowns and a Search button in this card; the mobile mockups put the
+          single field with the Teachers/Papers toggle. The build previously used
+          the mobile device at every width, which was the largest desktop
+          departure from the handoff. Both write the same query string to the
+          same route, so a URL from one width still works at the other. */}
+      <div className="lg:hidden">
+        <SearchControl align="flex-start" stackedToggle alwaysShowModeToggle onModeChange={onModeChange} />
+      </div>
+      <HeroFieldSearch className="hidden lg:block" />
 
       <div className="-mx-4 mt-4 overflow-x-auto px-4 scrollbar-hide sm:mx-0 sm:px-0">
         <div className="flex w-max items-center gap-2 sm:w-full sm:flex-wrap">
