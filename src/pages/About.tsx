@@ -57,18 +57,23 @@ export default function About() {
     };
   }, []);
 
+  /* Guarded on > 0, not != null. `!= null` only hides these while they load, so
+     with an empty papers table this page — the one page whose whole job is to
+     say we are trustworthy — rendered "0 past papers, free to read" and
+     "0 Kolkata schools represented" as if they were achievements. design.md
+     §3.2: never advertise emptiness. A zero drops its tile. */
   const statTiles = [
-    stats.teachers != null
-      ? { value: stats.teachers.toLocaleString('en-IN'), label: 'verified teachers listed', ink: 'text-foreground' }
+    (stats.teachers ?? 0) > 0
+      ? { value: stats.teachers!.toLocaleString('en-IN'), label: 'verified teachers listed', ink: 'text-foreground' }
       : null,
-    stats.papers != null
-      ? { value: stats.papers.toLocaleString('en-IN'), label: 'past papers, free to read', ink: 'text-brand-blue-deep' }
+    (stats.papers ?? 0) > 0
+      ? { value: stats.papers!.toLocaleString('en-IN'), label: 'past papers, free to read', ink: 'text-brand-blue-deep' }
       : null,
     // A fact, not a query — always true, so it always shows (same reasoning
     // PreFooter's B2 uses for its commission line).
     { value: '₹0', label: 'commission taken from a fee', ink: 'text-brand-deep' },
-    stats.schools != null
-      ? { value: stats.schools.toLocaleString('en-IN'), label: 'Kolkata schools represented', ink: 'text-foreground' }
+    (stats.schools ?? 0) > 0
+      ? { value: stats.schools!.toLocaleString('en-IN'), label: 'Kolkata schools represented', ink: 'text-foreground' }
       : null,
   ].filter(Boolean) as { value: string; label: string; ink: string }[];
 
@@ -98,10 +103,22 @@ export default function About() {
             statement={statement}
             align="left"
             className="px-[18px] py-6 lg:px-10 lg:py-14 lg:text-center"
+            /* The third pill was hard-coded to the copy deck's "846 past papers,
+               free" while the library actually holds none — a fabricated number
+               on the page that exists to establish trust. It now states the
+               real count, and drops out entirely rather than saying zero. */
             pills={[
-              { label: 'No commission, ever', anchor: 'top-right', tone: 'dark', tilt: 4 },
-              { label: 'WhatsApp, not a call centre', anchor: 'bottom-left', tone: 'bone', tilt: -3 },
-              { label: '846 past papers, free', anchor: 'bottom-right', tone: 'indigo', tilt: -3, dot: true },
+              { label: 'No commission, ever', anchor: 'top-right' as const, tone: 'dark' as const, tilt: 4 },
+              { label: 'WhatsApp, not a call centre', anchor: 'bottom-left' as const, tone: 'bone' as const, tilt: -3 },
+              ...((stats.papers ?? 0) > 0
+                ? [{
+                    label: `${stats.papers!.toLocaleString('en-IN')} past papers, free`,
+                    anchor: 'bottom-right' as const,
+                    tone: 'indigo' as const,
+                    tilt: -3,
+                    dot: true,
+                  }]
+                : []),
             ]}
           />
         </PageContainer>
