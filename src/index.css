@@ -326,6 +326,36 @@
 }
 
 @layer utilities {
+  /* Expand a control's HIT AREA to the 44px mobile floor (design.md §7,
+     components.md §6) without changing how big it looks. Use this wherever the
+     mockup draws a control smaller than 44px — a 34px filter pill, a 36px
+     WhatsApp disc, a 40px overflow button. Resizing those to 44px would break
+     the drawn design; growing the target instead satisfies both.
+
+     The pseudo-element is centred on the control and sits behind its content,
+     so it never intercepts a click meant for something stacked above. Above
+     `lg` the floor drops to 40px for pointer input, so the overlay is removed.
+
+     The control must be `relative` (all our primitives are). */
+  .tap-44 {
+    position: relative;
+  }
+  .tap-44::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    z-index: -1;
+  }
+  @media (min-width: 1024px) {
+    .tap-44::before {
+      content: none;
+    }
+  }
+
   /* Removed: hand-rolled .animate-fade-in / .animate-slide-up /
      .animate-slide-in-left utilities and their fadeIn/slideUp/slideInLeft
      keyframes. They shadowed the Tailwind animations of the same name and are

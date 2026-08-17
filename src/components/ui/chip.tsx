@@ -106,7 +106,7 @@ const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(
       <button
         ref={ref}
         type="button"
-        className={cn(chipVariants({ tone, size }), "active:scale-[0.97]", className)}
+        className={cn(chipVariants({ tone, size }), "tap-44 active:scale-[0.97]", className)}
         style={merged}
         {...props}
       >

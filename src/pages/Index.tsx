@@ -567,7 +567,9 @@ export default function Index() {
                     <button
                       type="button"
                       onClick={() => navigate(`/all-tuition-teachers-in-kolkata?q=${encodeURIComponent(label)}`)}
-                      className="inline-flex items-center gap-[10px] font-display text-[15px] font-extrabold tracking-tight text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+                      /* tap-44 keeps the ticker's drawn 23px type while giving
+                         each item the 44px target design.md §7 requires. */
+                      className="tap-44 inline-flex items-center gap-[10px] font-display text-[15px] font-extrabold tracking-tight text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
                     >
                       {label}
                       <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />

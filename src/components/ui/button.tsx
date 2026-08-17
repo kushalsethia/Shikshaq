@@ -45,8 +45,11 @@ const buttonVariants = cva(
         link: "rounded-md text-primary underline-offset-4 hover:underline",
       },
       size: {
-        /* redesign ramp — 44px is the mobile floor (design.md §7) */
-        40: "h-10 px-4 text-meta",
+        /* redesign ramp. components.md §6 sets the tap target at 44px minimum on
+           mobile and 40px minimum on desktop (pointer), so the "40" step is 44px
+           until lg and 40px above it. An audit at 390px found 23 controls under
+           the mobile floor, nearly all of them this size. */
+        40: "h-11 lg:h-10 px-4 text-meta",
         44: "h-11 px-6 text-body-secondary",
         46: "h-[46px] px-6 text-body-secondary",
         52: "h-[52px] px-8 text-body",
