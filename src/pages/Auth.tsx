@@ -413,7 +413,7 @@ export default function Auth() {
           <span className="absolute left-[2%] top-[6%] -rotate-6 whitespace-nowrap rounded-full bg-brand-blue-subtle px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-blue-deep">
             Maths, Ballygunge
           </span>
-          {teacherCount !== null && (
+          {(teacherCount ?? 0) > 0 && (
             <span className="absolute right-0 top-[22%] rotate-[4deg] whitespace-nowrap rounded-full bg-brand px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-foreground">
               {teacherCount} verified tutors
             </span>
@@ -421,7 +421,11 @@ export default function Auth() {
           <span className="absolute left-[6%] top-[40%] rotate-3 whitespace-nowrap rounded-full bg-brand-blue-subtle px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-blue-deep">
             Chemistry prelims
           </span>
-          {paperCount !== null && (
+          {/* > 0, not !== null. design.md §3.2 forbids advertising emptiness,
+              and the paper library is genuinely empty right now, so this
+              rendered a literal "0 free papers" badge on the sign-in screen.
+              A count of zero drops the sticker instead. */}
+          {(paperCount ?? 0) > 0 && (
             <span className="absolute right-[6%] top-[57%] -rotate-[4deg] whitespace-nowrap rounded-full bg-brand-blue px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-blue-foreground">
               {paperCount} free papers
             </span>

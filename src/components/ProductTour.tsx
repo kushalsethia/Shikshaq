@@ -177,11 +177,17 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
       mode: "papers",
       headline: (
         <>
-          {paperCount !== null ? `${paperCount} past papers, ` : "Past papers, "}
+          {/* > 0, not !== null — the library is empty today, so `!== null` put
+              the words "0 past papers, free to read." in front of anyone taking
+              the tour. design.md §3.2: never advertise emptiness. */}
+          {(paperCount ?? 0) > 0 ? `${paperCount} past papers, ` : "Past papers, "}
           <em className="not-italic font-normal italic">free to read.</em>
         </>
       ),
-      body: "Real prelim and half-yearly papers from 24 Kolkata schools. Sign in once and your shelf follows you.",
+      /* "24 Kolkata schools" was a copy-deck number with nothing behind it —
+         there are no papers and therefore no schools. design.md §0.10 allows
+         only counts that can be fetched, so the claim is stated without one. */
+      body: "Real prelim and half-yearly papers from Kolkata schools. Sign in once and your shelf follows you.",
       cta: "Start looking",
       illustration: (
         <div className="flex items-center gap-2">
