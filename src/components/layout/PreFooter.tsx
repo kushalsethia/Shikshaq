@@ -85,14 +85,18 @@ export interface B2Counts {
 }
 
 function B2({ counts }: { counts?: B2Counts }) {
-  /* Only render a counter whose number actually arrived. The commission line is
-     a fact, not a query, so it always shows. */
+  /* Only render a counter whose number actually arrived AND is above zero.
+     `!== undefined` alone let a real zero through: /more briefly painted
+     "0 verified teachers" under the heading "Why this list is trustworthy",
+     which is the exact opposite of the panel's job. Same rule as the About
+     tiles and the sign-in badges - design.md §3.2, never advertise emptiness.
+     The commission line is a fact, not a query, so it always shows. */
   const items = [
-    counts?.teachers !== undefined
-      ? { value: String(counts.teachers), label: "verified teachers" }
+    (counts?.teachers ?? 0) > 0
+      ? { value: String(counts!.teachers), label: "verified teachers" }
       : null,
-    counts?.reviews !== undefined
-      ? { value: String(counts.reviews), label: "student reviews" }
+    (counts?.reviews ?? 0) > 0
+      ? { value: String(counts!.reviews), label: "student reviews" }
       : null,
     { value: "₹0", label: "commission, ever" },
   ].filter(Boolean) as { value: string; label: string }[];
