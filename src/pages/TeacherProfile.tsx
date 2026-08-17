@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Footer } from '@/components/Footer';
@@ -147,8 +148,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 
 export default function TeacherProfile() {
   const { slug } = useParams<{ slug: string }>();
-  const [teacher, setTeacher] = useState<Teacher | null>(null);
-  const [loading, setLoading] = useState(true);
+
   const { user } = useAuth();
   const { isLiked, toggleLike } = useLikes();
   const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
@@ -163,54 +163,52 @@ export default function TeacherProfile() {
 
   useRequireRole();
 
-  useEffect(() => {
-    async function fetchTeacher() {
-      if (!slug) return;
+  /* Profile fetch on react-query. Was a hand-rolled useEffect owning its own
+     loading flag and swallowing errors in a catch; the join itself already
+     lives in src/lib/teachers.ts, so only the async-state ownership moved.
 
-      try {
-        const { teacher: teacherData, shikshaqmine } = await getTeacherBySlug<any>(slug);
+     staleTime is generous — a teacher profile changes rarely, and navigating
+     back to one should not refetch. */
+  const profileQuery = useQuery({
+    queryKey: ['teacher-profile', slug],
+    enabled: Boolean(slug),
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<Teacher | null> => {
+      const { teacher: teacherData, shikshaqmine } = await getTeacherBySlug<any>(slug as string);
+      if (!teacherData) return null;
+      return {
+        ...teacherData,
+        sir_maam: shikshaqmine?.sirMaam ?? null,
+        subjects_from_shikshaq: shikshaqmine?.subjectsFromShikshaq ?? null,
+        classes_taught: shikshaqmine?.classesTaught ?? null,
+        classes_taught_for_backend: shikshaqmine?.classesTaughtForBackend ?? null,
+        area: shikshaqmine?.area ?? null,
+        boards_taught: shikshaqmine?.boardsTaught ?? null,
+        class_size: shikshaqmine?.classSize ?? null,
+        mode_of_teaching: shikshaqmine?.modeOfTeaching ?? null,
+        place_of_teaching: shikshaqmine?.placeOfTeaching ?? null,
+        location_v2: shikshaqmine?.locationV2 ?? null,
+        students_home_areas: shikshaqmine?.studentsHomeAreas ?? null,
+        tutors_home_areas: shikshaqmine?.tutorsHomeAreas ?? null,
+        expanded: shikshaqmine?.expanded ?? null,
+        description: shikshaqmine?.description ?? null,
+        qualifications_etc: shikshaqmine?.qualificationsEtc ?? null,
+        teaching_since:
+          shikshaqmine?.teachingSinceRaw != null && String(shikshaqmine.teachingSinceRaw).trim() !== ''
+            ? String(shikshaqmine.teachingSinceRaw).trim()
+            : null,
+        review_1: shikshaqmine?.review1 ?? null,
+        review_2: shikshaqmine?.review2 ?? null,
+        review_3: shikshaqmine?.review3 ?? null,
+        whatsapp_link: shikshaqmine?.whatsappLink ?? null,
+        min_fees: shikshaqmine?.minFees ?? null,
+        max_fees: shikshaqmine?.maxFees ?? null,
+      } as Teacher;
+    },
+  });
 
-        if (teacherData) {
-          setTeacher({
-            ...teacherData,
-            sir_maam: shikshaqmine?.sirMaam ?? null,
-            subjects_from_shikshaq: shikshaqmine?.subjectsFromShikshaq ?? null,
-            classes_taught: shikshaqmine?.classesTaught ?? null,
-            classes_taught_for_backend: shikshaqmine?.classesTaughtForBackend ?? null,
-            area: shikshaqmine?.area ?? null,
-            boards_taught: shikshaqmine?.boardsTaught ?? null,
-            class_size: shikshaqmine?.classSize ?? null,
-            mode_of_teaching: shikshaqmine?.modeOfTeaching ?? null,
-            place_of_teaching: shikshaqmine?.placeOfTeaching ?? null,
-            location_v2: shikshaqmine?.locationV2 ?? null,
-            students_home_areas: shikshaqmine?.studentsHomeAreas ?? null,
-            tutors_home_areas: shikshaqmine?.tutorsHomeAreas ?? null,
-            expanded: shikshaqmine?.expanded ?? null,
-            description: shikshaqmine?.description ?? null,
-            qualifications_etc: shikshaqmine?.qualificationsEtc ?? null,
-            teaching_since:
-              shikshaqmine?.teachingSinceRaw != null && String(shikshaqmine.teachingSinceRaw).trim() !== ''
-                ? String(shikshaqmine.teachingSinceRaw).trim()
-                : null,
-            review_1: shikshaqmine?.review1 ?? null,
-            review_2: shikshaqmine?.review2 ?? null,
-            review_3: shikshaqmine?.review3 ?? null,
-            whatsapp_link: shikshaqmine?.whatsappLink ?? null,
-            min_fees: shikshaqmine?.minFees ?? null,
-            max_fees: shikshaqmine?.maxFees ?? null,
-          } as Teacher);
-        }
-      } catch (err) {
-        if (import.meta.env.DEV) {
-          console.warn('Error fetching teacher profile:', err);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchTeacher();
-  }, [slug]);
+  const teacher = profileQuery.data ?? null;
+  const loading = profileQuery.isPending && Boolean(slug);
 
   // Auto-continue after sign-in — see handleWhatsAppClick's sessionStorage flag.
   useEffect(() => {
