@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Phone, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
+import { recordAdminAction } from '@/lib/audit';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Select,
@@ -46,7 +47,8 @@ interface Recommendation {
 const TINT = { bg: MODE_TOKENS.teachers.tintBg, text: MODE_TOKENS.teachers.tintText }; // #FFF4E8 / #B35900 per spec
 
 export default function AdminRecommendations() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const actorName = profile?.full_name || user?.email || 'an admin';
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -124,6 +126,15 @@ export default function AdminRecommendations() {
       }
 
       adminToast('Recommendation updated');
+      const editedRec = recommendations.find((r) => r.id === id);
+      void recordAdminAction({
+        actorId: user.id,
+        actorName,
+        action: 'edit',
+        targetType: 'recommendation',
+        targetId: id,
+        targetLabel: editedRec?.teacher_name || 'recommendation',
+      });
       setEditingId(null);
       fetchRecommendations();
     } catch (error) {
@@ -160,6 +171,15 @@ export default function AdminRecommendations() {
       }
 
       adminToast(status === 'contacted' ? 'Marked as contacted' : 'Recommendation dismissed');
+      const targetRec = recommendations.find((r) => r.id === id);
+      void recordAdminAction({
+        actorId: user.id,
+        actorName,
+        action: status === 'contacted' ? 'edit' : 'reject',
+        targetType: 'recommendation',
+        targetId: id,
+        targetLabel: targetRec?.teacher_name || 'recommendation',
+      });
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error:', error);

@@ -195,13 +195,19 @@ export function AdminConsole({ activeTab, title, subtitle, tint, tabCount, child
   const counts = useAdminTabCounts(activeTab, tabCount);
 
   // Redesign S7/C-061 — real per-section counts only, never a placeholder.
-  const shellNav: AdminNavItem[] = TAB_ORDER.map((tab) => ({
-    key: tab.key,
-    label: tab.label,
-    path: tab.path,
-    count: counts[tab.key],
-    active: tab.key === activeTab,
-  }));
+  const shellNav: AdminNavItem[] = [
+    ...TAB_ORDER.map((tab) => ({
+      key: tab.key,
+      label: tab.label,
+      path: tab.path,
+      count: counts[tab.key],
+      active: tab.key === activeTab,
+    })),
+    // Audit log (admin-05) is a separately-shaped screen, like AdminPapers —
+    // it does not join the AdminTabKey union or the tab-count query, it just
+    // needs a rail entry so every other admin page can reach it.
+    { key: 'audit', label: 'Audit log', path: '/admin/audit', active: false },
+  ];
   const activeCount = counts[activeTab];
 
   const uploadLinks = (

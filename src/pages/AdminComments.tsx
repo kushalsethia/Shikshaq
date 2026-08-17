@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Lock, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
+import { recordAdminAction } from '@/lib/audit';
 import { formatDistanceToNow } from 'date-fns';
 import { SURFACE_TOKENS, ACCENT_TOKENS } from '@/utils/searchFacets';
 import {
@@ -45,7 +46,8 @@ const COMMENTS_PAGE_SIZE = 50;
 const TINT = { bg: ACCENT_TOKENS.settledBg, text: ACCENT_TOKENS.settledText };
 
 export default function AdminComments() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const actorName = profile?.full_name || user?.email || 'an admin';
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -202,6 +204,17 @@ export default function AdminComments() {
       }
 
       adminToast('Comment published');
+      const approvedComment = comments.find((c) => c.id === commentId);
+      if (user) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: 'approve',
+          targetType: 'comment',
+          targetId: commentId,
+          targetLabel: approvedComment?.teachers_list?.name || 'comment',
+        });
+      }
       fetchComments();
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -227,6 +240,17 @@ export default function AdminComments() {
       }
 
       adminToast('Comment hidden');
+      const rejectedComment = comments.find((c) => c.id === commentId);
+      if (user) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: 'reject',
+          targetType: 'comment',
+          targetId: commentId,
+          targetLabel: rejectedComment?.teachers_list?.name || 'comment',
+        });
+      }
       fetchComments();
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -256,6 +280,17 @@ export default function AdminComments() {
       }
 
       adminToast('Comment deleted');
+      const deletedComment = comments.find((c) => c.id === commentId);
+      if (user) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: 'delete',
+          targetType: 'comment',
+          targetId: commentId,
+          targetLabel: deletedComment?.teachers_list?.name || 'comment',
+        });
+      }
       fetchComments();
     } catch (error) {
       if (import.meta.env.DEV) {

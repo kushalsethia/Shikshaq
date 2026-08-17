@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { ArrowLeft, Loader2, Lock, Plus, Save, Search, Trash2, Upload, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { recordAdminAction } from '@/lib/audit';
 import { SUBJECTS, CLASSES, BOARDS, EXAM_TYPES, SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
   adminFieldStyle,
@@ -56,7 +57,8 @@ const BLANK_FORM: FormState = {
 };
 
 export default function AdminPapers() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const actorName = profile?.full_name || user?.email || 'an admin';
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') === 'upload' ? 'upload' : 'manage';
@@ -221,10 +223,30 @@ export default function AdminPapers() {
         const { error } = await supabase.from('papers').update(payload).eq('id', selected.id);
         if (error) throw error;
         adminToast('Paper updated');
+        if (user) {
+          void recordAdminAction({
+            actorId: user.id,
+            actorName,
+            action: 'edit',
+            targetType: 'paper',
+            targetId: selected.id,
+            targetLabel: payload.title,
+          });
+        }
       } else {
         const { error } = await supabase.from('papers').insert(payload);
         if (error) throw error;
         adminToast('Paper published');
+        if (user) {
+          void recordAdminAction({
+            actorId: user.id,
+            actorName,
+            action: 'publish',
+            targetType: 'paper',
+            targetId: payload.title,
+            targetLabel: payload.title,
+          });
+        }
       }
 
       await fetchPapers();
@@ -246,6 +268,16 @@ export default function AdminPapers() {
       const { error } = await supabase.from('papers').delete().eq('id', selected.id);
       if (error) throw error;
       adminToast('Paper deleted');
+      if (user) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: 'delete',
+          targetType: 'paper',
+          targetId: selected.id,
+          targetLabel: selected.title,
+        });
+      }
       await fetchPapers();
       closeEditor();
     } catch (error) {
@@ -265,6 +297,16 @@ export default function AdminPapers() {
     try {
       const { error } = await supabase.from('papers').update({ is_published: nextPublished }).eq('id', paper.id);
       if (error) throw error;
+      if (user) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: nextPublished ? 'publish' : 'takedown',
+          targetType: 'paper',
+          targetId: paper.id,
+          targetLabel: paper.title,
+        });
+      }
       adminToast(nextPublished ? 'Paper republished' : 'Paper unpublished', {
         undo: async () => {
           setPapers((prev) => prev.map((p) => (p.id === paper.id ? { ...p, is_published: paper.is_published } : p)));

@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Save, Search, Loader2, Upload, X, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
+import { recordAdminAction } from '@/lib/audit';
 import DOMPurify from 'dompurify';
 import {
   Select,
@@ -108,7 +109,8 @@ interface TeacherData {
 const TEACHERS_TINT = { bg: SURFACE_TOKENS.mutedFill, text: SURFACE_TOKENS.textBody };
 
 export default function AdminTeachers() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const actorName = profile?.full_name || user?.email || 'an admin';
   const navigate = useNavigate();
   const [teachers, setTeachers] = useState<TeacherData[]>([]);
   const [filteredTeachers, setFilteredTeachers] = useState<TeacherData[]>([]);
@@ -472,7 +474,18 @@ export default function AdminTeachers() {
       }
 
       adminToast('Teacher updated successfully');
-      
+
+      if (user) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: 'edit',
+          targetType: 'teacher',
+          targetId: String(selectedTeacher.id),
+          targetLabel: selectedTeacher.Title || 'teacher',
+        });
+      }
+
       // Invalidate cache for this teacher's profile (so changes show immediately)
       if (selectedTeacher.Slug) {
         invalidateTeacherCache(selectedTeacher.Slug);
@@ -545,6 +558,17 @@ export default function AdminTeachers() {
       }
 
       adminToast(`"${selectedTeacher.Title}" has been deleted`);
+
+      if (user) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: 'delete',
+          targetType: 'teacher',
+          targetId: String(selectedTeacher.id),
+          targetLabel: selectedTeacher.Title || 'teacher',
+        });
+      }
 
       if (selectedTeacher.Slug) {
         invalidateTeacherCache(selectedTeacher.Slug);

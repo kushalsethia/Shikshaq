@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
+import { recordAdminAction } from '@/lib/audit';
 import { Footer } from '@/components/Footer';
 import { formatDistanceToNow } from 'date-fns';
 import { SURFACE_TOKENS } from '@/utils/searchFacets';
@@ -54,7 +55,8 @@ const ratingTone = (rating: number): AdminPillTone => {
 };
 
 export default function AdminFeedback() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const actorName = profile?.full_name || user?.email || 'an admin';
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -199,6 +201,17 @@ export default function AdminFeedback() {
       }
 
       adminToast('Feedback resolved');
+      const resolvedFeedback = feedback.find((f) => f.id === feedbackId);
+      if (user) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: 'resolve',
+          targetType: 'feedback',
+          targetId: feedbackId,
+          targetLabel: resolvedFeedback?.profiles?.full_name || resolvedFeedback?.guest_email || 'feedback',
+        });
+      }
       fetchFeedback();
     } catch (error) {
       if (import.meta.env.DEV) {

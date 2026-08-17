@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, CheckCircle, XCircle, Search, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { recordAdminAction } from '@/lib/audit';
 import { Link } from 'react-router-dom';
 import { Footer } from '@/components/Footer';
 import { formatDistanceToNow } from 'date-fns';
@@ -70,7 +71,8 @@ interface TeacherApplication {
 const TINT = { bg: MODE_TOKENS.teachers.tintBg, text: MODE_TOKENS.teachers.tintText }; // teachers tint tokens per spec
 
 export default function AdminApplications() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const actorName = profile?.full_name || user?.email || 'an admin';
   const [applications, setApplications] = useState<TeacherApplication[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<TeacherApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,6 +185,17 @@ export default function AdminApplications() {
       }
 
       adminToast('Application approved. Teacher profile created.');
+      const approvedApp = applications.find((a) => a.id === applicationId);
+      if (user) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: 'approve',
+          targetType: 'teacher_application',
+          targetId: applicationId,
+          targetLabel: approvedApp?.name || 'teacher',
+        });
+      }
       await fetchApplications();
       setSelectedApplication(null);
     } catch (error) {
@@ -224,6 +237,18 @@ export default function AdminApplications() {
       }
 
       adminToast('Application rejected');
+      const rejectedApp = applications.find((a) => a.id === applicationId);
+      if (user) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: 'reject',
+          targetType: 'teacher_application',
+          targetId: applicationId,
+          targetLabel: rejectedApp?.name || 'teacher',
+          reason: reason || null,
+        });
+      }
       await fetchApplications();
       setSelectedApplication(null);
     } catch (error) {
