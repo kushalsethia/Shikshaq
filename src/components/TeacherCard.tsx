@@ -1,11 +1,26 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Heart, ArrowUp } from 'lucide-react';
+import { Heart, ArrowUp, BadgeCheck } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
 import { memo } from 'react';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { getSubjectPalette } from '@/lib/subject-palette';
+import { Chip } from '@/components/ui/chip';
+import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
+
+/**
+ * C1 — components.md §2 / design.md §2.1 + §2.5 (CONCENTRIC PHOTO, binding).
+ *
+ * The photo never carries type. The card is a padded frame (mobile 26px radius /
+ * 8px padding / 19px inner radius; desktop 28 / 10 / 20) with the photo inset in
+ * it; name, verified mark, rating, subject chip and meta all sit BELOW the
+ * picture. No gradient scrim, no overhanging sticker, no "Teacher of the week"
+ * badge on the image, nothing overlapping a teacher's face — that includes the
+ * favourite heart, which moves off the photo into the body row next to the name.
+ */
+
+export type TeacherCardVariant = 'grid' | 'rail' | 'row';
 
 interface TeacherCardProps {
   id: string;
@@ -31,8 +46,22 @@ interface TeacherCardProps {
   meta?: string; // Secondary line below the name, e.g. "Class 9-12 · Ballygunge" (size 'md' only)
   /** Card size per components/TeacherCard.md. Defaults to 'md' (Browse, dashboards, Liked/My Teachers today). */
   size?: 'sm' | 'md';
+  /**
+   * C1 density (components.md §2, design.md §2.1). `grid` = 174px standard
+   * card, `rail` = 172px narrow shelf card, `row` = horizontal list row.
+   * Defaults from `size` when omitted so existing callers keep their current
+   * layout: size="sm" -> rail, size="md" -> grid.
+   */
+  variant?: TeacherCardVariant;
   /** Show the read-only upvote-count pill (size 'md' only). Defaults to !isFeatured to match prior behaviour. */
   showUpvotes?: boolean;
+  /**
+   * Real rating only (design.md §0.10 — every count shown is real, never a
+   * fabricated rating). Omitted entirely when absent; never defaulted.
+   */
+  rating?: number;
+  /** Verified mark next to the name. Only rendered when explicitly true. */
+  verified?: boolean;
 }
 
 // Formats "{name}, {honorific}" per components/TeacherCard.md. Omits the comma entirely when
@@ -57,9 +86,14 @@ function TeacherCardComponent({
   hideFavourite = false,
   meta,
   size = 'md',
+  variant,
   showUpvotes: showUpvotesProp,
+  rating,
+  verified,
 }: TeacherCardProps) {
   const isSm = size === 'sm';
+  const resolvedVariant: TeacherCardVariant = variant ?? (isSm ? 'rail' : 'grid');
+  const isRow = resolvedVariant === 'row';
 
   const displayName = formatDisplayName(name, sirMaam);
   const { user } = useAuth();
@@ -74,6 +108,7 @@ function TeacherCardComponent({
   const showFavourite = !hideFavourite;
   const showUpvotes = (showUpvotesProp ?? !isFeatured) && !isSm;
   const palette = getSubjectPalette(subject);
+  const placeholderInitialSize = resolvedVariant === 'grid' ? 64 : resolvedVariant === 'rail' ? 46 : 32;
 
   const handleHeartClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -88,99 +123,127 @@ function TeacherCardComponent({
     await toggleLike(id);
   };
 
+  const photo = imageUrl ? (
+    <img
+      src={validateImageSrc(imageUrl)}
+      alt={name}
+      loading="lazy"
+      decoding="async"
+      className="h-full w-full object-cover"
+    />
+  ) : (
+    <StripePlaceholder name={name} initialSize={placeholderInitialSize} className="h-full w-full" />
+  );
+
+  // §7 — an isFeatured card gets a facet chip in the body instead of a
+  // "Teacher of the week" badge on the photo (binding: never on the image).
+  const featuredChip = isFeatured ? (
+    <Chip tone="dark-on" size={34} asChild>
+      Featured
+    </Chip>
+  ) : null;
+
+  const nameHeading = (
+    <h3
+      className={`line-clamp-2 flex items-center gap-1 break-words font-display font-semibold text-foreground ${isSm || isRow ? 'text-card-title' : 'text-card-title-lg'}`}
+      title={displayName}
+    >
+      <span className="truncate">{displayName}</span>
+      {verified && (
+        <BadgeCheck className="h-4 w-4 shrink-0 fill-brand text-brand-foreground" aria-label="Verified" />
+      )}
+    </h3>
+  );
+
+  const upvotePill = showUpvotes && upvoteCount > 0 && (
+    <span className="flex flex-none items-center gap-1 rounded-full bg-muted px-2 py-1 text-meta font-bold tabular-nums text-foreground">
+      <ArrowUp className="h-3 w-3 text-brand" strokeWidth={2.5} aria-hidden="true" />
+      {upvoteCount}
+    </span>
+  );
+
+  const metaRow = meta && (
+    <p className={`mt-1 truncate text-muted-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>{meta}</p>
+  );
+
+  const chipsRow = (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <Chip tone="subject" subject={subject} size={34} asChild className="max-w-full">
+        {subject}
+      </Chip>
+      {rating !== undefined && (
+        <span className="inline-flex items-center gap-1 text-meta font-bold tabular-nums text-foreground">
+          ★ {rating.toFixed(1)}
+        </span>
+      )}
+      {featuredChip}
+    </div>
+  );
+
+  // Favourite heart — real 44px hit target, now living beside the name instead
+  // of overlapping the photo (design.md §2.5 binding rule).
+  const heartButton = showFavourite && (
+    <button
+      type="button"
+      onClick={handleHeartClick}
+      aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
+      aria-pressed={liked}
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform duration-tap ease-tap active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
+        <Heart
+          className={`h-4 w-4 transition-colors duration-150 ${
+            liked ? 'fill-destructive text-destructive' : 'text-muted-foreground'
+          }`}
+        />
+      </span>
+    </button>
+  );
+
+  if (isRow) {
+    return (
+      <Link
+        to={`/tuition-teachers/${slug}`}
+        className="group flex items-center gap-3 rounded-2xl bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+      >
+        <div className="h-[76px] w-[76px] shrink-0 overflow-hidden rounded-[19px] bg-muted">{photo}</div>
+        <div className="min-w-0 flex-1 py-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">{nameHeading}</div>
+            {upvotePill}
+          </div>
+          {metaRow}
+          {chipsRow}
+        </div>
+        {heartButton}
+      </Link>
+    );
+  }
+
   return (
     /* §5: depth from shadow-border alone — never border + shadow stacked.
-       §7: one bold title, everything else text-sm text-muted-foreground. */
+       §7: one bold title, everything else text-sm text-muted-foreground.
+       §2.5: concentric photo — 8px (mobile) / 10px (desktop) padded frame,
+       26px/28px outer radius, 19px/20px inner radius around the photo. */
     <Link
       to={`/tuition-teachers/${slug}`}
-      className="group block overflow-hidden rounded-2xl bg-card shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-1 hover:shadow-border-hover active:scale-[0.98] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+      className="group block overflow-hidden rounded-[26px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:rounded-[28px] sm:p-2.5"
     >
-      <div className="relative aspect-[4/5] overflow-hidden bg-muted">
-        {imageUrl ? (
-          <img
-            src={validateImageSrc(imageUrl)}
-            alt={name}
-            loading="lazy"
-            decoding="async"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          /* VISUAL_LANGUAGE §1.4 — diagonal-stripe placeholder for missing photos,
-             with a giant low-alpha initial centred on it. */
-          <div className="stripe-placeholder flex h-full w-full items-center justify-center">
-            <span className="text-6xl font-semibold text-foreground/20" aria-hidden="true">
-              {name.charAt(0)}
-            </span>
-          </div>
-        )}
-
-        {/* Subject badge — subject-tinted per VISUAL_LANGUAGE §3 (applies "everywhere",
-            including teacher-card badges). Inline style is the sanctioned exception for
-            getSubjectPalette values (subject-palette.ts). */}
-        <span
-          className="signpost absolute left-2 top-2 inline-flex max-w-[calc(100%-4rem)] items-center truncate py-1 pl-3 text-label font-medium"
-          style={{ backgroundColor: palette.solid, color: palette.badgeText }}
-        >
-          {subject}
-        </span>
-
-        {/* Featured sticker — VISUAL_LANGUAGE §1.5: tilted, overhanging, one per card,
-            white on near-black. Only on featured cards, so it stays well under the
-            "never on more than a third of the cards in a grid" ceiling. */}
-        {isFeatured && (
-          <span
-            className="animate-pop absolute -top-2.5 right-4 rotate-6 rounded-full bg-panel px-3 py-1 text-label font-bold text-white motion-reduce:rotate-0 motion-reduce:animate-none"
-            aria-hidden="true"
-          >
-            Featured
-          </span>
-        )}
-
-        {/* Favourite heart — 44px hit target (§11). */}
-        {showFavourite && (
-          <button
-            type="button"
-            onClick={handleHeartClick}
-            aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
-            aria-pressed={liked}
-            className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full transition-transform duration-tap ease-tap active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-card shadow-border">
-              <Heart
-                className={`h-4 w-4 transition-colors duration-150 ${
-                  liked ? 'fill-destructive text-destructive' : 'text-muted-foreground'
-                }`}
-              />
-            </span>
-          </button>
-        )}
-
+      <div className="relative aspect-[4/5] overflow-hidden rounded-[19px] bg-muted sm:rounded-[20px]">
+        {photo}
       </div>
 
-      {/* Body */}
-      <div className="p-3 sm:p-4">
+      {/* Body — everything the photo used to carry now lives here. */}
+      <div className="px-1 pb-1 pt-3">
         <div className="flex items-start justify-between gap-2">
-          <h3
-            className={`line-clamp-2 break-words font-display font-semibold text-foreground ${isSm ? 'text-card-title' : 'text-card-title-lg'}`}
-            title={displayName}
-          >
-            {displayName}
-          </h3>
-          {/* Upvote count, real trust signal (no fabricated rating — a prior
-              defect sweep removed a fake "ratingValue": "5" emitted on every
-              JSON-LD review regardless of content). Moved off the photo into
-              the body, next to the name, reading closer to a marketplace
-              rating chip than a small overlaid pill. */}
-          {showUpvotes && upvoteCount > 0 && (
-            <span className="flex flex-none items-center gap-1 rounded-full bg-muted px-2 py-1 text-meta font-bold tabular-nums text-foreground">
-              <ArrowUp className="h-3 w-3 text-brand" strokeWidth={2.5} aria-hidden="true" />
-              {upvoteCount}
-            </span>
-          )}
+          <div className="min-w-0 flex-1">{nameHeading}</div>
+          <div className="flex flex-none items-center gap-1">
+            {upvotePill}
+            {heartButton}
+          </div>
         </div>
-        {meta && (
-          <p className={`mt-1 truncate text-muted-foreground ${isSm ? 'text-meta' : 'text-body-secondary'}`}>{meta}</p>
-        )}
+        {metaRow}
+        {chipsRow}
       </div>
     </Link>
   );
