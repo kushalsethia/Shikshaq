@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import type { FilterState } from '@/components/FilterPanel';
@@ -370,7 +370,10 @@ export function FilterSheet({
 
         {/* Sticky header */}
         <div className="flex items-center justify-between gap-3 px-[16px] pb-[8px] pt-[12px]">
-          <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">Filters</h2>
+          {/* SheetTitle, not a bare h2: Radix needs a DialogTitle inside
+              DialogContent to label the dialog for assistive tech, and warns
+              otherwise. It renders an h2 anyway, so nothing changes visually. */}
+          <SheetTitle className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">Filters</SheetTitle>
           <button
             type="button"
             onClick={() => onFilterChange(EMPTY_FILTERS)}

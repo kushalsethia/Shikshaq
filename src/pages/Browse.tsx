@@ -9,8 +9,11 @@ import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { type FilterState } from '@/components/FilterPanel';
 import { FilterSheet, FilterRail, activeFilterCount } from '@/components/browse/FilterGroups';
 import { SlidersHorizontal } from 'lucide-react';
-import { Chip } from '@/components/ui/chip';
+import { Chip, chipVariants } from '@/components/ui/chip';
 import { Button } from '@/components/ui/button';
+import { IconDisc } from '@/components/ui/icon-disc';
+import { PAST_PAPERS_PATH } from '@/lib/nav-config';
+import { cn } from '@/lib/utils';
 import { ControlBlock, PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
 import { PreFooter } from '@/components/layout/PreFooter';
 import { ListLoading, ListEmpty, ListOverFiltered, ListError, ListEnd } from '@/components/ui/list-states';
@@ -483,6 +486,55 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   const lastEnrichedRef = useRef<{ enriched: any[]; upvoteMap: Map<string, number> } | null>(null);
 
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
+
+  // Real, site-wide approved-review count for the B2 trust slab (design.md §0.10 —
+  // every count shown is a real query; PreFooter already drops the "student
+  // reviews" line entirely when this stays undefined). Same predicate Index.tsx
+  // uses for its own review count. Fetched once, independent of the main
+  // teacher-list fetch above.
+  const [reviewsCount, setReviewsCount] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from('teacher_comments')
+      .select('id', { count: 'exact', head: true })
+      .eq('approved', true)
+      .then(({ count, error }) => {
+        if (cancelled || error || count == null) return;
+        setReviewsCount(count);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Real per-subject papers count + distinct-school count for the subject page's
+  // "{Subject} papers too" promo card (secondary-01-subject-page.png). Only
+  // relevant on the ~35 templated subject routes, so it's scoped to
+  // pageContext?.kind === 'subject' and skipped everywhere else. Dropped
+  // entirely (see JSX below) if the query fails or returns zero — never a
+  // fabricated stat.
+  const [subjectPapers, setSubjectPapers] = useState<{ count: number; schools: number } | null>(null);
+  useEffect(() => {
+    if (pageContext?.kind !== 'subject') {
+      setSubjectPapers(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('papers')
+      .select('school')
+      .eq('is_published', true)
+      .ilike('subject', `%${pageContext.label}%`)
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        const schools = new Set(data.map((p) => p.school).filter(Boolean));
+        if (data.length > 0) setSubjectPapers({ count: data.length, schools: schools.size });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pageContext?.kind, pageContext?.label]);
 
   useEffect(() => {
     // Canonical is handled globally by <CanonicalTag>. When `seo` is set
@@ -1474,6 +1526,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   // the h1's sub-line for the ~35 SEO routes, so they keep reading as
   // bespoke even though the control block itself is the standard near-black
   // (design.md §1 control block is one fixed treatment, not per-route).
+  const isSubjectPage = pageContext?.kind === 'subject';
   const subjectPaletteForContext = pageContext?.kind === 'subject' ? getSubjectPalette(pageContext.label) : null;
   const headerAccent = subjectPaletteForContext?.solid ?? (pageContext?.kind === 'board' ? 'hsl(var(--brand-blue))' : null);
   // getHeading() already gives the exact, precise "All {subject} teachers in
@@ -1551,13 +1604,35 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           to="/"
           className="shikshaq-tap -mt-1 mb-[14px] inline-flex min-h-11 items-center py-1 text-[13px] font-semibold text-white/70 transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
         >
-          {'←'} Home
+          {'←'} {isSubjectPage ? 'All subjects' : 'Home'}
         </Link>
 
+        {/* Subject icon tile (secondary-01-subject-page.png): a subject-tinted
+            square disc above the h1, templated across the ~35 subject routes
+            the same way the rest of this first fold is (VISUAL_DIRECTION.md
+            §9a). Not present on the generic /all- route or board routes. */}
+        {isSubjectPage && (
+          <IconDisc
+            tone="subject"
+            subject={pageContext!.label}
+            shape="square"
+            size={44}
+            className="mb-[14px] text-[19px] font-black"
+          >
+            {pageContext!.label.charAt(0).toUpperCase()}
+          </IconDisc>
+        )}
+
         <h1 className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.035em] text-background">
-          {resultCountLabel} teacher{teachers.length === 1 ? '' : 's'}
+          {isSubjectPage ? `${pageContext!.label} tuition teachers in Kolkata` : (
+            <>{resultCountLabel} teacher{teachers.length === 1 ? '' : 's'}</>
+          )}
         </h1>
-        {subLineParts.length > 0 && (
+        {isSubjectPage ? (
+          <p className="mt-1 text-[14.5px] text-white/70">
+            {loading ? 'Loading teachers…' : `${resultCountLabel} teacher${teachers.length === 1 ? '' : 's'} in Kolkata`}
+          </p>
+        ) : subLineParts.length > 0 && (
           <p
             className="mt-1 text-[14.5px] text-white/70"
             style={headerAccent ? { color: headerAccent } : undefined}
@@ -1577,8 +1652,9 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         </div>
 
         {/* Subject quick-picks -- default view only. Restrained tint/text
-            pairing so ten hues side by side don't read as candy. */}
-        {isDefaultView && sortedSubjectsForDisplay.length > 0 && (
+            pairing so ten hues side by side don't read as candy. Not shown on
+            subject pages: the subject is already locked by the route. */}
+        {!isSubjectPage && isDefaultView && sortedSubjectsForDisplay.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {sortedSubjectsForDisplay.slice(0, 10).map((subject) => {
               const palette = getSubjectPalette(subject.name);
@@ -1593,6 +1669,34 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                 </button>
               );
             })}
+          </div>
+        )}
+
+        {/* Class quick-pick pills (secondary-01-subject-page.png): "All
+            classes" + the classes actually offered, wired to the same
+            selectedClass/handleClassChange state and `class` URL param the
+            generic Browse dropdown already uses -- no new filter contract. */}
+        {isSubjectPage && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Chip
+              tone={!quickPickClassValue ? 'facet-on' : 'facet'}
+              size={40}
+              onClick={() => handleClassChange('all')}
+              aria-pressed={!quickPickClassValue}
+            >
+              All classes
+            </Chip>
+            {['9', '10', '11', '12'].map((c) => (
+              <Chip
+                key={c}
+                tone={quickPickClassValue === c ? 'facet-on' : 'facet'}
+                size={40}
+                onClick={() => handleClassChange(c)}
+                aria-pressed={quickPickClassValue === c}
+              >
+                Class {c}
+              </Chip>
+            ))}
           </div>
         )}
       </ControlBlock>
@@ -1788,7 +1892,61 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
       {seo?.content && pageContext && <SEOContentBlock content={seo.content} label={pageContext.label} />}
 
-      <PreFooter variant="B2" counts={{ teachers: teachers.length }} />
+      {/* "{Subject} papers too" promo (secondary-01-subject-page.png) --
+          orange-tinted, indigo CTA into the papers surface, subject filter
+          carried through so the handoff lands pre-filtered. Real counts only
+          (papers table, is_published + subject match); the whole card is
+          skipped if the subject has no published papers rather than showing
+          a zero or fabricated stat. */}
+      {isSubjectPage && subjectPapers && subjectPapers.count > 0 && (
+        <PageContainer className="pb-[24px]">
+          <div className="rounded-3xl bg-brand-subtle p-6 sm:p-8">
+            <h2 className="font-display text-section-head font-extrabold text-brand-deep">
+              {pageContext!.label} papers too
+            </h2>
+            <p className="mt-2 max-w-prose text-body-secondary text-warm-prose">
+              {subjectPapers.count} past {pageContext!.label.toLowerCase()} paper{subjectPapers.count === 1 ? '' : 's'} from{' '}
+              {subjectPapers.schools} Kolkata school{subjectPapers.schools === 1 ? '' : 's'}, free to read.
+            </p>
+            <div className="mt-6">
+              <Button
+                asChild
+                variant="indigo"
+                size={44}
+              >
+                <Link to={`${PAST_PAPERS_PATH}/results?filter_subjects=${encodeURIComponent(pageContext!.label)}`}>
+                  Open {pageContext!.label.toLowerCase()} papers
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </PageContainer>
+      )}
+
+      {/* "{Subject} tuition, by area" link grid (secondary-01-subject-page.png)
+          -- real Kolkata localities from utils/searchFacets AREAS (the same
+          list the filter panel's Area facet uses), routed through the
+          existing filter_areas query param so the URL contract is untouched. */}
+      {isSubjectPage && (
+        <PageContainer className="pb-[24px]">
+          <h2 className="font-display text-section-head font-extrabold text-foreground">
+            {pageContext!.label} tuition, by area
+          </h2>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {['Ballygunge', 'Salt Lake', 'Behala', 'Alipore', 'Gariahat', 'Kasba', 'Howrah', 'Dum Dum'].map((area) => (
+              <Link
+                key={area}
+                to={`${location.pathname}?filter_subjects=${encodeURIComponent(pageContext!.label)}&filter_areas=${encodeURIComponent(area)}`}
+                className={cn(chipVariants({ tone: 'facet', size: 40 }), 'tap-44 active:scale-[0.97] hover:-translate-y-0.5')}
+              >
+                {area}
+              </Link>
+            ))}
+          </div>
+        </PageContainer>
+      )}
+
+      <PreFooter variant="B2" counts={{ teachers: teachers.length, reviews: reviewsCount }} />
       <Footer />
       <BottomNavSpacer />
 

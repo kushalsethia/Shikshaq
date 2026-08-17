@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Lock, MessageCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { IconDisc } from "@/components/ui/icon-disc";
 import { useAuth } from "@/lib/auth-context";
@@ -82,9 +82,9 @@ function GateSheet({ open, onOpenChange, redirectTo, flavor, teacherFirstName }:
               <Lock size={20} strokeWidth={2.25} aria-hidden="true" />
             </IconDisc>
 
-            <h2 className="text-page-title font-display font-bold text-foreground">
+            <SheetTitle className="text-page-title font-display font-bold text-foreground">
               Sign in to read this paper
-            </h2>
+            </SheetTitle>
             <p className="mt-2 max-w-prose text-body-secondary text-warm-prose">
               Free, and it takes one tap. Schools let us host their papers on the condition that
               readers are accounted for.
@@ -127,9 +127,9 @@ function GateSheet({ open, onOpenChange, redirectTo, flavor, teacherFirstName }:
               <MessageCircle size={20} strokeWidth={2.25} aria-hidden="true" />
             </IconDisc>
 
-            <h2 className="text-page-title font-display font-bold text-foreground">
+            <SheetTitle className="text-page-title font-display font-bold text-foreground">
               One tap, then you are talking to {teacherFirstName || "them"}
-            </h2>
+            </SheetTitle>
             <p className="mt-2 max-w-prose text-body-secondary text-warm-prose">
               We ask who you are so teachers know a real person is messaging. Nothing is posted
               anywhere.
