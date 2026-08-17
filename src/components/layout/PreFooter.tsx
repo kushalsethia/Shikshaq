@@ -104,16 +104,25 @@ function B2({ counts }: { counts?: B2Counts }) {
   return (
     <div className="rounded-3xl bg-brand p-6 text-brand-foreground shadow-glow-brand sm:p-8">
       <Eyebrow onDark>Why this list is trustworthy</Eyebrow>
-      <dl className="mt-4 grid gap-6 sm:grid-cols-3">
+      {/* prefooter-02-three-count-strip.png carries a headline between the
+          eyebrow and the tiles — "Verified teachers, real reviews, zero
+          commission." It was missing, which left an all-caps label sitting
+          straight on top of three bare numbers with nothing saying what the
+          panel claims. */}
+      <h2 className="mt-3 max-w-[22ch] font-display text-section-head font-extrabold leading-[1.05]">
+        Verified teachers, real reviews, zero commission.
+      </h2>
+      <dl className="mt-5 grid gap-6 sm:grid-cols-3">
         {items.map((it) => (
           <div key={it.label}>
-            <dt className="sr-only">{it.label}</dt>
-            <dd>
-              <span className="block font-display text-page-title font-extrabold tabular-nums">
-                {it.value}
-              </span>
-              <span className="text-body-secondary opacity-90">{it.label}</span>
+            {/* The label was rendered twice — once sr-only as the <dt>, once
+                visibly inside the <dd> — so a screen reader read "verified
+                teachers, 147, verified teachers". The visible label IS the
+                term, so it becomes the <dt> and the number the <dd>. */}
+            <dd className="order-first block font-display text-page-title font-extrabold tabular-nums">
+              {it.value}
             </dd>
+            <dt className="text-body-secondary opacity-90">{it.label}</dt>
           </div>
         ))}
       </dl>
