@@ -352,8 +352,30 @@ export default function TeacherProfile() {
   const metaMode = getMetaValue(teacher?.mode_of_teaching, 'online/offline');
   const metaExpanded = getMetaValue(teacher?.expanded, '');
 
+  /* Title tags ran 113-248 characters here, measured across the live roster -
+     against a search result that shows roughly 60. Megha Bajaj's listed ten
+     subjects and two areas, so everything past "Megha Bajaj teaches Commerce,
+     Economics..." was cut off, including the brand. This is the largest indexed
+     set on the site (147 pages), so it was also the most wasted.
+
+     Keep the parts someone actually searches - the teacher's name, what they
+     teach, where - and drop the boilerplate ("for Classes ... via Offline,
+     Online on Shikshaq by AquaTerra"), which is identical on every page and
+     never survived truncation anyway. Classes and mode still appear in the meta
+     description and on the page itself. Subjects cap at two and area at one,
+     because the long tail of a ten-subject list is noise in a SERP. */
+  const parts = (value: string) => value.split(',').map((x) => x.trim()).filter(Boolean);
+  const subjectsForTitle = (value: string) => {
+    const p = parts(value);
+    return p.length > 2 ? `${p.slice(0, 2).join(', ')} & more` : p.join(', ');
+  };
+  /* The area takes the first one flat, with no "& more". Two "& more"s in one
+     title ("Geography, Biology & more tuition in Alipore & more") reads like a
+     bug, and which of a teacher's areas comes second is not what anyone is
+     searching for anyway. */
+  const areaForTitle = (value: string) => parts(value)[0] || 'Kolkata';
   const pageTitle = teacher
-    ? `${teacher.name} teaches ${metaSubjects} for Classes ${metaClasses} in ${metaArea} via ${metaMode} on Shikshaq by AquaTerra`
+    ? `${teacher.name} — ${subjectsForTitle(metaSubjects)} tuition in ${areaForTitle(metaArea)} | Shikshaq`
     : 'Shikshaq - by AquaTerra';
 
   let pageDescription = teacher
