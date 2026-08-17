@@ -2,20 +2,17 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ThumbsUp } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { Footer } from '@/components/Footer';
 import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
   AdminStatTiles,
-  AdminTile,
-  adminRowStyle,
-  adminRowListStyle,
-  adminSecondaryBtnStyle,
   adminToast,
   useAdminGuard,
 } from '@/components/AdminConsole';
+import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 
 interface UpvoteStat {
   teacher_id: string;
@@ -29,6 +26,7 @@ const UPVOTE_ICON_COLOR = MODE_TOKENS.papers.color; // #4351FF solid, for the Th
 
 export default function AdminUpvotes() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [upvoteStats, setUpvoteStats] = useState<UpvoteStat[]>([]);
   const [loading, setLoading] = useState(true);
 

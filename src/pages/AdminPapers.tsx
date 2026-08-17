@@ -15,16 +15,15 @@ import { ArrowLeft, Loader2, Lock, Plus, Save, Search, Trash2, Upload, X } from 
 import { useAuth } from '@/lib/auth-context';
 import { SUBJECTS, CLASSES, BOARDS, EXAM_TYPES, SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
-  AdminPill,
-  adminRowStyle,
-  adminRowListStyle,
   adminFieldStyle,
   adminPanelStyle,
   adminPrimaryBtnStyle,
   adminSecondaryBtnStyle,
   adminDestructiveBtnStyle,
   adminToast,
+  AdminStatTiles,
 } from '@/components/AdminConsole';
+import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 
 const PAPER_CLASSES = CLASSES.filter((c) => c !== 'UG');
 const PAPERS_TINT = MODE_TOKENS.papers; // indigo — this route's own accent, not a console tab
@@ -123,6 +122,29 @@ export default function AdminPapers() {
     const q = searchQuery.toLowerCase();
     return p.title.toLowerCase().includes(q) || p.school.toLowerCase().includes(q) || p.subject.toLowerCase().includes(q);
   });
+
+  const paperColumns: AdminTableColumn[] = [
+    { key: 'paper', label: 'Paper', width: '2.2fr' },
+    { key: 'school', label: 'School', width: '1.3fr' },
+    { key: 'details', label: 'Details', width: '1.6fr' },
+    { key: 'state', label: 'State', width: '0.9fr' },
+    { key: 'actions', label: '', width: 'auto' },
+  ];
+
+  const paperRows: AdminTableRow[] = filteredPapers.map((p) => ({
+    id: p.id,
+    title: p.title,
+    subtitle: new Date(p.created_at).toLocaleDateString(),
+    cells: [
+      p.school,
+      `${p.subject} · Class ${p.class} · ${p.board} · ${p.exam_type} · ${p.year}`,
+    ],
+    tone: p.is_published ? 'ok' : 'idle',
+    tag: p.is_published ? 'Live' : 'Draft',
+    actionLabel: 'Edit',
+    onAction: () => selectPaper(p),
+    onOverflow: () => handleUnpublish(p),
+  }));
 
   function selectPaper(p: PaperRow | null) {
     setSelected(p);
@@ -553,6 +575,14 @@ export default function AdminPapers() {
           </div>
         ) : (
           <div style={{ marginTop: 24 }}>
+            <AdminStatTiles
+              stats={[
+                { label: 'In the library', value: papers.length },
+                { label: 'Published', value: papers.filter((p) => p.is_published).length },
+                { label: 'Drafts', value: papers.filter((p) => !p.is_published).length },
+              ]}
+            />
+
             <div className="flex items-center gap-2 mb-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: SURFACE_TOKENS.textTertiary }} />
@@ -564,7 +594,11 @@ export default function AdminPapers() {
                   style={{ ...adminFieldStyle, color: SURFACE_TOKENS.textPrimary }}
                 />
               </div>
-              <button onClick={() => { setSearchParams({ tab: 'upload' }); }} style={adminPrimaryBtnStyle} className="flex-shrink-0">
+              <button
+                onClick={() => { setSearchParams({ tab: 'upload' }); }}
+                style={adminPrimaryBtnStyle}
+                className="flex-shrink-0 transition-colors duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
                 <Plus className="w-4 h-4" />
                 Add
               </button>
@@ -575,34 +609,7 @@ export default function AdminPapers() {
                 <p style={{ color: SURFACE_TOKENS.textTertiary, fontSize: 14.5 }}>No papers yet.</p>
               </div>
             ) : (
-              <div style={adminRowListStyle}>
-                {filteredPapers.map((p) => (
-                  <div key={p.id} style={adminRowStyle}>
-                    <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                      <div style={{ fontSize: 15.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>
-                        {p.title} — {p.school}
-                      </div>
-                      <div style={{ marginTop: 4, fontSize: 12.5, color: SURFACE_TOKENS.textTertiary }}>
-                        {p.subject} · Class {p.class} · {p.board} · {p.exam_type} · {p.year}
-                      </div>
-                    </div>
-                    <AdminPill tone={p.is_published ? 'settled' : 'pending'}>
-                      {p.is_published ? 'Published' : 'Draft'}
-                    </AdminPill>
-                    <span style={{ fontSize: 13, color: SURFACE_TOKENS.textTertiary, minWidth: 70 }}>
-                      {new Date(p.created_at).toLocaleDateString()}
-                    </span>
-                    <div className="flex gap-2">
-                      <button onClick={() => selectPaper(p)} style={{ ...adminSecondaryBtnStyle, minHeight: 'auto', padding: '9px 14px' }}>
-                        Edit
-                      </button>
-                      <button onClick={() => handleUnpublish(p)} style={{ ...adminSecondaryBtnStyle, minHeight: 'auto', padding: '9px 14px' }}>
-                        {p.is_published ? 'Unpublish' : 'Republish'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <AdminTable columns={paperColumns} rows={paperRows} />
             )}
           </div>
         )}

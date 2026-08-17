@@ -8,7 +8,7 @@ import { Sticker } from "@/components/ui/sticker";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { IconDisc } from "@/components/ui/icon-disc";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { Logo } from "@/components/Logo";
+import logoImage from "@/assets/shikshaq-logo.svg";
 import { BROWSE_PATH, PAST_PAPERS_PATH } from "@/lib/nav-config";
 
 /* Redesign S5 — the pre-footer block family (design.md §6).
@@ -160,7 +160,17 @@ function B4() {
       to="/about"
       className="flex items-center gap-4 rounded-2xl bg-card p-4 shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-6"
     >
-      <Logo className="h-10 w-auto shrink-0" />
+      {/* Logo renders its own <Link>, so it must NOT be used inside this one —
+          that produced nested anchors (invalid HTML, real console warning).
+          The mark is decorative here; the row itself is the link. */}
+      <img
+        src={logoImage}
+        alt=""
+        aria-hidden
+        width={252}
+        height={92}
+        className="h-10 w-auto shrink-0"
+      />
       <span className="flex-1 text-body-secondary text-warm-prose">
         Two people, one list of teachers, no commission.
       </span>

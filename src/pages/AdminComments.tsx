@@ -2,24 +2,19 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Lock, MessageCircle, Trash2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Lock, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { SURFACE_TOKENS, ACCENT_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
-  AdminTile,
-  AdminPill,
-  adminRowStyle,
-  adminRowListStyle,
   adminPrimaryBtnStyle,
   adminSecondaryBtnStyle,
-  adminDestructiveBtnStyle,
   adminToast,
   useAdminGuard,
 } from '@/components/AdminConsole';
+import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 
 interface Comment {
   id: string;
@@ -47,7 +42,7 @@ interface Comment {
 }
 
 const COMMENTS_PAGE_SIZE = 50;
-const TINT = { bg: ACCENT_TOKENS.settledBg, text: ACCENT_TOKENS.settledText }; // #E6F4E6 / #1B5E20 per spec
+const TINT = { bg: ACCENT_TOKENS.settledBg, text: ACCENT_TOKENS.settledText };
 
 export default function AdminComments() {
   const { user } = useAuth();

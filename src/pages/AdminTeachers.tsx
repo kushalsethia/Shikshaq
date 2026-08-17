@@ -28,10 +28,10 @@ import {
   adminFieldStyle,
   adminPanelStyle,
   adminPrimaryBtnStyle,
-  adminSecondaryBtnStyle,
   adminDestructiveBtnStyle,
   adminToast,
 } from '@/components/AdminConsole';
+import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 
 // Constants matching FilterPanel
 const SUBJECTS = [
@@ -105,7 +105,7 @@ interface TeacherData {
   "Max Fees": number | null;
 }
 
-const TEACHERS_TINT = { bg: SURFACE_TOKENS.mutedFill, text: SURFACE_TOKENS.textBody }; // #F0EAE2 / #4A443E per spec
+const TEACHERS_TINT = { bg: SURFACE_TOKENS.mutedFill, text: SURFACE_TOKENS.textBody };
 
 export default function AdminTeachers() {
   const { user } = useAuth();
@@ -578,15 +578,49 @@ export default function AdminTeachers() {
   const labelStyle: React.CSSProperties = { fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary, marginBottom: 6, display: 'block' };
   const optionLabelStyle: React.CSSProperties = { fontSize: 13, color: SURFACE_TOKENS.textBody };
 
+  // AdminTable columns/rows for the teacher list (C13 shared table template).
+  // Only real, already-fetched fields are surfaced — no fabricated stats.
+  const teacherColumns: AdminTableColumn[] = [
+    { key: 'teacher', label: 'Teacher', width: '2.2fr' },
+    { key: 'subjects', label: 'Subjects', width: '1.6fr' },
+    { key: 'fees', label: 'Fees / month', width: '1fr' },
+    { key: 'status', label: 'Status', width: '0.9fr' },
+  ];
+
+  const teacherRows: AdminTableRow[] = filteredTeachers.map((teacher) => {
+    const min = teacher['Min Fees'];
+    const max = teacher['Max Fees'];
+    const feesLabel =
+      min != null && max != null
+        ? `₹${min}–₹${max}`
+        : min != null
+        ? `From ₹${min}`
+        : max != null
+        ? `Up to ₹${max}`
+        : '—';
+    const isSelected = selectedTeacher?.id === teacher.id;
+    return {
+      id: String(teacher.id),
+      initial: (teacher.Title || '?').trim().charAt(0).toUpperCase(),
+      title: teacher.Title || 'Untitled',
+      subtitle: teacher.Slug || undefined,
+      cells: [teacher.Subjects || '—', feesLabel],
+      tone: isSelected ? 'info' : teacher.Featured ? 'ok' : 'idle',
+      tag: isSelected ? 'Editing' : teacher.Featured ? 'Featured' : 'Live',
+      actionLabel: 'Edit',
+      onAction: () => setSelectedTeacher(teacher),
+    };
+  });
+
   if (checkingAdmin || loading) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ background: '#F9F5F1' }}>
+      <div className="min-h-screen flex flex-col bg-background">
         <main className="flex-1 container mx-auto px-[clamp(16px,3vw,28px)] py-8">
           <div className="animate-pulse">
-            <div className="h-8 w-48 rounded mb-8" style={{ background: '#F0EAE2' }} />
+            <div className="h-8 w-48 rounded mb-8 bg-muted" />
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-24 rounded-2xl" style={{ background: '#FCFAF7', boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }} />
+                <div key={i} className="h-24 rounded-2xl bg-card shadow-border" />
               ))}
             </div>
           </div>
@@ -598,11 +632,11 @@ export default function AdminTeachers() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ background: '#F9F5F1' }}>
+      <div className="min-h-screen flex flex-col bg-background">
         <main className="flex-1 container mx-auto px-[clamp(16px,3vw,28px)] py-8">
           <div className="max-w-2xl mx-auto text-center">
-            <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: '#1F1F1F' }}>Access Denied</h1>
-            <p className="mb-6" style={{ color: '#7B736B' }}>
+            <h1 className="mb-4 text-foreground" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700 }}>Access Denied</h1>
+            <p className="mb-6 text-warm-prose">
               You need to be an admin to access this page.
             </p>
             <Link to="/">
@@ -626,60 +660,31 @@ export default function AdminTeachers() {
       tint={TEACHERS_TINT}
       tabCount={teachers.length}
     >
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Teacher List */}
-          <div className="lg:col-span-1">
-            <div
-              className="sticky top-4"
-              style={{ ...adminPanelStyle, padding: 16 }}
-            >
-              <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: SURFACE_TOKENS.textTertiary }} />
-                  <Input
-                    type="text"
-                    placeholder="Search teachers..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`pl-10 ${fieldClassName}`}
-                    style={adminFieldStyle}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
-                {filteredTeachers.length === 0 ? (
-                  <p className="text-sm text-center py-4" style={{ color: SURFACE_TOKENS.textSecondary }}>No teachers found</p>
-                ) : (
-                  filteredTeachers.map((teacher) => {
-                    const isSelected = selectedTeacher?.id === teacher.id;
-                    return (
-                      <button
-                        key={teacher.id}
-                        onClick={() => setSelectedTeacher(teacher)}
-                        className={`w-full text-left transition-colors ${isSelected ? '' : 'hover:bg-black/[.04]'}`}
-                        style={{
-                          padding: '12px 16px',
-                          borderRadius: 14,
-                          background: isSelected ? SURFACE_TOKENS.textPrimary : 'transparent',
-                          color: isSelected ? '#fff' : SURFACE_TOKENS.textPrimary,
-                        }}
-                      >
-                        <div style={{ fontSize: 15.5, fontWeight: 600 }}>{teacher.Title || 'Untitled'}</div>
-                        {teacher.Slug && (
-                          <div style={{ fontSize: 12.5, marginTop: 4, color: isSelected ? 'rgba(255,255,255,0.7)' : SURFACE_TOKENS.textTertiary }}>
-                            {teacher.Slug}
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+        <div className="flex flex-col gap-6">
+          {/* Teacher List — shared AdminTable template (admin-02-live-teachers) */}
+          <div>
+            <div className="relative mb-4 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: SURFACE_TOKENS.textTertiary }} />
+              <Input
+                type="text"
+                placeholder="Search teachers..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`pl-10 ${fieldClassName}`}
+                style={adminFieldStyle}
+              />
             </div>
+            {filteredTeachers.length === 0 ? (
+              <div className="rounded-[20px] bg-card shadow-border py-8 text-center text-sm text-warm-prose">
+                No teachers found
+              </div>
+            ) : (
+              <AdminTable columns={teacherColumns} rows={teacherRows} />
+            )}
           </div>
 
           {/* Teacher Form */}
-          <div className="lg:col-span-2">
+          <div>
             {selectedTeacher ? (
               <div
                 className="space-y-6"

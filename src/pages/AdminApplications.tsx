@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, CheckCircle, XCircle, Clock, Search, Loader2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Search, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Link } from 'react-router-dom';
 import { Footer } from '@/components/Footer';
@@ -18,10 +18,6 @@ import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
   AdminStatTiles,
-  AdminTile,
-  AdminPill,
-  adminRowStyle,
-  adminRowListStyle,
   adminFieldStyle,
   adminPanelStyle,
   adminPrimaryBtnStyle,
@@ -30,8 +26,13 @@ import {
   adminToast,
   useAdminGuard,
   useReviewerNames,
-  type AdminPillTone,
 } from '@/components/AdminConsole';
+import {
+  AdminTable,
+  type AdminTableColumn,
+  type AdminTableRow,
+  type AdminPillTone as AdminStatePillTone,
+} from '@/pages/admin/AdminTable';
 
 interface TeacherApplication {
   id: string;
@@ -66,7 +67,7 @@ interface TeacherApplication {
   updated_at: string;
 }
 
-const TINT = { bg: MODE_TOKENS.teachers.tintBg, text: MODE_TOKENS.teachers.tintText }; // #FFF4E8 / #B35900 per spec
+const TINT = { bg: MODE_TOKENS.teachers.tintBg, text: MODE_TOKENS.teachers.tintText }; // teachers tint tokens per spec
 
 export default function AdminApplications() {
   const { user } = useAuth();
@@ -264,25 +265,14 @@ export default function AdminApplications() {
     }
   };
 
-  const applicationPillTone = (status: TeacherApplication['status']): AdminPillTone => {
+  const applicationStateTone = (status: TeacherApplication['status']): AdminStatePillTone => {
     switch (status) {
       case 'approved':
-        return 'settled';
+        return 'ok';
       case 'rejected':
-        return 'destructive';
+        return 'bad';
       default:
-        return 'pending';
-    }
-  };
-
-  const textedPillTone = (status: TeacherApplication['texted_status']): AdminPillTone => {
-    switch (status) {
-      case 'texted':
-        return 'settled';
-      case 'follow_up':
-        return 'flagged';
-      default:
-        return 'pending';
+        return 'wait';
     }
   };
 
@@ -340,6 +330,32 @@ export default function AdminApplications() {
     );
   }
 
+  const applicationColumns: AdminTableColumn[] = [
+    { key: 'applicant', label: 'Applicant', width: '2.2fr' },
+    { key: 'teaches', label: 'Teaches', width: '1.6fr' },
+    { key: 'area', label: 'Area', width: '1fr' },
+    { key: 'state', label: 'State', width: '1fr' },
+    { key: 'actions', label: '', width: '140px' },
+  ];
+
+  const applicationRows: AdminTableRow[] = filteredApplications.map((application) => {
+    const initials = application.name?.trim().charAt(0).toUpperCase() || '?';
+    const teaches = [application.subjects, application.classes_taught_for_backend]
+      .filter(Boolean)
+      .join(' · ') || 'N/A';
+    return {
+      id: application.id,
+      initial: initials,
+      title: application.name,
+      subtitle: `+91 ${application.phone_number} · ${getTextedStatusLabel(application.texted_status)}`,
+      cells: [teaches, application.location_v2 || 'N/A'],
+      tone: applicationStateTone(application.status),
+      tag: application.status.charAt(0).toUpperCase() + application.status.slice(1),
+      actionLabel: 'Review',
+      onAction: () => setSelectedApplication(application),
+    };
+  });
+
   return (
     <AdminConsole
       activeTab="applications"
@@ -383,70 +399,14 @@ export default function AdminApplications() {
         </div>
       </div>
 
-      {/* Applications List */}
-      <div style={adminRowListStyle}>
-        {filteredApplications.length === 0 ? (
-          <div className="text-center" style={{ ...adminPanelStyle, padding: 48 }}>
-            <p style={{ color: SURFACE_TOKENS.textTertiary, fontSize: 14.5 }}>No applications found</p>
-          </div>
-        ) : (
-          filteredApplications.map((application) => {
-            const initials = application.name?.trim().charAt(0).toUpperCase() || '?';
-            return (
-              <div
-                key={application.id}
-                className="cursor-pointer"
-                style={adminRowStyle}
-                onClick={() => setSelectedApplication(application)}
-              >
-                <AdminTile tint={TINT}>{initials}</AdminTile>
-                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                  <div className="flex items-center flex-wrap gap-2">
-                    <span style={{ fontSize: 15.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>{application.name}</span>
-                    <AdminPill tone={applicationPillTone(application.status)}>
-                      {application.status === 'pending' && <Clock className="w-3 h-3" />}
-                      {application.status === 'approved' && <CheckCircle className="w-3 h-3" />}
-                      {application.status === 'rejected' && <XCircle className="w-3 h-3" />}
-                      {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                    </AdminPill>
-                    <AdminPill tone={textedPillTone(application.texted_status)}>
-                      <MessageCircle className="w-3 h-3" />
-                      {getTextedStatusLabel(application.texted_status)}
-                    </AdminPill>
-                  </div>
-                  <p style={{ marginTop: 4, fontSize: 13, lineHeight: 1.5, color: SURFACE_TOKENS.textTertiary }}>
-                    {application.email} &middot; +91 {application.phone_number}
-                    {application.reference_name && <> &middot; Ref: {application.reference_name}</>}
-                    {' '}&middot; Applied {formatDistanceToNow(new Date(application.created_at), { addSuffix: true })}
-                  </p>
-                </div>
-                {application.status === 'pending' && (
-                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => handleApprove(application.id)}
-                      disabled={processingId === application.id}
-                      style={adminPrimaryBtnStyle}
-                      className="disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {processingId === application.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleReject(application.id)}
-                      disabled={processingId === application.id}
-                      style={adminDestructiveBtnStyle}
-                      className="disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      Reject
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+      {/* Applications table */}
+      {filteredApplications.length === 0 ? (
+        <div className="text-center" style={{ ...adminPanelStyle, padding: 48 }}>
+          <p style={{ color: SURFACE_TOKENS.textTertiary, fontSize: 14.5 }}>No applications found</p>
+        </div>
+      ) : (
+        <AdminTable columns={applicationColumns} rows={applicationRows} />
+      )}
 
       {/* Application Detail Modal */}
       {selectedApplication && (

@@ -1,24 +1,19 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Trash2, User as UserIcon, Mail } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { Footer } from '@/components/Footer';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { SURFACE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
   AdminStatTiles,
-  AdminTile,
-  AdminPill,
-  adminRowStyle,
-  adminRowListStyle,
   adminSecondaryBtnStyle,
-  adminDestructiveBtnStyle,
   adminToast,
 } from '@/components/AdminConsole';
+import { AdminTable, type AdminTableColumn, type AdminTableRow, type AdminPillTone } from '@/pages/admin/AdminTable';
 
 interface Feedback {
   id: string;
@@ -52,7 +47,11 @@ const ratingEmojis: { [key: number]: string } = {
   5: '🥰',
 };
 
-const TINT = { bg: SURFACE_TOKENS.mutedFill, text: SURFACE_TOKENS.textBody }; // #F0EAE2 / #4A443E per spec
+const ratingTone = (rating: number): AdminPillTone => {
+  if (rating >= 4) return 'ok';
+  if (rating === 3) return 'idle';
+  return 'bad';
+};
 
 export default function AdminFeedback() {
   const { user } = useAuth();
@@ -279,12 +278,44 @@ export default function AdminFeedback() {
     { key: 'logged-in', label: 'Logged In', count: feedback.filter((f) => !f.is_guest).length },
   ];
 
+  // AdminTable pattern (admin-01-teacher-approvals.png chrome): first column is
+  // author identity, middle cells are plain text, the state pill carries the
+  // rating, and the row action resolves the entry — the same shape as Applications.
+  const feedbackColumns: AdminTableColumn[] = [
+    { key: 'author', label: 'From', width: '2.2fr' },
+    { key: 'type', label: 'Type', width: '1fr' },
+    { key: 'comment', label: 'Comment', width: '2.4fr' },
+    { key: 'received', label: 'Received', width: '1.1fr' },
+    { key: 'actions', label: '', width: '140px' },
+  ];
+
+  const feedbackRows: AdminTableRow[] = feedback.map((item) => {
+    const name = getFeedbackAuthorName(item);
+    const email = getFeedbackAuthorEmail(item);
+    return {
+      id: item.id,
+      initial: name.charAt(0).toUpperCase(),
+      title: name,
+      subtitle: email || undefined,
+      cells: [
+        item.is_guest ? 'Guest' : 'Logged in',
+        item.comment || '—',
+        formatDistanceToNow(new Date(item.created_at), { addSuffix: true }),
+      ],
+      tone: ratingTone(item.rating),
+      tag: `${ratingEmojis[item.rating]} ${ratingLabels[item.rating]}`,
+      actionLabel: 'Resolve',
+      onAction: () => handleDelete(item.id),
+      onOverflow: email ? () => { window.location.href = `mailto:${email}`; } : undefined,
+    };
+  });
+
   return (
     <AdminConsole
       activeTab="feedback"
       title="Site feedback"
       subtitle="What students and parents write in from the help page."
-      tint={TINT}
+      tint={{ bg: SURFACE_TOKENS.mutedFill, text: SURFACE_TOKENS.textBody }}
       tabCount={feedback.length}
     >
       {feedback.length > 0 && (
@@ -320,60 +351,7 @@ export default function AdminFeedback() {
           <p style={{ color: SURFACE_TOKENS.textSecondary }}>No feedback found.</p>
         </div>
       ) : (
-        <div style={adminRowListStyle}>
-          {feedback.map((item) => {
-            const avatarUrl = getFeedbackAvatar(item);
-            const email = getFeedbackAuthorEmail(item);
-            const name = getFeedbackAuthorName(item);
-            return (
-              <div key={item.id} style={{ ...adminRowStyle, alignItems: 'flex-start' }}>
-                {avatarUrl ? (
-                  <Avatar className="w-[42px] h-[42px] flex-shrink-0">
-                    <AvatarImage src={avatarUrl} />
-                    <AvatarFallback>
-                      {item.is_guest ? <UserIcon className="w-5 h-5" /> : name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                ) : (
-                  <AdminTile tint={TINT}>
-                    {item.is_guest ? <UserIcon className="w-5 h-5" /> : name.charAt(0).toUpperCase()}
-                  </AdminTile>
-                )}
-
-                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 15.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary }}>{name}</span>
-                    {item.is_guest && <AdminPill tone="pending">Guest</AdminPill>}
-                    <span style={{ fontSize: 13 }}>{ratingEmojis[item.rating]}</span>
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: SURFACE_TOKENS.textTertiary }}>{ratingLabels[item.rating]}</span>
-                  </div>
-                  <p style={{ marginTop: 4, fontSize: 13, lineHeight: 1.5, color: SURFACE_TOKENS.textTertiary }}>
-                    {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-                  </p>
-
-                  {item.comment && (
-                    <p style={{ marginTop: 10, padding: 12, borderRadius: 12, background: SURFACE_TOKENS.mutedFill, color: SURFACE_TOKENS.textPrimary, fontSize: 13.5, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
-                      {item.comment}
-                    </p>
-                  )}
-
-                  <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 12 }}>
-                    {email && (
-                      <a href={`mailto:${email}`} style={adminSecondaryBtnStyle}>
-                        <Mail className="w-3.5 h-3.5" />
-                        Reply
-                      </a>
-                    )}
-                    <button onClick={() => handleDelete(item.id)} style={adminDestructiveBtnStyle} aria-label="Resolve feedback">
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Resolve
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <AdminTable columns={feedbackColumns} rows={feedbackRows} />
       )}
     </AdminConsole>
   );
