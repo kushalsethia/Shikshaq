@@ -256,8 +256,15 @@ function B4() {
         height={92}
         className="h-10 w-auto shrink-0"
       />
-      <span className="flex-1 text-body-secondary text-warm-prose">
-        Two people, one list of teachers, no commission.
+      {/* prefooter-04-one-liner.png sets this in two tones: the claim in full
+          ink, "No commission, ever." dropped back. The build had different copy
+          entirely ("Two people, one list of teachers, no commission") which says
+          who we are rather than what is on the other side of the link — and this
+          block's whole job is to pull someone from a form or a dashboard back
+          into the directory. */}
+      <span className="flex-1 text-body-secondary text-foreground">
+        Verified tuition teachers in Kolkata, free to contact.{" "}
+        <span className="text-warm-prose">No commission, ever.</span>
       </span>
       <ChevronRight aria-hidden className="size-5 shrink-0 text-warm-label" />
     </Link>
