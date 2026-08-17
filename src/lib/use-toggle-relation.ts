@@ -215,6 +215,10 @@ export function useToggleRelation(opts: UseToggleRelationOptions): UseToggleRela
 
   const isRelated = useCallback((targetId: string) => idsRef.current.has(targetId), []);
 
+  /* Ref, so the retry closure below can call the current toggle without
+     toggle having to depend on itself. */
+  const toggleRef = useRef<(targetId: string) => Promise<boolean>>();
+
   const toggle = useCallback(
     async (targetId: string): Promise<boolean> => {
       if (!userId) {
@@ -239,6 +243,15 @@ export function useToggleRelation(opts: UseToggleRelationOptions): UseToggleRela
         setCachedIds(key, next);
         return next;
       });
+
+      /* micro-06-non-negotiables rule 5: "Failure reverts the control and says
+         what happened in the same pill — with a Retry." The revert and the
+         message were both here; the Retry was not, so a like that failed on a
+         flaky connection left the user with an error and no way to act on it
+         except finding the button again. Attached to every failure toast that
+         is worth retrying — not to permission or missing-table errors, which
+         will fail again identically and where a Retry button would be a lie. */
+      const retry = { label: 'Retry', onClick: () => void toggleRef.current?.(targetId) };
 
       const revert = () => {
         setIds((prev) => {
@@ -302,15 +315,21 @@ export function useToggleRelation(opts: UseToggleRelationOptions): UseToggleRela
       } catch (error: any) {
         if (import.meta.env.DEV) console.error(`Error toggling ${table}:`, error);
         if (isMissingTableError(error)) {
+          /* No Retry here: a missing table fails identically every time, so the
+             button would only invite a second identical failure. */
           toast.error(messages.tableMissing ?? `Database table not found for ${table}. Please run the migration in Supabase.`);
         } else {
-          toast.error(error?.message || messages.genericError || 'Failed to update');
+          toast.error(error?.message || messages.genericError || 'Failed to update', { action: retry });
         }
         return currentlyRelated;
       }
     },
     [userId, table, ownerColumn, targetColumn, cacheKey, guard, isRelated, messages]
   );
+
+  /* Keep the ref pointing at the latest toggle so a Retry pressed on an old
+     toast still runs the current one. */
+  toggleRef.current = toggle;
 
   return { ids, loading, isRelated, toggle, setIds };
 }
