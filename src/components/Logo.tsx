@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { Link } from 'react-router-dom';
 import logoImage from '@/assets/shikshaq-logo.svg';
 
@@ -11,9 +12,16 @@ interface LogoProps {
    *  invisible. Loses the small orange accent dot in that mode — acceptable
    *  since it's already a one-off flourish, not the brand orange token. */
   onDark?: boolean;
+  /** Intercept the click, e.g. to open the product tour on the home page
+   *  instead of navigating to a route the user is already on. Call
+   *  preventDefault() to suppress the navigation. */
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>;
+  /** Override the accessible name when the click does something other than
+   *  navigate home. */
+  ariaLabel?: string;
 }
 
-export function Logo({ className = '', showText = false, size = 'md', desktopSize, onDark = false }: LogoProps) {
+export function Logo({ className = '', showText = false, size = 'md', desktopSize, onDark = false, onClick, ariaLabel = 'Shikshaq home' }: LogoProps) {
   // SVG is 252x92, so aspect ratio is ~2.74:1 (wider than tall)
   // NOTE: every class below is a complete literal string so Tailwind's JIT
   // scanner can see it. Never build these with template interpolation.
@@ -60,7 +68,8 @@ export function Logo({ className = '', showText = false, size = 'md', desktopSiz
   return (
     <Link
       to="/"
-      aria-label="Shikshaq home"
+      aria-label={ariaLabel}
+      onClick={onClick}
       className={`flex items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${className}`}
     >
       <img

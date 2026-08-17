@@ -40,24 +40,25 @@ function LogoOrTourTrigger() {
   const location = useLocation();
   const isHome = location.pathname === '/';
 
+  /* Logo renders its own <Link>, so this must NOT wrap it in another anchor or
+     a button — that produced nested interactive elements (invalid HTML, and a
+     real "<a> inside <a>" console warning). Instead the handler is passed down
+     and the navigation suppressed, keeping exactly one control. */
   if (isHome) {
     return (
-      <button
-        type="button"
-        onClick={openProductTour}
-        aria-label="How ShikshAQ works"
-        className={`flex h-11 flex-none items-center rounded-lg ${FOCUS_RING}`}
-      >
-        <Logo size="nav" className="flex-none" />
-      </button>
+      <Logo
+        size="nav"
+        className="flex-none"
+        ariaLabel="How ShikshAQ works"
+        onClick={(e) => {
+          e.preventDefault();
+          openProductTour();
+        }}
+      />
     );
   }
 
-  return (
-    <Link to="/" aria-label="ShikshAQ home" className={`flex h-11 flex-none items-center rounded-lg ${FOCUS_RING}`}>
-      <Logo size="nav" className="flex-none" />
-    </Link>
-  );
+  return <Logo size="nav" className="flex-none" />;
 }
 
 export function Navbar() {
