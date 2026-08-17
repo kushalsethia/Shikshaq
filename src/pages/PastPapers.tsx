@@ -236,8 +236,8 @@ export default function PastPapers() {
             </h1>
             <p className="mt-3 max-w-[62ch] text-[15px] leading-[1.55] text-white/[.82] sm:mt-4 sm:text-[17.5px]">
               {schoolStats.length > 0
-                ? `From ${schoolStats.length} school${schoolStats.length === 1 ? '' : 's'} across JAC, CBSE and ICSE, classes 9 to 12. Free to read, with marking schemes where the boards publish them.`
-                : 'JAC, CBSE and ICSE, classes 9 to 12. Free to read, with marking schemes where the boards publish them.'}
+                ? `From ${schoolStats.length} school${schoolStats.length === 1 ? '' : 's'} across ICSE, CBSE and ISC, classes 9 to 12. Free to read, with marking schemes where the boards publish them.`
+                : 'ICSE, CBSE and ISC, classes 9 to 12. Free to read, with marking schemes where the boards publish them.'}
             </p>
             {!user ? (
               <Link
