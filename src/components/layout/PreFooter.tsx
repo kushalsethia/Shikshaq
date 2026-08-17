@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { BadgeCheck, MessageCircle, FileText, ChevronRight, IndianRupee } from "lucide-react";
+import { BadgeCheck, MessageCircle, FileText, ChevronRight, IndianRupee, Users, Eye } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { IconDisc } from "@/components/ui/icon-disc";
 import { PageContainer } from "@/components/layout/PageContainer";
 import logoImage from "@/assets/shikshaq-logo.svg";
 import { BROWSE_PATH, PAST_PAPERS_PATH } from "@/lib/nav-config";
+import { getWhatsAppLink } from "@/utils/whatsapp";
 
 /* Redesign S5 — the pre-footer block family (design.md §6).
 
@@ -173,26 +174,63 @@ function B2({ counts }: { counts?: B2Counts }) {
 function B3() {
   return (
     <div className="rounded-3xl bg-brand-blue-subtle p-6 sm:p-8">
-      <h2 className="font-display text-section-head font-extrabold text-brand-blue-deep">
-        Where these papers come from
+      {/* Rebuilt against prefooter-03-papers-explainer.png, which this had
+          drifted from in the same ways B1 had: no eyebrow, a headline that
+          described the block ("Where these papers come from") rather than making
+          its claim, three flat sentences sharing one repeated document icon, and
+          only one of the two CTAs. */}
+      <Eyebrow className="text-brand-blue-deep/70">How the paper library works</Eyebrow>
+      <h2 className="mt-3 max-w-[24ch] font-display text-section-head font-extrabold leading-[1.05] text-brand-blue-deep">
+        Real school papers, shared by students, free to read.
       </h2>
       <ul className="mt-6 grid gap-4 sm:grid-cols-3">
         {[
-          "Shared by students, year after year.",
-          "Read them in the browser — no download needed.",
-          "The schools own them. We only host them for revision.",
-        ].map((t) => (
-          <li key={t} className="flex items-start gap-3">
-            <IconDisc tone="papers-subtle" size={36}>
-              <FileText />
+          {
+            icon: <Users />,
+            head: "Shared by students.",
+            /* The mockup says "from 24 Kolkata schools". There is no query
+               behind that number and the library is currently empty, so the
+               claim is made without it rather than invented (design.md §0.10). */
+            text: "Real prelim and half-yearly papers from Kolkata schools.",
+          },
+          {
+            icon: <Eye />,
+            head: "Read in the browser.",
+            text: "Nothing to download, nothing to pay for.",
+          },
+          {
+            icon: <FileText />,
+            head: "Schools stay the owners.",
+            text: "We host for reading only, and remove anything on request.",
+          },
+        ].map((p) => (
+          <li key={p.head} className="flex items-start gap-3">
+            <IconDisc tone="papers" size={36} shape="square" className="flex-none">
+              {p.icon}
             </IconDisc>
-            <span className="text-body-secondary text-warm-prose">{t}</span>
+            <p className="min-w-0 text-body-secondary text-brand-blue-deep/80">
+              <span className="font-bold text-brand-blue-deep">{p.head}</span> {p.text}
+            </p>
           </li>
         ))}
       </ul>
       <div className="mt-6 flex flex-wrap gap-3">
         <Button asChild variant="indigo" size={44}>
           <Link to={PAST_PAPERS_PATH}>Browse papers</Link>
+        </Button>
+        {/* Second CTA was missing entirely. It points at the same WhatsApp
+            request the papers page already uses, so there is one way to offer a
+            paper rather than two that behave differently. */}
+        <Button asChild variant="muted" size={44}>
+          <a
+            href={`${getWhatsAppLink("8240980312")}?text=${encodeURIComponent(
+              "Hi! I'd like to share a past paper with Shikshaq.",
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Share a paper
+          </a>
         </Button>
       </div>
     </div>

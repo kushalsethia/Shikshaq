@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { PageHeader } from '@/components/devices';
 import { useAuth } from '@/lib/auth-context';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
 
 interface Paper {
   id: string;
@@ -364,6 +365,15 @@ export default function PaperResults() {
           <ArrowUp className="h-6 w-6" strokeWidth={2.25} aria-hidden="true" />
         </button>
       )}
+
+      {/* B3 belongs on "papers list, reader, school pages" per the pre-footer
+          route map, but no papers page mounted PreFooter at all — so B3 was
+          unreachable code and this page ended with nothing between the results
+          and the footer. Mounting it here makes the route map true and gives the
+          results page the explainer core-04 shows above the ownership slab. */}
+      <section className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+        <PreFooter variant={preFooterFor('/past-papers/results')} />
+      </section>
 
       {/* Copyright / removal-on-request. The papers belong to the schools that
           set them; ShikshAQ hosts them for revision only. This statement was on
