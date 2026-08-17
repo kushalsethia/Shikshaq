@@ -1049,7 +1049,13 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
           if (teachersData.length > 0) {
             const teacherSlugs = teachersData.map((t) => t.slug);
-            const chunkSize = 50;
+            // 200, matching the filtered path above — the two paths chunk the same
+            // table with the same `.in()` and had no reason to differ. Chunk size
+            // cannot change which rows come back or their order (results are
+            // stitched by slug afterwards), only how many round trips it takes:
+            // at 147 teachers this is 1 request instead of 3, and it stops the
+            // request count growing 4x faster than the roster does.
+            const chunkSize = 200;
             const chunks: string[][] = [];
             for (let i = 0; i < teacherSlugs.length; i += chunkSize) chunks.push(teacherSlugs.slice(i, i + chunkSize));
 
