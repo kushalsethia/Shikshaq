@@ -84,6 +84,23 @@ const TeacherRedirect = () => {
   return <Navigate to={`/tuition-teachers/${slug}`} replace />;
 };
 
+// The auth flow (S6 sign-in, S8 pick-your-role) is a chromeless, full-bleed
+// screen in the mockups: its own logo/Skip, no site header, no bottom tab
+// bar. Both TopBar and Navbar render their own logo + menu globally, and
+// BottomNav floats a fixed pill over the bottom of every route, so without
+// this guard they doubled up on the auth pages' own header and covered the
+// password field. Keep this list to auth-only chromeless routes.
+const CHROMELESS_ROUTES = ['/auth', '/select-role'];
+function useIsChromelessRoute() {
+  const { pathname } = useLocation();
+  return CHROMELESS_ROUTES.includes(pathname);
+}
+function SiteChrome({ children }: { children: ReactNode }) {
+  const chromeless = useIsChromelessRoute();
+  if (chromeless) return null;
+  return <>{children}</>;
+}
+
 // Short, subtle crossfade on route change. Keyed on pathname only (not query
 // params) so filter/search changes within a page never re-trigger it.
 const RouteTransition = ({ children }: { children: ReactNode }) => {
@@ -115,8 +132,10 @@ const App = () => (
             <CanonicalTag />
             <Chatbot />
             <OnboardingModal />
-            <TopBar />
-            <Navbar />
+            <SiteChrome>
+              <TopBar />
+              <Navbar />
+            </SiteChrome>
             <RouteTransition>
             {/* One Suspense boundary around the whole route table. The routes
                 that were eager until now are lazy, and each would otherwise
@@ -434,7 +453,9 @@ const App = () => (
             </Routes>
             </Suspense>
             </RouteTransition>
-            <BottomNav />
+            <SiteChrome>
+              <BottomNav />
+            </SiteChrome>
           </BrowserRouter>
             </StudiesWithProvider>
           </UpvotesProvider>

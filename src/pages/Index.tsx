@@ -471,9 +471,6 @@ export default function Index() {
           </PageContainer>
         </section>
 
-        <HomeGreeting />
-        <HomeActivitySection />
-
         {/* --------------------------------------------------- 01 Featured teachers */}
         <PageContainer as="section" className="py-8 sm:py-12">
           <div className="space-y-6">
@@ -794,6 +791,15 @@ export default function Index() {
             <ArrowRight className="h-5 w-5 flex-none text-warm-label" aria-hidden="true" />
           </Link>
         </PageContainer>
+
+        {/* HomeGreeting / HomeActivitySection (Favourites, Recently visited) are
+            real, existing localStorage/likes-backed features with no home in
+            the mockup's own section order — mockup goes search-card straight
+            into "01 Start with the teachers parents pick". Per BUILD FROM ZERO
+            + KEEP FUNCTIONALITY, they are kept but moved below the mockup's own
+            sections, just above the prefooter, rather than deleted. */}
+        <HomeGreeting />
+        <HomeActivitySection />
 
         <PreFooter variant="B1" />
         <BottomNavSpacer />

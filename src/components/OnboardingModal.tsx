@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { GraduationCap, BookOpen, Presentation, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hasSeenOnboarding, markOnboardingSeen } from "@/lib/onboarding";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Sticker } from "@/components/ui/sticker";
 import { IconDisc } from "@/components/ui/icon-disc";
 
@@ -70,13 +70,22 @@ export function OnboardingModal() {
   return (
     <Sheet open={open} onOpenChange={(next) => !next && dismiss()}>
       <SheetContent side="bottom" className="rounded-t-[28px] border-0 pb-8 pt-6">
-        <div className="relative">
-          <Sticker tone="brand" tilt={-3} size={30}>
+        <div className="relative pt-2">
+          {/* Sticker defaults to overhanging a card's top-right corner (see
+              sticker.tsx); here it sits above the headline instead, per mockup
+              S18, so it is repositioned to the top-left and the heading is
+              pushed down to clear it rather than being overlapped. */}
+          <Sticker tone="brand" tilt={-3} size={30} className="left-0 right-auto top-0">
             Takes one tap
           </Sticker>
-          <h2 className="font-display text-page-title font-bold text-foreground">
+          {/* SheetTitle, not a bare h2. Radix requires a DialogTitle inside
+              DialogContent to label the dialog for assistive tech, and warned
+              about it in the console on every page — this sheet is mounted
+              site-wide. SheetTitle renders an h2 anyway, so nothing changes
+              visually. */}
+          <SheetTitle className="mt-9 font-display text-page-title font-bold text-foreground">
             What brings you here?
-          </h2>
+          </SheetTitle>
         </div>
 
         <div className="mt-6 grid gap-3">

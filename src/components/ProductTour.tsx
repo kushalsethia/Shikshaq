@@ -112,9 +112,24 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
       body: "Subject, class, area. No account, no forms, no waiting for a callback.",
       cta: "Show me",
       illustration: (
-        <div className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-3">
-          <Search aria-hidden className="size-4 shrink-0 text-background/70" />
-          <span className="text-body-secondary text-background/70">Subject, class or area</span>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-3">
+            <Search aria-hidden className="size-4 shrink-0 text-background/70" />
+            <span className="text-body-secondary text-background/70">Subject, class or area</span>
+          </div>
+          {/* Illustrative example chips — not live filters, so no query backs
+              them; copy substitutes Ballygunge for the handoff's Lalpur per
+              the brief's Kolkata-locality rule. */}
+          <div className="flex flex-wrap gap-2">
+            {["Near Ballygunge", "Under ₹800", "Home tuition"].map((label) => (
+              <span
+                key={label}
+                className="rounded-full bg-white/10 px-3 py-1.5 text-meta font-semibold text-background/80"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
       ),
     },
@@ -231,7 +246,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
             </DialogPrimitive.Close>
           </div>
 
-          <div className="flex flex-1 flex-col items-center justify-center px-6 pb-8 text-center sm:px-8">
+          <div className="flex flex-1 flex-col justify-center px-6 pb-8 text-left sm:px-8">
             <h2 className="max-w-sm font-display text-display-hero font-extrabold leading-tight tracking-tight sm:max-w-md">
               {card.headline}
             </h2>
@@ -239,12 +254,12 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
             <div className="mt-6 w-full max-w-xs">{card.illustration}</div>
           </div>
 
-          <div className="flex flex-col items-center gap-3 px-6 pb-8 sm:pb-12">
+          <div className="flex flex-col items-stretch gap-3 px-6 pb-8 sm:pb-12">
             <Button
-              variant={card.mode === "whatsapp" ? "whatsapp" : card.mode === "papers" ? "indigo" : card.mode === "brand" ? "primary" : "dark"}
+              variant={card.mode === "whatsapp" ? "whatsapp" : card.mode === "papers" ? "muted" : "primary"}
               size={54}
               onClick={advance}
-              className="w-full max-w-xs"
+              className="w-full max-w-xs justify-center"
             >
               {card.cta}
               {isLast ? null : <ChevronRight aria-hidden className="ml-1 size-4" />}
