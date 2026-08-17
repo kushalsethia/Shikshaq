@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { Sticker } from '@/components/ui/sticker';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -132,6 +134,7 @@ const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-background shadow-border';
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [teacherData, setTeacherData] = useState<TeacherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -890,6 +893,7 @@ export default function TeacherDashboard() {
             </div>
           </div>
         </main>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     );
@@ -923,6 +927,7 @@ export default function TeacherDashboard() {
               Go Home
             </Button>
           </main>
+          <PreFooter variant={preFooterFor(location.pathname)} />
           <Footer />
         </div>
       );
@@ -944,6 +949,7 @@ export default function TeacherDashboard() {
             {user ? 'Go Home' : 'Sign In'}
           </Button>
         </main>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     );
@@ -1643,6 +1649,7 @@ export default function TeacherDashboard() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <PreFooter variant={preFooterFor(location.pathname)} />
       <Footer />
     </div>
   );

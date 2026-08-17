@@ -594,94 +594,114 @@ export default function TeacherProfile() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Photo header — design.md §4 "Teacher profile (S3)": 280px photo header
-          with back/save/share circles and board/area/experience speech chips. */}
-      <div className="relative h-[280px] w-full overflow-hidden">
-        {teacher.image_url ? (
-          <img
-            src={validateImageSrc(teacher.image_url)}
-            alt={teacher.name}
-            width={1200}
-            height={280}
-            decoding="async"
-            fetchPriority="high"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="h-full w-full" style={{ backgroundColor: accentPalette.tint }}>
-            <StripePlaceholder name={teacher.name} initialSize={110} className="h-full w-full" />
-          </div>
-        )}
-
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 via-transparent to-transparent" aria-hidden="true" />
-
-        <button
-          type="button"
-          onClick={() => navigate(backHref)}
-          aria-label="Back to results"
-          className="absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-card/90 shadow-border backdrop-blur-sm transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <ArrowLeft size={18} className="text-foreground" aria-hidden="true" />
-        </button>
-
-        <div className="absolute right-4 top-4 flex gap-2">
-          <button
-            type="button"
-            onClick={handleHeartClick}
-            aria-label={liked ? 'Remove from favourites' : 'Save teacher'}
-            aria-pressed={liked}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-card/90 shadow-border backdrop-blur-sm transition-transform duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <Heart size={17} className={liked ? 'fill-destructive text-destructive' : 'text-foreground/70'} />
-          </button>
-          <button
-            type="button"
-            onClick={handleShareClick}
-            aria-label="Share teacher"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-card/90 shadow-border backdrop-blur-sm transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <Share2 size={16} className="text-foreground/70" aria-hidden="true" />
-          </button>
-        </div>
-
-        {teacher.is_verified && (
-          <div role="status" className="animate-pop absolute left-4 bottom-4 flex h-9 items-center gap-1.5 rounded-full bg-brand-blue px-3 shadow-border">
-            <ShieldCheck size={14} className="text-white" strokeWidth={2.3} aria-hidden="true" />
-            <span className="text-xs font-bold text-white">Verified</span>
-          </div>
-        )}
-
-        {(boardsList.length > 0 || teacher.area || teacher.experience_years) && (
-          <div className="absolute inset-x-4 bottom-4 flex flex-wrap justify-end gap-2">
-            {boardsList.length > 0 && <SpeechChip>{boardsList.join(' + ')}</SpeechChip>}
-            {teacher.area && <SpeechChip>{teacher.area}</SpeechChip>}
-            {teacher.experience_years && <SpeechChip>{teacher.experience_years}+ years</SpeechChip>}
-          </div>
-        )}
-      </div>
-
       <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
-        {/* Desktop: 1fr / 384px grid. Left = name card + prose sections. Right = sticky contact card. */}
+        {/* Desktop: 1fr / 384px grid. Left = photo/name card + prose sections. Right = sticky contact card. */}
         <div className="lg:grid lg:grid-cols-[1fr_384px] lg:gap-8">
           <div className="min-w-0">
-            <h1 className="font-display text-4xl font-black leading-[0.98] tracking-tight text-foreground sm:text-5xl">
-              {formatDisplayName(teacher.name, teacher.sir_maam)}
-            </h1>
-
-            {primarySubject && (
-              <p className="mt-2 font-display text-xl font-bold text-foreground sm:text-2xl">
-                Teaches{' '}
-                <span
-                  className="marker-highlight marker-highlight--pill"
-                  style={{ '--marker-color': accentPalette.solid } as React.CSSProperties}
+            {/* Profile card — design.md "Teacher profile (S3/D3)": photo sits
+                inside the card beside the name, never underneath overlaid
+                chips/badges — nothing may cover a teacher's face. Dark panel +
+                white text on mobile (S3); light bordered card on desktop (D3). */}
+            <div className="rounded-3xl bg-panel p-4 pb-6 lg:rounded-2xl lg:border lg:border-border lg:bg-card lg:p-8 lg:shadow-none">
+              <div className="mb-4 flex items-center justify-between lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => navigate(backHref)}
+                  aria-label="Back to results"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10 transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  {primarySubject}
-                </span>
-              </p>
-            )}
+                  <ArrowLeft size={18} className="text-background" aria-hidden="true" />
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleHeartClick}
+                    aria-label={liked ? 'Remove from favourites' : 'Save teacher'}
+                    aria-pressed={liked}
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10 transition-transform duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <Heart size={17} className={liked ? 'fill-destructive text-destructive' : 'text-background/70'} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShareClick}
+                    aria-label="Share teacher"
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10 transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <Share2 size={16} className="text-background/70" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-end gap-4 lg:items-start lg:gap-8">
+                <div className="relative h-[166px] w-[132px] shrink-0 overflow-hidden rounded-2xl lg:h-[280px] lg:w-56">
+                  {teacher.image_url ? (
+                    <img
+                      src={validateImageSrc(teacher.image_url)}
+                      alt={teacher.name}
+                      width={224}
+                      height={280}
+                      decoding="async"
+                      fetchPriority="high"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full" style={{ backgroundColor: accentPalette.tint }}>
+                      <StripePlaceholder name={teacher.name} initialSize={72} className="h-full w-full" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  {(boardsList.length > 0 || teacher.area || teacher.experience_years) && (
+                    <div className="stagger-children mb-2.5 flex flex-wrap gap-1.5 lg:hidden">
+                      {boardsList.length > 0 && <SpeechChip>{boardsList.join(' + ')}</SpeechChip>}
+                      {teacher.area && <SpeechChip>{teacher.area}</SpeechChip>}
+                      {teacher.experience_years && <SpeechChip>{teacher.experience_years}+ years</SpeechChip>}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <h1 className="font-display text-3xl font-black leading-[0.98] tracking-tight text-background lg:text-4xl lg:text-foreground">
+                      {formatDisplayName(teacher.name, teacher.sir_maam)}
+                    </h1>
+                    {teacher.is_verified && (
+                      <span title="Verified by ShikshAQ" className="flex-none">
+                        <ShieldCheck size={22} className="fill-brand text-background lg:text-card" strokeWidth={2} aria-hidden="true" />
+                      </span>
+                    )}
+                  </div>
+
+                  {primarySubject && (
+                    <p className="mt-1.5 font-display text-lg font-bold text-background/90 lg:hidden">
+                      Teaches{' '}
+                      <span className="rounded-lg bg-card px-2 py-0.5 text-foreground">{primarySubject}</span>
+                    </p>
+                  )}
+
+                  {(teacher.area || teacher.experience_years || boardsList.length > 0) && (
+                    <div className="mt-2 hidden flex-wrap gap-4 text-sm text-warm-prose lg:flex">
+                      {teacher.area && <span className="inline-flex items-center gap-2">{teacher.area}</span>}
+                      {teacher.experience_years && (
+                        <span className="inline-flex items-center gap-2">{teacher.experience_years}+ years experience</span>
+                      )}
+                      {boardsList.length > 0 && <span className="inline-flex items-center gap-2">{boardsList.join(' + ')}</span>}
+                    </div>
+                  )}
+
+                  {subjectsList.length > 0 && (
+                    <div className="stagger-children mt-5 hidden flex-wrap gap-2 lg:flex">
+                      {subjectsList.map((subject) => (
+                        <SubjectPill key={subject} label={subject} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
             {(subjectsList.length > 0 || boardsList.length > 0 || teacher.area) && (
-              <div className="stagger-children mt-4 flex flex-wrap gap-2">
+              <div className="stagger-children mt-4 flex flex-wrap gap-2 lg:hidden">
                 {subjectsList.map((subject) => (
                   <SubjectPill key={subject} label={subject} />
                 ))}

@@ -13,6 +13,7 @@ import { getWhatsAppLink } from '@/utils/whatsapp';
 import { PageHeader, PillRow } from '@/components/devices';
 import { useAuth } from '@/lib/auth-context';
 import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
+import { IconDisc } from '@/components/ui/icon-disc';
 
 // Cycled (not hashed) for pure visual variety across the class/board pill
 // walls — these are not subject-coded lists, so there's no "correct" mapping
@@ -346,25 +347,35 @@ export default function PastPapers() {
         </div>
 
         {/* --------------------------------------------------------- By school */}
+        {/* S4/D4: a flat list of school rows on the page ground — each row is
+            an initial disc + name + count + chevron, `shadow-border` only
+            (no border+shadow stack, tokens.md §6). The previous build wrapped
+            this in a full bg-brand-blue rounded-4xl slab, which the mockup
+            does not do — that big a saturated surface here read as a second
+            "By class & board" slab competing with the one below it. */}
         {!loading && !loadError && schoolStats.length > 0 && (
           <section className={`${CONTAINER} pb-8`}>
-            <div className="rounded-4xl bg-brand-blue p-6 sm:p-8">
-              <h2 className="mb-6 text-section-head font-display font-bold text-white">By school</h2>
-              <div className="stagger-children grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-                {schoolStats.map(({ school, board, count, otherBoardCount }) => (
-                  <button
-                    key={school}
-                    onClick={() => navigate(`/past-papers/results?filter_schools=${encodeURIComponent(school)}`)}
-                    className={`flex min-h-11 animate-card-reveal flex-col rounded-2xl bg-card p-4 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 sm:p-6 ${FOCUS}`}
-                  >
-                    <span className="block break-words text-subsection font-semibold text-foreground">{school}</span>
-                    <span className="mt-2 block text-meta tabular-nums text-muted-foreground">
+            <h2 className="mb-6 text-section-head font-display font-bold text-foreground">By school</h2>
+            <div className="stagger-children grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+              {schoolStats.map(({ school, board, count, otherBoardCount }) => (
+                <button
+                  key={school}
+                  onClick={() => navigate(`/past-papers/results?filter_schools=${encodeURIComponent(school)}`)}
+                  className={`flex min-h-11 animate-card-reveal items-center gap-3 rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
+                >
+                  <IconDisc tone="papers-subtle" size={40} shape="square" className="font-display font-bold">
+                    {school.charAt(0).toUpperCase()}
+                  </IconDisc>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-body font-semibold text-foreground">{school}</span>
+                    <span className="mt-0.5 block text-meta tabular-nums text-muted-foreground">
                       {board} · {count} paper{count === 1 ? '' : 's'}
                       {otherBoardCount > 0 ? ` + ${otherBoardCount} more` : ''}
                     </span>
-                  </button>
-                ))}
-              </div>
+                  </span>
+                  <ArrowRight className="h-4 w-4 flex-none text-warm-quaternary" aria-hidden="true" />
+                </button>
+              ))}
             </div>
           </section>
         )}
@@ -467,57 +478,58 @@ export default function PastPapers() {
         )}
 
         {/* --------------------------------------------------- By class & board */}
+        {/* S4/D4: plain wrapped pills directly on the page ground, no colored
+            slab. Previously wrapped in a `bg-brand` (orange) rounded-4xl slab
+            — a hard violation on this page: papers mode is indigo-only,
+            orange must never appear here (tokens.md §2). Removed the slab
+            entirely to match the mockup rather than merely recolor it. */}
         {!loadError && (
           <section className={`${CONTAINER} pb-8`}>
-            <div className="rounded-4xl bg-brand p-6 sm:p-8">
-              {/* §2 accent rule: orange never carries white text, so this heading
-                  is dark even though the prototype's spec called it white. */}
-              <h2 className="mb-6 text-section-head font-display font-bold text-foreground">By class &amp; board</h2>
+            <h2 className="mb-6 text-section-head font-display font-bold text-foreground">By class &amp; board</h2>
 
-              {/* PILL-WALL FIX: this used to be one flat 17-item `flex-wrap`
-                  block (12 class pills + 5 board pills) — a long, low-density
-                  scroll segment right at the first decision point. Device M
-                  (`PillRow`) replaces it: full-width rows, each a different
-                  token color, each led by a small contrasting badge holding
-                  the class numeral or board's short code. Colors are cycled
-                  through the sanctioned subject-palette generator (not a new
-                  hex) purely for visual variety — these aren't subject-coded
-                  lists. */}
-              <div className="space-y-6">
-                <div>
-                  <p className="mb-3 text-label font-bold uppercase text-foreground/70">Class</p>
-                  <PillRow
-                    layout="grid"
-                    items={PAPER_CLASSES.map((c, i) => {
-                      const p = paletteFromSeed(PILL_SEEDS[i % PILL_SEEDS.length]);
-                      return {
-                        key: `class-${c}`,
-                        badge: c,
-                        label: `Class ${c}`,
-                        color: p.tint,
-                        textColor: p.text,
-                        onClick: () => navigate(`/past-papers/results?filter_classes=${encodeURIComponent(c)}`),
-                      };
-                    })}
-                  />
-                </div>
-                <div>
-                  <p className="mb-3 text-label font-bold uppercase text-foreground/70">Board</p>
-                  <PillRow
-                    layout="grid"
-                    items={BOARDS.map((b, i) => {
-                      const p = paletteFromSeed(PILL_SEEDS[(i + 3) % PILL_SEEDS.length]);
-                      return {
-                        key: `board-${b}`,
-                        badge: b.slice(0, 2).toUpperCase(),
-                        label: b,
-                        color: p.tint,
-                        textColor: p.text,
-                        onClick: () => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`),
-                      };
-                    })}
-                  />
-                </div>
+            {/* PILL-WALL FIX: this used to be one flat 17-item `flex-wrap`
+                block (12 class pills + 5 board pills) — a long, low-density
+                scroll segment right at the first decision point. Device M
+                (`PillRow`) replaces it: full-width rows, each a different
+                token color, each led by a small contrasting badge holding
+                the class numeral or board's short code. Colors are cycled
+                through the sanctioned subject-palette generator (not a new
+                hex) purely for visual variety — these aren't subject-coded
+                lists. */}
+            <div className="space-y-6">
+              <div>
+                <p className="mb-3 text-label font-bold uppercase text-muted-foreground">Class</p>
+                <PillRow
+                  layout="grid"
+                  items={PAPER_CLASSES.map((c, i) => {
+                    const p = paletteFromSeed(PILL_SEEDS[i % PILL_SEEDS.length]);
+                    return {
+                      key: `class-${c}`,
+                      badge: c,
+                      label: `Class ${c}`,
+                      color: p.tint,
+                      textColor: p.text,
+                      onClick: () => navigate(`/past-papers/results?filter_classes=${encodeURIComponent(c)}`),
+                    };
+                  })}
+                />
+              </div>
+              <div>
+                <p className="mb-3 text-label font-bold uppercase text-muted-foreground">Board</p>
+                <PillRow
+                  layout="grid"
+                  items={BOARDS.map((b, i) => {
+                    const p = paletteFromSeed(PILL_SEEDS[(i + 3) % PILL_SEEDS.length]);
+                    return {
+                      key: `board-${b}`,
+                      badge: b.slice(0, 2).toUpperCase(),
+                      label: b,
+                      color: p.tint,
+                      textColor: p.text,
+                      onClick: () => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`),
+                    };
+                  })}
+                />
               </div>
             </div>
           </section>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
@@ -71,6 +72,7 @@ const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-background shadow-border';
 export default function GuardianDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [boards, setBoards] = useState<string[]>([]);
@@ -396,6 +398,7 @@ export default function GuardianDashboard() {
             </div>
           </div>
         </div>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     );
@@ -418,6 +421,7 @@ export default function GuardianDashboard() {
             {user ? 'Go Home' : 'Sign In'}
           </Button>
         </main>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     );
@@ -782,6 +786,7 @@ export default function GuardianDashboard() {
         </div>
       </main>
 
+      <PreFooter variant={preFooterFor(location.pathname)} />
       <Footer />
     </div>
   );

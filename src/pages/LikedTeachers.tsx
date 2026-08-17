@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Heart } from 'lucide-react';
 import { adminToast } from '@/components/AdminConsole';
 import { PageHeader, CutPaperShape } from '@/components/devices';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { useLocation } from 'react-router-dom';
 
 interface LikedTeacher {
   id: string;
@@ -25,6 +27,7 @@ interface LikedTeacher {
 export default function LikedTeachers() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { likedTeacherIds, loading: likesLoading, toggleLike } = useLikes();
   // Every teacher we've ever fetched details for this session, keyed by id. Never pruned on
   // unlike, so an unlike is an instant local filter (optimistic) and Undo is instant too, since
@@ -172,6 +175,7 @@ export default function LikedTeachers() {
           <p className="mt-3 text-sm text-muted-foreground">Please sign in to view your favourite teachers.</p>
           <Button className="mt-6" onClick={() => navigate('/auth')}>Sign In</Button>
         </main>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     ); // Will also redirect to auth
@@ -192,6 +196,7 @@ export default function LikedTeachers() {
             ))}
           </div>
         </main>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     );
@@ -257,6 +262,7 @@ export default function LikedTeachers() {
           </div>
         )}
       </main>
+      <PreFooter variant={preFooterFor(location.pathname)} />
       <Footer />
     </div>
   );

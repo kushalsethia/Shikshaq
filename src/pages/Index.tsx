@@ -400,6 +400,30 @@ export default function Index() {
                   learn from?
                 </span>
               </h1>
+
+              {/* Stat pills — mockup shows two tilted badges here; real counts
+                  only (design.md §0.10), so they render once both queries have
+                  resolved rather than ever showing a fabricated number. Chips
+                  never tilt per components.md P2, so this is a plain pill row
+                  rather than the mockup's hand-placed tilt — deliberate
+                  token-system deviation. */}
+              {(stats.teachers !== null || stats.papers !== null) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {stats.teachers !== null && (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-card px-3 py-1.5 text-meta font-bold text-foreground">
+                      <span className="h-[7px] w-[7px] rounded-full bg-brand" aria-hidden="true" />
+                      {stats.teachers} verified tutors
+                    </span>
+                  )}
+                  {stats.papers !== null && (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-card px-3 py-1.5 text-meta font-bold text-foreground">
+                      <span className="h-[7px] w-[7px] rounded-full bg-brand-blue" aria-hidden="true" />
+                      {stats.papers} free papers
+                    </span>
+                  )}
+                </div>
+              )}
+
               <p className="max-w-prose text-lede text-background/75">
                 Message the teacher yourself on WhatsApp. No agents, no commission, nothing in between.
               </p>
@@ -426,45 +450,29 @@ export default function Index() {
             />
 
             {loading ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                {[...Array(3)].map((_, i) => (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {[...Array(4)].map((_, i) => (
                   <div key={i} className="aspect-[4/5] rounded-2xl bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer" />
                 ))}
               </div>
             ) : leadTeacher ? (
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="sm:col-span-1">
+              /* Mockup shows a uniform grid (2-col mobile / 4-col desktop) of
+                 teacher cards, not a lead-card-plus-scrolling-rail — matched here. */
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                {featuredTeachers.map((t, i) => (
                   <TeacherCard
-                    id={leadTeacher.id}
-                    name={leadTeacher.name}
-                    slug={leadTeacher.slug}
-                    subject={leadTeacher.featuredSubjectLabel || leadTeacher.subjects?.name || 'Tuition Teacher'}
-                    subjectSlug={leadTeacher.subjects?.slug}
-                    imageUrl={leadTeacher.image_url ?? undefined}
-                    verified={leadTeacher.is_verified ?? undefined}
-                    isFeatured
+                    key={t.id}
+                    id={t.id}
+                    name={t.name}
+                    slug={t.slug}
+                    subject={t.featuredSubjectLabel || t.subjects?.name || 'Tuition Teacher'}
+                    subjectSlug={t.subjects?.slug}
+                    imageUrl={t.image_url ?? undefined}
+                    verified={t.is_verified ?? undefined}
+                    isFeatured={i === 0}
                     variant="grid"
                   />
-                </div>
-
-                <div className="-mx-4 overflow-x-auto px-4 pb-1 scrollbar-hide sm:col-span-2 sm:mx-0 sm:px-0">
-                  <div className="flex w-max gap-4 sm:w-full sm:flex-wrap">
-                    {railTeachers.map((t) => (
-                      <div key={t.id} className="w-[166px] flex-none sm:w-auto sm:flex-1 sm:min-w-[150px]">
-                        <TeacherCard
-                          id={t.id}
-                          name={t.name}
-                          slug={t.slug}
-                          subject={t.featuredSubjectLabel || t.subjects?.name || 'Tuition Teacher'}
-                          subjectSlug={t.subjects?.slug}
-                          imageUrl={t.image_url ?? undefined}
-                          verified={t.is_verified ?? undefined}
-                          variant="rail"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                ))}
               </div>
             ) : (
               <EmptyResults

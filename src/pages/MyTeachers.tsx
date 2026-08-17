@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { GraduationCap, ArrowLeft, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageHeader, CutPaperShape } from '@/components/devices';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { useLocation } from 'react-router-dom';
 
 interface MyTeacher {
   id: string;
@@ -25,6 +27,7 @@ interface MyTeacher {
 export default function MyTeachers() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { studiesWithTeacherIds, loading: studiesWithLoading, toggleStudiesWith } = useStudiesWith();
   const [myTeachers, setMyTeachers] = useState<MyTeacher[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,6 +149,7 @@ export default function MyTeachers() {
           <p className="mt-3 text-sm text-muted-foreground">Please sign in to view the teachers you study with.</p>
           <Button className="mt-6" onClick={() => navigate('/auth')}>Sign In</Button>
         </main>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     ); // Will also redirect to auth
@@ -164,6 +168,7 @@ export default function MyTeachers() {
             ))}
           </div>
         </main>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     );
@@ -253,6 +258,7 @@ export default function MyTeachers() {
           </div>
         )}
       </main>
+      <PreFooter variant={preFooterFor(location.pathname)} />
       <Footer />
     </div>
   );

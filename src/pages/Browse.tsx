@@ -72,7 +72,7 @@ interface BrowseProps {
  */
 function TeacherCardSkeletons({ count }: { count: number }) {
   return (
-    <div className="shikshaq-teacher-grid">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
       {[...Array(count)].map((_, i) => (
         <div key={i} className="animate-shimmer aspect-[4/5] rounded-[18px] bg-warm-band" />
       ))}
@@ -1669,7 +1669,7 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
                 })}
               </div>
 
-              <div className="hidden shikshaq-teacher-grid stagger-children lg:grid">
+              <div className="hidden grid-cols-3 gap-4 stagger-children lg:grid">
                 {displayedTeachers.map((teacher) => {
                   const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
                   const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -1727,16 +1727,6 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
         onFilterChange={setFilters}
         resultCount={teachers.length}
       />
-
-      <style>{`
-        /* Teacher card grid -- desktop 3-column layout pairing the persistent
-           filter rail with a card grid (design.md Section 5). */
-        .shikshaq-teacher-grid {
-          display: grid;
-          gap: 20px;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-      `}</style>
     </div>
   );
 }

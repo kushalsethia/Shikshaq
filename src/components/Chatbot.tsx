@@ -132,6 +132,20 @@ export function Chatbot() {
   const location = useLocation();
   const hasBottomBar = location.pathname.startsWith('/tuition-teachers/') && !location.pathname.endsWith('/whatsapp-click');
   const [isOpen, setIsOpen] = useState(false);
+  // The launcher is fixed to the bottom-right on every page. On Home, the
+  // overhanging SearchDesk's submit button lives in that same corner near
+  // the top of the first fold, so the launcher used to sit on top of it
+  // (z-40) and swallow the tap at 390px. Generalized fix: keep the launcher
+  // hidden until the user has scrolled a little way down any page — it can
+  // never cover a first-fold control anywhere, and stays visible once open.
+  const [scrolledPastFold, setScrolledPastFold] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolledPastFold(window.scrollY > 280);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  const launcherVisible = scrolledPastFold || isOpen;
   // Keep the panel mounted briefly on close so it can play a subtle exit
   // instead of vanishing the instant the close button is tapped.
   const panelPresence = useExitPresence(isOpen, 180);
@@ -310,8 +324,12 @@ export function Chatbot() {
       {/* Floating Button with ? icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed ${hasBottomBar ? 'bottom-[168px] lg:bottom-[104px]' : 'bottom-[88px] lg:bottom-6'} right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-[0.97] transition-[transform,box-shadow] duration-200`}
+        className={`fixed ${hasBottomBar ? 'bottom-[168px] lg:bottom-[104px]' : 'bottom-[88px] lg:bottom-6'} right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-[0.97] transition-[transform,box-shadow,opacity] duration-200 ${
+          launcherVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
         aria-label="Ask AI"
+        aria-hidden={!launcherVisible}
+        tabIndex={launcherVisible ? 0 : -1}
       >
         <HelpCircle className="w-6 h-6" />
       </button>

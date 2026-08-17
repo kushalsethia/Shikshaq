@@ -17,6 +17,8 @@ import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
 import { StarburstBadge } from '@/components/devices';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { useLocation } from 'react-router-dom';
 
 const FIELD_CLASS =
   'w-full min-h-12 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline px-4 shikshaq-role-field';
@@ -29,6 +31,7 @@ function isValidRedirect(path: string | null): path is string {
 export default function SelectRole() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect');
   const [role, setRole] = useState<'student' | 'guardian' | ''>('');
@@ -188,6 +191,7 @@ export default function SelectRole() {
             <p className="text-muted-foreground text-base">Loading...</p>
           </div>
         </div>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     );
@@ -212,6 +216,7 @@ export default function SelectRole() {
             Sign In
           </button>
         </div>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     );
@@ -349,6 +354,7 @@ export default function SelectRole() {
         </div>
       </main>
 
+      <PreFooter variant={preFooterFor(location.pathname)} />
       <Footer />
 
       <style>{`

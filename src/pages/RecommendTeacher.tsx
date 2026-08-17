@@ -10,6 +10,8 @@ import { z } from 'zod';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { logger } from '@/utils/logger';
 import { PageHeader } from '@/components/devices';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { useLocation } from 'react-router-dom';
 
 const FIELD_BASE =
   'w-full box-border min-h-12 px-4 py-3 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline shikshaq-recommend-field';
@@ -31,6 +33,7 @@ export default function RecommendTeacher() {
   );
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
     teacherName: '',
@@ -228,6 +231,7 @@ export default function RecommendTeacher() {
         </div>
       </div>
 
+      <PreFooter variant={preFooterFor(location.pathname)} />
       <Footer />
 
       <style>{`

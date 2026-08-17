@@ -9,6 +9,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
 
 function isValidRedirect(path: string | null): path is string {
   return !!path && path.startsWith('/') && !path.startsWith('//');
@@ -175,6 +176,7 @@ export default function TeacherTermsAgreement() {
             <p className="text-muted-foreground text-base">Loading...</p>
           </div>
         </div>
+        <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
     );
@@ -249,6 +251,7 @@ export default function TeacherTermsAgreement() {
         </div>
       </main>
 
+      <PreFooter variant={preFooterFor(location.pathname)} />
       <Footer />
     </div>
   );
