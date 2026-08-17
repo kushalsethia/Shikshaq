@@ -27,8 +27,24 @@ import { BROWSE_PATH } from "@/lib/nav-config";
    onOpenChange={setTourOpen} /> once, and add onClick={() => setTourOpen(true)}
    to the logo element in the home control block. */
 
+/** Fired by the logo. Keeps the trigger decoupled from the tour's mount point:
+ *  the logo lives in Navbar, the tour is mounted by the page, and neither needs
+ *  a prop path to the other. */
+export const OPEN_TOUR_EVENT = "shikshaq:open-tour";
+
+export function openProductTour() {
+  window.dispatchEvent(new CustomEvent(OPEN_TOUR_EVENT));
+}
+
 export function useProductTour() {
   const [open, setOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(OPEN_TOUR_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_TOUR_EVENT, onOpen);
+  }, []);
+
   return { open, setOpen };
 }
 

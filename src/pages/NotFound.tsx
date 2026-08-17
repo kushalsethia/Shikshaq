@@ -1,68 +1,105 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useEffect } from 'react';
-import { MapPinOff } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { Navbar } from '@/components/Navbar';
+import { Footer } from '@/components/Footer';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { BROWSE_PATH, PAST_PAPERS_PATH } from '@/lib/nav-config';
 
-// A dead end, designed as one (VISUAL_DIRECTION.md §4/§2): the metaphor is
-// wayfinding, so a 404 is "wrong turn, here's the map back" — not an apology
-// page. Loud surface, full Cluster A permission: sticker badge, offset
-// shadow, halftone grain. Always offers a genuine route back to BOTH halves
-// of the product (teachers and papers), never just "home".
+// F5 — an orange slab with a giant ghosted "404", a tilted "Wrong classroom"
+// sticker and two real exits (changelog C-039). Copy is verbatim from
+// copy.md §12. Ends with the standard pre-footer -> sentence footer ->
+// rounded footer sequence, per design.md §0.9 — no exceptions, error pages
+// included.
 const NotFound = () => {
   const location = useLocation();
 
   usePageMeta(
-    'Page not found | Shikshaq',
-    'This page is not on the syllabus. The link may be old, or the paper may have been unpublished at a school\'s request.'
+    "This page isn't on the timetable | Shikshaq",
+    'The link may be old. Try a subject, or start a new search.'
   );
 
   useEffect(() => {
     if (import.meta.env.DEV) {
-      console.error("404 Error: User attempted to access non-existent route:", location.pathname);
+      console.error('404 Error: User attempted to access non-existent route:', location.pathname);
     }
   }, [location.pathname]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-16 sm:py-20">
-      <div className="halftone-overlay relative w-full max-w-lg overflow-hidden rounded-2xl bg-card p-6 text-center shadow-border sm:p-12">
-        <span className="sticker sticker-rotate-md outline-offset-shadow relative z-10 mb-6 inline-flex h-20 w-20 animate-pop items-center justify-center rounded-full bg-brand-blue/15 text-brand-blue">
-          <MapPinOff className="h-9 w-9" strokeWidth={2} aria-hidden="true" />
-        </span>
+    <div className="min-h-screen bg-background">
+      <Navbar />
 
-        <div className="relative z-10 text-[clamp(56px,10vw,96px)] font-display font-black leading-none tracking-tight text-border">
-          404
-        </div>
-        <h1 className="relative z-10 mt-4 text-page-title font-display font-semibold text-foreground">
-          This page is not on the syllabus
-        </h1>
-        <p className="relative z-10 mx-auto mt-3 max-w-prose text-body-secondary text-muted-foreground">
-          The link may be old, or the paper may have been unpublished at a school's request. Here's the way
-          back to both halves of ShikshAQ.
-        </p>
+      <main className="pb-20 lg:pb-0">
+        <PageContainer as="section" className="flex flex-col items-center justify-center pt-10 sm:pt-16 lg:pt-20">
+          <div className="relative w-full max-w-[430px] overflow-hidden rounded-[26px] bg-brand p-[18px] pb-[22px] text-brand-foreground sm:p-8 sm:pb-10">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-[10px] -top-[18px] select-none font-display text-[120px] font-black leading-none tracking-[-0.06em] text-brand-foreground/18 sm:text-[180px]"
+            >
+              404
+            </span>
 
-        <div className="stagger-children relative z-10 mt-8 flex flex-wrap justify-center gap-3">
-          <Link
-            to="/"
-            className="inline-flex min-h-12 animate-card-reveal items-center justify-center rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground transition-transform duration-tap active:scale-[0.97]"
-          >
-            Back home
-          </Link>
-          <Link
-            to="/all-tuition-teachers-in-kolkata"
-            className="signpost inline-flex min-h-12 animate-card-reveal items-center justify-center bg-muted pl-6 text-sm font-semibold text-foreground transition-transform duration-tap active:scale-[0.97]"
-          >
-            Browse teachers
-          </Link>
-          <Link
-            to="/past-papers"
-            className="signpost inline-flex min-h-12 animate-card-reveal items-center justify-center bg-muted pl-6 text-sm font-semibold text-foreground transition-transform duration-tap active:scale-[0.97]"
-          >
-            Past papers
-          </Link>
-        </div>
-      </div>
+            <span className="relative inline-flex h-6 -rotate-[4deg] items-center whitespace-nowrap rounded-full bg-panel px-[10px] text-[10.5px] font-extrabold text-background">
+              Wrong classroom
+            </span>
+
+            <h1 className="relative mt-3 font-display text-[26px] font-black leading-[1.1] tracking-[-0.04em] sm:text-[34px]">
+              This page isn&rsquo;t on the timetable.
+            </h1>
+            <p className="relative mb-[14px] mt-2 text-[13.5px] leading-[1.55] text-brand-foreground/85 sm:text-body-secondary">
+              The link may be old. Try a subject, or start a new search.
+            </p>
+
+            <div className="relative flex gap-2">
+              <Button className="flex-1" to={BROWSE_PATH} tone="light">
+                Find a teacher
+              </Button>
+              <Button className="flex-1" to={PAST_PAPERS_PATH} tone="tint">
+                Read papers
+              </Button>
+            </div>
+          </div>
+        </PageContainer>
+
+        <PageContainer as="section" className="py-8 sm:py-12">
+          <PreFooter variant={preFooterFor(location.pathname)} />
+        </PageContainer>
+        <BottomNavSpacer />
+      </main>
+
+      <Footer />
     </div>
   );
 };
+
+// A tiny local pill-link — the mockup's two 44px CTAs inside the orange card
+// are equal-weight exits, not the product's Button variants (one is bone,
+// one is white-at-18%-on-orange), so they're built inline rather than
+// stretching the shared Button's tone ramp for a one-off pairing.
+function Button({
+  to,
+  tone,
+  className,
+  children,
+}: {
+  to: string;
+  tone: 'light' | 'tint';
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-xl text-[13.5px] font-bold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-brand ${
+        tone === 'light' ? 'bg-card text-foreground' : 'bg-brand-foreground/18 text-brand-foreground'
+      } ${className ?? ''}`}
+    >
+      {children}
+      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+    </Link>
+  );
+}
 
 export default NotFound;

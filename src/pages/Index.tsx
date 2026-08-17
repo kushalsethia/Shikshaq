@@ -23,6 +23,7 @@ import { SearchDesk } from '@/components/home/SearchDesk';
 import { PageContainer, ControlBlock } from '@/components/layout/PageContainer';
 import { BottomNavSpacer } from '@/components/layout/PageContainer';
 import { PreFooter } from '@/components/layout/PreFooter';
+import { ProductTour, useProductTour } from '@/components/ProductTour';
 import { NumberedHeading } from '@/components/ui/numbered-heading';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { Sticker } from '@/components/ui/sticker';
@@ -100,6 +101,7 @@ function parseClassNumbers(raw: string | null | undefined): number[] {
 }
 
 export default function Index() {
+  const { open: tourOpen, setOpen: setTourOpen } = useProductTour();
   const [featuredTeachers, setFeaturedTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -763,6 +765,11 @@ export default function Index() {
       </main>
 
       <Footer />
+
+      {/* Opened by tapping the wordmark in the nav (components.md C10). The
+          trigger dispatches an event rather than reaching in through props,
+          since the logo lives in Navbar and the tour is mounted here. */}
+      <ProductTour open={tourOpen} onOpenChange={setTourOpen} />
     </div>
   );
 }

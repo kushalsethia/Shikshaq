@@ -3,6 +3,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getWhatsAppLink } from '@/utils/whatsapp';
+import { BottomNavSpacer } from '@/components/layout/PageContainer';
 
 /**
  * C15 — LegalReader (handoff\components.md line 48).
@@ -249,6 +250,7 @@ export function LegalReader({
         </div>
       </div>
 
+      <BottomNavSpacer />
       <Footer />
     </div>
   );

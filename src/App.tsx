@@ -25,6 +25,7 @@ import PastPapers from "./pages/PastPapers";
 const PaperResults = lazy(() => import("./pages/PaperResults"));
 const PaperReader = lazy(() => import("./pages/PaperReader"));
 import About from "./pages/About";
+const Contact = lazy(() => import("./pages/Contact"));
 import NotFound from "./pages/NotFound";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
@@ -161,6 +162,11 @@ const App = () => (
                 </Suspense>
               } />
               <Route path="/about" element={<About />} />
+              <Route path="/contact" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Contact />
+                </Suspense>
+              } />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
               <Route path="/recommend-teacher" element={

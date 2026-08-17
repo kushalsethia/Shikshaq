@@ -6,40 +6,47 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FieldTextarea } from '@/components/ui/field';
+import { Blob, type BlobMood } from '@/components/ui/blob';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
-import { Frown, Meh, Smile, Laugh, Angry, type LucideIcon } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 interface FeedbackModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-// Mood/reaction quick-select — replaces the previous image-based emoji set (the
-// `/images/emojis/emoji-N-*.png` assets it depended on) with lucide-react icons.
-// Same 1-5 scale as before, so this still maps straight onto the existing
-// `feedback.rating` column and handleSubmit below — no schema change needed.
-const emojiOptions: { id: number; label: string; Icon: LucideIcon; tone: string }[] = [
-  { id: 1, label: 'Frustrated', Icon: Angry, tone: 'text-destructive' },
-  { id: 2, label: 'Confused', Icon: Frown, tone: 'text-brand-blue' },
-  { id: 3, label: 'Neutral', Icon: Meh, tone: 'text-muted-foreground' },
-  { id: 4, label: 'Happy', Icon: Smile, tone: 'text-brand' },
-  { id: 5, label: 'Delighted', Icon: Laugh, tone: 'text-brand' },
+// F6 (changelog C-045). The mood picker is now the Blob family (five flat
+// shapes, no emoji) instead of lucide face icons — one rating scale, still
+// 1-5, still lands in `feedback.rating` exactly as before, so the write shape
+// and the `feedback` table are untouched.
+const MOODS: { rating: number; mood: BlobMood; label: string; highlight?: boolean }[] = [
+  { rating: 1, mood: 'rough', label: 'Rough' },
+  { rating: 2, mood: 'meh', label: 'Meh' },
+  { rating: 3, mood: 'fine', label: 'Fine' },
+  { rating: 4, mood: 'good', label: 'Good' },
+  { rating: 5, mood: 'great', label: 'Great', highlight: true },
 ];
 
 export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
   const { user } = useAuth();
-  const [selectedEmoji, setSelectedEmoji] = useState<number | null>(3); // Default to "Neutral"
+  const [selectedRating, setSelectedRating] = useState<number | null>(3); // default "Fine"
   const [comment, setComment] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const reset = () => {
+    setSelectedRating(3);
+    setComment('');
+    setGuestEmail('');
+    setSent(false);
+  };
 
   const handleSubmit = async () => {
-    if (!selectedEmoji) {
+    if (!selectedRating) {
       toast.error('Please select a rating');
       return;
     }
@@ -55,15 +62,13 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
         guest_email?: string | null;
       } = {
         user_id: user?.id || null,
-        rating: selectedEmoji,
+        rating: selectedRating,
         comment: comment.trim() || null,
         is_guest: !user,
         ...(user ? {} : { guest_email: guestEmail.trim() || null }),
       };
 
-      const { error } = await supabase
-        .from('feedback')
-        .insert([feedbackData]);
+      const { error } = await supabase.from('feedback').insert([feedbackData]);
 
       if (error) {
         if (import.meta.env.DEV) {
@@ -73,12 +78,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
         return;
       }
 
-      toast.success('Thank you for your feedback!');
-      onOpenChange(false);
-      // Reset form
-      setSelectedEmoji(3);
-      setComment('');
-      setGuestEmail('');
+      setSent(true);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error submitting feedback:', error);
@@ -90,59 +90,72 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md rounded-2xl p-5 sm:p-6 max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-left text-subsection font-display font-semibold text-foreground">
-            Feedback
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 sm:space-y-6 mt-2 sm:mt-4 overflow-x-hidden w-full">
-          {/* Heading */}
-          <div className="text-center">
-            <h2 className="text-card-title-lg font-display font-semibold text-foreground mb-1 sm:mb-2">
-              Give us a feedback!
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) reset();
+      }}
+    >
+      <DialogContent className="w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] p-0 sm:max-w-md">
+        {sent ? (
+          // F6c — sent
+          <div className="flex flex-col items-center bg-brand p-[30px] text-center text-brand-foreground">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Feedback sent</DialogTitle>
+            </DialogHeader>
+            <Blob mood="great" size={104} label="A happy face" className="mb-[26px]" />
+            <h2 className="mb-[10px] font-display text-[30px] font-black leading-[1.02] tracking-[-0.04em] sm:text-[34px]">
+              Got it, thank you.
             </h2>
-            <p className="text-meta text-muted-foreground">
-              Your input is important for us. We take customer feedback very seriously.
+            <p className="mb-[26px] max-w-[30ch] text-[15px] leading-[1.55] text-brand-foreground/90 sm:text-[16px]">
+              Sourav or Ankit will read this today. If it is something we can fix quickly, we
+              usually do.
             </p>
+            <Button
+              variant="dark"
+              size={52}
+              className="!bg-card !text-foreground"
+              onClick={() => onOpenChange(false)}
+            >
+              Back to looking
+              <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />
+            </Button>
           </div>
-
-          {/* Mood quick-select — how do you feel about this? Same 1-5 scale as the
-              rating the submission handler already expects (see feedbackData below).
-              A supporting moment (VISUAL_DIRECTION §4): each tap pops the newly
-              selected icon in with `animate-pop` rather than just re-coloring it, so
-              choosing a mood reads as a small delightful commit, not a form field. */}
-          <div className="w-full">
-            <p className="text-center text-sm font-medium text-foreground mb-2 sm:mb-3">
-              How do you feel about this?
+        ) : (
+          // F6b — picking a face
+          <div className="p-5 sm:p-6">
+            <DialogHeader className="items-start text-left">
+              <DialogTitle className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.04em] text-foreground">
+                How was that?
+              </DialogTitle>
+            </DialogHeader>
+            <p className="mb-5 text-[14.5px] leading-[1.55] text-warm-prose">
+              Goes straight to the two people who run this. No ticket number, no bot.
             </p>
-            <div className="flex gap-2 sm:gap-3 items-start justify-center w-full max-w-full">
-              {emojiOptions.map(({ id, label, Icon, tone }) => {
-                const isSelected = selectedEmoji === id;
+
+            <div role="radiogroup" aria-label="How was that?" className="mb-[18px] flex gap-[9px]">
+              {MOODS.map(({ rating, mood, label, highlight }) => {
+                const isSelected = selectedRating === rating;
                 return (
                   <button
-                    key={id}
+                    key={rating}
                     type="button"
-                    onClick={() => setSelectedEmoji(id)}
-                    aria-pressed={isSelected}
-                    aria-label={label}
-                    className="flex min-h-11 flex-1 min-w-0 flex-col items-center gap-1.5 active:scale-[0.97] transition-transform duration-tap"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => setSelectedRating(rating)}
+                    className={`flex min-h-11 flex-1 flex-col items-center gap-[11px] rounded-[20px] px-2 py-[16px] pb-[13px] transition-colors duration-150 active:scale-[0.97] ${
+                      isSelected
+                        ? highlight
+                          ? 'bg-brand-subtle ring-2 ring-brand'
+                          : 'bg-card shadow-border ring-2 ring-brand'
+                        : 'bg-card shadow-border'
+                    }`}
                   >
+                    <Blob mood={mood} size={40} label={label} />
                     <span
-                      key={isSelected ? `${id}-on` : `${id}-off`}
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors duration-hover ${
-                        isSelected
-                          ? `animate-pop bg-muted ${tone} ring-2 ring-brand`
-                          : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
-                    </span>
-                    <span
-                      className={`text-[10px] sm:text-xs font-medium text-center leading-tight ${
-                        isSelected ? 'text-foreground' : 'text-muted-foreground'
+                      className={`text-[13.5px] font-extrabold ${
+                        isSelected ? (highlight ? 'text-brand-deep' : 'text-foreground') : 'text-warm-prose'
                       }`}
                     >
                       {label}
@@ -151,51 +164,56 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                 );
               })}
             </div>
-          </div>
 
-          {/* Guest Email Input (only for non-logged-in users) */}
-          {!user && (
-            <div className="w-full space-y-2">
-              <Label htmlFor="guest-email" className="text-sm">Email (Optional)</Label>
-              <Input
-                id="guest-email"
-                type="email"
-                placeholder="your.email@example.com"
-                value={guestEmail}
-                onChange={(e) => setGuestEmail(e.target.value)}
-                className="w-full text-sm"
-              />
-              <p className="text-[10px] sm:text-xs text-muted-foreground">
-                Optional: Provide your email if you'd like us to follow up on your feedback
-              </p>
-            </div>
-          )}
+            {!user && (
+              <div className="mb-[14px]">
+                <label
+                  htmlFor="feedback-guest-email"
+                  className="mb-[7px] block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label"
+                >
+                  Email (optional)
+                </label>
+                <input
+                  id="feedback-guest-email"
+                  type="email"
+                  placeholder="your.email@example.com"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  className="h-14 w-full rounded-[15px] bg-card px-4 text-[15.5px] text-foreground shadow-border outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+                />
+              </div>
+            )}
 
-          {/* Comment Input */}
-          <div className="w-full">
-            <Label htmlFor="comment" className="text-sm">Comment (Optional)</Label>
-            <Textarea
-              id="comment"
-              placeholder="Add a comment"
+            <label
+              htmlFor="feedback-comment"
+              className="mb-[7px] block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label"
+            >
+              Anything you want to add?
+            </label>
+            <FieldTextarea
+              id="feedback-comment"
+              placeholder="Optional. Filters were fine, but I could not tell which teachers travel to my area…"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="min-h-[80px] sm:min-h-[100px] resize-none rounded-lg w-full max-w-full mt-2 text-sm"
+              className="mb-[14px]"
             />
-          </div>
 
-          {/* Submit Button */}
-          <div className="w-full">
             <Button
               onClick={handleSubmit}
-              disabled={submitting || !selectedEmoji}
-              className="w-full text-white font-medium py-2.5 sm:py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base bg-brand-blue hover:bg-brand-blue-hover transition-colors duration-150"
+              disabled={submitting || !selectedRating}
+              variant="primary"
+              size={52}
+              className="mb-[10px] w-full"
             >
-              {submitting ? 'Submitting...' : 'Submit Feedback'}
+              {submitting ? 'Sending…' : 'Send it'}
+              {!submitting && <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />}
             </Button>
+            <p className="text-[12px] leading-[1.5] text-warm-label">
+              We read every one. If you left a number we might reply on WhatsApp.
+            </p>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
-

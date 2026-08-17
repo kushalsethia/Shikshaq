@@ -242,7 +242,7 @@ export default function Contact() {
               className="flex min-h-[44px] items-center gap-[14px] rounded-[20px] bg-whatsapp p-[16px] text-whatsapp-text transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] bg-card/90">
-                <WhatsAppIcon className="h-5 w-5" aria-hidden="true" />
+                <WhatsAppIcon className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-whatsapp-text/70">

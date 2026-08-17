@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Logo } from '@/components/Logo';
+import { openProductTour } from '@/components/ProductTour';
 import { logger } from '@/utils/logger';
 import { useExitPresence } from '@/hooks/useExitPresence';
 import { useSearchExpanded } from '@/hooks/useSearchExpanded';
@@ -26,6 +27,38 @@ const NAV_TABS: ExpandableTab[] = [
 ];
 
 const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2';
+
+/**
+ * The logo does double duty (components.md C10): on the home page there is
+ * nowhere to navigate to, so tapping it opens the product tour; everywhere else
+ * it goes home, which is what people expect a wordmark to do.
+ *
+ * The tour itself is mounted by the page and listens for the event, so the
+ * trigger needs no prop path to it.
+ */
+function LogoOrTourTrigger() {
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+
+  if (isHome) {
+    return (
+      <button
+        type="button"
+        onClick={openProductTour}
+        aria-label="How ShikshAQ works"
+        className={`flex h-11 flex-none items-center rounded-lg ${FOCUS_RING}`}
+      >
+        <Logo size="nav" className="flex-none" />
+      </button>
+    );
+  }
+
+  return (
+    <Link to="/" aria-label="ShikshAQ home" className={`flex h-11 flex-none items-center rounded-lg ${FOCUS_RING}`}>
+      <Logo size="nav" className="flex-none" />
+    </Link>
+  );
+}
 
 export function Navbar() {
   const location = useLocation();
@@ -92,7 +125,7 @@ export function Navbar() {
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* Mobile: short bar — logo + a single action. The bottom tab bar carries navigation. */}
         <div className="flex h-14 items-center justify-between gap-4 lg:hidden">
-          <Logo size="nav" className="flex-none" />
+          <LogoOrTourTrigger />
 
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger
@@ -167,7 +200,7 @@ export function Navbar() {
 
         {/* Desktop: full navigation */}
         <div className="hidden h-16 items-center gap-6 lg:flex">
-          <Logo size="nav" className="flex-none" />
+          <LogoOrTourTrigger />
 
           <div
             className={`flex flex-1 justify-center rounded-full transition-all duration-300 ${

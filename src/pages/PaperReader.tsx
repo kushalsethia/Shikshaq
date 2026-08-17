@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ExternalLink, Lock, Maximize2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Lock, Maximize2 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { EmptyResults } from '@/components/EmptyResults';
@@ -35,6 +35,9 @@ const CONTAINER = 'mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8';
 const SKELETON = 'bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer';
 const FOCUS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+/* Same ring, offset against the dark reader ground instead of the page bone. */
+const FOCUS_DARK =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel';
 
 /**
  * NOTE on scope vs. the design_handoff spec (pages/PaperReader.md):
@@ -191,7 +194,9 @@ export default function PaperReader() {
   // ---------------- Loading shell ----------------
   if (loading || authLoading) {
     return (
-      <div className="flex min-h-screen flex-col bg-background">
+      /* Dark ground here too, so there is no light-to-dark flash before the
+         S5 reader paints. */
+      <div className="flex min-h-screen flex-col bg-panel">
         <Navbar />
         <main className={`flex-1 ${CONTAINER} pb-16 pt-6`}>
           <div className={`mb-4 h-4 w-32 rounded-lg ${SKELETON}`} />
@@ -230,78 +235,72 @@ export default function PaperReader() {
     );
   }
 
-  const tagPillClass = (variant: 'muted' | 'blue') =>
-    `inline-flex min-h-6 items-center rounded-full px-3 py-1 text-label font-bold uppercase tabular-nums ${
-      variant === 'blue' ? 'bg-brand-blue-subtle text-brand-blue-deep' : 'bg-muted text-foreground'
-    }`;
-
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    /* S5: the reader is a dark immersive screen — the near-black panel token
+       as ground, compact header bar, dark disclaimer strip, the paper itself
+       the only light surface on the page. */
+    <div className="flex min-h-screen flex-col bg-panel">
       {/* The fake reading-progress bar that used to sit here is gone on
           purpose — see the file-level note. Nothing replaces it: an honest
           "you are viewing this paper" indicator is what the page title
           already is. */}
       <div className="pr-hide-print"><Navbar /></div>
 
-      {/* Subtle continuation of the same hero token used on PastPapers.tsx /
-          PaperResults.tsx — kept to just the title/meta block, not the reading
-          area itself, so it reads as "same product" without competing with
-          the PDF the student is here to focus on. */}
-      <div className="pr-hide-print bg-gradient-to-b from-brand-blue-subtle to-background">
-        <div className={`${CONTAINER} pb-6 pt-6`}>
+      {/* S5 header bar: padding 14px 16px, gap 12px, 1px white/10% bottom
+          hairline; 36px round back disc; 14px/700 title; 11.5px white/60%
+          meta. The old light hero band (subject signpost + pill row +
+          page-title h1) is replaced by this, per "mockup wins" — but every
+          field it carried (class, board, exam type, year) is preserved in
+          the meta line below so no data is dropped. */}
+      <header className="pr-hide-print border-b border-white/10">
+        <div className={`${CONTAINER} flex items-center gap-3 py-[14px]`}>
           <Link
             to="/past-papers"
-            className={`mb-4 inline-flex min-h-11 items-center text-body-secondary font-semibold text-muted-foreground transition-colors duration-tap ease-tap hover:text-foreground ${FOCUS}`}
+            aria-label="Back to papers"
+            className={`flex h-11 w-11 flex-none items-center justify-center rounded-full text-white transition-colors duration-tap ease-tap hover:bg-white/20 focus-visible:ring-offset-panel ${FOCUS}`}
           >
-            ← Back to papers
+            {/* Mockup draws a 36px disc; the visual stays 36px and the 44px
+                floor is met by the surrounding tap target. */}
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+              <ArrowLeft size={17} strokeWidth={2.4} aria-hidden="true" />
+            </span>
           </Link>
 
-          <div className="mb-3 flex flex-wrap gap-2">
-            {colors && (
-              // Signpost = subject, the milestone's category marker.
-              <span
-                className="signpost inline-flex min-h-6 items-center py-1 pl-3 text-label font-bold uppercase"
-                style={{ backgroundColor: colors.solid, color: colors.badgeText }}
-              >
-                {paper.subject}
-              </span>
-            )}
-            <span className={tagPillClass('muted')}>Class {paper.class}</span>
-            <span className={tagPillClass('blue')}>{paper.board}</span>
-            <span className={tagPillClass('muted')}>{paper.exam_type}</span>
-            <span className={tagPillClass('muted')}>{paper.year}</span>
-          </div>
-
-          <h1 className="text-page-title font-display font-bold text-foreground">{paper.title}</h1>
-
-          <div className="mt-3 flex flex-wrap gap-4 text-body font-medium tabular-nums text-warm-prose">
-            <span>{paper.school}</span>
-            <span>·</span>
-            <span>{paper.exam_type}</span>
-            <span>·</span>
-            <span>{paper.year}</span>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-[14px] font-bold text-white">{paper.title}</h1>
+            {/* Wraps rather than ellipsis-clipping: the mockup truncates this
+                line, but clipping would hide real metadata on a 390px screen. */}
+            <p className="text-[11.5px] tabular-nums text-white/60">
+              {paper.school} · {paper.board} Class {paper.class} · {paper.exam_type} · {paper.year}
+            </p>
           </div>
         </div>
+      </header>
+
+      {/* F4 — permanent strip under the header, regardless of sign-in state.
+          School name is per-paper data, never static copy. */}
+      <div className="pr-hide-print">
+        <DisclaimerStrip tone="dark" school={paper.school} reportHref={requestRemovalUrl(paper)} />
       </div>
 
-      <main className={`flex-1 ${CONTAINER} pb-16 pt-6`}>
-        {/* F4 — permanent strip under the header, regardless of sign-in state.
-            School name is per-paper data, never static copy. */}
-        <DisclaimerStrip school={paper.school} reportHref={requestRemovalUrl(paper)} />
+      <main className={`flex-1 ${CONTAINER} pb-16 pt-4`}>
 
         {/* Only true once there IS an account to watermark with — this used to
             render for signed-out visitors too, where it was simply false. */}
         {signedIn && (
-          <div className="pr-hide-print mt-3 flex items-center gap-2 text-meta text-warm-meta">
+          <div className="pr-hide-print mt-3 flex items-center gap-2 text-[11.5px] text-white/60">
             <Lock size={14} strokeWidth={2} aria-hidden="true" />
             This page is watermarked with your account and the time you opened it.
           </div>
         )}
 
-        <div className="pr-hide-print mt-6 grid grid-cols-1 gap-6 sm:grid-cols-[2fr,1fr] sm:gap-8">
+        <div className="pr-hide-print mt-4 grid grid-cols-1 gap-6 sm:grid-cols-[2fr,1fr] sm:gap-8">
           {/* ---------------- Paper body ---------------- */}
+          {/* S5: the paper is the one light surface on the dark ground —
+              radius 12px, no hairline (the mockup separates it with a drop
+              shadow against #1B1A18, not a border). */}
           <div
-            className={`${signedIn ? 'p-3 pb-0 sm:p-6 sm:pb-0' : 'p-0'} relative select-none overflow-hidden rounded-2xl bg-card shadow-border`}
+            className={`${signedIn ? 'p-3 pb-0 sm:p-4 sm:pb-0' : 'p-0'} relative select-none overflow-hidden rounded-xl bg-card`}
             onContextMenu={(e) => e.preventDefault()}
             onCopy={(e) => e.preventDefault()}
           >
@@ -320,7 +319,7 @@ export default function PaperReader() {
                     <button
                       type="button"
                       onClick={openFullScreen}
-                      className={`flex min-h-11 items-center gap-2 rounded-full bg-muted px-4 text-body-secondary font-semibold text-foreground transition-colors duration-tap ease-tap hover:bg-border active:scale-[0.97] ${FOCUS}`}
+                      className={`flex min-h-11 items-center gap-2 rounded-full bg-muted px-4 text-[14px] font-semibold text-foreground transition-colors duration-tap ease-tap hover:bg-border active:scale-[0.97] ${FOCUS}`}
                     >
                       <Maximize2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
                       Full screen
@@ -329,7 +328,7 @@ export default function PaperReader() {
                       href={paper.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`flex min-h-11 items-center gap-2 rounded-full bg-muted px-4 text-body-secondary font-semibold text-foreground transition-colors duration-tap ease-tap hover:bg-border active:scale-[0.97] ${FOCUS}`}
+                      className={`flex min-h-11 items-center gap-2 rounded-full bg-muted px-4 text-[14px] font-semibold text-foreground transition-colors duration-tap ease-tap hover:bg-border active:scale-[0.97] ${FOCUS}`}
                     >
                       <ExternalLink className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
                       Open in a new tab
@@ -416,7 +415,7 @@ export default function PaperReader() {
             {/* Redistribution copy — deliberately says "please don't", not
                 "you can't". Downloading and printing are NOT blocked (public
                 bucket URL); do not reintroduce any claim that they are. */}
-            <div className="rounded-2xl bg-muted px-4 py-3 text-meta text-warm-prose">
+            <div className="rounded-2xl bg-white/[.06] px-4 py-3 text-[11.5px] leading-[1.5] text-white/[.66]">
               These papers are shared for personal study only. Please don't redistribute or reupload them elsewhere — schools can request removal any time.
             </div>
 
@@ -429,19 +428,19 @@ export default function PaperReader() {
                 {prevPaper && (
                   <Link
                     to={`/past-papers/${prevPaper.id}`}
-                    className={`flex min-h-11 flex-col justify-center rounded-2xl bg-card px-4 py-3 shadow-border transition-colors duration-tap ease-tap hover:bg-muted ${FOCUS}`}
+                    className={`flex min-h-11 flex-col justify-center rounded-2xl bg-white/[.06] px-4 py-3 transition-colors duration-tap ease-tap hover:bg-white/10 ${FOCUS_DARK}`}
                   >
-                    <span className="block text-label font-bold uppercase text-warm-meta">← Previous</span>
-                    <span className="mt-1 block break-words text-body-secondary font-semibold tabular-nums text-foreground">{prevPaper.title} ({prevPaper.year})</span>
+                    <span className="block text-label font-bold uppercase text-indigo-link-on-dark">← Previous</span>
+                    <span className="mt-1 block break-words text-[14px] font-semibold tabular-nums text-white">{prevPaper.title} ({prevPaper.year})</span>
                   </Link>
                 )}
                 {nextPaper && (
                   <Link
                     to={`/past-papers/${nextPaper.id}`}
-                    className={`flex min-h-11 flex-col justify-center rounded-2xl bg-card px-4 py-3 shadow-border transition-colors duration-tap ease-tap hover:bg-muted ${FOCUS}`}
+                    className={`flex min-h-11 flex-col justify-center rounded-2xl bg-white/[.06] px-4 py-3 transition-colors duration-tap ease-tap hover:bg-white/10 ${FOCUS_DARK}`}
                   >
-                    <span className="block text-label font-bold uppercase text-warm-meta">Next →</span>
-                    <span className="mt-1 block break-words text-body-secondary font-semibold tabular-nums text-foreground">{nextPaper.title} ({nextPaper.year})</span>
+                    <span className="block text-label font-bold uppercase text-indigo-link-on-dark">Next →</span>
+                    <span className="mt-1 block break-words text-[14px] font-semibold tabular-nums text-white">{nextPaper.title} ({nextPaper.year})</span>
                   </Link>
                 )}
               </div>
