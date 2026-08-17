@@ -55,7 +55,24 @@ waiting — wire the data, do not invent it.
 
 ## Still open
 
-### 1. `Browse.tsx` data layer — the big one
+### 1. `Browse.tsx` data layer — mechanics extracted, semantics still in place
+**Partly done.** The paging and chunking mechanics now live in
+`src/lib/teachers.ts` as `pageAllTeachers()` and `fetchShikshaqmineChunked()`,
+along with the load-bearing `is_paused` whole-batch retry. Cache and staleness
+are injected, so the helpers know nothing about Browse's cache-key scheme.
+
+The filter semantics stayed in `Browse.tsx` exactly as the note below asks:
+`filterShikshaqRecords`, `applyServerPrefilters` and `SHIKSHAQ_COLUMNS` are
+`FilterState`-aware and are not generic lookups. `SHIKSHAQ_COLUMNS` is passed
+*into* the helper rather than moved.
+
+Verified by result-set identity, cold cache, before and after: 147 on the hub
+with the same first five slugs in the same order, and maths 59, science 46,
+commerce 29, english 41, bengali 4 all unchanged.
+
+Original note, still true of what remains:
+
+
 Roughly lines 860–1020. The unfiltered path pages `teachers_list` 500 rows at a
 time up to 3000, then chunks slugs 50 at a time and fires ~60 parallel queries
 at `Shikshaqmine` to stitch them in the browser. The filtered path does the

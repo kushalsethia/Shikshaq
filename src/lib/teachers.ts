@@ -308,3 +308,139 @@ export async function getWhatsAppLinkBySlug(slug: string): Promise<string | null
   }
   return (data as Record<string, string> | null)?.['Link'] ?? null;
 }
+
+/* ---------------------------------------------------------------------------
+   Paging and chunking mechanics, lifted out of Browse.tsx.
+
+   docs/REDESIGN_STATUS.md flagged Browse's data layer as the one big open item
+   and set the boundary for any extraction: move the MECHANICS (how many rows a
+   page holds, how slugs are chunked, how the is_paused retry works) and leave
+   the SEMANTICS (filterShikshaqRecords, applyServerPrefilters, SHIKSHAQ_COLUMNS)
+   in Browse, because those are FilterState-aware and are not generic lookups.
+   That is exactly the line these two functions sit on — neither knows what a
+   filter is.
+
+   Cache and staleness are injected rather than imported so this file stays
+   free of Browse's cache-key scheme and its request-generation guard.
+--------------------------------------------------------------------------- */
+
+export interface PageAllOptions {
+  /** Column list passed straight to .select(). */
+  selectCols: string;
+  pageSize?: number;
+  /** Safety cap. pageSize * maxPages is the most rows this will ever return. */
+  maxPages?: number;
+  /** Return true to abandon: a newer request has superseded this one. */
+  isStale?: () => boolean;
+}
+
+/**
+ * Page `teachers_list` in `is_featured desc, name` order up to the cap.
+ *
+ * `truncated` reports that the table holds more rows than the cap allows, which
+ * the caller surfaces to the user rather than silently showing a partial list.
+ */
+export async function pageAllTeachers(
+  opts: PageAllOptions,
+): Promise<{ rows: any[]; truncated: boolean; failed: boolean }> {
+  const pageSize = opts.pageSize ?? 500;
+  const maxPages = opts.maxPages ?? 6;
+  const isStale = opts.isStale ?? (() => false);
+
+  const { data: firstPage, error, count } = await supabase
+    .from('teachers_list')
+    .select(opts.selectCols, { count: 'exact' })
+    .order('is_featured', { ascending: false })
+    .order('name')
+    .range(0, pageSize - 1);
+
+  if (isStale()) return { rows: [], truncated: false, failed: false };
+  if (error || !firstPage) return { rows: [], truncated: false, failed: true };
+
+  let rows: any[] = firstPage;
+  const totalCount = count ?? firstPage.length;
+
+  for (let page = 1; page < maxPages && rows.length < totalCount; page++) {
+    const from = page * pageSize;
+    const { data: nextPage, error: pageError } = await supabase
+      .from('teachers_list')
+      .select(opts.selectCols)
+      .order('is_featured', { ascending: false })
+      .order('name')
+      .range(from, from + pageSize - 1);
+
+    if (isStale()) return { rows: [], truncated: false, failed: false };
+    if (pageError || !nextPage) break;
+    rows = rows.concat(nextPage);
+  }
+
+  return { rows, truncated: totalCount > rows.length, failed: false };
+}
+
+export interface ChunkedShikshaqmineOptions {
+  slugs: string[];
+  /** Caller owns the column list — it is FilterState-aware, so it stays there. */
+  columns: string;
+  chunkSize?: number;
+  isStale?: () => boolean;
+  /** Optional per-chunk cache. Both halves must be supplied or neither. */
+  cache?: {
+    key: (slugs: string[], withPaused: boolean) => string;
+    get: (key: string) => any[] | null;
+    set: (key: string, rows: any[]) => void;
+  };
+}
+
+/**
+ * Fetch Shikshaqmine rows for a slug list, chunked so no single `.in()` grows
+ * unbounded.
+ *
+ * The is_paused fallback is load-bearing and preserved exactly: if ANY chunk
+ * errors with the column selected, the WHOLE batch is retried without it. A
+ * per-chunk retry would mix shapes across chunks and make `'is_paused' in row`
+ * — which the caller uses to decide whether pause filtering is even possible —
+ * true for some rows and false for others in the same result set.
+ */
+export async function fetchShikshaqmineChunked(
+  opts: ChunkedShikshaqmineOptions,
+): Promise<{ rows: any[]; withPaused: boolean; partialFailure: boolean }> {
+  const chunkSize = opts.chunkSize ?? 200;
+  const isStale = opts.isStale ?? (() => false);
+
+  const chunks: string[][] = [];
+  for (let i = 0; i < opts.slugs.length; i += chunkSize) {
+    const chunk = opts.slugs.slice(i, i + chunkSize);
+    if (chunk.length > 0) chunks.push(chunk);
+  }
+  if (chunks.length === 0) return { rows: [], withPaused: false, partialFailure: false };
+
+  const runChunk = async (chunk: string[], withPaused: boolean) => {
+    const key = opts.cache?.key(chunk, withPaused);
+    if (key) {
+      const cached = opts.cache!.get(key);
+      if (cached) return { data: cached, error: null as any };
+    }
+    const result = await (supabase
+      .from('Shikshaqmine')
+      .select(opts.columns + (withPaused ? ', is_paused' : '')) as any)
+      .in('Slug', chunk);
+    if (key && result.data && !result.error) opts.cache!.set(key, result.data);
+    return result;
+  };
+
+  let withPaused = true;
+  let results = await Promise.all(chunks.map((c) => runChunk(c, true)));
+  if (isStale()) return { rows: [], withPaused: false, partialFailure: false };
+
+  if (results.some((r: any) => r.error)) {
+    withPaused = false;
+    results = await Promise.all(chunks.map((c) => runChunk(c, false)));
+    if (isStale()) return { rows: [], withPaused: false, partialFailure: false };
+  }
+
+  return {
+    rows: results.flatMap((r: any) => r.data || []),
+    withPaused,
+    partialFailure: results.some((r: any) => r.error),
+  };
+}

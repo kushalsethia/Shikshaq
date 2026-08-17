@@ -22,7 +22,7 @@ import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
 import { getSubjectPalette } from '@/lib/subject-palette';
-import { deriveExperienceYears } from '@/lib/teachers';
+import { deriveExperienceYears, pageAllTeachers, fetchShikshaqmineChunked } from '@/lib/teachers';
 import { SEOHead } from '@/components/SEOHead';
 import { FAQSchema } from '@/components/FAQSchema';
 import { SEOContentBlock } from '@/components/seo/SEOContentBlock';
@@ -1001,45 +1001,27 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             teachersData = cachedTeachers.rows;
             truncated = cachedTeachers.truncated;
           } else {
-            const { data: firstPage, error, count } = await supabase
-              .from('teachers_list')
-              .select(selectCols, { count: 'exact' })
-              .order('is_featured', { ascending: false })
-              .order('name')
-              .range(0, TEACHER_PAGE_SIZE - 1);
+            /* Paging mechanics now live in lib/teachers.ts. Only the "how
+               many rows, in what order, up to what cap" part moved; nothing
+               about filters went with it. */
+            const paged = await pageAllTeachers({
+              selectCols,
+              pageSize: TEACHER_PAGE_SIZE,
+              maxPages: MAX_TEACHER_PAGES,
+              isStale,
+            });
 
             if (isStale()) return;
 
-            if (error || !firstPage) {
-              if (error && import.meta.env.DEV) {
-                console.error('Error fetching teachers:', error);
-              }
+            if (paged.failed) {
               setTeachers([]);
               if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
               setLoading(false);
               return;
             }
 
-            let allPages: any[] = firstPage;
-            const totalCount = count ?? firstPage.length;
-
-            for (let page = 1; page < MAX_TEACHER_PAGES && allPages.length < totalCount; page++) {
-              const from = page * TEACHER_PAGE_SIZE;
-              const to = from + TEACHER_PAGE_SIZE - 1;
-              const { data: nextPage, error: pageError } = await supabase
-                .from('teachers_list')
-                .select(selectCols)
-                .order('is_featured', { ascending: false })
-                .order('name')
-                .range(from, to);
-
-              if (isStale()) return;
-              if (pageError || !nextPage) break;
-              allPages = allPages.concat(nextPage);
-            }
-
-            truncated = totalCount > allPages.length;
-            teachersData = allPages;
+            truncated = paged.truncated;
+            teachersData = paged.rows;
 
             if (!hasFiltersOrSearch) {
               const cacheKey = getTeachersListCacheKey(limit);
@@ -1048,45 +1030,25 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           }
 
           if (teachersData.length > 0) {
-            const teacherSlugs = teachersData.map((t) => t.slug);
-            // 200, matching the filtered path above — the two paths chunk the same
-            // table with the same `.in()` and had no reason to differ. Chunk size
-            // cannot change which rows come back or their order (results are
-            // stitched by slug afterwards), only how many round trips it takes:
-            // at 147 teachers this is 1 request instead of 3, and it stops the
-            // request count growing 4x faster than the roster does.
-            const chunkSize = 200;
-            const chunks: string[][] = [];
-            for (let i = 0; i < teacherSlugs.length; i += chunkSize) chunks.push(teacherSlugs.slice(i, i + chunkSize));
-
-            const runChunk = async (chunk: string[], withPaused: boolean) => {
-              const cacheKey = getShikshaqmineChunkCacheKey(chunk) + (withPaused ? '_ispaused' : '_nopaused');
-              const cached = getCache<any[]>(cacheKey);
-              if (cached) return { data: cached, error: null as any };
-              const result = await (supabase
-                .from('Shikshaqmine')
-                .select(SHIKSHAQ_COLUMNS + (withPaused ? ', is_paused' : '')) as any)
-                .in('Slug', chunk);
-              if (result.data && !result.error) setCache(cacheKey, result.data, CACHE_TTL.SHIKSHAQMINE_CHUNK);
-              return result;
-            };
-
-            const nonEmptyChunks = chunks.filter((c) => c.length > 0);
-            let shikshaqResults = await Promise.all(nonEmptyChunks.map((c) => runChunk(c, true)));
+            /* Chunking mechanics and the is_paused fallback now live in
+               lib/teachers.ts. SHIKSHAQ_COLUMNS is passed IN rather than moved,
+               because it is FilterState-aware and belongs to this file. */
+            const chunked = await fetchShikshaqmineChunked({
+              slugs: teachersData.map((t) => t.slug),
+              columns: SHIKSHAQ_COLUMNS,
+              chunkSize: 200,
+              isStale,
+              cache: {
+                key: (slugs, withPaused) =>
+                  getShikshaqmineChunkCacheKey(slugs) + (withPaused ? '_ispaused' : '_nopaused'),
+                get: (key) => getCache<any[]>(key),
+                set: (key, rows) => setCache(key, rows, CACHE_TTL.SHIKSHAQMINE_CHUNK),
+              },
+            });
             if (isStale()) return;
-            if (shikshaqResults.some((r) => r.error)) {
-              // is_paused select rejected (column missing in this environment) — fail soft,
-              // retry the whole batch without it rather than losing all teacher data, the
-              // way a bad column reference in the shared select did previously.
-              if (import.meta.env.DEV) {
-                console.warn('Shikshaqmine fetch (with is_paused) failed, retrying without it');
-              }
-              shikshaqResults = await Promise.all(nonEmptyChunks.map((c) => runChunk(c, false)));
-              if (isStale()) return;
-            }
 
-            allShikshaqData = shikshaqResults.flatMap((r) => r.data || []);
-            if (shikshaqResults.some((r) => r.error) && import.meta.env.DEV) {
+            allShikshaqData = chunked.rows;
+            if (chunked.partialFailure && import.meta.env.DEV) {
               console.error('Error fetching some Shikshaqmine data');
             }
 
