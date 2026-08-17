@@ -163,3 +163,58 @@ bar, bottom nav correctly hidden.
 Supabase: every `SECURITY DEFINER` function is `anon=false` except the six
 sign-in helpers deliberately left open. Migration applied and verified against
 `pg_proc.proacl`.
+
+---
+
+## Fidelity sweep — screens and rules compared
+
+Mockups opened and compared against the running site, with defects fixed and
+verified in the same pass. Roughly half the export set; what is missing and why
+is at the bottom.
+
+**Compared, defects fixed:** core-01 browse, core-02 filters, core-03 profile,
+core-04 papers, desktop-01 home, desktop-04 papers, account-01 sign-in,
+secondary-01 subject page, secondary-03 assistant, secondary-04 onboarding,
+secondary-06 product tour, secondary-07 about, contact-01, join-01,
+prefooter-01 to -04, micro-06 non-negotiables.
+
+**The rules sheet was the highest-yield source.** micro-06 is not a screen, it
+is seven rules, and auditing against it found four systemic violations spanning
+many files that no single screen comparison would have surfaced:
+
+| Rule | Outcome |
+|---|---|
+| 1 optimistic-first | already correct |
+| 2 one motion per action | Button did colour + lift + shadow on one hover. Fixed; whole tree re-audited to zero. |
+| 3 no springy overshoot | **Unresolved conflict.** `--ease-pop` is cubic-bezier(0.34, 1.56, 0.64, 1) — an overshoot — but tailwind.config.ts documents it as deliberate. Rules sheet and an earlier decision disagree; needs an owner, not a sweep. |
+| 4 no browser alerts | 5 window.confirm calls. The public one (review delete) now uses AlertDialog. Four remain in admin: AdminComments:273, AdminFeedback:185, AdminPapers:274, AdminTeachers:556. |
+| 5 failure + Retry | Retry added to retryable toggle failures. Reasoned, NOT observed — the path needs a session. |
+| 6 hover desktop-only | Every Tailwind hover: emitted a bare :hover, which sticks after a tap on touch. Fixed globally via future.hoverOnlyWhenSupported; 75 of 76 :hover selectors in the built CSS now sit inside @media(hover:hover). |
+| 7 no load animation | All 24 browse cards animated on load, most far off screen. Now the first row of three. |
+
+**A recurring class of defect worth naming: counts.** Five surfaces printed a
+zero or an invented number — "0 free papers" on sign-in, "0 past papers" in the
+tour, an invented 846 plus two zero tiles on About, "0 verified teachers" under
+"Why this list is trustworthy", "0 filters active" in the filter sheet. All came
+from guarding on `!= null` or `!== undefined`, which asks "has it loaded" rather
+than "is there anything to say". **Guard counts on `> 0`.** A search result
+honestly reporting "0 papers found" is the exception — that is an answer to a
+question, not a claim about the product.
+
+**Verification traps hit four times.** Four apparent defects were artifacts of
+how I looked, not of the build: PreFooter B2 "missing" (route still loading at
+3.6s), B1 "missing" (searched "Shikshaq" against a sticker reading "ShikshAQ"),
+the filter CTA "stuck" at the wrong count (it settles ~4s later), and the papers
+mode pill "transparent" (measured the inner truncate span, not the pill). A
+negative result needs a longer wait, a case-insensitive match, and a check that
+you measured the element you meant.
+
+**Also worth knowing:** comparing a component to its mockup proves nothing until
+a route renders it. PreFooter B3 was matched to its mockup while mounted
+nowhere; HowItWorks.tsx and Nudge.tsx were deleted for the same reason.
+
+**Not compared, and why:** the five admin frames and three dashboards need a
+signed-in session; the paper reader, its gate and the school page need one real
+row in `papers`; reviews R3 needs both. The remaining sheets (fun-01 to -05,
+micro-01 to -05, feedback-01/03, baseline) are pattern references rather than
+screens.
