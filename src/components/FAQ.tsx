@@ -87,11 +87,15 @@ export function FAQ({ items = FAQ_ITEMS.slice(0, 4), questionSize = 17, heading 
   return (
     <>
       {heading ? (
-        <section id="faq" className="scroll-mt-20 mx-auto max-w-[820px] px-4 py-[60px] sm:px-7">
+        <section id="faq" className="scroll-mt-20 mx-auto w-full max-w-6xl px-4 py-[60px] sm:px-6 lg:px-8">
           <h2 className="mb-[26px] text-center font-display text-display-hero leading-none text-foreground">
             Common queries answered
           </h2>
-          {accordion}
+          {/* Accordion itself stays reading-width even though the section now
+              shares the page's standard container (was its own narrower
+              max-w-[820px] section, which floated visibly misaligned against
+              every sibling section's max-w-6xl edges). */}
+          <div className="mx-auto max-w-[820px]">{accordion}</div>
         </section>
       ) : (
         accordion

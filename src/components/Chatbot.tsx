@@ -427,7 +427,7 @@ export function Chatbot() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask a question..."
-                className="flex-1 px-3 py-2.5 md:px-4 md:py-2.5 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-base md:text-sm min-h-[44px] md:min-h-0"
+                className="flex-1 px-3 py-2.5 md:px-4 md:py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-base md:text-sm min-h-[44px] md:min-h-0"
                 style={{ fontSize: '16px' }}
                 disabled={loading}
               />

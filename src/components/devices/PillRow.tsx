@@ -28,9 +28,50 @@ export interface PillRowItem {
 export interface PillRowProps {
   items: PillRowItem[];
   className?: string;
+  /** 'stack' (default) is the full-width row-per-item layout this device was
+   *  built for. 'grid' packs items into a dense wrapped grid instead — for
+   *  long, low-information lists (e.g. 12 class numbers) where a full-width
+   *  row per item is mostly empty space repeated twelve times. Meta text is
+   *  dropped in grid mode since there's no room for a second line. */
+  layout?: 'stack' | 'grid';
 }
 
-export function PillRow({ items, className }: PillRowProps) {
+export function PillRow({ items, className, layout = 'stack' }: PillRowProps) {
+  if (layout === 'grid') {
+    return (
+      <ul className={cn('grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4', className)}>
+        {items.map((item) => {
+          const Tag = (item.onClick || item.href ? 'button' : 'div') as 'button' | 'div';
+          return (
+            <li key={item.key}>
+              <Tag
+                type={Tag === 'button' ? 'button' : undefined}
+                onClick={item.onClick}
+                className={cn(
+                  'flex min-h-11 w-full items-center gap-2 rounded-lg px-2.5 py-1.5',
+                  'text-left transition-[transform,box-shadow] duration-hover',
+                  (item.onClick || item.href) && 'hover:-translate-y-0.5 shadow-border hover:shadow-border-hover active:scale-[0.97]'
+                )}
+                style={{
+                  background: item.color ?? 'hsl(var(--warm-muted, var(--muted)))',
+                  color: item.textColor ?? 'hsl(var(--foreground))',
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-white/90 font-display font-bold tabular-nums text-[11px] text-foreground"
+                >
+                  {item.badge}
+                </span>
+                <span className="truncate text-sm font-semibold">{item.label}</span>
+              </Tag>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
   return (
     <ul className={cn('flex flex-col gap-2', className)}>
       {items.map((item) => {

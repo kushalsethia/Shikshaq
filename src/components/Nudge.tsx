@@ -120,7 +120,7 @@ export function Nudge({
         // element beneath it AND still bubbles to the document click listener that dismisses it.
         pointerEvents: 'none',
       }}
-      className="z-40 animate-pop rounded-xl bg-panel py-3 pl-4 pr-8 shadow-lg"
+      className="z-40 animate-pop rounded-lg bg-panel py-3 pl-4 pr-8 shadow-lg"
     >
       <span
         aria-hidden="true"

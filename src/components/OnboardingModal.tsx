@@ -3,18 +3,21 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { GraduationCap, MessageCircle, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hasSeenOnboarding, markOnboardingSeen } from "@/lib/onboarding";
+import { Logo } from "@/components/Logo";
 
 // First-time-visitor onboarding. Shows once per browser (localStorage flag),
 // never again after dismissal — see src/lib/onboarding.ts.
 //
-// Full-bleed dark carousel, rebuilt per the "first-time-popup-design"
-// reference (docs/wave2-inspo — described in WAVE2_INSPO.md/
-// VISUAL_UPGRADE_PLAN.md since no file was given for it): each screen is
-// dominated by one large flat-color abstract shape as the hero graphic,
-// a bold headline below it, pagination dots, and a bright pill CTA — not a
-// small dialog card. Built on Radix Dialog primitives directly (not the
-// shadcn DialogContent wrapper) so this fully custom full-screen look can
-// still get Radix's focus trap, Escape-to-close, and portal for free.
+// Full-bleed dark carousel, rebuilt against an actual Instagram-Stories
+// reference (a real 3-frame ad-story mockup): segmented progress bars across
+// the very top (not bottom dots — Stories' signature wayfinding device), a
+// slim header row mimicking a story's author bar (mark + wordmark + close),
+// and small rotated pill tags scattered around the hero shape rather than
+// sitting in a single flat row. Adapted to ShikshAQ's own colors throughout;
+// the reference's own palette was not carried over. Built on Radix Dialog
+// primitives directly (not the shadcn DialogContent wrapper) so this fully
+// custom full-screen look still gets Radix's focus trap, Escape-to-close,
+// and portal for free.
 //
 // Screen-to-screen motion is a plain CSS transform transition (translate-x),
 // not framer-motion — DESIGN_SYSTEM §6 reserves framer-motion for the nav
@@ -29,6 +32,9 @@ interface Screen {
   eyebrow: string;
   title: string;
   body: string;
+  /** Small rotated pill tags scattered around the hero shape — the reference's
+   *  scattered-tag-cluster device ("Support", "Positive Attitude", etc). */
+  tags: { label: string; tilt: number; className: string }[];
 }
 
 const SCREENS: Screen[] = [
@@ -38,6 +44,10 @@ const SCREENS: Screen[] = [
     eyebrow: "Welcome to ShikshAQ",
     title: "Verified tutors and real past papers, in Kolkata.",
     body: "Search verified tuition teachers by subject, class and locality, then message them yourself on WhatsApp. Students can also read past papers from Kolkata schools, free.",
+    tags: [
+      { label: "Verified", tilt: -8, className: "-left-2 top-2 bg-brand text-white" },
+      { label: "Free to use", tilt: 6, className: "-right-4 bottom-6 bg-white text-foreground" },
+    ],
   },
   {
     mode: "teachers",
@@ -45,6 +55,10 @@ const SCREENS: Screen[] = [
     eyebrow: "Finding a teacher",
     title: "Browse verified tutors, message on WhatsApp.",
     body: "Every teacher is verified with real photos, reviews and subjects. Pick one and message them directly — no forms, no waiting for a callback.",
+    tags: [
+      { label: "Real reviews", tilt: -7, className: "-left-4 top-4 bg-white text-foreground" },
+      { label: "WhatsApp direct", tilt: 5, className: "-right-2 bottom-2 bg-brand text-white" },
+    ],
   },
   {
     mode: "papers",
@@ -52,6 +66,10 @@ const SCREENS: Screen[] = [
     eyebrow: "Finding past papers",
     title: "Search, open, done.",
     body: "Real past papers from Kolkata schools, organised by subject and class. Find the one you need and start reading in seconds.",
+    tags: [
+      { label: "No signup", tilt: -6, className: "-left-2 top-0 bg-white text-foreground" },
+      { label: "Nothing to download", tilt: 7, className: "-right-6 bottom-4 bg-brand-blue text-white" },
+    ],
   },
 ];
 
@@ -117,17 +135,51 @@ export function OnboardingModal() {
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <DialogPrimitive.Close
-            className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full text-white/70 transition-colors duration-tap hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-6 sm:top-6"
-            aria-label="Skip onboarding"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </DialogPrimitive.Close>
-
           <DialogPrimitive.Title className="sr-only">Welcome to ShikshAQ</DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">
             A short introduction to finding tutors and past papers on ShikshAQ.
           </DialogPrimitive.Description>
+
+          {/* Segmented progress bars — Instagram Stories' own top-of-screen
+              wayfinding device, replacing the previous bottom pagination dots.
+              One thin rounded bar per screen, filled up to (and including) the
+              current step; unlike dots this reads instantly as "how much is
+              left" the way a real Stories UI does. */}
+          <div className="absolute inset-x-4 top-4 z-20 flex gap-1.5 sm:inset-x-6 sm:top-6" role="tablist" aria-label="Onboarding progress">
+            {SCREENS.map((screen, i) => (
+              <button
+                key={screen.title}
+                type="button"
+                role="tab"
+                aria-selected={i === step}
+                aria-label={`Go to screen ${i + 1} of ${SCREENS.length}`}
+                onClick={() => setStep(i)}
+                className="h-3 flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                <span aria-hidden="true" className="block h-1 w-full overflow-hidden rounded-full bg-white/25">
+                  <span
+                    className="block h-full rounded-full bg-white transition-transform duration-300 ease-out"
+                    style={{ transform: `scaleX(${i <= step ? 1 : 0})`, transformOrigin: "left" }}
+                  />
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Header row — mimics a Stories author bar (mark + name + close),
+              sitting just under the progress bars instead of a lone corner X. */}
+          <div className="absolute inset-x-4 top-9 z-20 flex items-center justify-between sm:inset-x-6 sm:top-12">
+            <div className="flex items-center gap-2">
+              <Logo size="sm" onDark className="opacity-90" />
+              <span className="text-sm font-semibold text-white/90">ShikshAQ</span>
+            </div>
+            <DialogPrimitive.Close
+              className="flex h-11 w-11 items-center justify-center rounded-full text-white/70 transition-colors duration-tap hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              aria-label="Skip onboarding"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </DialogPrimitive.Close>
+          </div>
 
           {/* Track: CSS transform transition only, no framer-motion (§6) */}
           <div className="flex-1 overflow-hidden">
@@ -165,6 +217,23 @@ export function OnboardingModal() {
                       >
                         <Icon className="h-9 w-9 sm:h-10 sm:w-10" aria-hidden="true" />
                       </div>
+
+                      {/* Scattered rotated pill tags around the hero shape — the reference's
+                          defining chaotic-tag-cluster device, dropped onto our own dominant
+                          blob shape instead of stacked into a flat trust-copy row. */}
+                      {screen.tags.map((tag) => (
+                        <span
+                          key={tag.label}
+                          aria-hidden="true"
+                          className={cn(
+                            "absolute animate-pop whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)]",
+                            tag.className
+                          )}
+                          style={{ transform: `rotate(${tag.tilt}deg)` }}
+                        >
+                          {tag.label}
+                        </span>
+                      ))}
                     </div>
 
                     <span
@@ -186,28 +255,6 @@ export function OnboardingModal() {
           </div>
 
           <div className="flex flex-col items-center gap-6 px-6 pb-10 sm:pb-12">
-            <div className="flex items-center gap-2" role="tablist" aria-label="Onboarding progress">
-              {SCREENS.map((screen, i) => (
-                <button
-                  key={screen.title}
-                  type="button"
-                  role="tab"
-                  aria-selected={i === step}
-                  aria-label={`Go to screen ${i + 1} of ${SCREENS.length}`}
-                  onClick={() => setStep(i)}
-                  className="flex h-11 w-11 items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "h-2 rounded-full transition-colors duration-hover",
-                      i === step ? "w-6 bg-white" : "w-2 bg-white/30"
-                    )}
-                  />
-                </button>
-              ))}
-            </div>
-
             {isLast ? (
               <button
                 type="button"

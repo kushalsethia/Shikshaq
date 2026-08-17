@@ -57,7 +57,7 @@ export function ExpandableTabs({
   return (
     <ul
       ref={containerRef}
-      className={`relative flex items-stretch ${className}`}
+      className={`relative flex w-full items-stretch ${className}`}
     >
       {tabs.map((tab, index) => {
         const active = tab.isActive(pathname);

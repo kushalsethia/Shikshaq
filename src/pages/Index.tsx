@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Atom, ArrowRight, BookOpen, Calculator, FileText, Globe, GraduationCap, Landmark, Sparkles, Users } from 'lucide-react';
+import { ArrowRight, BookOpen, FileText, GraduationCap, Sparkles, Users } from 'lucide-react';
 import { EmptyResults } from '@/components/EmptyResults';
 import { supabase } from '@/integrations/supabase/client';
-import { getSubjectPalette } from '@/lib/subject-palette';
 import { SpeechTag, StarburstBadge } from '@/components/devices';
 import { Navbar } from '@/components/Navbar';
 import { SearchControl } from '@/components/SearchControl';
@@ -19,30 +18,7 @@ import { validateImageSrc } from '@/utils/imageSanitizer';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache';
 import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
 
-// Real production shortcut destinations — the same routes the search results navigate to.
-// Surfaced as quick chips under the hero because most users tap rather than type.
-// `subject` keys into getSubjectPalette for a real tint; `mode` is a flat
-// fallback (brand-orange for teacher-mode destinations, brand-blue for
-// papers-mode) for the shortcuts that aren't literally a subject (board,
-// class, location). Same device as Browse's subject-pill row — this row
-// was the same flat bg-card pattern Browse's dropdowns were before that
-// fix, and a light background tint alone already proved too subtle to
-// register as a real change.
-const SHORTCUTS: { label: string; to: string; subject?: string; mode?: 'brand' | 'brand-blue' }[] = [
-  { label: 'Maths tutors', to: '/maths-tuition-teachers-in-kolkata', subject: 'Maths' },
-  { label: 'ICSE teachers', to: '/icse-tuition-teachers-in-kolkata', mode: 'brand-blue' },
-  { label: 'Class 10', to: '/all-tuition-teachers-in-kolkata?filter_classes=10', mode: 'brand' },
-  { label: 'English tuition', to: '/english-tuition-teachers-in-kolkata', subject: 'English' },
-  { label: 'Class 12 papers', to: '/past-papers/results?filter_classes=12', mode: 'brand-blue' },
-  { label: 'Tutors near Salt Lake', to: '/all-tuition-teachers-in-kolkata?filter_areas=Salt%20Lake', mode: 'brand' },
-];
-
-// Generic icon cycle for the hero's subject-tile row — decorative, not the
-// canonical per-subject icon map (that lives in SubjectCard.tsx, out of scope).
-const HERO_SUBJECT_ICONS = [Calculator, Atom, Globe, Landmark];
-
 const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
-const SECTION = 'py-16 sm:py-20 lg:py-24';
 // Dense, card-grid sections (Featured teachers, Explore by subject) sit back-to-back
 // on the home page — the hero-scale rhythm reads as wasted air between them. One
 // spacing step down, still on the §4 scale (12/16/20), keeps the page moving.
@@ -253,22 +229,44 @@ export default function Index() {
   // Concrete proof, above the fold: real faces of teachers actually on the platform.
   const proofFaces = featuredTeachers.filter((t) => t.image_url).slice(0, 5);
 
+  // Hero mode mirrors SearchControl's own teachers/papers toggle (wired via
+  // its `onModeChange` prop) so switching the toggle actually re-colors and
+  // re-words the hero instead of just filtering the search field — VISUAL_LANGUAGE
+  // §2.2's two-mode color system (orange teacher-mode / blue papers-mode) applied
+  // to the one hero that was silently exempt from it.
+  const [heroMode, setHeroMode] = useState<'teachers' | 'papers'>('teachers');
+  const isPapersMode = heroMode === 'papers';
+  const heroAccent = isPapersMode ? 'hsl(var(--brand-blue))' : 'hsl(var(--brand))';
+  const heroAccentClass = isPapersMode ? 'bg-brand-blue' : 'bg-brand';
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
       <main id="main-content" className="pb-20 lg:pb-0">
         {/* ------------------------------------------------------------- Hero */}
-        <section className={`ground-graph relative ${CONTAINER} pt-6 pb-12 sm:pt-12 sm:pb-16 lg:pt-16 lg:pb-20`}>
+        <section className={`relative ${CONTAINER} pt-6 pb-12 sm:pt-12 sm:pb-16 lg:pt-16 lg:pb-20 lg:ground-graph`}>
           <div className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-12">
-            <div className="space-y-6">
+            {/* Mobile-first fold: everything from headline through the proof strip
+                sits on one full-bleed saturated color slab (adapted from a fitness-app
+                reference — bold color field behind the whole first screen, not just
+                accent devices on a light page). `-mx-4 -mt-6 ... px-4 pt-6` is the
+                standard bleed-then-repad trick (see Browse.tsx's PageHeader) so the
+                color reaches the viewport edge and flush under the sticky nav while
+                the content keeps its normal inset. Desktop keeps the original light
+                ground-graph treatment untouched — `lg:` fully reverts every bleed/color
+                class. Color follows heroMode via `heroAccentClass` (orange teacher-mode
+                / blue papers-mode, VISUAL_LANGUAGE §2.2), same as the headline/toggle. */}
+            <div
+              className={`-mx-4 -mt-6 space-y-6 overflow-hidden rounded-b-4xl px-4 pb-8 pt-6 sm:-mx-6 sm:-mt-12 sm:px-6 sm:pb-10 sm:pt-12 lg:m-0 lg:space-y-6 lg:overflow-visible lg:rounded-none lg:bg-transparent lg:p-0 ${heroAccentClass} lg:!bg-transparent`}
+            >
               <div className="relative space-y-4">
                 {/* Sparkles — desktop-only per VISUAL_LANGUAGE §7; index.css hard-disables
                     the animation below 1024px, hidden entirely on mobile so nothing static
                     is left behind. */}
                 <span
                   aria-hidden="true"
-                  className="animate-sparkle absolute -left-2 -top-3 hidden h-[9px] w-[9px] rounded-[3px] bg-brand opacity-0 [animation-delay:.1s] lg:block"
+                  className={`animate-sparkle absolute -left-2 -top-3 hidden h-[9px] w-[9px] rounded-[3px] opacity-0 [animation-delay:.1s] lg:block ${heroAccentClass}`}
                 />
                 <span
                   aria-hidden="true"
@@ -276,7 +274,7 @@ export default function Index() {
                 />
                 <span
                   aria-hidden="true"
-                  className="animate-sparkle absolute left-12 top-6 hidden h-[7px] w-[7px] rounded-[2px] bg-brand opacity-0 [animation-delay:1s] lg:block"
+                  className={`animate-sparkle absolute left-12 top-6 hidden h-[7px] w-[7px] rounded-[2px] opacity-0 [animation-delay:1s] lg:block ${heroAccentClass}`}
                 />
 
                 {/* Blur-in entrance, staggered — VISUAL_LANGUAGE §7 heroSwap. Mixed-weight
@@ -284,48 +282,93 @@ export default function Index() {
                     §5): the lead-in is a narrow, normal-weight cut; the payoff word is the full-width,
                     black cut. `marker-highlight` on the key word (device A, REFERENCE_DEVICES.md's
                     single highest-value device) so the headline reads as art-directed, not typed. */}
+                {/* Desktop headline — unchanged, exact original device (marker-highlight
+                    box needs a light page bg to read, which desktop keeps). */}
                 <h1
-                  className="animate-hero-swap [animation-delay:40ms] font-display text-display-hero font-normal [font-stretch:85%]"
+                  className="animate-hero-swap [animation-delay:40ms] hidden font-display text-display-hero font-normal [font-stretch:85%] lg:block"
                 >
-                  Find a{' '}
+                  Find {isPapersMode ? '' : 'a '}
                   <span
                     className="marker-highlight marker-highlight--tilt"
-                    style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
+                    style={{ '--marker-color': heroAccent } as React.CSSProperties}
                   >
-                    tuition teacher
+                    {isPapersMode ? 'past papers' : 'tuition teacher'}
                   </span>{' '}
                   <span
                     aria-hidden="true"
-                    className="relative mx-[0.06em] inline-flex h-[0.62em] w-[0.62em] -translate-y-[0.08em] items-center justify-center rounded-full bg-brand align-middle"
+                    className={`relative mx-[0.06em] inline-flex h-[0.62em] w-[0.62em] -translate-y-[0.08em] items-center justify-center rounded-full align-middle ${heroAccentClass}`}
                   >
                     <Sparkles className="h-[0.62em] w-[0.62em] text-white" strokeWidth={2.5} aria-hidden="true" />
                   </span>{' '}
                   <span className="font-black [font-stretch:125%]">in Kolkata.</span>
                 </h1>
 
-                {/* Annotations instead of a flat subtitle line (REFERENCE_DEVICES.md
-                    device D) — floated speech-tags carry the proof numbers and scope,
-                    a StarburstBadge carries the one real headline number. Still answers
-                    "what is this" in 3 seconds: teachers, papers, free, Kolkata. */}
-                <div className="animate-hero-swap flex flex-wrap items-center gap-2 [animation-delay:70ms]">
+                {/* Desktop-only annotations (REFERENCE_DEVICES.md device D) — untouched by
+                    the mobile-hero rebuild below, which only targets the fitness-app
+                    reference's mobile-first fold. */}
+                <div className="animate-hero-swap hidden flex-wrap items-center gap-2 [animation-delay:70ms] lg:flex">
                   <SpeechTag tail="bottom-left" dotColor="hsl(var(--brand))" tilt={-1.5}>
                     Verified tutors, message on WhatsApp
                   </SpeechTag>
                   <SpeechTag tail="bottom-right" dotColor="hsl(var(--brand-blue))" tilt={1.5}>
                     Past papers, free to read
                   </SpeechTag>
-                  {stats.teachers != null && (
-                    <StarburstBadge variant="burst" color="hsl(var(--brand-blue))" tilt={-6} size={68} className="ml-1">
-                      <span className="tabular-nums">{stats.teachers.toLocaleString('en-IN')}+</span>
+                  {(isPapersMode ? stats.papers : stats.teachers) != null && (
+                    <StarburstBadge
+                      variant="burst"
+                      color={isPapersMode ? 'hsl(var(--brand))' : 'hsl(var(--brand-blue))'}
+                      tilt={-6}
+                      size={68}
+                      className="ml-1"
+                    >
+                      <span className="tabular-nums">
+                        {(isPapersMode ? stats.papers! : stats.teachers!).toLocaleString('en-IN')}+
+                      </span>
                     </StarburstBadge>
                   )}
                 </div>
+
+                {/* Mobile headline — rebuilt closer to the fitness-app reference rather
+                    than adapting the desktop device: a small eyebrow label, then a
+                    plain bold white headline with no marker-box/sparkle-bubble (both
+                    need a light page behind them to read, which the saturated slab no
+                    longer is). Trust copy that used to live in the speech-tag/starburst
+                    row moved into this eyebrow instead of stacking more devices. */}
+                <p className="animate-hero-swap [animation-delay:20ms] text-label font-bold uppercase tracking-[.08em] text-white/70 lg:hidden">
+                  Verified tutors · Kolkata
+                </p>
+                <h1 className="animate-hero-swap [animation-delay:40ms] font-display text-display-hero font-black leading-[1.05] text-white lg:hidden">
+                  {isPapersMode ? 'Find past papers, free to read.' : 'Find a tuition teacher you can trust.'}
+                </h1>
               </div>
 
               {/* The search field is the largest interactive element on the page. */}
               <div className="animate-hero-swap w-full [animation-delay:120ms]">
-                <SearchControl align="flex-start" stackedToggle alwaysShowModeToggle />
+                <SearchControl align="flex-start" stackedToggle alwaysShowModeToggle onModeChange={setHeroMode} />
               </div>
+
+              {/* Subject pill row — the fitness-app reference's filter-pill strip
+                  (All / Preparation / Basic / Advanced) sitting directly on the
+                  colored screen, adapted with real data: top subjects as translucent
+                  white chips on the slab. Mobile only; desktop keeps its own bento
+                  subject grid further down the page, so this isn't a duplicate — it's
+                  the same "browse by subject" affordance surfaced at the fold. */}
+              {subjects.length > 0 && (
+                <div className="-mx-4 overflow-x-auto px-4 scrollbar-hide lg:hidden">
+                  <ul className="flex w-max items-center gap-2">
+                    {subjects.slice(0, 6).map((s) => (
+                      <li key={s.id}>
+                        <Link
+                          to={`/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(s.name)}`}
+                          className="inline-flex h-9 items-center whitespace-nowrap rounded-full bg-white/16 px-3.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-white/24 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand"
+                        >
+                          {s.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* The two paths, forked explicitly — never blurred into one funnel.
                   Each tile is a fixed three-row stack (icon / title / meta) so the
@@ -333,22 +376,32 @@ export default function Index() {
                   doesn't — `justify-center` made them ragged against each other.
                   Teachers = saturated orange slab, papers = neutral card, mirroring
                   the mode colors and keeping the pair from reading as two identical
-                  blocks. */}
-              <div className="grid grid-cols-2 gap-5 pt-1">
-                {/* The fork — hero-scale, Cluster A full permission (VISUAL_DIRECTION §4).
-                    Thick outline + hard offset shadow gives each destination the die-cut
-                    sticker read; a few degrees of opposite rotation keeps the pair from
-                    reading as one flat block while the rigid 3-row stack (icon/title/meta,
-                    `mt-auto` pinning the meta row) preserves the known wrap-alignment fix —
-                    do not swap back to `justify-center`. Exactly one sticker treatment per
-                    card, so neither tile also gets tape/halftone. */}
+                  blocks. Mobile drops the outline-thick/sticker-rotate treatment for
+                  a flatter, cleaner card closer to the reference; desktop (`lg:`)
+                  keeps the original die-cut sticker device untouched. */}
+              <div className="grid grid-cols-2 gap-3 pt-1 sm:gap-5">
                 <Link
                   to="/all-tuition-teachers-in-kolkata"
-                  className="outline-thick outline-offset-shadow sticker-rotate-sm flex flex-col rounded-2xl bg-brand p-4 text-brand-foreground transition-transform duration-lift ease-settle hover:-translate-y-1 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                  className="relative flex flex-col overflow-hidden rounded-2xl bg-brand p-4 text-brand-foreground shadow-border transition-transform duration-lift ease-settle hover:-translate-y-1 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 lg:outline-thick lg:outline-offset-shadow lg:sticker-rotate-sm lg:shadow-none"
                 >
-                  <GraduationCap className="mb-2 h-5 w-5 flex-none" aria-hidden="true" />
-                  <span className="text-card-title-lg font-display font-bold leading-snug">Find a teacher</span>
-                  <span className="mt-auto pt-1 text-meta text-brand-foreground/80">
+                  {/* Photo-forward card treatment (fitness-app reference: cards carry a
+                      real photo, not just an icon) — a real featured-teacher photo, dimmed
+                      under a brand-color gradient so the title/meta text stays legible.
+                      Mobile only; desktop keeps the flat icon tile it already had. */}
+                  {proofFaces[0]?.image_url && (
+                    <img
+                      src={validateImageSrc(proofFaces[0].image_url)}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      decoding="async"
+                      className="absolute inset-0 h-full w-full object-cover opacity-40 lg:hidden"
+                    />
+                  )}
+                  <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-brand via-brand/70 to-brand/40 lg:hidden" />
+                  <GraduationCap className="relative mb-2 h-5 w-5 flex-none" aria-hidden="true" />
+                  <span className="relative text-card-title-lg font-display font-bold leading-snug">Find a teacher</span>
+                  <span className="relative mt-auto pt-1 text-meta text-brand-foreground/80">
                     {stats.teachers != null ? (
                       <span className="tabular-nums">{stats.teachers.toLocaleString('en-IN')} verified tutors</span>
                     ) : (
@@ -359,7 +412,7 @@ export default function Index() {
 
                 <Link
                   to="/past-papers"
-                  className="outline-thick outline-offset-shadow sticker-rotate-md-rev flex flex-col rounded-2xl bg-card p-4 transition-transform duration-lift ease-settle hover:-translate-y-1 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                  className="flex flex-col rounded-2xl bg-card p-4 shadow-border transition-transform duration-lift ease-settle hover:-translate-y-1 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 lg:outline-thick lg:outline-offset-shadow lg:sticker-rotate-md-rev lg:shadow-none"
                 >
                   <FileText className="mb-2 h-5 w-5 flex-none text-brand-blue" aria-hidden="true" />
                   <span className="text-card-title-lg font-display font-bold leading-snug">Past papers</span>
@@ -401,130 +454,11 @@ export default function Index() {
                         />
                       ))}
                 </div>
-                <p className="text-meta text-muted-foreground pr-16 sm:pr-0">
+                <p className="text-meta text-white/85 pr-16 sm:pr-0 lg:text-muted-foreground">
                   Real teachers across ICSE, CBSE and State Board — with photos, subjects and localities.
                 </p>
               </div>
 
-              {/* Quick chips — horizontal scroll row on mobile, wrapped rows on desktop. */}
-              <div className="-mx-4 overflow-x-auto px-4 scrollbar-hide sm:mx-0 sm:px-0">
-                <ul className="flex w-max items-center gap-2 sm:w-full sm:flex-wrap">
-                  {SHORTCUTS.map((s) => {
-                    const palette = s.subject ? getSubjectPalette(s.subject) : null;
-                    const style = palette
-                      ? { backgroundColor: palette.solid, color: palette.badgeText }
-                      : undefined;
-                    const modeClass =
-                      !palette && s.mode === 'brand-blue'
-                        ? 'bg-brand-blue text-white'
-                        : !palette
-                          ? 'bg-brand text-brand-foreground'
-                          : '';
-                    return (
-                      <li key={s.label}>
-                        <Link
-                          to={s.to}
-                          style={style}
-                          className={`inline-flex h-11 items-center whitespace-nowrap rounded-full px-4 text-sm font-bold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${modeClass}`}
-                        >
-                          {s.label}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-
-              {/* Colorful subject icon tiles — the Ruang-Edit reference's row of
-                  saturated rounded-square icon tiles under the headline
-                  (docs/wave2-inspo/01-ruang-edit-landing.png), applied literally
-                  rather than left on the shelf. Desktop-only so the mandated
-                  mobile hero (contract §11: headline → subtext → search → chips,
-                  fits in one 375×812 viewport) is untouched. Real subjects, real
-                  counts, subject-palette colors only — no new hex. */}
-              {subjects.length > 0 && (
-                <ul className="hidden items-center gap-3 lg:flex">
-                  {subjects.slice(0, 4).map((s, i) => {
-                    const palette = getSubjectPalette(s.name);
-                    const Icon = HERO_SUBJECT_ICONS[i % HERO_SUBJECT_ICONS.length];
-                    return (
-                      <li key={s.id}>
-                        <Link
-                          to={`/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(s.name)}`}
-                          aria-label={`${s.name} tutors`}
-                          title={s.name}
-                          className="flex h-14 w-14 items-center justify-center rounded-2xl transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-                          style={{ backgroundColor: palette.solid }}
-                        >
-                          <Icon className="h-6 w-6" style={{ color: palette.badgeText }} strokeWidth={2} aria-hidden="true" />
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-
-            {/* Hero stat cluster — desktop-only, VISUAL_LANGUAGE §8. DOM structure
-                documented at the bottom of src/index.css: outer wrapper holds the
-                static tilt, middle element runs `fan-in`, inner element runs `bob`.
-                Counts come from the live stats query fetched above; §13's "never
-                render a zero" rule applies, so a null/zero count falls back to an
-                em dash rather than a fabricated number. */}
-            <div className="hidden lg:grid lg:grid-cols-2 lg:gap-4">
-              {/* Papers count — indigo, -5deg, entry 50ms, float 5.5s. */}
-              <div className="rotate-[-5deg]">
-                <div className="animate-fan-in [animation-delay:50ms]">
-                  <div className="animate-bob [animation-delay:550ms] [animation-duration:5.5s]">
-                    <div className="flex flex-col gap-1 rounded-3xl bg-brand-blue p-6 text-white shadow-glow-brand-blue">
-                      <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/75">Past papers</span>
-                      <span className="text-3xl font-extrabold tabular-nums tracking-[-.02em]">
-                        {stats.papers ? stats.papers.toLocaleString('en-IN') : '—'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Teachers count — orange, 3.5deg, entry 140ms, float 6.5s. */}
-              <div className="rotate-[3.5deg]">
-                <div className="animate-fan-in [animation-delay:140ms]">
-                  <div className="animate-bob [animation-delay:640ms] [animation-duration:6.5s]">
-                    <div className="flex flex-col gap-1 rounded-3xl bg-brand p-6 text-brand-foreground shadow-glow-brand">
-                      <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/75">Verified tutors</span>
-                      <span className="text-3xl font-extrabold tabular-nums tracking-[-.02em]">
-                        {stats.teachers ? stats.teachers.toLocaleString('en-IN') : '—'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Zero commission — bone, -2.5deg, entry 230ms, float 7.5s. */}
-              <div className="rotate-[-2.5deg]">
-                <div className="animate-fan-in [animation-delay:230ms]">
-                  <div className="animate-bob [animation-delay:730ms] [animation-duration:7.5s]">
-                    <div className="flex flex-col gap-1 rounded-3xl bg-warm-card p-6 shadow-card-bone ring-1 ring-warm-hairline">
-                      <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">Commission</span>
-                      <span className="text-3xl font-extrabold tabular-nums tracking-[-.02em]">₹0</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Subjects count — mint, 4.5deg, entry 320ms, float 6s. */}
-              <div className="rotate-[4.5deg]">
-                <div className="animate-fan-in [animation-delay:320ms]">
-                  <div className="animate-bob [animation-delay:820ms] [animation-duration:6s]">
-                    <div className="flex flex-col gap-1 rounded-3xl bg-mint p-6 shadow-card-mint">
-                      <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">Subjects</span>
-                      <span className="text-3xl font-extrabold tabular-nums tracking-[-.02em]">
-                        {subjects.length ? subjects.length.toLocaleString('en-IN') : '—'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </section>

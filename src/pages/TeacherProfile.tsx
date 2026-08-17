@@ -19,7 +19,7 @@ import { validateImageSrc } from '@/utils/imageSanitizer';
 import { saveAuthRedirect } from '@/utils/authRedirect';
 import { recordVisit } from '@/lib/recently-visited';
 import { TeacherComments } from '@/components/TeacherComments';
-import { CutPaperShape, SpeechTag, TicketShape } from '@/components/devices';
+import { CutPaperShape, SpeechTag } from '@/components/devices';
 import {
   generateTeacherPersonSchema,
   generateBreadcrumbSchema,
@@ -559,6 +559,12 @@ export default function TeacherProfile() {
   const boardsList = parseCommaList(teacher.boards_taught);
   const taughtAreas = getTaughtAreas(teacher);
   const classesList = parseCommaList(teacher.classes_taught || teacher.classes_taught_for_backend);
+  // Both fetched and already used in <title>/JSON-LD (see the SEO block above)
+  // but never rendered anywhere a visitor could actually see them — same class
+  // of bug as the classes_taught fix. Mode of teaching (Offline/Online) and
+  // qualifications are genuinely decision-relevant for a parent choosing a tutor.
+  const modeList = parseCommaList(teacher.mode_of_teaching);
+  const qualificationsText = teacher.qualifications_etc?.trim() || null;
 
   // Destination-fold accent — the whole first fold (marker highlight on the
   // headline, the missing-photo illustration, the WhatsApp ticket) is driven
@@ -814,19 +820,19 @@ export default function TeacherProfile() {
                   </span>
                 )}
               </p>
-              {/* Device Q — Ticket shape. Messaging a teacher is the product's only
-                  success action, so it gets the "arrival" treatment: a notched ticket
-                  instead of a plain button. */}
-              <TicketShape background="hsl(var(--brand))" textColor="#FFFFFF">
-                <button
-                  type="button"
-                  onClick={handleWhatsAppClick}
-                  className="whatsapp-pulse-once flex min-h-11 items-center justify-center gap-2 text-sm font-semibold text-brand-foreground transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand motion-reduce:transition-none"
-                >
-                  <WhatsAppIcon className="h-[17px] w-[17px] text-brand-foreground" />
-                  Contact via WhatsApp
-                </button>
-              </TicketShape>
+              {/* Messaging a teacher is the product's only success action. Previously
+                  a notched "ticket shape" device — user feedback called it out as
+                  gimmicky/cheap-looking on the one button that matters most. Replaced
+                  with a plain, confident solid pill: size and color carry the weight
+                  instead of a novelty silhouette. */}
+              <button
+                type="button"
+                onClick={handleWhatsAppClick}
+                className="whatsapp-pulse-once flex h-12 min-h-11 items-center justify-center gap-2 rounded-full bg-brand px-6 text-sm font-semibold text-brand-foreground shadow-border-hover transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 motion-reduce:transition-none"
+              >
+                <WhatsAppIcon className="h-[17px] w-[17px] text-brand-foreground" />
+                Contact via WhatsApp
+              </button>
             </div>
 
             {descriptionHtml && (
@@ -862,6 +868,26 @@ export default function TeacherProfile() {
                     </span>
                   ))}
                 </div>
+              </>
+            )}
+
+            {modeList.length > 0 && (
+              <>
+                <SectionHeading>Mode of teaching</SectionHeading>
+                <div className="stagger-children flex flex-wrap gap-2">
+                  {modeList.map((mode) => (
+                    <span key={mode} className="animate-card-reveal rounded-full bg-muted px-3.5 py-2 text-sm font-medium text-foreground">
+                      {mode}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {qualificationsText && (
+              <>
+                <SectionHeading>Qualifications</SectionHeading>
+                <p className="max-w-prose text-base leading-7 text-warm-prose">{qualificationsText}</p>
               </>
             )}
           </div>

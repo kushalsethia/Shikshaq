@@ -559,7 +559,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               <Star className="h-3 w-3 fill-current sm:h-4 sm:w-4" strokeWidth={0} />
             </span>
 
-            <span className="pointer-events-none absolute right-[2%] bottom-2 -rotate-12 rounded-xl bg-panel px-2 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-white shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
+            <span className="pointer-events-none absolute right-[2%] bottom-2 -rotate-12 rounded-lg bg-panel px-2 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-white shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
               No commission
             </span>
           </div>

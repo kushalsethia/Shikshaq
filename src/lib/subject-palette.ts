@@ -144,12 +144,20 @@ function contrastRatio(a: string, b: string): number {
  * seeds (science/commerce/computer/hindi's solids land at 45-55% lightness —
  * legible-looking but under 4.5:1 against white for body text). Rather than
  * silently repaint the spec's colors, badgeText is picked by an actual WCAG
- * contrast check against the real rendered solid, falling back to the dark
- * NEUTRAL_TEXT reading whenever white wouldn't clear AA — the color stays
- * exactly what the spec says, only which text sits on top of it changes. */
+ * contrast check against the real rendered solid: white if it clears AA,
+ * otherwise whichever of white/NEUTRAL_TEXT measures the higher contrast
+ * against that solid (a straight "does white fail → use dark" fallback
+ * previously assumed dark always wins, which isn't true for mid-lightness
+ * solids like the blue seed — dark-on-blue measured 3.72:1, still failing).
+ * The color stays exactly what the spec says, only which text sits on top
+ * of it changes. */
 export function paletteFromSeed(seed: SubjectSeed): SubjectPalette {
   const solid = hslToHex(seed.h, seed.s, seed.l);
-  const badgeText = contrastRatio(solid, WHITE) >= 4.5 ? WHITE : NEUTRAL_TEXT;
+  const whiteContrast = contrastRatio(solid, WHITE);
+  const darkContrast = contrastRatio(solid, NEUTRAL_TEXT);
+  const badgeText = whiteContrast >= 4.5
+    ? WHITE
+    : darkContrast > whiteContrast ? NEUTRAL_TEXT : WHITE;
   return {
     tint: hslToHex(seed.h, seed.s, TINT_L),
     solid,

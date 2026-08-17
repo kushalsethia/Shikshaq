@@ -198,12 +198,22 @@
     outline-offset: 2px;
   }
 
-  html, body {
+  html {
     overflow-x: hidden;
     width: 100%;
   }
-  
+
+  /* `body` intentionally does NOT also get overflow-x:hidden: setting overflow
+     on both html and body makes body its own scroll container per the CSS
+     Overflow spec (overflow-x != visible forces overflow-y to compute as
+     auto). The real page scroll happens on `html` (documentElement) in
+     standards mode, so body's scrollport never moves — any `position: sticky`
+     descendant of body (the header) computes stickiness against that inert
+     scrollport and silently behaves like `static`, scrolling away instead of
+     pinning. `html`'s overflow-x:hidden alone already clips horizontal
+     overflow at the real scrolling element, so body doesn't need its own. */
   body {
+    width: 100%;
     @apply bg-background text-foreground antialiased;
     /* No font-family here — Tailwind's font-sans (tailwind.config.ts) already
        resolves to the identical Geist stack; redeclaring it was a no-op. */

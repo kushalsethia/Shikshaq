@@ -396,7 +396,7 @@ export default function PastPapers() {
                       style={{ backgroundColor: palette.tint }}
                     >
                       <span
-                        className="flex h-11 w-11 flex-none items-center justify-center rounded-lg sm:mb-6"
+                        className="flex h-10 w-10 flex-none items-center justify-center rounded-lg sm:mb-6"
                         style={{ backgroundColor: palette.solid }}
                       >
                         <Icon size={21} strokeWidth={1.9} aria-hidden="true" style={{ color: palette.badgeText }} />
@@ -429,7 +429,7 @@ export default function PastPapers() {
                       onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
                       className={`flex min-h-11 animate-card-reveal items-center gap-4 rounded-2xl bg-brand-blue-subtle p-4 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 sm:block sm:p-6 ${FOCUS_BLUE}`}
                     >
-                      <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-brand-blue sm:mb-6">
+                      <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-blue sm:mb-6">
                         <LandmarkIcon size={21} className="text-white" strokeWidth={1.9} aria-hidden="true" />
                       </span>
                       <span className="min-w-0 flex-1">
@@ -467,6 +467,7 @@ export default function PastPapers() {
                 <div>
                   <p className="mb-3 text-label font-bold uppercase text-foreground/70">Class</p>
                   <PillRow
+                    layout="grid"
                     items={PAPER_CLASSES.map((c, i) => {
                       const p = paletteFromSeed(PILL_SEEDS[i % PILL_SEEDS.length]);
                       return {
@@ -483,13 +484,13 @@ export default function PastPapers() {
                 <div>
                   <p className="mb-3 text-label font-bold uppercase text-foreground/70">Board</p>
                   <PillRow
+                    layout="grid"
                     items={BOARDS.map((b, i) => {
                       const p = paletteFromSeed(PILL_SEEDS[(i + 3) % PILL_SEEDS.length]);
                       return {
                         key: `board-${b}`,
                         badge: b.slice(0, 2).toUpperCase(),
                         label: b,
-                        meta: boardCounts[b] > 0 ? `${boardCounts[b]} paper${boardCounts[b] === 1 ? '' : 's'}` : undefined,
                         color: p.tint,
                         textColor: p.text,
                         onClick: () => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`),

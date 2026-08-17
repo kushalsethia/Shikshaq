@@ -151,10 +151,16 @@ function SubjectCardComponent({
       ? `/past-papers/results?filter_subjects=${encodeURIComponent(name)}`
       : SUBJECT_NAME_TO_PATH[name] ?? `/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(name)}`;
 
+  // DESIGN_SYSTEM §13 "never render a literal zero": with papers data still
+  // unseeded, every card in the grid was reading "... · 0 papers" — not an
+  // honest "empty" state but a broken-looking one, repeated on every tile.
+  // Drop the paper-count clause entirely when there's nothing to report.
   const meta =
     context === 'papers'
       ? pluralize(paperCount, 'paper')
-      : `${pluralize(teacherCount, 'teacher')} · ${pluralize(paperCount, 'paper')}`;
+      : paperCount > 0
+        ? `${pluralize(teacherCount, 'teacher')} · ${pluralize(paperCount, 'paper')}`
+        : pluralize(teacherCount, 'teacher');
 
   /* VISUAL_LANGUAGE §3/§5 — subject-tinted card: background = subject `tint`,
      icon tile = subject `solid` holding a `badgeText`-coloured icon, title in
@@ -185,7 +191,7 @@ function SubjectCardComponent({
         className="pointer-events-none absolute -bottom-4 -right-4 opacity-[0.16]"
       />
       <span
-        className="relative mb-3 flex h-9 w-9 items-center justify-center rounded-lg"
+        className="relative mb-3 flex h-10 w-10 items-center justify-center rounded-lg"
         style={{ backgroundColor: palette.solid, color: palette.badgeText }}
       >
         {iconComponent ?? <Icon className="h-4 w-4" strokeWidth={2} aria-hidden="true" />}

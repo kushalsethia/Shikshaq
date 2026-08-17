@@ -1504,7 +1504,6 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
           title={finalHeaderTitle}
           lede={headerLede}
           tags={headerTags}
-          badge={{ label: 'Free', color: 'hsl(var(--brand-blue))' }}
           accent={headerAccent}
           ground="graph"
           className="-mx-4 -mt-4 sm:-mx-6 sm:-mt-6 lg:-mx-8"
@@ -1557,20 +1556,23 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
             </div>
           </div>
 
-          {/* Subject quick-picks — colorful, using the site's own strongest visual asset
-              (getSubjectPalette, the same tinted system the home page's subject grid uses)
-              instead of a plain grey dropdown as the primary way to narrow by subject.
-              Default-view only, same gating as the featured shelf below. */}
+          {/* Subject quick-picks. Previously used getSubjectPalette's fully-saturated
+              `solid`/`badgeText` pair per pill — ten different saturated hues side by
+              side in one row read as chaotic/candy-like rather than a considered filter
+              row. Switched to the same restrained `tint`/`text` pairing the subject-card
+              bento grid uses at rest (soft tint background, colored text, no fill until
+              selected) — each subject still reads as visually distinct by hue, just not
+              shouting. Default-view only, same gating as the featured shelf below. */}
           {isDefaultView && sortedSubjectsForDisplay.length > 0 && (
-            <div className="mt-5 flex flex-wrap gap-2.5">
+            <div className="mt-5 flex flex-wrap gap-2">
               {sortedSubjectsForDisplay.slice(0, 10).map((subject) => {
                 const palette = getSubjectPalette(subject.name);
                 return (
                   <button
                     key={subject.id}
                     onClick={() => handleSubjectChange(subject.slug)}
-                    className="flex min-h-11 items-center rounded-full px-4 text-sm font-bold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
-                    style={{ backgroundColor: palette.solid, color: palette.badgeText }}
+                    className="flex min-h-11 items-center rounded-full px-4 text-sm font-semibold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                    style={{ backgroundColor: palette.tint, color: palette.text }}
                   >
                     {subject.name}
                   </button>

@@ -155,23 +155,29 @@ function TeacherCardComponent({
           </button>
         )}
 
-        {/* Upvote count — read-only pill, size 'md' only */}
-        {showUpvotes && (
-          <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-card px-3 py-1 text-meta font-medium tabular-nums text-muted-foreground shadow-border">
-            <ArrowUp className="h-3 w-3" strokeWidth={2.25} aria-hidden="true" />
-            {upvoteCount}
-          </span>
-        )}
       </div>
 
       {/* Body */}
       <div className="p-3 sm:p-4">
-        <h3
-          className={`line-clamp-2 break-words font-display font-semibold text-foreground ${isSm ? 'text-card-title' : 'text-card-title-lg'}`}
-          title={displayName}
-        >
-          {displayName}
-        </h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3
+            className={`line-clamp-2 break-words font-display font-semibold text-foreground ${isSm ? 'text-card-title' : 'text-card-title-lg'}`}
+            title={displayName}
+          >
+            {displayName}
+          </h3>
+          {/* Upvote count, real trust signal (no fabricated rating — a prior
+              defect sweep removed a fake "ratingValue": "5" emitted on every
+              JSON-LD review regardless of content). Moved off the photo into
+              the body, next to the name, reading closer to a marketplace
+              rating chip than a small overlaid pill. */}
+          {showUpvotes && upvoteCount > 0 && (
+            <span className="flex flex-none items-center gap-1 rounded-full bg-muted px-2 py-1 text-meta font-bold tabular-nums text-foreground">
+              <ArrowUp className="h-3 w-3 text-brand" strokeWidth={2.5} aria-hidden="true" />
+              {upvoteCount}
+            </span>
+          )}
+        </div>
         {meta && (
           <p className={`mt-1 truncate text-muted-foreground ${isSm ? 'text-meta' : 'text-body-secondary'}`}>{meta}</p>
         )}
