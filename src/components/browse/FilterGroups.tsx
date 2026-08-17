@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import {
+  BookOpen, GraduationCap, MapPin, IndianRupee, Wifi, Landmark, Users, Clock,
+  type LucideIcon,
+} from 'lucide-react';
 import { Chip } from '@/components/ui/chip';
 import { Input } from '@/components/ui/input';
 import {
@@ -97,10 +101,21 @@ export interface FilterGroupsProps {
 
 type ArrayFilterKey = 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas';
 
-function groupCard(label: string, children: React.ReactNode) {
+/* core-02-filters.png heads each group with a small square icon tile and a
+   sentence-case heading ("Subjects taught"), not the all-caps micro-label this
+   rendered. The comment on FilterGroupsBody below already described these as
+   "icon-labelled groups" — the icons had just never been built. They also make
+   a long sheet scannable, which an eight-group filter panel needs more than
+   most screens. */
+function groupCard(label: string, Icon: LucideIcon, children: React.ReactNode) {
   return (
     <div key={label} className="rounded-[20px] bg-card p-[18px] shadow-border">
-      <h3 className="mb-[14px] text-[11.5px] font-bold uppercase tracking-[.07em] text-warm-meta">{label}</h3>
+      <h3 className="mb-[14px] flex items-center gap-[10px] font-display text-[16px] font-extrabold text-foreground">
+        <span className="flex h-8 w-8 flex-none items-center justify-center rounded-xl bg-muted text-warm-prose">
+          <Icon className="size-4" aria-hidden="true" />
+        </span>
+        {label}
+      </h3>
       {children}
     </div>
   );
@@ -150,21 +165,24 @@ export function FilterGroupsBody({
   return (
     <div className="flex flex-col gap-[14px]">
       {groupCard(
-        'Subject',
+        'Subjects taught',
+        BookOpen,
         <div className="flex flex-wrap gap-[8px]">
           {SUBJECTS.map((s) => pill(s, filters.subjects.includes(s), () => toggle('subjects', s)))}
         </div>,
       )}
 
       {groupCard(
-        'Class',
+        'Classes taught',
+        GraduationCap,
         <div className="flex flex-wrap gap-[8px]">
           {CLASSES.map((c) => pill(c === 'UG' ? 'UG' : `Class ${c}`, filters.classes.includes(c), () => toggle('classes', c), c))}
         </div>,
       )}
 
       {groupCard(
-        'Area',
+        'Areas',
+        MapPin,
         <div className="flex flex-col gap-4">
           <Input
             type="search"
@@ -191,6 +209,7 @@ export function FilterGroupsBody({
 
       {groupCard(
         'Rate per hour',
+        IndianRupee,
         <div className="flex flex-col gap-3">
           {/* Two-handle range: simple overlaid <input type=range> pair — no
               slider primitive exists in the codebase yet, and the values map
@@ -239,7 +258,8 @@ export function FilterGroupsBody({
       )}
 
       {groupCard(
-        'Mode',
+        'Mode of teaching',
+        Wifi,
         <div className="flex flex-wrap gap-[8px]">
           {MODE_OPTIONS.map((opt) =>
             pill(opt.label, opt.isActive(filters), () => onFilterChange(opt.toggle(filters)), opt.label),
@@ -251,7 +271,8 @@ export function FilterGroupsBody({
           only way to set board/class-size/experience filters, and Board feeds
           the `filter_boards` URL contract the SEO routes depend on. */}
       {groupCard(
-        'Board',
+        'Boards',
+        Landmark,
         <div className="flex flex-wrap gap-[8px]">
           {BOARDS.map((b) => pill(b, filters.boards.includes(b), () => toggle('boards', b), b))}
         </div>,
@@ -259,6 +280,7 @@ export function FilterGroupsBody({
 
       {groupCard(
         'Class size',
+        Users,
         <div className="flex flex-wrap gap-[8px]">
           {CLASS_SIZE.map((s) =>
             pill(s === 'Solo' ? 'One-on-one' : s, filters.classSize.includes(s), () => toggle('classSize', s), s),
@@ -268,6 +290,7 @@ export function FilterGroupsBody({
 
       {groupCard(
         'Experience',
+        Clock,
         <Select
           value={filters.minExperience || 'all'}
           onValueChange={(value) => onFilterChange({ ...filters, minExperience: value === 'all' ? null : value })}
@@ -391,8 +414,14 @@ export function FilterSheet({
 
         {/* Sticky footer */}
         <div className="flex items-center justify-between gap-[10px] border-t border-border bg-card px-[16px] py-[14px]">
+          {/* core-02-filters.png shows "2 filters active" alongside two chosen
+              chips. With nothing chosen this read "0 filters active", which is
+              the same advertise-a-zero pattern found on About, sign-in and the
+              trust strip — and here it is also just noise, since the sheet you
+              have not touched yet obviously has no filters on. Empty until
+              there is something to report. */}
           <span className="text-[13px] text-warm-secondary">
-            {count} filter{count === 1 ? '' : 's'} active
+            {count > 0 ? `${count} filter${count === 1 ? '' : 's'} active` : ''}
           </span>
           <Button
             variant="primary"
