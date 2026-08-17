@@ -48,7 +48,14 @@ const NumberedHeading = React.forwardRef<HTMLElement, NumberedHeadingProps>(
           <span
             aria-hidden
             className={cn(
-              "absolute left-0 top-[1.35em] text-label font-bold tracking-[0.07em]",
+              /* Anchored to the BOTTOM of the two-line block, not `top-[1.35em]`.
+                 `em` here resolves against the ordinal's own 11.5px font-size,
+                 not the heading's, so the old offset was ~15px and dropped the
+                 ordinal 9px into line 1 — it drew on top of the first line's
+                 letters instead of sitting beside line 2. Line 2 is always the
+                 last line, so measuring from the bottom centres it there at any
+                 heading size. `pl-8` on line 2 keeps the gutter clear for it. */
+              "absolute bottom-[0.47em] left-0 text-label font-bold tracking-[0.07em]",
               onDark ? "text-background/55" : "text-warm-label",
             )}
           >
