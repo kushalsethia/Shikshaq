@@ -544,6 +544,21 @@ export default function TeacherProfile() {
               {/* S3 top row: 40x40 icon buttons, 18px icons, 8px gap, 16px margin-bottom.
                   Kept at a 44px hit area (padding) around the 40px visual per the
                   44px-minimum rule — mockup draws the control smaller than the a11y floor. */}
+              {/* Desktop back link. desktop-03-teacher-profile.png puts
+                  "‹ Back to 48 Maths teachers" in the top bar; the row below is
+                  lg:hidden, so at desktop width this page offered NO way back to
+                  the list at all — only the browser's own back button, which
+                  does not exist for someone who arrived from a search result.
+                  The label says where you are going in words rather than
+                  relying on a bare chevron, since there is room for it here. */}
+              <Link
+                to={backHref}
+                className="mb-[16px] hidden items-center gap-2 text-[13px] font-semibold text-background/70 transition-colors duration-150 hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:inline-flex"
+              >
+                <ArrowLeft size={16} aria-hidden="true" />
+                Back to all teachers
+              </Link>
+
               <div className="mb-[16px] flex items-center justify-between lg:hidden">
                 <button
                   type="button"
