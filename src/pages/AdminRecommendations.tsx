@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
+  AdminAuditFootnote,
   AdminStatTiles,
   adminPrimaryBtnStyle,
   adminSecondaryBtnStyle,
@@ -55,6 +56,7 @@ export default function AdminRecommendations() {
   const [editStatus, setEditStatus] = useState<string>('');
   const [editNotes, setEditNotes] = useState<string>('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
   async function fetchRecommendations() {
     try {
@@ -62,7 +64,7 @@ export default function AdminRecommendations() {
       const { data, error } = await supabase
         .from('teacher_recommendations')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: sortOrder === 'oldest' });
 
       if (error) {
         if (import.meta.env.DEV) {
@@ -99,6 +101,11 @@ export default function AdminRecommendations() {
   useEffect(() => {
     if (!checkingAdmin) setLoading(false);
   }, [checkingAdmin]);
+
+  useEffect(() => {
+    if (isAdmin) fetchRecommendations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortOrder, isAdmin]);
 
   const handleEdit = (rec: Recommendation) => {
     setEditingId(rec.id);
@@ -292,6 +299,18 @@ export default function AdminRecommendations() {
     );
   }
 
+  const sortSlot = (
+    <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'newest' | 'oldest')}>
+      <SelectTrigger className="h-11 w-[150px] rounded-full border-0 bg-muted text-sm font-semibold">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="newest">Newest first</SelectItem>
+        <SelectItem value="oldest">Oldest first</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <AdminConsole
       activeTab="recommendations"
@@ -299,6 +318,7 @@ export default function AdminRecommendations() {
       subtitle="Teachers suggested by students. Contact, verify, then invite."
       tint={TINT}
       tabCount={pendingCount}
+      sort={sortSlot}
     >
       {recommendations.length > 0 && (
         <AdminStatTiles
@@ -399,6 +419,8 @@ export default function AdminRecommendations() {
           </div>
         );
       })()}
+
+      <AdminAuditFootnote />
     </AdminConsole>
   );
 }

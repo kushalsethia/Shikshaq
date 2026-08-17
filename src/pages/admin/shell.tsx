@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { cn } from '@/lib/utils';
@@ -91,13 +92,18 @@ export interface AdminToolbarProps {
   title: string;
   /** Real "N waiting"-style badge. Omit if no count applies. */
   badge?: string;
+  /** Search field slot, top-right of the toolbar. Omit if the page has no search. */
+  search?: ReactNode;
+  /** Sort control slot, top-right of the toolbar, next to search. Only pass this when a
+   *  real, meaningful data column backs the sort (e.g. created_at) — never a placeholder. */
+  sort?: ReactNode;
   className?: string;
 }
 
 /** The 68px toolbar. Renders lg: and up only. */
-export function AdminToolbar({ title, badge, className }: AdminToolbarProps) {
+export function AdminToolbar({ title, badge, search, sort, className }: AdminToolbarProps) {
   return (
-    <div className={cn('hidden h-[68px] items-center justify-between border-b border-warm-hairline bg-card px-7 lg:flex', className)}>
+    <div className={cn('hidden h-[68px] items-center justify-between gap-4 border-b border-warm-hairline bg-card px-7 lg:flex', className)}>
       <div className="flex items-center gap-[14px]">
         <span className="font-display text-[22px] font-extrabold tracking-[-0.03em] text-foreground">{title}</span>
         {badge ? (
@@ -106,6 +112,12 @@ export function AdminToolbar({ title, badge, className }: AdminToolbarProps) {
           </span>
         ) : null}
       </div>
+      {(search || sort) ? (
+        <div className="flex items-center gap-2">
+          {search}
+          {sort}
+        </div>
+      ) : null}
     </div>
   );
 }

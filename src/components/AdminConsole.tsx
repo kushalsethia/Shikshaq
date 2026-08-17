@@ -123,6 +123,7 @@ export function useReviewerNames(reviewerIds: (string | null | undefined)[]) {
 export type AdminTabKey =
   | 'applications'
   | 'teachers'
+  | 'papers'
   | 'upvotes'
   | 'comments'
   | 'feedback'
@@ -131,6 +132,7 @@ export type AdminTabKey =
 const TAB_ORDER: { key: AdminTabKey; label: string; path: string }[] = [
   { key: 'applications', label: 'Applications', path: '/admin/applications' },
   { key: 'teachers', label: 'Teachers', path: '/admin/teachers' },
+  { key: 'papers', label: 'Papers', path: '/admin/papers' },
   { key: 'upvotes', label: 'Upvotes', path: '/admin/upvotes' },
   { key: 'comments', label: 'Comments', path: '/admin/comments' },
   { key: 'feedback', label: 'Feedback', path: '/admin/feedback' },
@@ -150,13 +152,14 @@ function useAdminTabCounts(activeTab: AdminTabKey, liveCount?: number) {
   useEffect(() => {
     let cancelled = false;
     async function run() {
-      const [applications, comments, recommendations, feedback, teachers, upvotes] = await Promise.all([
+      const [applications, comments, recommendations, feedback, teachers, upvotes, papers] = await Promise.all([
         supabase.from('teacher_applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('approved', false),
         supabase.from('teacher_recommendations').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('feedback').select('id', { count: 'exact', head: true }),
         supabase.from('Shikshaqmine').select('id', { count: 'exact', head: true }),
         supabase.from('teacher_upvotes').select('teacher_id', { count: 'exact', head: true }),
+        supabase.from('papers').select('id', { count: 'exact', head: true }),
       ]);
       if (cancelled) return;
       setCounts({
@@ -166,6 +169,7 @@ function useAdminTabCounts(activeTab: AdminTabKey, liveCount?: number) {
         feedback: feedback.count ?? undefined,
         teachers: teachers.count ?? undefined,
         upvotes: upvotes.count ?? undefined,
+        papers: papers.count ?? undefined,
       });
     }
     run();
@@ -188,10 +192,15 @@ interface AdminConsoleProps {
   tint: { bg: string; text: string };
   /** Live count for the tab currently being viewed, computed from data the page already fetched. */
   tabCount?: number;
+  /** Search field rendered in the 68px desktop toolbar, top-right. Omit if the page has no search. */
+  search?: ReactNode;
+  /** Sort control rendered in the toolbar next to search. Only pass when a real, meaningful
+   *  data column backs it (e.g. created_at) — never a fake/dead sort. */
+  sort?: ReactNode;
   children: ReactNode;
 }
 
-export function AdminConsole({ activeTab, title, subtitle, tint, tabCount, children }: AdminConsoleProps) {
+export function AdminConsole({ activeTab, title, subtitle, tint, tabCount, search, sort, children }: AdminConsoleProps) {
   const counts = useAdminTabCounts(activeTab, tabCount);
 
   // Redesign S7/C-061 — real per-section counts only, never a placeholder.
@@ -257,7 +266,12 @@ export function AdminConsole({ activeTab, title, subtitle, tint, tabCount, child
 
       <div className="flex min-h-screen flex-col lg:pl-[244px]">
         {/* Desktop toolbar, 68px. Mobile keeps its own header below. */}
-        <AdminToolbar title={title} badge={typeof activeCount === 'number' ? `${activeCount} waiting` : undefined} />
+        <AdminToolbar
+          title={title}
+          badge={typeof activeCount === 'number' ? `${activeCount} waiting` : undefined}
+          search={search}
+          sort={sort}
+        />
 
         {/* Mobile / tablet: the existing tab-row console (design.md §4 "Admin
             (S12)") stays the on-call view, unchanged. */}
@@ -530,6 +544,20 @@ export function AdminStatTiles({ stats }: { stats: { label: string; value: numbe
         </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * Verbatim footnote shown under the table on every admin section page (applications, teachers,
+ * papers, comments, recommendations) — NOT the audit log page, which has its own copy. The audit
+ * log and its recordAdminAction instrumentation now exist, so this is factual, not aspirational.
+ */
+export function AdminAuditFootnote() {
+  return (
+    <p className="mt-5 max-w-prose text-[13px] leading-[1.5] text-warm-label">
+      Approvals, rejections and takedowns are written to the audit log with your name and the exact time. Rejections
+      always carry a reason the teacher can read.
+    </p>
   );
 }
 

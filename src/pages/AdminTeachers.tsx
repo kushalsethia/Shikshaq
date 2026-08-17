@@ -26,6 +26,8 @@ import { convertClassesToRoman } from '@/utils/romanNumerals';
 import { SURFACE_TOKENS, ACCENT_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
+  AdminAuditFootnote,
+  AdminStatTiles,
   adminFieldStyle,
   adminPanelStyle,
   adminPrimaryBtnStyle,
@@ -104,6 +106,9 @@ interface TeacherData {
   "Years they started teaching": string | null;
   "Min Fees": number | null;
   "Max Fees": number | null;
+  /** Self-service pause flag (see TeacherDashboard.tsx) — selected via `select('*')` below, so it's
+   *  a real column, just not yet in the generated Database types (same caveat as TeacherDashboard). */
+  is_paused?: boolean | null;
 }
 
 const TEACHERS_TINT = { bg: SURFACE_TOKENS.mutedFill, text: SURFACE_TOKENS.textBody };
@@ -123,6 +128,7 @@ export default function AdminTeachers() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortBy, setSortBy] = useState<'name' | 'fees'>('name');
 
   // Form state
   const [formData, setFormData] = useState<Partial<TeacherData>>({});
@@ -202,23 +208,31 @@ export default function AdminTeachers() {
     }
   }
 
-  // Filter teachers based on search query
+  // Filter teachers based on search query, then sort — both real, already-fetched fields.
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredTeachers(teachers);
-      return;
+    let filtered = teachers;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = teachers.filter(
+        (teacher) =>
+          teacher.Title?.toLowerCase().includes(query) ||
+          teacher.Slug?.toLowerCase().includes(query) ||
+          teacher["Email ID"]?.toLowerCase().includes(query) ||
+          teacher["Phone Number"]?.includes(query)
+      );
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = teachers.filter(
-      (teacher) =>
-        teacher.Title?.toLowerCase().includes(query) ||
-        teacher.Slug?.toLowerCase().includes(query) ||
-        teacher["Email ID"]?.toLowerCase().includes(query) ||
-        teacher["Phone Number"]?.includes(query)
-    );
+    filtered = [...filtered].sort((a, b) => {
+      if (sortBy === 'fees') {
+        const aFee = a['Min Fees'] ?? Number.POSITIVE_INFINITY;
+        const bFee = b['Min Fees'] ?? Number.POSITIVE_INFINITY;
+        return aFee - bFee;
+      }
+      return (a.Title || '').localeCompare(b.Title || '');
+    });
+
     setFilteredTeachers(filtered);
-  }, [searchQuery, teachers]);
+  }, [searchQuery, teachers, sortBy]);
 
   // Helper function to normalize multi-select values for comparison
   const normalizeValue = (value: string): string => {
@@ -533,11 +547,14 @@ export default function AdminTeachers() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedTeacher) return;
+  // Accepts an explicit target so the row overflow menu can delete a teacher without first
+  // selecting/opening it — same mutation the "Delete" button in the open editor already uses.
+  const handleDelete = async (target?: TeacherData) => {
+    const teacher = target ?? selectedTeacher;
+    if (!teacher) return;
 
     const confirmed = window.confirm(
-      `Are you sure you want to delete "${selectedTeacher.Title}"? This will remove them from Shikshaqmine and their profile role will be reverted to student.`
+      `Are you sure you want to delete "${teacher.Title}"? This will remove them from Shikshaqmine and their profile role will be reverted to student.`
     );
     if (!confirmed) return;
 
@@ -547,7 +564,7 @@ export default function AdminTeachers() {
       const { error } = await supabase
         .from('Shikshaqmine')
         .delete()
-        .eq('id', selectedTeacher.id);
+        .eq('id', teacher.id);
 
       if (error) {
         if (import.meta.env.DEV) {
@@ -557,7 +574,7 @@ export default function AdminTeachers() {
         return;
       }
 
-      adminToast(`"${selectedTeacher.Title}" has been deleted`);
+      adminToast(`"${teacher.Title}" has been deleted`);
 
       if (user) {
         void recordAdminAction({
@@ -565,13 +582,13 @@ export default function AdminTeachers() {
           actorName,
           action: 'delete',
           targetType: 'teacher',
-          targetId: String(selectedTeacher.id),
-          targetLabel: selectedTeacher.Title || 'teacher',
+          targetId: String(teacher.id),
+          targetLabel: teacher.Title || 'teacher',
         });
       }
 
-      if (selectedTeacher.Slug) {
-        invalidateTeacherCache(selectedTeacher.Slug);
+      if (teacher.Slug) {
+        invalidateTeacherCache(teacher.Slug);
         removeCache('featured_teachers_browse');
         removeCache('featured_teachers_index');
         const keys = Object.keys(localStorage);
@@ -582,9 +599,11 @@ export default function AdminTeachers() {
         });
       }
 
-      setSelectedTeacher(null);
-      setFormData({});
-      setImagePreview(null);
+      if (selectedTeacher?.id === teacher.id) {
+        setSelectedTeacher(null);
+        setFormData({});
+        setImagePreview(null);
+      }
       await fetchTeachers();
     } catch (error) {
       if (import.meta.env.DEV) {
@@ -629,10 +648,13 @@ export default function AdminTeachers() {
       title: teacher.Title || 'Untitled',
       subtitle: teacher.Slug || undefined,
       cells: [teacher.Subjects || '—', feesLabel],
-      tone: isSelected ? 'info' : teacher.Featured ? 'ok' : 'idle',
-      tag: isSelected ? 'Editing' : teacher.Featured ? 'Featured' : 'Live',
+      tone: isSelected ? 'info' : teacher.is_paused ? 'idle' : teacher.Featured ? 'ok' : 'idle',
+      tag: isSelected ? 'Editing' : teacher.is_paused ? 'Paused' : teacher.Featured ? 'Featured' : 'Live',
       actionLabel: 'Edit',
       onAction: () => setSelectedTeacher(teacher),
+      // Reuses the same delete mutation the open editor's "Delete" button already calls — no new
+      // mutation, just a row-scoped entry point into it.
+      onOverflow: () => handleDelete(teacher),
     };
   });
 
@@ -676,6 +698,32 @@ export default function AdminTeachers() {
     );
   }
 
+  const teacherSearchSlot = (
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: SURFACE_TOKENS.textTertiary }} aria-hidden />
+      <input
+        type="search"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Search teachers..."
+        aria-label="Search teachers"
+        className="h-11 w-[240px] rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
+      />
+    </div>
+  );
+
+  const teacherSortSlot = (
+    <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'name' | 'fees')}>
+      <SelectTrigger className="h-11 w-[150px] rounded-full border-0 bg-muted text-sm font-semibold">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="name">Name (A–Z)</SelectItem>
+        <SelectItem value="fees">Fees: low to high</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <AdminConsole
       activeTab="teachers"
@@ -683,11 +731,21 @@ export default function AdminTeachers() {
       subtitle="Everything currently visible in browse results."
       tint={TEACHERS_TINT}
       tabCount={teachers.length}
+      search={teacherSearchSlot}
+      sort={teacherSortSlot}
     >
+      <AdminStatTiles
+        stats={[
+          { label: 'Total', value: teachers.length },
+          { label: 'Featured', value: teachers.filter((t) => t.Featured).length },
+          { label: 'Paused', value: teachers.filter((t) => t.is_paused).length },
+          { label: 'Live', value: teachers.filter((t) => !t.is_paused).length },
+        ]}
+      />
         <div className="flex flex-col gap-6">
           {/* Teacher List — shared AdminTable template (admin-02-live-teachers) */}
           <div>
-            <div className="relative mb-4 max-w-sm">
+            <div className="relative mb-4 max-w-sm lg:hidden">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: SURFACE_TOKENS.textTertiary }} />
               <Input
                 type="text"
@@ -705,6 +763,7 @@ export default function AdminTeachers() {
             ) : (
               <AdminTable columns={teacherColumns} rows={teacherRows} />
             )}
+            <AdminAuditFootnote />
           </div>
 
           {/* Teacher Form */}
@@ -743,7 +802,7 @@ export default function AdminTeachers() {
                       )}
                     </button>
                     <button
-                      onClick={handleDelete}
+                      onClick={() => handleDelete()}
                       disabled={saving || deleting}
                       style={adminDestructiveBtnStyle}
                       className="disabled:opacity-60"

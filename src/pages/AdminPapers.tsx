@@ -15,7 +15,10 @@ import { ArrowLeft, Loader2, Lock, Plus, Save, Search, Trash2, Upload, X } from 
 import { useAuth } from '@/lib/auth-context';
 import { recordAdminAction } from '@/lib/audit';
 import { SUBJECTS, CLASSES, BOARDS, EXAM_TYPES, SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
+  AdminConsole,
+  AdminAuditFootnote,
   adminFieldStyle,
   adminPanelStyle,
   adminPrimaryBtnStyle,
@@ -75,6 +78,7 @@ export default function AdminPapers() {
   const [deleting, setDeleting] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
   useEffect(() => {
     async function checkAdminStatus() {
@@ -119,11 +123,16 @@ export default function AdminPapers() {
     }
   }
 
-  const filteredPapers = papers.filter((p) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return p.title.toLowerCase().includes(q) || p.school.toLowerCase().includes(q) || p.subject.toLowerCase().includes(q);
-  });
+  const filteredPapers = papers
+    .filter((p) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return p.title.toLowerCase().includes(q) || p.school.toLowerCase().includes(q) || p.subject.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortOrder === 'newest' ? -diff : diff;
+    });
 
   const paperColumns: AdminTableColumn[] = [
     { key: 'paper', label: 'Paper', width: '2.2fr' },
@@ -392,24 +401,44 @@ export default function AdminPapers() {
     );
   }
 
-  const maxWidth = activeTab === 'upload' ? 900 : 1000;
+  const paperSearchSlot = (
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: SURFACE_TOKENS.textTertiary }} aria-hidden />
+      <input
+        type="search"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Search papers..."
+        aria-label="Search papers"
+        className="h-11 w-[240px] rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
+      />
+    </div>
+  );
+
+  const paperSortSlot = (
+    <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'newest' | 'oldest')}>
+      <SelectTrigger className="h-11 w-[160px] rounded-full border-0 bg-muted text-sm font-semibold">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="newest">Newest upload</SelectItem>
+        <SelectItem value="oldest">Oldest upload</SelectItem>
+      </SelectContent>
+    </Select>
+  );
 
   return (
-    <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }} className="flex flex-col">
-      <main
-        className="flex-1 w-full mx-auto"
-        style={{ maxWidth, padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}
-      >
+    <AdminConsole
+      activeTab="papers"
+      title="Papers"
+      subtitle="Past-paper library — upload new files or manage what's published."
+      tint={{ bg: PAPERS_TINT.tintBg, text: PAPERS_TINT.tintText }}
+      tabCount={papers.length}
+      search={activeTab === 'manage' ? paperSearchSlot : undefined}
+      sort={activeTab === 'manage' ? paperSortSlot : undefined}
+    >
         <div className="flex items-center gap-3 mb-2">
-          <button
-            onClick={() => navigate('/admin')}
-            aria-label="Back to admin console"
-            className="inline-flex items-center justify-center transition-colors"
-            style={{ width: 40, height: 40, borderRadius: 12, boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`, color: SURFACE_TOKENS.textPrimary, flexShrink: 0 }}
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <h1 style={{ fontSize: 'clamp(23px,3vw,32px)', lineHeight: 1, fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>
+          <h1 style={{ fontSize: 'clamp(19px,2.4vw,24px)', lineHeight: 1, fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>
             {activeTab === 'upload' ? 'Upload papers' : 'Manage papers'}
           </h1>
         </div>
@@ -626,7 +655,7 @@ export default function AdminPapers() {
             />
 
             <div className="flex items-center gap-2 mb-4">
-              <div className="relative flex-1">
+              <div className="relative flex-1 lg:hidden">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: SURFACE_TOKENS.textTertiary }} />
                 <input
                   value={searchQuery}
@@ -653,25 +682,20 @@ export default function AdminPapers() {
             ) : (
               <AdminTable columns={paperColumns} rows={paperRows} />
             )}
+            <AdminAuditFootnote />
           </div>
         )}
 
         {/* Edit panel (Manage tab -> Edit) */}
-        {editing && activeTab === 'manage' && (
-          <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={closeEditor}
+        <Dialog open={editing && activeTab === 'manage'} onOpenChange={(open) => { if (!open) closeEditor(); }}>
+          <DialogContent
+            className="max-w-lg w-full max-h-[90vh] overflow-y-auto"
+            style={{ ...adminPanelStyle, padding: 24 }}
           >
-            <div
-              className="max-w-lg w-full max-h-[90vh] overflow-y-auto"
-              style={{ ...adminPanelStyle, padding: 24 }}
-              onClick={(e) => e.stopPropagation()}
-            >
               <div className="flex items-center justify-between mb-5 gap-4">
-                <h2 style={{ fontSize: 'clamp(19px,2.4vw,24px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>
+                <DialogTitle style={{ fontSize: 'clamp(19px,2.4vw,24px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>
                   {selected ? 'Edit paper' : 'Add a new paper'}
-                </h2>
-                <button onClick={closeEditor} style={{ fontSize: 13, fontWeight: 600, color: SURFACE_TOKENS.textTertiary }}>Close</button>
+                </DialogTitle>
               </div>
               <div className="space-y-4">
                 <div>
@@ -750,11 +774,8 @@ export default function AdminPapers() {
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-      </main>
-      <Footer />
-    </div>
+          </DialogContent>
+        </Dialog>
+    </AdminConsole>
   );
 }

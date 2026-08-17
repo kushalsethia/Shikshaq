@@ -14,10 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
+  AdminAuditFootnote,
   AdminStatTiles,
   adminFieldStyle,
   adminPanelStyle,
@@ -80,6 +82,7 @@ export default function AdminApplications() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<TeacherApplication | null>(null);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
   const { isAdmin, checkingAdmin } = useAdminGuard(user, {
     onGranted: fetchApplications,
@@ -158,8 +161,14 @@ export default function AdminApplications() {
       );
     }
 
+    // Apply sort — created_at is a real, always-present column.
+    filtered = [...filtered].sort((a, b) => {
+      const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortOrder === 'newest' ? -diff : diff;
+    });
+
     setFilteredApplications(filtered);
-  }, [searchQuery, filter, applications]);
+  }, [searchQuery, filter, applications, sortOrder]);
 
   const handleApprove = async (applicationId: string) => {
     if (!user) {
@@ -381,6 +390,32 @@ export default function AdminApplications() {
     };
   });
 
+  const searchSlot = (
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: SURFACE_TOKENS.textTertiary }} aria-hidden />
+      <input
+        type="search"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Search by name, email, phone, or reference..."
+        aria-label="Search applications"
+        className="h-11 w-[280px] rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
+      />
+    </div>
+  );
+
+  const sortSlot = (
+    <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'newest' | 'oldest')}>
+      <SelectTrigger className="h-11 w-[150px] rounded-full border-0 bg-muted text-sm font-semibold">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="newest">Newest first</SelectItem>
+        <SelectItem value="oldest">Oldest first</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <AdminConsole
       activeTab="applications"
@@ -388,6 +423,8 @@ export default function AdminApplications() {
       subtitle="Verify qualifications and references before a profile goes live."
       tint={TINT}
       tabCount={pendingCount}
+      search={searchSlot}
+      sort={sortSlot}
     >
       <AdminStatTiles
         stats={[
@@ -398,9 +435,10 @@ export default function AdminApplications() {
         ]}
       />
 
-      {/* Filters and Search */}
+      {/* Filters — search + sort now live in the toolbar (top-right, desktop). This mobile-visible
+          search box keeps the same functionality below lg:. */}
       <div className="mb-4 flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
+        <div className="relative flex-1 lg:hidden">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: SURFACE_TOKENS.textTertiary }} />
           <Input
             type="text"
@@ -433,26 +471,18 @@ export default function AdminApplications() {
         <AdminTable columns={applicationColumns} rows={applicationRows} />
       )}
 
+      <AdminAuditFootnote />
+
       {/* Application Detail Modal */}
-      {selectedApplication && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedApplication(null)}
+      <Dialog open={!!selectedApplication} onOpenChange={(open) => { if (!open) setSelectedApplication(null); }}>
+        <DialogContent
+          className="max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+          style={{ ...adminPanelStyle, padding: 24 }}
         >
-          <div
-            className="max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-            style={{ ...adminPanelStyle, padding: 24 }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          {selectedApplication && (
+          <>
             <div className="flex items-center justify-between mb-6 gap-4">
-              <h2 style={{ fontSize: 'clamp(19px,2.4vw,24px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>{selectedApplication.name}</h2>
-              <button
-                onClick={() => setSelectedApplication(null)}
-                className="transition-opacity hover:opacity-70"
-                style={{ fontSize: 13, fontWeight: 600, color: SURFACE_TOKENS.textTertiary }}
-              >
-                Close
-              </button>
+              <DialogTitle style={{ fontSize: 'clamp(19px,2.4vw,24px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>{selectedApplication.name}</DialogTitle>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -575,9 +605,10 @@ export default function AdminApplications() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminConsole>
   );
 }

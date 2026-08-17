@@ -7,9 +7,17 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { recordAdminAction } from '@/lib/audit';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { SURFACE_TOKENS, ACCENT_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
+  AdminAuditFootnote,
   adminPrimaryBtnStyle,
   adminSecondaryBtnStyle,
   adminToast,
@@ -54,6 +62,7 @@ export default function AdminComments() {
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [page, setPage] = useState(0);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
   async function fetchComments(append = false) {
     if (!isAdmin) return;
@@ -82,7 +91,7 @@ export default function AdminComments() {
           created_at,
           updated_at
         `)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: sortOrder === 'oldest' })
         .range(from, to);
 
       // Apply filter
@@ -186,7 +195,7 @@ export default function AdminComments() {
       fetchComments();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, isAdmin]);
+  }, [filter, isAdmin, sortOrder]);
 
   const handleApprove = async (commentId: string) => {
     try {
@@ -437,6 +446,18 @@ export default function AdminComments() {
     { key: 'actions', label: '', width: '1fr' },
   ];
 
+  const sortSlot = (
+    <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'newest' | 'oldest')}>
+      <SelectTrigger className="h-11 w-[150px] rounded-full border-0 bg-muted text-sm font-semibold">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="newest">Newest first</SelectItem>
+        <SelectItem value="oldest">Oldest first</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <AdminConsole
       activeTab="comments"
@@ -444,6 +465,7 @@ export default function AdminComments() {
       subtitle="Published student reviews, newest first."
       tint={TINT}
       tabCount={pendingCount}
+      sort={sortSlot}
     >
       {/* Filter Tabs */}
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -508,6 +530,7 @@ export default function AdminComments() {
             </button>
           </div>
         )}
+        <AdminAuditFootnote />
       </>
       )}
     </AdminConsole>
