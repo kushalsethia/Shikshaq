@@ -348,22 +348,31 @@ export function Chatbot() {
           }}
         >
           {/* Header - Mobile: Larger, Desktop: Compact */}
-          <div className="flex items-center justify-between p-3 md:p-4 border-b border-border flex-shrink-0">
+          {/* Header per secondary-03-assistant.png: a dark slab with an orange
+              disc, not a light bar with a tinted one.
+
+              The sub-line is the part that actually matters. It read
+              "AI-powered FAQ helper", and was `hidden md:block` so a phone got
+              no sub-line at all. The mockup says "Answers from real listings
+              only" — which is a promise about where answers come from, on a
+              feature where people reasonably worry that a bot is inventing
+              teachers. That belongs on every width, not just desktop. */}
+          <div className="flex items-center justify-between gap-2 rounded-t-[inherit] bg-panel p-3 md:p-4 flex-shrink-0">
             <div className="flex items-center gap-2 md:gap-3">
-              <div className="w-9 h-9 md:w-10 md:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                <HelpCircle className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              <div className="w-9 h-9 md:w-10 md:h-10 bg-brand text-brand-foreground rounded-full flex items-center justify-center flex-shrink-0">
+                <HelpCircle className="w-4 h-4 md:w-5 md:h-5" />
               </div>
               <div className="min-w-0">
-                <h3 className="font-semibold text-foreground text-sm md:text-base truncate">Shikshaq Assistant</h3>
-                <p className="text-xs text-muted-foreground hidden md:block">AI-powered FAQ helper</p>
+                <h3 className="font-semibold text-background text-sm md:text-base truncate">Ask Shikshaq</h3>
+                <p className="text-xs text-background/70">Answers from real listings only</p>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-2.5 hover:bg-muted active:bg-muted rounded-full transition-colors flex-shrink-0 -mr-1 md:mr-0"
+              className="p-2.5 hover:bg-white/10 active:bg-white/15 rounded-full transition-colors flex-shrink-0 -mr-1 md:mr-0"
               aria-label="Close chat"
             >
-              <X className="w-5 h-5 md:w-5 md:h-5 text-muted-foreground" />
+              <X className="w-5 h-5 md:w-5 md:h-5 text-background" />
             </button>
           </div>
 
@@ -444,7 +453,7 @@ export function Chatbot() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask a question..."
+                placeholder="Ask anything about tuition"
                 className="flex-1 px-3 py-2.5 md:px-4 md:py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-base md:text-sm min-h-[44px] md:min-h-0"
                 style={{ fontSize: '16px' }}
                 disabled={loading}
