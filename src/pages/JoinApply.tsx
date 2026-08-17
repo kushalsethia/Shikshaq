@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { toast } from 'sonner';
-import { Loader2, Upload, X, CheckCircle2 } from 'lucide-react';
+import { Loader2, Upload, X, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 import { getSubjectColors } from '@/utils/subjectColors';
@@ -1073,14 +1073,40 @@ export default function JoinApply() {
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex flex-wrap gap-2 mt-6">
+          {/* Actions — join-01-who-you-are.png puts a small square Back on the
+              LEFT and a wide solid-orange Continue filling the rest of the row.
+              This had them the other way round, with Continue rendered first, so
+              on a phone Back sat to the right of the button it undoes; and
+              Continue was `dark` where every join mockup shows it orange, which
+              made the step's primary action read as secondary. */}
+          <div className="mt-6 flex items-center gap-2">
+            {step > 0 && (
+              <Button
+                type="button"
+                onClick={goBack}
+                variant="muted"
+                size={54}
+                aria-label="Back to the previous step"
+                className="flex-none"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            )}
+
             {!isLastStep ? (
-              <Button type="button" onClick={goNext} variant="dark" size={54}>
+              <Button type="button" onClick={goNext} variant="primary" size={54} className="flex-1">
                 Continue
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Button>
             ) : (
-              <Button type="submit" disabled={submitting} busy={submitting} variant="primary" size={54}>
+              <Button
+                type="submit"
+                disabled={submitting}
+                busy={submitting}
+                variant="primary"
+                size={54}
+                className="flex-1"
+              >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1089,12 +1115,6 @@ export default function JoinApply() {
                 ) : (
                   'Send application'
                 )}
-              </Button>
-            )}
-
-            {step > 0 && (
-              <Button type="button" onClick={goBack} variant="muted" size={54}>
-                Back
               </Button>
             )}
           </div>
