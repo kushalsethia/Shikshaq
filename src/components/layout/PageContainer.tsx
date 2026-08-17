@@ -78,13 +78,17 @@ export interface ControlBlockProps extends React.HTMLAttributes<HTMLElement> {
 
 const ControlBlock = React.forwardRef<HTMLElement, ControlBlockProps>(
   ({ className, mode = "dark", children, ...props }, ref) => (
-    <header
-      ref={ref as React.Ref<HTMLElement>}
+    /* A <div>, not a <header>. TopBar and Navbar are already top-level
+       <header> elements, and this block sits outside <main> too — so making it
+       a third one gave the page three `banner` landmarks, where ARIA allows
+       exactly one. The h1 it contains still carries the document structure. */
+    <div
+      ref={ref as React.Ref<HTMLDivElement>}
       className={cn("rounded-b-4xl", CONTROL_FILLS[mode], className)}
       {...props}
     >
       <PageContainer className="py-8">{children}</PageContainer>
-    </header>
+    </div>
   ),
 );
 ControlBlock.displayName = "ControlBlock";
