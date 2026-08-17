@@ -123,8 +123,30 @@ const App = () => (
             <Toaster />
             <Sonner />
           <BrowserRouter>
+            {/* Skip link. The href stayed #main-content, but only Index.tsx ever
+                set that id — so on every route except the home page this, the
+                first control a keyboard or screen-reader user meets, pointed at
+                an element that does not exist and moved focus nowhere. A broken
+                skip link is worse than none: it looks like the affordance is
+                there and quietly is not.
+
+                Fixed by targeting the page's <main> at click time rather than by
+                adding the id to twenty-five files and relying on the next page
+                to remember it. The href is kept so the control still reads and
+                behaves as a link, and Index's id still satisfies it directly. */}
             <a
               href="#main-content"
+              onClick={(e) => {
+                const target =
+                  document.getElementById('main-content') ?? document.querySelector('main');
+                if (!target) return; // let the href do whatever it can
+                e.preventDefault();
+                /* <main> is not focusable by default; -1 makes it programmatically
+                   focusable without adding it to the tab order. */
+                if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+                (target as HTMLElement).focus({ preventScroll: true });
+                target.scrollIntoView({ block: 'start' });
+              }}
               className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:ring-2 focus:ring-ring"
             >
               Skip to content
