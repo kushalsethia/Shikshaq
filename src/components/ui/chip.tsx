@@ -106,7 +106,14 @@ const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(
       <button
         ref={ref}
         type="button"
-        className={cn(chipVariants({ tone, size }), "tap-44 active:scale-[0.97]", className)}
+        /* No active:scale. micro-03-buttons-fields.png specifies the filter
+           chip's motion as "background and text crossfade 150ms; no scale, no
+           tilt", and says why: "the count is the feedback, so the chip itself
+           only changes colour". A chip that also scaled was doing two things
+           where the sheet asks for one, and duplicating feedback the result
+           count above it already gives. The colour transition on the base class
+           is the press response. */
+        className={cn(chipVariants({ tone, size }), "tap-44", className)}
         style={merged}
         {...props}
       >

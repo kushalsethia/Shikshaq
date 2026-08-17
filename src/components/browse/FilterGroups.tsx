@@ -397,13 +397,21 @@ export function FilterSheet({
               DialogContent to label the dialog for assistive tech, and warns
               otherwise. It renders an h2 anyway, so nothing changes visually. */}
           <SheetTitle className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">Filters</SheetTitle>
-          <button
-            type="button"
-            onClick={() => onFilterChange(EMPTY_FILTERS)}
-            className="min-h-11 rounded-lg px-2 text-[13.5px] font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            Clear all
-          </button>
+          {/* "a Clear all chip appears once two or more are active"
+              (micro-03-buttons-fields.png). It was rendered unconditionally, so
+              a sheet with nothing selected offered to clear nothing — the same
+              empty-affordance problem as the "0 filters active" line beneath it.
+              Two, not one: clearing a single filter is a tap on the chip
+              itself. */}
+          {count >= 2 && (
+            <button
+              type="button"
+              onClick={() => onFilterChange(EMPTY_FILTERS)}
+              className="min-h-11 rounded-lg px-2 text-[13.5px] font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Clear all
+            </button>
+          )}
         </div>
 
         {/* Scrollable body — must stay flex:1/min-height:0 or long option sets
