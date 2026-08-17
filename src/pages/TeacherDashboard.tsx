@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { PageContainer, ControlBlock, BottomNavSpacer } from '@/components/layout/PageContainer';
 import { Sticker } from '@/components/ui/sticker';
+import { Chip } from '@/components/ui/chip';
+import { IconDisc } from '@/components/ui/icon-disc';
+import { Eyebrow } from '@/components/ui/eyebrow';
+import { ListEmpty } from '@/components/ui/list-states';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -28,7 +33,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Save, Lock, Upload, X } from 'lucide-react';
+import {
+  Save, Lock, Upload, X, PencilLine, PauseCircle, PlayCircle, Link2,
+  ThumbsUp, MessageSquareText, Inbox, UserCircle2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
@@ -876,21 +884,23 @@ export default function TeacherDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <main className="container pt-8 pb-16">
-          <div className="animate-pulse">
-            <div className="mb-7 h-8 w-56 rounded-lg bg-muted" />
-            <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-24 rounded-2xl bg-muted" />
-              ))}
-            </div>
-            <div className="grid gap-3">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-16 rounded-2xl bg-muted" />
-              ))}
-            </div>
+        <ControlBlock mode="teacher">
+          <div className="h-8 w-56 animate-pulse rounded-full bg-white/15" />
+          <div className="mt-4 h-24 animate-pulse rounded-2xl bg-white/15" />
+        </ControlBlock>
+        <PageContainer as="main" className="pt-6 pb-16">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6" aria-busy="true" aria-live="polite">
+            <span className="sr-only">Loading your dashboard…</span>
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="h-28 animate-pulse rounded-2xl bg-muted" />
+            ))}
           </div>
-        </main>
+          <div className="mt-6 grid gap-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted" />
+            ))}
+          </div>
+        </PageContainer>
         <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
@@ -904,11 +914,11 @@ export default function TeacherDashboard() {
     if (lookupFailedEmail) {
       return (
         <div className="min-h-screen bg-background">
-          <main className="container py-16 pb-16 text-center sm:py-20">
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <PageContainer as="main" className="py-16 pb-16 text-center sm:py-20">
+            <h1 className="font-display text-page-title font-extrabold tracking-tight text-foreground">
               We couldn't find your teacher listing
             </h1>
-            <p className="mt-3 text-sm text-muted-foreground">
+            <p className="mt-3 text-body-secondary text-muted-foreground">
               Your account email doesn't match any listing in our system, so we can't load your
               profile. This usually means your listing was created under a different email address.
             </p>
@@ -920,10 +930,10 @@ export default function TeacherDashboard() {
               and include this email:
             </p>
             <p className="mt-1 text-sm font-semibold text-brand-blue">{lookupFailedEmail}</p>
-            <Button className="mt-6" onClick={() => navigate('/')}>
+            <Button variant="primary" size={46} className="mt-6" onClick={() => navigate('/')}>
               Go Home
             </Button>
-          </main>
+          </PageContainer>
           <PreFooter variant={preFooterFor(location.pathname)} />
           <Footer />
         </div>
@@ -932,19 +942,19 @@ export default function TeacherDashboard() {
 
     return (
       <div className="min-h-screen bg-background">
-        <main className="container py-16 pb-16 text-center sm:py-20">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+        <PageContainer as="main" className="py-16 pb-16 text-center sm:py-20">
+          <h1 className="font-display text-page-title font-extrabold tracking-tight text-foreground">
             {user ? 'Teacher account required' : 'Sign in required'}
           </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="mt-3 text-body-secondary text-muted-foreground">
             {user
               ? "We couldn't find a teacher profile for your account. If you believe this is a mistake, contact support."
               : 'Please sign in to view your dashboard.'}
           </p>
-          <Button className="mt-6" onClick={() => navigate(user ? '/' : '/auth')}>
+          <Button variant="primary" size={46} className="mt-6" onClick={() => navigate(user ? '/' : '/auth')}>
             {user ? 'Go Home' : 'Sign In'}
           </Button>
-        </main>
+        </PageContainer>
         <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
@@ -1026,160 +1036,224 @@ export default function TeacherDashboard() {
   const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
   const nextCompletenessStep = completenessChecks.find((c) => !c.ok)?.action ?? null;
 
+  // "Nobody has messaged you this month" (copy.md §9 Quiet listing nudge) is the honest state
+  // for the Enquiries section — there is no whatsapp_clicks/enquiries table wired up yet (see the
+  // teacherStats comment above), so this section renders the ListEmpty primitive with that
+  // verbatim nudge rather than a fabricated count.
+  const quietListingNudge =
+    'Nobody has messaged you this month. Adding a second subject usually helps.';
+  const profileHealthNudge =
+    'Your profile has no photo. Listings with a photo get about twice as many messages.';
+
   return (
     <div className="min-h-screen bg-background">
-
-      <main className="container pt-8 pb-16">
-        {/* Header — orange slab, teacher mode (design.md §4 S10) */}
-        <div className="relative overflow-visible rounded-3xl bg-brand p-4 text-brand-foreground shadow-glow-brand sm:p-6">
-          {!isPaused && (
-            <Sticker tone="brand" tilt={-3} size={30} className="!bg-panel !text-background">
-              Live profile
-            </Sticker>
-          )}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h1 className="font-display text-page-title font-extrabold tracking-tight">
-                {displayName}
-              </h1>
-              <p className="mt-2 text-body-secondary opacity-90">
-                {summaryLine}
-              </p>
-            </div>
-            <span
-              className={`flex flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
-                isPaused ? 'bg-panel text-background' : 'bg-card text-foreground'
-              }`}
-            >
-              {isPaused ? 'Paused' : 'Profile live'}
-            </span>
+      {/* Control block — orange, teacher mode (design.md §1, §4 S10: "the teacher dashboard IS
+          orange"). Carries the "Live profile" sticker, the display name/summary h1 and the
+          profile-completeness bar naming one next action (a plain bar — GoalRing stays reserved
+          for the weekly paper goal only). */}
+      <ControlBlock mode="teacher" className="relative overflow-visible">
+        {!isPaused && (
+          <Sticker tone="brand" tilt={-3} size={30} className="!bg-panel !text-background">
+            Live profile
+          </Sticker>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <Eyebrow onDark>Teacher dashboard</Eyebrow>
+            <h1 className="mt-1 font-display text-page-title font-extrabold tracking-tight">
+              {displayName}
+            </h1>
+            <p className="mt-2 text-body-secondary opacity-90">{summaryLine}</p>
           </div>
-
-          {/* Completeness bar — names one next action, never a ring (ring is the weekly paper
-              goal only). */}
-          <div className="mt-6 rounded-2xl bg-card/95 p-4 text-foreground sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold">Profile completeness</span>
-              <span className="text-sm font-semibold tabular-nums text-warm-meta">{completenessPct}%</span>
-            </div>
-            <div aria-hidden className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-brand transition-[width] duration-300 ease-settle"
-                style={{ width: `${completenessPct}%` }}
-              />
-            </div>
-            <p className="mt-2 text-body-secondary text-warm-prose">
-              {nextCompletenessStep ? nextCompletenessStep : 'Your profile has everything filled in.'}
-            </p>
-          </div>
+          <Chip
+            asChild
+            tone={isPaused ? undefined : 'dark'}
+            size={40}
+            className={isPaused ? 'bg-panel text-background' : undefined}
+          >
+            {isPaused ? 'Paused' : 'Profile live'}
+          </Chip>
         </div>
 
-        {/* Stat tiles — 2x2 (design.md §4 S10). Profile views / WhatsApp taps have no real data
-            source yet (see final report O-04) so this stays the two real counts the dashboard can
-            actually query, rather than inventing the other two tiles. */}
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+        <div className="mt-6 rounded-2xl bg-card/95 p-4 text-foreground sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold">Profile health</span>
+            <span className="text-sm font-semibold tabular-nums text-warm-meta">{completenessPct}%</span>
+          </div>
+          <div aria-hidden className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-brand transition-[width] duration-300 ease-settle"
+              style={{ width: `${completenessPct}%` }}
+            />
+          </div>
+          <p className="mt-2 text-body-secondary text-warm-prose">
+            {nextCompletenessStep ?? 'Your profile has everything filled in.'}
+          </p>
+          {!teacherData['Hero Image'] && (
+            <p className="mt-2 text-meta text-warm-meta">{profileHealthNudge}</p>
+          )}
+        </div>
+      </ControlBlock>
+
+      <PageContainer as="main" className="pt-6 pb-16">
+        {/* Stat tiles — the two real, queryable counts only (upvotes/reviews). "Profile views" and
+            "WhatsApp taps" have no backing Supabase column (verified against
+            src/integrations/supabase/types.ts) and WhatsAppRedirect only fires GA4/Clarity events,
+            never a Supabase write — those tiles are omitted rather than shown as fabricated
+            numbers (design.md §0.10, C9 StatCard spec). */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
           {teacherStats.map((st) => (
-            <div key={st.label} className={`rounded-2xl p-4 sm:p-6 ${st.fill}`}>
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {st.label}
+            <div key={st.label} className={`rounded-2xl p-4 shadow-border sm:p-6 ${st.fill}`}>
+              <div className="flex items-center gap-2">
+                <IconDisc tone="on-dark" size={26} className="bg-black/10 text-foreground">
+                  {st.label === 'Upvotes' ? (
+                    <ThumbsUp className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <MessageSquareText className="h-4 w-4" aria-hidden />
+                  )}
+                </IconDisc>
+                <Eyebrow>{st.label}</Eyebrow>
               </div>
               <div className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-foreground">
                 {st.value}
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">{st.meta}</div>
+              <div className="mt-1 text-meta text-warm-meta">{st.meta}</div>
             </div>
           ))}
         </div>
 
-        {/* Your profile */}
-        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Your profile
-        </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-          <button
-            type="button"
-            onClick={scrollToProfileForm}
-            className="block w-full rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
-          >
-            <span className="block text-base font-semibold text-foreground">Edit your profile</span>
-            <span className="mt-1.5 block text-sm text-muted-foreground">
-              Subjects, classes, boards, areas and fee range.
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setPauseDialogOpen(true)}
-            disabled={pausing}
-            className="block w-full rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60 sm:p-6"
-          >
-            <span className="block text-base font-semibold text-foreground">
-              {isPaused ? 'Resume your listing' : 'Pause your listing'}
-            </span>
-            <span className="mt-1.5 block text-sm text-muted-foreground">
-              {isPaused
-                ? 'Your profile is hidden from students until you resume it.'
-                : 'Hide your profile from results while your batches are full.'}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={handleRequestReview}
-            className="block w-full rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
-          >
-            <span className="block text-base font-semibold text-foreground">Request a review</span>
-            <span className="mt-1.5 block text-sm text-muted-foreground">
-              Send a link to a current student asking them to review you.
-            </span>
-          </button>
+        {/* Enquiries — copy.md §9 names this as the middle stat ("Profile health · Enquiries ·
+            Reviews"), but there is no enquiries/whatsapp_clicks table to count from (see report),
+            so this ships as a real section with the honest empty/quiet state instead of a
+            fabricated number. */}
+        <div className="mt-8">
+          <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
+            <IconDisc tone="brand-subtle" size={26} shape="square">
+              <Inbox className="h-4 w-4" aria-hidden />
+            </IconDisc>
+            Enquiries
+          </h2>
+          <ListEmpty line={quietListingNudge} />
+        </div>
+
+        {/* Your profile — manage-list idiom: edit / pause / request-review as one row of cards. */}
+        <div className="mt-8">
+          <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
+            <IconDisc tone="brand-subtle" size={26} shape="square">
+              <UserCircle2 className="h-4 w-4" aria-hidden />
+            </IconDisc>
+            Your profile
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+            <button
+              type="button"
+              onClick={scrollToProfileForm}
+              className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
+            >
+              <IconDisc tone="brand-subtle" size={40}>
+                <PencilLine className="h-5 w-5" aria-hidden />
+              </IconDisc>
+              <span>
+                <span className="block text-base font-semibold text-foreground">Edit your profile</span>
+                <span className="mt-1.5 block text-body-secondary text-muted-foreground">
+                  Subjects, classes, boards, areas and fee range.
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPauseDialogOpen(true)}
+              disabled={pausing}
+              className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60 sm:p-6"
+            >
+              <IconDisc tone="brand-subtle" size={40}>
+                {isPaused ? <PlayCircle className="h-5 w-5" aria-hidden /> : <PauseCircle className="h-5 w-5" aria-hidden />}
+              </IconDisc>
+              <span>
+                <span className="block text-base font-semibold text-foreground">
+                  {isPaused ? 'Resume your listing' : 'Pause your listing'}
+                </span>
+                <span className="mt-1.5 block text-body-secondary text-muted-foreground">
+                  {isPaused
+                    ? 'Your profile is hidden from students until you resume it.'
+                    : 'Hide your profile from results while your batches are full.'}
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={handleRequestReview}
+              className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
+            >
+              <IconDisc tone="brand-subtle" size={40}>
+                <Link2 className="h-5 w-5" aria-hidden />
+              </IconDisc>
+              <span>
+                <span className="block text-base font-semibold text-foreground">Request a review</span>
+                <span className="mt-1.5 block text-body-secondary text-muted-foreground">
+                  Send a link to a current student asking them to review you.
+                </span>
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Account Information — locked fields, shown as a stacked list of row cards.
             Not part of the new spec's top section; kept here, right above the editable form it
             summarises, since Name/Honorific/Email are real locked account data this page has
             always surfaced and nowhere else on the page shows them. */}
-        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Account Information
-        </h2>
-        <div className="mb-6 grid gap-2.5">
-          {[
-            { label: 'Name', value: userName },
-            { label: 'Honorific', value: teacherData["Sir/Ma'am?"] },
-            { label: 'Email ID', value: teacherData["Email ID"] },
-          ].map((row) => (
-            <div
-              key={row.label}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4 shadow-border sm:p-5"
-            >
-              <div>
-                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {row.label}
+        <div className="mt-8">
+          <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
+            <IconDisc tone="muted" size={26} shape="square">
+              <Lock className="h-4 w-4" aria-hidden />
+            </IconDisc>
+            Account Information
+          </h2>
+          <div className="grid gap-2.5">
+            {[
+              { label: 'Name', value: userName },
+              { label: 'Honorific', value: teacherData["Sir/Ma'am?"] },
+              { label: 'Email ID', value: teacherData["Email ID"] },
+            ].map((row) => (
+              <div
+                key={row.label}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4 shadow-border sm:p-5"
+              >
+                <div>
+                  <Eyebrow>{row.label}</Eyebrow>
+                  <div className="mt-1 text-base font-semibold text-foreground">
+                    {row.value || '-'}
+                  </div>
                 </div>
-                <div className="mt-1 text-base font-semibold text-foreground">
-                  {row.value || '-'}
-                </div>
+                <span className="flex flex-none items-center gap-1.5 text-meta font-semibold text-warm-meta">
+                  <Lock className="h-3.5 w-3.5" aria-hidden />
+                  Locked
+                </span>
               </div>
-              <span className="flex flex-none items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                <Lock className="h-3.5 w-3.5" />
-                Locked
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Profile Form */}
-        <div ref={profileFormRef} id="profile-form" className="scroll-mt-24 rounded-2xl bg-card p-5 shadow-border sm:p-8">
+        <div ref={profileFormRef} id="profile-form" className="mt-8 scroll-mt-24 rounded-2xl bg-card p-5 shadow-border sm:p-8">
             {/* Editable Fields Section */}
             <div className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Profile Information</h2>
+                <h2 className="flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
+                  <IconDisc tone="brand-subtle" size={26} shape="square">
+                    <MessageSquareText className="h-4 w-4" aria-hidden />
+                  </IconDisc>
+                  Profile Information
+                </h2>
                 <Button
+                  variant="primary"
+                  size={46}
                   onClick={handleSave}
-                  disabled={saving}
+                  busy={saving}
                   className="gap-2"
-                  size="lg"
                 >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save Changes'}
+                  <Save className="h-4 w-4" aria-hidden />
+                  Save Changes
                 </Button>
               </div>
 
@@ -1628,7 +1702,9 @@ export default function TeacherDashboard() {
               </div>
             </div>
         </div>
-      </main>
+
+        <BottomNavSpacer />
+      </PageContainer>
 
       <AlertDialog open={pauseDialogOpen} onOpenChange={setPauseDialogOpen}>
         <AlertDialogContent>

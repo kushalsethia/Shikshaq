@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
-import { EmptyResults } from '@/components/EmptyResults';
 import { useAuth } from '@/lib/auth-context';
 import { useStudiesWith } from '@/lib/studies-with-context';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, ArrowLeft, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { PageHeader, CutPaperShape } from '@/components/devices';
+import { X } from 'lucide-react';
+import { ControlBlock, PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
-import { useLocation } from 'react-router-dom';
+import { ListLoading, ListEmpty, ListError, ListEnd } from '@/components/ui/list-states';
 
 interface MyTeacher {
   id: string;
@@ -30,6 +28,8 @@ export default function MyTeachers() {
   const { studiesWithTeacherIds, loading: studiesWithLoading, toggleStudiesWith } = useStudiesWith();
   const [myTeachers, setMyTeachers] = useState<MyTeacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
 
   // Ensure user has selected a role
   useRequireRole();
@@ -41,6 +41,8 @@ export default function MyTeachers() {
     }
 
     async function fetchMyTeachers() {
+      setError(false);
+
       // Don't wait for studiesWithLoading - fetch teachers immediately
       // We know these are teachers the student studies with since we're on the my teachers page
       if (studiesWithTeacherIds.size === 0 && !studiesWithLoading) {
@@ -71,11 +73,11 @@ export default function MyTeachers() {
         }
 
         // Extract all slugs and fetch Sir/Ma'am and Subjects data in a single query
-        const slugs = teachersData.map(t => t.slug);
-          const { data: shikshaqData } = await supabase
-            .from('Shikshaqmine')
-            .select('*')
-            .in('Slug', slugs);
+        const slugs = teachersData.map((t) => t.slug);
+        const { data: shikshaqData } = await supabase
+          .from('Shikshaqmine')
+          .select('*')
+          .in('Slug', slugs);
 
         // Create maps for fast lookup
         const sirMaamMap = new Map<string, string | null>();
@@ -105,8 +107,8 @@ export default function MyTeachers() {
             const firstSubjectName = subjectsMap.get(teacher.slug);
             if (firstSubjectName && subjectsData) {
               // Try to find matching subject in subjects table
-              const matchingSubject = subjectsData.find((s: any) =>
-                s.name.toLowerCase() === firstSubjectName.toLowerCase()
+              const matchingSubject = subjectsData.find(
+                (s: any) => s.name.toLowerCase() === firstSubjectName.toLowerCase()
               );
               if (matchingSubject) {
                 teacher.subjects = { name: matchingSubject.name, slug: matchingSubject.slug };
@@ -114,7 +116,7 @@ export default function MyTeachers() {
                 // If no match found, use the name from Shikshaqmine directly
                 teacher.subjects = {
                   name: firstSubjectName,
-                  slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-')
+                  slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-'),
                 };
               }
             }
@@ -127,17 +129,18 @@ export default function MyTeachers() {
         });
 
         setMyTeachers(teachersWithSirMaam);
-      } catch (error) {
+      } catch (err) {
         if (import.meta.env.DEV) {
-          console.error('Error fetching my teachers:', error);
+          console.error('Error fetching my teachers:', err);
         }
+        setError(true);
       } finally {
         setLoading(false);
       }
     }
 
     fetchMyTeachers();
-  }, [user, studiesWithTeacherIds, navigate, studiesWithLoading]);
+  }, [user, studiesWithTeacherIds, navigate, studiesWithLoading, retryToken]);
 
   if (!user) {
     return (
@@ -145,7 +148,9 @@ export default function MyTeachers() {
         <main className="container py-16 pb-16 text-center sm:py-20">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Sign in required</h1>
           <p className="mt-3 text-sm text-muted-foreground">Please sign in to view the teachers you study with.</p>
-          <Button className="mt-6" onClick={() => navigate('/auth')}>Sign In</Button>
+          <Button variant="primary" size={44} className="mt-6" onClick={() => navigate('/auth')}>
+            Sign In
+          </Button>
         </main>
         <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
@@ -153,108 +158,79 @@ export default function MyTeachers() {
     ); // Will also redirect to auth
   }
 
-  // Show loading only if we don't have any teachers yet
-  if (loading && myTeachers.length === 0) {
-    return (
-      <div className="min-h-screen bg-background">
-        <main className="container pt-8 pb-16">
-          <div className="mb-7 h-8 w-56 animate-shimmer rounded-lg bg-muted" />
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="aspect-[4/5] animate-shimmer rounded-2xl bg-muted" />
-            ))}
-          </div>
-        </main>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
-      </div>
-    );
-  }
+  const showSkeleton = loading && !error && myTeachers.length === 0;
 
   return (
     <div className="min-h-screen bg-background">
-
-      <PageHeader
-        eyebrow="Your list"
-        title={
-          <>
-            The teachers you{' '}
-            <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand))' }}>
-              study with
-            </span>
-          </>
-        }
-        lede={
-          myTeachers.length === 0
-            ? 'Mark a teacher as "studies with" from their profile and they turn up here.'
-            : `${myTeachers.length} ${myTeachers.length === 1 ? 'teacher' : 'teachers'} you study with, in one place.`
-        }
-        accent="hsl(var(--brand))"
-        ground="graph"
-      >
+      <ControlBlock mode="dark">
         <Link
           to="/dashboard/student"
-          className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-warm-prose transition-colors duration-150 hover:text-foreground"
+          className="-mt-1 mb-[14px] inline-flex min-h-11 items-center py-1 text-[13px] font-semibold text-white/70 transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back to dashboard
+          {'←'} Back to dashboard
         </Link>
-      </PageHeader>
+        <h1 className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.035em] text-background">
+          {myTeachers.length > 0
+            ? `${myTeachers.length} teacher${myTeachers.length === 1 ? '' : 's'} you study with`
+            : 'Your teachers'}
+        </h1>
+        <p className="mt-1 text-[14.5px] text-white/70">
+          Mark a teacher as "studies with" from their profile and they turn up here.
+        </p>
+      </ControlBlock>
 
-      <main className="container pt-8 pb-16">
-        {/* Teachers Grid */}
-        {myTeachers.length === 0 ? (
-          <div className="relative mt-2 overflow-hidden">
-            <CutPaperShape
-              variant="star"
-              color="hsl(var(--brand))"
-              size={64}
-              className="pointer-events-none absolute -left-3 -top-3 hidden opacity-90 sm:block"
-            />
-            <CutPaperShape
-              variant="blob"
-              color="hsl(var(--brand-blue))"
-              size={72}
-              className="pointer-events-none absolute -bottom-4 -right-3 hidden opacity-90 sm:block"
-            />
-            <EmptyResults
-              icon={<GraduationCap className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-              heading="No teachers yet"
-              message="Open any teacher's profile and mark them as 'studies with' — they'll show up here so you can find them again fast."
-              action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
-            />
-          </div>
+      <PageContainer as="main" className="pt-[24px] pb-[40px]">
+        {showSkeleton ? (
+          <ListLoading count={5} media={0} lines={3} />
+        ) : error && myTeachers.length === 0 ? (
+          <ListError onRetry={() => setRetryToken((t) => t + 1)} />
+        ) : myTeachers.length === 0 ? (
+          <>
+            <ListEmpty line="No saved teachers yet. Tap the mark on any card and they wait for you here." />
+            <Button asChild variant="primary" size={44} className="mt-[16px]">
+              <Link to="/all-tuition-teachers-in-kolkata">Browse teachers</Link>
+            </Button>
+          </>
         ) : (
-          <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-            {myTeachers.map((teacher) => (
-              <div key={teacher.id} className="relative">
-                <TeacherCard
-                  id={teacher.id}
-                  name={teacher.name}
-                  slug={teacher.slug}
-                  subject={teacher.subjects?.name || 'Tuition Teacher'}
-                  imageUrl={teacher.image_url || undefined}
-                  subjectSlug={teacher.subjects?.slug}
-                  sirMaam={teacher.sirMaam}
-                />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleStudiesWith(teacher.id);
-                  }}
-                  aria-label="Remove from my teachers"
-                  className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-card/95 shadow-border transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <X className="h-4 w-4 text-foreground" />
-                </button>
-              </div>
-            ))}
-          </div>
+          <>
+            <ul className="flex flex-col gap-[10px]">
+              {myTeachers.map((teacher) => (
+                <li key={teacher.id} className="flex items-center gap-[10px]">
+                  <div className="min-w-0 flex-1">
+                    <TeacherCard
+                      id={teacher.id}
+                      name={teacher.name}
+                      slug={teacher.slug}
+                      subject={teacher.subjects?.name || 'Tuition Teacher'}
+                      imageUrl={teacher.image_url || undefined}
+                      subjectSlug={teacher.subjects?.slug}
+                      sirMaam={teacher.sirMaam}
+                      variant="row"
+                      hideFavourite
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleStudiesWith(teacher.id);
+                    }}
+                    aria-label={`Remove ${teacher.name} from my teachers`}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-card shadow-border transition-transform duration-150 active:scale-[0.97] hover:-translate-y-0.5 hover:shadow-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <X className="h-4 w-4 text-foreground" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <ListEnd count={myTeachers.length} />
+          </>
         )}
-      </main>
+      </PageContainer>
+
       <PreFooter variant={preFooterFor(location.pathname)} />
+      <BottomNavSpacer />
       <Footer />
     </div>
   );

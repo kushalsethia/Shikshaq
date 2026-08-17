@@ -349,6 +349,7 @@ export default function PastPapers() {
           {loadError && (
             <section className={`${CONTAINER} pb-12`}>
               <EmptyResults
+                tone="papers"
                 heading="Unable to load the paper collection right now"
                 message="This is on us, not on your connection necessarily. Refresh and it usually comes straight back."
                 action={{ label: 'Refresh', onClick: () => window.location.reload() }}
@@ -371,6 +372,7 @@ export default function PastPapers() {
                   Day one
                 </span>
                 <EmptyResults
+                  tone="papers"
                   className="bg-transparent shadow-none"
                   icon={<FileText className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
                   heading="The collection is just getting started"

@@ -8,6 +8,32 @@ import { Chip } from "@/components/ui/chip";
 import { IconDisc } from "@/components/ui/icon-disc";
 import { StripePlaceholder } from "@/components/ui/stripe-placeholder";
 import { BROWSE_PATH } from "@/lib/nav-config";
+import { supabase } from "@/integrations/supabase/client";
+
+/* Data-honesty rule (STILL BINDING, brief): the "846 past papers" figure in
+   mockup S20 card 4 must be a real count or the clause drops — never a
+   hardcoded numeral. */
+function usePublishedPaperCount() {
+  const [count, setCount] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { count: n } = await supabase
+          .from("papers")
+          .select("id", { count: "exact", head: true })
+          .eq("is_published", true);
+        if (!cancelled && typeof n === "number") setCount(n);
+      } catch {
+        // stays null — the card drops the numeral clause below
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return count;
+}
 
 /* Redesign S20 (design.md §4, changelog C-057) — the on-demand product tour.
 
@@ -73,6 +99,7 @@ export interface ProductTourProps {
 function ProductTour({ open, onOpenChange }: ProductTourProps) {
   const [step, setStep] = React.useState(0);
   const navigate = useNavigate();
+  const paperCount = usePublishedPaperCount();
 
   const CARDS: TourCard[] = [
     {
@@ -135,7 +162,8 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
       mode: "papers",
       headline: (
         <>
-          846 past papers, <em className="not-italic font-normal italic">free to read.</em>
+          {paperCount !== null ? `${paperCount} past papers, ` : "Past papers, "}
+          <em className="not-italic font-normal italic">free to read.</em>
         </>
       ),
       body: "Real prelim and half-yearly papers from 24 Kolkata schools. Sign in once and your shelf follows you.",

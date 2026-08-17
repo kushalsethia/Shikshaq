@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { ControlBlock, PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
-import { EmptyResults } from '@/components/EmptyResults';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { IconDisc } from '@/components/ui/icon-disc';
 import {
   Select,
   SelectContent,
@@ -18,7 +19,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, Lock, Heart, BookOpen, CircleUserRound } from 'lucide-react';
+import {
+  ListLoading,
+  ListEmpty,
+  ListError,
+  ListEnd,
+} from '@/components/ui/list-states';
+import {
+  Save,
+  Lock,
+  Heart,
+  BookOpen,
+  UserRound,
+  Bell,
+  ShieldCheck,
+  LogOut,
+  ChevronRight,
+  Settings,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useLikes } from '@/lib/likes-context';
 import { PaperCard, type PaperCardPaper } from '@/components/PaperCard';
@@ -65,11 +83,10 @@ const FIELD_CLASSNAME =
   'h-auto min-h-12 rounded-lg border-0 bg-background text-base shadow-border focus-visible:ring-0 focus-visible:ring-offset-0';
 const LOCKED_FIELD_CLASSNAME = `${FIELD_CLASSNAME} cursor-not-allowed opacity-70`;
 const LABEL_CLASSNAME = 'mb-1.5 block text-sm font-semibold text-foreground';
-const SECTION_HEADING_CLASSNAME = 'text-lg font-semibold text-foreground';
 const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-background shadow-border';
 
 export default function StudentDashboard() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -80,7 +97,9 @@ export default function StudentDashboard() {
   const { likedTeacherIds, likedCount, loading: likesLoading } = useLikes();
   const [savedTeachers, setSavedTeachers] = useState<SavedTeacher[]>([]);
   const [savedTeachersLoading, setSavedTeachersLoading] = useState(true);
+  const [savedTeachersError, setSavedTeachersError] = useState(false);
   const [papersContributedCount, setPapersContributedCount] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState<'profile' | 'subjects' | null>(null);
 
   // Reading history/progress has no backend yet (pages/PaperReader.md hasn't been built — no
   // reader page, no progress table). "Continue reading" and the "Papers read" stat therefore stay
@@ -184,8 +203,12 @@ export default function StudentDashboard() {
       if (likedTeacherIds.size === 0) {
         setSavedTeachers([]);
         setSavedTeachersLoading(false);
+        setSavedTeachersError(false);
         return;
       }
+
+      setSavedTeachersLoading(true);
+      setSavedTeachersError(false);
 
       try {
         const teacherIds = Array.from(likedTeacherIds);
@@ -225,6 +248,7 @@ export default function StudentDashboard() {
         if (import.meta.env.DEV) {
           console.error('Error fetching saved teachers:', error);
         }
+        setSavedTeachersError(true);
       } finally {
         setSavedTeachersLoading(false);
       }
@@ -411,26 +435,34 @@ export default function StudentDashboard() {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container pt-8 pb-8">
-          <div className="animate-pulse">
-            <div className="mb-8 h-8 w-48 rounded-lg bg-muted" />
-            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-24 rounded-2xl bg-muted" />
-              ))}
-            </div>
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-24 rounded-lg bg-muted" />
-              ))}
+        <ControlBlock mode="dark">
+          <div className="flex animate-pulse items-center gap-4">
+            <div className="h-14 w-14 flex-none rounded-full bg-white/10" />
+            <div className="flex-1 space-y-2">
+              <div className="h-5 w-40 rounded-full bg-white/10" />
+              <div className="h-3 w-28 rounded-full bg-white/10" />
             </div>
           </div>
-        </div>
+          <div className="mt-[18px] grid grid-cols-3 gap-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-16 animate-pulse rounded-2xl bg-white/[0.08]" />
+            ))}
+          </div>
+        </ControlBlock>
+        <PageContainer as="main" className="flex flex-col gap-7 py-5">
+          <ListLoading count={3} media={0} lines={2} />
+        </PageContainer>
         <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
+        <BottomNavSpacer />
       </div>
     );
   }
@@ -438,21 +470,22 @@ export default function StudentDashboard() {
   if (!profile || profile.role !== 'student') {
     return (
       <div className="min-h-screen bg-background">
-        <main className="container py-16 pb-16 text-center sm:py-20">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+        <main className="px-4 py-16 text-center sm:py-20">
+          <h1 className="font-display text-page-title font-extrabold tracking-tight text-foreground">
             {user ? 'Student account required' : 'Sign in required'}
           </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="mt-3 text-body-secondary text-muted-foreground">
             {user
               ? 'This dashboard is only available to student accounts.'
               : 'Please sign in to view your dashboard.'}
           </p>
-          <Button className="mt-6" onClick={() => navigate(user ? '/' : '/auth')}>
+          <Button variant="primary" size={44} className="mt-6" onClick={() => navigate(user ? '/' : '/auth')}>
             {user ? 'Go Home' : 'Sign In'}
           </Button>
         </main>
         <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
+        <BottomNavSpacer />
       </div>
     );
   }
@@ -465,27 +498,29 @@ export default function StudentDashboard() {
                    '';
 
   const subLineParts = [
-    userEmail,
+    'Student',
     profile.grade ? `Class ${profile.grade}` : null,
     profile.school_board || null,
   ].filter(Boolean);
 
-  // Labels and order are literal, per design_handoff_shikshaq/pages/StudentDashboard.md.
-  // Squircle stat-tile treatment (learning-education-squircles reference): each tile gets a
-  // different flat token fill instead of three identical cards. Fills stay neutral/mint —
-  // no brand orange/blue here — so the accent budget stays spent on the single "Save Changes" CTA.
+  // Three counters, C9 StatCard treatment on the dark control block — every
+  // number here is a real query result (design.md §0.10): likedCount from
+  // useLikes(), papersReadCount honestly nil until a reader exists (see
+  // readingHistory comment above), papersContributedCount from a head-count
+  // query against papers.created_by.
   const dashboardStats = [
-    { label: 'Papers read', value: papersReadCount, fill: 'bg-card shadow-border' },
-    { label: 'Favourite teachers', value: likedCount, fill: 'bg-mint' },
-    { label: 'Papers contributed', value: papersContributedCount, fill: 'bg-muted' },
+    { label: 'Saved', value: likedCount },
+    { label: 'Papers read', value: papersReadCount },
+    { label: 'Papers contributed', value: papersContributedCount },
   ];
 
-  const SAVED_TEACHERS_SHOWN = 8;
+  const SAVED_TEACHERS_SHOWN = 6;
   const shownSavedTeachers = savedTeachers.slice(0, SAVED_TEACHERS_SHOWN);
   const hasMoreSavedTeachers = likedCount > shownSavedTeachers.length;
 
-  // Profile-completeness ring — derived purely from already-loaded form state (no new fetching),
-  // for the circular-progress device from the squircles reference. Real fields, real fraction.
+  // Profile-completeness bar — derived purely from already-loaded form state
+  // (no new fetching). A PLAIN BAR, never GoalRing (that primitive is reserved
+  // for the weekly paper goal only, per components.md P9 / owner instruction).
   const completenessChecks = [
     Boolean(formData.phone),
     Boolean(formData.date_of_birth),
@@ -499,310 +534,422 @@ export default function StudentDashboard() {
   const completenessTotal = completenessChecks.length;
   const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
 
+  const initial = (userName || userEmail || '?').trim().charAt(0).toUpperCase() || '?';
+
+  const accountRows: {
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    destructive?: boolean;
+  }[] = [
+    {
+      key: 'profile',
+      label: 'Profile information',
+      icon: <UserRound className="h-4 w-4" strokeWidth={2} aria-hidden="true" />,
+      onClick: () => setSettingsOpen(settingsOpen === 'profile' ? null : 'profile'),
+    },
+    {
+      key: 'subjects',
+      label: 'Subjects interested in',
+      icon: <BookOpen className="h-4 w-4" strokeWidth={2} aria-hidden="true" />,
+      onClick: () => setSettingsOpen(settingsOpen === 'subjects' ? null : 'subjects'),
+    },
+    {
+      key: 'favourites',
+      label: 'Favourite teachers',
+      icon: <Heart className="h-4 w-4" strokeWidth={2} aria-hidden="true" />,
+      onClick: () => navigate('/liked-teachers'),
+    },
+    {
+      key: 'notifications',
+      label: 'Notifications',
+      icon: <Bell className="h-4 w-4" strokeWidth={2} aria-hidden="true" />,
+      onClick: () => navigate('/notifications'),
+    },
+    {
+      key: 'privacy',
+      label: 'Privacy & terms',
+      icon: <ShieldCheck className="h-4 w-4" strokeWidth={2} aria-hidden="true" />,
+      onClick: () => navigate('/privacy'),
+    },
+    {
+      key: 'sign-out',
+      label: 'Sign out',
+      icon: <LogOut className="h-4 w-4" strokeWidth={2} aria-hidden="true" />,
+      onClick: handleSignOut,
+      destructive: true,
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Control block — S9 header: avatar, name, role/class subline, settings
+          disc, and the three-counter stat row (components.md C9). */}
+      <ControlBlock mode="dark">
+        <div className="flex items-center gap-4">
+          <span className="flex h-14 w-14 flex-none items-center justify-center rounded-full bg-brand font-display text-card-title-lg font-black text-brand-foreground">
+            {initial}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-card-title-lg font-extrabold tracking-tight text-background">
+              {userName || 'Your account'}
+            </h1>
+            <p className="mt-0.5 truncate text-body-secondary text-background/60">
+              {subLineParts.join(' · ')}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(settingsOpen === 'profile' ? null : 'profile')}
+            aria-label="Open profile settings"
+            className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-white/10 transition-colors duration-150 hover:bg-white/20 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <Settings className="h-[17px] w-[17px] text-background" strokeWidth={2.1} aria-hidden="true" />
+          </button>
+        </div>
 
-      <main className="container pt-8 pb-16">
-        {/* Header */}
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Your dashboard</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {subLineParts.length > 0 ? subLineParts.join(' · ') : 'Manage your profile and preferences'}
-        </p>
-
-        {/* Stat tiles — squircle treatment, one flat fill per tile */}
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
+        <div className="mt-[18px] grid grid-cols-3 gap-2">
           {dashboardStats.map((st) => (
-            <div key={st.label} className={`rounded-2xl p-4 sm:p-6 ${st.fill}`}>
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {st.label}
-              </div>
-              <div className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-foreground">
+            <div key={st.label} className="rounded-2xl bg-white/[0.08] p-3">
+              <div className="font-display text-card-title-lg font-black tabular-nums tracking-tight text-background">
                 {st.value}
               </div>
+              <div className="mt-0.5 text-label text-background/60">{st.label}</div>
             </div>
           ))}
         </div>
+      </ControlBlock>
 
+      <PageContainer as="main" className="flex flex-col gap-7 py-5">
         {/* Teachers you saved */}
-        <div className="mt-8 mb-4 flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Teachers you saved</h2>
-          {hasMoreSavedTeachers && (
-            <Link to="/liked-teachers" className="text-sm font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep">
-              See all {likedCount} →
-            </Link>
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 font-display text-section-head font-extrabold tracking-tight text-foreground">
+              <IconDisc tone="brand-subtle" size={26} shape="square">
+                <Heart className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+              </IconDisc>
+              Teachers you saved
+            </h2>
+            {hasMoreSavedTeachers && (
+              <Link
+                to="/liked-teachers"
+                className="whitespace-nowrap text-body-secondary font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                All {likedCount}
+              </Link>
+            )}
+          </div>
+
+          {savedTeachersLoading ? (
+            <ListLoading count={3} media={0} lines={2} />
+          ) : savedTeachersError ? (
+            <ListError onRetry={() => window.location.reload()} />
+          ) : shownSavedTeachers.length > 0 ? (
+            <>
+              <div className="flex flex-col gap-2">
+                {shownSavedTeachers.map((teacher) => (
+                  <TeacherCard
+                    key={teacher.id}
+                    id={teacher.id}
+                    name={teacher.name}
+                    slug={teacher.slug}
+                    subject={teacher.subjects?.name || 'Tuition Teacher'}
+                    imageUrl={teacher.image_url || undefined}
+                    sirMaam={teacher.sirMaam}
+                    variant="row"
+                  />
+                ))}
+              </div>
+              {!hasMoreSavedTeachers && <ListEnd count={likedCount} />}
+            </>
+          ) : (
+            <ListEmpty line="No saved teachers yet. Tap the mark on any card and they wait for you here." />
           )}
-        </div>
-        {savedTeachersLoading ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="aspect-[4/5] animate-shimmer rounded-2xl bg-muted" />
-            ))}
-          </div>
-        ) : shownSavedTeachers.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-            {shownSavedTeachers.map((teacher) => (
-              <TeacherCard
-                key={teacher.id}
-                id={teacher.id}
-                name={teacher.name}
-                slug={teacher.slug}
-                subject={teacher.subjects?.name || 'Tuition Teacher'}
-                subjectSlug={teacher.subjects?.slug}
-                imageUrl={teacher.image_url || undefined}
-                sirMaam={teacher.sirMaam}
-                size="sm"
+        </section>
+
+        {/* Recently opened papers — no reading-progress/resume feature exists (see
+            comment near readingHistory above), so the copy here promises only
+            what actually happens: papers you've opened. */}
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 font-display text-section-head font-extrabold tracking-tight text-foreground">
+            <IconDisc tone="papers-subtle" size={26} shape="square">
+              <BookOpen className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+            </IconDisc>
+            Recently opened papers
+          </h2>
+          {readingHistory.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {readingHistory.map(({ paper }) => (
+                <PaperCard key={paper.id} paper={paper} variant="compact" />
+              ))}
+            </div>
+          ) : (
+            <ListEmpty line="No papers read yet. Pick one from your class and it lands on your shelf." />
+          )}
+        </section>
+
+        {/* Profile completeness — PLAIN BAR (GoalRing is reserved for the weekly
+            paper goal only). Computed from the loaded profile fields. */}
+        <section className="flex items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-6">
+          <IconDisc tone="brand-subtle" size={44}>
+            <UserRound className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+          </IconDisc>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-body font-semibold text-foreground">Profile completeness</span>
+              <span className="whitespace-nowrap text-body-secondary font-bold tabular-nums text-foreground">
+                {completenessPct}%
+              </span>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-muted">
+              <div
+                className="h-2 rounded-full bg-brand transition-[width] duration-300"
+                style={{ width: `${completenessPct}%` }}
               />
-            ))}
-          </div>
-        ) : (
-          <EmptyResults
-            icon={<Heart className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-            heading="Nothing saved yet"
-            message="Tap the heart on any teacher's profile to save them here for later."
-            action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
-          />
-        )}
-
-        {/* Recently opened papers — no reading-progress/resume feature exists (see comment near
-            readingHistory above), so the copy here promises only what actually happens: papers
-            you've opened, not a synced reading position. */}
-        <h2 className="mt-8 mb-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Recently opened papers</h2>
-        {readingHistory.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
-            {readingHistory.map(({ paper }) => (
-              <PaperCard key={paper.id} paper={paper} variant="compact" />
-            ))}
-          </div>
-        ) : (
-          <EmptyResults
-            icon={<BookOpen className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-            heading="Nothing opened yet"
-            message="Papers you open will show up here so you can find them again quickly."
-            action={{ label: 'Browse past papers', onClick: () => navigate('/past-papers') }}
-          />
-        )}
-
-        {/* Profile completeness — circular progress ring, computed from the loaded profile fields */}
-        <div className="mt-11 flex items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-6">
-          <div
-            className="relative flex h-16 w-16 flex-none items-center justify-center rounded-full"
-            style={{ background: `conic-gradient(hsl(var(--brand)) ${completenessPct * 3.6}deg, hsl(var(--muted)) 0deg)` }}
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card">
-              <CircleUserRound className="h-5 w-5 text-brand" strokeWidth={1.75} aria-hidden="true" />
             </div>
+            <p className="mt-1.5 text-meta text-muted-foreground tabular-nums">
+              {completenessFilled} of {completenessTotal} fields filled
+            </p>
           </div>
-          <div>
-            <div className="text-base font-semibold text-foreground">Profile completeness</div>
-            <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
-              {completenessFilled}/{completenessTotal} fields · {completenessPct}%
-            </div>
-          </div>
-        </div>
+        </section>
 
-        <div>
-          {/* Profile Form */}
-          <div className="mt-6 space-y-6 rounded-2xl bg-card p-5 shadow-border sm:p-8">
-            {/* Locked Fields Section */}
-            <div className="space-y-4 border-b border-border pb-6">
-              <h2 className={`${SECTION_HEADING_CLASSNAME} flex items-center gap-2`}>
-                <Lock className="h-5 w-5 text-warm-meta" />
-                Account Information
-              </h2>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="accountName" className={LABEL_CLASSNAME}>
-                    Name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="accountName"
-                    value={userName}
-                    disabled
-                    className={LOCKED_FIELD_CLASSNAME}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="accountEmail" className={LABEL_CLASSNAME}>
-                    Email <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="accountEmail"
-                    value={userEmail}
-                    disabled
-                    className={LOCKED_FIELD_CLASSNAME}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Editable Fields Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className={SECTION_HEADING_CLASSNAME}>Profile Information</h2>
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="gap-2"
-                  size="lg"
+        {/* Account settings list */}
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 font-display text-section-head font-extrabold tracking-tight text-foreground">
+            <IconDisc tone="muted" size={26} shape="square">
+              <Settings className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+            </IconDisc>
+            Account
+          </h2>
+          <div className="overflow-hidden rounded-2xl bg-card shadow-border">
+            {accountRows.map((row, i) => (
+              <button
+                key={row.key}
+                type="button"
+                onClick={row.onClick}
+                aria-expanded={
+                  (row.key === 'profile' || row.key === 'subjects') ? settingsOpen === row.key : undefined
+                }
+                className={`flex min-h-[52px] w-full items-center gap-3 p-4 text-left transition-colors duration-150 hover:bg-accent active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
+                  i > 0 ? 'border-t border-border' : ''
+                }`}
+              >
+                <IconDisc tone="muted" size={36} shape="square">
+                  {row.icon}
+                </IconDisc>
+                <span
+                  className={`flex-1 text-body-secondary font-semibold ${
+                    row.destructive ? 'text-destructive' : 'text-foreground'
+                  }`}
                 >
-                  <Save className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </div>
+                  {row.label}
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-warm-label" strokeWidth={2.4} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </section>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className={LABEL_CLASSNAME}>
-                    Phone Number <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    autoComplete="tel"
-                    placeholder="10-digit phone number"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    maxLength={10}
-                    inputMode="numeric"
-                    className={`w-full ${FIELD_CLASSNAME}`}
-                  />
-                </div>
+        {/* Profile information — real editable form (profiles + student_subjects),
+            revealed from the "Profile information" / "Subjects interested in"
+            settings rows above so the machinery stays on this one page. */}
+        {(settingsOpen === 'profile' || settingsOpen === 'subjects') && (
+          <section className="space-y-6 rounded-2xl bg-card p-5 shadow-border sm:p-8">
+            {settingsOpen === 'profile' && (
+              <>
+                {/* Locked Fields Section */}
+                <div className="space-y-4 border-b border-border pb-6">
+                  <h3 className="flex items-center gap-2 text-body font-semibold text-foreground">
+                    <Lock className="h-4 w-4 text-warm-meta" aria-hidden="true" />
+                    Account information
+                  </h3>
 
-                <div className="space-y-2">
-                  <Label htmlFor="date_of_birth" className={LABEL_CLASSNAME}>
-                    Date of Birth <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="date_of_birth"
-                    name="date_of_birth"
-                    type="text"
-                    placeholder="DD-MM-YYYY (e.g., 15-03-2010)"
-                    value={formData.date_of_birth}
-                    onChange={handleInputChange}
-                    maxLength={10}
-                    className={`w-full ${FIELD_CLASSNAME}`}
-                  />
-                  {formData.date_of_birth && !isValidDateFormat(formData.date_of_birth) && (
-                    <p className="text-sm text-destructive">Please enter a valid date in DD-MM-YYYY format</p>
-                  )}
-                </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="accountName" className={LABEL_CLASSNAME}>
+                        Name <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="accountName"
+                        value={userName}
+                        disabled
+                        className={LOCKED_FIELD_CLASSNAME}
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="school_college" className={LABEL_CLASSNAME}>
-                    School/College <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="school_college"
-                    name="school_college"
-                    type="text"
-                    placeholder="Enter school or college name"
-                    value={formData.school_college}
-                    onChange={handleInputChange}
-                    className={FIELD_CLASSNAME}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="grade" className={LABEL_CLASSNAME}>
-                    Grade <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={formData.grade || "__none__"}
-                    onValueChange={(value) => setFormData({ ...formData, grade: value === "__none__" ? "" : value })}
-                  >
-                    <SelectTrigger id="grade" className={FIELD_CLASSNAME}>
-                      <SelectValue placeholder="Select grade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      <SelectItem value="1">Class 1</SelectItem>
-                      <SelectItem value="2">Class 2</SelectItem>
-                      <SelectItem value="3">Class 3</SelectItem>
-                      <SelectItem value="4">Class 4</SelectItem>
-                      <SelectItem value="5">Class 5</SelectItem>
-                      <SelectItem value="6">Class 6</SelectItem>
-                      <SelectItem value="7">Class 7</SelectItem>
-                      <SelectItem value="8">Class 8</SelectItem>
-                      <SelectItem value="9">Class 9</SelectItem>
-                      <SelectItem value="10">Class 10</SelectItem>
-                      <SelectItem value="11">Class 11</SelectItem>
-                      <SelectItem value="12">Class 12</SelectItem>
-                      <SelectItem value="UG, First Year">UG, First Year</SelectItem>
-                      <SelectItem value="UG, Second Year">UG, Second Year</SelectItem>
-                      <SelectItem value="UG, Third Year">UG, Third Year</SelectItem>
-                      <SelectItem value="UG, Fourth Year">UG, Fourth Year</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label className={LABEL_CLASSNAME}>School Board (Optional)</Label>
-                  {/* Segmented pill toggle — 5 fixed options, the dominant filter pattern per the
-                      squircles reference. Tap the active pill again to clear the selection. */}
-                  <div className="flex flex-wrap gap-2" role="group" aria-label="School board">
-                    {schoolBoards.map((board) => {
-                      const selected = formData.school_board === board;
-                      return (
-                        <button
-                          key={board}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() =>
-                            setFormData({ ...formData, school_board: selected ? '' : board })
-                          }
-                          className={`min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ${
-                            selected
-                              ? 'bg-brand-blue text-brand-blue-foreground'
-                              : 'bg-muted text-foreground hover:bg-accent'
-                          }`}
-                        >
-                          {board}
-                        </button>
-                      );
-                    })}
+                    <div className="space-y-2">
+                      <Label htmlFor="accountEmail" className={LABEL_CLASSNAME}>
+                        Email <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="accountEmail"
+                        value={userEmail}
+                        disabled
+                        className={LOCKED_FIELD_CLASSNAME}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="guardian_email" className={LABEL_CLASSNAME}>Guardian's Email (Optional)</Label>
-                  <Input
-                    id="guardian_email"
-                    name="guardian_email"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    placeholder="guardian@example.com"
-                    value={formData.guardian_email}
-                    onChange={handleInputChange}
-                    className={FIELD_CLASSNAME}
-                  />
-                </div>
+                {/* Editable Fields Section */}
+                <div className="space-y-4">
+                  <h3 className="text-body font-semibold text-foreground">Profile information</h3>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="address" className={LABEL_CLASSNAME}>Address (Optional)</Label>
-                  <Textarea
-                    id="address"
-                    name="address"
-                    placeholder="Enter your address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className={`${FIELD_CLASSNAME} min-h-[88px] py-3`}
-                  />
-                </div>
-              </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone" className={LABEL_CLASSNAME}>
+                        Phone Number <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        autoComplete="tel"
+                        placeholder="10-digit phone number"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        maxLength={10}
+                        inputMode="numeric"
+                        className={`w-full ${FIELD_CLASSNAME}`}
+                      />
+                    </div>
 
-              {/* Subjects Selection */}
-              <div className="space-y-3 pt-4 border-t border-border">
-                <Label className={LABEL_CLASSNAME}>Subjects Interested In</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="date_of_birth" className={LABEL_CLASSNAME}>
+                        Date of Birth <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="date_of_birth"
+                        name="date_of_birth"
+                        type="text"
+                        placeholder="DD-MM-YYYY (e.g., 15-03-2010)"
+                        value={formData.date_of_birth}
+                        onChange={handleInputChange}
+                        maxLength={10}
+                        className={`w-full ${FIELD_CLASSNAME}`}
+                      />
+                      {formData.date_of_birth && !isValidDateFormat(formData.date_of_birth) && (
+                        <p className="text-meta text-destructive">Please enter a valid date in DD-MM-YYYY format</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="school_college" className={LABEL_CLASSNAME}>
+                        School/College <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="school_college"
+                        name="school_college"
+                        type="text"
+                        placeholder="Enter school or college name"
+                        value={formData.school_college}
+                        onChange={handleInputChange}
+                        className={FIELD_CLASSNAME}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="grade" className={LABEL_CLASSNAME}>
+                        Grade <span className="text-destructive">*</span>
+                      </Label>
+                      <Select
+                        value={formData.grade || "__none__"}
+                        onValueChange={(value) => setFormData({ ...formData, grade: value === "__none__" ? "" : value })}
+                      >
+                        <SelectTrigger id="grade" className={FIELD_CLASSNAME}>
+                          <SelectValue placeholder="Select grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None</SelectItem>
+                          <SelectItem value="1">Class 1</SelectItem>
+                          <SelectItem value="2">Class 2</SelectItem>
+                          <SelectItem value="3">Class 3</SelectItem>
+                          <SelectItem value="4">Class 4</SelectItem>
+                          <SelectItem value="5">Class 5</SelectItem>
+                          <SelectItem value="6">Class 6</SelectItem>
+                          <SelectItem value="7">Class 7</SelectItem>
+                          <SelectItem value="8">Class 8</SelectItem>
+                          <SelectItem value="9">Class 9</SelectItem>
+                          <SelectItem value="10">Class 10</SelectItem>
+                          <SelectItem value="11">Class 11</SelectItem>
+                          <SelectItem value="12">Class 12</SelectItem>
+                          <SelectItem value="UG, First Year">UG, First Year</SelectItem>
+                          <SelectItem value="UG, Second Year">UG, Second Year</SelectItem>
+                          <SelectItem value="UG, Third Year">UG, Third Year</SelectItem>
+                          <SelectItem value="UG, Fourth Year">UG, Fourth Year</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label className={LABEL_CLASSNAME}>School Board (Optional)</Label>
+                      {/* Segmented pill toggle — 5 fixed options. Tap the active pill
+                          again to clear the selection. */}
+                      <div className="flex flex-wrap gap-2" role="group" aria-label="School board">
+                        {schoolBoards.map((board) => {
+                          const selected = formData.school_board === board;
+                          return (
+                            <button
+                              key={board}
+                              type="button"
+                              aria-pressed={selected}
+                              onClick={() =>
+                                setFormData({ ...formData, school_board: selected ? '' : board })
+                              }
+                              className={`min-h-11 rounded-full px-4 text-body-secondary font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                                selected
+                                  ? 'bg-brand-blue text-brand-blue-foreground'
+                                  : 'bg-muted text-foreground hover:bg-accent'
+                              }`}
+                            >
+                              {board}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="guardian_email" className={LABEL_CLASSNAME}>Guardian's Email (Optional)</Label>
+                      <Input
+                        id="guardian_email"
+                        name="guardian_email"
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        placeholder="guardian@example.com"
+                        value={formData.guardian_email}
+                        onChange={handleInputChange}
+                        className={FIELD_CLASSNAME}
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="address" className={LABEL_CLASSNAME}>Address (Optional)</Label>
+                      <Textarea
+                        id="address"
+                        name="address"
+                        placeholder="Enter your address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        rows={3}
+                        className={`${FIELD_CLASSNAME} min-h-[88px] py-3`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {settingsOpen === 'subjects' && (
+              <div className="space-y-3">
+                <Label className={LABEL_CLASSNAME}>Subjects interested in</Label>
                 <div
-                  className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}
+                  className={`grid max-h-64 grid-cols-2 gap-3 overflow-y-auto p-4 md:grid-cols-3 lg:grid-cols-4 ${OPTION_GROUP_CLASSNAME}`}
                 >
                   {subjects.map((subject) => (
                     <div key={subject.id} className="flex items-center space-x-2">
@@ -813,7 +960,7 @@ export default function StudentDashboard() {
                       />
                       <Label
                         htmlFor={`subject-${subject.id}`}
-                        className="cursor-pointer text-sm font-normal text-warm-prose"
+                        className="cursor-pointer text-body-secondary font-normal text-warm-prose"
                       >
                         {subject.name}
                       </Label>
@@ -821,29 +968,30 @@ export default function StudentDashboard() {
                   ))}
                 </div>
                 {subjects.length === 0 && (
-                  <p className="text-sm text-warm-meta">No subjects available</p>
+                  <p className="text-body-secondary text-warm-meta">No subjects available</p>
                 )}
               </div>
-            </div>
+            )}
 
-            {/* Save Button */}
-            <div className="pt-6 border-t border-border">
+            <div className="border-t border-border pt-6">
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="w-full md:w-auto gap-2"
-                size="lg"
+                variant="primary"
+                size={52}
+                className="w-full gap-2 md:w-auto"
               >
-                <Save className="w-4 h-4" />
+                <Save className="w-4 h-4" aria-hidden="true" />
                 {saving ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
-          </div>
-        </div>
-      </main>
+          </section>
+        )}
+      </PageContainer>
 
-      <PreFooter variant={preFooterFor(location.pathname)} />
+      <PreFooter variant="B4" />
       <Footer />
+      <BottomNavSpacer />
     </div>
   );
 }

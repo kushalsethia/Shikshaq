@@ -10,12 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { GraduationCap, Users } from 'lucide-react';
+import { GraduationCap, Users, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
-import { StarburstBadge } from '@/components/devices';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
 import { useLocation } from 'react-router-dom';
 
@@ -219,61 +218,73 @@ export default function SelectRole() {
     );
   }
 
+  // Redesign S8 (design.md §1; changelog C-033) — rebuilt from zero. Mockup
+  // draws three generic role tiles (Student / Guardian / I teach); this app's
+  // actual role-select only collects Student vs Guardian ("I teach" already
+  // has its own /join flow), so the tile pattern is kept at two, styled per
+  // the mockup's selected/unselected tile language (solid orange vs bone card).
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-
-      <main className="ground-graph relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:px-6 sm:py-16">
-        <div className="relative w-full max-w-[480px]">
-          <div className="mb-8 text-center">
-            <div className="relative mx-auto mb-4 inline-block">
-              <Logo size="lg" className="mx-auto" />
-              <StarburstBadge
-                color="hsl(var(--brand-blue))"
-                size={54}
-                tilt={-10}
-                className="absolute -right-8 -top-5 hidden sm:inline-grid"
-              >
-                Almost
-              </StarburstBadge>
-            </div>
-            <h1 className="font-display text-display-hero leading-tight tracking-tight text-foreground">
-              One quick{' '}
-              <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand))' }}>
-                thing
-              </span>
+    <div className="flex min-h-screen flex-col bg-background">
+      <main className="flex flex-1 flex-col gap-[18px] px-4 pb-16 pt-[22px] sm:px-6 sm:py-16">
+        <div className="mx-auto w-full max-w-[480px]">
+          <div className="mb-2 text-center">
+            <Logo size="lg" className="mx-auto mb-4" />
+            <h1 className="font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-foreground">
+              Who's using ShikshAQ?
             </h1>
-            <p className="mt-2 text-base leading-relaxed text-muted-foreground">
-              Are you the one studying, or looking after someone who is?
+            <p className="mt-2 text-[14.5px] leading-relaxed text-warm-prose">
+              We use this to decide what your home screen shows. You can change it later.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            <div>
-              <label className={LABEL_CLASS}>I am a...</label>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setRole('student')}
-                  aria-pressed={role === 'student'}
-                  className={`active:scale-[0.98] transition-transform duration-150 flex flex-col items-center justify-center gap-2 py-6 px-4 rounded-2xl ${role === 'student' ? 'bg-brand-subtle ring-2 ring-brand' : 'bg-card shadow-border'}`}
-                >
-                  <GraduationCap className={`w-7 h-7 ${role === 'student' ? 'text-brand-deep' : 'text-foreground'}`} />
-                  <span className="text-base font-semibold text-foreground">Student</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('guardian')}
-                  aria-pressed={role === 'guardian'}
-                  className={`active:scale-[0.98] transition-transform duration-150 flex flex-col items-center justify-center gap-2 py-6 px-4 rounded-2xl ${role === 'guardian' ? 'bg-brand-blue-subtle ring-2 ring-brand-blue' : 'bg-card shadow-border'}`}
-                >
-                  <Users className={`w-7 h-7 ${role === 'guardian' ? 'text-brand-blue' : 'text-foreground'}`} />
-                  <span className="text-base font-semibold text-foreground">Guardian</span>
-                </button>
-              </div>
+          <form onSubmit={handleSubmit} className="mt-[18px] flex flex-col gap-[18px]">
+            <div className="flex flex-col gap-3">
+              {/* Student tile is always brand-filled per mockup S8 (the featured
+                  first option); selection is communicated with a ring, since
+                  the fill itself doesn't change state in the mockup. */}
+              <button
+                type="button"
+                onClick={() => setRole('student')}
+                aria-pressed={role === 'student'}
+                className={`flex items-center gap-[14px] rounded-[22px] bg-brand p-[18px] text-left text-brand-foreground shadow-glow-brand transition-transform duration-150 active:scale-[0.98] ${
+                  role === 'student' ? 'ring-2 ring-foreground ring-offset-2' : ''
+                }`}
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
+                  <GraduationCap className="h-[22px] w-[22px]" strokeWidth={2.1} />
+                </span>
+                <span className="flex-1">
+                  <span className="font-display text-[19px] font-extrabold tracking-[-0.03em]">Student</span>
+                  <span className="mt-[3px] block text-[13px] leading-[1.5] text-brand-foreground/85">
+                    School, board, class and the subjects you need help with.
+                  </span>
+                </span>
+                <ChevronRight className="h-[18px] w-[18px] shrink-0 text-brand-foreground/85" strokeWidth={2.4} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRole('guardian')}
+                aria-pressed={role === 'guardian'}
+                className={`flex items-center gap-[14px] rounded-[22px] bg-card p-[18px] text-left text-foreground shadow-border transition-transform duration-150 active:scale-[0.98] ${
+                  role === 'guardian' ? 'ring-2 ring-foreground' : ''
+                }`}
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted">
+                  <Users className="h-[22px] w-[22px]" strokeWidth={2.1} />
+                </span>
+                <span className="flex-1">
+                  <span className="font-display text-[19px] font-extrabold tracking-[-0.03em]">Guardian</span>
+                  <span className="mt-[3px] block text-[13px] leading-[1.5] text-warm-meta">
+                    Your relationship to the student, plus their details.
+                  </span>
+                </span>
+                <ChevronRight className="h-[18px] w-[18px] shrink-0 text-warm-meta" strokeWidth={2.4} />
+              </button>
             </div>
 
             {role === 'student' && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-300 flex flex-col gap-6">
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300 flex flex-col gap-[18px]">
                 <div>
                   <label htmlFor="school_college" className={LABEL_CLASS}>
                     School / College <span className="text-destructive">*</span>
@@ -342,7 +353,7 @@ export default function SelectRole() {
             <button
               type="submit"
               disabled={loading || !role || !termsAgreed || (role === 'student' && (!schoolCollege.trim() || !grade))}
-              className="active:scale-[0.98] transition-transform duration-150 w-full min-h-[50px] rounded-lg bg-foreground text-background text-base font-bold disabled:opacity-50"
+              className="min-h-[50px] w-full rounded-lg bg-foreground text-base font-bold text-background transition-transform duration-150 active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? 'Creating profile...' : 'Continue'}
             </button>

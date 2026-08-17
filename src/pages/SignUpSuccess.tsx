@@ -37,31 +37,36 @@ export default function SignUpSuccess() {
     navigate(redirectTo || '/');
   };
 
+  // Redesign S19 "Sign-up success" (design.md §1, §6.5; changelog C-044) —
+  // rebuilt from zero: giant ghosted ✓ glyph (not an outline icon), a -4°
+  // "You're in" sticker, then the real verify-email card the app needs to
+  // show (mockup omits it — Supabase requires email verification — kept per
+  // "design wins, keep functionality" and styled in the mockup's language).
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-
+    <div className="flex min-h-screen flex-col bg-background">
       <main className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
         <div className="relative w-full max-w-[440px]">
-          {/* Orange slab, ghosted check, "You're in" sticker */}
-          <div className="relative overflow-visible rounded-3xl bg-brand p-6 text-center text-brand-foreground shadow-glow-brand sm:p-8">
-            <Sticker tone="dark" tilt={-3} size={30}>
+          <div className="relative overflow-hidden rounded-[26px] bg-brand p-[18px] text-brand-foreground shadow-glow-brand sm:p-8">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-[6px] -top-[14px] font-display text-[96px] font-black leading-none tracking-[-0.06em] text-brand-foreground/[0.16]"
+            >
+              &#10003;
+            </span>
+            <Sticker tone="dark" tilt={-4} size={26} className="!top-0 !right-0 relative mb-3 inline-flex">
               You're in
             </Sticker>
-            <CheckCircle
-              aria-hidden="true"
-              className="pointer-events-none absolute -right-4 -top-6 h-28 w-28 text-brand-foreground/15"
-              strokeWidth={1.25}
-            />
-            <Logo size="lg" className="mx-auto mb-4 brightness-0 invert" />
-            <h1 className="font-display text-display-hero leading-tight tracking-tight">You're in.</h1>
-            <p className="mt-2 text-body-secondary opacity-90">
+            <div className="relative mt-3 font-display text-2xl font-black leading-[1.1] tracking-[-0.04em]">
+              {hasIntent ? 'Account ready. Back to where you were.' : "You're in."}
+            </div>
+            <p className="relative mt-2 text-[13.5px] leading-[1.55] text-brand-foreground/85">
               {hasIntent
-                ? 'Resume the exact message you were about to send.'
+                ? 'We saved the teacher you were about to message.'
                 : "Welcome to ShikshAQ — glad you're here."}
             </p>
           </div>
 
-          <div className="mt-6 rounded-2xl bg-card p-6 shadow-border text-left sm:p-8">
+          <div className="mt-6 rounded-2xl bg-card p-6 text-left shadow-border sm:p-8">
             <div className="flex items-start gap-4">
               <div className="mt-0.5 shrink-0 rounded-full bg-brand-blue-subtle p-3">
                 <Mail className="h-5 w-5 text-brand-blue" aria-hidden="true" />

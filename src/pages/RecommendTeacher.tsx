@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { useRequireRole } from '@/hooks/use-require-role';
@@ -8,14 +9,10 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { logger } from '@/utils/logger';
-import { PageHeader } from '@/components/devices';
+import { Button } from '@/components/ui/button';
+import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
+import { PageContainer, ControlBlock, BottomNavSpacer } from '@/components/layout/PageContainer';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
-import { useLocation } from 'react-router-dom';
-
-const FIELD_BASE =
-  'w-full box-border min-h-12 px-4 py-3 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline shikshaq-recommend-field';
-const FIELD_ERROR = 'ring-destructive';
-const LABEL = 'text-sm font-semibold text-foreground mb-2';
 
 const recommendSchema = z.object({
   teacherName: z.string().trim().min(1, "Please enter the teacher's name").max(100, "Teacher's name is too long"),
@@ -47,6 +44,10 @@ export default function RecommendTeacher() {
 
   // Ensure user has selected a role
   useRequireRole();
+
+  const nameValidation = useBlurValidation(formData.teacherName, (v) =>
+    v.trim().length === 0 ? "Please enter the teacher's name" : undefined
+  );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -112,130 +113,136 @@ export default function RecommendTeacher() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* S11 "recommend" — the mockup shows this as step 2 of a 3-step wizard
+          shared with /join-apply. This route is a single-page form, not a
+          wizard, so the progress bar is not reproduced; header, field and
+          footer treatment match the mockup exactly. */}
+      <ControlBlock mode="dark">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="inline-flex h-11 items-center gap-2 text-body-secondary font-semibold text-background/70 transition-colors duration-150 hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+        >
+          <ArrowLeft size={15} strokeWidth={2.3} aria-hidden="true" />
+          Back
+        </button>
+        <h1 className="mt-[14px] font-display text-page-title font-black leading-[1.05] tracking-[-0.04em] text-background">
+          Know a teacher worth listing?
+        </h1>
+        <p className="mt-2 text-body-secondary text-background/80">
+          Three fields. We verify before anything goes live.
+        </p>
+      </ControlBlock>
 
-      <PageHeader
-        eyebrow="Word of mouth"
-        title={
-          <>
-            Know someone who{' '}
-            <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand))' }}>
-              taught you well
-            </span>
-            ?
-          </>
-        }
-        lede="Tell us about them. We contact them, verify their experience, and list them only if they agree."
-        tags={[{ label: 'Takes a minute' }, { label: 'Free to submit' }]}
-        accent="hsl(var(--brand))"
-        ground="ruled"
-      />
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-16">
-        <div className="p-6 sm:p-8 rounded-2xl bg-card shadow-border">
+      <PageContainer className="pt-8 sm:pt-10 pb-16">
+        <div className="mx-auto max-w-3xl rounded-2xl bg-card p-6 shadow-border sm:p-8">
           {submitted ? (
-            <div className="text-center py-2">
-              <p className="text-lg font-semibold text-foreground">
+            <div className="py-2 text-center">
+              <p className="text-body font-semibold text-foreground">
                 Thanks — we will reach out to them this week.
               </p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="grid gap-4">
-              {/* Teacher's name */}
-              <div>
-                <label htmlFor="teacherName" className={LABEL}>Teacher's name</label>
-                <input
-                  id="teacherName"
-                  name="teacherName"
-                  placeholder="e.g. Ananya Ghosh"
-                  value={formData.teacherName}
-                  onChange={handleChange}
-                  maxLength={100}
-                  className={`${FIELD_BASE} ${error ? FIELD_ERROR : ''}`}
-                />
-                {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-              </div>
-
-              {/* Subject / Area pair */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="subject" className={LABEL}>Subject</label>
-                  <input
-                    id="subject"
-                    name="subject"
-                    placeholder="e.g. Maths"
-                    value={formData.subject}
-                    onChange={handleChange}
-                    maxLength={100}
-                    className={FIELD_BASE}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="area" className={LABEL}>Area they teach in</label>
-                  <input
-                    id="area"
-                    name="area"
-                    placeholder="e.g. Ballygunge"
-                    value={formData.area}
-                    onChange={handleChange}
-                    maxLength={100}
-                    className={FIELD_BASE}
-                  />
-                </div>
-              </div>
-
-              {/* Contact */}
-              <div>
-                <label htmlFor="contact" className={LABEL}>Their contact, if you have it</label>
-                <input
-                  id="contact"
-                  name="contact"
-                  placeholder="Phone or WhatsApp number"
-                  value={formData.contact}
-                  onChange={handleChange}
-                  maxLength={50}
-                  className={FIELD_BASE}
-                />
-              </div>
-
-              {/* Reason */}
-              <div>
-                <label htmlFor="reason" className={LABEL}>Why you would recommend them</label>
-                <textarea
-                  id="reason"
-                  name="reason"
-                  rows={4}
-                  placeholder="A line or two is enough."
-                  value={formData.reason}
-                  onChange={handleChange}
-                  maxLength={1000}
-                  className={`${FIELD_BASE} leading-relaxed resize-y`}
-                />
-              </div>
-
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="hover:opacity-90 active:scale-[0.97] transition-[opacity,transform] duration-150 min-h-[52px] p-4 rounded-lg bg-foreground text-background text-center text-base font-semibold disabled:opacity-70"
+            <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
+              <Field
+                label="Teacher's name"
+                required
+                error={nameValidation.error}
               >
-                Send recommendation
-              </button>
+                {(controlProps) => (
+                  <FieldInput
+                    {...controlProps}
+                    name="teacherName"
+                    placeholder="e.g. Ananya Ghosh"
+                    value={formData.teacherName}
+                    onChange={handleChange}
+                    onBlur={nameValidation.onBlur}
+                    maxLength={100}
+                    autoComplete="name"
+                  />
+                )}
+              </Field>
 
-              <p className="text-xs leading-relaxed text-warm-meta">
-                We never publish a teacher's details without their consent, and we do not tell them who recommended them unless you ask us to.
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Subject">
+                  {(controlProps) => (
+                    <FieldInput
+                      {...controlProps}
+                      name="subject"
+                      placeholder="e.g. Maths"
+                      value={formData.subject}
+                      onChange={handleChange}
+                      maxLength={100}
+                    />
+                  )}
+                </Field>
+                <Field label="Area they teach in">
+                  {(controlProps) => (
+                    <FieldInput
+                      {...controlProps}
+                      name="area"
+                      placeholder="e.g. Ballygunge"
+                      value={formData.area}
+                      onChange={handleChange}
+                      maxLength={100}
+                    />
+                  )}
+                </Field>
+              </div>
+
+              <Field label="Their contact, if you have it" hint="Phone or WhatsApp — we verify, we never publish it.">
+                {(controlProps) => (
+                  <FieldInput
+                    {...controlProps}
+                    type="tel"
+                    name="contact"
+                    placeholder="e.g. +91 98300 00000"
+                    value={formData.contact}
+                    onChange={handleChange}
+                    maxLength={50}
+                    autoComplete="tel"
+                  />
+                )}
+              </Field>
+
+              <Field label="Why you would recommend them">
+                {(controlProps) => (
+                  <FieldTextarea
+                    {...controlProps}
+                    name="reason"
+                    rows={4}
+                    placeholder="A line or two is enough."
+                    value={formData.reason}
+                    onChange={handleChange}
+                    maxLength={1000}
+                  />
+                )}
+              </Field>
+
+              {error ? (
+                <p role="alert" className="text-meta text-facet-destructive">
+                  {error}
+                </p>
+              ) : null}
+
+              <Button type="submit" variant="primary" size={52} busy={loading} className="w-full">
+                Send recommendation
+              </Button>
+
+              <p className="text-meta leading-relaxed text-warm-meta">
+                We never publish a teacher's details without their consent, and we do not tell
+                them who recommended them unless you ask us to.
               </p>
             </form>
           )}
         </div>
-      </div>
+      </PageContainer>
 
-      <PreFooter variant={preFooterFor(location.pathname)} />
+      <PageContainer className="pb-8">
+        <PreFooter variant={preFooterFor(location.pathname)} />
+      </PageContainer>
+      <BottomNavSpacer />
       <Footer />
-
-      <style>{`
-        .shikshaq-recommend-field { transition: box-shadow .15s ease; }
-        .shikshaq-recommend-field:focus { box-shadow: 0 0 0 2px hsl(var(--foreground)); outline: none; }
-      `}</style>
     </div>
   );
 }

@@ -29,6 +29,10 @@ interface EmptyResultsProps {
   icon?: ReactNode;
   className?: string;
   style?: CSSProperties;
+  /** Accent for the sticker badge and primary action button. Defaults to the
+   * orange `brand` token; pages that are indigo-only (papers mode — no
+   * orange anywhere per design.md §2) pass `"papers"` instead. */
+  tone?: 'brand' | 'papers';
 }
 
 const FOCUS =
@@ -44,8 +48,10 @@ const FOCUS =
  * is a way forward, never just an apology. Keeps the page shell intact — this
  * replaces only the section body, never the whole screen.
  */
-export function EmptyResults({ heading, message, options, action, icon, className, style }: EmptyResultsProps) {
+export function EmptyResults({ heading, message, options, action, icon, className, style, tone = 'brand' }: EmptyResultsProps) {
   const hasRow = Boolean((options && options.length > 0) || action);
+  const stickerTone = tone === 'papers' ? 'bg-brand-blue/15 text-brand-blue-deep' : 'bg-brand/15 text-brand';
+  const actionTone = tone === 'papers' ? 'bg-brand-blue text-white hover:bg-brand-blue-deep' : 'bg-brand text-brand-foreground hover:bg-brand-hover';
 
   return (
     <div
@@ -55,7 +61,7 @@ export function EmptyResults({ heading, message, options, action, icon, classNam
       {/* Die-cut sticker badge — the "wrong turn" marker. Pops in with a
           slight overshoot rather than fading, per VISUAL_DIRECTION §7. */}
       <span
-        className="sticker sticker-rotate-sm outline-offset-shadow relative z-10 mb-5 flex h-16 w-16 shrink-0 animate-pop items-center justify-center rounded-full bg-brand/15 text-brand"
+        className={`sticker sticker-rotate-sm outline-offset-shadow relative z-10 mb-5 flex h-16 w-16 shrink-0 animate-pop items-center justify-center rounded-full ${stickerTone}`}
       >
         {icon ?? <SearchX className="h-7 w-7" strokeWidth={2} aria-hidden="true" />}
       </span>
@@ -79,7 +85,7 @@ export function EmptyResults({ heading, message, options, action, icon, classNam
             <button
               type="button"
               onClick={action.onClick}
-              className={`flex min-h-11 animate-card-reveal items-center rounded-lg bg-brand px-6 text-sm font-medium text-brand-foreground transition-colors duration-hover hover:bg-brand-hover active:scale-[0.97] ${FOCUS}`}
+              className={`flex min-h-11 animate-card-reveal items-center rounded-lg px-6 text-sm font-medium transition-colors duration-hover active:scale-[0.97] ${actionTone} ${FOCUS}`}
             >
               {action.label}
             </button>

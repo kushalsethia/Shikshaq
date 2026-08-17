@@ -3,13 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
+import { Loader2, MessageCircle } from 'lucide-react';
 import { z } from 'zod';
-import { Logo } from '@/components/Logo';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
-import { CutPaperShape } from '@/components/devices';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
-import { Chip } from '@/components/ui/chip';
+import { Logo } from '@/components/Logo';
 
 /* C-032 — proof mosaic above the fold. Counts are real (Supabase), never hardcoded; the pill
    is simply not rendered until its count arrives. */
@@ -369,380 +367,330 @@ export default function Auth() {
   // Show loading state while processing OAuth callback
   if (processingOAuth || (authLoading && window.location.hash.includes('access_token'))) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-panel">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
-          <p className="text-muted-foreground text-base">Completing sign in...</p>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-2 border-white/20 border-b-brand" />
+          <p className="text-base text-background/70">Completing sign in...</p>
         </div>
       </div>
     );
   }
 
+  // Redesign S6 (design.md §1, §6.5; changelog C-032) — rebuilt from zero.
+  // The whole opener is one near-black ControlBlock-style ground (mockup S6):
+  // logo + Skip, a scattered proof mosaic of tilted pills, then a "Free,
+  // always" eyebrow, the display headline, Google, and the credentials form.
+  // The mockup draws a magic-link ("Send me a link") flow; that machinery does
+  // not exist in this app (Supabase email/password + Google only), so the
+  // dark field row is reused for the real password form instead — reported.
+  const DARK_FIELD =
+    'w-full box-border min-h-[54px] h-[54px] px-4 rounded-[14px] bg-white/[0.08] text-[15px] text-background placeholder:text-background/40 outline-none shikshaq-auth-field';
+  const DARK_FIELD_ERROR = 'ring-2 ring-destructive';
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between gap-3 p-4 sm:p-6">
+    <div className="flex min-h-screen flex-col bg-panel">
+      {/* Header — logo (doubles as "back to home") + Skip, per mockup S6 */}
+      <header className="flex items-center justify-between gap-3 px-5 pt-5">
+        <Logo size="md" onDark ariaLabel="Back to home" />
         <Link
           to="/"
-          className="inline-flex items-center gap-2 min-h-11 py-1 -my-1 text-sm font-medium text-muted-foreground"
-        >
-          <ArrowLeft size={16} />
-          Back to home
-        </Link>
-        {/* C-032 — Skip link, top-right */}
-        <Link
-          to="/"
-          className="inline-flex min-h-11 items-center px-2 py-1 -my-1 text-sm font-semibold text-muted-foreground"
+          className="inline-flex min-h-11 items-center px-2 py-1 text-[13px] font-semibold text-background/55"
         >
           Skip
         </Link>
       </header>
 
-      {/* C-032 — scattered proof mosaic: tilted subject/count pills, built from real data */}
+      {/* C-032 — scattered proof mosaic, positions/rotations per mockup S6 */}
       {!showResetPassword && (
-        <div className="mx-auto flex w-full max-w-[470px] flex-wrap items-center justify-center gap-2 px-4 pb-2 sm:px-6" aria-hidden="true">
-          <span className="-rotate-2 rounded-full bg-card px-3 py-1.5 text-meta font-semibold text-foreground shadow-border">
+        <div className="relative mx-auto mt-2 h-[132px] w-full max-w-[470px] px-5" aria-hidden="true">
+          <span className="absolute left-[2%] top-[6%] -rotate-6 whitespace-nowrap rounded-full bg-brand-blue-subtle px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-blue-deep">
             Maths, Ballygunge
           </span>
-          <span className="rotate-1 rounded-full bg-card px-3 py-1.5 text-meta font-semibold text-foreground shadow-border">
+          {teacherCount !== null && (
+            <span className="absolute right-0 top-[22%] rotate-[4deg] whitespace-nowrap rounded-full bg-brand px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-foreground">
+              {teacherCount} verified tutors
+            </span>
+          )}
+          <span className="absolute left-[6%] top-[40%] rotate-3 whitespace-nowrap rounded-full bg-brand-blue-subtle px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-blue-deep">
+            Chemistry prelims
+          </span>
+          {paperCount !== null && (
+            <span className="absolute right-[6%] top-[57%] -rotate-[4deg] whitespace-nowrap rounded-full bg-brand-blue px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-blue-foreground">
+              {paperCount} free papers
+            </span>
+          )}
+          <span className="absolute bottom-[6%] left-0 rotate-[5deg] whitespace-nowrap rounded-full bg-brand-subtle px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-deep">
             English, Class 12
           </span>
-          {teacherCount !== null && (
-            <Chip asChild tone="solid" size={34} className="rotate-2 bg-brand text-brand-foreground">
-              {teacherCount} verified tutors
-            </Chip>
-          )}
-          {paperCount !== null && (
-            <Chip asChild tone="solid" size={34} className="-rotate-1 bg-brand-blue text-brand-blue-foreground">
-              {paperCount} free papers
-            </Chip>
-          )}
-          <span className="rotate-3 rounded-full bg-whatsapp px-3 py-1.5 text-meta font-semibold text-whatsapp-text shadow-border">
-            WhatsApp direct
+          <span className="absolute bottom-[14%] right-[2%] flex h-14 w-14 -rotate-[8deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text">
+            <MessageCircle size={26} fill="currentColor" strokeWidth={0} />
           </span>
         </div>
       )}
 
-      {/* Main Content */}
-      <main className="flex-1 pb-20 lg:pb-0">
-        <div className="max-w-[470px] mx-auto px-4 sm:px-6 pt-4 sm:pt-8 pb-12">
-          {/* First-fold opening — graph-paper ground + a cut-paper mark instead of
-              logo-on-blank-white. Confined to the header block only; the form
-              below stays a crisp, unadorned surface (§4). */}
-          <div className="ground-graph relative -mx-4 mb-5 overflow-hidden rounded-2xl px-4 pb-6 pt-6 sm:-mx-6 sm:px-6">
-            <CutPaperShape
-              variant="squiggle"
-              color="hsl(var(--brand-blue))"
-              size={120}
-              outlined={false}
-              className="pointer-events-none absolute -right-2 top-2 hidden opacity-70 sm:block"
-            />
-            <div className="relative text-center">
-              <span className="relative inline-flex">
-                <Logo size="lg" className="justify-center" />
-                <Sparkles
-                  className="animate-sparkle absolute -right-3 -top-2 h-[14px] w-[14px] text-brand-blue opacity-0 [animation-delay:.3s]"
-                  aria-hidden="true"
-                />
-              </span>
+      <main className="flex-1 pb-8">
+        <div className="mx-auto w-full max-w-[470px] px-5 pt-2">
+          <div className="flex flex-col gap-[18px]">
+            <div>
+              {!showResetPassword && (
+                <p className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-background/55">
+                  Free, always
+                </p>
+              )}
+              <h1 className="font-display text-[34px] font-black leading-[1.02] tracking-[-0.04em] text-background">
+                {showResetPassword ? 'Reset your password' : 'One tap, then talk to the teacher.'}
+              </h1>
+              <p className="mt-3 text-[14.5px] leading-relaxed text-background/70">
+                {showResetPassword
+                  ? 'Enter your new password below'
+                  : isLogin
+                  ? 'Sign in to continue to Shikshaq'
+                  : 'Join Shikshaq to find the best tutors'}
+              </p>
             </div>
-          </div>
 
-          {/* Segmented tab pill — Sign in / Create account */}
-          {!showResetPassword && (
-            <div className="flex gap-1 p-1 rounded-2xl bg-muted mb-5">
-              <button
-                type="button"
-                onClick={() => switchAuthMode(true)}
-                className={`shikshaq-tap flex-1 min-h-11 p-3 rounded-lg text-center text-sm font-semibold text-foreground transition-all duration-150 ${isLogin ? 'bg-card shadow-border' : 'bg-transparent'}`}
-              >
-                Sign in
-              </button>
-              <button
-                type="button"
-                onClick={() => switchAuthMode(false)}
-                className={`shikshaq-tap flex-1 min-h-11 p-3 rounded-lg text-center text-sm font-semibold text-foreground transition-all duration-150 ${!isLogin ? 'bg-card shadow-border' : 'bg-transparent'}`}
-              >
-                Create account
-              </button>
-            </div>
-          )}
-
-          <h1 className="font-display text-3xl sm:text-4xl font-normal tracking-tight leading-[.95] text-foreground">
-            {showResetPassword ? (
-              'Reset your password'
-            ) : (
-              /* C-032 — reworded per copy.md §7. */
-              <>
-                One tap, then{' '}
-                <span
-                  className="marker-highlight marker-highlight--tilt font-extrabold"
-                  style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
+            {/* Segmented tab pill — Sign in / Create account */}
+            {!showResetPassword && (
+              <div className="flex gap-1 rounded-2xl bg-white/[0.08] p-1">
+                <button
+                  type="button"
+                  onClick={() => switchAuthMode(true)}
+                  className={`shikshaq-tap min-h-11 flex-1 rounded-[10px] p-3 text-center text-sm font-semibold transition-all duration-150 ${isLogin ? 'bg-background text-foreground shadow-border' : 'bg-transparent text-background/70'}`}
                 >
-                  talk to the teacher.
-                </span>
-              </>
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchAuthMode(false)}
+                  className={`shikshaq-tap min-h-11 flex-1 rounded-[10px] p-3 text-center text-sm font-semibold transition-all duration-150 ${!isLogin ? 'bg-background text-foreground shadow-border' : 'bg-transparent text-background/70'}`}
+                >
+                  Create account
+                </button>
+              </div>
             )}
-          </h1>
-          <p className="mt-2 text-base leading-relaxed text-muted-foreground">
-            {showResetPassword
-              ? 'Enter your new password below'
-              : isLogin
-              ? 'Sign in to continue to Shikshaq'
-              : 'Join Shikshaq to find the best tutors'
-            }
-          </p>
 
-          {/* Google button + divider — every screen except password reset */}
-          {!showResetPassword && (
-            <>
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                className="shikshaq-tap flex items-center justify-center gap-2 w-full min-h-11 mt-5 p-4 rounded-lg bg-card shadow-border text-base font-semibold text-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98]"
-              >
-                <GoogleIcon size={20} />
-                Continue with Google
-              </button>
-
-              <div className="flex items-center gap-3 my-4">
-                <span className="flex-1 h-px bg-warm-hairline" />
-                <span className="text-xs text-warm-meta">or</span>
-                <span className="flex-1 h-px bg-warm-hairline" />
-              </div>
-            </>
-          )}
-
-          {/* Reset Password Form */}
-          {showResetPassword ? (
-            <form onSubmit={handleResetPassword} className="mt-6">
-              <div className="mb-4">
-                <label htmlFor="newPassword" className="block text-sm font-semibold text-foreground mb-2">New Password</label>
-                <input
-                  id="newPassword"
-                  name="newPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Enter new password"
-                  value={formData.newPassword}
-                  onChange={handleInputChange}
-                  className={`${FIELD_BASE} ${errors.newPassword ? FIELD_ERROR : ''}`}
-                />
-                {errors.newPassword && (
-                  <p className="text-sm text-destructive mt-2">{errors.newPassword}</p>
-                )}
-              </div>
-
-              <div className="mb-6">
-                <label htmlFor="confirmNewPassword" className="block text-sm font-semibold text-foreground mb-2">Confirm New Password</label>
-                <input
-                  id="confirmNewPassword"
-                  name="confirmNewPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Confirm new password"
-                  value={formData.confirmNewPassword}
-                  onChange={handleInputChange}
-                  className={`${FIELD_BASE} ${errors.confirmNewPassword ? FIELD_ERROR : ''}`}
-                />
-                {errors.confirmNewPassword && (
-                  <p className="text-sm text-destructive mt-2">{errors.confirmNewPassword}</p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="shikshaq-tap flex w-full min-h-[52px] items-center justify-center gap-2 p-4 rounded-lg bg-foreground text-background text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                {loading ? 'Updating password...' : 'Update Password'}
-              </button>
-            </form>
-          ) : (
-            /* Regular Sign In / Sign Up form */
-            <form onSubmit={isLogin ? handleSignIn : handleSignUp}>
-              {/* Full Name — signup only, entering with rise */}
-              {!isLogin && (
-                <div className="mb-4 animate-fade-slide-up">
-                  <label htmlFor="fullName" className="block text-sm font-semibold text-foreground mb-2">Full name</label>
-                  <input
-                    id="fullName"
-                    name="fullName"
-                    type="text"
-                    autoComplete="name"
-                    placeholder="Enter your name"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    className={`${FIELD_BASE} ${errors.fullName ? FIELD_ERROR : ''}`}
-                  />
-                  {errors.fullName && (
-                    <p className="text-sm text-destructive mt-2">{errors.fullName}</p>
-                  )}
+            {/* Google button + divider — every screen except password reset */}
+            {!showResetPassword && (
+              <div className="flex flex-col gap-[10px]">
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-[10px] rounded-[14px] bg-background text-[15px] font-bold text-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98]"
+                >
+                  <GoogleIcon size={20} />
+                  Continue with Google
+                </button>
+                <div className="my-[2px] flex items-center gap-[10px]">
+                  <span className="h-px flex-1 bg-white/[0.14]" />
+                  <span className="text-[11.5px] text-background/45">or</span>
+                  <span className="h-px flex-1 bg-white/[0.14]" />
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Email — hidden while the dedicated forgot-password field is showing */}
-              {!showForgotPassword && (
-                <div className="mb-4">
-                  <label htmlFor="email" className="block text-sm font-semibold text-foreground mb-2">Email</label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    placeholder="Enter your email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className={`${FIELD_BASE} ${errors.email ? FIELD_ERROR : ''}`}
-                  />
-                  {errors.email && (
-                    <p className="text-sm text-destructive mt-2">{errors.email}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Password */}
-              {!showForgotPassword && (
-                <div className={isLogin ? 'mb-6' : 'mb-4'}>
-                  <div className="flex items-center justify-between mb-2">
-                    <label htmlFor="password" className="text-sm font-semibold text-foreground">Password</label>
-                    {isLogin && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowForgotPassword(true);
-                          setErrors({});
-                          setFormData({ ...formData, password: '' });
-                        }}
-                        className="shikshaq-tap -my-3 inline-flex min-h-11 items-center px-1 text-sm font-semibold text-brand-blue"
-                      >
-                        Forgot password?
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete={isLogin ? 'current-password' : 'new-password'}
-                    placeholder={isLogin ? 'Enter your password' : 'Create a password'}
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className={`${FIELD_BASE} ${errors.password ? FIELD_ERROR : ''}`}
-                  />
-                  {errors.password && (
-                    <p className="text-sm text-destructive mt-2">{errors.password}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Forgot Password mini-form */}
-              {showForgotPassword && (
+            {/* Reset Password Form */}
+            {showResetPassword ? (
+              <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
                 <div>
-                  <div className="mb-6">
-                    <label htmlFor="forgotEmail" className="block text-sm font-semibold text-foreground mb-2">Email</label>
+                  <label htmlFor="newPassword" className="mb-2 block text-sm font-semibold text-background">New Password</label>
+                  <input
+                    id="newPassword"
+                    name="newPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Enter new password"
+                    value={formData.newPassword}
+                    onChange={handleInputChange}
+                    className={`${DARK_FIELD} ${errors.newPassword ? DARK_FIELD_ERROR : ''}`}
+                  />
+                  {errors.newPassword && <p className="mt-2 text-sm text-destructive">{errors.newPassword}</p>}
+                </div>
+
+                <div>
+                  <label htmlFor="confirmNewPassword" className="mb-2 block text-sm font-semibold text-background">Confirm New Password</label>
+                  <input
+                    id="confirmNewPassword"
+                    name="confirmNewPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Confirm new password"
+                    value={formData.confirmNewPassword}
+                    onChange={handleInputChange}
+                    className={`${DARK_FIELD} ${errors.confirmNewPassword ? DARK_FIELD_ERROR : ''}`}
+                  />
+                  {errors.confirmNewPassword && <p className="mt-2 text-sm text-destructive">{errors.confirmNewPassword}</p>}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-brand-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                  {loading ? 'Updating password...' : 'Update Password'}
+                </button>
+              </form>
+            ) : (
+              /* Regular Sign In / Sign Up form */
+              <form onSubmit={isLogin ? handleSignIn : handleSignUp} className="flex flex-col gap-4">
+                {!isLogin && (
+                  <div className="animate-fade-slide-up">
+                    <label htmlFor="fullName" className="mb-2 block text-sm font-semibold text-background">Full name</label>
                     <input
-                      id="forgotEmail"
+                      id="fullName"
+                      name="fullName"
+                      type="text"
+                      autoComplete="name"
+                      placeholder="Enter your name"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      className={`${DARK_FIELD} ${errors.fullName ? DARK_FIELD_ERROR : ''}`}
+                    />
+                    {errors.fullName && <p className="mt-2 text-sm text-destructive">{errors.fullName}</p>}
+                  </div>
+                )}
+
+                {!showForgotPassword && (
+                  <div>
+                    <label htmlFor="email" className="mb-2 block text-sm font-semibold text-background">Email</label>
+                    <input
+                      id="email"
                       name="email"
                       type="email"
                       inputMode="email"
                       autoComplete="email"
                       autoCapitalize="none"
                       spellCheck={false}
-                      placeholder="Enter your email"
+                      placeholder="you@email.com"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className={`${FIELD_BASE} ${errors.email ? FIELD_ERROR : ''}`}
+                      className={`${DARK_FIELD} ${errors.email ? DARK_FIELD_ERROR : ''}`}
                     />
-                    {errors.email && (
-                      <p className="text-sm text-destructive mt-2">{errors.email}</p>
-                    )}
+                    {errors.email && <p className="mt-2 text-sm text-destructive">{errors.email}</p>}
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowForgotPassword(false);
-                        setErrors({});
-                        setFormData({ ...formData, email: '' });
-                      }}
-                      className="shikshaq-tap flex-1 min-h-12 rounded-lg bg-card shadow-border text-sm font-semibold text-foreground"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleForgotPassword}
-                      disabled={loading}
-                      className="shikshaq-tap flex flex-1 min-h-12 items-center justify-center gap-2 rounded-lg bg-foreground text-background text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                      {loading ? 'Sending...' : 'Send Reset Link'}
-                    </button>
+                )}
+
+                {!showForgotPassword && (
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label htmlFor="password" className="text-sm font-semibold text-background">Password</label>
+                      {isLogin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowForgotPassword(true);
+                            setErrors({});
+                            setFormData({ ...formData, password: '' });
+                          }}
+                          className="shikshaq-tap -my-3 inline-flex min-h-11 items-center px-1 text-sm font-semibold text-brand-blue-subtle"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      id="password"
+                      name="password"
+                      type="password"
+                      autoComplete={isLogin ? 'current-password' : 'new-password'}
+                      placeholder={isLogin ? 'Enter your password' : 'Create a password'}
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className={`${DARK_FIELD} ${errors.password ? DARK_FIELD_ERROR : ''}`}
+                    />
+                    {errors.password && <p className="mt-2 text-sm text-destructive">{errors.password}</p>}
                   </div>
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    We'll send you a link to reset your password
-                  </p>
-                </div>
-              )}
+                )}
 
-              {/* Confirm Password — signup only */}
-              {!isLogin && !showForgotPassword && (
-                <div className="mb-6">
-                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-foreground mb-2">Confirm Password</label>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="Confirm your password"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    className={`${FIELD_BASE} ${errors.confirmPassword ? FIELD_ERROR : ''}`}
-                  />
-                  {errors.confirmPassword && (
-                    <p className="text-sm text-destructive mt-2">{errors.confirmPassword}</p>
-                  )}
-                </div>
-              )}
+                {showForgotPassword && (
+                  <div>
+                    <div className="mb-2">
+                      <label htmlFor="forgotEmail" className="mb-2 block text-sm font-semibold text-background">Email</label>
+                      <input
+                        id="forgotEmail"
+                        name="email"
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        placeholder="you@email.com"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className={`${DARK_FIELD} ${errors.email ? DARK_FIELD_ERROR : ''}`}
+                      />
+                      {errors.email && <p className="mt-2 text-sm text-destructive">{errors.email}</p>}
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowForgotPassword(false);
+                          setErrors({});
+                          setFormData({ ...formData, email: '' });
+                        }}
+                        className="shikshaq-tap min-h-12 flex-1 rounded-[14px] bg-white/[0.08] text-sm font-semibold text-background"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        disabled={loading}
+                        className="shikshaq-tap flex min-h-12 flex-1 items-center justify-center gap-2 rounded-[14px] bg-brand text-sm font-semibold text-brand-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                        {loading ? 'Sending...' : 'Send Reset Link'}
+                      </button>
+                    </div>
+                    <p className="mt-4 text-sm text-background/60">We'll send you a link to reset your password</p>
+                  </div>
+                )}
 
-              {!showForgotPassword && (
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="shikshaq-tap flex w-full min-h-[52px] items-center justify-center gap-2 p-4 rounded-lg bg-foreground text-background text-base font-semibold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:active:scale-100"
-                >
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                  {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
-                </button>
-              )}
-            </form>
-          )}
+                {!isLogin && !showForgotPassword && (
+                  <div>
+                    <label htmlFor="confirmPassword" className="mb-2 block text-sm font-semibold text-background">Confirm Password</label>
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Confirm your password"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      className={`${DARK_FIELD} ${errors.confirmPassword ? DARK_FIELD_ERROR : ''}`}
+                    />
+                    {errors.confirmPassword && <p className="mt-2 text-sm text-destructive">{errors.confirmPassword}</p>}
+                  </div>
+                )}
 
-          {/* Legal note — verbatim copy from the design spec */}
-          {!showResetPassword && !showForgotPassword && (
-            <p className="mt-4 text-xs leading-relaxed text-warm-meta">
-              By continuing you agree to our{' '}
-              <Link
-                to="/terms-of-service"
-                className="-my-3.5 inline-flex min-h-11 items-center px-0.5 align-middle text-brand-blue font-semibold"
-              >
-                Terms of Service
-              </Link>
-              {' '}and{' '}
-              <Link
-                to="/privacy-policy"
-                className="-my-3.5 inline-flex min-h-11 items-center px-0.5 align-middle text-brand-blue font-semibold"
-              >
-                Privacy Policy
-              </Link>
-              . Your number is never shared with a teacher until you message them.
-            </p>
-          )}
+                {!showForgotPassword && (
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-brand-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:active:scale-100"
+                  >
+                    {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                    {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
+                  </button>
+                )}
+              </form>
+            )}
+
+            {!showResetPassword && !showForgotPassword && (
+              <p className="text-[12px] leading-relaxed text-background/45">
+                By continuing you agree to our{' '}
+                <Link to="/terms-of-service" className="-my-3.5 inline-flex min-h-11 items-center px-0.5 align-middle font-semibold text-background/70 underline">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link to="/privacy-policy" className="-my-3.5 inline-flex min-h-11 items-center px-0.5 align-middle font-semibold text-background/70 underline">
+                  Privacy Policy
+                </Link>
+                . Your number is never shared with a teacher until you message them.
+              </p>
+            )}
+          </div>
         </div>
       </main>
 
@@ -750,7 +698,7 @@ export default function Auth() {
 
       <style>{`
         .shikshaq-auth-field { transition: box-shadow .15s ease; }
-        .shikshaq-auth-field:focus { box-shadow: 0 0 0 2px hsl(var(--foreground)) !important; outline: none; }
+        .shikshaq-auth-field:focus { box-shadow: 0 0 0 2px hsl(var(--background)) !important; outline: none; }
       `}</style>
     </div>
   );

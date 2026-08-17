@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
-import { EmptyResults } from '@/components/EmptyResults';
 import { useAuth } from '@/lib/auth-context';
 import { useLikes } from '@/lib/likes-context';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { Button } from '@/components/ui/button';
-import { Heart } from 'lucide-react';
 import { adminToast } from '@/components/AdminConsole';
-import { PageHeader, CutPaperShape } from '@/components/devices';
+import { ControlBlock, PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
-import { useLocation } from 'react-router-dom';
+import { ListLoading, ListEmpty, ListError, ListEnd } from '@/components/ui/list-states';
 
 interface LikedTeacher {
   id: string;
@@ -33,6 +31,8 @@ export default function LikedTeachers() {
   // the restored teacher's data is already sitting in this cache — no re-fetch needed either way.
   const [teacherCache, setTeacherCache] = useState<Map<string, LikedTeacher>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
 
   // Ensure user has selected a role
   useRequireRole();
@@ -44,6 +44,7 @@ export default function LikedTeachers() {
     }
 
     async function fetchMissingTeachers() {
+      setError(false);
       const missingIds = Array.from(likedTeacherIds).filter((id) => !teacherCache.has(id));
 
       if (missingIds.length === 0) {
@@ -125,10 +126,11 @@ export default function LikedTeachers() {
           teachersWithSirMaam.forEach((t) => next.set(t.id, t));
           return next;
         });
-      } catch (error) {
+      } catch (err) {
         if (import.meta.env.DEV) {
-          console.error('Error fetching liked teachers:', error);
+          console.error('Error fetching liked teachers:', err);
         }
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -136,7 +138,7 @@ export default function LikedTeachers() {
 
     fetchMissingTeachers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, likedTeacherIds, likesLoading, navigate]);
+  }, [user, likedTeacherIds, likesLoading, navigate, retryToken]);
 
   // Tapping the heart on a card unlikes through useLikes() directly (the same hook this page
   // reads from), so the grid below already drops the card the instant likedTeacherIds shrinks —
@@ -171,7 +173,9 @@ export default function LikedTeachers() {
         <main className="container py-16 pb-16 text-center sm:py-20">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Sign in required</h1>
           <p className="mt-3 text-sm text-muted-foreground">Please sign in to view your favourite teachers.</p>
-          <Button className="mt-6" onClick={() => navigate('/auth')}>Sign In</Button>
+          <Button variant="primary" size={44} className="mt-6" onClick={() => navigate('/auth')}>
+            Sign In
+          </Button>
         </main>
         <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
@@ -182,83 +186,59 @@ export default function LikedTeachers() {
   // Show loading only if we don't have any teachers yet — real emptiness (likedCount === 0 once
   // both this page's own fetch and the shared likes context have settled) skips straight to the
   // empty state below instead of skeletons that would never resolve into cards.
-  if ((loading || likesLoading) && likedTeachers.length === 0) {
-    return (
-      <div className="min-h-screen bg-background">
-        <main className="container pt-8 pb-16">
-          <div className="mb-7 h-8 w-56 animate-shimmer rounded-lg bg-muted" />
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="aspect-[4/5] animate-shimmer rounded-2xl bg-muted" />
-            ))}
-          </div>
-        </main>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
-      </div>
-    );
-  }
+  const showSkeleton = (loading || likesLoading) && !error && likedTeachers.length === 0;
 
   return (
     <div className="min-h-screen bg-background">
+      <ControlBlock mode="dark">
+        <h1 className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.035em] text-background">
+          {likedTeachers.length > 0
+            ? `${likedTeachers.length} liked teacher${likedTeachers.length === 1 ? '' : 's'}`
+            : 'Liked teachers'}
+        </h1>
+        <p className="mt-1 text-[14.5px] text-white/70">
+          Saved teachers stay here until you remove them — tap the heart on any profile to add one.
+        </p>
+      </ControlBlock>
 
-      <PageHeader
-        eyebrow="Saved"
-        title={
+      <PageContainer as="main" className="pt-[24px] pb-[40px]">
+        {showSkeleton ? (
+          <ListLoading count={5} media={0} lines={3} />
+        ) : error && likedTeachers.length === 0 ? (
+          <ListError onRetry={() => setRetryToken((t) => t + 1)} />
+        ) : likedTeachers.length === 0 ? (
           <>
-            Teachers you{' '}
-            <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand-blue))' }}>
-              liked
-            </span>
+            <ListEmpty line="No saved teachers yet. Tap the mark on any card and they wait for you here." />
+            <Button asChild variant="primary" size={44} className="mt-[16px]">
+              <Link to="/all-tuition-teachers-in-kolkata">Browse teachers</Link>
+            </Button>
           </>
-        }
-        lede="Saved teachers stay here until you remove them — tap the heart on any profile to add one."
-        accent="hsl(var(--brand-blue))"
-        ground="graph"
-      />
-
-      <main className="container pt-8 pb-16">
-        {likedTeachers.length === 0 ? (
-          <div className="relative mt-2 overflow-hidden">
-            <CutPaperShape
-              variant="squiggle"
-              color="hsl(var(--brand-blue))"
-              size={80}
-              className="pointer-events-none absolute -left-4 -top-2 hidden opacity-90 sm:block"
-            />
-            <CutPaperShape
-              variant="star"
-              color="hsl(var(--brand))"
-              size={56}
-              className="pointer-events-none absolute -bottom-3 -right-2 hidden opacity-90 sm:block"
-            />
-            <EmptyResults
-              icon={<Heart className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-              heading="No favourite teachers yet"
-              message="Tap the heart on any teacher's card to save them here, so you can compare and come back later."
-              action={{ label: 'Browse teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
-            />
-          </div>
         ) : (
-          <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-            {likedTeachers.map((teacher) => (
-              <TeacherCard
-                key={teacher.id}
-                id={teacher.id}
-                name={teacher.name}
-                slug={teacher.slug}
-                subject={teacher.subjects?.name || 'Tuition Teacher'}
-                imageUrl={teacher.image_url || undefined}
-                subjectSlug={teacher.subjects?.slug}
-                sirMaam={teacher.sirMaam}
-                size="md"
-                showUpvotes={false}
-              />
-            ))}
-          </div>
+          <>
+            <ul className="flex flex-col gap-[10px]">
+              {likedTeachers.map((teacher) => (
+                <li key={teacher.id}>
+                  <TeacherCard
+                    id={teacher.id}
+                    name={teacher.name}
+                    slug={teacher.slug}
+                    subject={teacher.subjects?.name || 'Tuition Teacher'}
+                    imageUrl={teacher.image_url || undefined}
+                    subjectSlug={teacher.subjects?.slug}
+                    sirMaam={teacher.sirMaam}
+                    variant="row"
+                    showUpvotes={false}
+                  />
+                </li>
+              ))}
+            </ul>
+            <ListEnd count={likedTeachers.length} />
+          </>
         )}
-      </main>
+      </PageContainer>
+
       <PreFooter variant={preFooterFor(location.pathname)} />
+      <BottomNavSpacer />
       <Footer />
     </div>
   );
