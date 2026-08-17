@@ -103,9 +103,22 @@ product decision.
 
 ### 5. Screens not compared against their mockup
 Most were. Not compared: the admin console frames (need an admin session), the
-dashboards (need a session), the paper reader shell and gate (the dev database
-has zero published papers, so `/past-papers/:id` never resolves — **nobody has
-ever seen the reader rendered**), and the desktop grid card stickers.
+dashboards (need a session), the paper reader shell and gate, and the desktop
+grid card stickers.
+
+On the reader specifically: `select count(*) from papers` returns **0** — the
+table is empty, not merely unpublished, and this is the live project, the only
+one. So `/past-papers/:id` cannot resolve for anybody. Seeding rows to make the
+screen render would put invented school papers in the production database, so
+it was not done. Upload one real paper through `/admin/papers` and the reader
+becomes verifiable in a minute.
+
+Landmark audit, added after the fact: a sweep of 14 public routes at 390px and
+1440px checked h1 count, heading skips, horizontal scroll **and `<main>`** —
+the last of which earlier passes never checked. It found four legal/help routes
+with no main landmark at all (shared shell), `RecommendTeacher` likewise, and
+two sibling `<main>` elements plus an h1→h3 jump on `/join`. All fixed. Re-run
+that sweep after adding a route; the check that catches this is cheap.
 
 ### 6. Legal copy has never been reviewed by a lawyer
 Open question O-06. The operative clauses were restored after a rebuild
