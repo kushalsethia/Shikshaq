@@ -143,7 +143,17 @@ replaced them with the mockup's short summary copy — Terms and Privacy each
 carry the plain-English answer AND the original clause beneath it. Both files
 open with a `TODO(O-06)`.
 
-### 7. Verification documents (O-07)
+### 7. Two nav items have no index page to point at
+The desktop top bar carries "Subjects" and "Schools" per desktop-01-home.png,
+but neither index exists as a route. They previously pointed at
+`/maths-tuition-teachers-in-kolkata` and `/cbse-ncert-tuition-teachers-in-kolkata`
+— one arbitrary subject, and a *board* page under a Schools label. Both now
+point at the surface where the concept actually lives (browse hub, papers page),
+which is honest but leaves "Subjects" sharing a destination with "Find
+teachers". A subjects index and a schools index are the real fix;
+`secondary-02-school-page.png` is the design for the latter and is unbuilt.
+
+### 8. Verification documents (O-07)
 The join form deliberately does not build the mockup's ID/degree upload block:
 where those documents live, who can read them and what deletes them after a
 decision is undecided.

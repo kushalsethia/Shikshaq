@@ -38,8 +38,24 @@ import {
 const NAV_LINKS = [
   { to: BROWSE_PATH, label: "Find teachers", icon: Search, match: isBrowseActive },
   { to: PAST_PAPERS_PATH, label: "Past papers", icon: FileText, match: isPapersActive },
-  { to: "/maths-tuition-teachers-in-kolkata", label: "Subjects", icon: BookOpen, match: () => false },
-  { to: "/cbse-ncert-tuition-teachers-in-kolkata", label: "Schools", icon: School, match: () => false },
+  /* These two carried destinations that did not match their labels.
+     "Subjects" went to /maths-tuition-teachers-in-kolkata — one arbitrary
+     subject, not an index of them. "Schools" went to
+     /cbse-ncert-tuition-teachers-in-kolkata, which is a BOARD page: click
+     Schools, land on CBSE-NCERT teachers, which is a different concept
+     entirely.
+
+     Neither a subjects index nor a schools index exists as a route yet
+     (secondary-02-school-page.png is unbuilt, and the papers table is empty so
+     no school has any papers to index). Until they do, each points at the
+     surface where that concept actually lives today: every subject is a chip on
+     the browse hub and a link in its footer, and schools appear on the papers
+     page as its "find your own school" list. Sharing a destination with "Find
+     teachers" is a smaller problem than a label that lies about where it goes.
+
+     TODO: give both their own index route, then repoint these. */
+  { to: BROWSE_PATH, label: "Subjects", icon: BookOpen, match: () => false },
+  { to: PAST_PAPERS_PATH, label: "Schools", icon: School, match: () => false },
 ] as const;
 
 function LogoOrTourTrigger() {
