@@ -245,16 +245,19 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
 
   return (
     <div className="mt-12 min-w-0 border-t border-border px-4 pt-8 md:px-0">
-      <div className="mb-6 flex items-center justify-between gap-3">
+      {/* R1/R2 — "What her students / actually say", 27px mobile / 46px desktop. */}
+      <div className="mb-[16px] flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <MessageCircle className="h-6 w-6 text-foreground" aria-hidden="true" />
-          <h2 className="text-section-head text-foreground">Reviews</h2>
+          <h2 className="font-display text-[27px] font-extrabold leading-[1] tracking-[-0.04em] text-foreground md:text-[46px]">
+            Reviews
+          </h2>
           {/* Rule 10 / O-02: no rating column exists on this table, so only the
               real review count is shown — never a fabricated average or star
               rating. */}
           <span className="tabular-nums text-muted-foreground">({comments.length})</span>
         </div>
-        <Button variant="muted" size={40} onClick={handleWriteReviewClick}>
+        <Button variant="muted" size={44} className="rounded-[12px] text-[14px] font-bold" onClick={handleWriteReviewClick}>
           Add your review
         </Button>
       </div>
@@ -337,7 +340,7 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
           {/* Mobile: horizontal scroll rail. Desktop: fanned overlapping stack
               (C7 / C-062) — −22px overlap approximated with allowed spacing
               steps, see review-card.tsx. */}
-          <div className="stagger-children -mx-4 flex gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-8">
+          <div className="stagger-children -mx-4 flex gap-[12px] overflow-x-auto px-4 pb-4 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-8">
             {cards.map((card, i) => (
               <ReviewCard key={card.id} review={card} index={i} fan className="hidden md:block" />
             ))}

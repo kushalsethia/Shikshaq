@@ -1,16 +1,13 @@
 import { getSubjectPalette } from "@/lib/subject-palette";
 
-/* C7 — components.md §2: "Subject-tinted card, one tilted gain sticker,
-   subject + class as the title, hairline rule, quote, then initial + who +
-   when. Desktop fans them (−22px overlap, ±3–5° tilt, staggered top margin);
-   mobile scrolls them."
-
-   Fan overlap/tilt values come from the mockup, but design.md §0.2 bans new
-   spacing values on the margin/padding/gap rhythm — -22px isn't on the
-   allowed step list. The fan is approximated with the nearest allowed step
-   (-ml-6 / mt-4 / mt-8) plus a `rotate()` transform (which is not a spacing
-   value and isn't restricted), so the staggered-fan feel survives without a
-   new margin token. */
+/* C7 — Redesign Reviews.dc.html R1 (desktop fan) / R2 (mobile scroll rail):
+   subject-tinted card, one tilted gain sticker, subject+class title, hairline
+   rule, quote, initial+who+when. Literal px from the mockup per the owner's
+   pixel-exact override (see BRIEF.md) — arbitrary Tailwind values, not the
+   spacing scale. Desktop fans the cards (-22px overlap, per-card tilt/drop
+   stagger lifted straight from R1's `fan` array); mobile (R2) scrolls a row
+   of untilted cards — R2 draws no rotation on the mobile cards, unlike the
+   desktop fan, so `fan=false` renders flat. */
 
 export interface ReviewCardData {
   id: string;
@@ -23,14 +20,15 @@ export interface ReviewCardData {
   when: string;
 }
 
-const TILTS = ["-rotate-3", "rotate-2", "-rotate-2", "rotate-3", "rotate-1", "-rotate-1"];
-const DROPS = ["mt-0", "mt-4", "mt-2", "mt-6", "mt-1", "mt-3"];
-const OVERLAPS = ["ml-0", "-ml-6", "ml-0", "-ml-6", "ml-0", "-ml-6"];
+// R1 fan array: tilt / stickerTilt / drop / overlap, in mockup order.
+const TILTS = ["-rotate-[5deg]", "rotate-[3deg]", "-rotate-[3deg]", "rotate-[5deg]", "-rotate-[4deg]"];
+const STICKER_TILTS = ["-rotate-[4deg]", "rotate-[5deg]", "-rotate-[6deg]", "rotate-[4deg]", "-rotate-[3deg]"];
+const DROPS = ["mt-[18px]", "mt-0", "mt-[26px]", "mt-[6px]", "mt-[30px]"];
 
 interface ReviewCardProps {
   review: ReviewCardData;
   index: number;
-  /** Fans the cards for the desktop-only stacked layout. Mobile passes false and scrolls them in a row/column. */
+  /** Fans the cards for the desktop-only stacked layout (R1). Mobile (R2) passes false and scrolls them flat, untilted. */
   fan?: boolean;
   className?: string;
 }
@@ -39,13 +37,15 @@ export function ReviewCard({ review, index, fan = false, className }: ReviewCard
   const palette = getSubjectPalette(review.subject);
   const title = [review.subject, review.className].filter(Boolean).join(" · ") || "Review";
   const tilt = TILTS[index % TILTS.length];
+  const stickerTilt = STICKER_TILTS[index % STICKER_TILTS.length];
+  const drop = DROPS[index % DROPS.length];
 
   return (
     <div
       className={[
         fan
-          ? `relative w-64 shrink-0 ${DROPS[index % DROPS.length]} ${OVERLAPS[index % OVERLAPS.length]} ${tilt} transition-transform duration-150 hover:z-10 hover:rotate-0 hover:-translate-y-1`
-          : `relative w-64 shrink-0 ${tilt}`,
+          ? `relative w-[224px] shrink-0 ${drop} ${index === 0 ? "ml-0" : "-ml-[22px]"} ${tilt} transition-transform duration-150 hover:z-10 hover:rotate-0 hover:-translate-y-1`
+          : "relative w-[262px] shrink-0",
         className,
       ]
         .filter(Boolean)
@@ -53,35 +53,57 @@ export function ReviewCard({ review, index, fan = false, className }: ReviewCard
       style={{ zIndex: index }}
     >
       <div
-        className="relative rounded-2xl p-6 shadow-border"
+        className={
+          fan
+            ? "relative rounded-[20px] pt-[22px] px-[20px] pb-[20px] shadow-border"
+            : "relative rounded-[20px] pt-[22px] px-[18px] pb-[18px] shadow-border"
+        }
         style={{ backgroundColor: palette.tint }}
       >
         {review.gain && (
           <span
-            className="absolute -top-3 right-4 inline-flex -rotate-3 items-center whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.04em] shadow-border"
+            className={
+              fan
+                ? `absolute -top-[13px] left-[16px] inline-flex h-[28px] items-center whitespace-nowrap rounded-full px-[12px] text-[11px] font-extrabold shadow-border ${stickerTilt}`
+                : `absolute -top-[12px] left-[14px] inline-flex h-[26px] items-center whitespace-nowrap rounded-full px-[11px] text-[10.5px] font-extrabold shadow-border ${stickerTilt}`
+            }
             style={{ backgroundColor: palette.solid, color: palette.badgeText }}
           >
             {review.gain}
           </span>
         )}
 
-        <p className="mt-2 font-display text-sm font-bold tracking-tight" style={{ color: palette.text }}>
+        <p
+          className={fan ? "font-display text-[19px] font-bold leading-[1.15] tracking-[-0.03em]" : "font-display text-[18px] font-bold tracking-[-0.03em]"}
+          style={{ color: palette.text }}
+        >
           {title}
         </p>
-        <hr className="my-3 border-t" style={{ borderColor: palette.solid, opacity: 0.25 }} />
-        <p className="text-sm leading-6 text-warm-prose">&ldquo;{review.quote}&rdquo;</p>
+        <hr
+          className={fan ? "mt-[12px] mb-[14px] h-[1.5px] border-0" : "mt-[10px] mb-[12px] h-[1.5px] border-0"}
+          style={{ backgroundColor: palette.solid, opacity: 0.2 }}
+        />
+        <p className={fan ? "mb-[16px] text-[14px] leading-[1.55] text-warm-prose" : "mb-[14px] text-[14px] leading-[1.55] text-warm-prose"}>
+          &ldquo;{review.quote}&rdquo;
+        </p>
 
-        <div className="mt-4 flex items-center gap-2.5">
+        <div className="flex items-center gap-[9px]">
           <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+            className={
+              fan
+                ? "flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full text-[13px] font-semibold"
+                : "flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[12.5px] font-semibold"
+            }
             style={{ backgroundColor: palette.solid, color: palette.badgeText }}
             aria-hidden="true"
           >
             {review.initial}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-foreground">{review.who}</p>
-            <p className="text-[11px] text-warm-meta">{review.when}</p>
+            <p className={fan ? "truncate text-[13px] font-extrabold text-foreground" : "truncate text-[12.5px] font-extrabold text-foreground"}>
+              {review.who}
+            </p>
+            <p className={fan ? "text-[11.5px] text-warm-meta" : "text-[11px] text-warm-meta"}>{review.when}</p>
           </div>
         </div>
       </div>

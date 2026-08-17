@@ -98,7 +98,7 @@ function SubjectPill({ label }: { label: string }) {
   const palette = getSubjectPalette(label);
   return (
     <span
-      className="animate-pop inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold"
+      className="animate-pop inline-flex h-[32px] items-center whitespace-nowrap rounded-full px-[14px] text-[13.5px] font-bold"
       style={{ backgroundColor: palette.tint, color: palette.text }}
     >
       {label}
@@ -109,34 +109,41 @@ function SubjectPill({ label }: { label: string }) {
 function TagPill({ label, variant }: { label: string; variant: 'blue' | 'brand' }) {
   const classes = variant === 'blue' ? 'bg-brand-blue-subtle text-brand-blue-deep' : 'bg-brand-subtle text-brand-deep';
   return (
-    <span className={`animate-pop inline-flex items-center rounded-full px-3.5 py-1.5 text-xs font-semibold ${classes}`}>
+    <span className={`animate-pop inline-flex h-[32px] items-center whitespace-nowrap rounded-full px-[14px] text-[13.5px] font-bold ${classes}`}>
       {label}
     </span>
   );
 }
 
+// S3 header chips: height:26px padding:0 10px font-size:11.5px font-weight:700.
 function SpeechChip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="animate-pop inline-flex items-center rounded-full bg-card/90 px-3 py-1.5 text-xs font-semibold text-foreground shadow-border backdrop-blur-sm">
+    <span className="animate-pop inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-card/90 px-[10px] text-[11.5px] font-bold text-foreground shadow-border backdrop-blur-sm">
       {children}
     </span>
   );
 }
 
+// S3 stat tile: radius:16px padding:12px, icon mb:6px, label font:11px, value mt:2px font:15px.
 function StatTile({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: string }) {
   return (
-    <div className="animate-card-reveal rounded-2xl bg-card p-4 shadow-border">
-      <div className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-warm-meta">
+    <div className="animate-card-reveal rounded-[16px] bg-card p-[12px] shadow-border">
+      <div className="mb-[6px] flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.06em] text-warm-meta">
         <Icon size={13} className="text-warm-meta" strokeWidth={2} aria-hidden="true" />
         {label}
       </div>
-      <div className="font-display tabular-nums text-2xl font-bold tracking-tight text-foreground">{value}</div>
+      <div className="mt-[2px] font-display tabular-nums text-[15px] font-extrabold tracking-[-0.02em] text-foreground">{value}</div>
     </div>
   );
 }
 
+// S3/D3 section heading: mobile margin-bottom:10px font:18px; desktop margin-bottom:12px font:26px.
 function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <h2 className="mt-6 mb-3 text-lg font-semibold text-foreground">{children}</h2>;
+  return (
+    <h2 className="mt-[18px] mb-[10px] font-display text-[18px] font-extrabold tracking-[-0.03em] text-foreground lg:mt-[24px] lg:mb-[12px] lg:text-[26px] lg:tracking-[-0.02em]">
+      {children}
+    </h2>
+  );
 }
 
 export default function TeacherProfile() {
@@ -596,45 +603,48 @@ export default function TeacherProfile() {
 
       <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
         {/* Desktop: 1fr / 384px grid. Left = photo/name card + prose sections. Right = sticky contact card. */}
-        <div className="lg:grid lg:grid-cols-[1fr_384px] lg:gap-8">
+        <div className="lg:grid lg:grid-cols-[1fr_384px] lg:gap-[40px]">
           <div className="min-w-0">
             {/* Profile card — design.md "Teacher profile (S3/D3)": photo sits
                 inside the card beside the name, never underneath overlaid
                 chips/badges — nothing may cover a teacher's face. Dark panel +
                 white text on mobile (S3); light bordered card on desktop (D3). */}
-            <div className="rounded-3xl bg-panel p-4 pb-6 lg:rounded-2xl lg:border lg:border-border lg:bg-card lg:p-8 lg:shadow-none">
-              <div className="mb-4 flex items-center justify-between lg:hidden">
+            <div className="rounded-[28px] bg-panel p-[14px] pb-[20px] lg:rounded-[24px] lg:border lg:border-border lg:bg-card lg:px-[30px] lg:py-[28px] lg:shadow-none">
+              {/* S3 top row: 40x40 icon buttons, 18px icons, 8px gap, 16px margin-bottom.
+                  Kept at a 44px hit area (padding) around the 40px visual per the
+                  44px-minimum rule — mockup draws the control smaller than the a11y floor. */}
+              <div className="mb-[16px] flex items-center justify-between lg:hidden">
                 <button
                   type="button"
                   onClick={() => navigate(backHref)}
                   aria-label="Back to results"
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10 transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <ArrowLeft size={18} className="text-background" aria-hidden="true" />
                 </button>
-                <div className="flex gap-2">
+                <div className="flex gap-[8px]">
                   <button
                     type="button"
                     onClick={handleHeartClick}
                     aria-label={liked ? 'Remove from favourites' : 'Save teacher'}
                     aria-pressed={liked}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10 transition-transform duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    <Heart size={17} className={liked ? 'fill-destructive text-destructive' : 'text-background/70'} />
+                    <Heart size={18} className={liked ? 'fill-destructive text-destructive' : 'text-background/70'} />
                   </button>
                   <button
                     type="button"
                     onClick={handleShareClick}
                     aria-label="Share teacher"
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-background/10 transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    <Share2 size={16} className="text-background/70" aria-hidden="true" />
+                    <Share2 size={18} className="text-background/70" aria-hidden="true" />
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-end gap-4 lg:items-start lg:gap-8">
-                <div className="relative h-[166px] w-[132px] shrink-0 overflow-hidden rounded-2xl lg:h-[280px] lg:w-56">
+              <div className="flex items-end gap-[14px] lg:items-start lg:gap-[28px]">
+                <div className="relative h-[166px] w-[132px] shrink-0 overflow-hidden rounded-[20px] lg:h-[280px] lg:w-[224px]">
                   {teacher.image_url ? (
                     <img
                       src={validateImageSrc(teacher.image_url)}
@@ -653,6 +663,7 @@ export default function TeacherProfile() {
                 </div>
 
                 <div className="min-w-0 flex-1">
+                  {/* S3 header chips: gap:6px margin-bottom:10px — both exact tokens (gap-1.5 / mb-2.5), kept. */}
                   {(boardsList.length > 0 || teacher.area || teacher.experience_years) && (
                     <div className="stagger-children mb-2.5 flex flex-wrap gap-1.5 lg:hidden">
                       {boardsList.length > 0 && <SpeechChip>{boardsList.join(' + ')}</SpeechChip>}
@@ -661,26 +672,30 @@ export default function TeacherProfile() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2">
-                    <h1 className="font-display text-3xl font-black leading-[0.98] tracking-tight text-background lg:text-4xl lg:text-foreground">
+                  <div className="flex items-center gap-[7px]">
+                    <h1 className="font-display text-[27px] font-black leading-[1] tracking-[-0.04em] text-background lg:text-[44px] lg:tracking-[-0.03em] lg:text-foreground">
                       {formatDisplayName(teacher.name, teacher.sir_maam)}
                     </h1>
                     {teacher.is_verified && (
                       <span title="Verified by ShikshAQ" className="flex-none">
-                        <ShieldCheck size={22} className="fill-brand text-background lg:text-card" strokeWidth={2} aria-hidden="true" />
+                        <ShieldCheck
+                          className="h-[19px] w-[19px] fill-brand text-background lg:h-[26px] lg:w-[26px] lg:text-card"
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
                       </span>
                     )}
                   </div>
 
                   {primarySubject && (
-                    <p className="mt-1.5 font-display text-lg font-bold text-background/90 lg:hidden">
+                    <p className="mt-[7px] font-display text-[14px] font-bold text-background/90 lg:hidden">
                       Teaches{' '}
-                      <span className="rounded-lg bg-card px-2 py-0.5 text-foreground">{primarySubject}</span>
+                      <span className="rounded-[8px] bg-card px-[8px] py-[1px] text-foreground">{primarySubject}</span>
                     </p>
                   )}
 
                   {(teacher.area || teacher.experience_years || boardsList.length > 0) && (
-                    <div className="mt-2 hidden flex-wrap gap-4 text-sm text-warm-prose lg:flex">
+                    <div className="mt-[8px] hidden flex-wrap gap-[18px] text-[14.5px] text-warm-prose lg:flex">
                       {teacher.area && <span className="inline-flex items-center gap-2">{teacher.area}</span>}
                       {teacher.experience_years && (
                         <span className="inline-flex items-center gap-2">{teacher.experience_years}+ years experience</span>
@@ -690,7 +705,7 @@ export default function TeacherProfile() {
                   )}
 
                   {subjectsList.length > 0 && (
-                    <div className="stagger-children mt-6 hidden flex-wrap gap-2 lg:flex">
+                    <div className="stagger-children mt-[20px] hidden flex-wrap gap-2 lg:flex">
                       {subjectsList.map((subject) => (
                         <SubjectPill key={subject} label={subject} />
                       ))}
@@ -713,38 +728,42 @@ export default function TeacherProfile() {
             )}
 
             {hasStats ? (
-              <div className="stagger-children mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="stagger-children mt-[18px] grid grid-cols-1 gap-[8px] sm:grid-cols-3">
                 {teacher.experience_years && <StatTile icon={Clock} label="Experience" value={`${teacher.experience_years}+ years`} />}
                 {feesValue && <StatTile icon={Wallet} label="Fees / month" value={feesValue} />}
                 {classSizeValue && <StatTile icon={Users} label="Class size" value={classSizeValue} />}
               </div>
             ) : (
-              <div className="mt-6 rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
+              <div className="mt-[18px] rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
                 Experience, fees, and class size aren't listed yet — ask {firstName} directly on WhatsApp.
               </div>
             )}
 
             {/* Contact panel — mobile/tablet only; desktop's contact card lives in
-                the sticky right column below. Green WhatsApp CTA (design.md §4). */}
-            <div ref={primaryCtaRef} className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-muted p-6 lg:hidden">
-              <p className="max-w-[44ch] text-sm leading-6 text-warm-prose">
+                the sticky right column below. Green WhatsApp CTA (design.md §4).
+                S3: radius:20px padding:16px, text:13.5px/1.55 mb:12px before the button. */}
+            <div ref={primaryCtaRef} className="mt-[18px] flex flex-col rounded-[20px] bg-muted p-[16px] lg:hidden">
+              <p className="mb-[12px] text-[13.5px] leading-[1.55] text-warm-prose">
                 Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
-                {!user && (
-                  <span className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-brand-blue">
-                    Sign in to message — quick, one tap.
-                  </span>
-                )}
               </p>
               <Button variant="whatsapp" size={52} onClick={handleWhatsAppClick} className="whatsapp-pulse-once">
-                <WhatsAppIcon className="h-[17px] w-[17px]" />
+                <WhatsAppIcon className="h-[19px] w-[19px]" />
                 Message on WhatsApp
               </Button>
+              {!user && (
+                <span className="mt-[10px] flex items-center justify-center gap-1.5 text-xs font-semibold text-brand-blue">
+                  Sign in to message — quick, one tap.
+                </span>
+              )}
             </div>
 
             {descriptionHtml && (
               <>
                 <SectionHeading>About {firstName}</SectionHeading>
-                <div className="max-w-prose text-base leading-7 text-warm-prose [&_p+p]:mt-3" dangerouslySetInnerHTML={{ __html: descriptionHtml }} />
+                <div
+                  className="max-w-prose text-[15px] leading-[1.65] text-warm-prose [&_p+p]:mt-3 lg:text-[16px] lg:leading-[1.6]"
+                  dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                />
               </>
             )}
 
@@ -753,7 +772,10 @@ export default function TeacherProfile() {
                 <SectionHeading>Classes taught</SectionHeading>
                 <div className="stagger-children flex flex-wrap gap-2">
                   {classesList.map((cls) => (
-                    <span key={cls} className="animate-card-reveal rounded-full bg-muted px-3.5 py-2 text-sm font-medium text-foreground">
+                    <span
+                      key={cls}
+                      className="animate-card-reveal flex h-[38px] items-center whitespace-nowrap rounded-full bg-muted px-[14px] text-[14px] font-semibold text-foreground"
+                    >
                       {cls}
                     </span>
                   ))}
@@ -766,7 +788,10 @@ export default function TeacherProfile() {
                 <SectionHeading>Where they teach</SectionHeading>
                 <div className="stagger-children flex flex-wrap gap-2">
                   {taughtAreas.map((a) => (
-                    <span key={a} className="animate-card-reveal rounded-full bg-muted px-3.5 py-2 text-sm font-medium text-foreground">
+                    <span
+                      key={a}
+                      className="animate-card-reveal flex h-[38px] items-center whitespace-nowrap rounded-full bg-muted px-[14px] text-[14px] font-semibold text-foreground"
+                    >
                       {a}
                     </span>
                   ))}
@@ -779,7 +804,10 @@ export default function TeacherProfile() {
                 <SectionHeading>Mode of teaching</SectionHeading>
                 <div className="stagger-children flex flex-wrap gap-2">
                   {modeList.map((mode) => (
-                    <span key={mode} className="animate-card-reveal rounded-full bg-muted px-3.5 py-2 text-sm font-medium text-foreground">
+                    <span
+                      key={mode}
+                      className="animate-card-reveal flex h-[38px] items-center whitespace-nowrap rounded-full bg-muted px-[14px] text-[14px] font-semibold text-foreground"
+                    >
                       {mode}
                     </span>
                   ))}
@@ -790,7 +818,7 @@ export default function TeacherProfile() {
             {qualificationsText && (
               <>
                 <SectionHeading>Qualifications</SectionHeading>
-                <p className="max-w-prose text-base leading-7 text-warm-prose">{qualificationsText}</p>
+                <p className="max-w-prose text-[15px] leading-[1.65] text-warm-prose lg:text-[16px] lg:leading-[1.6]">{qualificationsText}</p>
               </>
             )}
 
@@ -806,26 +834,43 @@ export default function TeacherProfile() {
             </p>
           </div>
 
-          {/* Right column — desktop only: sticky near-black contact card + "not the right fit" panel. */}
+          {/* Right column — desktop only: sticky near-black contact card + "not the right fit" panel.
+              D3 sticky card: radius:24px padding:26px gap:16px; fee font:36px; WhatsApp h:54 radius:15;
+              save/share h:46 radius:13; "not the right fit" card radius:20 padding:20 mt:16. */}
           <aside className="mt-8 hidden lg:mt-0 lg:block">
-            <div className="lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-4">
-              <div className="rounded-3xl bg-panel p-6 text-background shadow-border">
+            <div className="lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-[16px]">
+              <div className="rounded-[24px] bg-panel p-[26px] text-background shadow-border">
                 {feesValue && (
                   <p className="flex items-baseline gap-2">
-                    <span className="font-display text-3xl font-black tracking-tight text-background">{feesValue}</span>
+                    <span className="font-display text-[36px] font-black tracking-[-0.03em] text-background">{feesValue}</span>
                     <span className="text-sm text-background/60">per month</span>
                   </p>
                 )}
-                <Button variant="whatsapp" size={54} onClick={handleWhatsAppClick} className="whatsapp-pulse-once mt-4 w-full">
-                  <WhatsAppIcon className="h-[18px] w-[18px]" />
+                <Button
+                  variant="whatsapp"
+                  size={54}
+                  onClick={handleWhatsAppClick}
+                  className="whatsapp-pulse-once mt-[16px] w-full rounded-[15px]"
+                >
+                  <WhatsAppIcon className="h-[20px] w-[20px]" />
                   Message on WhatsApp
                 </Button>
-                <div className="mt-3 flex gap-2">
-                  <Button variant="ghost" size={44} onClick={handleHeartClick} className="flex-1 text-background hover:bg-background/10">
+                <div className="mt-[16px] flex gap-[10px]">
+                  <Button
+                    variant="ghost"
+                    size={44}
+                    onClick={handleHeartClick}
+                    className="h-[46px] flex-1 rounded-[13px] text-background hover:bg-background/10"
+                  >
                     <Heart size={16} className={liked ? 'fill-destructive text-destructive' : ''} aria-hidden="true" />
                     Save
                   </Button>
-                  <Button variant="ghost" size={44} onClick={handleShareClick} className="flex-1 text-background hover:bg-background/10">
+                  <Button
+                    variant="ghost"
+                    size={44}
+                    onClick={handleShareClick}
+                    className="h-[46px] flex-1 rounded-[13px] text-background hover:bg-background/10"
+                  >
                     <Share2 size={15} aria-hidden="true" />
                     Share
                   </Button>
@@ -837,12 +882,12 @@ export default function TeacherProfile() {
                 </ul>
               </div>
 
-              <div className="rounded-2xl bg-brand-subtle p-6">
-                <p className="font-display text-base font-bold text-brand-deep">Not the right fit?</p>
-                <p className="mt-1 text-sm text-warm-prose">
+              <div className="rounded-[20px] bg-brand-subtle p-[20px]">
+                <p className="font-display text-[18px] font-extrabold tracking-[-0.02em] text-brand-deep">Not the right fit?</p>
+                <p className="mt-1 text-[14.5px] leading-[1.55] text-warm-prose">
                   See other {primarySubject || 'tuition'} teachers near {areaLabel}.
                 </p>
-                <Link to={BROWSE_PATH} className="mt-3 inline-block text-sm font-semibold text-brand-deep underline underline-offset-2">
+                <Link to={BROWSE_PATH} className="mt-[4px] inline-block text-[14px] font-semibold text-brand-deep underline underline-offset-2">
                   See them all →
                 </Link>
               </div>
