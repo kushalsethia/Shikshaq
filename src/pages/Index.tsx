@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -30,7 +31,7 @@ import { Sticker } from '@/components/ui/sticker';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { useRequireRole } from '@/hooks/use-require-role';
-import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache';
+import { clearExpiredCache } from '@/utils/cache';
 import { getShikshaqmineBasicBySlugs } from '@/lib/teachers';
 import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
 import type { SearchMode } from '@/utils/searchFacets';
@@ -107,12 +108,6 @@ function parseClassNumbers(raw: string | null | undefined): number[] {
 
 export default function Index() {
   const { open: tourOpen, setOpen: setTourOpen } = useProductTour();
-  const [featuredTeachers, setFeaturedTeachers] = useState<Teacher[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [boardCounts, setBoardCounts] = useState<Record<string, number>>({});
-  const [classCounts, setClassCounts] = useState<Record<number, number>>({});
   const [recentPapers, setRecentPapers] = useState<RecentPaper[]>([]);
   const [studentQuotes, setStudentQuotes] = useState<StudentQuote[]>([]);
   const [stats, setStats] = useState({ teachers: null as number | null, papers: null as number | null, reviews: null as number | null });
@@ -159,19 +154,24 @@ export default function Index() {
     };
   }, []);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const featuredCacheKey = 'featured_teachers_index_v4';
-        const cachedFeatured = getCache<Teacher[]>(featuredCacheKey);
-        const subjectsCacheKey = 'subjects_index_v4';
-        const cachedSubjects = getCache<Subject[]>(subjectsCacheKey);
+  /* Home data on react-query. Was a ~180-line useEffect owning its own loading
+     and error flags on top of a separate localStorage cache. The queries and
+     every derivation are unchanged.
 
-        if (cachedFeatured?.length && cachedSubjects?.length) {
-          setFeaturedTeachers(cachedFeatured);
-          setSubjects(cachedSubjects);
-          setLoading(false);
-        }
+     One real improvement falls out of the move: the featured grid fills any
+     remainder with Math.random(), so under the old effect it reshuffled on
+     every mount. Inside a queryFn it is computed once per cache entry and
+     stays put while the entry is fresh. */
+  const home = useQuery({
+    queryKey: ['home', 'landing'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      let featured: Teacher[] = [];
+      let subjectList: Subject[] = [];
+      /* The localStorage warm-start that used to live here is gone: react-query
+         now owns caching for this data, and keeping a second cache in front of
+         it meant two sources of truth that could disagree. src/utils/cache.ts
+         stays for the call sites still using it. */
 
         const desiredSubjects = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
         const [subjectsRes, upvoteStatsRes, allTeachersRes, papersRes] = await Promise.all([
@@ -195,9 +195,7 @@ export default function Index() {
               papers: papersRes.error,
             });
           }
-          setLoadError(true);
-          setLoading(false);
-          return;
+          throw subjectsRes.error || upvoteStatsRes.error || allTeachersRes.error || papersRes.error;
         }
 
         const allTeachers = allTeachersRes.data || [];
@@ -239,8 +237,7 @@ export default function Index() {
               area: basic?.area ?? null,
             };
           });
-          setFeaturedTeachers(processed);
-          setCache(featuredCacheKey, processed, CACHE_TTL.FEATURED_TEACHERS);
+          featured = processed;
         }
 
         if (subjectsRes.data) {
@@ -278,8 +275,7 @@ export default function Index() {
             paperCount: 0,
           }));
 
-          setSubjects(withCounts);
-          setCache(subjectsCacheKey, withCounts, CACHE_TTL.SUBJECTS);
+          subjectList = withCounts;
         }
 
         // Board pill stack — real per-board TUTOR counts, which is what mockup
@@ -310,7 +306,7 @@ export default function Index() {
             }
           });
         });
-        setBoardCounts(boardTally);
+        
 
         // By-class rail — real per-class teacher counts, tokenized from the
         // teachers_list `classes` column (same pattern as the subject counts
@@ -323,18 +319,20 @@ export default function Index() {
             if (n >= 9 && n <= 12) classTally[n] = (classTally[n] || 0) + 1;
           });
         });
-        setClassCounts(classTally);
-      } catch (error) {
-        setLoadError(true);
-        if (import.meta.env.DEV) console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
+        
 
-    fetchData();
-    clearExpiredCache();
-  }, []);
+      return { featured, subjectList, boardTally, classTally };
+    },
+  });
+
+  const featuredTeachers = home.data?.featured ?? [];
+  const subjects = home.data?.subjectList ?? [];
+  const boardCounts = home.data?.boardTally ?? {};
+  const classCounts = home.data?.classTally ?? {};
+  const loading = home.isPending;
+  const loadError = home.isError;
+
+  useEffect(() => { clearExpiredCache(); }, []);
 
   useEffect(() => {
     async function fetchStats() {
