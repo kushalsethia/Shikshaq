@@ -6,25 +6,20 @@ import { Navbar } from '@/components/Navbar';
 import { SearchControl } from '@/components/SearchControl';
 import { TeacherCard } from '@/components/TeacherCard';
 import { Footer } from '@/components/Footer';
-import { EmptyResults } from '@/components/EmptyResults';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
-import { FilterPanel, FilterState } from '@/components/FilterPanel';
-import { Nudge } from '@/components/Nudge';
-import { SlidersHorizontal, X, HelpCircle } from 'lucide-react';
+import { type FilterState } from '@/components/FilterPanel';
+import { FilterSheet, FilterRail, activeFilterCount } from '@/components/browse/FilterGroups';
+import { SlidersHorizontal } from 'lucide-react';
+import { Chip } from '@/components/ui/chip';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { ControlBlock, PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
+import { PreFooter } from '@/components/layout/PreFooter';
+import { ListLoading, ListEmpty, ListOverFiltered, ListError, ListEnd } from '@/components/ui/list-states';
 import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKeywordExtractor';
 import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
 import { getSubjectPalette } from '@/lib/subject-palette';
-import { PageHeader } from '@/components/devices';
 
 
 interface Teacher {
@@ -393,7 +388,11 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
   const [loading, setLoading] = useState(true);
   const [selectedSubject, setSelectedSubject] = useState(searchParams.get('subject') || '');
   const [selectedClass, setSelectedClass] = useState(searchParams.get('class') || '');
-  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  // Error state (list-states.tsx "Error" — design.md §3 state coverage).
+  // Retrying just bumps this counter, which the fetch effect below depends on.
+  const [fetchError, setFetchError] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
   const { user, loading: authLoading, profile: userProfile, profileLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1141,10 +1140,12 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
         setDisplayedTeachers(sortedTeachers.slice(0, pageSize));
         setTeachers(sortedTeachers); // Keep for count display
         setHasMore(sortedTeachers.length > pageSize);
+        setFetchError(false);
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error('Error fetching teachers:', error);
         }
+        if (!isStale()) setFetchError(true);
       } finally {
         // Only the most recent fetch owns the loading indicator; a stale fetch finishing
         // later must not flip loading back off underneath the active one.
@@ -1178,7 +1179,12 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
         fetchDebounceRef.current = null;
       }
     };
-  }, [searchParams, subjects]);
+  }, [searchParams, subjects, retryToken]);
+
+  const handleRetry = () => {
+    setFetchError(false);
+    setRetryToken((t) => t + 1);
+  };
 
   const handleSubjectChange = (value: string) => {
     setSelectedSubject(value);
@@ -1488,254 +1494,188 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
     { label: 'CBSE · ICSE · IGCSE · IB · State' },
   ];
 
+  // Sub-line under the h1 -- copy.md Section 4 gives "Maths . Class 10 . within
+  // 5 km of Lalpur" as an illustrative example; there is no real distance/radius
+  // query behind a "within N km" claim (design.md Section 0 rule 10 forbids a
+  // number that cannot be fetched), so the sub-line is built from the actual
+  // active facets only and simply omits parts that are unset.
+  const activeSubjectLabel = quickPickSubjectName || filters.subjects[0] || null;
+  const activeClassLabel = quickPickClassValue ? `Class ${quickPickClassValue}` : filters.classes[0] ? `Class ${filters.classes[0]}` : null;
+  const activeAreaLabel = filters.areas[0] || null;
+  const subLineParts = [activeSubjectLabel, activeClassLabel, activeAreaLabel].filter(Boolean) as string[];
+  const resultCountLabel = loading ? '...' : teachers.length;
+  const sortPills: { value: string; label: string }[] = [
+    { value: 'upvotes', label: 'Most upvoted' },
+    { value: 'experience', label: 'Experience' },
+    { value: 'fees', label: 'Fees' },
+    { value: 'name', label: 'Name' },
+  ];
+  const filterCount =
+    activeFilterCount(filters) +
+    (activeSubjectLabel && !filters.subjects.includes(activeSubjectLabel) ? 1 : 0) +
+    (quickPickClassValue && !filters.classes.includes(quickPickClassValue) ? 1 : 0);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-12">
-        {/* THE FIRST-FOLD SYSTEM (VISUAL_DIRECTION.md §9a). Templated by
-            PageHeader so this page and all ~35 SEO subject/board routes it
-            renders share one designed opening, varied only by accent colour
-            and copy (pageContext, derived above from SubjectPage/BoardPage).
-            Bleeds to the viewport edge at each breakpoint, same as the old
-            gradient band did, so it still reads as a full-width fold. */}
-        <PageHeader
-          eyebrow={headerEyebrow}
-          title={finalHeaderTitle}
-          lede={headerLede}
-          tags={headerTags}
-          accent={headerAccent}
-          ground="graph"
-          className="-mx-4 -mt-4 sm:-mx-6 sm:-mt-6 lg:-mx-8"
+      {/* Control block (design.md S1 / S4 "Browse (S1)"): near-black,
+          rounded-b-4xl, carrying the back row, the real result-count h1, and
+          the search field. */}
+      <ControlBlock mode="dark">
+        <Link
+          to="/"
+          className="shikshaq-tap -mt-1 mb-3 inline-flex min-h-11 items-center py-1 text-sm font-semibold text-white/70 transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
         >
-          <Link
-            to="/"
-            className="shikshaq-tap -mt-1 mb-3 inline-flex min-h-11 items-center py-1 text-sm font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
-          >
-            ← Home
-          </Link>
+          {'←'} Home
+        </Link>
 
-          {!loading && resultsTruncated && (
-            <p className="mb-3 text-xs font-medium text-warm-meta">
-              Showing the first {teachers.length} results — narrow your search to see more.
-            </p>
-          )}
-
-          <div className="flex items-start gap-2">
-            {/* The functional slot — search stays live and usable inside the loud
-                fold, per the "eyecandy AND functional" ruling. */}
-            {/* min-w-0 is load-bearing: a flex item defaults to min-width:auto, so
-                without it this refused to shrink below its content and rendered
-                484px wide inside a 375px viewport, pushing the teacher grid off
-                screen and clipping cards. */}
-            <div ref={searchControlWrapRef} className="min-w-0 max-w-[820px] flex-1">
-              <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
-            </div>
-
-            {/* HelpCircle anchor for the one-time "see papers instead" nudge. Deliberately placed
-                inline in the header row, not floating — Chatbot.tsx already owns a fixed
-                bottom-right "Ask AI" button on every page, and a second floating control there
-                would collide with/be confused for it. */}
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => handleSearchModeChange('papers')}
-                aria-label="Looking for exam papers instead? See past papers"
-                className="shikshaq-tap flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-card text-warm-secondary shadow-border">
-                  <HelpCircle size={17} />
-                </span>
-              </button>
-              <Nudge
-                id="browse-see-papers"
-                message="Looking for exam papers instead? Tap here →"
-                onCtaClick={() => handleSearchModeChange('papers')}
-                align="right"
-              />
-            </div>
-          </div>
-
-          {/* Subject quick-picks. Previously used getSubjectPalette's fully-saturated
-              `solid`/`badgeText` pair per pill — ten different saturated hues side by
-              side in one row read as chaotic/candy-like rather than a considered filter
-              row. Switched to the same restrained `tint`/`text` pairing the subject-card
-              bento grid uses at rest (soft tint background, colored text, no fill until
-              selected) — each subject still reads as visually distinct by hue, just not
-              shouting. Default-view only, same gating as the featured shelf below. */}
-          {isDefaultView && sortedSubjectsForDisplay.length > 0 && (
-            <div className="mt-5 flex flex-wrap gap-2">
-              {sortedSubjectsForDisplay.slice(0, 10).map((subject) => {
-                const palette = getSubjectPalette(subject.name);
-                return (
-                  <button
-                    key={subject.id}
-                    onClick={() => handleSubjectChange(subject.slug)}
-                    className="flex min-h-11 items-center rounded-full px-4 text-sm font-semibold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
-                    style={{ backgroundColor: palette.tint, color: palette.text }}
-                  >
-                    {subject.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </PageHeader>
-
-        {/* Featured teachers shelf — horizontal-scroll, drop-shadowed cards on the default
-            (unfiltered, un-searched) view only, mirroring the PastPapers.tsx "Recently added"
-            shelf pattern for consistency and the books-app shelf reference (ref 05). Real
-            is_featured data from the main fetch, not a static/decorative row. */}
-        {!loading && featuredTeachers.length > 0 && (
-          <div className="mt-6">
-            <h2 className="mb-3 text-lg font-semibold tracking-tight">Featured teachers</h2>
-            <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {featuredTeachers.map((teacher) => {
-                const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
-                const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
-                const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
-                return (
-                  <div key={teacher.id} className="w-[150px] flex-none snap-start sm:w-[170px]">
-                    <TeacherCard
-                      id={teacher.id}
-                      name={teacher.name}
-                      slug={teacher.slug}
-                      subject={firstSubject}
-                      subjectSlug={teacher.subjects?.slug}
-                      imageUrl={teacher.image_url ?? undefined}
-                      sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
-                      isFeatured
-                      size="sm"
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        <h1 className="font-display text-page-title font-extrabold tracking-tight text-background">
+          {resultCountLabel} teacher{teachers.length === 1 ? '' : 's'}
+        </h1>
+        {subLineParts.length > 0 && (
+          <p className="mt-1 text-body-secondary text-white/70">{subLineParts.join(' · ')}</p>
         )}
 
-        {/* Structured filters (subject/class quick-pick + the advanced FilterPanel dialog)
-            aren't part of the literal Browse.md mockup — that only models the applied-filter
-            row below — but they're the only way to set board/class-size/mode/area/fees/
-            experience filters at all, so they stay. Sized to the 44px touch-target rule. */}
-        <div className="mt-5">
-          {/* Two-row layout at base (375px): Subject/Class share a row as equal-width grid
-              cells (no more shrinking selects to fit), "More filters" gets its own full-width
-              row below so its active-count badge is never squeezed. At sm+ everything collapses
-              back onto one row, selects reverting to fixed widths, matching prior desktop layout. */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-none">
-              <Select value={selectedSubject} onValueChange={handleSubjectChange}>
-                <SelectTrigger className="h-11 text-sm w-full min-w-0 sm:w-[150px]">
-                  <SelectValue placeholder="Subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Subjects</SelectItem>
-                  {sortedSubjectsForDisplay.map((subject) => (
-                    <SelectItem key={subject.id} value={subject.slug}>
-                      {subject.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {!loading && resultsTruncated && (
+          <p className="mt-2 text-xs font-medium text-white/60">
+            Showing the first {teachers.length} results {'—'} narrow your search to see more.
+          </p>
+        )}
 
-              <Select value={selectedClass} onValueChange={handleClassChange}>
-                <SelectTrigger className="h-11 text-sm w-full min-w-0 sm:w-[130px]">
-                  <SelectValue placeholder="Class" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Classes</SelectItem>
-                  {CLASSES.map((cls) => (
-                    <SelectItem key={cls} value={cls}>
-                      {cls === 'UG' ? 'UG' : `Class ${cls}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div ref={searchControlWrapRef} className="mt-4 min-w-0 max-w-[820px]">
+          <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
+        </div>
 
+        {/* Subject quick-picks -- default view only. Restrained tint/text
+            pairing so ten hues side by side don't read as candy. */}
+        {isDefaultView && sortedSubjectsForDisplay.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {sortedSubjectsForDisplay.slice(0, 10).map((subject) => {
+              const palette = getSubjectPalette(subject.name);
+              return (
+                <button
+                  key={subject.id}
+                  onClick={() => handleSubjectChange(subject.slug)}
+                  className="flex min-h-11 items-center rounded-full px-4 text-sm font-semibold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+                  style={{ backgroundColor: palette.tint, color: palette.text }}
+                >
+                  {subject.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </ControlBlock>
+
+      {/* Sticky filter bar (design.md S4 "Browse (S1)"): dark Filters pill
+          with an orange count badge (mobile -- desktop uses the persistent
+          rail below instead), applied chips, count + sort line. */}
+      <div className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur-sm">
+        <PageContainer className="py-3">
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setFilterPanelOpen(true)}
-              className="shikshaq-outline-btn flex w-full items-center justify-center gap-2 min-h-11 px-4 py-2 rounded-lg text-sm font-semibold text-foreground shadow-border transition-colors duration-150 sm:w-auto sm:justify-start"
+              type="button"
+              onClick={() => setFilterSheetOpen(true)}
+              className="shikshaq-tap flex min-h-11 flex-none items-center gap-2 rounded-full bg-panel px-4 text-body-secondary font-semibold text-background transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
             >
-              <SlidersHorizontal className="w-4 h-4 shrink-0" />
-              <span className="whitespace-nowrap">More filters</span>
-              {(filters.subjects.length > 0 || filters.classes.length > 0 ||
-                filters.boards.length > 0 || filters.classSize.length > 0 ||
-                filters.areas.length > 0 || filters.modeOfTeaching.length > 0 ||
-                filters.placeOfTeaching.length > 0 || filters.minExperience != null) && (
-                <span className="rounded-full bg-brand px-2 py-0.5 text-label font-bold tabular-nums text-foreground">
-                  {filters.subjects.length + filters.classes.length + filters.boards.length +
-                   filters.classSize.length + filters.areas.length + filters.modeOfTeaching.length +
-                   filters.placeOfTeaching.length + (filters.minExperience != null ? 1 : 0)}
+              <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden />
+              Filters
+              {filterCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-label font-bold tabular-nums text-brand-foreground">
+                  {filterCount}
                 </span>
               )}
             </button>
 
-            {/* Sort applies to the whole fetched result set (not just the visible page),
-                so it stays correct across "Load more" batches — see applySortOrder. */}
-            <Select value={currentSort} onValueChange={handleSortChange}>
-              <SelectTrigger className="h-11 text-sm w-full min-w-0 sm:w-[170px] sm:flex-none">
-                <SelectValue placeholder="Sort" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="upvotes">Most upvoted</SelectItem>
-                <SelectItem value="name">Name A–Z</SelectItem>
-                <SelectItem value="experience">Most experienced</SelectItem>
-                <SelectItem value="fees">Lowest fees</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="min-w-0 flex-1 overflow-x-auto">
+              <FilterChips
+                mode="teachers"
+                chips={filterChips}
+                onClearAll={clearFilters}
+                onEditSearch={handleEditSearch}
+                handoff={{ label: 'See papers with these filters →', onClick: () => handleSearchModeChange('papers') }}
+              />
+            </div>
           </div>
-        </div>
 
-        {/* FilterChips row: margin:20px 0 8px, carry line below at margin-bottom:22px (Browse.md item 5) */}
-        <FilterChips
-          mode="teachers"
-          chips={filterChips}
-          onClearAll={clearFilters}
-          onEditSearch={handleEditSearch}
-          handoff={{ label: 'See papers with these filters →', onClick: () => handleSearchModeChange('papers') }}
-          carryOverNote="Subject, class and board carry over. Area does not apply to papers."
-          className="mt-5 mb-[22px]"
-        />
-
-        {/* Teachers List. Section framing goes loud here (coloured band, oversized
-            display-type header) while the grid and its cards stay crisp — the
-            "Cards stay CRISP; section framing goes loud" ruling. Skipped for the
-            empty state, which already gets its own loud treatment. */}
-        {(loading || displayedTeachers.length > 0) && (
-          <div
-            className="halftone-overlay-strong relative mb-5 flex items-center justify-between gap-3 overflow-hidden rounded-2xl px-5 py-4"
-            style={{ background: headerAccent, color: headerBandText }}
-          >
-            <h2 className="font-display text-2xl font-black tracking-tight sm:text-3xl">
-              {isDefaultView ? 'All teachers' : 'Matching teachers'}
-            </h2>
-            <span
-              className="rounded-full px-3 py-1 text-sm font-bold tabular-nums"
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
-            >
-              {loading ? '…' : teachers.length}
-            </span>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-body-secondary text-warm-meta tabular-nums">
+              {resultCountLabel} teacher{teachers.length === 1 ? '' : 's'}
+            </p>
+            <div className="flex flex-none items-center gap-1.5 overflow-x-auto">
+              {sortPills.map((s) => (
+                <Chip
+                  key={s.value}
+                  tone={currentSort === s.value ? 'facet-on' : 'facet'}
+                  size={40}
+                  onClick={() => handleSortChange(s.value)}
+                  aria-pressed={currentSort === s.value}
+                >
+                  {s.label}
+                </Chip>
+              ))}
+            </div>
           </div>
-        )}
-        {loading ? (
-          <TeacherCardSkeletons count={8} />
-        ) : displayedTeachers.length > 0 ? (
-          <div>
-            <div className="shikshaq-teacher-grid stagger-children">
-              {displayedTeachers.map((teacher) => {
-                // Prefer subjects_from_shikshaq; on browse page limit to 5 subjects (profile page shows all)
-                const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
-                const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
-                const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
-                const area = (teacher as { area?: string | null }).area ?? null;
-                const firstArea = area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null;
-                const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
+        </PageContainer>
+      </div>
 
-                return (
-                  <div key={teacher.id} className="animate-card-reveal">
+      <PageContainer as="main" className="py-6 lg:flex lg:items-start lg:gap-8">
+        {/* Desktop persistent 284px filter rail (design.md S5 / C-048) -- the
+            sheet's content unwrapped, same FilterGroupsBody as the mobile sheet. */}
+        <FilterRail filters={filters} onFilterChange={setFilters} resultCount={teachers.length} />
+
+        <div className="min-w-0 flex-1">
+          {/* Featured teachers shelf -- default (unfiltered, un-searched) view
+              only. Real is_featured data from the main fetch. */}
+          {!loading && featuredTeachers.length > 0 && (
+            <div className="mb-6">
+              <h2 className="mb-3 text-lg font-semibold tracking-tight">Featured teachers</h2>
+              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {featuredTeachers.map((teacher) => {
+                  const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
+                  const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+                  const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
+                  return (
+                    <div key={teacher.id} className="w-[150px] flex-none snap-start sm:w-[170px]">
+                      <TeacherCard
+                        id={teacher.id}
+                        name={teacher.name}
+                        slug={teacher.slug}
+                        subject={firstSubject}
+                        subjectSlug={teacher.subjects?.slug}
+                        imageUrl={teacher.image_url ?? undefined}
+                        sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
+                        isFeatured
+                        size="sm"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Five list states (design.md Section 3). */}
+          {fetchError ? (
+            <ListError onRetry={handleRetry} />
+          ) : loading ? (
+            <ListLoading count={8} media={96} lines={2} />
+          ) : displayedTeachers.length > 0 ? (
+            <div>
+              {/* Mobile: result rows. Desktop: three-column card grid
+                  (design.md Section 5 / C-048). Same data, two TeacherCard variants. */}
+              <div className="flex flex-col gap-3 lg:hidden">
+                {displayedTeachers.map((teacher) => {
+                  const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
+                  const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+                  const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
+                  const area = (teacher as { area?: string | null }).area ?? null;
+                  const firstArea = area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null;
+                  const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
+                  return (
                     <TeacherCard
+                      key={teacher.id}
                       id={teacher.id}
                       name={teacher.name}
                       slug={teacher.slug}
@@ -1745,89 +1685,78 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
                       sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
                       meta={meta || undefined}
                       isFeatured={!!teacher.is_featured}
-                      size="sm"
+                      variant="row"
                     />
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Page size 24, explicit "Load more" — never infinite scroll (Browse.md "Data"). */}
-            {hasMore && (
-              <div className="mt-7 flex justify-center">
-                <button
-                  type="button"
-                  onClick={handleLoadMore}
-                  className="shikshaq-outline-btn inline-flex min-h-12 items-center justify-center rounded-lg bg-card px-[22px] py-3.5 text-sm font-semibold text-foreground shadow-border transition-colors duration-150"
-                >
-                  Load more
-                </button>
+                  );
+                })}
               </div>
-            )}
-          </div>
-        ) : (
-          <EmptyResults
-            heading="No teachers match all of those filters yet"
-            message="Try relaxing the most restrictive one. These are the nearest sets we have."
-            options={emptyStateOptions}
-          />
-        )}
-      </main>
 
-      <FilterPanel
-        open={filterPanelOpen}
-        onOpenChange={setFilterPanelOpen}
+              <div className="hidden shikshaq-teacher-grid stagger-children lg:grid">
+                {displayedTeachers.map((teacher) => {
+                  const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
+                  const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
+                  const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
+                  const area = (teacher as { area?: string | null }).area ?? null;
+                  const firstArea = area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null;
+                  const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
+                  return (
+                    <div key={teacher.id} className="animate-card-reveal">
+                      <TeacherCard
+                        id={teacher.id}
+                        name={teacher.name}
+                        slug={teacher.slug}
+                        subject={firstSubject}
+                        subjectSlug={teacher.subjects?.slug}
+                        imageUrl={teacher.image_url ?? undefined}
+                        sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
+                        meta={meta || undefined}
+                        isFeatured={!!teacher.is_featured}
+                        variant="grid"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Page size 24, explicit "Load more" -- never infinite scroll. */}
+              {hasMore ? (
+                <div className="mt-7 flex justify-center">
+                  <Button variant="muted" size={46} onClick={handleLoadMore}>
+                    Load more
+                  </Button>
+                </div>
+              ) : (
+                <ListEnd count={teachers.length} />
+              )}
+            </div>
+          ) : isDefaultView ? (
+            // Empty, no data yet -- never advertise emptiness (design.md Section 3.2).
+            <ListEmpty line="Kolkata's verified tutors, across every subject and board." />
+          ) : (
+            <ListOverFiltered onClear={clearFilters} />
+          )}
+        </div>
+      </PageContainer>
+
+      <PreFooter variant="B2" counts={{ teachers: teachers.length }} />
+      <Footer />
+      <BottomNavSpacer />
+
+      <FilterSheet
+        open={filterSheetOpen}
+        onOpenChange={setFilterSheetOpen}
         filters={filters}
         onFilterChange={setFilters}
-        onClearFilters={() => {
-          setFilters({
-            subjects: [],
-            classes: [],
-            boards: [],
-            classSize: [],
-            areas: [],
-            modeOfTeaching: [],
-            placeOfTeaching: [],
-            minFees: null,
-            maxFees: null,
-            minExperience: null,
-          });
-        }}
+        resultCount={teachers.length}
       />
 
-      <Footer />
-
-      {/* These buttons/tiles declared transitions but had nothing hover-driven to
-          transition to on a desktop pointer — same gap fixed on Home/Past papers. */}
       <style>{`
-        @media (hover: hover) {
-          .shikshaq-outline-btn:hover { background-color: hsl(var(--muted)); }
-        }
-        /* Tap feedback (unconditional, not hover-gated) — matches the
-           active:scale-[0.97] convention used elsewhere. */
-        .shikshaq-outline-btn:active { transform: scale(0.97); }
-
-        /* Teacher card grid — explicit 2-column layout below 640px (rather than relying on
-           auto-fill minmax math, which can collapse to a single column on narrow phones) so
-           mobile genuinely gets a compact 2-up grid of size='sm' cards. Reverts to the original
-           auto-fill minmax(220px,1fr) desktop/tablet layout at sm+. */
-        /* minmax(0, 1fr) rather than a bare 1fr: a lone 1fr means minmax(auto, 1fr),
-           and that auto floor is the item's min-content width — so a card with a long
-           unbreakable string (a teacher name, an area) forced its column past its
-           share. Measured at 375px this produced columns of 240.85px + 198.675px
-           inside a 343px grid, pushing cards to x=465 and clipping them off screen.
-           NOTE: this whole block lives inside a JS template literal — never use a
-           backtick in these comments, it terminates the string and 500s the route. */
+        /* Teacher card grid -- desktop 3-column layout pairing the persistent
+           filter rail with a card grid (design.md Section 5). */
         .shikshaq-teacher-grid {
           display: grid;
-          gap: 12px;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        @media (min-width: 640px) {
-          .shikshaq-teacher-grid {
-            gap: 18px;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-          }
+          gap: 20px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
       `}</style>
     </div>

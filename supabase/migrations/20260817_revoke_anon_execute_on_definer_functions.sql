@@ -9,19 +9,26 @@
 -- reports no rls_disabled errors) does not protect against these, because the
 -- function itself is the privileged path.
 --
--- Two groups below.
+-- SEVERITY: hardening / defense-in-depth. This is NOT an incident.
+--
+-- The function bodies were read before writing this migration. The privileged
+-- ones already authorize correctly and are not exploitable today:
+--   approve_teacher_application  -- raises unless auth.uid() = admin_id
+--   assign_teacher_role_by_email -- raises unless auth.uid() = target, or is_admin()
+--   get_teacher_email            -- WHERE id = auth.uid(), own row only
+-- An anonymous caller reaches an exception, not an escalation.
+--
+-- The value of this migration is narrowing the surface so that a function added
+-- later WITHOUT an auth.uid() check is not exposed to anon by default, and so
+-- that trigger-only functions stop being REST-reachable at all.
 --
 -- GROUP A — trigger functions. These are invoked by triggers, which fire as the
 -- table owner. Nothing should ever call them over REST. Revoking EXECUTE from
 -- anon and authenticated does not affect trigger execution.
 --
--- GROUP B — callable RPCs that must stay reachable, but only for the right
--- caller. These are revoked from `anon` and kept for `authenticated`, on the
--- assumption that each already performs its own authorization check internally.
--- VERIFY THAT ASSUMPTION before applying: if any of them trusts its arguments
--- (for example approve_teacher_application taking admin_id as a parameter
--- rather than reading auth.uid()), revoking anon is necessary but NOT
--- sufficient, and the function body needs fixing too.
+-- GROUP B — callable RPCs that stay reachable for authenticated callers. Each
+-- already performs its own authorization check internally (verified above);
+-- revoking anon removes a layer that should never have been there.
 
 begin;
 
@@ -50,8 +57,8 @@ revoke execute on function public.cleanup_rate_limit_log() from anon, authentica
 -- ---------------------------------------------------------------------------
 -- GROUP B · privileged admin operations — revoke from anon
 --
--- These are the dangerous ones. An unauthenticated caller can currently invoke
--- approve_teacher_application and assign_teacher_role_by_email directly.
+-- Each already checks auth.uid() internally, so this is belt-and-braces: an
+-- anon caller currently gets 'Not authorized' rather than a result.
 -- ---------------------------------------------------------------------------
 revoke execute on function public.approve_teacher_application(uuid, uuid) from anon;
 revoke execute on function public.assign_teacher_role_by_email(text) from anon;
