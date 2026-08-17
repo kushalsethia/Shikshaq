@@ -134,6 +134,7 @@ export default function RecommendTeacher() {
         </p>
       </ControlBlock>
 
+      <main>
       <PageContainer className="pt-8 sm:pt-10 pb-16">
         <div className="mx-auto max-w-3xl rounded-2xl bg-card p-6 shadow-border sm:p-8">
           {submitted ? (
@@ -237,6 +238,7 @@ export default function RecommendTeacher() {
           )}
         </div>
       </PageContainer>
+      </main>
 
       <PageContainer className="pb-8">
         <PreFooter variant={preFooterFor(location.pathname)} />

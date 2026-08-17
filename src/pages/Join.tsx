@@ -44,6 +44,7 @@ export default function Join() {
           ground), applied here in orange instead of blue since this page's whole pitch is
           "keep your fees", the brand-orange side of the token pair. Reads as one considered
           hero moment instead of the previous flat bg-background page. */}
+      <main>
       <div className="relative overflow-hidden bg-gradient-to-b from-brand-subtle to-background">
         {/* Organic blob decoration behind the hero headline — mobile-vibes-event-app
             reference. Ornamental only, tokens only, sits behind the text (-z-10). Sized up
@@ -58,7 +59,7 @@ export default function Join() {
           aria-hidden="true"
         />
 
-        <main className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16 lg:pt-20 pb-10">
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16 lg:pt-20 pb-10">
           {/* Starburst replaces the flat pill chip — same message, loud device. */}
           <StarburstBadge
             variant="burst"
@@ -105,10 +106,16 @@ export default function Join() {
           >
             Apply to be listed
           </Link>
-        </main>
+        </div>
       </div>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16"
+               aria-labelledby="join-benefits-heading">
+        {/* The four tiles were h3 with no h2 above them, so the outline jumped
+            h1 -> h3. They are a named group, not loose cards, so the fix is the
+            missing group heading rather than demoting the cards. It is sr-only
+            because the tiles are self-evident when you can see them. */}
+        <h2 id="join-benefits-heading" className="sr-only">Why teach on Shikshaq</h2>
         {/* Slight alternating tilt on the tile row — the "overlapping angled card stack"
             device from the reference, applied restrained enough to still read as a clean
             grid at a glance rather than genuine chaos. Tilt resets on hover so nothing feels
@@ -132,6 +139,7 @@ export default function Join() {
             );
           })}
         </div>
+      </section>
       </main>
 
       <Footer />

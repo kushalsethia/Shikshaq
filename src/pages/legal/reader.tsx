@@ -121,7 +121,7 @@ export function LegalReader({
   return (
     <div className="min-h-screen bg-background">
 
-      <div className="mx-auto max-w-[980px] px-4 pb-[90px] pt-[44px] sm:px-[40px]">
+      <main className="mx-auto max-w-[980px] px-4 pb-[90px] pt-[44px] sm:px-[40px]">
         {/* pill + h1 + lede + updated */}
         <span
           className={`inline-flex h-[32px] items-center gap-2 whitespace-nowrap rounded-full px-[14px] text-[12px] font-bold ${pillClass}`}
@@ -247,7 +247,7 @@ export function LegalReader({
             {footerExtra}
           </div>
         </div>
-      </div>
+      </main>
 
       <BottomNavSpacer />
       <Footer />
