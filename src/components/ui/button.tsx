@@ -20,18 +20,26 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        /* ---- redesign variants (components.md P1) ---- */
+        /* ---- redesign variants (components.md P1) ----
+
+           micro-06-non-negotiables rule 2: "One motion per action. A press
+           scales OR a colour changes OR a pill pops — never all three." These
+           variants were doing a colour change AND a lift AND a shadow swap on a
+           single hover, on the most-used control on the site. The lift is the
+           handoff's signature hover and stays; the shadow swap is the one that
+           goes, since it is the least legible of the three and the only one
+           doing nothing the lift does not already imply. */
         primary:
-          "rounded-full bg-brand text-brand-foreground shadow-border hover:bg-brand-hover hover:-translate-y-0.5 hover:shadow-border-hover",
+          "rounded-full bg-brand text-brand-foreground shadow-border hover:bg-brand-hover hover:-translate-y-0.5",
         indigo:
-          "rounded-full bg-brand-blue text-brand-blue-foreground shadow-border hover:bg-brand-blue-hover hover:-translate-y-0.5 hover:shadow-border-hover",
+          "rounded-full bg-brand-blue text-brand-blue-foreground shadow-border hover:bg-brand-blue-hover hover:-translate-y-0.5",
         /* Rule 4: the WhatsApp green is #25D366 on #0B3D1F and appears nowhere
            else in the product. Do not add a second green. */
         whatsapp:
-          "rounded-full bg-whatsapp text-whatsapp-text shadow-border hover:-translate-y-0.5 hover:shadow-border-hover",
+          "rounded-full bg-whatsapp text-whatsapp-text shadow-border hover:-translate-y-0.5",
         muted:
           "rounded-full bg-muted text-warm-prose hover:bg-accent hover:-translate-y-0.5",
-        dark: "rounded-full bg-panel text-background hover:-translate-y-0.5 hover:shadow-border-hover",
+        dark: "rounded-full bg-panel text-background hover:-translate-y-0.5",
 
         /* ---- stock shadcn variants (legacy, still in use) ---- */
         default: "rounded-md bg-primary text-primary-foreground hover:bg-primary/90",
