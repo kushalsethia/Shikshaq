@@ -32,7 +32,13 @@ const MOODS: { rating: number; mood: BlobMood; label: string; highlight?: boolea
 
 export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
   const { user } = useAuth();
-  const [selectedRating, setSelectedRating] = useState<number | null>(3); // default "Fine"
+  /* Starts unset. It used to default to 3 ("Fine"), which meant the Send button
+     was enabled before anyone had chosen anything — so a person who typed a
+     comment and pressed Send silently submitted a middling rating they never
+     picked. micro-05-writing-confirming.png says "Picking a blob face enables
+     Send", and the reason to follow it is stronger than fidelity: a default
+     rating puts an opinion in the user's mouth and then reports it as theirs. */
+  const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [comment, setComment] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -144,12 +150,18 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                     role="radio"
                     aria-checked={isSelected}
                     onClick={() => setSelectedRating(rating)}
-                    className={`flex min-h-11 flex-1 flex-col items-center gap-[11px] rounded-[20px] px-2 py-[16px] pb-[13px] transition-colors duration-150 active:scale-[0.97] ${
+                    /* "Others drop to 45%" once a face is chosen, so the sheet
+                       keeps showing what you said while you type the comment.
+                       Before a choice they all sit at full strength — nothing is
+                       being de-emphasised yet. */
+                    className={`flex min-h-11 flex-1 flex-col items-center gap-[11px] rounded-[20px] px-2 py-[16px] pb-[13px] transition-[background-color,opacity] duration-150 active:scale-[0.97] ${
                       isSelected
                         ? highlight
                           ? 'bg-brand-subtle ring-2 ring-brand'
                           : 'bg-card shadow-border ring-2 ring-brand'
-                        : 'bg-card shadow-border'
+                        : selectedRating !== null
+                          ? 'bg-card opacity-45 shadow-border'
+                          : 'bg-card shadow-border'
                     }`}
                   >
                     <Blob mood={mood} size={40} label={label} />
