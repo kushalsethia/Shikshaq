@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Save, Lock, Upload, X, CircleUserRound } from 'lucide-react';
+import { Save, Lock, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
@@ -1009,49 +1009,79 @@ export default function TeacherDashboard() {
     { label: 'Reviews', value: reviewCount ?? '—', meta: 'All time', fill: 'bg-card shadow-border' },
   ];
 
-  // Profile-completeness ring — derived from already-loaded teacherData, no new fetching.
+  // Profile-completeness bar — derived from already-loaded teacherData, no new fetching.
   // Mirrors the required-field checklist isFormValid() already uses, plus the two optional
   // fields (description, hero image) that most affect how complete a listing feels.
-  const completenessChecks = [
-    Boolean(teacherData["Phone Number"]),
-    Boolean(teacherData["LOCATION V2"]),
-    Boolean(teacherData.Subjects),
-    Boolean(teacherData["School Boards Catered"]),
-    Boolean(teacherData["Classes Taught for Backend"]),
-    Boolean(teacherData["Mode of Teaching"]),
-    Boolean(teacherData["Class Size (Group/ Solo)"]),
-    Boolean(teacherData["Description"]),
-    Boolean(teacherData["Hero Image"]),
+  // design.md §4 (S10): "a profile-completeness bar with a next-step line" — a plain bar, not a
+  // ring; GoalRing is reserved for the weekly paper-reading goal only.
+  const completenessChecks: { ok: boolean; label: string; action: string }[] = [
+    { ok: Boolean(teacherData["Hero Image"]), label: 'photo', action: 'Add a profile photo' },
+    { ok: Boolean(teacherData["Description"]), label: 'introduction', action: 'Write your profile introduction' },
+    { ok: Boolean(teacherData["Phone Number"]), label: 'phone', action: 'Add your phone number' },
+    { ok: Boolean(teacherData["LOCATION V2"]), label: 'place of teaching', action: 'Set where you teach' },
+    { ok: Boolean(teacherData.Subjects), label: 'subjects', action: 'Pick the subjects you teach' },
+    { ok: Boolean(teacherData["School Boards Catered"]), label: 'boards', action: 'Pick the boards you cover' },
+    { ok: Boolean(teacherData["Classes Taught for Backend"]), label: 'classes', action: 'Pick the classes you teach' },
+    { ok: Boolean(teacherData["Mode of Teaching"]), label: 'mode', action: 'Set your mode of teaching' },
+    { ok: Boolean(teacherData["Class Size (Group/ Solo)"]), label: 'structure', action: 'Set your class structure' },
   ];
-  const completenessFilled = completenessChecks.filter(Boolean).length;
+  const completenessFilled = completenessChecks.filter((c) => c.ok).length;
   const completenessTotal = completenessChecks.length;
   const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
+  const nextCompletenessStep = completenessChecks.find((c) => !c.ok)?.action ?? null;
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
       <main className="container pt-8 pb-16">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              {displayName}
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {summaryLine}
+        {/* Header — orange slab, teacher mode (design.md §4 S10) */}
+        <div className="relative overflow-visible rounded-3xl bg-brand p-4 text-brand-foreground shadow-glow-brand sm:p-6">
+          {!isPaused && (
+            <Sticker tone="brand" tilt={-3} size={30} className="!bg-panel !text-background">
+              Live profile
+            </Sticker>
+          )}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="font-display text-page-title font-extrabold tracking-tight">
+                {displayName}
+              </h1>
+              <p className="mt-2 text-body-secondary opacity-90">
+                {summaryLine}
+              </p>
+            </div>
+            <span
+              className={`flex flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
+                isPaused ? 'bg-panel text-background' : 'bg-card text-foreground'
+              }`}
+            >
+              {isPaused ? 'Paused' : 'Profile live'}
+            </span>
+          </div>
+
+          {/* Completeness bar — names one next action, never a ring (ring is the weekly paper
+              goal only). */}
+          <div className="mt-6 rounded-2xl bg-card/95 p-4 text-foreground sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-semibold">Profile completeness</span>
+              <span className="text-sm font-semibold tabular-nums text-warm-meta">{completenessPct}%</span>
+            </div>
+            <div aria-hidden className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-brand transition-[width] duration-300 ease-settle"
+                style={{ width: `${completenessPct}%` }}
+              />
+            </div>
+            <p className="mt-2 text-body-secondary text-warm-prose">
+              {nextCompletenessStep ? nextCompletenessStep : 'Your profile has everything filled in.'}
             </p>
           </div>
-          <span
-            className={`flex flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
-              isPaused ? 'bg-muted text-warm-prose' : 'bg-mint text-foreground'
-            }`}
-          >
-            {isPaused ? 'Paused' : 'Profile live'}
-          </span>
         </div>
 
-        {/* Stat tiles — squircle treatment, one flat fill per tile */}
+        {/* Stat tiles — 2x2 (design.md §4 S10). Profile views / WhatsApp taps have no real data
+            source yet (see final report O-04) so this stays the two real counts the dashboard can
+            actually query, rather than inventing the other two tiles. */}
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
           {teacherStats.map((st) => (
             <div key={st.label} className={`rounded-2xl p-4 sm:p-6 ${st.fill}`}>
@@ -1064,24 +1094,6 @@ export default function TeacherDashboard() {
               <div className="mt-1 text-xs text-muted-foreground">{st.meta}</div>
             </div>
           ))}
-        </div>
-
-        {/* Profile completeness — circular progress ring, computed from the loaded teacher data */}
-        <div className="mt-6 flex items-center gap-4 rounded-2xl bg-card p-4 shadow-border sm:p-6">
-          <div
-            className="relative flex h-16 w-16 flex-none items-center justify-center rounded-full"
-            style={{ background: `conic-gradient(hsl(var(--brand)) ${completenessPct * 3.6}deg, hsl(var(--muted)) 0deg)` }}
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card">
-              <CircleUserRound className="h-5 w-5 text-brand" strokeWidth={1.75} aria-hidden="true" />
-            </div>
-          </div>
-          <div>
-            <div className="text-base font-semibold text-foreground">Profile completeness</div>
-            <div className="mt-0.5 text-sm text-muted-foreground tabular-nums">
-              {completenessFilled}/{completenessTotal} fields · {completenessPct}%
-            </div>
-          </div>
         </div>
 
         {/* Your profile */}

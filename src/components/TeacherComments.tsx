@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { saveAuthRedirect } from '@/utils/authRedirect';
 import { ReviewCard, type ReviewCardData } from '@/components/reviews/review-card';
 import { WriteReviewSheet } from '@/components/reviews/write-review-sheet';
+import { ListLoading, ListError } from '@/components/ui/list-states';
 
 interface Comment {
   id: string;
@@ -310,15 +311,14 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
         </p>
       )}
 
-      {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
-
-      {/* Comments List — all five list states (design.md §3). */}
+      {/* Comments List — all five list states (design.md §3), via the shared
+          ui/list-states component so this list can't quietly ship fewer than
+          five. Loading/error use the shared shell; empty stays the richer
+          sticker moment below (VISUAL_DIRECTION §4 names it a LOUD moment). */}
       {loading ? (
-        <div className="flex gap-4 overflow-x-hidden">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-52 w-64 shrink-0 animate-shimmer rounded-2xl bg-muted" />
-          ))}
-        </div>
+        <ListLoading count={3} media={0} lines={3} className="grid-flow-col auto-cols-[16rem] overflow-x-hidden" />
+      ) : error ? (
+        <ListError onRetry={fetchComments} />
       ) : comments.length === 0 ? (
         // "No reviews yet" is one of VISUAL_DIRECTION §4's named LOUD moments —
         // the single highest-leverage empty state on this page, since a new

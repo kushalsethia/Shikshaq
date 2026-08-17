@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -12,6 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
+import { Eyebrow } from '@/components/ui/eyebrow';
+import { ProgressSteps } from '@/components/join/progress-bar';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { toast } from 'sonner';
@@ -20,9 +21,15 @@ import DOMPurify from 'dompurify';
 import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 import { getSubjectColors } from '@/utils/subjectColors';
 import { Link } from 'react-router-dom';
-import { NumberedIndex } from '@/components/devices';
 
-// Constants matching AdminTeachers
+/* Redesign C-060 (changelog) — five-step teacher listing form (mockup J1–J5).
+   Rewritten on top of the shared Field/FieldInput/FieldTextarea/useBlurValidation
+   primitives and the new ProgressSteps segmented bar (C14). Every field this form
+   collected before is still collected here — the approve_teacher_application RPC
+   reads ~22 columns off teacher_applications, so nothing was dropped, only
+   regrouped into the J1–J5 step order. See the task report for the full field
+   inventory and the O-07 note on why no ID/degree upload was added. */
+
 const SUBJECTS = [
   'Accounts', 'ACT', 'AP', 'Bengali', 'Biology', 'Business Studies', 'CA', 'CAT', 'Chemistry',
   'CLAT', 'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
@@ -52,39 +59,15 @@ const CLASS_SIZE = ['Group', 'Solo'];
 
 const SIR_MAAM = ['Sir', "Ma'am"];
 
-// Stepper labels per design_handoff_shikshaq/pages/JoinApply.md
+// J1–J5: head + lede, verbatim from copy.md §8.
 const STEPS = [
-  { label: 'About you' },
-  { label: 'What you teach' },
-  { label: 'Where & fees' },
-  { label: 'Review' },
+  { label: 'Who you are', head: "Let's get you listed", lede: 'Free to list, free to stay. We never take a cut of your fee.' },
+  { label: 'What you teach', head: 'What do you teach?', lede: 'Pick everything you genuinely teach. Guardians filter on this, so be honest.' },
+  { label: 'Where you teach', head: 'Where do you teach?', lede: 'Travel radius matters more than an address. Nobody sees your exact address.' },
+  { label: 'Your fee, your terms', head: 'What do you charge?', lede: 'You set it, you keep it. ShikshAQ takes nothing and never handles the money.' },
+  { label: 'With us now', head: 'With us now', lede: 'A person reads every application. Usually the same day, at worst two.' },
 ];
 
-// Shared token-based classes for form controls, matching the site's design system.
-const fieldClassName = 'h-auto w-full min-h-12 border-0 bg-background rounded-lg ring-1 ring-inset ring-warm-hairline px-[15px] py-[13px] text-base focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-0';
-const textareaClassName = 'w-full border-0 bg-background rounded-lg ring-1 ring-inset ring-warm-hairline px-[15px] py-[13px] text-base focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-0';
-
-function SectionHeading({ mb = 'mb-4', children }: { mb?: string; children: React.ReactNode }) {
-  return (
-    <h2 className={`text-2xl sm:text-3xl font-semibold tracking-tight text-foreground ${mb}`}>
-      {children}
-    </h2>
-  );
-}
-
-function FieldLabel({ htmlFor, mb = 'mb-2', children }: { htmlFor?: string; mb?: string; children: React.ReactNode }) {
-  return (
-    <Label htmlFor={htmlFor} className={`block text-sm font-semibold text-warm-prose ${mb}`}>
-      {children}
-    </Label>
-  );
-}
-
-// Pill: default selected state is the neutral muted fill. Pass `tintClass`
-// for chip groups where a static accent colour is meaningful (boards, areas —
-// tokens known ahead of time). Pass `dynamicTint` only for the sanctioned
-// data-driven case (subject colors from getSubjectColors / subject-palette),
-// per the inline-style exception documented in src/lib/subject-palette.ts.
 function Pill({
   label,
   selected,
@@ -171,18 +154,14 @@ export default function JoinApply() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // Helper function to check if a value exists in a comma-separated string (case-insensitive)
   const valueExistsInString = (str: string | null, value: string): boolean => {
     if (!str) return false;
-    const values = str.split(',').map(v => v.trim().toLowerCase());
+    const values = str.split(',').map((v) => v.trim().toLowerCase());
     return values.includes(value.trim().toLowerCase());
   };
 
   const handleInputChange = (field: keyof FormData, value: FormData[keyof FormData]) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleMultiSelectChange = (field: keyof FormData, value: string, checked: boolean) => {
@@ -207,7 +186,6 @@ export default function JoinApply() {
     handleInputChange(field, newValue);
   };
 
-  // Clean up object URL when component unmounts or file changes
   useEffect(() => {
     return () => {
       if (imagePreview && imagePreview.startsWith('blob:')) {
@@ -230,7 +208,6 @@ export default function JoinApply() {
       return;
     }
 
-    // Block HEIC/HEIF formats which most browsers can't display
     const lowerName = file.name.toLowerCase();
     const isHeicLike =
       lowerName.endsWith('.heic') ||
@@ -247,32 +224,25 @@ export default function JoinApply() {
       return;
     }
 
-    // Store the file for later upload
     setSelectedImageFile(file);
-
-    // Create preview using object URL (blob URLs are safe for image src)
     const previewUrl = URL.createObjectURL(file);
 
-    // Validate that the blob URL is properly formed
     if (!previewUrl.startsWith('blob:')) {
       toast.error('Failed to create image preview');
       return;
     }
 
-    // Clean up previous preview URL if it exists
     if (imagePreview && imagePreview.startsWith('blob:')) {
       URL.revokeObjectURL(imagePreview);
     }
 
     setImagePreview(previewUrl);
-    // Don't set hero_image_url yet - will be set after upload on submit
   };
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
       setUploadingImage(true);
 
-      // Compress image (loaded on demand — only needed once a user picks an image)
       const { default: imageCompression } = await import('browser-image-compression');
       const compressedFile = await imageCompression(file, {
         maxSizeMB: 1,
@@ -285,28 +255,22 @@ export default function JoinApply() {
         logger.log(`Image compressed from ${file.size / 1024 / 1024} MB to ${compressedFile.size / 1024 / 1024} MB`);
       }
 
-      // Create a unique filename
-      // Note: Path is relative to bucket root (bucket is already specified in .from('hero-images'))
+      // Path is relative to bucket root — this is the storage location the app
+      // has always used for application photos. Unrelated to O-07 (verification
+      // documents); this bucket only ever holds the profile photo.
       const fileExt = compressedFile.name.split('.').pop();
       const fileName = `application-${Date.now()}.${fileExt}`;
 
-      // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from('hero-images')
-        .upload(fileName, compressedFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
+        .upload(fileName, compressedFile, { cacheControl: '3600', upsert: false });
 
       if (error) {
         logger.error('JoinApply.uploadImage', error);
         throw new Error('Image upload failed');
       }
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('hero-images')
-        .getPublicUrl(data.path);
+      const { data: { publicUrl } } = supabase.storage.from('hero-images').getPublicUrl(data.path);
 
       const sanitizedUrl = sanitizeImageUrl(publicUrl);
       if (!sanitizedUrl) {
@@ -345,17 +309,16 @@ export default function JoinApply() {
       return false;
     }
     if (!formData.phone_number.trim()) {
-      toast.error('Please enter your phone number');
+      toast.error('Please enter your WhatsApp number');
       return false;
     }
-    // Validate phone number: must be exactly 10 digits
     const phoneDigits = formData.phone_number.replace(/\D/g, '');
     if (phoneDigits.length !== 10) {
-      toast.error('Phone number must be exactly 10 digits');
+      toast.error('WhatsApp number must be exactly 10 digits');
       return false;
     }
     if (!formData.sir_maam) {
-      toast.error('Please select Sir or Ma\'am');
+      toast.error("Please select Sir or Ma'am");
       return false;
     }
     if (!formData.subjects.trim()) {
@@ -382,29 +345,28 @@ export default function JoinApply() {
       toast.error('Please select a location option');
       return false;
     }
-    // Validate area fields based on location selection
     if (formData.location_v2 === "STUDENT'S HOME TUTORING ONLY") {
       if (!formData.students_home_areas.trim()) {
-        toast.error('Please select at least one area for Student\'s Home Tutoring');
+        toast.error("Please select at least one area for Student's Home Tutoring");
         return false;
       }
     } else if (formData.location_v2 === "TEACHER'S HOME TUTORING") {
       if (!formData.tutors_home_areas.trim()) {
-        toast.error('Please select at least one area for Teacher\'s Home Tutoring');
+        toast.error("Please select at least one area for Teacher's Home Tutoring");
         return false;
       }
-    } else if (formData.location_v2 === "BOTH OPTIONS LISTED") {
+    } else if (formData.location_v2 === 'BOTH OPTIONS LISTED') {
       if (!formData.students_home_areas.trim()) {
-        toast.error('Please select at least one area for Student\'s Home Tutoring');
+        toast.error("Please select at least one area for Student's Home Tutoring");
         return false;
       }
       if (!formData.tutors_home_areas.trim()) {
-        toast.error('Please select at least one area for Teacher\'s Home Tutoring');
+        toast.error("Please select at least one area for Teacher's Home Tutoring");
         return false;
       }
     }
     if (!formData.reference_name.trim()) {
-      toast.error('Please enter the reference student\'s name');
+      toast.error("Please enter the reference student's name");
       return false;
     }
     if (formData.reference_name.length > 200) {
@@ -412,7 +374,7 @@ export default function JoinApply() {
       return false;
     }
     if (!formData.reference_number.trim()) {
-      toast.error('Please enter the reference student\'s phone number');
+      toast.error("Please enter the reference student's phone number");
       return false;
     }
     if (formData.years_started_teaching.trim()) {
@@ -426,15 +388,13 @@ export default function JoinApply() {
         return false;
       }
     }
-    // Validate reference number: must be exactly 10 digits
     const referenceDigits = formData.reference_number.replace(/\D/g, '');
     if (referenceDigits.length !== 10) {
       toast.error('Student number must be exactly 10 digits');
       return false;
     }
-    // Hero image is required: user must have selected a file to upload
     if (!selectedImageFile) {
-      toast.error('Please upload a hero image');
+      toast.error('Please upload a photo');
       return false;
     }
     if (formData.description.length > 1000) {
@@ -455,14 +415,11 @@ export default function JoinApply() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     try {
       setSubmitting(true);
 
-      // Upload image if one was selected
       let heroImageUrl = formData.hero_image_url;
       if (selectedImageFile) {
         try {
@@ -471,40 +428,38 @@ export default function JoinApply() {
             toast.error('Failed to upload image. Please try again.');
             return;
           }
-        } catch (error) {
+        } catch {
           toast.error('Failed to upload image. Please try again.');
           return;
         }
       }
 
-      const { error } = await supabase
-        .from('teacher_applications')
-        .insert({
-          name: formData.name.trim(),
-          email: formData.email.trim().toLowerCase(), // normalize for consistent lookup
-          phone_number: formData.phone_number.replace(/\D/g, ''), // Store only digits (10 digits)
-          sir_maam: formData.sir_maam,
-          subjects: formData.subjects.trim() || null,
-          classes_taught_for_backend: formData.classes_taught_for_backend.trim() || null,
-          school_boards_catered: formData.school_boards_catered.trim() || null,
-          location_v2: formData.location_v2 || null,
-          students_home_areas: formData.students_home_areas.trim() || null,
-          tutors_home_areas: formData.tutors_home_areas.trim() || null,
-          mode_of_teaching: formData.mode_of_teaching.trim() || null,
-          class_size: formData.class_size.trim() || null,
-          description: formData.description.trim() || null,
-          qualifications_etc: formData.qualifications_etc.trim() || null,
-          years_started_teaching: formData.years_started_teaching.trim() || null,
-          featured_subject: formData.featured_subject || null,
-          hero_image_url: heroImageUrl || null,
-          reference_name: formData.reference_name.trim() || null,
-          reference_number: formData.reference_number.replace(/\D/g, '') || null, // Store only digits
-          min_fees: formData.min_fees ? parseInt(formData.min_fees.replace(/\D/g, '')) || null : null,
-          max_fees: formData.max_fees ? parseInt(formData.max_fees.replace(/\D/g, '')) || null : null,
-          mou_consent: true,
-          mou_consent_timestamp: new Date().toISOString(),
-          status: 'pending',
-        });
+      const { error } = await supabase.from('teacher_applications').insert({
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone_number: formData.phone_number.replace(/\D/g, ''),
+        sir_maam: formData.sir_maam,
+        subjects: formData.subjects.trim() || null,
+        classes_taught_for_backend: formData.classes_taught_for_backend.trim() || null,
+        school_boards_catered: formData.school_boards_catered.trim() || null,
+        location_v2: formData.location_v2 || null,
+        students_home_areas: formData.students_home_areas.trim() || null,
+        tutors_home_areas: formData.tutors_home_areas.trim() || null,
+        mode_of_teaching: formData.mode_of_teaching.trim() || null,
+        class_size: formData.class_size.trim() || null,
+        description: formData.description.trim() || null,
+        qualifications_etc: formData.qualifications_etc.trim() || null,
+        years_started_teaching: formData.years_started_teaching.trim() || null,
+        featured_subject: formData.featured_subject || null,
+        hero_image_url: heroImageUrl || null,
+        reference_name: formData.reference_name.trim() || null,
+        reference_number: formData.reference_number.replace(/\D/g, '') || null,
+        min_fees: formData.min_fees ? parseInt(formData.min_fees.replace(/\D/g, '')) || null : null,
+        max_fees: formData.max_fees ? parseInt(formData.max_fees.replace(/\D/g, '')) || null : null,
+        mou_consent: true,
+        mou_consent_timestamp: new Date().toISOString(),
+        status: 'pending',
+      });
 
       if (error) {
         logger.error('JoinApply.submit', error);
@@ -526,14 +481,21 @@ export default function JoinApply() {
     }
   };
 
+  // Blur-only validators for the plain text fields (Field primitive contract).
+  const nameV = useBlurValidation(formData.name, (v) => (!v.trim() ? 'Enter your name.' : v.length > 200 ? 'Name must be at most 200 characters.' : undefined));
+  const emailV = useBlurValidation(formData.email, (v) =>
+    !v.trim() ? 'Enter your email.' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? 'That email address does not look right.' : undefined,
+  );
+  const phoneV = useBlurValidation(formData.phone_number, (v) => (v.replace(/\D/g, '').length !== 10 ? 'Enter a 10-digit WhatsApp number.' : undefined));
+  const refNameV = useBlurValidation(formData.reference_name, (v) => (!v.trim() ? "Enter the student's name." : undefined));
+  const refNumberV = useBlurValidation(formData.reference_number, (v) => (v.replace(/\D/g, '').length !== 10 ? 'Enter a 10-digit number.' : undefined));
+
   if (submitted) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
           <div className="p-6 sm:p-10 rounded-2xl bg-card shadow-border text-center">
-            {/* No semantic "success" token exists in the design system (see final report) —
-                nearest existing token used: mint background + foreground icon. */}
             <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center mx-auto mb-6">
               <CheckCircle2 className="w-8 h-8 text-foreground" />
             </div>
@@ -541,7 +503,7 @@ export default function JoinApply() {
               Application submitted!
             </h1>
             <p className="text-base leading-relaxed text-muted-foreground mb-2">
-              Thank you for your interest in joining Shikshaq as a teacher. We have received your application and will review it shortly.
+              Nothing goes live until a human has read it. If something is missing we message you on WhatsApp instead of rejecting you.
             </p>
             <p className="text-sm text-warm-meta">
               You will be notified via email once your application has been reviewed.
@@ -555,9 +517,6 @@ export default function JoinApply() {
 
   const isLastStep = step === STEPS.length - 1;
 
-  // Validates only the fields shown on the given step, so users get feedback
-  // as they go instead of clicking through 3 blank steps and hitting every
-  // error at once on final submit (which still runs the full validateForm).
   const validateStep = (stepIndex: number): boolean => {
     if (stepIndex === 0) {
       if (!formData.name.trim()) {
@@ -573,7 +532,11 @@ export default function JoinApply() {
         return false;
       }
       if (formData.phone_number.replace(/\D/g, '').length !== 10) {
-        toast.error('Phone number must be exactly 10 digits');
+        toast.error('WhatsApp number must be exactly 10 digits');
+        return false;
+      }
+      if (!selectedImageFile) {
+        toast.error('Please upload a photo');
         return false;
       }
       return true;
@@ -626,6 +589,12 @@ export default function JoinApply() {
       }
       return true;
     }
+    if (stepIndex === 3) {
+      if (!formData.mou_consent) {
+        // MOU lives on the final step, but fee/terms is where we ask them to read it isn't blocking here.
+      }
+      return true;
+    }
     return true;
   };
 
@@ -635,675 +604,486 @@ export default function JoinApply() {
   };
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
-  const showStudentAreas = formData.location_v2 === "STUDENT'S HOME TUTORING ONLY" || formData.location_v2 === "BOTH OPTIONS LISTED";
-  const showTutorAreas = formData.location_v2 === "TEACHER'S HOME TUTORING" || formData.location_v2 === "BOTH OPTIONS LISTED";
+  const showStudentAreas = formData.location_v2 === "STUDENT'S HOME TUTORING ONLY" || formData.location_v2 === 'BOTH OPTIONS LISTED';
+  const showTutorAreas = formData.location_v2 === "TEACHER'S HOME TUTORING" || formData.location_v2 === 'BOTH OPTIONS LISTED';
 
-  // Step 4 summary lines, built from the actual entered values (not placeholders).
-  const selectedSubjectsList = formData.subjects ? formData.subjects.split(',').map((s) => s.trim()).filter(Boolean) : [];
-  const selectedBoardsList = formData.school_boards_catered ? formData.school_boards_catered.split(',').map((s) => s.trim()).filter(Boolean) : [];
-  const selectedClassesList = formData.classes_taught_for_backend ? formData.classes_taught_for_backend.split(',').map((s) => s.trim()).filter(Boolean) : [];
-  const summaryAreas = Array.from(new Set([
-    ...(formData.students_home_areas ? formData.students_home_areas.split(',').map((s) => s.trim()).filter(Boolean) : []),
-    ...(formData.tutors_home_areas ? formData.tutors_home_areas.split(',').map((s) => s.trim()).filter(Boolean) : []),
-  ]));
-  const summaryNameLine = [formData.name.trim(), formData.sir_maam].filter(Boolean).join(', ')
-    + (formData.years_started_teaching.trim() ? ` · ${formData.years_started_teaching.trim()} years` : '');
-  const summaryTeachLine = [
-    selectedSubjectsList.length ? selectedSubjectsList.join(', ') : null,
-    selectedBoardsList.length ? selectedBoardsList.join(', ') : null,
-    selectedClassesList.length ? `Classes ${selectedClassesList.join(', ')}` : null,
-  ].filter(Boolean).join(' · ');
-  const summaryFeeRange = formData.min_fees && formData.max_fees
-    ? `₹${formData.min_fees} – ₹${formData.max_fees} / month`
-    : formData.min_fees
-    ? `From ₹${formData.min_fees} / month`
-    : formData.max_fees
-    ? `Up to ₹${formData.max_fees} / month`
-    : null;
-  const summaryWhereLine = [summaryAreas.length ? summaryAreas.join(', ') : null, summaryFeeRange].filter(Boolean).join(' · ');
+  const currentStep = STEPS[step];
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
-        <Link
-          to="/join"
-          className="-my-3 inline-flex min-h-11 items-center text-sm font-semibold text-warm-meta no-underline"
-        >
-          ← Why join Shikshaq
+        <Link to="/join" className="-my-3 inline-flex min-h-11 items-center text-sm font-semibold text-warm-meta no-underline">
+          ← Why join ShikshAQ
         </Link>
 
-        {/* Real opening fold for the wizard, shown once before step 1 — a heavy
-            display headline plus a NumberedIndex overview of all four steps so the
-            ~20-field form reads as navigable rather than daunting up front. */}
-        {step === 0 && (
-          <div className="mt-6 mb-8">
-            <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">
-              Join as a{' '}
-              <span
-                className="marker-highlight marker-highlight--pill"
-                style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
-              >
-                tuition teacher
-              </span>
-            </h1>
-            <p className="mt-2 max-w-prose text-base leading-relaxed text-muted-foreground">
-              Four short steps, about five minutes. No commission, no listing fee.
-            </p>
-            <NumberedIndex
-              className="mt-2"
-              items={[
-                { key: '1', title: 'About you', description: 'Name, contact and years of experience.', color: 'hsl(var(--brand))' },
-                { key: '2', title: 'What you teach', description: 'Subjects, boards and classes.', color: 'hsl(var(--brand-blue))' },
-                { key: '3', title: 'Where & fees', description: 'Areas you teach in and your monthly rate.', color: 'hsl(var(--brand))' },
-                { key: '4', title: 'Review', description: 'Confirm details and send for verification.', color: 'hsl(var(--brand-blue))' },
-              ]}
-            />
-          </div>
-        )}
-
-        {/* Stepper — numerals sit on a connecting rail so the four steps read as one
-            continuous path rather than four loose chips (bolder card-based step
-            presentation per VISUAL_UPGRADE_PLAN, mobile-vibes reference). The current step's
-            numeral is now sized up (h-10 vs h-8) and filled solid brand instead of a same-size
-            ring — at equal size a ring reads as barely different from "done"/"upcoming",
-            which is the "too light a touch" the owner flagged. Logic/order unchanged. */}
-        <div className="mb-3 flex items-center">
-          {STEPS.map((s, i) => {
-            const state = i === step ? 'current' : i < step ? 'done' : 'upcoming';
-            // "done" state uses mint/foreground — see success-token note above; no green
-            // token exists in the design system.
-            const numeralClass =
-              state === 'current'
-                ? 'h-10 w-10 bg-brand text-brand-foreground shadow-border'
-                : state === 'done'
-                ? 'h-8 w-8 bg-mint text-foreground'
-                : 'h-8 w-8 bg-muted text-warm-meta';
-            const labelClass =
-              state === 'current' ? 'font-bold text-foreground' : state === 'done' ? 'text-warm-prose' : 'text-warm-meta';
-            const railClass = state === 'upcoming' ? 'bg-warm-hairline' : 'bg-mint';
-            return (
-              <div key={s.label} className={i === STEPS.length - 1 ? 'flex items-center shrink-0' : 'flex flex-1 items-center'}>
-                <div className="flex shrink-0 flex-col items-center gap-1.5 sm:flex-row sm:gap-2">
-                  <span
-                    className={`flex shrink-0 items-center justify-center rounded-full text-xs font-bold transition-[background-color,color,width,height] duration-150 ${numeralClass}`}
-                  >
-                    {i + 1}
-                  </span>
-                  <span className={`hidden text-sm whitespace-nowrap sm:inline ${labelClass}`}>
-                    {s.label}
-                  </span>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <span className={`mx-2 h-0.5 flex-1 rounded-full transition-colors duration-150 ${railClass}`} aria-hidden="true" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {/* Step label on mobile — the STEPS labels are hidden below sm: so a phone user only
-            ever saw bare numerals with no name for what step they're on. One honest line,
-            drawn from the same STEPS array, no new state. */}
-        <p className="mb-8 text-sm font-semibold text-warm-meta sm:hidden">
-          Step {step + 1} of {STEPS.length} · {STEPS[step].label}
-        </p>
+        <ProgressSteps steps={STEPS.length} current={step} label={currentStep.label} className="mt-6 mb-6" />
 
         <form
           onSubmit={handleSubmit}
           onKeyDown={(e) => {
-            // Prevent an Enter keypress in an earlier step from submitting the whole form
             if (e.key === 'Enter' && !isLastStep && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
               e.preventDefault();
             }
           }}
           className="p-6 sm:p-8 rounded-2xl bg-card shadow-border"
         >
-          {/* Step 1: About you */}
-          {step === 0 && (
-            <div className="joinApplyRise">
-              <SectionHeading>About you</SectionHeading>
+          {/* Step body scrolls on the longer steps (J4/J5) rather than fixing a
+              height — changelog.json C-060 note. */}
+          <div className="max-h-[70vh] overflow-y-auto sm:max-h-none sm:overflow-visible">
+            {/* J1 — who you are */}
+            {step === 0 && (
+              <div className="joinApplyRise">
+                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">
+                  {currentStep.head}
+                </h1>
+                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
 
-              <div className="grid gap-4">
-                {/* Full name */}
-                <div>
-                  <FieldLabel htmlFor="name">Full name *</FieldLabel>
-                  <Input
-                    id="name"
-                    autoComplete="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="e.g. Ananya Ghosh"
-                    maxLength={200}
-                    required
-                    className={fieldClassName}
-                  />
-                  <p className="text-xs text-warm-meta mt-2">Max 200 characters</p>
-                </div>
-
-                {/* Email */}
-                <div>
-                  <FieldLabel htmlFor="email">Email *</FieldLabel>
-                  <Input
-                    id="email"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    placeholder="e.g. name@example.com"
-                    maxLength={254}
-                    required
-                    className={fieldClassName}
-                  />
-                  <p className="text-xs text-warm-meta mt-2">Enter a valid email address</p>
-                </div>
-
-                {/* Sir or Ma'am */}
-                <div>
-                  <FieldLabel>Sir or Ma'am *</FieldLabel>
-                  <div className="flex gap-2">
-                    {SIR_MAAM.map((option) => (
-                      <Pill
-                        key={option}
-                        label={option}
-                        selected={formData.sir_maam === option}
-                        onClick={() => handleInputChange('sir_maam', option)}
+                <div className="grid gap-4">
+                  <Field label="Full name" required error={nameV.error}>
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        autoComplete="name"
+                        value={formData.name}
+                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        onBlur={nameV.onBlur}
+                        placeholder="e.g. Ananya Ghosh"
+                        maxLength={200}
                       />
-                    ))}
+                    )}
+                  </Field>
+
+                  <Field label="Email" required error={emailV.error}>
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        onBlur={emailV.onBlur}
+                        placeholder="e.g. name@example.com"
+                        maxLength={254}
+                      />
+                    )}
+                  </Field>
+
+                  <div>
+                    <Eyebrow as="p" className="mb-2">Sir or Ma'am *</Eyebrow>
+                    <div className="flex gap-2">
+                      {SIR_MAAM.map((option) => (
+                        <Pill key={option} label={option} selected={formData.sir_maam === option} onClick={() => handleInputChange('sir_maam', option)} />
+                      ))}
+                    </div>
+                  </div>
+
+                  <Field label="WhatsApp number" required error={phoneV.error} hint="Shown only once a guardian taps WhatsApp — never on the open page, never in search results.">
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        value={formData.phone_number}
+                        onChange={(e) => handleInputChange('phone_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        onBlur={phoneV.onBlur}
+                        placeholder="10-digit number"
+                        maxLength={10}
+                      />
+                    )}
+                  </Field>
+
+                  <Field label="Years of experience" hint="Optional">
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        value={formData.years_started_teaching}
+                        onChange={(e) => handleInputChange('years_started_teaching', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="e.g. 12"
+                        maxLength={4}
+                        inputMode="numeric"
+                      />
+                    )}
+                  </Field>
+
+                  {/* Photo — moved up from the old final-step location to match J1
+                      ("who you are: name, WhatsApp, years, photo"). */}
+                  <div>
+                    <Eyebrow as="p" className="mb-2">Photo *</Eyebrow>
+                    <div className="grid gap-3">
+                      {imagePreview && (() => {
+                        const validatedUrl = validateImageSrc(imagePreview);
+                        if (!validatedUrl) return null;
+                        const safeSrc = DOMPurify.sanitize(validatedUrl, { ALLOWED_TAGS: [], ALLOWED_ATTR: [], KEEP_CONTENT: true });
+                        if (!safeSrc) return null;
+                        return (
+                          <div className="relative w-full max-w-[340px]">
+                            <img
+                              src={safeSrc}
+                              alt="Photo preview"
+                              className="w-full h-[190px] object-cover rounded-2xl ring-1 ring-inset ring-warm-hairline"
+                              onError={() => setImagePreview(null)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (imagePreview && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+                                setSelectedImageFile(null);
+                                setImagePreview(null);
+                                handleInputChange('hero_image_url', '');
+                              }}
+                              className="absolute top-2 right-2 flex items-center justify-center w-10 h-10 rounded-full bg-card/90 shadow-border"
+                            >
+                              <X className="w-4 h-4 text-foreground" />
+                            </button>
+                          </div>
+                        );
+                      })()}
+                      <label
+                        htmlFor="heroImageUpload"
+                        className="inline-flex items-center gap-2 w-fit min-h-11 px-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline cursor-pointer"
+                      >
+                        <Upload className="w-4 h-4" />
+                        {selectedImageFile ? 'Change photo' : 'Select photo'}
+                        <input id="heroImageUpload" type="file" accept="image/*" className="hidden" onChange={handleImageFileChange} disabled={submitting} />
+                      </label>
+                      <p className="text-meta text-warm-meta">
+                        {selectedImageFile ? 'Uploaded when you submit the form. Max 5MB.' : 'A professional photo helps. Max 5MB.'}
+                      </p>
+                    </div>
                   </div>
                 </div>
-
-                {/* WhatsApp number */}
-                <div>
-                  <FieldLabel htmlFor="phone_number">WhatsApp number *</FieldLabel>
-                  <Input
-                    id="phone_number"
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    value={formData.phone_number}
-                    onChange={(e) => {
-                      // Only allow digits, limit to 10 digits
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      handleInputChange('phone_number', digits);
-                    }}
-                    placeholder="10-digit number"
-                    maxLength={10}
-                    required
-                    className={fieldClassName}
-                  />
-                  <p className="text-xs text-warm-meta mt-2">Country code +91 is added automatically</p>
-                </div>
-
-                {/* Years of experience */}
-                <div>
-                  <FieldLabel htmlFor="years_started_teaching">Years of experience</FieldLabel>
-                  <Input
-                    id="years_started_teaching"
-                    value={formData.years_started_teaching}
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
-                      handleInputChange('years_started_teaching', digits);
-                    }}
-                    placeholder="e.g. 12"
-                    maxLength={4}
-                    inputMode="numeric"
-                    className={fieldClassName}
-                  />
-                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Step 2: What you teach */}
-          {step === 1 && (
-            <div className="joinApplyRise">
-              <SectionHeading>What you teach</SectionHeading>
+            {/* J2 — what you teach */}
+            {step === 1 && (
+              <div className="joinApplyRise">
+                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
+                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
 
-              {/* Subjects */}
-              <div className="mb-6">
-                <FieldLabel mb="mb-3">Subjects *</FieldLabel>
-                <div className="flex flex-wrap gap-2">
-                  {SUBJECTS.map((subject) => {
-                    const selected = valueExistsInString(formData.subjects, subject);
-                    const sc = getSubjectColors(subject);
-                    return (
-                      <Pill
-                        key={subject}
-                        label={subject}
-                        selected={selected}
-                        dynamicTint={{ bg: sc.tint, color: sc.titleText }}
-                        onClick={() => handleMultiSelectChange('subjects', subject, !selected)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Boards catered */}
-              <div className="mb-6">
-                <FieldLabel mb="mb-3">Boards catered *</FieldLabel>
-                <div className="flex flex-wrap gap-2">
-                  {BOARDS.map((board) => {
-                    const selected = valueExistsInString(formData.school_boards_catered, board);
-                    return (
-                      <Pill
-                        key={board}
-                        label={board}
-                        selected={selected}
-                        tintClass="bg-brand-blue-subtle text-brand-blue-deep"
-                        onClick={() => handleMultiSelectChange('school_boards_catered', board, !selected)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Classes */}
-              <div className="mb-6">
-                <FieldLabel mb="mb-3">Classes *</FieldLabel>
-                <div className="flex flex-wrap gap-2">
-                  {CLASSES.map((cls) => {
-                    const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
-                    return (
-                      <Pill
-                        key={cls}
-                        label={cls}
-                        selected={selected}
-                        onClick={() => handleMultiSelectChange('classes_taught_for_backend', cls, !selected)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Structure of classes (stored as class_size) */}
-              <div className="mb-6">
-                <FieldLabel mb="mb-3">Structure of classes *</FieldLabel>
-                <div className="flex flex-wrap gap-2">
-                  {CLASS_SIZE.map((size) => {
-                    const selected = valueExistsInString(formData.class_size, size);
-                    return (
-                      <Pill
-                        key={size}
-                        label={size === 'Solo' ? 'One-on-one' : size}
-                        selected={selected}
-                        onClick={() => handleMultiSelectChange('class_size', size, !selected)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Featured Subject - only from selected subjects */}
-              <div>
-                <FieldLabel htmlFor="featured_subject">Featured subject</FieldLabel>
-                <Select
-                  value={(() => {
-                    const selectedSubjects = (formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
-                    const current = formData.featured_subject;
-                    return current && selectedSubjects.includes(current) ? current : 'none';
-                  })()}
-                  onValueChange={(value) => handleInputChange('featured_subject', value === "none" ? "" : value)}
-                >
-                  <SelectTrigger id="featured_subject" className={fieldClassName}>
-                    <SelectValue placeholder="Select featured subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {(formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean).map((subject) => (
-                      <SelectItem key={subject} value={subject}>
-                        {subject}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-warm-meta mt-2">
-                  Choose one of your selected subjects to feature on your profile
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Where & fees */}
-          {step === 2 && (
-            <div className="joinApplyRise">
-              <SectionHeading>Where &amp; fees</SectionHeading>
-
-              {/* Location */}
-              <div className="mb-6">
-                <FieldLabel htmlFor="location_v2">Location *</FieldLabel>
-                <Select
-                  value={formData.location_v2 || "__none__"}
-                  onValueChange={(value) => handleInputChange('location_v2', value === "__none__" ? "" : value)}
-                >
-                  <SelectTrigger id="location_v2" className={fieldClassName}>
-                    <SelectValue placeholder="Select location option" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    <SelectItem value="TEACHER'S HOME TUTORING">Teacher's Home Tutoring Only</SelectItem>
-                    <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's Home Tutoring Only</SelectItem>
-                    <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Student's Home Areas - Show when Location is "STUDENT'S HOME TUTORING ONLY" or "BOTH OPTIONS LISTED" */}
-              {showStudentAreas && (
                 <div className="mb-6">
-                  <FieldLabel mb="mb-3">Areas you teach in (student's home) *</FieldLabel>
+                  <Eyebrow as="p" className="mb-3">Subjects *</Eyebrow>
                   <div className="flex flex-wrap gap-2">
-                    {AREAS.map((area) => {
-                      const selected = valueExistsInString(formData.students_home_areas, area);
+                    {SUBJECTS.map((subject) => {
+                      const selected = valueExistsInString(formData.subjects, subject);
+                      const sc = getSubjectColors(subject);
                       return (
                         <Pill
-                          key={area}
-                          label={area}
+                          key={subject}
+                          label={subject}
                           selected={selected}
-                          tintClass="bg-brand-subtle text-brand-deep"
-                          onClick={() => handleMultiSelectChange('students_home_areas', area, !selected)}
+                          dynamicTint={{ bg: sc.tint, color: sc.titleText }}
+                          onClick={() => handleMultiSelectChange('subjects', subject, !selected)}
                         />
                       );
                     })}
                   </div>
                 </div>
-              )}
 
-              {/* Tutor's Home Areas - Show when Location is "TEACHER'S HOME TUTORING" or "BOTH OPTIONS LISTED" */}
-              {showTutorAreas && (
                 <div className="mb-6">
-                  <FieldLabel mb="mb-3">Areas you teach in (your home) *</FieldLabel>
+                  <Eyebrow as="p" className="mb-3">Boards catered *</Eyebrow>
                   <div className="flex flex-wrap gap-2">
-                    {AREAS.map((area) => {
-                      const selected = valueExistsInString(formData.tutors_home_areas, area);
+                    {BOARDS.map((board) => {
+                      const selected = valueExistsInString(formData.school_boards_catered, board);
                       return (
                         <Pill
-                          key={area}
-                          label={area}
+                          key={board}
+                          label={board}
                           selected={selected}
-                          tintClass="bg-brand-subtle text-brand-deep"
-                          onClick={() => handleMultiSelectChange('tutors_home_areas', area, !selected)}
+                          tintClass="bg-brand-blue-subtle text-brand-blue-deep"
+                          onClick={() => handleMultiSelectChange('school_boards_catered', board, !selected)}
                         />
                       );
                     })}
                   </div>
                 </div>
-              )}
 
-              {/* Mode of Teaching */}
-              <div className="mb-6">
-                <FieldLabel mb="mb-3">Mode of teaching *</FieldLabel>
-                <div className="flex flex-wrap gap-2">
-                  {MODE_OF_TEACHING.map((mode) => {
-                    const selected = valueExistsInString(formData.mode_of_teaching, mode);
-                    return (
-                      <Pill
-                        key={mode}
-                        label={mode}
-                        selected={selected}
-                        onClick={() => handleMultiSelectChange('mode_of_teaching', mode, !selected)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Monthly fee range */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <FieldLabel htmlFor="min_fees">Minimum fee / month</FieldLabel>
-                  <Input
-                    id="min_fees"
-                    type="tel"
-                    value={formData.min_fees}
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                      handleInputChange('min_fees', digits);
-                    }}
-                    placeholder="₹3,000"
-                    maxLength={6}
-                    inputMode="numeric"
-                    className={fieldClassName}
-                  />
-                </div>
-                <div>
-                  <FieldLabel htmlFor="max_fees">Maximum fee / month</FieldLabel>
-                  <Input
-                    id="max_fees"
-                    type="tel"
-                    value={formData.max_fees}
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                      handleInputChange('max_fees', digits);
-                    }}
-                    placeholder="₹5,000"
-                    maxLength={6}
-                    inputMode="numeric"
-                    className={fieldClassName}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-warm-meta mt-2">Fee range is optional</p>
-            </div>
-          )}
-
-          {/* Step 4: Review and send */}
-          {step === 3 && (
-            <div className="joinApplyRise">
-              <SectionHeading mb="mb-3">Review and send</SectionHeading>
-              <p className="text-base leading-relaxed text-muted-foreground mb-6">
-                Our team checks qualifications and existing student references before a profile goes live. That usually takes three working days.
-              </p>
-              <div className="p-4 rounded-2xl bg-background ring-1 ring-inset ring-warm-hairline text-sm leading-loose text-warm-prose mb-6">
-                {summaryNameLine || 'Add your name in step 1'}
-                <br />
-                {summaryTeachLine || 'Add subjects, boards and classes in step 2'}
-                <br />
-                {summaryWhereLine || 'Add areas and a fee range in step 3'}
-              </div>
-
-              <div className="grid gap-6">
-                {/* Profile Introduction */}
-                <div>
-                  <FieldLabel htmlFor="description">Profile introduction</FieldLabel>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    rows={5}
-                    placeholder="Tell us about yourself and your teaching approach..."
-                    maxLength={1000}
-                    className={textareaClassName}
-                  />
-                  <p className="text-xs text-warm-meta mt-2">Max 1000 characters</p>
-                </div>
-
-                {/* Educational Qualifications */}
-                <div>
-                  <FieldLabel htmlFor="qualifications_etc">Educational qualifications</FieldLabel>
-                  <Textarea
-                    id="qualifications_etc"
-                    value={formData.qualifications_etc}
-                    onChange={(e) => handleInputChange('qualifications_etc', e.target.value)}
-                    rows={3}
-                    placeholder="Your educational qualifications, certifications, etc."
-                    maxLength={500}
-                    className={textareaClassName}
-                  />
-                  <p className="text-xs text-warm-meta mt-2">Max 500 characters</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Reference Name */}
-                  <div>
-                    <FieldLabel htmlFor="reference_name">Student name (for verification) *</FieldLabel>
-                    <Input
-                      id="reference_name"
-                      value={formData.reference_name}
-                      onChange={(e) => handleInputChange('reference_name', e.target.value)}
-                      placeholder="Name of a student we can contact"
-                      maxLength={200}
-                      required
-                      className={fieldClassName}
-                    />
-                    <p className="text-xs text-warm-meta mt-2">We will call them to verify you're a teacher</p>
-                  </div>
-
-                  {/* Student number for verification */}
-                  <div>
-                    <FieldLabel htmlFor="reference_number">Student number (for verification) *</FieldLabel>
-                    <Input
-                      id="reference_number"
-                      type="tel"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      value={formData.reference_number}
-                      onChange={(e) => {
-                        // Only allow digits, limit to 10
-                        const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                        handleInputChange('reference_number', digits);
-                      }}
-                      placeholder="10-digit number"
-                      maxLength={10}
-                      required
-                      className={fieldClassName}
-                    />
-                  </div>
-                </div>
-
-                {/* Profile Picture */}
-                <div>
-                  <FieldLabel htmlFor="hero_image">Profile picture *</FieldLabel>
-                  <div className="grid gap-3">
-                    {(() => {
-                      // Early return if no preview
-                      if (!imagePreview) return null;
-
-                      // Sanitize user-controlled image URL to prevent XSS
-                      // validateImageSrc ensures only safe URLs (blob, http/https, data:image) are used
-                      const validatedUrl = validateImageSrc(imagePreview);
-
-                      // Only render if URL is validated and safe
-                      if (!validatedUrl || validatedUrl.length === 0) return null;
-
-                      // Apply DOMPurify.sanitize to break the taint chain — CodeQL recognises
-                      // DOMPurify as a known sanitizer, so this stops the
-                      // "DOM text reinterpreted as HTML" finding while adding defence-in-depth.
-                      // DOMPurify with ALLOWED_TAGS:[] strips any HTML but leaves the plain URL intact.
-                      const safeSrc = DOMPurify.sanitize(validatedUrl, {
-                        ALLOWED_TAGS: [],
-                        ALLOWED_ATTR: [],
-                        KEEP_CONTENT: true,
-                      });
-
-                      if (!safeSrc) return null;
-
+                <div className="mb-6">
+                  <Eyebrow as="p" className="mb-3">Classes *</Eyebrow>
+                  <div className="flex flex-wrap gap-2">
+                    {CLASSES.map((cls) => {
+                      const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
                       return (
-                        <div className="relative w-full max-w-[340px]">
-                          <img
-                            src={safeSrc}
-                            alt="Profile picture preview"
-                            className="w-full h-[190px] object-cover rounded-2xl ring-1 ring-inset ring-warm-hairline"
-                            onError={() => setImagePreview(null)}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              // Clean up object URL if it's a blob URL
-                              if (imagePreview && imagePreview.startsWith('blob:')) {
-                                URL.revokeObjectURL(imagePreview);
-                              }
-                              setSelectedImageFile(null);
-                              setImagePreview(null);
-                              handleInputChange('hero_image_url', '');
-                            }}
-                            className="absolute top-2 right-2 flex items-center justify-center w-10 h-10 rounded-full bg-card/90 shadow-border"
-                          >
-                            <X className="w-4 h-4 text-foreground" />
-                          </button>
-                        </div>
+                        <Pill key={cls} label={cls} selected={selected} onClick={() => handleMultiSelectChange('classes_taught_for_backend', cls, !selected)} />
                       );
-                    })()}
-                    <label
-                      htmlFor="heroImageUpload"
-                      className="inline-flex items-center gap-2 w-fit min-h-11 px-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline cursor-pointer"
+                    })}
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <Eyebrow as="p" className="mb-3">Structure of classes *</Eyebrow>
+                  <div className="flex flex-wrap gap-2">
+                    {CLASS_SIZE.map((size) => {
+                      const selected = valueExistsInString(formData.class_size, size);
+                      return (
+                        <Pill
+                          key={size}
+                          label={size === 'Solo' ? 'One-on-one' : size}
+                          selected={selected}
+                          onClick={() => handleMultiSelectChange('class_size', size, !selected)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <Field label="Featured subject" hint="Choose one of your selected subjects to feature on your profile">
+                  {(p) => (
+                    <Select
+                      value={(() => {
+                        const selectedSubjects = (formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
+                        const current = formData.featured_subject;
+                        return current && selectedSubjects.includes(current) ? current : 'none';
+                      })()}
+                      onValueChange={(value) => handleInputChange('featured_subject', value === 'none' ? '' : value)}
                     >
-                      <Upload className="w-4 h-4" />
-                      {selectedImageFile ? 'Change Image' : 'Select Image'}
-                      <input
-                        id="heroImageUpload"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleImageFileChange}
-                        disabled={submitting}
-                      />
-                    </label>
-                    <p className="text-xs text-warm-meta">
-                      {selectedImageFile
-                        ? 'Image will be uploaded when you submit the form. Max file size: 5MB'
-                        : 'Select a professional photo. Image will be uploaded on form submission. Max file size: 5MB'}
-                    </p>
+                      <SelectTrigger id={p.id} className={p.className}>
+                        <SelectValue placeholder="Select featured subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {(formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean).map((subject) => (
+                          <SelectItem key={subject} value={subject}>
+                            {subject}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
+              </div>
+            )}
+
+            {/* J3 — where you teach */}
+            {step === 2 && (
+              <div className="joinApplyRise">
+                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
+                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
+
+                <Field label="Location" required className="mb-6">
+                  {(p) => (
+                    <Select value={formData.location_v2 || '__none__'} onValueChange={(value) => handleInputChange('location_v2', value === '__none__' ? '' : value)}>
+                      <SelectTrigger id={p.id} className={p.className}>
+                        <SelectValue placeholder="Select location option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None</SelectItem>
+                        <SelectItem value="TEACHER'S HOME TUTORING">Teacher's home tutoring only</SelectItem>
+                        <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's home tutoring only</SelectItem>
+                        <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
+
+                {showStudentAreas && (
+                  <div className="mb-6">
+                    <Eyebrow as="p" className="mb-3">Areas you teach in (student's home) *</Eyebrow>
+                    <div className="flex flex-wrap gap-2">
+                      {AREAS.map((area) => {
+                        const selected = valueExistsInString(formData.students_home_areas, area);
+                        return (
+                          <Pill
+                            key={area}
+                            label={area}
+                            selected={selected}
+                            tintClass="bg-brand-subtle text-brand-deep"
+                            onClick={() => handleMultiSelectChange('students_home_areas', area, !selected)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {showTutorAreas && (
+                  <div className="mb-6">
+                    <Eyebrow as="p" className="mb-3">Areas you teach in (your home) *</Eyebrow>
+                    <div className="flex flex-wrap gap-2">
+                      {AREAS.map((area) => {
+                        const selected = valueExistsInString(formData.tutors_home_areas, area);
+                        return (
+                          <Pill
+                            key={area}
+                            label={area}
+                            selected={selected}
+                            tintClass="bg-brand-subtle text-brand-deep"
+                            onClick={() => handleMultiSelectChange('tutors_home_areas', area, !selected)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <p className="mb-2 text-meta text-warm-meta">We show your locality and radius — "Doranda, travels 5 km" — and nothing more precise than that.</p>
+
+                <div className="mb-6">
+                  <Eyebrow as="p" className="mb-3">Mode of teaching *</Eyebrow>
+                  <div className="flex flex-wrap gap-2">
+                    {MODE_OF_TEACHING.map((mode) => {
+                      const selected = valueExistsInString(formData.mode_of_teaching, mode);
+                      return (
+                        <Pill key={mode} label={mode} selected={selected} onClick={() => handleMultiSelectChange('mode_of_teaching', mode, !selected)} />
+                      );
+                    })}
                   </div>
                 </div>
+              </div>
+            )}
 
-                {/* Memorandum of Understanding */}
+            {/* J4 — your fee, your terms */}
+            {step === 3 && (
+              <div className="joinApplyRise">
+                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
+                <p className="mt-2 mb-4 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
+
+                {/* copy.md §8 J4 — required disclosure, verbatim. */}
+                <p className="mb-6 rounded-2xl bg-background p-4 text-sm leading-relaxed text-warm-prose ring-1 ring-inset ring-warm-hairline">
+                  Guardians and teachers settle fees between themselves. We never invoice, never hold a deposit, and never show a "platform price".
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <Field label="Minimum fee / month" hint="Optional">
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        type="tel"
+                        value={formData.min_fees}
+                        onChange={(e) => handleInputChange('min_fees', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="₹3,000"
+                        maxLength={6}
+                        inputMode="numeric"
+                      />
+                    )}
+                  </Field>
+                  <Field label="Maximum fee / month" hint="Optional">
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        type="tel"
+                        value={formData.max_fees}
+                        onChange={(e) => handleInputChange('max_fees', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="₹5,000"
+                        maxLength={6}
+                        inputMode="numeric"
+                      />
+                    )}
+                  </Field>
+                </div>
+
+                <div className="grid gap-6">
+                  <Field label="Profile introduction, in your own words" hint={`${formData.description.length}/1000`}>
+                    {(p) => (
+                      <FieldTextarea
+                        {...p}
+                        value={formData.description}
+                        onChange={(e) => handleInputChange('description', e.target.value)}
+                        rows={5}
+                        placeholder="Tell us about yourself and your teaching approach..."
+                        maxLength={1000}
+                      />
+                    )}
+                  </Field>
+
+                  <Field label="Educational qualifications" hint={`${formData.qualifications_etc.length}/500`}>
+                    {(p) => (
+                      <FieldTextarea
+                        {...p}
+                        value={formData.qualifications_etc}
+                        onChange={(e) => handleInputChange('qualifications_etc', e.target.value)}
+                        rows={3}
+                        placeholder="Your educational qualifications, certifications, etc."
+                        maxLength={500}
+                      />
+                    )}
+                  </Field>
+                </div>
+              </div>
+            )}
+
+            {/* J5 — with us now */}
+            {step === 4 && (
+              <div className="joinApplyRise">
+                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
+                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">
+                  {currentStep.lede} Nothing goes live until a human has read it. If something is missing we message you on WhatsApp instead of rejecting you.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <Field label="Student name (for verification)" required error={refNameV.error} hint="We will call them to verify you're a teacher">
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        value={formData.reference_name}
+                        onChange={(e) => handleInputChange('reference_name', e.target.value)}
+                        onBlur={refNameV.onBlur}
+                        placeholder="Name of a student we can contact"
+                        maxLength={200}
+                      />
+                    )}
+                  </Field>
+
+                  <Field label="Student number (for verification)" required error={refNumberV.error}>
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={formData.reference_number}
+                        onChange={(e) => handleInputChange('reference_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        onBlur={refNumberV.onBlur}
+                        placeholder="10-digit number"
+                        maxLength={10}
+                      />
+                    )}
+                  </Field>
+                </div>
+
                 <div className="rounded-2xl bg-background ring-1 ring-inset ring-warm-hairline p-4 grid gap-4">
-                  <p className="text-sm font-semibold text-foreground">
-                    Memorandum of Understanding
-                  </p>
+                  <p className="text-sm font-semibold text-foreground">Memorandum of Understanding</p>
                   <p className="text-sm leading-relaxed text-warm-prose">
-                    This Memorandum of Understanding confirms that you grant Shikshaq permission to display your submitted profile (name, locality, place of teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and enhancing their learning experience.
+                    This Memorandum of Understanding confirms that you grant ShikshAQ permission to display your submitted profile (name, locality, place of
+                    teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and
+                    enhancing their learning experience.
                   </p>
-
                   <div className="text-sm text-warm-prose">
                     <p className="font-semibold mb-2">I have read and understood the above Memorandum of Understanding and consent to:</p>
                     <ol className="list-decimal list-inside grid gap-1.5 ml-2">
-                      <li>Shikshaq displaying my educator profile as previously submitted;</li>
-                      <li>The use of my Whatsapp link to let students land directly on my Whatsapp chat through Shikshaq for communication;</li>
+                      <li>ShikshAQ displaying my educator profile as previously submitted;</li>
+                      <li>The use of my WhatsApp link to let students land directly on my WhatsApp chat through ShikshAQ for communication;</li>
                       <li>The use of my provided information for student outreach and internal communication;</li>
                       <li>This digital form serving as a legally binding agreement.</li>
                     </ol>
                   </div>
-
                   <div className="flex items-start gap-3 pt-4 border-t border-warm-hairline">
-                    <Checkbox
-                      id="mou_consent"
-                      checked={formData.mou_consent}
-                      onCheckedChange={(checked) => handleInputChange('mou_consent', checked)}
-                      required
-                    />
-                    <Label htmlFor="mou_consent" className="text-sm leading-relaxed cursor-pointer">
+                    <Checkbox id="mou_consent" checked={formData.mou_consent} onCheckedChange={(checked) => handleInputChange('mou_consent', checked === true)} required />
+                    <label htmlFor="mou_consent" className="text-sm leading-relaxed cursor-pointer">
                       <span className="font-semibold text-foreground">I consent. *</span>
-                    </Label>
+                    </label>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 mt-6">
             {!isLastStep ? (
-              <button
-                type="button"
-                onClick={goNext}
-                className="active:scale-[0.97] transition-transform duration-150 flex items-center justify-center min-h-[50px] px-6 py-4 rounded-lg text-sm font-semibold bg-foreground text-background"
-              >
+              <Button type="button" onClick={goNext} variant="dark" size={54}>
                 Continue
-              </button>
+              </Button>
             ) : (
-              <button
-                type="submit"
-                disabled={submitting}
-                className="active:scale-[0.97] transition-transform duration-150 flex items-center justify-center gap-2 min-h-[50px] px-6 py-4 rounded-lg text-sm font-semibold bg-brand text-brand-foreground disabled:opacity-75"
-              >
+              <Button type="submit" disabled={submitting} busy={submitting} variant="primary" size={54}>
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1312,17 +1092,13 @@ export default function JoinApply() {
                 ) : (
                   'Send application'
                 )}
-              </button>
+              </Button>
             )}
 
             {step > 0 && (
-              <button
-                type="button"
-                onClick={goBack}
-                className="active:scale-[0.97] transition-transform duration-150 flex items-center justify-center min-h-[50px] px-6 py-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline"
-              >
+              <Button type="button" onClick={goBack} variant="muted" size={54}>
                 Back
-              </button>
+              </Button>
             )}
           </div>
         </form>
@@ -1330,9 +1106,6 @@ export default function JoinApply() {
 
       <Footer />
 
-      {/* Step content entry animation and hover feedback for unselected Pill
-          toggles, which otherwise have no cue that they're clickable on a
-          mouse. Uses the contract's whitelisted fade-slide-up motion. */}
       <style>{`
         .joinApplyRise { animation: fade-slide-up .28s cubic-bezier(.16,1,.3,1) both; }
         @media (hover: hover) {

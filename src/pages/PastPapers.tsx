@@ -355,20 +355,28 @@ export default function PastPapers() {
             "By class & board" slab competing with the one below it. */}
         {!loading && !loadError && schoolStats.length > 0 && (
           <section className={`${CONTAINER} pb-8`}>
-            <h2 className="mb-6 text-section-head font-display font-bold text-foreground">By school</h2>
-            <div className="stagger-children grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+            {/* S4 literals: h2 21px/800 ls -0.03em, mb 12px. Rows gap 8px
+                (D4: 2-col, gap 10px), padding 12px 14px, radius 16px, disc
+                38×38 radius 12px, gap 12px, name 14.5px/700, count 12px. */}
+            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">By school</h2>
+            <div className="stagger-children grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]">
               {schoolStats.map(({ school, board, count, otherBoardCount }) => (
                 <button
                   key={school}
                   onClick={() => navigate(`/past-papers/results?filter_schools=${encodeURIComponent(school)}`)}
-                  className={`flex min-h-11 animate-card-reveal items-center gap-3 rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
+                  className={`flex min-h-11 animate-card-reveal items-center gap-3 rounded-2xl bg-card px-[14px] py-3 text-left shadow-border transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 lg:px-[15px] lg:py-[13px] ${FOCUS_BLUE}`}
                 >
-                  <IconDisc tone="papers-subtle" size={40} shape="square" className="font-display font-bold">
+                  <IconDisc
+                    tone="papers-subtle"
+                    size={40}
+                    shape="square"
+                    className="h-[38px] w-[38px] rounded-xl font-display text-[15px] font-extrabold"
+                  >
                     {school.charAt(0).toUpperCase()}
                   </IconDisc>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-body font-semibold text-foreground">{school}</span>
-                    <span className="mt-0.5 block text-meta tabular-nums text-muted-foreground">
+                    <span className="block truncate text-[14.5px] font-bold text-foreground">{school}</span>
+                    <span className="mt-px block text-[12px] tabular-nums text-muted-foreground">
                       {board} · {count} paper{count === 1 ? '' : 's'}
                       {otherBoardCount > 0 ? ` + ${otherBoardCount} more` : ''}
                     </span>
@@ -485,7 +493,7 @@ export default function PastPapers() {
             entirely to match the mockup rather than merely recolor it. */}
         {!loadError && (
           <section className={`${CONTAINER} pb-8`}>
-            <h2 className="mb-6 text-section-head font-display font-bold text-foreground">By class &amp; board</h2>
+            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">By class &amp; board</h2>
 
             {/* PILL-WALL FIX: this used to be one flat 17-item `flex-wrap`
                 block (12 class pills + 5 board pills) — a long, low-density
@@ -556,30 +564,67 @@ export default function PastPapers() {
           </div>
         </section>
 
-        {/* ------------------------------------------------------------ Promises */}
-        <section className={`${CONTAINER} pb-16 sm:pb-20`}>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
-            {PAPER_PROMISES.map((pp) => (
-              <div key={pp.title} className="rounded-2xl bg-card p-4 shadow-border sm:p-6">
-                <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-muted">
-                  <pp.icon size={19} className="text-foreground" strokeWidth={1.8} aria-hidden="true" />
-                </span>
-                <h3 className="mb-2 text-subsection font-bold">{pp.title}</h3>
-                <p className="text-body-secondary text-muted-foreground">{pp.body}</p>
-              </div>
-            ))}
+        {/* ------------------------------------------- B3 explainer slab */}
+        {/* S4 "How the paper library works": indigo-subtle slab, radius 26px,
+            padding 20px 18px; eyebrow 11px/700 uppercase ls .08em; heading
+            22px/900 lh 1.15 ls -0.035em; points gap 10px with 26×26 radius-9px
+            indigo icon tiles; two 44px radius-12px buttons, gap 8px, mt 16px.
+            This REPLACES the old three-card "Promises" grid rather than being
+            added alongside it — same three promise items, same copy, rehoused
+            in the mockup's device so the content isn't duplicated. */}
+        <section className={`${CONTAINER} pb-8`}>
+          <div className="rounded-[26px] bg-brand-blue-subtle px-[18px] py-5">
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-[.08em] text-brand-blue">
+              How the paper library works
+            </p>
+            <p className="mb-[14px] font-display text-[22px] font-black leading-[1.15] tracking-[-0.035em] text-brand-blue-deep">
+              Real school papers, shared by students, free to read.
+            </p>
+            <div className="flex flex-col gap-[10px]">
+              {PAPER_PROMISES.map((pp) => (
+                <div key={pp.title} className="flex items-start gap-[10px]">
+                  <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-[9px] bg-brand-blue">
+                    <pp.icon size={14} className="text-white" strokeWidth={2.2} aria-hidden="true" />
+                  </span>
+                  <p className="text-[13.5px] leading-[1.55] text-brand-blue-deep">
+                    <span className="font-bold">{pp.title}.</span> {pp.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => navigate('/past-papers/results')}
+                className={`flex h-11 flex-1 items-center justify-center rounded-xl bg-brand-blue text-[14px] font-bold text-white transition-transform duration-hover ease-settle active:scale-[0.97] ${FOCUS_BLUE}`}
+              >
+                Browse papers
+              </button>
+              <a
+                href={requestPaperUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex h-11 flex-1 items-center justify-center rounded-xl bg-card text-[14px] font-bold text-brand-blue-deep transition-transform duration-hover ease-settle active:scale-[0.97] ${FOCUS_BLUE}`}
+              >
+                Share a paper
+              </a>
+            </div>
           </div>
         </section>
 
         {/* ----------------------------------------------------------- Ownership */}
         <section className={`${CONTAINER} pb-16`}>
-          <div className="rounded-4xl bg-muted p-6 sm:p-8">
-            <div className="max-w-2xl space-y-4">
-              <h2 className="text-section-head font-display font-bold">Who owns these papers</h2>
-              <p className="text-body text-warm-prose">
+          {/* S4 literals: radius 24px, padding 18px, h2 19px/800 mb 6px,
+              body 13.5px lh 1.6 at white/72. D4 turns it into a 1fr/1.4fr
+              two-column band with 28px radius and 28px/32px padding. */}
+          <div className="rounded-3xl bg-panel p-[18px] lg:grid lg:grid-cols-[1fr_1.4fr] lg:items-center lg:gap-10 lg:rounded-[28px] lg:px-8 lg:py-7">
+            <h2 className="mb-1.5 font-display text-[19px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white lg:mb-0 lg:text-[26px]">
+              Who owns these papers
+            </h2>
+            <div className="space-y-3">
+              <p className="text-[13.5px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
                 Every paper here is the property of the school that set it. Shikshaq claims no ownership over any paper, derives no revenue from any paper, and hosts these materials solely as a free community resource for students.
               </p>
-              <p className="text-body text-warm-prose">
+              <p className="text-[13.5px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
                 Any school that wishes a paper removed can have it removed on request, without argument.
               </p>
             </div>

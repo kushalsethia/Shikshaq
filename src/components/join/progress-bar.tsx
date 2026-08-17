@@ -24,14 +24,16 @@ function ProgressSteps({ steps, current, label, className }: ProgressStepsProps)
         aria-valuemin={1}
         aria-valuemax={steps}
         aria-label={label}
-        className="flex gap-1.5"
+        className="flex gap-[5px]"
       >
+        {/* Redesign J1–J5 mockup: bars gap:5px, height:5px — pixel-exact per the
+            owner's spacing override (BRIEF.md "OWNER OVERRIDE — PIXEL-EXACT"). */}
         {Array.from({ length: steps }).map((_, i) => (
           <span
             key={i}
             aria-hidden="true"
             className={cn(
-              "h-1.5 flex-1 rounded-full transition-colors duration-150",
+              "h-[5px] flex-1 rounded-full transition-colors duration-150",
               i <= current ? "bg-brand" : "bg-warm-hairline",
             )}
           />

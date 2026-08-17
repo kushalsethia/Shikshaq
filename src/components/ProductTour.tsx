@@ -1,0 +1,215 @@
+import * as React from "react";
+import { Search, BadgeCheck, MessageCircle, FileText, ChevronRight } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
+import { IconDisc } from "@/components/ui/icon-disc";
+import { StripePlaceholder } from "@/components/ui/stripe-placeholder";
+import { BROWSE_PATH } from "@/lib/nav-config";
+
+/* Redesign S20 (design.md §4, changelog C-057) — the on-demand product tour.
+
+   Distinct from OnboardingModal (C-043): onboarding asks a first-run routing
+   question; this explains the product on demand, opened by tapping the logo.
+   Four full-tint cards, each: progress bar + Skip, a display headline whose
+   second clause is italic, one sentence of body copy, one real UI fragment as
+   illustration (not a drawn icon), and one CTA. Last card ends in "Start looking".
+   Copy is verbatim from copy.md §7 "Tour card 1-4" / "Tour CTAs".
+
+   LOGO-TAP WIRING: this component owns its own open state via useProductTour()
+   so any caller can mount <ProductTour /> once and wire a trigger anywhere. Per
+   the task brief, src/pages/Index.tsx and src/components/layout/WordmarkBleed.tsx
+   / TopBar.tsx (the actual home-page logo) are OUTSIDE this agent's file list and
+   were not touched. See the final report for the exact one-line change needed in
+   Index.tsx to finish the wiring: render <ProductTour open={tourOpen}
+   onOpenChange={setTourOpen} /> once, and add onClick={() => setTourOpen(true)}
+   to the logo element in the home control block. */
+
+export function useProductTour() {
+  const [open, setOpen] = React.useState(false);
+  return { open, setOpen };
+}
+
+type CardMode = "dark" | "brand" | "whatsapp" | "papers";
+
+const CARD_FILL: Record<CardMode, string> = {
+  dark: "bg-panel text-background",
+  brand: "bg-brand text-brand-foreground",
+  whatsapp: "bg-whatsapp text-whatsapp-text",
+  papers: "bg-brand-blue text-brand-blue-foreground",
+};
+
+interface TourCard {
+  mode: CardMode;
+  headline: React.ReactNode;
+  body: string;
+  cta: string;
+  illustration: React.ReactNode;
+}
+
+export interface ProductTourProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+function ProductTour({ open, onOpenChange }: ProductTourProps) {
+  const [step, setStep] = React.useState(0);
+  const navigate = useNavigate();
+
+  const CARDS: TourCard[] = [
+    {
+      mode: "dark",
+      headline: (
+        <>
+          Say what you need, <em className="not-italic font-normal italic">in three taps.</em>
+        </>
+      ),
+      body: "Subject, class, area. No account, no forms, no waiting for a callback.",
+      cta: "Show me",
+      illustration: (
+        <div className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-3">
+          <Search aria-hidden className="size-4 shrink-0 text-background/70" />
+          <span className="text-body-secondary text-background/70">Subject, class or area</span>
+        </div>
+      ),
+    },
+    {
+      mode: "brand",
+      headline: (
+        <>
+          Every teacher is <em className="not-italic font-normal italic">checked by a human.</em>
+        </>
+      ),
+      body: "ID and degree verified before a profile goes live. Reviews come from students who actually took classes.",
+      cta: "Next",
+      illustration: (
+        <div className="flex items-center gap-3 rounded-2xl bg-card p-3 text-foreground shadow-border">
+          <StripePlaceholder name="Ananya Ghosh" initialSize={40} className="size-11 shrink-0 rounded-full" />
+          <div className="min-w-0">
+            <span className="flex items-center gap-1 text-body-secondary font-semibold">
+              Ananya Ghosh
+              <BadgeCheck aria-hidden className="size-4 shrink-0 text-brand" />
+            </span>
+            <span className="block truncate text-meta text-warm-meta">Maths · Ballygunge</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      mode: "whatsapp",
+      headline: (
+        <>
+          Then talk to them <em className="not-italic font-normal italic">yourself, on WhatsApp.</em>
+        </>
+      ),
+      body: "No agent in the middle, no commission on the fee. You and the teacher agree the rest.",
+      cta: "Next",
+      illustration: (
+        <div className="flex items-center gap-3 rounded-2xl bg-white/90 p-3 text-foreground">
+          <IconDisc tone="whatsapp" size={40} shape="circle">
+            <MessageCircle aria-hidden className="size-4" />
+          </IconDisc>
+          <span className="text-body-secondary">One tap, then you're talking to them</span>
+        </div>
+      ),
+    },
+    {
+      mode: "papers",
+      headline: (
+        <>
+          846 past papers, <em className="not-italic font-normal italic">free to read.</em>
+        </>
+      ),
+      body: "Real prelim and half-yearly papers from 24 Kolkata schools. Sign in once and your shelf follows you.",
+      cta: "Start looking",
+      illustration: (
+        <div className="flex items-center gap-2">
+          {[0, 1, 2].map((i) => (
+            <Chip key={i} asChild tone="dark" size={34} icon={<FileText aria-hidden className="size-4" />}>
+              {i === 0 ? "Class 10" : i === 1 ? "ICSE" : "Maths"}
+            </Chip>
+          ))}
+        </div>
+      ),
+    },
+  ];
+
+  const isLast = step === CARDS.length - 1;
+  const card = CARDS[step];
+
+  const dismiss = () => {
+    onOpenChange(false);
+    setStep(0);
+  };
+
+  const advance = () => {
+    if (isLast) {
+      dismiss();
+      navigate(BROWSE_PATH);
+      return;
+    }
+    setStep((s) => Math.min(s + 1, CARDS.length - 1));
+  };
+
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && dismiss()}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-foreground/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Content
+          className={cn(
+            "fixed inset-0 z-[100] flex flex-col overflow-hidden outline-none",
+            CARD_FILL[card.mode],
+            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          )}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogPrimitive.Title className="sr-only">ShikshAQ product tour</DialogPrimitive.Title>
+          <DialogPrimitive.Description className="sr-only">
+            A short tour of finding teachers and reading past papers on ShikshAQ.
+          </DialogPrimitive.Description>
+
+          {/* Progress bar + Skip */}
+          <div className="flex items-center gap-3 p-4 sm:p-6">
+            <div className="flex flex-1 gap-1.5" role="tablist" aria-label="Tour progress">
+              {CARDS.map((_, i) => (
+                <span key={i} aria-hidden className="h-1 flex-1 overflow-hidden rounded-full bg-current/25">
+                  <span
+                    className="block h-full rounded-full bg-current transition-transform duration-300 ease-settle"
+                    style={{ transform: `scaleX(${i <= step ? 1 : 0})`, transformOrigin: "left" }}
+                  />
+                </span>
+              ))}
+            </div>
+            <DialogPrimitive.Close className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-body-secondary font-semibold text-current/80 transition-colors duration-150 hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              Skip
+            </DialogPrimitive.Close>
+          </div>
+
+          <div className="flex flex-1 flex-col items-center justify-center px-6 pb-8 text-center sm:px-8">
+            <h2 className="max-w-sm font-display text-display-hero font-extrabold leading-tight tracking-tight sm:max-w-md">
+              {card.headline}
+            </h2>
+            <p className="mt-4 max-w-sm text-body-secondary opacity-90 sm:max-w-md">{card.body}</p>
+            <div className="mt-6 w-full max-w-xs">{card.illustration}</div>
+          </div>
+
+          <div className="flex flex-col items-center gap-3 px-6 pb-8 sm:pb-12">
+            <Button
+              variant={card.mode === "whatsapp" ? "whatsapp" : card.mode === "papers" ? "indigo" : card.mode === "brand" ? "primary" : "dark"}
+              size={54}
+              onClick={advance}
+              className="w-full max-w-xs"
+            >
+              {card.cta}
+              {isLast ? null : <ChevronRight aria-hidden className="ml-1 size-4" />}
+            </Button>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
+}
+
+export { ProductTour };

@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { PreFooter } from '@/components/layout/PreFooter';
+import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
 import { toast as sonnerToast } from 'sonner';
 import { SURFACE_TOKENS, ACCENT_TOKENS, MODE_TOKENS, EASE } from '@/utils/searchFacets';
 import type { User } from '@supabase/supabase-js';
@@ -193,117 +195,152 @@ interface AdminConsoleProps {
 export function AdminConsole({ activeTab, title, subtitle, tint, tabCount, children }: AdminConsoleProps) {
   const counts = useAdminTabCounts(activeTab, tabCount);
 
-  return (
-    <div className="min-h-screen flex flex-col" style={{ background: SURFACE_TOKENS.shell }}>
-      <Navbar />
-      <main
-        className="flex-1 w-full mx-auto"
+  // Redesign S7/C-061 — real per-section counts only, never a placeholder.
+  const shellNav: AdminNavItem[] = TAB_ORDER.map((tab) => ({
+    key: tab.key,
+    label: tab.label,
+    path: tab.path,
+    count: counts[tab.key],
+    active: tab.key === activeTab,
+  }));
+  const activeCount = counts[activeTab];
+
+  const uploadLinks = (
+    <div style={{ display: 'flex', gap: 10, marginTop: 26, flexWrap: 'wrap' }}>
+      <Link
+        to="/admin/papers?tab=upload"
         style={{
-          maxWidth: 1100,
-          padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          minHeight: 46,
+          padding: '13px 20px',
+          borderRadius: 12,
+          fontSize: 13.5,
+          fontWeight: 600,
+          color: SURFACE_TOKENS.textPrimary,
+          background: SURFACE_TOKENS.field,
+          boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
         }}
       >
-        <p style={{ fontSize: 13, fontWeight: 600, color: SURFACE_TOKENS.textTertiary }}>Admin console</p>
-        <h1
-          style={{
-            marginTop: 8,
-            fontSize: 'clamp(25px,3.4vw,38px)',
-            lineHeight: 1,
-            fontWeight: 700,
-            color: SURFACE_TOKENS.textPrimary,
-            letterSpacing: '-.05em',
-          }}
-        >
-          {title}
-        </h1>
-        <p style={{ marginTop: 10, fontSize: 15, color: SURFACE_TOKENS.textSecondary }}>{subtitle}</p>
+        Upload papers
+      </Link>
+      <Link
+        to="/admin/papers?tab=manage"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          minHeight: 46,
+          padding: '13px 20px',
+          borderRadius: 12,
+          fontSize: 13.5,
+          fontWeight: 600,
+          color: SURFACE_TOKENS.textPrimary,
+          background: SURFACE_TOKENS.field,
+          boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
+        }}
+      >
+        Manage papers
+      </Link>
+    </div>
+  );
 
-        <nav
-          aria-label="Admin sections"
-          style={{
-            display: 'flex',
-            gap: 6,
-            marginTop: 22,
-            padding: 5,
-            width: 'max-content',
-            maxWidth: '100%',
-            borderRadius: 999,
-            background: SURFACE_TOKENS.mutedFill,
-            overflowX: 'auto',
-            scrollbarWidth: 'none',
-          }}
-        >
-          {TAB_ORDER.map((tab) => {
-            const active = tab.key === activeTab;
-            const count = counts[tab.key];
-            return (
-              <Link
-                key={tab.key}
-                to={tab.path}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  minHeight: 42,
-                  padding: '11px 18px',
-                  borderRadius: 999,
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                  background: active ? SURFACE_TOKENS.field : 'transparent',
-                  color: active ? SURFACE_TOKENS.textPrimary : SURFACE_TOKENS.textBody,
-                  boxShadow: active ? `0 0 0 1px ${SURFACE_TOKENS.hairline}` : 'none',
-                  transition: `background .2s ${EASE}, box-shadow .2s ${EASE}`,
-                }}
-              >
-                {tab.label}
-                {typeof count === 'number' && (
-                  <span style={{ marginLeft: 8, opacity: 0.55 }}>{count}</span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+  return (
+    <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
+      {/* Desktop: S7 rail (fixed, near-black) — the one place desktop leads
+          (design.md §5). No fun layer — rule 10. */}
+      <AdminRail nav={shellNav} signedInName="Sourav · owner" />
 
-        <div style={{ marginTop: 22 }}>{children}</div>
+      <div className="flex min-h-screen flex-col lg:pl-[244px]">
+        {/* Desktop toolbar, 68px. Mobile keeps its own header below. */}
+        <AdminToolbar title={title} badge={typeof activeCount === 'number' ? `${activeCount} waiting` : undefined} />
 
-        <div style={{ display: 'flex', gap: 10, marginTop: 26, flexWrap: 'wrap' }}>
-          <Link
-            to="/admin/papers?tab=upload"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: 46,
-              padding: '13px 20px',
-              borderRadius: 12,
-              fontSize: 13.5,
-              fontWeight: 600,
-              color: SURFACE_TOKENS.textPrimary,
-              background: SURFACE_TOKENS.field,
-              boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-            }}
-          >
-            Upload papers
-          </Link>
-          <Link
-            to="/admin/papers?tab=manage"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: 46,
-              padding: '13px 20px',
-              borderRadius: 12,
-              fontSize: 13.5,
-              fontWeight: 600,
-              color: SURFACE_TOKENS.textPrimary,
-              background: SURFACE_TOKENS.field,
-              boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-            }}
-          >
-            Manage papers
-          </Link>
+        {/* Mobile / tablet: the existing tab-row console (design.md §4 "Admin
+            (S12)") stays the on-call view, unchanged. */}
+        <div className="lg:hidden">
+          <Navbar />
         </div>
-      </main>
-      <Footer />
+
+        <main className="flex-1 w-full mx-auto lg:max-w-none" style={{ maxWidth: 1100 }}>
+          <div
+            className="lg:hidden"
+            style={{ padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 0' }}
+          >
+            <p style={{ fontSize: 13, fontWeight: 600, color: SURFACE_TOKENS.textTertiary }}>Admin console</p>
+            <h1
+              style={{
+                marginTop: 8,
+                fontSize: 'clamp(25px,3.4vw,38px)',
+                lineHeight: 1,
+                fontWeight: 700,
+                color: SURFACE_TOKENS.textPrimary,
+                letterSpacing: '-.05em',
+              }}
+            >
+              {title}
+            </h1>
+            <p style={{ marginTop: 10, fontSize: 15, color: SURFACE_TOKENS.textSecondary }}>{subtitle}</p>
+
+            <nav
+              aria-label="Admin sections"
+              style={{
+                display: 'flex',
+                gap: 6,
+                marginTop: 22,
+                padding: 5,
+                width: 'max-content',
+                maxWidth: '100%',
+                borderRadius: 999,
+                background: SURFACE_TOKENS.mutedFill,
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+              }}
+            >
+              {TAB_ORDER.map((tab) => {
+                const active = tab.key === activeTab;
+                const count = counts[tab.key];
+                return (
+                  <Link
+                    key={tab.key}
+                    to={tab.path}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      minHeight: 42,
+                      padding: '11px 18px',
+                      borderRadius: 999,
+                      fontSize: 13.5,
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      background: active ? SURFACE_TOKENS.field : 'transparent',
+                      color: active ? SURFACE_TOKENS.textPrimary : SURFACE_TOKENS.textBody,
+                      boxShadow: active ? `0 0 0 1px ${SURFACE_TOKENS.hairline}` : 'none',
+                      transition: `background .2s ${EASE}, box-shadow .2s ${EASE}`,
+                    }}
+                  >
+                    {tab.label}
+                    {typeof count === 'number' && (
+                      <span style={{ marginLeft: 8, opacity: 0.55 }}>{count}</span>
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Shared body — rendered once, used by both breakpoints. */}
+          <div
+            className="lg:mx-auto lg:w-full lg:max-w-[1100px]"
+            style={{ padding: 'clamp(16px,3vw,28px)' }}
+          >
+            <p className="mb-5 hidden max-w-prose text-body-secondary text-warm-prose lg:block">{subtitle}</p>
+            {children}
+            {uploadLinks}
+          </div>
+        </main>
+
+        <PreFooter variant="B4" />
+        <Footer />
+      </div>
     </div>
   );
 }
@@ -360,7 +397,9 @@ const PILL_TONE_STYLE: Record<AdminPillTone, CSSProperties> = {
   settled: { background: ACCENT_TOKENS.settledBg, color: ACCENT_TOKENS.settledText },
   pending: { background: SURFACE_TOKENS.mutedFill, color: SURFACE_TOKENS.textBody },
   flagged: { background: MODE_TOKENS.teachers.tintBg, color: MODE_TOKENS.teachers.tintText },
-  destructive: { background: '#FCE8E8', color: ACCENT_TOKENS.destructive },
+  // hsl(var(--destructive)) — not a raw hex literal (design.md §0.1). ACCENT_TOKENS.destructive
+  // stays for the icon-only usages below that pre-date this component.
+  destructive: { background: 'hsl(var(--destructive) / 0.1)', color: 'hsl(var(--destructive))' },
 };
 
 export function AdminPill({ tone, children }: { tone: AdminPillTone; children: ReactNode }) {

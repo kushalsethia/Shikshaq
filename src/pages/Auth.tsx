@@ -8,6 +8,36 @@ import { z } from 'zod';
 import { Logo } from '@/components/Logo';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
 import { CutPaperShape } from '@/components/devices';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { Chip } from '@/components/ui/chip';
+
+/* C-032 — proof mosaic above the fold. Counts are real (Supabase), never hardcoded; the pill
+   is simply not rendered until its count arrives. */
+function useAuthProofCounts() {
+  const [teacherCount, setTeacherCount] = useState<number | null>(null);
+  const [paperCount, setPaperCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [{ count: teachers }, { count: papers }] = await Promise.all([
+          supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
+          supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+        ]);
+        if (!cancelled) {
+          if (typeof teachers === 'number') setTeacherCount(teachers);
+          if (typeof papers === 'number') setPaperCount(papers);
+        }
+      } catch {
+        // Counts stay null; the pills that need them simply don't render (design.md §0.10).
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return { teacherCount, paperCount };
+}
 
 const FIELD_BASE =
   'w-full box-border min-h-12 px-4 py-3 rounded-lg bg-card text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline shikshaq-auth-field';
@@ -63,6 +93,7 @@ export default function Auth() {
     loading: authLoading
   } = useAuth();
   const navigate = useNavigate();
+  const { teacherCount, paperCount } = useAuthProofCounts();
 
   // Save redirect on mount (backup — primary save happens at the click source)
   useEffect(() => {
@@ -350,7 +381,7 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="p-4 sm:p-6">
+      <header className="flex items-center justify-between gap-3 p-4 sm:p-6">
         <Link
           to="/"
           className="inline-flex items-center gap-2 min-h-11 py-1 -my-1 text-sm font-medium text-muted-foreground"
@@ -358,7 +389,39 @@ export default function Auth() {
           <ArrowLeft size={16} />
           Back to home
         </Link>
+        {/* C-032 — Skip link, top-right */}
+        <Link
+          to="/"
+          className="inline-flex min-h-11 items-center px-2 py-1 -my-1 text-sm font-semibold text-muted-foreground"
+        >
+          Skip
+        </Link>
       </header>
+
+      {/* C-032 — scattered proof mosaic: tilted subject/count pills, built from real data */}
+      {!showResetPassword && (
+        <div className="mx-auto flex w-full max-w-[470px] flex-wrap items-center justify-center gap-2 px-4 pb-2 sm:px-6" aria-hidden="true">
+          <span className="-rotate-2 rounded-full bg-card px-3 py-1.5 text-meta font-semibold text-foreground shadow-border">
+            Maths, Ballygunge
+          </span>
+          <span className="rotate-1 rounded-full bg-card px-3 py-1.5 text-meta font-semibold text-foreground shadow-border">
+            English, Class 12
+          </span>
+          {teacherCount !== null && (
+            <Chip asChild tone="solid" size={34} className="rotate-2 bg-brand text-brand-foreground">
+              {teacherCount} verified tutors
+            </Chip>
+          )}
+          {paperCount !== null && (
+            <Chip asChild tone="solid" size={34} className="-rotate-1 bg-brand-blue text-brand-blue-foreground">
+              {paperCount} free papers
+            </Chip>
+          )}
+          <span className="rotate-3 rounded-full bg-whatsapp px-3 py-1.5 text-meta font-semibold text-whatsapp-text shadow-border">
+            WhatsApp direct
+          </span>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 pb-20 lg:pb-0">
@@ -408,24 +471,15 @@ export default function Auth() {
           <h1 className="font-display text-3xl sm:text-4xl font-normal tracking-tight leading-[.95] text-foreground">
             {showResetPassword ? (
               'Reset your password'
-            ) : isLogin ? (
-              <>
-                Welcome{' '}
-                <span
-                  className="marker-highlight marker-highlight--tilt font-extrabold"
-                  style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
-                >
-                  back.
-                </span>
-              </>
             ) : (
+              /* C-032 — reworded per copy.md §7. */
               <>
-                Join the{' '}
+                One tap, then{' '}
                 <span
                   className="marker-highlight marker-highlight--tilt font-extrabold"
                   style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
                 >
-                  tutor hunt.
+                  talk to the teacher.
                 </span>
               </>
             )}
@@ -691,6 +745,8 @@ export default function Auth() {
           )}
         </div>
       </main>
+
+      <PreFooter variant={preFooterFor('/auth')} />
 
       <style>{`
         .shikshaq-auth-field { transition: box-shadow .15s ease; }

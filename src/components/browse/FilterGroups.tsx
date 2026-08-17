@@ -99,8 +99,8 @@ type ArrayFilterKey = 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas';
 
 function groupCard(label: string, children: React.ReactNode) {
   return (
-    <div key={label} className="rounded-2xl bg-card p-4 shadow-border">
-      <h3 className="mb-3 text-body-secondary font-semibold text-foreground">{label}</h3>
+    <div key={label} className="rounded-[20px] bg-card p-[18px] shadow-border">
+      <h3 className="mb-[14px] text-[11.5px] font-bold uppercase tracking-[.07em] text-warm-meta">{label}</h3>
       {children}
     </div>
   );
@@ -136,17 +136,17 @@ export function FilterGroupsBody({ filters, onFilterChange }: Pick<FilterGroupsP
   const feeMax = filters.maxFees ?? 20000;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-[14px]">
       {groupCard(
         'Subject',
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-[8px]">
           {SUBJECTS.map((s) => pill(s, filters.subjects.includes(s), () => toggle('subjects', s)))}
         </div>,
       )}
 
       {groupCard(
         'Class',
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-[8px]">
           {CLASSES.map((c) => pill(c === 'UG' ? 'UG' : `Class ${c}`, filters.classes.includes(c), () => toggle('classes', c), c))}
         </div>,
       )}
@@ -168,7 +168,7 @@ export function FilterGroupsBody({ filters, onFilterChange }: Pick<FilterGroupsP
             filteredAreaGroups.map((group) => (
               <div key={group.label}>
                 <p className="mb-2 text-label font-medium uppercase tracking-wide text-warm-meta">{group.label}</p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-[8px]">
                   {group.areas.map((a) => pill(a, filters.areas.includes(a), () => toggle('areas', a), a))}
                 </div>
               </div>
@@ -228,7 +228,7 @@ export function FilterGroupsBody({ filters, onFilterChange }: Pick<FilterGroupsP
 
       {groupCard(
         'Mode',
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-[8px]">
           {MODE_OPTIONS.map((opt) =>
             pill(opt.label, opt.isActive(filters), () => onFilterChange(opt.toggle(filters)), opt.label),
           )}
@@ -240,14 +240,14 @@ export function FilterGroupsBody({ filters, onFilterChange }: Pick<FilterGroupsP
           the `filter_boards` URL contract the SEO routes depend on. */}
       {groupCard(
         'Board',
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-[8px]">
           {BOARDS.map((b) => pill(b, filters.boards.includes(b), () => toggle('boards', b), b))}
         </div>,
       )}
 
       {groupCard(
         'Class size',
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-[8px]">
           {CLASS_SIZE.map((s) =>
             pill(s === 'Solo' ? 'One-on-one' : s, filters.classSize.includes(s), () => toggle('classSize', s), s),
           )}
@@ -352,17 +352,17 @@ export function FilterSheet({
         className="flex h-[85vh] flex-col rounded-t-[28px] p-0 [&>button:last-child]:hidden"
       >
         {/* Grab handle */}
-        <div className="flex justify-center pt-3" aria-hidden>
-          <div className="h-1.5 w-10 rounded-full bg-muted" />
+        <div className="flex justify-center pt-[12px]" aria-hidden>
+          <div className="h-[4px] w-[40px] rounded-full bg-warm-hairline-strong" />
         </div>
 
         {/* Sticky header */}
-        <div className="flex items-center justify-between gap-3 px-6 pb-4 pt-3">
-          <h2 className="text-card-title-lg font-display font-extrabold text-foreground">Filters</h2>
+        <div className="flex items-center justify-between gap-3 px-[16px] pb-[8px] pt-[12px]">
+          <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">Filters</h2>
           <button
             type="button"
             onClick={() => onFilterChange(EMPTY_FILTERS)}
-            className="min-h-11 rounded-lg px-2 text-body-secondary font-semibold text-warm-meta transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="min-h-11 rounded-lg px-2 text-[13.5px] font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             Clear all
           </button>
@@ -370,16 +370,21 @@ export function FilterSheet({
 
         {/* Scrollable body — must stay flex:1/min-height:0 or long option sets
             clip (design.md §2.3). */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-[16px] pb-[16px] pt-[4px]">
           <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} />
         </div>
 
         {/* Sticky footer */}
-        <div className="flex items-center justify-between gap-3 border-t border-border/60 bg-background px-6 py-4">
-          <span className="text-body-secondary text-warm-meta">
+        <div className="flex items-center justify-between gap-[10px] border-t border-border bg-card px-[16px] py-[14px]">
+          <span className="text-[13px] text-warm-secondary">
             {count} filter{count === 1 ? '' : 's'} active
           </span>
-          <Button variant="primary" size={44} onClick={() => onOpenChange(false)}>
+          <Button
+            variant="primary"
+            size={52}
+            className="rounded-[14px] px-[22px] text-[15px] font-bold"
+            onClick={() => onOpenChange(false)}
+          >
             Show {resultCount} teachers
           </Button>
         </div>

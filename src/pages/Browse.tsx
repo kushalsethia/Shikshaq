@@ -20,6 +20,11 @@ import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
 import { getSubjectPalette } from '@/lib/subject-palette';
+import { SEOHead } from '@/components/SEOHead';
+import { FAQSchema } from '@/components/FAQSchema';
+import { SEOContentBlock } from '@/components/seo/SEOContentBlock';
+import type { SubjectContent } from '@/content/subject-seo';
+import { generateSubjectPageSchemas, generateBoardPageSchemas } from '@/utils/structuredDataGenerators';
 
 
 interface Teacher {
@@ -60,6 +65,14 @@ interface BrowseProps {
    * route.
    */
   pageContext?: { kind: 'subject' | 'board'; label: string };
+  /**
+   * Phase 13 (C-040/C-041): title/description + the SUBJECT_CONTENT /
+   * BOARD_CONTENT entry (src/content/subject-seo.ts) for the ~35 SEO routes.
+   * Lives here rather than in SubjectPage/BoardPage because the real teacher
+   * count (for CollectionPage/Service JSON-LD, never hardcoded) only exists
+   * once Browse's own fetch has run.
+   */
+  seo?: { title: string; description: string; content?: SubjectContent };
 }
 
 /**
@@ -72,7 +85,7 @@ interface BrowseProps {
  */
 function TeacherCardSkeletons({ count }: { count: number }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+    <div className="grid grid-cols-2 gap-[10px] sm:grid-cols-3 sm:gap-[18px]">
       {[...Array(count)].map((_, i) => (
         <div key={i} className="animate-shimmer aspect-[4/5] rounded-[18px] bg-warm-band" />
       ))}
@@ -381,7 +394,7 @@ function applySortOrder(list: any[], sortParam: string, upvoteMap: Map<string, n
   });
 }
 
-export default function Browse({ manageSeo = true, pageContext }: BrowseProps = {}) {
+export default function Browse({ manageSeo = true, pageContext, seo }: BrowseProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -472,8 +485,10 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
   const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
   useEffect(() => {
-    // Canonical is handled globally by <CanonicalTag>.
-    if (!manageSeo) return;
+    // Canonical is handled globally by <CanonicalTag>. When `seo` is set
+    // (SubjectPage/BoardPage's ~35 templated routes), <SEOHead> below owns
+    // title/description/OG/Twitter/schema instead of this manual effect.
+    if (!manageSeo || seo) return;
 
     document.title = 'All Tuition Teachers in Kolkata | Shikshaq';
     const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
@@ -1488,8 +1503,41 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
     (activeSubjectLabel && !filters.subjects.includes(activeSubjectLabel) ? 1 : 0) +
     (quickPickClassValue && !filters.classes.includes(quickPickClassValue) ? 1 : 0);
 
+  // Phase 13 schema: only built for the ~35 templated subject/board routes
+  // (`seo` set by SubjectPage/BoardPage). numberOfItems is the live
+  // teachers.length from this component's own fetch -- never hardcoded.
+  const seoBreadcrumbs = [
+    { name: 'Home', url: '/' },
+    { name: pageContext?.label || seo?.title || '', url: location.pathname },
+  ];
+  const seoSchemas = seo
+    ? pageContext?.kind === 'board'
+      ? generateBoardPageSchemas({
+          board: pageContext.label,
+          url: location.pathname,
+          description: seo.description,
+          teacherCount: teachers.length,
+          breadcrumbs: seoBreadcrumbs,
+        })
+      : generateSubjectPageSchemas({
+          subject: pageContext?.label || '',
+          url: location.pathname,
+          description: seo.description,
+          teacherCount: teachers.length,
+          breadcrumbs: seoBreadcrumbs,
+        })
+    : undefined;
+
   return (
     <div className="min-h-screen bg-background">
+      {seo && (
+        <>
+          <SEOHead title={seo.title} description={seo.description} canonical={location.pathname} schema={seoSchemas} />
+          {seo.content && seo.content.faqs.length > 0 && (
+            <FAQSchema faqs={seo.content.faqs} url={location.pathname} />
+          )}
+        </>
+      )}
       <Navbar />
 
       {/* Control block (design.md S1 / S4 "Browse (S1)"): near-black,
@@ -1498,17 +1546,17 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
       <ControlBlock mode="dark">
         <Link
           to="/"
-          className="shikshaq-tap -mt-1 mb-3 inline-flex min-h-11 items-center py-1 text-sm font-semibold text-white/70 transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+          className="shikshaq-tap -mt-1 mb-[14px] inline-flex min-h-11 items-center py-1 text-[13px] font-semibold text-white/70 transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
         >
           {'←'} Home
         </Link>
 
-        <h1 className="font-display text-page-title font-extrabold tracking-tight text-background">
+        <h1 className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.035em] text-background">
           {resultCountLabel} teacher{teachers.length === 1 ? '' : 's'}
         </h1>
         {subLineParts.length > 0 && (
           <p
-            className="mt-1 text-body-secondary text-white/70"
+            className="mt-1 text-[14.5px] text-white/70"
             style={headerAccent ? { color: headerAccent } : undefined}
           >
             {subLineParts.join(' · ')}
@@ -1521,7 +1569,7 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
           </p>
         )}
 
-        <div ref={searchControlWrapRef} className="mt-4 min-w-0 max-w-[820px]">
+        <div ref={searchControlWrapRef} className="mt-[12px] min-w-0 max-w-[820px]">
           <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
         </div>
 
@@ -1550,17 +1598,17 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
           with an orange count badge (mobile -- desktop uses the persistent
           rail below instead), applied chips, count + sort line. */}
       <div className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur-sm">
-        <PageContainer className="py-3">
-          <div className="flex items-center gap-2">
+        <PageContainer className="pb-[10px] pt-[12px]">
+          <div className="flex items-center gap-[8px]">
             <button
               type="button"
               onClick={() => setFilterSheetOpen(true)}
-              className="shikshaq-tap flex min-h-11 flex-none items-center gap-2 rounded-full bg-panel px-4 text-body-secondary font-semibold text-background transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
+              className="shikshaq-tap flex min-h-11 flex-none items-center gap-[7px] rounded-full bg-panel px-[16px] text-[13.5px] font-bold text-background transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
             >
               <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden />
               Filters
               {filterCount > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-label font-bold tabular-nums text-brand-foreground">
+                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[11px] font-bold tabular-nums text-brand-foreground">
                   {filterCount}
                 </span>
               )}
@@ -1577,11 +1625,11 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
             </div>
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-body-secondary text-warm-meta tabular-nums">
+          <div className="mt-[10px] flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[12.5px] text-warm-secondary tabular-nums">
               {resultCountLabel} teacher{teachers.length === 1 ? '' : 's'}
             </p>
-            <div className="flex flex-none items-center gap-1.5 overflow-x-auto">
+            <div className="flex min-w-0 items-center gap-[8px] overflow-x-auto">
               {sortPills.map((s) => (
                 <Chip
                   key={s.value}
@@ -1598,7 +1646,7 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
         </PageContainer>
       </div>
 
-      <PageContainer as="main" className="py-6 lg:flex lg:items-start lg:gap-8">
+      <PageContainer as="main" className="pb-[40px] pt-[14px] lg:flex lg:items-start lg:gap-[32px] lg:pt-[32px]">
         {/* Desktop persistent 284px filter rail (design.md S5 / C-048) -- the
             sheet's content unwrapped, same FilterGroupsBody as the mobile sheet. */}
         <FilterRail filters={filters} onFilterChange={setFilters} resultCount={teachers.length} />
@@ -1643,7 +1691,7 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
             <div>
               {/* Mobile: result rows. Desktop: three-column card grid
                   (design.md Section 5 / C-048). Same data, two TeacherCard variants. */}
-              <div className="flex flex-col gap-3 lg:hidden">
+              <div className="flex flex-col gap-[10px] lg:hidden">
                 {displayedTeachers.map((teacher) => {
                   const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
                   const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -1669,7 +1717,7 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
                 })}
               </div>
 
-              <div className="hidden grid-cols-3 gap-4 stagger-children lg:grid">
+              <div className="hidden grid-cols-3 gap-[18px] stagger-children lg:grid">
                 {displayedTeachers.map((teacher) => {
                   const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
                   const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -1715,6 +1763,8 @@ export default function Browse({ manageSeo = true, pageContext }: BrowseProps = 
           )}
         </div>
       </PageContainer>
+
+      {seo?.content && pageContext && <SEOContentBlock content={seo.content} label={pageContext.label} />}
 
       <PreFooter variant="B2" counts={{ teachers: teachers.length }} />
       <Footer />

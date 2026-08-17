@@ -5,14 +5,22 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Mail, CheckCircle, ArrowRight } from 'lucide-react';
 import { Logo } from '@/components/Logo';
-import { StarburstBadge, CutPaperShape } from '@/components/devices';
+import { Sticker } from '@/components/ui/sticker';
+import { Button } from '@/components/ui/button';
+import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
 
+/* C-044 — "Success is an orange slab with a ghosted check, a 'You're in' sticker, and a green
+   button that resumes the exact message the user was about to send." The saved-intent handoff
+   (design.md §6.5 / gate-sheet.tsx) is what actually resumes the right destination: the primary
+   CTA reads getAuthRedirect() and, if the user tapped WhatsApp before signing in, that redirect
+   target IS /tuition-teachers/:slug/whatsapp-click — the interstitial that reopens WhatsApp with
+   the message already composed. Never drops back to a generic home page when an intent exists. */
 export default function SignUpSuccess() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If user is not authenticated, redirect to auth
     if (!user) {
       navigate('/auth', { replace: true });
     }
@@ -22,84 +30,66 @@ export default function SignUpSuccess() {
     return null;
   }
 
+  const redirectTo = getAuthRedirect();
+  const hasIntent = Boolean(redirectTo && redirectTo !== '/');
+
+  const handleContinue = () => {
+    clearAuthRedirect();
+    navigate(redirectTo || '/');
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
-      <main className="halftone-overlay-strong relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
-        <CutPaperShape
-          variant="star"
-          color="hsl(var(--brand))"
-          size={72}
-          className="pointer-events-none absolute -left-2 top-10 hidden opacity-90 sm:block"
-        />
-        <CutPaperShape
-          variant="blob"
-          color="hsl(var(--brand-blue))"
-          size={88}
-          className="pointer-events-none absolute -right-4 bottom-10 hidden opacity-90 sm:block"
-        />
-
-        <div className="relative w-full max-w-[440px] text-center">
-          <div className="mb-8">
-            <Logo size="lg" className="mx-auto mb-6" />
-            <div className="relative mb-4 flex justify-center">
-              {/* No semantic "success" token exists in the design system (see final report) —
-                  nearest existing token used: mint background + foreground icon. */}
-              <span className="sticker sticker-rotate-sm outline-offset-shadow animate-pop rounded-full bg-mint p-4">
-                <CheckCircle className="w-10 h-10 text-foreground" />
-              </span>
-              <StarburstBadge
-                color="hsl(var(--brand-blue))"
-                size={58}
-                tilt={10}
-                className="absolute -right-3 -top-2 hidden sm:inline-grid"
-              >
-                Yay!
-              </StarburstBadge>
-            </div>
-            <h1 className="font-display text-display-hero leading-tight tracking-tight text-foreground">
-              You're{' '}
-              <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand))' }}>
-                in
-              </span>
-              !
-            </h1>
-            <p className="mt-2 text-base leading-relaxed text-muted-foreground">
-              Welcome to Shikshaq — glad you're here.
+      <main className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
+        <div className="relative w-full max-w-[440px]">
+          {/* Orange slab, ghosted check, "You're in" sticker */}
+          <div className="relative overflow-visible rounded-3xl bg-brand p-6 text-center text-brand-foreground shadow-glow-brand sm:p-8">
+            <Sticker tone="dark" tilt={-3} size={30}>
+              You're in
+            </Sticker>
+            <CheckCircle
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-4 -top-6 h-28 w-28 text-brand-foreground/15"
+              strokeWidth={1.25}
+            />
+            <Logo size="lg" className="mx-auto mb-4 brightness-0 invert" />
+            <h1 className="font-display text-display-hero leading-tight tracking-tight">You're in.</h1>
+            <p className="mt-2 text-body-secondary opacity-90">
+              {hasIntent
+                ? 'Resume the exact message you were about to send.'
+                : "Welcome to ShikshAQ — glad you're here."}
             </p>
           </div>
 
-          <div className="p-6 sm:p-7 rounded-2xl bg-card shadow-border mb-6 text-left">
+          <div className="mt-6 rounded-2xl bg-card p-6 shadow-border text-left sm:p-8">
             <div className="flex items-start gap-4">
-              <div className="rounded-full bg-brand-blue-subtle p-3 mt-0.5 shrink-0">
-                <Mail className="w-5 h-5 text-brand-blue" />
+              <div className="mt-0.5 shrink-0 rounded-full bg-brand-blue-subtle p-3">
+                <Mail className="h-5 w-5 text-brand-blue" aria-hidden="true" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-foreground mb-2">
-                  Verify your email
-                </h2>
-                <p className="text-sm leading-relaxed text-muted-foreground mb-3">
-                  We've sent a verification email to <strong className="text-foreground">{user.email}</strong>. Please check your inbox and click the verification link to activate your account.
+                <h2 className="text-base font-semibold text-foreground">Verify your email</h2>
+                <p className="mt-2 text-body-secondary text-warm-prose">
+                  We've sent a verification email to{' '}
+                  <strong className="text-foreground">{user.email}</strong>. Check your inbox and
+                  click the link to activate your account.
                 </p>
-                <p className="text-xs leading-relaxed text-warm-meta">
-                  Didn't receive the email? Check your spam folder or try signing in again to resend.
+                <p className="mt-3 text-meta text-warm-meta">
+                  Didn't receive it? Check spam, or try signing in again to resend.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => navigate('/')}
-              className="active:scale-[0.98] transition-transform duration-150 w-full min-h-[50px] rounded-lg bg-foreground text-background text-base font-bold flex items-center justify-center gap-2"
-            >
-              Continue to home
-              <ArrowRight className="w-4 h-4" />
-            </button>
+          <div className="mt-6 flex flex-col gap-3">
+            <Button variant={hasIntent ? 'whatsapp' : 'primary'} size={54} onClick={handleContinue} className="w-full">
+              {hasIntent ? 'Continue to WhatsApp' : 'Continue to home'}
+              <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
+            </Button>
             <Link
               to="/auth"
-              className="active:scale-[0.98] transition-transform duration-150 w-full min-h-[50px] rounded-lg bg-card shadow-border text-foreground text-base font-semibold flex items-center justify-center"
+              className="flex min-h-[50px] w-full items-center justify-center rounded-lg bg-card text-base font-semibold text-foreground shadow-border transition-transform duration-150 active:scale-[0.98]"
             >
               Back to sign in
             </Link>
@@ -107,6 +97,7 @@ export default function SignUpSuccess() {
         </div>
       </main>
 
+      <PreFooter variant={preFooterFor('/signup-success')} />
       <Footer />
     </div>
   );

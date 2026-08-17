@@ -690,7 +690,7 @@ export default function TeacherProfile() {
                   )}
 
                   {subjectsList.length > 0 && (
-                    <div className="stagger-children mt-5 hidden flex-wrap gap-2 lg:flex">
+                    <div className="stagger-children mt-6 hidden flex-wrap gap-2 lg:flex">
                       {subjectsList.map((subject) => (
                         <SubjectPill key={subject} label={subject} />
                       ))}
@@ -810,7 +810,12 @@ export default function TeacherProfile() {
           <aside className="mt-8 hidden lg:mt-0 lg:block">
             <div className="lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-4">
               <div className="rounded-3xl bg-panel p-6 text-background shadow-border">
-                {feesValue && <p className="text-sm text-background/70">{feesValue}</p>}
+                {feesValue && (
+                  <p className="flex items-baseline gap-2">
+                    <span className="font-display text-3xl font-black tracking-tight text-background">{feesValue}</span>
+                    <span className="text-sm text-background/60">per month</span>
+                  </p>
+                )}
                 <Button variant="whatsapp" size={54} onClick={handleWhatsAppClick} className="whatsapp-pulse-once mt-4 w-full">
                   <WhatsAppIcon className="h-[18px] w-[18px]" />
                   Message on WhatsApp

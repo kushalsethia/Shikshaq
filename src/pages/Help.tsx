@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
+import { LegalReader, type LegalSection } from '@/pages/legal/reader';
 import { FeedbackModal } from '@/components/FeedbackModal';
-import { getWhatsAppLink } from '@/utils/whatsapp';
-import { WhatsAppIcon } from '@/components/BrandIcons';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
-import { trackWhatsAppClick } from '@/utils/clarityEvents';
-import { trackWhatsAppClickGA } from '@/utils/gaEvents';
 import { FAQSchema, type FAQItem } from '@/components/FAQSchema';
-import { PageHeader, NumberedIndex } from '@/components/devices';
 
 interface HelpTopic {
   title: string;
@@ -52,16 +46,34 @@ const HELP_FAQS: FAQItem[] = [
 // CHECK constraint only allows 'general' | 'subject' | 'board' |
 // 'subject_board' today, one active row each, so it can't yet hold six
 // standalone topic rows). Copy matches the design handoff's own sample copy.
+// short/body split from a single stored paragraph: short is the bold
+// one-line answer LegalReader wants, body is the rest of the explanation.
 const FALLBACK_TOPICS: HelpTopic[] = [
-  { title: 'Finding a teacher', body: 'Use the search bar in Teachers mode: pick a subject, a class and board, and an area. Filters stay as removable chips above the results so you can loosen one at a time.' },
-  { title: 'Contacting a teacher', body: 'Open a profile and use Contact via WhatsApp. Your number is never shared with the teacher until you message them yourself.' },
-  { title: 'Reading past papers', body: 'Switch the search to Papers mode, or open Past Papers from the navigation. Papers open in a reader on Shikshaq, and the page is watermarked to your account.' },
-  { title: 'Contributing a paper', body: 'Send us the paper through the contribute link on the Past Papers page. Nothing publishes until an admin has reviewed and published it deliberately.' },
-  { title: 'Getting a paper removed', body: 'Schools can use the removal link on any paper or in the reader header. We unpublish first, which is immediate and reversible.' },
-  { title: 'Joining as a teacher', body: 'Apply through Join as a teacher. It is a four-step form and there is no listing fee, ever.' },
+  { title: 'Finding a teacher', body: 'Use the search bar in Teachers mode: pick a subject, a class and board, and an area.|Filters stay as removable chips above the results so you can loosen one at a time.' },
+  { title: 'Contacting a teacher', body: 'Open a profile and use Contact via WhatsApp.|Your number is never shared with the teacher until you message them yourself.' },
+  { title: 'Reading past papers', body: 'Switch the search to Papers mode, or open Past Papers from the navigation.|Papers open in a reader on Shikshaq, and the page is watermarked to your account.' },
+  { title: 'Contributing a paper', body: 'Send us the paper through the contribute link on the Past Papers page.|Nothing publishes until an admin has reviewed and published it deliberately.' },
+  { title: 'Getting a paper removed', body: 'Schools can use the removal link on any paper or in the reader header.|We unpublish first, which is immediate and reversible.' },
+  { title: 'Joining as a teacher', body: 'Apply through Join as a teacher.|It is a four-step form and there is no listing fee, ever.' },
 ];
 
-const TOPIC_COLORS = ['hsl(var(--brand))', 'hsl(var(--brand-blue))'];
+function splitTopic(body: string): { short: string; rest: string } {
+  const [short, ...restParts] = body.split('|');
+  const rest = restParts.join(' ').trim();
+  return { short: short.trim(), rest };
+}
+
+function topicsToSections(topics: HelpTopic[]): LegalSection[] {
+  return topics.map((topic, i) => {
+    const { short, rest } = splitTopic(topic.body);
+    return {
+      n: String(i + 1).padStart(2, '0'),
+      title: topic.title,
+      short,
+      body: rest || short,
+    };
+  });
+}
 
 export default function Help() {
   usePageMeta(
@@ -71,6 +83,10 @@ export default function Help() {
 
   const [topics, setTopics] = useState<HelpTopic[]>(FALLBACK_TOPICS);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     async function fetchTopics() {
@@ -88,68 +104,39 @@ export default function Help() {
     fetchTopics();
   }, []);
 
-  const handleWhatsAppClick = () => {
-    trackWhatsAppClick('help-page');
-    trackWhatsAppClickGA('help-page');
-  };
-
   return (
-    <div className="min-h-screen bg-background">
+    <>
       <FAQSchema faqs={HELP_FAQS} url="/more" />
-      <Navbar />
-
-      <PageHeader
-        eyebrow="Support"
-        title={
-          <>
-            We reply{' '}
-            <span className="marker-highlight marker-highlight--pill" style={{ ['--marker-color' as string]: 'hsl(var(--brand-blue))' }}>
-              fast
-            </span>
-          </>
-        }
+      <LegalReader
+        pill="short answers, real person on WhatsApp"
+        pillTone="blue"
+        h1="We reply fast"
         lede="Short answers to the things people actually write in about. If none of it fits, a person replies on WhatsApp."
-        tags={[{ label: '8am – 10pm' }, { label: 'Mon – Sat' }]}
-        accent="hsl(var(--brand-blue))"
-        ground="ruled"
-      >
-        <a
-          href={getWhatsAppLink('8240980312')}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={handleWhatsAppClick}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-mint px-6 py-3 text-sm font-bold text-foreground transition-transform duration-150 active:scale-[0.97]"
-        >
-          <WhatsAppIcon className="h-4 w-4 text-foreground" />
-          Message Shikshaq
-        </a>
-      </PageHeader>
-
-      <div className="mx-auto w-full max-w-3xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
-        <NumberedIndex
-          items={topics.map((topic, i) => ({
-            key: topic.title,
-            title: topic.title,
-            description: topic.body,
-            color: TOPIC_COLORS[i % TOPIC_COLORS.length],
-          }))}
-        />
-
-        <p className="mt-10 text-xs text-warm-meta">
-          Got feedback instead of a question?{' '}
-          <button
-            type="button"
-            onClick={() => setFeedbackOpen(true)}
-            className="inline-flex items-center min-h-11 text-xs text-brand-blue underline bg-transparent border-0 p-0 cursor-pointer align-middle"
-          >
-            Tell us here
-          </button>
-        </p>
-      </div>
-
-      <Footer />
-
+        updated="8am – 10pm · Mon – Sat"
+        accent="blue"
+        summary={[
+          { head: 'Free, always', text: 'No fee to search, message a teacher, or read a past paper.', tone: 'bone' },
+          { head: 'Real replies', text: 'A person on our team answers WhatsApp — not a bot, not a queue.', tone: 'blue' },
+          { head: 'Verified teachers', text: 'ID and degree checked before a profile goes live.', tone: 'muted' },
+          { head: 'Kolkata, first', text: 'Every listing and every paper is local to this city.', tone: 'mint' },
+        ]}
+        sections={topicsToSections(topics)}
+        footHead="Still stuck?"
+        footBody="Ask our assistant, or write to us on WhatsApp — we reply within a day."
+        footerExtra={
+          <p className="mt-2 text-[13px] text-warm-meta">
+            Got feedback instead of a question?{' '}
+            <button
+              type="button"
+              onClick={() => setFeedbackOpen(true)}
+              className="inline-flex min-h-[44px] items-center align-middle text-[13px] text-brand-blue underline"
+            >
+              Tell us here
+            </button>
+          </p>
+        }
+      />
       <FeedbackModal open={feedbackOpen} onOpenChange={setFeedbackOpen} />
-    </div>
+    </>
   );
 }
