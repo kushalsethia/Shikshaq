@@ -1631,7 +1631,16 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
         <h1 className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.035em] text-background">
           {isSubjectPage ? `${pageContext!.label} tuition teachers in Kolkata` : (
-            <>{resultCountLabel} teacher{teachers.length === 1 ? '' : 's'}</>
+            /* "147 tuition teachers in Kolkata", not the bare "147 teachers"
+               this used to render. Two reasons it has to carry the phrase:
+               core-01-browse-teachers.png shows the count and the phrase
+               together ("312 tuition teachers in Kolkata"), and every one of
+               the ~34 subject routes below already says "<Subject> tuition
+               teachers in Kolkata" — this hub, the one they all link to and
+               the strongest page on the site, was the only browse h1 dropping
+               the phrase its own URL and title tag are built from. The count
+               stays real; it just stopped being the whole heading. */
+            <>{resultCountLabel} tuition teacher{teachers.length === 1 ? '' : 's'} in Kolkata</>
           )}
         </h1>
         {isSubjectPage ? (
