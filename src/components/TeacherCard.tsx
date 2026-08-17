@@ -3,11 +3,15 @@ import { Heart, ArrowUp, BadgeCheck } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { Chip } from '@/components/ui/chip';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
+import { Button } from '@/components/ui/button';
+import { WhatsAppIcon } from '@/components/BrandIcons';
+import { SignInSheet } from '@/components/SignInSheet';
+import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
 
 /**
  * C1 — components.md §2 / design.md §2.1 + §2.5 (CONCENTRIC PHOTO, binding).
@@ -62,6 +66,25 @@ interface TeacherCardProps {
   rating?: number;
   /** Verified mark next to the name. Only rendered when explicitly true. */
   verified?: boolean;
+  /**
+   * Real data only (design.md §0.10) — each is entirely optional and the card
+   * degrades cleanly (no line/pill, never a "₹0" or blank) when absent.
+   */
+  whatsappLink?: string | null; // Shikshaqmine."Link" — routed through /whatsapp-click for tracking
+  experienceYears?: number | null; // derived from Shikshaqmine."Years they started teaching"
+  minFees?: number | null; // Shikshaqmine."Min Fees"
+  maxFees?: number | null; // Shikshaqmine."Max Fees"
+  area?: string | null; // Shikshaqmine.Area / "LOCATION V2"
+}
+
+// "₹1,800" / "₹1,200 - ₹1,800" / "₹1,200+" / "Up to ₹1,800". Null when neither is set.
+function formatFeeLabel(minFees?: number | null, maxFees?: number | null): string | null {
+  if (minFees != null && maxFees != null) {
+    return minFees === maxFees ? `₹${minFees.toLocaleString()}` : `₹${minFees.toLocaleString()} - ₹${maxFees.toLocaleString()}`;
+  }
+  if (minFees != null) return `₹${minFees.toLocaleString()}+`;
+  if (maxFees != null) return `Up to ₹${maxFees.toLocaleString()}`;
+  return null;
 }
 
 // Formats "{name}, {honorific}" per components/TeacherCard.md. Omits the comma entirely when
@@ -90,6 +113,11 @@ function TeacherCardComponent({
   showUpvotes: showUpvotesProp,
   rating,
   verified,
+  whatsappLink,
+  experienceYears,
+  minFees,
+  maxFees,
+  area,
 }: TeacherCardProps) {
   const isSm = size === 'sm';
   const resolvedVariant: TeacherCardVariant = variant ?? (isSm ? 'rail' : 'grid');
@@ -109,6 +137,70 @@ function TeacherCardComponent({
   const showUpvotes = (showUpvotesProp ?? !isFeatured) && !isSm;
   const palette = getSubjectPalette(subject);
   const placeholderInitialSize = resolvedVariant === 'grid' ? 64 : resolvedVariant === 'rail' ? 46 : 32;
+
+  // WhatsApp — design.md §3 / micro-interactions: signed-out tap opens the soft
+  // sign-in sheet (never a route change), and continues straight to the click-
+  // tracking redirect for THIS teacher once auth completes. Mirrors the
+  // handleWhatsAppClick pattern on TeacherProfile, scoped per-card since a page
+  // can render many of these.
+  const [signInSheetOpen, setSignInSheetOpen] = useState(false);
+  const pendingWhatsAppKey = `shikshaq_pending_whatsapp_card`;
+
+  useEffect(() => {
+    if (!user) return;
+    let pending: string | null = null;
+    try {
+      pending = sessionStorage.getItem(pendingWhatsAppKey);
+    } catch {
+      return;
+    }
+    if (pending && pending === slug) {
+      try {
+        sessionStorage.removeItem(pendingWhatsAppKey);
+      } catch {
+        /* ok */
+      }
+      const url = resolveTeacherWhatsAppUrl(whatsappLink);
+      navigate(`/tuition-teachers/${slug}/whatsapp-click`, { state: { url, name } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, slug]);
+
+  const handleWhatsAppClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = resolveTeacherWhatsAppUrl(whatsappLink);
+    if (!user) {
+      try {
+        sessionStorage.setItem(pendingWhatsAppKey, slug);
+      } catch {
+        /* storage unavailable — sign-in still works, just without auto-continue */
+      }
+      setSignInSheetOpen(true);
+      return;
+    }
+    navigate(`/tuition-teachers/${slug}/whatsapp-click`, { state: { url, name } });
+  };
+
+  const feeLabel = formatFeeLabel(minFees, maxFees);
+  const factsParts = [
+    experienceYears != null ? `${experienceYears} yrs` : null,
+    area || null,
+    feeLabel,
+  ].filter(Boolean) as string[];
+  const factsLine = factsParts.length > 0 ? factsParts.join(' · ') : null;
+
+  const whatsappButton = whatsappLink !== undefined && (
+    <Button
+      variant="whatsapp"
+      size={isSm ? 40 : isRow ? 40 : 44}
+      onClick={handleWhatsAppClick}
+      className={isRow ? 'shrink-0' : 'mt-2 w-full'}
+    >
+      <WhatsAppIcon className="h-4 w-4" />
+      {isRow ? 'Chat' : 'WhatsApp'}
+    </Button>
+  );
 
   const handleHeartClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -166,6 +258,15 @@ function TeacherCardComponent({
     <p className={`mt-1 truncate text-muted-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>{meta}</p>
   );
 
+  // Experience / area / fee — design.md §2.1 card facts line ("8 yrs · Ballygunge ·
+  // ₹1,800"). Entirely optional per-part; the line itself drops when every part is
+  // absent rather than rendering empty punctuation.
+  const factsRow = factsLine && (
+    <p className={`mt-1 truncate font-semibold tabular-nums text-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>
+      {factsLine}
+    </p>
+  );
+
   const chipsRow = (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
       <Chip tone="subject" subject={subject} size={34} asChild className="max-w-full">
@@ -202,53 +303,69 @@ function TeacherCardComponent({
 
   if (isRow) {
     return (
-      <Link
-        to={`/tuition-teachers/${slug}`}
-        className="group flex items-center gap-3 rounded-2xl bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
-      >
-        <div className="h-[76px] w-[76px] shrink-0 overflow-hidden rounded-[19px] bg-muted">{photo}</div>
-        <div className="min-w-0 flex-1 py-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">{nameHeading}</div>
-            {upvotePill}
+      <>
+        <Link
+          to={`/tuition-teachers/${slug}`}
+          className="group flex items-center gap-3 rounded-2xl bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+        >
+          <div className="h-[76px] w-[76px] shrink-0 overflow-hidden rounded-[19px] bg-muted">{photo}</div>
+          <div className="min-w-0 flex-1 py-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">{nameHeading}</div>
+              {upvotePill}
+            </div>
+            {metaRow}
+            {chipsRow}
+            {factsRow}
           </div>
-          {metaRow}
-          {chipsRow}
-        </div>
-        {heartButton}
-      </Link>
+          <div className="flex flex-none flex-col items-end gap-1">
+            {heartButton}
+            {whatsappButton}
+          </div>
+        </Link>
+        {whatsappLink !== undefined && (
+          <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" />
+        )}
+      </>
     );
   }
 
   return (
-    /* §5: depth from shadow-border alone — never border + shadow stacked.
-       §7: one bold title, everything else text-sm text-muted-foreground.
-       §2.5: concentric photo — 8px (mobile) / 10px (desktop) padded frame,
-       26px/28px outer radius, 19px/20px inner radius around the photo. */
-    <Link
-      to={`/tuition-teachers/${slug}`}
-      className="group block overflow-hidden rounded-[20px] bg-card p-1.5 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:rounded-[22px] sm:p-2"
-    >
-      {/* §2.5 compact grid card (mockup "01 Start with the teachers parents pick"):
-          shorter photo than the old 4/5 portrait, tighter body, so four cards read
-          as a dense scannable row instead of large portrait tiles. */}
-      <div className="relative aspect-[4/3] overflow-hidden rounded-[15px] bg-muted sm:rounded-[16px]">
-        {photo}
-      </div>
-
-      {/* Body — everything the photo used to carry now lives here. */}
-      <div className="px-1 pb-0.5 pt-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">{nameHeading}</div>
-          <div className="flex flex-none items-center gap-1">
-            {upvotePill}
-            {heartButton}
-          </div>
+    <>
+      {/* §5: depth from shadow-border alone — never border + shadow stacked.
+         §7: one bold title, everything else text-sm text-muted-foreground.
+         §2.5: concentric photo — 8px (mobile) / 10px (desktop) padded frame,
+         26px/28px outer radius, 19px/20px inner radius around the photo. */}
+      <Link
+        to={`/tuition-teachers/${slug}`}
+        className="group block overflow-hidden rounded-[20px] bg-card p-1.5 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:rounded-[22px] sm:p-2"
+      >
+        {/* §2.5 compact grid card (mockup "01 Start with the teachers parents pick"):
+            shorter photo than the old 4/5 portrait, tighter body, so four cards read
+            as a dense scannable row instead of large portrait tiles. */}
+        <div className="relative aspect-[4/3] overflow-hidden rounded-[15px] bg-muted sm:rounded-[16px]">
+          {photo}
         </div>
-        {metaRow}
-        {chipsRow}
-      </div>
-    </Link>
+
+        {/* Body — everything the photo used to carry now lives here. */}
+        <div className="px-1 pb-0.5 pt-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">{nameHeading}</div>
+            <div className="flex flex-none items-center gap-1">
+              {upvotePill}
+              {heartButton}
+            </div>
+          </div>
+          {metaRow}
+          {chipsRow}
+          {factsRow}
+          {whatsappButton}
+        </div>
+      </Link>
+      {whatsappLink !== undefined && (
+        <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" />
+      )}
+    </>
   );
 }
 

@@ -33,18 +33,45 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-/** Minimal Shikshaqmine row shape used across pages (Sir/Ma'am + fallback subject). */
+/**
+ * Minimal Shikshaqmine row shape used across pages (Sir/Ma'am + fallback subject),
+ * plus the card-level fields TeacherCard's grid/row/rail variants need: WhatsApp
+ * link, years of experience (derived from "Years they started teaching"), fee
+ * range and area. All of these are optional/nullable on the source table, and
+ * stay optional all the way through to TeacherCard's props — a missing value
+ * means the corresponding pill is simply not rendered, never a fabricated "₹0".
+ */
 export interface ShikshaqmineBasic {
   Slug: string;
   sirMaam: string | null;
   firstSubject: string | null;
+  whatsappLink: string | null;
+  /** Derived from "Years they started teaching" vs. the current year. Null when unparseable. */
+  experienceYears: number | null;
+  minFees: number | null;
+  maxFees: number | null;
+  area: string | null;
+}
+
+const BASIC_COLUMNS =
+  '"Slug","Sir/Ma\'am?","Subjects","Link","Years they started teaching","Min Fees","Max Fees","Area","LOCATION V2"';
+
+/** "2016" / 2016 -> years of experience vs. the current year. Null when unparseable or nonsensical. */
+export function deriveExperienceYears(raw: string | number | null | undefined): number | null {
+  if (raw == null) return null;
+  const yearStarted = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+  if (!yearStarted || isNaN(yearStarted)) return null;
+  const currentYear = new Date().getFullYear();
+  const years = currentYear - yearStarted;
+  return years > 0 && years < 80 ? years : null;
 }
 
 /**
- * Fetch a lean Shikshaqmine slice (Slug, "Sir/Ma'am?", Subjects) for a set of
- * slugs, chunked and cached. This replaces the `select('*')` + manual
- * chunking that used to live in LikedTeachers/MyTeachers/StudentDashboard/
- * GuardianDashboard.
+ * Fetch a lean Shikshaqmine slice (Slug, "Sir/Ma'am?", Subjects, Link, Years
+ * they started teaching, Min/Max Fees, Area) for a set of slugs, chunked and
+ * cached. This replaces the `select('*')` + manual chunking that used to live
+ * in LikedTeachers/MyTeachers/StudentDashboard/GuardianDashboard, and is now
+ * also the card-level fetch behind Index/Browse's featured-teacher shelves.
  */
 export async function getShikshaqmineBasicBySlugs(slugs: string[]): Promise<Map<string, ShikshaqmineBasic>> {
   const map = new Map<string, ShikshaqmineBasic>();
@@ -53,20 +80,20 @@ export async function getShikshaqmineBasicBySlugs(slugs: string[]): Promise<Map<
 
   const missing: string[] = [];
   for (const slug of uniqueSlugs) {
-    const cached = getCache<ShikshaqmineBasic>(getShikshaqmineBySlugCacheKey(slug) + '_basic');
+    const cached = getCache<ShikshaqmineBasic>(getShikshaqmineBySlugCacheKey(slug) + '_basic_v2');
     if (cached) map.set(slug, cached);
     else missing.push(slug);
   }
   if (missing.length === 0) return map;
 
   for (const group of chunk(missing, CHUNK_SIZE)) {
-    const cacheKey = getShikshaqmineChunkCacheKey(group) + '_basic';
+    const cacheKey = getShikshaqmineChunkCacheKey(group) + '_basic_v2';
     let rows = getCache<any[]>(cacheKey);
 
     if (!rows) {
       const { data, error } = await (supabase
         .from('Shikshaqmine')
-        .select('"Slug","Sir/Ma\'am?","Subjects"') as any)
+        .select(BASIC_COLUMNS) as any)
         .in('Slug', group);
 
       if (error) {
@@ -86,9 +113,14 @@ export async function getShikshaqmineBasicBySlugs(slugs: string[]): Promise<Map<
         Slug: slug,
         sirMaam: record["Sir/Ma'am?"] ?? null,
         firstSubject,
+        whatsappLink: record['Link'] ?? null,
+        experienceYears: deriveExperienceYears(record['Years they started teaching']),
+        minFees: record['Min Fees'] != null ? Number(record['Min Fees']) : null,
+        maxFees: record['Max Fees'] != null ? Number(record['Max Fees']) : null,
+        area: record['Area'] ?? record['LOCATION V2'] ?? null,
       };
       map.set(slug, basic);
-      setCache(getShikshaqmineBySlugCacheKey(slug) + '_basic', basic, CACHE_TTL.SHIKSHAQMINE);
+      setCache(getShikshaqmineBySlugCacheKey(slug) + '_basic_v2', basic, CACHE_TTL.SHIKSHAQMINE);
     }
   }
 
@@ -102,6 +134,11 @@ export interface TeacherCardLite {
   image_url: string | null;
   subjects: { name: string; slug: string } | null;
   sirMaam?: string | null;
+  whatsappLink?: string | null;
+  experienceYears?: number | null;
+  minFees?: number | null;
+  maxFees?: number | null;
+  area?: string | null;
 }
 
 /**
@@ -148,6 +185,11 @@ export async function getTeachersByIds(ids: string[]): Promise<TeacherCardLite[]
       ...teacher,
       subjects,
       sirMaam: basic?.sirMaam ?? null,
+      whatsappLink: basic?.whatsappLink ?? null,
+      experienceYears: basic?.experienceYears ?? null,
+      minFees: basic?.minFees ?? null,
+      maxFees: basic?.maxFees ?? null,
+      area: basic?.area ?? null,
     };
   });
 }

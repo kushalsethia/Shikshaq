@@ -31,6 +31,7 @@ import { IconDisc } from '@/components/ui/icon-disc';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache';
+import { getShikshaqmineBasicBySlugs } from '@/lib/teachers';
 import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
 import type { SearchMode } from '@/utils/searchFacets';
 
@@ -42,6 +43,11 @@ interface Teacher {
   is_verified?: boolean | null;
   subjects: { name: string; slug: string } | null;
   featuredSubjectLabel?: string | null;
+  whatsappLink?: string | null;
+  experienceYears?: number | null;
+  minFees?: number | null;
+  maxFees?: number | null;
+  area?: string | null;
 }
 
 interface Subject {
@@ -212,15 +218,27 @@ export default function Index() {
         }
 
         if (teachersData.length > 0) {
-          const processed: Teacher[] = teachersData.map((teacher) => ({
-            id: teacher.id,
-            name: teacher.name,
-            slug: teacher.slug,
-            image_url: teacher.image_url,
-            is_verified: (teacher as { is_verified?: boolean | null }).is_verified,
-            subjects: teacher.subjects as { name: string; slug: string } | null,
-            featuredSubjectLabel: teacher.subjects?.name ?? null,
-          }));
+          // Card-level fields (WhatsApp link, experience, fees, area) come from the
+          // same Shikshaqmine-by-slug helper Liked/My Teachers already use — a lean,
+          // column-scoped fetch rather than a second select('*') round trip.
+          const basicMap = await getShikshaqmineBasicBySlugs(teachersData.map((t) => t.slug));
+          const processed: Teacher[] = teachersData.map((teacher) => {
+            const basic = basicMap.get(teacher.slug);
+            return {
+              id: teacher.id,
+              name: teacher.name,
+              slug: teacher.slug,
+              image_url: teacher.image_url,
+              is_verified: (teacher as { is_verified?: boolean | null }).is_verified,
+              subjects: teacher.subjects as { name: string; slug: string } | null,
+              featuredSubjectLabel: teacher.subjects?.name ?? null,
+              whatsappLink: basic?.whatsappLink ?? null,
+              experienceYears: basic?.experienceYears ?? null,
+              minFees: basic?.minFees ?? null,
+              maxFees: basic?.maxFees ?? null,
+              area: basic?.area ?? null,
+            };
+          });
           setFeaturedTeachers(processed);
           setCache(featuredCacheKey, processed, CACHE_TTL.FEATURED_TEACHERS);
         }
@@ -503,6 +521,11 @@ export default function Index() {
                     verified={t.is_verified ?? undefined}
                     isFeatured={i === 0}
                     variant="grid"
+                    whatsappLink={t.whatsappLink}
+                    experienceYears={t.experienceYears}
+                    minFees={t.minFees}
+                    maxFees={t.maxFees}
+                    area={t.area}
                   />
                 ))}
               </div>

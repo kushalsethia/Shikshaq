@@ -19,6 +19,7 @@ import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
 import { getSubjectPalette } from '@/lib/subject-palette';
+import { deriveExperienceYears } from '@/lib/teachers';
 import { SEOHead } from '@/components/SEOHead';
 import { FAQSchema } from '@/components/FAQSchema';
 import { SEOContentBlock } from '@/components/seo/SEOContentBlock';
@@ -308,7 +309,7 @@ function filterShikshaqRecords(recordsToFilter: any[], effectiveFilters: FilterS
 // separately per-query with a fail-soft retry (see runShikshaqQuery/runChunk below) so a
 // missing column never takes down the whole query the way it did before.
 const SHIKSHAQ_COLUMNS =
-  'Slug, Subjects, "Classes Taught for Backend", "Classes Taught", "School Boards Catered", "Class Size (Group/ Solo)", Area, "Mode of Teaching", "Place of Teaching", "Min Fees", "Max Fees", "Sir/Ma\'am?", "Years they started teaching"';
+  'Slug, Subjects, "Classes Taught for Backend", "Classes Taught", "School Boards Catered", "Class Size (Group/ Solo)", Area, "Mode of Teaching", "Place of Teaching", "Min Fees", "Max Fees", "Sir/Ma\'am?", "Years they started teaching", "Link"';
 
 // PostgREST's `.or()` filter-string syntax uses `,` to separate conditions and `%`/`_` as
 // ILIKE wildcards — strip them from user-supplied filter values so they can't break the
@@ -1106,7 +1107,9 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               sirMaam: record["Sir/Ma'am?"],
               area: record.Area || null,
               minFees: record['Min Fees'] != null ? Number(record['Min Fees']) : null,
+              maxFees: record['Max Fees'] != null ? Number(record['Max Fees']) : null,
               yearStarted: record['Years they started teaching'] ? parseInt(record['Years they started teaching']) : null,
+              whatsappLink: record['Link'] || null,
             });
           });
         }
@@ -1121,7 +1124,9 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             sir_maam: info?.sirMaam || null,
             area: info?.area || null,
             _minFees: info?.minFees ?? null,
+            _maxFees: info?.maxFees ?? null,
             _yearStarted: info?.yearStarted ?? null,
+            whatsapp_link: info?.whatsappLink ?? null,
           };
         });
 
@@ -1672,6 +1677,10 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                         sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
                         isFeatured
                         size="sm"
+                        whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
+                        experienceYears={deriveExperienceYears((teacher as { _yearStarted?: number | null })._yearStarted)}
+                        minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
+                        maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
                       />
                     </div>
                   );
@@ -1715,6 +1724,11 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                       meta={meta || undefined}
                       isFeatured={!!teacher.is_featured}
                       variant="row"
+                      whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
+                      experienceYears={deriveExperienceYears((teacher as { _yearStarted?: number | null })._yearStarted)}
+                      minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
+                      maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
+                      area={firstArea}
                     />
                   );
                 })}
@@ -1741,6 +1755,11 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                         meta={meta || undefined}
                         isFeatured={!!teacher.is_featured}
                         variant="grid"
+                        whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
+                        experienceYears={deriveExperienceYears((teacher as { _yearStarted?: number | null })._yearStarted)}
+                        minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
+                        maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
+                        area={firstArea}
                       />
                     </div>
                   );

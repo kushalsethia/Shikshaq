@@ -109,7 +109,19 @@ function groupCard(label: string, children: React.ReactNode) {
 /** The shared body — icon-labelled groups of 44px pill toggles + the fee
  * slider. Rendered once, used inside both the mobile Sheet and the desktop
  * rail (design.md §2.3 / components.md C6). */
-export function FilterGroupsBody({ filters, onFilterChange }: Pick<FilterGroupsProps, 'filters' | 'onFilterChange'>) {
+export function FilterGroupsBody({
+  filters,
+  onFilterChange,
+  selectedTone = 'facet-on',
+}: Pick<FilterGroupsProps, 'filters' | 'onFilterChange'> & {
+  /**
+   * Selected-pill tone. Mobile sheet (S2 mockup) selects in orange
+   * (`facet-on`, the default); the desktop rail (D2 mockup) selects in
+   * solid black instead — trusted literally per the binding-rules owner
+   * override even though it diverges from the mobile treatment.
+   */
+  selectedTone?: 'facet-on' | 'solid';
+}) {
   const [areaQuery, setAreaQuery] = useState('');
   const filteredAreaGroups = areaQuery.trim()
     ? AREA_GROUPS.map((g) => ({
@@ -127,7 +139,7 @@ export function FilterGroupsBody({ filters, onFilterChange }: Pick<FilterGroupsP
   };
 
   const pill = (label: string, active: boolean, onClick: () => void, key?: string) => (
-    <Chip key={key ?? label} tone={active ? 'facet-on' : 'facet'} size={44} onClick={onClick} aria-pressed={active}>
+    <Chip key={key ?? label} tone={active ? selectedTone : 'facet'} size={44} onClick={onClick} aria-pressed={active}>
       {label}
     </Chip>
   );
@@ -406,7 +418,7 @@ export function FilterRail({ filters, onFilterChange, resultCount }: FilterGroup
             h1 -> h3 skip on desktop. This supplies the level without adding a
             heading the mockup does not show. */}
         <h2 className="sr-only">Filters</h2>
-        <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} />
+        <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} selectedTone="solid" />
       </div>
     </nav>
   );
