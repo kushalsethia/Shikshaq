@@ -487,13 +487,13 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 groups, which stay intact for internal-linking / SEO. */}
             <div className="flex flex-wrap gap-2">
               <Chip asChild tone="dark" size={40} className="cursor-default">
-                <Link to="/all-tuition-teachers-in-kolkata" className="flex h-full w-full items-center gap-2 focus-visible:outline-none">find a teacher</Link>
+                <Link to="/all-tuition-teachers-in-kolkata" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">find a teacher</Link>
               </Chip>
               <Chip asChild tone="dark" size={40} className="cursor-default">
-                <Link to="/past-papers" className="flex h-full w-full items-center gap-2 focus-visible:outline-none">past papers</Link>
+                <Link to="/past-papers" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">past papers</Link>
               </Chip>
               <Chip asChild tone="dark" size={40} className="cursor-default">
-                <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className="flex h-full w-full items-center gap-2 focus-visible:outline-none">contact</a>
+                <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">contact</a>
               </Chip>
             </div>
 

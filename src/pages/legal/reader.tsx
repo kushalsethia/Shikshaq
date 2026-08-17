@@ -71,9 +71,10 @@ const SUMMARY_BODY_CLASS: Record<SummaryTone, string> = {
   brand: 'text-warm-prose',
   blue: 'text-warm-prose',
   muted: 'text-warm-prose',
-  // Mockup uses a two-tone green (#0B3D1F head / #3E6F53 body) with no token
-  // for the lighter body shade — nearest available token (whatsapp-text)
-  // reused for both, reported as a mockup-color substitution.
+  // Mockup uses a two-tone WhatsApp green (a near-black head, a lighter
+  // sage body) with no token for the lighter body shade — nearest available
+  // token (whatsapp-text) reused for both, reported as a mockup-color
+  // substitution.
   mint: 'text-whatsapp-text',
 };
 

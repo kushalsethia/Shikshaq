@@ -227,14 +227,17 @@ function TeacherCardComponent({
        26px/28px outer radius, 19px/20px inner radius around the photo. */
     <Link
       to={`/tuition-teachers/${slug}`}
-      className="group block overflow-hidden rounded-[26px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:rounded-[28px] sm:p-2.5"
+      className="group block overflow-hidden rounded-[20px] bg-card p-1.5 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:rounded-[22px] sm:p-2"
     >
-      <div className="relative aspect-[4/5] overflow-hidden rounded-[19px] bg-muted sm:rounded-[20px]">
+      {/* §2.5 compact grid card (mockup "01 Start with the teachers parents pick"):
+          shorter photo than the old 4/5 portrait, tighter body, so four cards read
+          as a dense scannable row instead of large portrait tiles. */}
+      <div className="relative aspect-[4/3] overflow-hidden rounded-[15px] bg-muted sm:rounded-[16px]">
         {photo}
       </div>
 
       {/* Body — everything the photo used to carry now lives here. */}
-      <div className="px-1 pb-1 pt-3">
+      <div className="px-1 pb-0.5 pt-2">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">{nameHeading}</div>
           <div className="flex flex-none items-center gap-1">

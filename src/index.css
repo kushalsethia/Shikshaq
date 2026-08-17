@@ -350,9 +350,14 @@
     height: max(100%, 44px);
     z-index: -1;
   }
+  /* Above lg the floor drops to 40px for pointer input (components.md §6) —
+     it does NOT disappear. This previously removed the overlay entirely, which
+     left footer links at 19px and the ticker rail at 23px with no padded target
+     on desktop. Shrink it, don't drop it. */
   @media (min-width: 1024px) {
     .tap-44::before {
-      content: none;
+      width: max(100%, 40px);
+      height: max(100%, 40px);
     }
   }
 
