@@ -614,6 +614,7 @@ export default function PastPapers() {
         {/* ----------------------------------------------------------- Ownership */}
         <section className={`${CONTAINER} pb-16`}>
           {/* S4 literals: radius 24px, padding 18px, h2 19px/800 mb 6px,
+              on the near-black panel token,
               body 13.5px lh 1.6 at white/72. D4 turns it into a 1fr/1.4fr
               two-column band with 28px radius and 28px/32px padding. */}
           <div className="rounded-3xl bg-panel p-[18px] lg:grid lg:grid-cols-[1fr_1.4fr] lg:items-center lg:gap-10 lg:rounded-[28px] lg:px-8 lg:py-7">

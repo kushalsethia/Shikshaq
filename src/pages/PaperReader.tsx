@@ -298,7 +298,7 @@ export default function PaperReader() {
           {/* ---------------- Paper body ---------------- */}
           {/* S5: the paper is the one light surface on the dark ground —
               radius 12px, no hairline (the mockup separates it with a drop
-              shadow against #1B1A18, not a border). */}
+              shadow against the dark panel, not a border). */}
           <div
             className={`${signedIn ? 'p-3 pb-0 sm:p-4 sm:pb-0' : 'p-0'} relative select-none overflow-hidden rounded-xl bg-card`}
             onContextMenu={(e) => e.preventDefault()}

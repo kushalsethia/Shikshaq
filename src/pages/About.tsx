@@ -98,7 +98,7 @@ export default function About() {
             className="px-[18px] py-6 lg:px-10 lg:py-14 lg:text-center"
             pills={[
               { label: 'No commission, ever', anchor: 'top-right', tone: 'dark', tilt: 4 },
-              { label: 'WhatsApp, not a call centre', anchor: 'mid-left', tone: 'bone', tilt: -3 },
+              { label: 'WhatsApp, not a call centre', anchor: 'bottom-left', tone: 'bone', tilt: -3 },
               { label: '846 past papers, free', anchor: 'bottom-right', tone: 'indigo', tilt: -3, dot: true },
             ]}
           />
