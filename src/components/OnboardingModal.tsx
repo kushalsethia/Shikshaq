@@ -39,7 +39,7 @@ const ROUTES = [
   },
   {
     key: "teach",
-    label: "I teach",
+    label: "I teach — list me",
     body: "List yourself — free to list, free to stay.",
     icon: Presentation,
     tone: "dark" as const,
@@ -86,6 +86,13 @@ export function OnboardingModal() {
           <SheetTitle className="mt-9 font-display text-page-title font-bold text-foreground">
             What brings you here?
           </SheetTitle>
+          {/* The mockup's answer to "why am I being asked this" was missing
+              entirely. Without it the sheet interrupts a first-time visitor with
+              a question and no reason, and no hint that the choice is not
+              permanent. */}
+          <p className="mt-2 text-body-secondary text-warm-prose">
+            We&rsquo;ll put the right things on your home screen. Change it any time.
+          </p>
         </div>
 
         <div className="mt-6 grid gap-3">
@@ -96,19 +103,51 @@ export function OnboardingModal() {
                 key={r.key}
                 type="button"
                 onClick={() => choose(r.to)}
+                /* S18 ranks the three answers by colour: solid orange for the
+                   thing most people came for, indigo-subtle for papers (the
+                   indigo half of the brand pair, as everywhere else), plain card
+                   for "I teach". All three rendered as near-identical pale
+                   cards, so the sheet asked a question and then declined to
+                   suggest an answer. */
                 className={cn(
-                  "flex min-h-[44px] items-center gap-4 rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                  r.tone === "brand" && "bg-brand-subtle",
+                  "flex min-h-[44px] items-center gap-4 rounded-2xl p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  r.tone === "brand" && "bg-brand text-brand-foreground",
+                  r.tone === "papers" && "bg-brand-blue-subtle",
+                  r.tone === "dark" && "bg-card",
                 )}
               >
-                <IconDisc tone={r.tone === "dark" ? "dark" : r.tone === "papers" ? "papers" : "brand"} size={44} shape="square">
+                <IconDisc
+                  tone={r.tone === "brand" ? "on-dark" : r.tone === "papers" ? "papers" : "muted"}
+                  size={44}
+                  shape="square"
+                >
                   <Icon aria-hidden="true" />
                 </IconDisc>
                 <span className="flex-1">
-                  <span className="block text-body-secondary font-semibold text-foreground">{r.label}</span>
-                  <span className="mt-0.5 block text-meta text-warm-meta">{r.body}</span>
+                  <span
+                    className={cn(
+                      "block text-body-secondary font-semibold",
+                      r.tone === "brand" ? "text-brand-foreground" : r.tone === "papers" ? "text-brand-blue-deep" : "text-foreground",
+                    )}
+                  >
+                    {r.label}
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-0.5 block text-meta",
+                      r.tone === "brand" ? "text-brand-foreground/80" : r.tone === "papers" ? "text-brand-blue-deep/75" : "text-warm-meta",
+                    )}
+                  >
+                    {r.body}
+                  </span>
                 </span>
-                <ChevronRight aria-hidden className="size-5 shrink-0 text-warm-label" />
+                <ChevronRight
+                  aria-hidden
+                  className={cn(
+                    "size-5 shrink-0",
+                    r.tone === "brand" ? "text-brand-foreground/80" : r.tone === "papers" ? "text-brand-blue-deep/70" : "text-warm-label",
+                  )}
+                />
               </button>
             );
           })}
