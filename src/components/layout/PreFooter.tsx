@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { BadgeCheck, MessageCircle, FileText, ChevronRight } from "lucide-react";
+import { BadgeCheck, MessageCircle, FileText, ChevronRight, IndianRupee } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -48,20 +48,51 @@ function B1() {
       <Sticker tone="brand" tilt={-3} size={30}>
         What is ShikshAQ?
       </Sticker>
-      <h2 className="font-display text-section-head font-extrabold text-foreground">
-        A list of real teachers, and their numbers
+      {/* Rebuilt against prefooter-01-full-explainer.png. Four things were off:
+          the headline did not name what this is or where ("A list of real
+          teachers, and their numbers" says neither Kolkata nor tuition); the
+          explanatory paragraph beneath it was absent entirely; each of the three
+          points was one flat sentence where the mockup gives a bold claim with
+          its evidence underneath; and all three icon discs were the same orange
+          where the mockup colours them by what they mean — verification orange,
+          WhatsApp green, money indigo. This block is the first real explanation
+          of the product on the home page, so it is worth being exact about. */}
+      <h2 className="mt-3 max-w-[26ch] font-display text-section-head font-extrabold leading-[1.05] text-foreground">
+        A directory of Kolkata tuition teachers, and the papers their students sit.
       </h2>
+      <p className="mt-4 max-w-prose text-body-secondary text-warm-prose">
+        We verify each teacher, publish what they teach and charge, and hand you their
+        WhatsApp. No fees, no commission, no middleman.
+      </p>
       <ul className="mt-6 grid gap-4 sm:grid-cols-3">
         {[
-          { icon: <BadgeCheck />, text: "ID and degree verified, every one." },
-          { icon: <MessageCircle />, text: "You message the teacher yourself on WhatsApp." },
-          { icon: <FileText />, text: "Past papers are free, and stay free." },
-        ].map((p, i) => (
-          <li key={i} className="flex items-start gap-3">
-            <IconDisc tone="brand-subtle" size={36}>
+          {
+            icon: <BadgeCheck />,
+            tone: "brand" as const,
+            head: "Verified before listing",
+            text: "Identity and teaching history checked by hand.",
+          },
+          {
+            icon: <MessageCircle />,
+            tone: "whatsapp" as const,
+            head: "Straight to WhatsApp",
+            text: "Message the teacher yourself, in one tap.",
+          },
+          {
+            icon: <IndianRupee />,
+            tone: "papers" as const,
+            head: "Free for families",
+            text: "Fees go to the teacher. We take nothing.",
+          },
+        ].map((p) => (
+          <li key={p.head} className="flex items-start gap-3">
+            <IconDisc tone={p.tone} size={36} shape="square" className="flex-none">
               {p.icon}
             </IconDisc>
-            <span className="text-body-secondary text-warm-prose">{p.text}</span>
+            <div className="min-w-0">
+              <p className="font-bold text-foreground">{p.head}</p>
+              <p className="text-body-secondary text-warm-prose">{p.text}</p>
+            </div>
           </li>
         ))}
       </ul>
@@ -69,8 +100,11 @@ function B1() {
         <Button asChild variant="primary" size={44}>
           <Link to={BROWSE_PATH}>Find a teacher</Link>
         </Button>
-        <Button asChild variant="muted" size={44}>
-          <Link to={PAST_PAPERS_PATH}>Read past papers</Link>
+        {/* Indigo, not muted — papers are the indigo half of the brand pair
+            everywhere else on the site, and the mockup pairs the two CTAs as
+            orange and indigo rather than primary and grey. */}
+        <Button asChild variant="indigo" size={44}>
+          <Link to={PAST_PAPERS_PATH}>Read papers</Link>
         </Button>
       </div>
     </div>
