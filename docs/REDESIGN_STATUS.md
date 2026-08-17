@@ -218,13 +218,25 @@ than "is there anything to say". **Guard counts on `> 0`.** A search result
 honestly reporting "0 papers found" is the exception — that is an answer to a
 question, not a claim about the product.
 
-**Verification traps hit four times.** Four apparent defects were artifacts of
-how I looked, not of the build: PreFooter B2 "missing" (route still loading at
+**Link and anchor audit — clean.** Every internal `href` gathered by walking ten
+routes (48 distinct non-teacher paths) resolves to a declared route in App.tsx,
+parameterised ones included. All 190 sitemap URLs are routable. In-page anchors
+resolve on both legal pages. The skip link was the only dead anchor on the site,
+and it was on every page — fixed separately.
+
+**Verification traps hit six times.** Six apparent defects were artifacts of how
+I looked, not of the build: PreFooter B2 "missing" (route still loading at
 3.6s), B1 "missing" (searched "Shikshaq" against a sticker reading "ShikshAQ"),
-the filter CTA "stuck" at the wrong count (it settles ~4s later), and the papers
-mode pill "transparent" (measured the inner truncate span, not the pill). A
-negative result needs a longer wait, a case-insensitive match, and a check that
-you measured the element you meant.
+the filter CTA "stuck" at the wrong count (it settles ~4s later), the papers
+mode pill "transparent" (measured the inner truncate span, not the pill), and
+thirty "unnamed controls" per page that turned out to be footer links inside a
+COLLAPSED accordion — `innerText` is empty for hidden content while
+`textContent` is not, which is the display:none trap listed below met from the
+opposite direction, and it breaks any a11y scan that reads innerText as the
+accessible name. A negative result needs a longer wait, a case-insensitive
+match, a check that you measured the element you meant, and suspicion of
+anything hidden. Six artifacts is a high enough rate to state plainly: on this
+codebase, confirm a negative twice before acting on it.
 
 **Also worth knowing:** comparing a component to its mockup proves nothing until
 a route renders it. PreFooter B3 was matched to its mockup while mounted
