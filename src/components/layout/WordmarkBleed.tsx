@@ -31,8 +31,16 @@ function WordmarkBleed({ stickers = [], className }: WordmarkBleedProps) {
   /* Alternate the tilt so the row reads as hand-placed rather than stepped. */
   const tilts: (-6 | -3 | 3 | 6)[] = [-3, 3, -6];
 
+  /* The floating nav pill sits at `inset-x-3 bottom-3` and is 60px tall, so it
+     occupies the bottom ~72px of the viewport plus the safe-area inset. The
+     page's BottomNavSpacer reserves room INSIDE <main>, which is above the
+     footer — nothing reserves space below it. Measured at 390px the wordmark
+     ran 8px under the pill, so the clearance is reserved here instead.
+     lg:pb-0 because the pill is lg:hidden. */
   return (
-    <div className={cn("relative", className)}>
+    <div
+      className={cn("relative pb-[calc(84px+env(safe-area-inset-bottom))] lg:pb-0", className)}
+    >
       {/* The wordmark itself is decorative — the site name is already a real
           heading and link elsewhere in the footer, so this must not be read
           out a second time. */}
