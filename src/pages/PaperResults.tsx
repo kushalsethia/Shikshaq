@@ -365,6 +365,23 @@ export default function PaperResults() {
         </button>
       )}
 
+      {/* Copyright / removal-on-request. The papers belong to the schools that
+          set them; ShikshAQ hosts them for revision only. This statement was on
+          the papers landing page and inside the reader, but NOT here — and this
+          is the surface a search result most often lands on. Every papers
+          surface carries it now (docs/SEO_STRATEGY.md, weeks 1-2 #3). */}
+      <section className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6 lg:px-8">
+        <div className="rounded-3xl bg-panel p-6 text-background sm:p-8">
+          <h2 className="font-display text-section-head font-extrabold">Who owns these papers</h2>
+          <p className="mt-3 max-w-prose text-body-secondary text-background/75">
+            Every paper here is the property of the school that set it. Shikshaq claims no
+            ownership, derives no revenue from any paper, and hosts these materials solely as a
+            free revision resource. If you represent a school and want a paper removed, tell us
+            and it goes the same day.
+          </p>
+        </div>
+      </section>
+
       <Footer />
     </div>
   );
