@@ -15,22 +15,25 @@ import { BottomNav } from "@/components/BottomNav";
 import { Navbar } from "@/components/Navbar";
 import { TopBar } from "@/components/layout/TopBar";
 import { OnboardingModal } from "@/components/OnboardingModal";
+/* Index stays EAGER: it is the landing route, so code-splitting it would only
+   add a round trip before first paint. Everything else is lazy - an /impeccable
+   audit flagged a 474KB main chunk with 10 pages bundled in eagerly. */
 import Index from "./pages/Index";
 const Browse = lazy(() => import("./pages/Browse"));
-import Auth from "./pages/Auth";
+const Auth = lazy(() => import("./pages/Auth"));
 const TeacherProfile = lazy(() => import("./pages/TeacherProfile"));
-import Help from "./pages/Help";
-import FAQ from "./pages/FAQ";
-import Join from "./pages/Join";
+const Help = lazy(() => import("./pages/Help"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const Join = lazy(() => import("./pages/Join"));
 const JoinApply = lazy(() => import("./pages/JoinApply"));
-import PastPapers from "./pages/PastPapers";
+const PastPapers = lazy(() => import("./pages/PastPapers"));
 const PaperResults = lazy(() => import("./pages/PaperResults"));
 const PaperReader = lazy(() => import("./pages/PaperReader"));
-import About from "./pages/About";
+const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
-import NotFound from "./pages/NotFound";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
+const NotFound = lazy(() => import("./pages/NotFound"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 
 // Lazy load heavy components for better performance on mobile
 const SubjectPage = lazy(() => import("./pages/SubjectPage"));
@@ -115,6 +118,11 @@ const App = () => (
             <TopBar />
             <Navbar />
             <RouteTransition>
+            {/* One Suspense boundary around the whole route table. The routes
+                that were eager until now are lazy, and each would otherwise
+                need its own wrapper; the per-route boundaries below still work
+                and are left alone. */}
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/all-tuition-teachers-in-kolkata" element={
@@ -424,6 +432,7 @@ const App = () => (
               <Route path="/404" element={<NotFound />} />
               <Route path="*" element={<Navigate to="/404" replace />} />
             </Routes>
+            </Suspense>
             </RouteTransition>
             <BottomNav />
           </BrowserRouter>

@@ -69,11 +69,18 @@ export default function Contact() {
 
   const statement = (
     <>
+      {/* ONE copy of the phrase, with the line breaks doing the work.
+          `display:none` does NOT remove text from textContent or from the
+          accessible name, so the previous approach — two copies, one hidden per
+          breakpoint — made the h1 read "Don't hesitate to ask us.to ask us." at
+          BOTH sizes, in the accessible name and in any search snippet.
+          Only the <br>s are breakpoint-conditional now:
+            mobile   Don't / hesitate / to ask / us.
+            desktop  Don't hesitate / to ask us.        */}
       Don&rsquo;t
       <br className="lg:hidden" /> hesitate
-      <br className="lg:hidden" /> to ask
+      <br /> to ask
       <br className="lg:hidden" /> us.
-      <span className="hidden lg:inline"><br />to ask us.</span>
     </>
   );
 

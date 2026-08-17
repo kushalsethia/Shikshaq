@@ -401,8 +401,15 @@ export default function Auth() {
       </header>
 
       {/* C-032 — scattered proof mosaic, positions/rotations per mockup S6 */}
+      {/* overflow-hidden below: the pills are rotated, and rotation grows the
+          bounding box, so the outermost ones pushed 2px past the viewport and
+          created horizontal scroll at 390px. Mockup S6 shows them bleeding off
+          the edge anyway, so clipping is the correct look as well as the fix. */}
       {!showResetPassword && (
-        <div className="relative mx-auto mt-2 h-[132px] w-full max-w-[470px] px-5" aria-hidden="true">
+        <div
+          className="relative mx-auto mt-2 h-[132px] w-full max-w-[470px] overflow-hidden px-5"
+          aria-hidden="true"
+        >
           <span className="absolute left-[2%] top-[6%] -rotate-6 whitespace-nowrap rounded-full bg-brand-blue-subtle px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-blue-deep">
             Maths, Ballygunge
           </span>
