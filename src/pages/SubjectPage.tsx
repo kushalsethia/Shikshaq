@@ -1,7 +1,8 @@
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { useLocation, useSearchParams, Navigate } from 'react-router-dom';
 import Browse from './Browse';
 import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
+import { SUBJECT_CONTENT } from '@/content/subject-seo';
 
 const SUBJECT_SEO: Record<string, { title: string; description: string }> = {
   '/maths-tuition-teachers-in-kolkata': {
@@ -134,24 +135,6 @@ export default function SubjectPage() {
   const pathname = location.pathname;
   const filterValue = SUBJECT_PATH_TO_FILTER[pathname];
 
-  useEffect(() => {
-    const seo = SUBJECT_SEO[pathname];
-    if (!seo) return;
-
-    document.title = seo.title;
-
-    const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
-    if (metaDesc) metaDesc.setAttribute('content', seo.description);
-
-    // Canonical is handled globally by <CanonicalTag>, keyed on pathname.
-    return () => {
-      document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
-      if (metaDesc) {
-        metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board. No commission, no middlemen.');
-      }
-    };
-  }, [pathname]);
-
   // Templated first-fold label (VISUAL_DIRECTION.md §9a): the SEO title is
   // always "{Subject} Tuition Teachers in Kolkata | Shikshaq", so the subject
   // name is everything before " Tuition" — reused rather than duplicating a
@@ -159,9 +142,13 @@ export default function SubjectPage() {
   const seoEntry = SUBJECT_SEO[pathname];
   const subjectLabel = seoEntry ? seoEntry.title.split(' Tuition')[0] : null;
   const pageContext = subjectLabel ? { kind: 'subject' as const, label: subjectLabel } : undefined;
+  // <SEOHead> (rendered inside Browse, once the real teacher count is known
+  // for its schema) now owns title/description/canonical/OG/Twitter — this
+  // page no longer touches document.title/meta directly.
+  const seo = seoEntry ? { title: seoEntry.title, description: seoEntry.description, content: SUBJECT_CONTENT[pathname] } : undefined;
 
   if (!filterValue) {
-    return <Browse manageSeo={!SUBJECT_SEO[pathname]} pageContext={pageContext} />;
+    return <Browse manageSeo={!seoEntry} pageContext={pageContext} seo={seo} />;
   }
 
   const filterSubjectsExists = searchParams.has('filter_subjects');
@@ -191,5 +178,5 @@ export default function SubjectPage() {
     hasSetInitialFilterRef.current = true;
   }
 
-  return <Browse manageSeo={!SUBJECT_SEO[pathname]} pageContext={pageContext} />;
+  return <Browse manageSeo={!seoEntry} pageContext={pageContext} seo={seo} />;
 }

@@ -1,7 +1,8 @@
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { useLocation, useSearchParams, Navigate } from 'react-router-dom';
 import Browse from './Browse';
 import { BOARD_PATH_TO_FILTER } from '@/utils/boardMapping';
+import { BOARD_CONTENT } from '@/content/subject-seo';
 
 const BOARD_SEO: Record<string, { title: string; description: string }> = {
   '/cbse-ncert-tuition-teachers-in-kolkata': {
@@ -34,33 +35,19 @@ export default function BoardPage() {
   const pathname = location.pathname;
   const filterValue = BOARD_PATH_TO_FILTER[pathname];
 
-  useEffect(() => {
-    const seo = BOARD_SEO[pathname];
-    if (!seo) return;
-
-    document.title = seo.title;
-
-    const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
-    if (metaDesc) metaDesc.setAttribute('content', seo.description);
-
-    // Canonical is handled globally by <CanonicalTag>, keyed on pathname.
-    return () => {
-      document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
-      if (metaDesc) {
-        metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board. No commission, no middlemen.');
-      }
-    };
-  }, [pathname]);
-
   // Templated first-fold label (VISUAL_DIRECTION.md §9a): the SEO title is
   // always "{Board} Tuition Teachers in Kolkata | Shikshaq", so the board
   // name is everything before " Tuition".
   const seoEntry = BOARD_SEO[pathname];
   const boardLabel = seoEntry ? seoEntry.title.split(' Tuition')[0] : null;
   const pageContext = boardLabel ? { kind: 'board' as const, label: boardLabel } : undefined;
+  // <SEOHead> (rendered inside Browse, once the real teacher count is known
+  // for its schema) now owns title/description/canonical/OG/Twitter — this
+  // page no longer touches document.title/meta directly.
+  const seo = seoEntry ? { title: seoEntry.title, description: seoEntry.description, content: BOARD_CONTENT[pathname] } : undefined;
 
   if (!filterValue) {
-    return <Browse manageSeo={!BOARD_SEO[pathname]} pageContext={pageContext} />;
+    return <Browse manageSeo={!seoEntry} pageContext={pageContext} seo={seo} />;
   }
 
   const filterBoardsExists = searchParams.has('filter_boards');
@@ -90,5 +77,5 @@ export default function BoardPage() {
     hasSetInitialFilterRef.current = true;
   }
 
-  return <Browse manageSeo={!BOARD_SEO[pathname]} pageContext={pageContext} />;
+  return <Browse manageSeo={!seoEntry} pageContext={pageContext} seo={seo} />;
 }
