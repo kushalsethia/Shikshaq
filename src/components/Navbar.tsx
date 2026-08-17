@@ -39,6 +39,7 @@ function LogoOrTourTrigger() {
         size="nav"
         className="flex-none"
         ariaLabel="How ShikshAQ works"
+        priority
         onClick={(e) => {
           e.preventDefault();
           openProductTour();
@@ -47,7 +48,7 @@ function LogoOrTourTrigger() {
     );
   }
 
-  return <Logo size="nav" className="flex-none" />;
+  return <Logo size="nav" className="flex-none" priority />;
 }
 
 export function Navbar() {

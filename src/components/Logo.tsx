@@ -19,9 +19,15 @@ interface LogoProps {
   /** Override the accessible name when the click does something other than
    *  navigate home. */
   ariaLabel?: string;
+  /**
+   * The nav logo is above the fold and must load eagerly. Every other
+   * placement (footer, pre-footer) should defer — an /impeccable audit flagged
+   * three copies of this mark all loading eagerly on one page.
+   */
+  priority?: boolean;
 }
 
-export function Logo({ className = '', showText = false, size = 'md', desktopSize, onDark = false, onClick, ariaLabel = 'Shikshaq home' }: LogoProps) {
+export function Logo({ className = '', showText = false, size = 'md', desktopSize, onDark = false, onClick, ariaLabel = 'Shikshaq home', priority = false }: LogoProps) {
   // SVG is 252x92, so aspect ratio is ~2.74:1 (wider than tall)
   // NOTE: every class below is a complete literal string so Tailwind's JIT
   // scanner can see it. Never build these with template interpolation.
@@ -77,6 +83,7 @@ export function Logo({ className = '', showText = false, size = 'md', desktopSiz
         alt="Shikshaq"
         width={252}
         height={92}
+        loading={priority ? 'eager' : 'lazy'}
         decoding="async"
         // `block` kills the inline-image baseline gap that was pushing the mark
         // a pixel low against adjacent text; `select-none` stops drag-ghosting.
