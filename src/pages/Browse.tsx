@@ -1617,16 +1617,23 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             square disc above the h1, templated across the ~35 subject routes
             the same way the rest of this first fold is (VISUAL_DIRECTION.md
             §9a). Not present on the generic /all- route or board routes. */}
+        {/* The wrapper is load-bearing: IconDisc is inline-flex, and the back
+            link above is inline too, so without a block-level parent the tile
+            rendered on the SAME line as "← All subjects" — reading as a badge
+            attached to the back control rather than the subject mark heading the
+            page, which is what the comment above and the mockup both intend. */}
         {isSubjectPage && (
-          <IconDisc
-            tone="subject"
-            subject={pageContext!.label}
-            shape="square"
-            size={44}
-            className="mb-[14px] text-[19px] font-black"
-          >
-            {pageContext!.label.charAt(0).toUpperCase()}
-          </IconDisc>
+          <div className="mb-[14px]">
+            <IconDisc
+              tone="subject"
+              subject={pageContext!.label}
+              shape="square"
+              size={44}
+              className="text-[19px] font-black"
+            >
+              {pageContext!.label.charAt(0).toUpperCase()}
+            </IconDisc>
+          </div>
         )}
 
         <h1 className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.035em] text-background">
