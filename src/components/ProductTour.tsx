@@ -76,10 +76,17 @@ export function useProductTour() {
 
 type CardMode = "dark" | "brand" | "whatsapp" | "papers";
 
+/* secondary-06-product-tour.png fills two of the four cards with the SUBTLE
+   tint and saves the saturated colour for that card's button: card 2 is cream
+   with an orange Next, card 3 is pale mint with a green Next. Only cards 1 and
+   4 are full-bleed (near-black and indigo). This had cards 2 and 3 flooded with
+   solid #FF8000 and solid WhatsApp green edge to edge, which is a very
+   different thing to look at — two full-screen saturated panels in a four-card
+   sequence — and it left the card's own CTA with no colour of its own to be. */
 const CARD_FILL: Record<CardMode, string> = {
   dark: "bg-panel text-background",
-  brand: "bg-brand text-brand-foreground",
-  whatsapp: "bg-whatsapp text-whatsapp-text",
+  brand: "bg-brand-subtle text-foreground",
+  whatsapp: "bg-mint text-foreground",
   papers: "bg-brand-blue text-brand-blue-foreground",
 };
 
