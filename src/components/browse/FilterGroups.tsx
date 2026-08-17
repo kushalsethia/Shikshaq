@@ -399,10 +399,15 @@ export function FilterSheet({
  * global "Clear all" already. */
 export function FilterRail({ filters, onFilterChange, resultCount }: FilterGroupsProps) {
   return (
-    <div className="hidden lg:block lg:w-[284px] lg:flex-none">
+    <nav aria-label="Filters" className="hidden lg:block lg:w-[284px] lg:flex-none">
       <div className="sticky top-6">
+        {/* The group labels below are h3. The mobile sheet gives them an h2
+            ("Filters") to sit under; the rail draws no such title, which left a
+            h1 -> h3 skip on desktop. This supplies the level without adding a
+            heading the mockup does not show. */}
+        <h2 className="sr-only">Filters</h2>
         <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} />
       </div>
-    </div>
+    </nav>
   );
 }

@@ -66,7 +66,10 @@ export function EmptyResults({ heading, message, options, action, icon, classNam
         {icon ?? <SearchX className="h-7 w-7" strokeWidth={2} aria-hidden="true" />}
       </span>
 
-      <h3 className="relative z-10 text-card-title-lg font-display font-semibold text-foreground">{heading}</h3>
+      {/* h2, not h3: this is a top-level section message that renders directly
+          under the page h1 when a list is empty, so h3 produced a h1 -> h3 skip
+          (WCAG 2.4.6 / 1.3.1). Size is set by the type token, not the tag. */}
+      <h2 className="relative z-10 text-card-title-lg font-display font-semibold text-foreground">{heading}</h2>
       <p className="relative z-10 mt-2 max-w-prose text-body-secondary text-muted-foreground">{message}</p>
 
       {hasRow && (

@@ -1687,6 +1687,11 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             <ListLoading count={8} media={96} lines={2} />
           ) : displayedTeachers.length > 0 ? (
             <div>
+              {/* Each result card titles itself with an h3. Without a section
+                  heading above them the page ran h1 -> h3. The h1 already states
+                  the count visibly, so this level is supplied to assistive tech
+                  only rather than drawing a title the mockup does not show. */}
+              <h2 className="sr-only">Teachers</h2>
               {/* Mobile: result rows. Desktop: three-column card grid
                   (design.md Section 5 / C-048). Same data, two TeacherCard variants. */}
               <div className="flex flex-col gap-[10px] lg:hidden">
