@@ -46,7 +46,9 @@ const STATIC_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
   { loc: '/all-tuition-teachers-in-kolkata', changefreq: 'daily', priority: 0.9 },
   { loc: '/faq', changefreq: 'monthly', priority: 0.6 },
   { loc: '/join', changefreq: 'monthly', priority: 0.7 },
-  { loc: '/join/apply', changefreq: 'monthly', priority: 0.6 },
+  /* '/join/apply' deliberately omitted: robots.txt disallows it, so listing it
+     here produced a "Submitted URL blocked by robots.txt" warning in Search
+     Console. Keep the two in agreement. */
   { loc: '/past-papers', changefreq: 'weekly', priority: 0.5 },
   { loc: '/privacy-policy', changefreq: 'yearly', priority: 0.3 },
   { loc: '/terms-of-service', changefreq: 'yearly', priority: 0.3 },
@@ -85,13 +87,21 @@ const SUBJECT_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
   { loc: '/gmat-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
   { loc: '/ca-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
   { loc: '/cfa-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
+  /* Both routes are live (App.tsx) with their own copy in SubjectPage.tsx and
+     are linked from the footer, but were missing here — crawlable, yet given no
+     sitemap signal. */
+  { loc: '/clat-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
+  { loc: '/social-studies-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
 ];
 
 /**
  * Board pages
  */
 const BOARD_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
-  { loc: '/cbse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
+  /* Must match the route registered in App.tsx exactly. This was
+     '/cbse-tuition-teachers-in-kolkata', which has no route and fell through to
+     the catch-all 404 — a submitted sitemap URL that returned 404 to crawlers. */
+  { loc: '/cbse-ncert-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
   { loc: '/icse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.8 },
   { loc: '/igcse-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
   { loc: '/international-board-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },

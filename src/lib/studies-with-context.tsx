@@ -55,7 +55,7 @@ const setCachedStudiesWith = (userId: string, teacherIds: Set<string>) => {
 };
 
 export function StudiesWithProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [studiesWithTeacherIds, setStudiesWithTeacherIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [studiesWithCount, setStudiesWithCount] = useState(0);
@@ -115,13 +115,12 @@ export function StudiesWithProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      // Check if user is a student
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
+      // Check if user is a student. The role already lives on the cached
+      // profile from auth-context — this used to re-query `profiles` on every
+      // single toggle, one round trip per tap, for a value we already had.
+      //
+      // Note this is a UI guard only: the same rule must be enforced by RLS on
+      // `student_teachers`, or a non-student could insert directly.
       if (profile?.role !== 'student') {
         toast.error('Only students can indicate they study with a teacher');
         return false;
@@ -191,7 +190,7 @@ export function StudiesWithProvider({ children }: { children: ReactNode }) {
         return currentlyStudying;
       }
     },
-    [user, isStudyingWith, studiesWithTeacherIds]
+    [user, profile, isStudyingWith, studiesWithTeacherIds]
   );
 
   return (
