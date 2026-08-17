@@ -407,15 +407,19 @@ export default function Index() {
                   never tilt per components.md P2, so this is a plain pill row
                   rather than the mockup's hand-placed tilt — deliberate
                   token-system deviation. */}
-              {(stats.teachers !== null || stats.papers !== null) && (
+              {/* Guarded on > 0, not on != null. design.md §3.2 is explicit that we
+                  never advertise emptiness — "0 free papers" is worse than saying
+                  nothing, and a real zero is a plausible state here while the paper
+                  library is still filling up. A count of zero drops its pill entirely. */}
+              {((stats.teachers ?? 0) > 0 || (stats.papers ?? 0) > 0) && (
                 <div className="flex flex-wrap items-center gap-2">
-                  {stats.teachers !== null && (
+                  {(stats.teachers ?? 0) > 0 && (
                     <span className="inline-flex items-center gap-2 rounded-full bg-card px-3 py-1.5 text-meta font-bold text-foreground">
                       <span className="h-[7px] w-[7px] rounded-full bg-brand" aria-hidden="true" />
                       {stats.teachers} verified tutors
                     </span>
                   )}
-                  {stats.papers !== null && (
+                  {(stats.papers ?? 0) > 0 && (
                     <span className="inline-flex items-center gap-2 rounded-full bg-card px-3 py-1.5 text-meta font-bold text-foreground">
                       <span className="h-[7px] w-[7px] rounded-full bg-brand-blue" aria-hidden="true" />
                       {stats.papers} free papers

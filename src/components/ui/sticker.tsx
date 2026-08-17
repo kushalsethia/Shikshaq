@@ -43,39 +43,43 @@ const stickerVariants = cva(
   },
 );
 
-/* ±3–9° per components.md P8. Flattened under prefers-reduced-motion by the
-   `motion-reduce:rotate-0` utility rather than a media query in CSS, so the
-   rule travels with the component. */
-const tiltClass: Record<string, string> = {
-  "-6": "-rotate-6",
-  "-3": "-rotate-3",
-  "3": "rotate-3",
-  "6": "rotate-6",
-};
+/* ±3–9° per components.md P8; design.md §2.5 asks for ±4–6°, which a fixed
+   union of -6|-3|3|6 could not express. The angle is carried as a CSS custom
+   property so any integer in the range works, and `motion-reduce:rotate-0`
+   still flattens it — the reduced-motion rule travels with the component
+   rather than living in a stylesheet someone has to remember. */
+const TILT_MIN = -9;
+const TILT_MAX = 9;
 
 export interface StickerProps
   extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof stickerVariants> {
-  /** Tilt in degrees. Alternate the sign across a row so it reads as hand-placed. */
-  tilt?: -6 | -3 | 3 | 6;
+  /**
+   * Tilt in degrees, -9..9. Alternate the sign across a row so it reads as
+   * hand-placed rather than stepped. Values outside the range are clamped.
+   */
+  tilt?: number;
 }
 
 const Sticker = React.forwardRef<HTMLSpanElement, StickerProps>(
-  ({ className, tone, size, tilt = -3, children, ...props }, ref) => (
-    <span
-      ref={ref}
-      className={cn(
-        stickerVariants({ tone, size }),
-        "-top-[11px] right-4",
-        tiltClass[String(tilt)],
-        "motion-reduce:rotate-0",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </span>
-  ),
+  ({ className, tone, size, tilt = -3, children, style, ...props }, ref) => {
+    const clamped = Math.max(TILT_MIN, Math.min(TILT_MAX, tilt));
+    return (
+      <span
+        ref={ref}
+        className={cn(
+          stickerVariants({ tone, size }),
+          "-top-[11px] right-4",
+          "rotate-[var(--sticker-tilt)] motion-reduce:rotate-0",
+          className,
+        )}
+        style={{ "--sticker-tilt": `${clamped}deg`, ...style } as React.CSSProperties}
+        {...props}
+      >
+        {children}
+      </span>
+    );
+  },
 );
 Sticker.displayName = "Sticker";
 
