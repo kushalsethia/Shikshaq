@@ -182,12 +182,12 @@ export default function SelectRole() {
   if (authLoading || checkingRole) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <div className="flex-1 flex items-center justify-center">
+        <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
             <p className="text-muted-foreground text-base">Loading...</p>
           </div>
-        </div>
+        </main>
         <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
@@ -203,7 +203,11 @@ export default function SelectRole() {
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="px-4 sm:px-6 pt-6 sm:pt-12 pb-16 text-center">
+        {/* <main>, not <div> — the signed-out branch is the one an unauthenticated
+            visitor actually reaches, and it was the only branch of this page with
+            no main landmark, so skip-to-content and landmark navigation had
+            nothing to target exactly when the page is at its most confusing. */}
+        <main className="px-4 sm:px-6 pt-6 sm:pt-12 pb-16 text-center">
           <h1 className="mb-4 text-page-title text-foreground">You must be signed in to continue.</h1>
           <button
             onClick={() => navigate(isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth')}
@@ -211,7 +215,7 @@ export default function SelectRole() {
           >
             Sign In
           </button>
-        </div>
+        </main>
         <PreFooter variant={preFooterFor(location.pathname)} />
         <Footer />
       </div>
