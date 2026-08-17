@@ -3,7 +3,6 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { EmptyResults } from '@/components/EmptyResults';
@@ -415,7 +414,6 @@ export default function StudentDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <div className="container pt-8 pb-8">
           <div className="animate-pulse">
             <div className="mb-8 h-8 w-48 rounded-lg bg-muted" />
@@ -440,7 +438,6 @@ export default function StudentDashboard() {
   if (!profile || profile.role !== 'student') {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <main className="container py-16 pb-16 text-center sm:py-20">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {user ? 'Student account required' : 'Sign in required'}
@@ -504,7 +501,6 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <main className="container pt-8 pb-16">
         {/* Header */}

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Heart, Share2, ArrowLeft, Clock, Wallet, Users, ShieldCheck } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
@@ -460,7 +459,6 @@ export default function TeacherProfile() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <div className="h-[280px] w-full animate-shimmer bg-muted" />
         <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
           <div className="h-8 w-2/3 animate-shimmer rounded-lg bg-muted" />
@@ -482,7 +480,6 @@ export default function TeacherProfile() {
   if (!teacher) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 text-center sm:px-6 sm:py-8 lg:px-8">
           <h1 className="mb-4 text-3xl font-semibold tracking-tight sm:text-4xl">Teacher not found</h1>
           <p className="mb-6 text-sm text-muted-foreground">The teacher you're looking for doesn't exist or has been removed.</p>
@@ -599,7 +596,6 @@ export default function TeacherProfile() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
         {/* Desktop: 1fr / 384px grid. Left = photo/name card + prose sections. Right = sticky contact card. */}

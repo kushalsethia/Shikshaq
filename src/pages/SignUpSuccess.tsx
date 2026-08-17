@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Mail, CheckCircle, ArrowRight } from 'lucide-react';
 import { Logo } from '@/components/Logo';
@@ -40,7 +39,6 @@ export default function SignUpSuccess() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
 
       <main className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
         <div className="relative w-full max-w-[440px]">

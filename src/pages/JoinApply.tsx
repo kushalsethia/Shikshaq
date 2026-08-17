@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -493,7 +492,6 @@ export default function JoinApply() {
   if (submitted) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
           <div className="p-6 sm:p-10 rounded-2xl bg-card shadow-border text-center">
             <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center mx-auto mb-6">
@@ -611,7 +609,6 @@ export default function JoinApply() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
         <Link to="/join" className="-my-3 inline-flex min-h-11 items-center text-sm font-semibold text-warm-meta no-underline">

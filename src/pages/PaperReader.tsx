@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ExternalLink, Lock, Maximize2 } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -197,7 +196,6 @@ export default function PaperReader() {
       /* Dark ground here too, so there is no light-to-dark flash before the
          S5 reader paints. */
       <div className="flex min-h-screen flex-col bg-panel">
-        <Navbar />
         <main className={`flex-1 ${CONTAINER} pb-16 pt-6`}>
           <div className={`mb-4 h-4 w-32 rounded-lg ${SKELETON}`} />
           <div className={`mb-3 h-6 w-72 max-w-full rounded-full ${SKELETON}`} />
@@ -216,7 +214,6 @@ export default function PaperReader() {
   if (notFound || loadError || !paper) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
-        <Navbar />
         <main className={`flex-1 ${CONTAINER} pb-16 pt-8`}>
           <Link
             to="/past-papers"
@@ -244,9 +241,7 @@ export default function PaperReader() {
           purpose — see the file-level note. Nothing replaces it: an honest
           "you are viewing this paper" indicator is what the page title
           already is. */}
-      <div className="pr-hide-print"><Navbar /></div>
-
-      {/* S5 header bar: padding 14px 16px, gap 12px, 1px white/10% bottom
+{/* S5 header bar: padding 14px 16px, gap 12px, 1px white/10% bottom
           hairline; 36px round back disc; 14px/700 title; 11.5px white/60%
           meta. The old light hero band (subject signpost + pill row +
           page-title h1) is replaced by this, per "mockup wins" — but every

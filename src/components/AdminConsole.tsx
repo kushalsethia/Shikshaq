@@ -1,7 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { PreFooter } from '@/components/layout/PreFooter';
 import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
@@ -257,7 +256,6 @@ export function AdminConsole({ activeTab, title, subtitle, tint, tabCount, child
         {/* Mobile / tablet: the existing tab-row console (design.md §4 "Admin
             (S12)") stays the on-call view, unchanged. */}
         <div className="lg:hidden">
-          <Navbar />
         </div>
 
         <main className="flex-1 w-full mx-auto lg:max-w-none" style={{ maxWidth: 1100 }}>

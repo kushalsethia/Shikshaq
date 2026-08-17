@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/select';
 import { GraduationCap, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
@@ -184,7 +183,6 @@ export default function SelectRole() {
   if (authLoading || checkingRole) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
@@ -206,7 +204,6 @@ export default function SelectRole() {
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <div className="px-4 sm:px-6 pt-6 sm:pt-12 pb-16 text-center">
           <h1 className="mb-4 text-page-title text-foreground">You must be signed in to continue.</h1>
           <button
@@ -224,7 +221,6 @@ export default function SelectRole() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
 
       <main className="ground-graph relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:px-6 sm:py-16">
         <div className="relative w-full max-w-[480px]">

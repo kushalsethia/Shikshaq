@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { useRequireRole } from '@/hooks/use-require-role';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -113,7 +112,6 @@ export default function RecommendTeacher() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <PageHeader
         eyebrow="Word of mouth"

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUp, FileText } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { PaperSheetCard } from '@/components/papers/paper-sheet-card';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
@@ -244,7 +243,6 @@ export default function PaperResults() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
       <main className="flex-1">
         {/* Proper header fold for the results list (VISUAL_DIRECTION §9a: every
             page gets a designed opening, not just the landing page). Crisp

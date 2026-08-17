@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Phone, Lock } from 'lucide-react';
@@ -196,7 +195,6 @@ export default function AdminRecommendations() {
   if (checkingAdmin || loading) {
     return (
       <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
-        <Navbar />
         <div className="container pt-6 sm:pt-8 pb-8 md:pt-8">
           <div className="animate-pulse">
             <div className="h-8 w-48 rounded mb-8" style={{ background: SURFACE_TOKENS.mutedFill }} />
@@ -216,7 +214,6 @@ export default function AdminRecommendations() {
   if (!user) {
     return (
       <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
-        <Navbar />
         <main className="container pt-6 sm:pt-8 pb-16 md:pt-16">
           <div className="max-w-md mx-auto">
             <div className="p-8 text-center" style={{ background: SURFACE_TOKENS.field, borderRadius: 24, boxShadow: '0 0 0 1px rgba(0,0,0,.06)' }}>
@@ -252,7 +249,6 @@ export default function AdminRecommendations() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
-        <Navbar />
         <main className="container pt-6 sm:pt-8 pb-8 md:pt-8">
           <div className="max-w-2xl mx-auto text-center">
             <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>Access Denied</h1>

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getWhatsAppLink } from '@/utils/whatsapp';
@@ -120,7 +119,6 @@ export function LegalReader({
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <div className="mx-auto max-w-[980px] px-4 pb-[90px] pt-[44px] sm:px-[40px]">
         {/* pill + h1 + lede + updated */}

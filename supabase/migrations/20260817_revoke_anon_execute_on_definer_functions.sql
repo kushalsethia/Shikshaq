@@ -1,3 +1,23 @@
+-- APPLIED to project uvtifolnsneitetzohtn and verified.
+--
+-- IMPORTANT CORRECTION vs the first draft of this file: revoking from `anon`
+-- and `authenticated` by name did NOTHING. Postgres grants EXECUTE on functions
+-- to PUBLIC by default, and both roles inherit through that grant, so the
+-- revoke has to target PUBLIC:
+--     revoke execute on function f() from public;
+-- and then hand EXECUTE back to `authenticated` for the RPCs the app calls.
+--
+-- A few functions ALSO carried an explicit `anon=X` grant on top of the PUBLIC
+-- one (sync_teachers_list_from_shikshaqmine was the one that mattered - an
+-- anonymous caller could kick off a full teachers_list rebuild). Those need a
+-- second, role-specific revoke. Check proacl, do not trust
+-- has_function_privilege alone after a PUBLIC-only revoke.
+--
+-- Verified end state: every SECURITY DEFINER function is anon=false except the
+-- six sign-in helpers deliberately left open (check_rate_limit,
+-- check_user_exists, check_user_has_password, get_public_profile_data,
+-- is_admin, is_teacher).
+--
 -- Revoke public EXECUTE on SECURITY DEFINER functions
 --
 -- Found by the Supabase security advisor: 29 SECURITY DEFINER functions are

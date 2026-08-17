@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { GraduationCap, FileText, Users, ShieldAlert, Mail, MapPin, ArrowRight } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { PreFooter } from '@/components/layout/PreFooter';
 import { PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
@@ -80,7 +79,6 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <main className="pb-20 lg:pb-0">
         <PageContainer as="section" className="pt-6 sm:pt-10 lg:pt-14">

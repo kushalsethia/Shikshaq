@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo, useCallback, useRef, type CSSProperties }
 import { useSearchParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
-import { Navbar } from '@/components/Navbar';
 import { SearchControl } from '@/components/SearchControl';
 import { TeacherCard } from '@/components/TeacherCard';
 import { Footer } from '@/components/Footer';
@@ -1538,7 +1537,6 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           )}
         </>
       )}
-      <Navbar />
 
       {/* Control block (design.md S1 / S4 "Browse (S1)"): near-black,
           rounded-b-4xl, carrying the back row, the real result-count h1, and

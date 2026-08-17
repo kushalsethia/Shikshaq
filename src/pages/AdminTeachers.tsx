@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -582,7 +581,6 @@ export default function AdminTeachers() {
   if (checkingAdmin || loading) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: '#F9F5F1' }}>
-        <Navbar />
         <main className="flex-1 container mx-auto px-[clamp(16px,3vw,28px)] py-8">
           <div className="animate-pulse">
             <div className="h-8 w-48 rounded mb-8" style={{ background: '#F0EAE2' }} />
@@ -601,7 +599,6 @@ export default function AdminTeachers() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: '#F9F5F1' }}>
-        <Navbar />
         <main className="flex-1 container mx-auto px-[clamp(16px,3vw,28px)] py-8">
           <div className="max-w-2xl mx-auto text-center">
             <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: '#1F1F1F' }}>Access Denied</h1>

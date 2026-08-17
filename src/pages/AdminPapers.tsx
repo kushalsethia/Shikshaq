@@ -1,7 +1,6 @@
 import { useEffect, useState, type DragEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -260,7 +259,6 @@ export default function AdminPapers() {
   if (checkingAdmin || loading) {
     return (
       <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }} className="flex flex-col">
-        <Navbar />
         <main className="flex-1 container mx-auto px-4 py-8">
           <div className="animate-pulse">
             <div className="h-8 w-48 rounded mb-8" style={{ background: SURFACE_TOKENS.mutedFill }} />
@@ -279,7 +277,6 @@ export default function AdminPapers() {
   if (!user) {
     return (
       <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }} className="flex flex-col">
-        <Navbar />
         <main className="flex-1 flex items-center justify-center px-4">
           <div style={{ padding: 32, borderRadius: 20, background: SURFACE_TOKENS.field, boxShadow: '0 0 0 1px rgba(0,0,0,.06)', textAlign: 'center', maxWidth: 380 }}>
             <div style={{ width: 56, height: 56, borderRadius: 999, background: SURFACE_TOKENS.mutedFill, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
@@ -312,7 +309,6 @@ export default function AdminPapers() {
   if (!isAdmin) {
     return (
       <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }} className="flex flex-col">
-        <Navbar />
         <main className="flex-1 container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto text-center">
             <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>Access Denied</h1>
@@ -336,7 +332,6 @@ export default function AdminPapers() {
 
   return (
     <div style={{ minHeight: '100vh', background: SURFACE_TOKENS.shell }} className="flex flex-col">
-      <Navbar />
       <main
         className="flex-1 w-full mx-auto"
         style={{ maxWidth, padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 56px' }}

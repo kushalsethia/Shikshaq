@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Users } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
 import { SearchControl } from '@/components/SearchControl';
 import { Footer } from '@/components/Footer';
 import { EmptyResults } from '@/components/EmptyResults';
@@ -223,7 +222,6 @@ export default function PastPapers() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
       <main className="flex-1">
         {/* ------------------------------------------------------------- Hero */}
         {/* THE first fold. Graph-paper ground (device I) is the most on-theme

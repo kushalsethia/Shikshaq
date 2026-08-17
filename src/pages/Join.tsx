@@ -1,4 +1,3 @@
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Link } from 'react-router-dom';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -40,7 +39,6 @@ export default function Join() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       {/* Gradient hero band — same device PastPapers.tsx uses (brand-tint fading to page
           ground), applied here in orange instead of blue since this page's whole pitch is

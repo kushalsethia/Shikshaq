@@ -5,7 +5,6 @@ import { Sticker } from '@/components/ui/sticker';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -877,7 +876,6 @@ export default function TeacherDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <main className="container pt-8 pb-16">
           <div className="animate-pulse">
             <div className="mb-7 h-8 w-56 rounded-lg bg-muted" />
@@ -906,7 +904,6 @@ export default function TeacherDashboard() {
     if (lookupFailedEmail) {
       return (
         <div className="min-h-screen bg-background">
-          <Navbar />
           <main className="container py-16 pb-16 text-center sm:py-20">
             <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               We couldn't find your teacher listing
@@ -935,7 +932,6 @@ export default function TeacherDashboard() {
 
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <main className="container py-16 pb-16 text-center sm:py-20">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {user ? 'Teacher account required' : 'Sign in required'}
@@ -1032,7 +1028,6 @@ export default function TeacherDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <main className="container pt-8 pb-16">
         {/* Header — orange slab, teacher mode (design.md §4 S10) */}

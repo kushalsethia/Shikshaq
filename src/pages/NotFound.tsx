@@ -1,7 +1,6 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
 import { PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
@@ -29,7 +28,6 @@ const NotFound = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <main className="pb-20 lg:pb-0">
         <PageContainer as="section" className="flex flex-col items-center justify-center pt-10 sm:pt-16 lg:pt-20">

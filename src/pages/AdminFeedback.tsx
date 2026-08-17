@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Trash2, User as UserIcon, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
@@ -237,7 +236,6 @@ export default function AdminFeedback() {
   if (checkingAdmin || loading) {
     return (
       <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
-        <Navbar />
         <div className="container pt-6 sm:pt-8 pb-8 md:pt-8">
           <div className="animate-pulse">
             <div className="h-8 w-48 rounded mb-8" style={{ background: SURFACE_TOKENS.mutedFill }} />
@@ -256,7 +254,6 @@ export default function AdminFeedback() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
-        <Navbar />
         <div className="container pt-6 sm:pt-8 pb-8 md:pt-8">
           <div className="max-w-2xl mx-auto text-center">
             <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>Access Denied</h1>

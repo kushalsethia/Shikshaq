@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, CheckCircle, XCircle, Clock, Search, Loader2, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Link } from 'react-router-dom';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -302,7 +301,6 @@ export default function AdminApplications() {
   if (checkingAdmin || loading) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: SURFACE_TOKENS.shell }}>
-        <Navbar />
         <main className="flex-1 container mx-auto px-4 py-8">
           <div className="animate-pulse">
             <div className="h-8 w-48 rounded mb-8" style={{ background: SURFACE_TOKENS.mutedFill }} />
@@ -321,7 +319,6 @@ export default function AdminApplications() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: SURFACE_TOKENS.shell }}>
-        <Navbar />
         <main className="flex-1 flex items-center justify-center container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto text-center">
             <h1 className="mb-4" style={{ fontSize: 'clamp(23px,3vw,32px)', fontWeight: 700, color: SURFACE_TOKENS.textPrimary }}>Access Denied</h1>

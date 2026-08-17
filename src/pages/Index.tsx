@@ -13,14 +13,13 @@ import {
 } from 'lucide-react';
 import { EmptyResults } from '@/components/EmptyResults';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { SubjectCard } from '@/components/SubjectCard';
 import { HomeGreeting } from '@/components/HomeGreeting';
 import { HomeActivitySection } from '@/components/HomeActivitySection';
 import { SearchDesk } from '@/components/home/SearchDesk';
-import { PageContainer, ControlBlock } from '@/components/layout/PageContainer';
+import { PageContainer, ControlBlock, Slab } from '@/components/layout/PageContainer';
 import { BottomNavSpacer } from '@/components/layout/PageContainer';
 import { PreFooter } from '@/components/layout/PreFooter';
 import { ProductTour, useProductTour } from '@/components/ProductTour';
@@ -28,7 +27,6 @@ import { NumberedHeading } from '@/components/ui/numbered-heading';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { Sticker } from '@/components/ui/sticker';
 import { IconDisc } from '@/components/ui/icon-disc';
-import { Chip } from '@/components/ui/chip';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache';
@@ -375,7 +373,6 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <main id="main-content" className="pb-20 lg:pb-0">
         {/* ---------------------------------------------------- Control block */}
@@ -558,29 +555,33 @@ export default function Index() {
         )}
 
         {/* --------------------------------------------------------- Ticker rail */}
+        {/* Full-bleed dark marquee (Home concepts.dc.html "Marquee ticker"),
+            not a light Chip row — the mockup runs subject + board labels as
+            plain white text on a near-black band, edge to edge. */}
         {subjects.length > 0 && (
-          <PageContainer as="section" className="pb-8 sm:pb-12">
-            <div className="-mx-4 overflow-x-auto px-4 scrollbar-hide sm:mx-0 sm:px-0">
-              <ul className="flex w-max items-center gap-2">
+          <section className="overflow-hidden bg-panel py-3">
+            <div className="overflow-x-auto scrollbar-hide">
+              <ul className="flex w-max items-center gap-[22px] whitespace-nowrap px-4">
                 {[...subjects.map((s) => s.name), ...BOARD_ORDER.filter((b) => boardCounts[b])].map((label) => (
                   <li key={label}>
-                    <Chip
-                      tone="facet"
-                      size={40}
+                    <button
+                      type="button"
                       onClick={() => navigate(`/all-tuition-teachers-in-kolkata?q=${encodeURIComponent(label)}`)}
+                      className="inline-flex items-center gap-[10px] font-display text-[15px] font-extrabold tracking-tight text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
                     >
                       {label}
-                    </Chip>
+                      <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+                    </button>
                   </li>
                 ))}
               </ul>
             </div>
-          </PageContainer>
+          </section>
         )}
 
         {/* ------------------------------------------------------ How it works */}
         <PageContainer as="section" className="py-8 sm:py-12">
-          <div className="relative overflow-hidden rounded-4xl bg-brand p-6 text-brand-foreground shadow-glow-brand sm:p-8">
+          <Slab fill="brand" className="relative overflow-hidden p-6 sm:p-8">
             <Sticker tone="dark" tilt={-6} size={30} className="right-6 sm:right-10">
               Takes 3 minutes
             </Sticker>
@@ -611,7 +612,7 @@ export default function Index() {
             <p className="mt-8 text-body-secondary text-brand-foreground/80">
               No fees, no middleman, no commission — ever.
             </p>
-          </div>
+          </Slab>
         </PageContainer>
 
         {/* --------------------------------------------------------- 03 By class */}

@@ -1,14 +1,29 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Mail, ChevronDown, ChevronUp, Star, Heart } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { Button } from '@/components/ui/button';
+import { Chip } from '@/components/ui/chip';
+import { iconDiscVariants } from '@/components/ui/icon-disc';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { WordmarkBleed } from '@/components/layout/WordmarkBleed';
+import { SentenceBuilder, type SentenceSlot } from '@/components/home/SentenceBuilder';
+import { SUBJECTS, CLASSES, AREAS, BOARDS } from '@/utils/searchFacets';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import DOMPurify from 'dompurify';
 import aquaterraLogo from '@/assets/Frame 48095868.png';
+import { cn } from '@/lib/utils';
+
+/* Redesign S6 (components.md §3, design.md §1).
+
+   Inset rounded near-black slab: sentence builder (C8) -> pill-labelled link
+   columns -> contact lines -> social discs -> footnote -> C12 WordmarkBleed.
+   Renders on every route, so every link and data path this component fetches
+   is real functionality carried over from the pre-redesign Footer — see the
+   inventory in the handoff report, not repeated here as comments. */
 
 type FooterLink = { to: string; label: string };
 
@@ -70,9 +85,6 @@ interface FooterProps {
   expandedContent?: string | null; // EXPANDED content from Shikshaqmine for teacher profiles
 }
 
-// Dark panel — VISUAL_LANGUAGE.md §2.1 `#1B1A18` (the `panel` token). Text roles
-// below are picked for 4.5:1+ contrast against that near-black, using only
-// existing tokens/Tailwind built-ins (no new hex values).
 const COL_LABEL = 'text-xs font-medium uppercase tracking-wide text-white/70';
 // Safari still paints a disclosure triangle even with `list-none`.
 const SUMMARY_RESET = '[&::-webkit-details-marker]:hidden';
@@ -119,12 +131,22 @@ export function Footer({ expandedContent }: FooterProps = {}) {
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const userRole = (profile?.role as 'student' | 'guardian' | 'teacher') || null;
   const [isAdmin, setIsAdmin] = useState(false);
   const dashboardPath = userRole === 'student' ? '/dashboard/student' : userRole === 'guardian' ? '/dashboard/guardian' : userRole === 'teacher' ? '/dashboard/teacher' : null;
   const [ctaTotals, setCtaTotals] = useState<{ teachers: number | null; papers: number | null; schools: number | null }>({ teachers: null, papers: null, schools: null });
+  const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
+
+  // Sentence builder (C8) state — teachers/papers mode, defaulting to whichever
+  // side of the site the visitor is currently on.
+  const [builderMode, setBuilderMode] = useState<'teachers' | 'papers'>(
+    location.pathname.startsWith('/past-papers') ? 'papers' : 'teachers',
+  );
+  const [teacherSlotValues, setTeacherSlotValues] = useState<Record<string, string>>({});
+  const [paperSlotValues, setPaperSlotValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) { setIsAdmin(false); return; }
@@ -144,8 +166,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
         supabase.from('papers').select('school').eq('is_published', true),
       ]);
       if (cancelled) return;
-      const schoolCount = schoolsRes.data ? new Set(schoolsRes.data.map((p) => p.school)).size : null;
-      setCtaTotals({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null, schools: schoolCount });
+      const uniqueSchools = schoolsRes.data ? Array.from(new Set(schoolsRes.data.map((p) => p.school))).sort() : [];
+      setCtaTotals({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null, schools: schoolsRes.data ? uniqueSchools.length : null });
+      setSchoolOptions(uniqueSchools);
     }
     fetchCtaTotals();
     return () => { cancelled = true; };
@@ -359,272 +382,292 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     label: `${label} tuition teachers in Kolkata`,
   }));
 
+  // --- Sentence builder (C8) --------------------------------------------
+  const teacherSlots: SentenceSlot[] = useMemo(() => ([
+    { key: 'subject', placeholder: 'subject', value: teacherSlotValues.subject, options: SUBJECTS },
+    { key: 'cls', placeholder: 'class', value: teacherSlotValues.cls, options: CLASSES.map((c) => `Class ${c}`) },
+    { key: 'area', placeholder: 'area', value: teacherSlotValues.area, options: AREAS },
+  ]), [teacherSlotValues]);
+
+  const paperSlots: SentenceSlot[] = useMemo(() => ([
+    { key: 'board', placeholder: 'board', value: paperSlotValues.board, options: BOARDS },
+    { key: 'cls', placeholder: 'class', value: paperSlotValues.cls, options: CLASSES.map((c) => `Class ${c}`) },
+    { key: 'subject', placeholder: 'subject', value: paperSlotValues.subject, options: SUBJECTS },
+    { key: 'school', placeholder: 'school', value: paperSlotValues.school, options: schoolOptions },
+  ]), [paperSlotValues, schoolOptions]);
+
+  const handleSlotChange = useCallback((key: string, value: string) => {
+    if (builderMode === 'teachers') {
+      setTeacherSlotValues((prev) => ({ ...prev, [key]: value }));
+    } else {
+      setPaperSlotValues((prev) => ({ ...prev, [key]: value }));
+    }
+  }, [builderMode]);
+
+  const handleSubmit = useCallback(() => {
+    if (builderMode === 'teachers') {
+      const params = new URLSearchParams();
+      if (teacherSlotValues.subject) params.set('filter_subjects', teacherSlotValues.subject);
+      if (teacherSlotValues.cls) params.set('filter_classes', teacherSlotValues.cls.replace(/^Class /, ''));
+      if (teacherSlotValues.area) params.set('filter_areas', teacherSlotValues.area);
+      const qs = params.toString();
+      navigate(`/all-tuition-teachers-in-kolkata${qs ? `?${qs}` : ''}`);
+    } else {
+      const params = new URLSearchParams();
+      if (paperSlotValues.board) params.set('filter_boards', paperSlotValues.board);
+      if (paperSlotValues.cls) params.set('filter_classes', paperSlotValues.cls.replace(/^Class /, ''));
+      if (paperSlotValues.subject) params.set('filter_subjects', paperSlotValues.subject);
+      if (paperSlotValues.school) params.set('filter_schools', paperSlotValues.school);
+      const qs = params.toString();
+      navigate(`/past-papers/results${qs ? `?${qs}` : ''}`);
+    }
+  }, [builderMode, teacherSlotValues, paperSlotValues, navigate]);
+
+  // Wordmark stickers — real counts only; a count that failed to load drops
+  // its clause instead of shipping the literal copy-deck numbers (design.md
+  // §0.10, brief WORDMARK STICKERS note).
+  const wordmarkStickers = useMemo(() => {
+    const list: string[] = [];
+    if (ctaTotals.teachers != null) list.push(`${ctaTotals.teachers.toLocaleString('en-IN')} tutors`);
+    list.push('no commission');
+    if (ctaTotals.papers != null) list.push(`${ctaTotals.papers.toLocaleString('en-IN')} free papers`);
+    return list;
+  }, [ctaTotals.teachers, ctaTotals.papers]);
+
   return (
-    <footer className="bg-panel text-white">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-16">
-        <div className="space-y-7">
-          {/* CTA tiles */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
-            <Link
-              to="/all-tuition-teachers-in-kolkata"
-              className="relative rounded-2xl bg-brand p-4 sm:p-6 text-brand-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-            >
-              <span
-                aria-hidden="true"
-                className="absolute -top-2.5 -right-2.5 rotate-6 rounded-full bg-panel px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.04em] text-white shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0"
-              >
-                Free
-              </span>
-              <span className="block text-lg font-semibold tabular-nums">
-                {ctaTotals.teachers != null ? `${ctaTotals.teachers.toLocaleString('en-IN')} teachers →` : 'Teachers →'}
-              </span>
-              <span className="mt-2 block text-sm">Verified, across Kolkata. No commission.</span>
-            </Link>
+    <footer className="bg-background">
+      {/* Inset rounded slab — design.md §1: `mx-3`, `rounded-4xl`, `bg-panel`.
+          Not full-bleed, so page background shows either side of it. */}
+      <div className="mx-3 overflow-hidden rounded-4xl bg-panel text-white">
+        <PageContainer className="px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
+          <div className="space-y-8">
+            {/* 1. Sentence builder (C8) — mode toggle + live-count CTA */}
+            <div className="space-y-4">
+              <div className="flex gap-2" role="tablist" aria-label="Search mode">
+                <Chip
+                  tone={builderMode === 'teachers' ? 'dark-on' : 'dark'}
+                  size={40}
+                  onClick={() => setBuilderMode('teachers')}
+                  aria-pressed={builderMode === 'teachers'}
+                >
+                  Teachers
+                </Chip>
+                <Chip
+                  tone={builderMode === 'papers' ? 'dark-on-papers' : 'dark'}
+                  size={40}
+                  onClick={() => setBuilderMode('papers')}
+                  aria-pressed={builderMode === 'papers'}
+                >
+                  Past papers
+                </Chip>
+              </div>
+              <SentenceBuilder
+                mode={builderMode}
+                slots={builderMode === 'teachers' ? teacherSlots : paperSlots}
+                onChange={handleSlotChange}
+                onSubmit={handleSubmit}
+                count={builderMode === 'teachers' ? (ctaTotals.teachers ?? undefined) : (ctaTotals.papers ?? undefined)}
+              />
+            </div>
 
-            <Link
-              to="/past-papers"
-              className="rounded-2xl bg-white/10 p-4 sm:p-6 transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-            >
-              <span className="block text-lg font-semibold tabular-nums text-brand-blue-subtle">
-                {ctaTotals.papers != null ? `${ctaTotals.papers.toLocaleString('en-IN')} papers →` : 'Papers →'}
-              </span>
-              <span className="mt-2 block text-sm text-white/70 tabular-nums">
-                {ctaTotals.schools != null ? `${ctaTotals.schools.toLocaleString('en-IN')} schools. ` : ''}Free, in-page, no download.
-              </span>
-            </Link>
+            {/* Identity */}
+            <div className="space-y-3 border-t border-white/10 pt-8">
+              <Logo size="nav" onDark />
+              <p className="max-w-prose text-sm text-white/70">
+                Quality tuition teachers in Kolkata, and past papers from Kolkata schools. Free on both counts.
+              </p>
+            </div>
 
-            <Link
-              to="/join"
-              className="rounded-2xl bg-white/10 p-4 sm:p-6 transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-            >
-              <span className="block text-lg font-semibold text-white">Teach with us →</span>
-              <span className="mt-2 block text-sm text-white/70">List free. Keep every rupee you charge.</span>
-            </Link>
-          </div>
+            {/* 2. Pill-labelled link columns — copy.md §2: find a teacher · past
+                papers · contact, as quick-access pills above the full column
+                groups, which stay intact for internal-linking / SEO. */}
+            <div className="flex flex-wrap gap-2">
+              <Chip asChild tone="dark" size={40} className="cursor-default">
+                <Link to="/all-tuition-teachers-in-kolkata" className="flex h-full w-full items-center gap-2 focus-visible:outline-none">find a teacher</Link>
+              </Chip>
+              <Chip asChild tone="dark" size={40} className="cursor-default">
+                <Link to="/past-papers" className="flex h-full w-full items-center gap-2 focus-visible:outline-none">past papers</Link>
+              </Chip>
+              <Chip asChild tone="dark" size={40} className="cursor-default">
+                <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className="flex h-full w-full items-center gap-2 focus-visible:outline-none">contact</a>
+              </Chip>
+            </div>
 
-          {/* Identity + socials */}
-          <div className="space-y-4">
-            <Logo size="nav" onDark />
-            <p className="max-w-prose text-sm text-white/70">
-              Quality tuition teachers in Kolkata, and past papers from Kolkata schools. Free on both counts.
-            </p>
+            {/* Mobile: collapsible groups, so the footer never becomes a wall of
+                links stacked above the bottom tab bar. Desktop: open columns. */}
+            <div className="lg:hidden">
+              <FooterAccordion label="Shikshaq" links={shikshaqLinks} />
+              <FooterAccordion label="Support & legal" links={supportLinks} />
+              <FooterAccordion label="Teachers by board · Kolkata" links={BOARD_FOOTER_LINKS} />
+              <FooterAccordion label="Tuition teachers by subject in Kolkata" links={subjectLinks} />
+            </div>
+
+            <div className="hidden lg:grid lg:grid-cols-3 lg:gap-6">
+              <div className="space-y-2">
+                <h2 className={COL_LABEL}>Shikshaq</h2>
+                <LinkList links={shikshaqLinks} />
+              </div>
+              <div className="space-y-2">
+                <h2 className={COL_LABEL}>Support &amp; legal</h2>
+                <LinkList links={supportLinks} />
+              </div>
+              <div className="space-y-2">
+                <h2 className={COL_LABEL}>Teachers by board · Kolkata</h2>
+                <LinkList links={BOARD_FOOTER_LINKS} />
+              </div>
+            </div>
+
+            <details className="hidden border-t border-white/10 pt-4 lg:block">
+              <summary className={`flex min-h-[44px] cursor-pointer list-none items-center gap-2 ${COL_LABEL} ${SUMMARY_RESET}`}>
+                Tuition teachers by subject in Kolkata
+                <ChevronDown className="h-4 w-4" aria-hidden />
+              </summary>
+              <div className="flex flex-wrap gap-x-6">
+                {subjectLinks.map(({ to, label }) => (
+                  <Link key={to} to={to} className={`${FOOTER_LINK} whitespace-nowrap text-xs text-white/70`}>
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </details>
+
+            {/* 3. Contact lines */}
+            <div className="space-y-1 border-t border-white/10 pt-6 text-sm text-white/85">
+              <a href="mailto:join.shikshaq@gmail.com" className={FOOTER_LINK}>join.shikshaq@gmail.com</a>
+              <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className={FOOTER_LINK}>
+                WhatsApp · +91 82409 80312
+              </a>
+            </div>
+
+            {/* 4. Social discs */}
             <div className="flex gap-2">
               <a
                 href="mailto:join.shikshaq@gmail.com"
                 aria-label="Email Shikshaq"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-brand-blue-subtle transition-colors duration-150 hover:bg-brand-blue-subtle hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
               >
-                <Mail className="h-4 w-4" strokeWidth={1.8} aria-hidden />
+                <Mail strokeWidth={1.8} aria-hidden />
               </a>
               <a
                 href="https://instagram.com/shikshaq.in"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Shikshaq on Instagram"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors duration-150 hover:bg-brand-subtle hover:text-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
               >
-                <InstagramIcon className="h-4 w-4" />
+                <InstagramIcon />
               </a>
               <a
                 href={getWhatsAppLink('8240980312')}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Shikshaq on WhatsApp"
-                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors duration-150 hover:bg-brand-subtle hover:text-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                className={cn(iconDiscVariants({ tone: 'whatsapp', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
               >
-                <WhatsAppIcon className="h-4 w-4" />
+                <WhatsAppIcon />
               </a>
+            </div>
+
+            {/* 5. Footnote — copy.md §2 "Footer footnote", verbatim except the
+                Ranchi -> Kolkata substitution (handoff error, see BRIEF.md). */}
+            <div className="rounded-2xl bg-white/10 p-4 text-sm text-white/70">
+              We are two people in Kolkata. Messages reach a human, usually the same day — teachers keep every rupee of their fee.
+            </div>
+
+            <div className="rounded-2xl bg-white/10 p-4 text-sm text-white/70">
+              Past papers are the property of the schools that set them. Shikshaq claims no ownership and hosts them as a free community resource.{' '}
+              <Link to="/terms-of-service" className="text-brand-blue-subtle underline-offset-2 hover:underline">Read our full position</Link>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-white/60">
               <a
-                href={getWhatsAppLink('8240980312')}
+                href="https://ngoaquaterra.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-[44px] items-center text-sm text-white/85 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 rounded-lg"
+                className="flex min-h-[44px] items-center gap-2 transition-opacity duration-150 hover:opacity-70"
               >
-                Send us a WhatsApp
+                <span>© {new Date().getFullYear()} Shikshaq. An AquaTerra Start-up.</span>
+                <img
+                  src={aquaterraLogo}
+                  alt="AquaTerra"
+                  width={64}
+                  height={17}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-4 w-auto object-contain opacity-70"
+                />
               </a>
+              <span>Kolkata, West Bengal, India</span>
             </div>
           </div>
+        </PageContainer>
 
-          {/* Mobile: collapsible groups, so the footer never becomes a wall of links
-              stacked above the bottom tab bar. Desktop: open columns. */}
-          <div className="lg:hidden">
-            <FooterAccordion label="Shikshaq" links={shikshaqLinks} />
-            <FooterAccordion label="Support & legal" links={supportLinks} />
-            <FooterAccordion label="Teachers by board · Kolkata" links={BOARD_FOOTER_LINKS} />
-            <FooterAccordion label="Tuition teachers by subject in Kolkata" links={subjectLinks} />
-          </div>
-
-          <div className="hidden lg:grid lg:grid-cols-3 lg:gap-6">
-            <div className="space-y-2">
-              <h2 className={COL_LABEL}>Shikshaq</h2>
-              <LinkList links={shikshaqLinks} />
-            </div>
-            <div className="space-y-2">
-              <h2 className={COL_LABEL}>Support &amp; legal</h2>
-              <LinkList links={supportLinks} />
-            </div>
-            <div className="space-y-2">
-              <h2 className={COL_LABEL}>Teachers by board · Kolkata</h2>
-              <LinkList links={BOARD_FOOTER_LINKS} />
-            </div>
-          </div>
-
-          <details className="hidden border-t border-white/10 pt-4 lg:block">
-            <summary className={`flex min-h-[44px] cursor-pointer list-none items-center gap-2 ${COL_LABEL} ${SUMMARY_RESET}`}>
-              Tuition teachers by subject in Kolkata
-              <ChevronDown className="h-4 w-4" aria-hidden />
-            </summary>
-            <div className="flex flex-wrap gap-x-6">
-              {subjectLinks.map(({ to, label }) => (
-                <Link key={to} to={to} className={`${FOOTER_LINK} whitespace-nowrap text-xs text-white/70`}>
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </details>
-
-          <div className="rounded-2xl bg-white/10 p-4 text-sm text-white/70">
-            Past papers are the property of the schools that set them. Shikshaq claims no ownership and hosts them as a free community resource.{' '}
-            <Link to="/terms-of-service" className="text-brand-blue-subtle underline-offset-2 hover:underline">Read our full position</Link>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-white/60">
-            <a
-              href="https://ngoaquaterra.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex min-h-[44px] items-center gap-2 transition-opacity duration-150 hover:opacity-70"
-            >
-              <span>© {new Date().getFullYear()} Shikshaq. An AquaTerra Start-up.</span>
-              <img
-                src={aquaterraLogo}
-                alt="AquaTerra"
-                width={64}
-                height={17}
-                loading="lazy"
-                decoding="async"
-                className="h-4 w-auto object-contain opacity-70"
-              />
-            </a>
-            <span>Kolkata, West Bengal, India</span>
-          </div>
-
-          {/* Big wordmark flourish — VISUAL_LANGUAGE §1's "one big typographic device"
-              reading. No cursive/script webfont is loaded anywhere in this project
-              (checked tailwind.config.ts + index.css), and VISUAL_LANGUAGE §0 forbids
-              inventing new tokens/assets. Per the task's fallback instruction, this
-              reaches for the flourish with Geist itself: maximal weight and size,
-              italic, tight tracking, on the dark panel in off-white — re-audited
-              against `02-truus-footer.png` and pushed heavier/bigger (font-black,
-              wider size ramp) so it reads with the same room-filling confidence as
-              the reference's script wordmark instead of a lighter typographic nod.
-              6 stickers now overlap the letterforms directly (not just parked in
-              the four corners), matching the reference's dense scattered cluster. */}
-          {/* pb-6: the bottom-anchored sticker below needs clearance from its own
-              rotation before the fixed mobile BottomNav's floating pill starts —
-              caught during final QA when it was overlapping. */}
-          <div className="relative -mx-1 pt-2 pb-6 sm:pt-3" aria-hidden="true">
-            <p
-              className="select-none whitespace-nowrap text-[19vw] italic font-black leading-none tracking-tighter text-white/95 sm:text-[15vw] lg:text-[168px]"
-            >
-              ShikshAQ
-            </p>
-
-            {/* Sticker cluster on the wordmark — same badge pattern as the "Free" CTA
-                sticker above (rounded, contrasting fill, rotated, small shadow),
-                content grounded in this app's own value props rather than the
-                reference's generic agency emoji. Spread across the full width and
-                pinned to sit ON the wordmark strokes, top and bottom, the way the
-                reference's stickers cross into its lettering rather than framing it. */}
-            <span className="pointer-events-none absolute left-[2%] -top-1 -rotate-6 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-brand-foreground shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
-              <span className="inline-flex items-center gap-1">
-                <Star className="h-3 w-3 fill-current" strokeWidth={0} />
-                Verified
-              </span>
-            </span>
-
-            <span className="pointer-events-none absolute left-[24%] top-[8%] rotate-3 rounded-full bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.04em] text-panel shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
-              Free, always
-            </span>
-
-            <span className="pointer-events-none absolute left-[46%] top-[42%] -rotate-6 rounded-full bg-brand-blue-subtle p-1.5 text-brand-blue-deep shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:p-2">
-              <Heart className="h-3 w-3 fill-current sm:h-4 sm:w-4" strokeWidth={0} />
-            </span>
-
-            <span className="pointer-events-none absolute right-[20%] top-[10%] rotate-6 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-brand-foreground shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
-              0% fee
-            </span>
-
-            <span className="pointer-events-none absolute left-[10%] bottom-[8%] rotate-[8deg] rounded-full bg-white p-1.5 text-panel shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:p-2">
-              <Star className="h-3 w-3 fill-current sm:h-4 sm:w-4" strokeWidth={0} />
-            </span>
-
-            <span className="pointer-events-none absolute right-[2%] bottom-2 -rotate-12 rounded-lg bg-panel px-2 py-1 text-[10px] font-bold uppercase tracking-[.04em] text-white shadow-[0_4px_10px_-2px_rgba(0,0,0,0.4)] motion-reduce:rotate-0 sm:text-xs">
-              No commission
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Find the best teachers section - EXPANDED content from teacher profiles */}
-      {expandedContent && (
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pb-10">
-          <div className="max-w-prose">
-            <h2 className="text-lg font-semibold">Find the best teachers for you</h2>
-            {isExpandedContentExpanded && (
-              <div
-                className="prose prose-sm mt-2 max-w-none text-sm text-white/70"
-                dangerouslySetInnerHTML={{ __html: sanitize(expandedContent || '') }}
-              />
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsExpandedContentExpanded(!isExpandedContentExpanded)}
-              className="mt-2 h-11 px-1 -mx-1 text-sm text-white/70 hover:text-white"
-            >
-              {isExpandedContentExpanded ? (
-                <>Read less<ChevronUp className="ml-2 h-4 w-4" /></>
-              ) : (
-                <>Read more<ChevronDown className="ml-2 h-4 w-4" /></>
+        {/* Find the best teachers section - EXPANDED content from teacher profiles */}
+        {expandedContent && (
+          <PageContainer className="px-4 pb-10 sm:px-6 lg:px-8">
+            <div className="max-w-prose">
+              <h2 className="text-lg font-semibold">Find the best teachers for you</h2>
+              {isExpandedContentExpanded && (
+                <div
+                  className="prose prose-sm mt-2 max-w-none text-sm text-white/70"
+                  dangerouslySetInnerHTML={{ __html: sanitize(expandedContent || '') }}
+                />
               )}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Find the best teachers section */}
-      {!loading && pageContent && (
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 pb-16">
-          <div className="max-w-prose">
-            <h2 className="text-lg font-semibold">{pageContent.heading}</h2>
-            {(isExpanded || pageContent.short_content) && (
-              <div
-                className="prose prose-sm mt-2 max-w-none text-sm text-white/70"
-                dangerouslySetInnerHTML={{
-                  __html: sanitize(
-                    isExpanded ? pageContent.full_content : (pageContent.short_content || pageContent.full_content),
-                  ),
-                }}
-              />
-            )}
-            {pageContent.full_content && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={() => setIsExpandedContentExpanded(!isExpandedContentExpanded)}
                 className="mt-2 h-11 px-1 -mx-1 text-sm text-white/70 hover:text-white"
               >
-                {isExpanded ? (
+                {isExpandedContentExpanded ? (
                   <>Read less<ChevronUp className="ml-2 h-4 w-4" /></>
                 ) : (
                   <>Read more<ChevronDown className="ml-2 h-4 w-4" /></>
                 )}
               </Button>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
+          </PageContainer>
+        )}
+
+        {/* Find the best teachers section */}
+        {!loading && pageContent && (
+          <PageContainer className="px-4 pb-10 sm:px-6 lg:px-8">
+            <div className="max-w-prose">
+              <h2 className="text-lg font-semibold">{pageContent.heading}</h2>
+              {(isExpanded || pageContent.short_content) && (
+                <div
+                  className="prose prose-sm mt-2 max-w-none text-sm text-white/70"
+                  dangerouslySetInnerHTML={{
+                    __html: sanitize(
+                      isExpanded ? pageContent.full_content : (pageContent.short_content || pageContent.full_content),
+                    ),
+                  }}
+                />
+              )}
+              {pageContent.full_content && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="mt-2 h-11 px-1 -mx-1 text-sm text-white/70 hover:text-white"
+                >
+                  {isExpanded ? (
+                    <>Read less<ChevronUp className="ml-2 h-4 w-4" /></>
+                  ) : (
+                    <>Read more<ChevronDown className="ml-2 h-4 w-4" /></>
+                  )}
+                </Button>
+              )}
+            </div>
+          </PageContainer>
+        )}
+
+        {/* 6. C12 WordmarkBleed — clipped by this slab's own bottom edge (the
+            slab has overflow-hidden), sitting above the reserved bottom-nav
+            strip because it is the last child inside the rounded panel, not
+            flush with the viewport edge. */}
+        <WordmarkBleed stickers={wordmarkStickers} className="pt-4" />
+      </div>
     </footer>
   );
 }

@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
@@ -169,7 +168,6 @@ export default function TeacherTermsAgreement() {
   if (authLoading || checking) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
@@ -189,7 +187,6 @@ export default function TeacherTermsAgreement() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
 
       <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16">
         <div className="w-full max-w-[480px]">

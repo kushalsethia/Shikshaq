@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { EmptyResults } from '@/components/EmptyResults';
@@ -169,7 +168,6 @@ export default function LikedTeachers() {
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <main className="container py-16 pb-16 text-center sm:py-20">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Sign in required</h1>
           <p className="mt-3 text-sm text-muted-foreground">Please sign in to view your favourite teachers.</p>
@@ -187,7 +185,6 @@ export default function LikedTeachers() {
   if ((loading || likesLoading) && likedTeachers.length === 0) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
         <main className="container pt-8 pb-16">
           <div className="mb-7 h-8 w-56 animate-shimmer rounded-lg bg-muted" />
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
@@ -204,7 +201,6 @@ export default function LikedTeachers() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <PageHeader
         eyebrow="Saved"

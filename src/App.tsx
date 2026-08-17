@@ -12,6 +12,8 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { CanonicalTag } from "@/components/CanonicalTag";
 import { Chatbot } from "@/components/Chatbot";
 import { BottomNav } from "@/components/BottomNav";
+import { Navbar } from "@/components/Navbar";
+import { TopBar } from "@/components/layout/TopBar";
 import { OnboardingModal } from "@/components/OnboardingModal";
 import Index from "./pages/Index";
 const Browse = lazy(() => import("./pages/Browse"));
@@ -110,6 +112,8 @@ const App = () => (
             <CanonicalTag />
             <Chatbot />
             <OnboardingModal />
+            <TopBar />
+            <Navbar />
             <RouteTransition>
             <Routes>
               <Route path="/" element={<Index />} />
