@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Users, Lock } from 'lucide-react';
 import { SearchControl } from '@/components/SearchControl';
@@ -111,14 +112,9 @@ export default function PastPapers() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const [schoolStats, setSchoolStats] = useState<SchoolStat[]>([]);
-  const [recentPapers, setRecentPapers] = useState<Paper[]>([]);
-  const [subjectCounts, setSubjectCounts] = useState<Record<string, number>>({});
-  const [boardCounts, setBoardCounts] = useState<Record<string, number>>({});
-  const [totalPapers, setTotalPapers] = useState<number | null>(null);
+
   const [groupMode, setGroupMode] = useState<GroupMode>('subject');
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+
 
   // The old /past-papers route used to render results inline; that's now the
   // dedicated /past-papers/results route (see PaperResults.tsx). SearchControl,
@@ -128,69 +124,73 @@ export default function PastPapers() {
   // stranding those params on the landing page.
   const hasFilters = searchParams.toString().length > 0;
 
-  // Landing-page data: schools, recent papers, subject counts, total
-  useEffect(() => {
-    if (hasFilters) return;
-    let cancelled = false;
-    async function fetchLanding() {
-      setLoading(true);
-      setLoadError(false);
+  /* Landing-page data. Migrated from useEffect+useState onto react-query:
+     QueryClient was configured app-wide in App.tsx but useQuery appeared in no
+     file, so every page hand-rolled its own loading/error/cancellation and
+     leaned on a separate localStorage TTL cache. The four queries and their
+     derivations are unchanged — only who owns the async state changed.
+
+     staleTime is generous: a paper catalogue changes rarely, and remounting
+     this route should not refetch four times. */
+  const landing = useQuery({
+    queryKey: ['past-papers', 'landing'],
+    enabled: !hasFilters,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
       const [schoolsRes, recentRes, subjectsRes, countRes] = await Promise.all([
         supabase.from('papers').select('school,board').eq('is_published', true),
         supabase.from('papers').select('id,title,school,subject,class,board,exam_type,year,file_url,created_at').eq('is_published', true).order('created_at', { ascending: false }).limit(6),
         supabase.from('papers').select('subject').eq('is_published', true),
         supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
       ]);
-      if (cancelled) return;
 
-      // Error state (DESIGN_SYSTEM §9). Purely a read of the errors the
-      // queries already return — the queries themselves are untouched.
-      if (schoolsRes.error || recentRes.error || subjectsRes.error || countRes.error) {
-        setLoadError(true);
-        setLoading(false);
-        return;
-      }
+      const firstError = schoolsRes.error || recentRes.error || subjectsRes.error || countRes.error;
+      if (firstError) throw firstError;
 
-      if (schoolsRes.data) {
-        const bySchool = new Map<string, Map<string, number>>();
-        schoolsRes.data.forEach((p) => {
-          const boards = bySchool.get(p.school) ?? new Map<string, number>();
-          boards.set(p.board, (boards.get(p.board) || 0) + 1);
-          bySchool.set(p.school, boards);
+      const bySchool = new Map<string, Map<string, number>>();
+      (schoolsRes.data || []).forEach((p) => {
+        const boards = bySchool.get(p.school) ?? new Map<string, number>();
+        boards.set(p.board, (boards.get(p.board) || 0) + 1);
+        bySchool.set(p.school, boards);
+      });
+      /* Card shows only the dominant board's own count (not the school's total
+         across all boards) so "{board} · {count} papers" is never wrong: a
+         school with 4 ICSE + 3 CBSE reads "ICSE · 4 papers + 3 more", not a
+         misleading "ICSE · 7 papers". */
+      const schoolStats: SchoolStat[] = Array.from(bySchool.entries()).map(([school, boards]) => {
+        let dominantBoard = '';
+        let dominantCount = 0;
+        let total = 0;
+        boards.forEach((count, board) => {
+          total += count;
+          if (count > dominantCount) { dominantCount = count; dominantBoard = board; }
         });
-        // Card shows only the dominant board's own count (not the school's
-        // total across all boards) so "{board} · {count} papers" is never
-        // wrong: a school with 4 ICSE + 3 CBSE now reads "ICSE · 4 papers +
-        // 3 more", not a misleading "ICSE · 7 papers" that implies every one
-        // of those 7 results is ICSE when clicked through.
-        const stats: SchoolStat[] = Array.from(bySchool.entries()).map(([school, boards]) => {
-          let dominantBoard = '';
-          let dominantCount = 0;
-          let total = 0;
-          boards.forEach((count, board) => {
-            total += count;
-            if (count > dominantCount) { dominantCount = count; dominantBoard = board; }
-          });
-          return { school, board: dominantBoard, count: dominantCount, otherBoardCount: total - dominantCount };
-        }).sort((a, b) => a.school.localeCompare(b.school));
-        setSchoolStats(stats);
+        return { school, board: dominantBoard, count: dominantCount, otherBoardCount: total - dominantCount };
+      }).sort((a, b) => a.school.localeCompare(b.school));
 
-        const boards: Record<string, number> = {};
-        schoolsRes.data.forEach((p) => { boards[p.board] = (boards[p.board] || 0) + 1; });
-        setBoardCounts(boards);
-      }
-      if (recentRes.data) setRecentPapers(recentRes.data);
-      if (subjectsRes.data) {
-        const counts: Record<string, number> = {};
-        subjectsRes.data.forEach((p) => { counts[p.subject] = (counts[p.subject] || 0) + 1; });
-        setSubjectCounts(counts);
-      }
-      setTotalPapers(countRes.count ?? 0);
-      setLoading(false);
-    }
-    fetchLanding();
-    return () => { cancelled = true; };
-  }, [hasFilters]);
+      const boardCounts: Record<string, number> = {};
+      (schoolsRes.data || []).forEach((p) => { boardCounts[p.board] = (boardCounts[p.board] || 0) + 1; });
+
+      const subjectCounts: Record<string, number> = {};
+      (subjectsRes.data || []).forEach((p) => { subjectCounts[p.subject] = (subjectCounts[p.subject] || 0) + 1; });
+
+      return {
+        schoolStats,
+        boardCounts,
+        subjectCounts,
+        recentPapers: (recentRes.data || []) as Paper[],
+        totalPapers: countRes.count ?? 0,
+      };
+    },
+  });
+
+  const schoolStats = landing.data?.schoolStats ?? [];
+  const recentPapers = landing.data?.recentPapers ?? [];
+  const subjectCounts = landing.data?.subjectCounts ?? {};
+  const boardCounts = landing.data?.boardCounts ?? {};
+  const totalPapers = landing.data?.totalPapers ?? null;
+  const loading = !hasFilters && landing.isPending;
+  const loadError = landing.isError;
 
   // The search bar's Teachers/Papers toggle doubles as the page-mode switch.
   const handleSearchModeChange = (mode: 'teachers' | 'papers') => {
