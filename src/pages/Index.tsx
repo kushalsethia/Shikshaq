@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { EmptyResults } from '@/components/EmptyResults';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { SubjectCard } from '@/components/SubjectCard';
@@ -263,13 +264,33 @@ export default function Index() {
           setCache(subjectsCacheKey, withCounts, CACHE_TTL.SUBJECTS);
         }
 
-        // Board pill stack — real counts of published papers per board (papers
-        // table has a `board` column; there is no reliable per-board teacher
-        // count today, so this section counts papers, not tutors — O-01).
+        // Board pill stack — real per-board TUTOR counts, which is what mockup
+        // 2a actually shows ("ICSE · 128 tutors"). An earlier pass counted
+        // published papers instead, on the assumption that no per-board teacher
+        // count existed; it does — Shikshaqmine."School Boards Catered" is the
+        // same column Browse already tokenizes for its board filter. Counting
+        // papers also meant the whole section vanished on a database with no
+        // papers in it, which is the state this one is in.
+        const { data: boardRows, error: boardErr } = await supabase
+          .from('Shikshaqmine')
+          .select('"School Boards Catered"');
+        if (boardErr) {
+          logger.error('Board counts failed', boardErr);
+        }
         const boardTally: Record<string, number> = {};
-        (papersRes.data || []).forEach((p) => {
-          const key = BOARD_ORDER.find((b) => b.toLowerCase() === (p.board || '').toLowerCase()) || null;
-          if (key) boardTally[key] = (boardTally[key] || 0) + 1;
+        (boardRows || []).forEach((row) => {
+          const raw = (row as Record<string, string | null>)['School Boards Catered'] || '';
+          // One teacher can list several boards; count them once per board.
+          const seen = new Set<string>();
+          raw.split(/[,/|]/).forEach((tok) => {
+            const t = tok.trim().toLowerCase();
+            if (!t) return;
+            const key = BOARD_ORDER.find((b) => t === b.toLowerCase() || t.includes(b.toLowerCase()));
+            if (key && !seen.has(key)) {
+              seen.add(key);
+              boardTally[key] = (boardTally[key] || 0) + 1;
+            }
+          });
         });
         setBoardCounts(boardTally);
 
@@ -557,7 +578,7 @@ export default function Index() {
                 >
                   <span className="font-display text-card-title-lg font-bold">{b}</span>
                   <span className="text-body-secondary tabular-nums opacity-80">
-                    {boardCounts[b]} {boardCounts[b] === 1 ? 'paper' : 'papers'}
+                    {boardCounts[b]} {boardCounts[b] === 1 ? 'tutor' : 'tutors'}
                   </span>
                 </Link>
               ))}
