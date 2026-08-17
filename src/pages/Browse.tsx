@@ -1861,7 +1861,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               </div>
 
               <div className="hidden grid-cols-3 gap-[18px] stagger-children lg:grid">
-                {displayedTeachers.map((teacher) => {
+                {displayedTeachers.map((teacher, cardIndex) => {
                   const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
                   const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
                   const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
@@ -1869,7 +1869,16 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                   const firstArea = area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null;
                   const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
                   return (
-                    <div key={teacher.id} className="animate-card-reveal">
+                    /* micro-06 rule 7: "Nothing animates on page load except the
+                       entrance fade-up on the first fold." Every card in the
+                       list carried animate-card-reveal, so all 24 ran their
+                       0.45s reveal at once — including cards four thousand
+                       pixels down, which finish long before anyone scrolls to
+                       them. That is the rule broken and the paint wasted at the
+                       same time: invisible motion, on the page that renders the
+                       most cards, on the phones least able to afford it. Only
+                       the first row of three can be on screen at load. */
+                    <div key={teacher.id} className={cardIndex < 3 ? 'animate-card-reveal' : undefined}>
                       <TeacherCard
                         id={teacher.id}
                         name={teacher.name}
