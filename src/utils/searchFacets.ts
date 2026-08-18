@@ -14,7 +14,16 @@ export const SUBJECTS = [
 
 export const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 
-export const BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'];
+/* ISC was missing. It is a real board with real papers, it is named in the
+   papers page's own sub-line ("ICSE, CBSE and ISC"), and leaving it out broke
+   pages.md §4's reviewer check outright: the board tab counts summed to 13
+   against a grid total of 18, because the five ISC papers had no tab to be
+   counted under and no way to be filtered to.
+
+   Teachers store the combined value "ICSE/ISC" (141 of them) where papers store
+   the two separately, so a substring match serves both: "ICSE" and "ISC" each
+   hit "ICSE/ISC", and ISC papers now have a facet of their own. */
+export const BOARDS = ['ICSE', 'ISC', 'CBSE', 'IGCSE', 'IB', 'State'];
 
 export const AREAS = [
   'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba',
