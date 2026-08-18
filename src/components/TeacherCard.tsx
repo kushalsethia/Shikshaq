@@ -247,7 +247,7 @@ function TeacherCardComponent({
       /* 700, not 600 — code.md C1 sets the name at 16px/700 on `row` and
          15px/700 on `grid`. The card's name is the only thing on it competing
          with the photo for attention, and semibold lost that fight. */
-      className={`line-clamp-2 flex items-center gap-1 break-words font-display font-bold text-foreground ${isSm || isRow ? 'text-card-title' : 'text-card-title-lg'}`}
+      className={`flex items-center gap-1 font-display font-extrabold tracking-[-0.03em] text-foreground ${isSm || isRow ? 'text-card-title' : 'min-w-0 truncate text-[15.5px] sm:text-[19px]'}`}
       title={displayName}
     >
       <span className="truncate">{displayName}</span>
@@ -354,12 +354,19 @@ function TeacherCardComponent({
          26px/28px outer radius, 19px/20px inner radius around the photo. */}
       <Link
         to={`/tuition-teachers/${slug}`}
-        className="group block overflow-hidden rounded-[20px] bg-card p-1.5 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:rounded-[22px] sm:p-2"
+        className="group block overflow-hidden rounded-[26px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:rounded-[28px] sm:p-2.5"
       >
         {/* §2.5 compact grid card (mockup "01 Start with the teachers parents pick"):
             shorter photo than the old 4/5 portrait, tighter body, so four cards read
             as a dense scannable row instead of large portrait tiles. */}
-        <div className="relative aspect-[4/3] overflow-hidden rounded-[15px] bg-muted sm:rounded-[16px]">
+        <div /* Radius is card radius MINUS card padding, per code.md C1, which is
+           binding: 26-8=18 mobile and 28-10=18 desktop, so one value covers
+           both. components.md C1 tabulates 20 for desktop, which contradicts
+           its own subtraction; the rule wins because code.md marks it binding.
+           The previous desktop pair broke it outright (22-8=14, drawn as 16),
+           which is why the photo corner did not sit concentric inside the
+           card corner. */
+        className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-muted">
           {photo}
         </div>
 

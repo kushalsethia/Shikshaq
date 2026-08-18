@@ -528,9 +528,14 @@ export default function Index() {
         <PageContainer as="section" className="py-8 sm:py-12">
           <div className="space-y-6">
             <NumberedHeading
-              line1="Start with the teachers"
+              /* 2a (the chosen direction) breaks this as "Start with the" /
+                 01 / "teachers parents pick". The split here was
+                 "Start with the teachers" / "parents pick", which is neither
+                 the mobile nor the desktop variant — the ordinal landed
+                 mid-phrase instead of between the two lines. */
+              line1="Start with the"
               ordinal="01"
-              line2="parents pick"
+              line2="teachers parents pick"
               support="Ordered by how often guardians message them. Verified ID and degree, every one."
             />
 

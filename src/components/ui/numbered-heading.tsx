@@ -79,8 +79,11 @@ const NumberedHeading = React.forwardRef<HTMLElement, NumberedHeadingProps>(
         {support ? (
           <p
             className={cn(
-              "max-w-prose text-body-secondary",
-              onDark ? "text-background/70" : "text-warm-prose",
+              /* 13.5px/1.55 in the muted tone, per the handoff. This was
+                 text-body-secondary (15px) in text-warm-prose (#4A443E),
+                 which read as a second heading rather than a support line. */
+              "max-w-prose text-meta leading-[1.55]",
+              onDark ? "text-background/70" : "text-muted-foreground",
             )}
           >
             {support}
