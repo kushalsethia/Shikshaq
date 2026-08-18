@@ -475,7 +475,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             </div>
 
             {/* Identity */}
-            <div className="space-y-3 border-t border-white/10 pt-8">
+            <div className="space-y-3 border-t border-white/10">
               <Logo size="nav" onDark className="tap-44" />
               <p className="max-w-prose text-sm text-white/70">
                 Quality tuition teachers in Kolkata, and past papers from Kolkata schools. Free on both counts.
@@ -521,7 +521,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               </div>
             </div>
 
-            <details className="hidden border-t border-white/10 pt-4 lg:block">
+            <details className="hidden border-t border-white/10 lg:block">
               <summary className={`flex min-h-[44px] cursor-pointer list-none items-center gap-2 ${COL_LABEL} ${SUMMARY_RESET}`}>
                 Tuition teachers by subject in Kolkata
                 <ChevronDown className="h-4 w-4" aria-hidden />
@@ -536,7 +536,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             </details>
 
             {/* 3. Contact lines */}
-            <div className="space-y-1 border-t border-white/10 pt-6 text-sm text-white/85">
+            <div className="space-y-1 border-t border-white/10 pt-3 text-sm text-white/85">
               <a href="mailto:ngo.aquaterra@gmail.com" className={FOOTER_LINK}>ngo.aquaterra@gmail.com</a>
               <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className={FOOTER_LINK}>
                 WhatsApp · +91 82409 80312
