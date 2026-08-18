@@ -364,6 +364,23 @@ rather than an admin action. RLS on `admin_audit_log` is on with exactly two
 policies, SELECT and INSERT, both admin-only: no UPDATE or DELETE policy exists
 for anyone, so the log stays append-only as designed.
 
+**How far the sandbox can go, and where it stops.** `/__sandbox` renders the
+admin SHELL because those are pure presentational components taking props.
+Extending it to the real `Admin*` and `*Dashboard` page components is possible
+but was judged not worth it, and the reasoning matters if someone tries:
+
+- those components fetch their own data and redirect signed-out users in an
+  effect, so rendering them needs a fake session;
+- `AuthContext` is not exported, so faking one means widening a production
+  module's API purely to serve a test fixture;
+- and the payoff is small — RLS still blocks anon reads, so they would render
+  their EMPTY state, not the populated layout the mockups show.
+
+Verifying the shell was worth a fixture. Verifying an empty state that code
+review already confirms (`ListEmpty` is present in all three dashboards) is not.
+Anyone with a real session should just sign in — five minutes there beats any
+amount of scaffolding here.
+
 **Not compared, and why:** the five admin frames and three dashboards need a
 signed-in session; the paper reader, its gate and the school page need one real
 row in `papers`; reviews R3 needs both. The remaining sheets (fun-01 to -05,
