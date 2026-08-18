@@ -1871,7 +1871,19 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                   </Button>
                 </div>
               ) : (
-                <ListEnd count={teachers.length} />
+                /* "Widen your area" now clears just the area facet rather than
+                   every filter — the sentence names one thing, so it should do
+                   that one thing and leave the subject/class the user chose
+                   alone. Omitted entirely when no area is set, so the link is
+                   never offered with nothing to widen. */
+                <ListEnd
+                  count={teachers.length}
+                  onWiden={
+                    filters.areas.length > 0
+                      ? () => setFilters({ ...filters, areas: [] })
+                      : undefined
+                  }
+                />
               )}
             </div>
           ) : isDefaultView ? (

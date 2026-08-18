@@ -244,7 +244,10 @@ function TeacherCardComponent({
 
   const nameHeading = (
     <h3
-      className={`line-clamp-2 flex items-center gap-1 break-words font-display font-semibold text-foreground ${isSm || isRow ? 'text-card-title' : 'text-card-title-lg'}`}
+      /* 700, not 600 — code.md C1 sets the name at 16px/700 on `row` and
+         15px/700 on `grid`. The card's name is the only thing on it competing
+         with the photo for attention, and semibold lost that fight. */
+      className={`line-clamp-2 flex items-center gap-1 break-words font-display font-bold text-foreground ${isSm || isRow ? 'text-card-title' : 'text-card-title-lg'}`}
       title={displayName}
     >
       <span className="truncate">{displayName}</span>
@@ -313,9 +316,15 @@ function TeacherCardComponent({
       <>
         <Link
           to={`/tuition-teachers/${slug}`}
-          className="group flex items-center gap-3 rounded-2xl bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+          /* code.md C1, `row` density: card radius 20, padding 10, photo
+             96x120 at radius 12. This was radius 16 / padding 8 / a 76x76
+             SQUARE photo — so the list showed cropped square thumbnails where
+             the spec calls for a portrait, and the concentric maths
+             (photo radius = card radius − padding) did not hold. A square crop
+             of a portrait photo takes the top of someone's head off. */
+          className="group flex items-start gap-3 rounded-[20px] bg-card p-2.5 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
         >
-          <div className="h-[76px] w-[76px] shrink-0 overflow-hidden rounded-[19px] bg-muted">{photo}</div>
+          <div className="h-[120px] w-24 shrink-0 overflow-hidden rounded-[12px] bg-muted">{photo}</div>
           <div className="min-w-0 flex-1 py-1">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">{nameHeading}</div>

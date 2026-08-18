@@ -146,10 +146,34 @@ function ListError({ onRetry, className }: { onRetry: () => void; className?: st
 
 /* ---------- 5. End of list / truncated ---------- */
 
-function ListEnd({ count, className }: { count: number; className?: string }) {
+/* pages.md §2 section 5: "That's all 214 teachers" + a "Widen your area" TEXT
+   LINK. It was a full stop instead — the sentence told you to widen the area
+   and then gave you no way to do it, which is the least useful place on the
+   page to be told to go and find a control. `onWiden` is optional so callers
+   with no area filter applied still get the sentence without a dead link. */
+function ListEnd({
+  count,
+  onWiden,
+  className,
+}: {
+  count: number;
+  onWiden?: () => void;
+  className?: string;
+}) {
   return (
     <p className={cn("py-6 text-center text-meta text-warm-meta", className)}>
-      That is all {count} for this search. Widen the area to see more.
+      That is all {count} for this search.{" "}
+      {onWiden ? (
+        <button
+          type="button"
+          onClick={onWiden}
+          className="min-h-11 font-semibold text-brand-blue underline underline-offset-2 transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          Widen your area
+        </button>
+      ) : (
+        "Widen the area to see more."
+      )}
     </p>
   );
 }
