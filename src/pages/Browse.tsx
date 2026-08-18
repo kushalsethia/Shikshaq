@@ -1639,6 +1639,20 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           <SearchControl align="flex-start" stackedToggle onDark initialMode="teachers" onModeChange={handleSearchModeChange} />
         </div>
 
+      </ControlBlock>
+
+      {/* Subject and class quick-picks sit BELOW the control block, not inside
+          it. pages.md §2 gives the block three things — eyebrow, result-count
+          h1, search field — and sizes it 148px mobile / 180px desktop. With
+          these two chip rows inside, it measured 459px: three times the spec,
+          and the first fold was mostly chrome before a single teacher appeared.
+
+          They are kept rather than cut, because each is a one-tap route to a
+          subject or class that the filter sheet makes a three-tap job. Moving
+          them out satisfies the block's proportions without removing the path.
+          On a bone ground they need their own container padding, which the
+          control block was previously providing. */}
+      <PageContainer className="pt-4">
         {/* Subject quick-picks -- default view only. Restrained tint/text
             pairing so ten hues side by side don't read as candy. Not shown on
             subject pages: the subject is already locked by the route. */}
@@ -1687,7 +1701,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             ))}
           </div>
         )}
-      </ControlBlock>
+      </PageContainer>
+
 
       {/* Sticky filter bar (design.md S4 "Browse (S1)"): dark Filters pill
           with an orange count badge (mobile -- desktop uses the persistent
