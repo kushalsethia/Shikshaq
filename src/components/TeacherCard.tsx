@@ -299,9 +299,14 @@ function TeacherCardComponent({
       onClick={handleHeartClick}
       aria-label={liked ? 'Remove from favourites' : 'Add to favourites'}
       aria-pressed={liked}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform duration-tap ease-tap active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
+      /* Was active:scale-90 — every other tap target in this file (and the
+         Button primitive) uses 0.97 as the floor, with a comment explaining
+         anything smaller "feels exaggerated". This was the one outlier,
+         nearly 3x past that floor, so the heart visibly overshot compared to
+         its neighbours (the card link, the WhatsApp button) on the same tap. */
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform duration-tap ease-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-colors duration-hover hover:bg-accent">
         <Heart
           className={`h-4 w-4 transition-colors duration-150 ${
             liked ? 'fill-destructive text-destructive' : 'text-muted-foreground'
@@ -324,7 +329,7 @@ function TeacherCardComponent({
              of a portrait photo takes the top of someone's head off. */
           className="group flex items-start gap-3 rounded-[20px] bg-card p-2.5 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
         >
-          <div className="h-[120px] w-24 shrink-0 overflow-hidden rounded-[12px] bg-muted">{photo}</div>
+          <div className="h-[120px] w-24 shrink-0 overflow-hidden rounded-[12px] bg-muted outline outline-1 -outline-offset-1 outline-black/10">{photo}</div>
           <div className="min-w-0 flex-1 py-1">
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
               <div className="min-w-[132px] flex-1">{nameHeading}</div>
@@ -366,7 +371,7 @@ function TeacherCardComponent({
            The previous desktop pair broke it outright (22-8=14, drawn as 16),
            which is why the photo corner did not sit concentric inside the
            card corner. */
-        className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-muted">
+        className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-muted outline outline-1 -outline-offset-1 outline-black/10">
           {photo}
         </div>
 
