@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Clock, Trash2, Sparkles, CheckCircle2, X } from 'lucide-react';
+import { MessageCircle, Clock, Trash2, Sparkles, CheckCircle2, Star, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { saveAuthRedirect } from '@/utils/authRedirect';
@@ -24,6 +24,7 @@ import {
 interface Comment {
   id: string;
   comment: string;
+  rating: number | null;
   created_at: string;
   updated_at: string;
   user_id: string;
@@ -109,7 +110,7 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
       // - Users can see their own pending comments
       const { data: commentsData, error: commentsError } = await supabase
         .from('teacher_comments')
-        .select('id, comment, created_at, updated_at, user_id, is_anonymous, approved, approved_by, approved_at')
+        .select('id, comment, rating, created_at, updated_at, user_id, is_anonymous, approved, approved_by, approved_at')
         .eq('teacher_id', teacherId)
         .order('created_at', { ascending: false });
 
@@ -170,7 +171,7 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
     }
   }
 
-  async function handleSubmit(comment: string, isAnonymous: boolean) {
+  async function handleSubmit(comment: string, isAnonymous: boolean, rating: number | null) {
     if (!user || !comment.trim()) return;
 
     try {
@@ -186,6 +187,9 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
         user_id: user.id,
         comment: comment.trim(),
         is_anonymous: isAnonymous,
+        // Null when nobody picked a star. Stored as null rather than 0 so the
+        // average counts only ratings people actually chose.
+        rating,
         approved,
       });
 
@@ -252,7 +256,19 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
     initial: getCommentInitials(comment),
     who: [getCommentAuthorName(comment), getCommentAuthorInfo(comment)].filter(Boolean).join(' · '),
     when: formatDistanceToNow(new Date(comment.created_at), { addSuffix: true }),
+    rating: comment.rating,
   }));
+
+  /* The average is over rated reviews only, so it never counts the 377 older
+     reviews that were written before ratings existed as if they were silence
+     or as if they were five stars. Below three ratings there is no average
+     shown: one person's opinion rendered as "5.0" reads like a track record
+     and is not one. */
+  const rated = comments.filter((c) => typeof c.rating === 'number' && c.rating > 0);
+  const average =
+    rated.length >= 3
+      ? Math.round((rated.reduce((sum, c) => sum + (c.rating ?? 0), 0) / rated.length) * 10) / 10
+      : null;
 
   return (
     <div className="mt-12 min-w-0 border-t border-border px-4 pt-8 md:px-0">
@@ -263,10 +279,20 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
           <h2 className="font-display text-[27px] font-extrabold leading-[1] tracking-[-0.04em] text-foreground md:text-[46px]">
             Reviews
           </h2>
-          {/* Rule 10 / O-02: no rating column exists on this table, so only the
-              real review count is shown — never a fabricated average or star
-              rating. */}
+          {/* O-02 resolved: ratings are real now, so the average appears —
+              but only when at least three people have actually given one.
+              Rule 10 still holds for everything behind it: no fallback star
+              count, no "no ratings yet" line advertising the absence. */}
           <span className="tabular-nums text-muted-foreground">({comments.length})</span>
+          {average !== null && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-brand-subtle px-2.5 py-1 text-[13px] font-bold text-brand-deep">
+              <Star className="h-[13px] w-[13px] fill-current" aria-hidden="true" />
+              <span className="tabular-nums">{average.toFixed(1)}</span>
+              <span className="font-semibold text-warm-meta">
+                ({rated.length} rating{rated.length === 1 ? '' : 's'})
+              </span>
+            </span>
+          )}
         </div>
         <Button variant="muted" size={44} className="rounded-[12px] text-[14px] font-bold" onClick={handleWriteReviewClick}>
           Add your review

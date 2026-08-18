@@ -1,3 +1,5 @@
+import { Star } from "lucide-react";
+
 import { getSubjectPalette } from "@/lib/subject-palette";
 
 /* C7 — Redesign Reviews.dc.html R1 (desktop fan) / R2 (mobile scroll rail):
@@ -18,6 +20,8 @@ export interface ReviewCardData {
   initial: string;
   who: string;
   when: string;
+  /** 1–5, or null for the reviews written before ratings existed. Never a default. */
+  rating?: number | null;
 }
 
 // R1 fan array: tilt / stickerTilt / drop / overlap, in mockup order.
@@ -79,6 +83,25 @@ export function ReviewCard({ review, index, fan = false, className }: ReviewCard
         >
           {title}
         </p>
+        {/* Drawn only when this review carries a rating. An unrated review
+            shows no stars at all rather than five empty ones — five hollow
+            stars read as "rated zero", which is a claim nobody made. */}
+        {typeof review.rating === "number" && review.rating > 0 && (
+          <div className="mt-[6px] flex items-center gap-[2px]" role="img" aria-label={`${review.rating} out of 5`}>
+            {[1, 2, 3, 4, 5].map((value) => (
+              <Star
+                key={value}
+                className={fan ? "h-[13px] w-[13px]" : "h-[12px] w-[12px]"}
+                style={
+                  value <= review.rating!
+                    ? { fill: palette.solid, color: palette.solid }
+                    : { fill: "transparent", color: palette.solid, opacity: 0.28 }
+                }
+                aria-hidden="true"
+              />
+            ))}
+          </div>
+        )}
         <hr
           className={fan ? "mt-[12px] mb-[14px] h-[1.5px] border-0" : "mt-[10px] mb-[12px] h-[1.5px] border-0"}
           style={{ backgroundColor: palette.solid, opacity: 0.2 }}

@@ -1,3 +1,8 @@
+import { useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { ReviewCard, type ReviewCardData } from '@/components/reviews/review-card';
+import { WriteReviewSheet } from '@/components/reviews/write-review-sheet';
 import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
 import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 
@@ -89,7 +94,31 @@ function StatCard({ label, value, caption }: { label: string; value: string; cap
   );
 }
 
+const RATED_REVIEW: ReviewCardData = {
+  id: 'rated',
+  quote: 'Sandbox review text, four stars.',
+  subject: 'Maths',
+  className: 'Class 10',
+  initial: 'S',
+  who: 'Sandbox Reviewer',
+  when: '2 days ago',
+  rating: 4,
+};
+
+const UNRATED_REVIEW: ReviewCardData = {
+  id: 'unrated',
+  quote: 'Sandbox review text, written before ratings existed.',
+  subject: 'Physics',
+  className: 'Class 12',
+  initial: 'S',
+  who: 'Sandbox Reviewer',
+  when: '3 months ago',
+  rating: null,
+};
+
 export default function Sandbox() {
+  const [sheetOpen, setSheetOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       <AdminRail nav={NAV} signedInName="Sandbox viewer" />
@@ -113,6 +142,31 @@ export default function Sandbox() {
 
           <div className="mt-5">
             <AdminTable columns={COLUMNS} rows={ROWS} />
+          </div>
+
+          {/* Ratings. Every real teacher's reviews predate the rating column,
+              so the rated card and the star input cannot be seen anywhere on
+              the live site yet, and the alternative to this was writing fake
+              ratings onto real named teachers' reviews. Mock props only. */}
+          <h2 className="mb-3 mt-8 font-display text-[20px] font-black text-foreground">Review ratings</h2>
+          <div className="flex flex-wrap items-start gap-4">
+            <ReviewCard index={0} review={RATED_REVIEW} />
+            <ReviewCard index={1} review={UNRATED_REVIEW} />
+            <div className="rounded-2xl bg-card p-4 shadow-border">
+              <Button variant="primary" size={44} onClick={() => setSheetOpen(true)}>
+                Open the review sheet
+              </Button>
+              <WriteReviewSheet
+                open={sheetOpen}
+                onOpenChange={setSheetOpen}
+                submitting={false}
+                error={null}
+                /* Logs instead of inserting — the sandbox never touches the database. */
+                onSubmit={(comment, isAnonymous, rating) =>
+                  console.info('sandbox review (not saved):', { comment, isAnonymous, rating })
+                }
+              />
+            </div>
           </div>
         </main>
       </div>
