@@ -20,6 +20,7 @@ import { OnboardingModal } from "@/components/OnboardingModal";
    audit flagged a 474KB main chunk with 10 pages bundled in eagerly. */
 import Index from "./pages/Index";
 import Sandbox from "@/pages/Sandbox";
+import SchoolPage from "@/pages/SchoolPage";
 const Browse = lazy(() => import("./pages/Browse"));
 const Auth = lazy(() => import("./pages/Auth"));
 const TeacherProfile = lazy(() => import("./pages/TeacherProfile"));
@@ -237,6 +238,9 @@ const App = () => (
                   <PaperReader />
                 </Suspense>
               } />
+              {/* S16. a-to-z.md marks this the one route that is `new` — the
+                  by-school rows on /past-papers previously went nowhere. */}
+              <Route path="/school/:slug" element={<SchoolPage />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={
                 <Suspense fallback={<PageLoader />}>

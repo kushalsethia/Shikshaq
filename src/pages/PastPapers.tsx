@@ -14,6 +14,7 @@ import { PillRow } from '@/components/devices';
 import { useAuth } from '@/lib/auth-context';
 import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
 import { IconDisc } from '@/components/ui/icon-disc';
+import { schoolSlug } from '@/lib/school-slug';
 
 // Cycled (not hashed) for pure visual variety across the class/board pill
 // walls — these are not subject-coded lists, so there's no "correct" mapping
@@ -403,9 +404,14 @@ export default function PastPapers() {
             <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">By school</h2>
             <div className="stagger-children grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]">
               {schoolStats.map(({ school, board, count, otherBoardCount }) => (
-                <button
+                /* A real link to the school's own page (S16), not a button that
+                   pre-filters the results list. These rows were the "by-school
+                   rows that go nowhere" a-to-z.md describes: a <button> has no
+                   href, so a school could not be opened in a new tab, shared,
+                   or reached by a crawler. */
+                <Link
                   key={school}
-                  onClick={() => navigate(`/past-papers/results?filter_schools=${encodeURIComponent(school)}`)}
+                  to={`/school/${schoolSlug(school)}`}
                   className={`flex min-h-11 animate-card-reveal items-center gap-3 rounded-2xl bg-card px-[14px] py-3 text-left shadow-border transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 lg:px-[15px] lg:py-[13px] ${FOCUS_BLUE}`}
                 >
                   <IconDisc
@@ -424,7 +430,7 @@ export default function PastPapers() {
                     </span>
                   </span>
                   <ArrowRight className="h-4 w-4 flex-none text-warm-quaternary" aria-hidden="true" />
-                </button>
+                </Link>
               ))}
             </div>
           </section>
