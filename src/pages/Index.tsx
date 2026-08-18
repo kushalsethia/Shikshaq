@@ -671,7 +671,10 @@ export default function Index() {
             <Eyebrow onDark className="text-brand-foreground/70">
               02 · Two minutes, start to finish
             </Eyebrow>
-            <h2 className="mt-2 font-display text-section-head font-extrabold lg:text-page-title">
+            {/* No lg:text-page-title: section-head now clamps to 46px at 1440,
+                and page-title caps at 40 — the override made this heading
+                SMALLER than its siblings on desktop. */}
+            <h2 className="mt-2 font-display text-section-head font-extrabold">
               Then talk to them yourself
             </h2>
 

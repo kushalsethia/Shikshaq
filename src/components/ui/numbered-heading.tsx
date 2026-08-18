@@ -13,9 +13,10 @@ import { cn } from "@/lib/utils";
    They are decorative as far as assistive tech is concerned (the heading text
    carries the meaning), so the ordinal is aria-hidden.
 
-   Sizing: mobile 27px / desktop 34–46px — that is `text-section-head`, which
-   already clamps between 23px and 34px, so `lg:text-page-title` carries the
-   larger desktop end. */
+   Sizing: 27px mobile / 46px desktop. `text-section-head` now clamps exactly
+   between those two, so the `lg:text-page-title` that used to supply the
+   desktop end is gone — with the corrected token it would have capped the
+   heading at 40px and made it SMALLER at large widths. */
 export interface NumberedHeadingProps extends React.HTMLAttributes<HTMLElement> {
   /** First display line. */
   line1: string;
@@ -64,7 +65,7 @@ const NumberedHeading = React.forwardRef<HTMLElement, NumberedHeadingProps>(
           <Heading
             ref={ref}
             className={cn(
-              "font-display font-extrabold text-section-head lg:text-page-title",
+              "font-display font-extrabold text-section-head",
               onDark ? "text-background" : "text-foreground",
             )}
           >

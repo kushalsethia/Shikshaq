@@ -230,9 +230,15 @@ export default {
          label) come from the exact VISUAL_LANGUAGE §4 px values since those
          were never meant to be fluid. */
       fontSize: {
-        "display-hero": ["clamp(2.125rem, 1.7rem + 2.1vw, 4.125rem)", { lineHeight: "0.95", letterSpacing: "-0.03em" }],
+        /* Solved so the clamp hits the handoff endpoints exactly rather than
+           being eyeballed: 40px at 390 (2a) and 86px at 1440 (design.md §5).
+           Was 34..66, which computed 35.4px on a 390 phone — the hero read a
+           full size smaller than drawn. */
+        "display-hero": ["clamp(2.5rem, 1.4321rem + 4.381vw, 5.375rem)", { lineHeight: "0.96", letterSpacing: "-0.04em" }],
         "page-title": ["clamp(1.75rem, 1.55rem + 1vw, 2.5rem)", { lineHeight: "1.05", letterSpacing: "-0.025em" }],
-        "section-head": ["clamp(1.4375rem, 1.28rem + 0.75vw, 2.125rem)", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
+        /* 27px at 390, 46px at 1440, per the numbered-heading spec. Was
+           23..34, so section heads sat a size under the drawing at both ends. */
+        "section-head": ["clamp(1.6875rem, 1.2464rem + 1.810vw, 2.875rem)", { lineHeight: "1", letterSpacing: "-0.04em" }],
         subsection: ["1.125rem", { lineHeight: "1.3", letterSpacing: "-0.01em" }],
         "card-title": ["1rem", { lineHeight: "1.35", letterSpacing: "-0.01em" }],
         "card-title-lg": ["1.4375rem", { lineHeight: "1.15", letterSpacing: "-0.04em" }],
