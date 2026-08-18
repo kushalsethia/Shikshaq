@@ -331,7 +331,7 @@ function TeacherCardComponent({
           </div>
         </Link>
         {whatsappLink !== undefined && (
-          <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" />
+          <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" teacherName={name} />
         )}
       </>
     );
@@ -370,7 +370,7 @@ function TeacherCardComponent({
         </div>
       </Link>
       {whatsappLink !== undefined && (
-        <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" />
+        <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" teacherName={name} />
       )}
     </>
   );

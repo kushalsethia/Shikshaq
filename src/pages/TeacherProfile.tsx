@@ -864,7 +864,7 @@ export default function TeacherProfile() {
 
       <BottomNavSpacer />
 
-      <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent={signInIntent} />
+      <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent={signInIntent} teacherName={teacher?.name ?? null} />
 
       <Footer expandedContent={teacher.expanded || null} />
     </div>
