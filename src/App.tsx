@@ -19,6 +19,7 @@ import { OnboardingModal } from "@/components/OnboardingModal";
    add a round trip before first paint. Everything else is lazy - an /impeccable
    audit flagged a 474KB main chunk with 10 pages bundled in eagerly. */
 import Index from "./pages/Index";
+import Sandbox from "@/pages/Sandbox";
 const Browse = lazy(() => import("./pages/Browse"));
 const Auth = lazy(() => import("./pages/Auth"));
 const TeacherProfile = lazy(() => import("./pages/TeacherProfile"));
@@ -92,9 +93,24 @@ const TeacherRedirect = () => {
 // this guard they doubled up on the auth pages' own header and covered the
 // password field. Keep this list to auth-only chromeless routes.
 const CHROMELESS_ROUTES = ['/auth', '/select-role'];
+
+/* The admin console is chromeless for the same reason, and was not treated as
+   such: admin-01..05 give it its own chrome — a 244px rail and a toolbar — and
+   show no public navigation anywhere. Every /admin page was rendering the
+   marketing TopBar ("Find teachers · Past papers · Subjects · Schools · Sign in
+   · List yourself") above that rail, so the console carried two navigations
+   that disagree about where you are, and the whole thing started 68px down the
+   page.
+
+   Found via the dev sandbox below, which renders the admin shell without a
+   login — this is exactly the class of defect a session-gated screen hides. */
+const CHROMELESS_PREFIXES = ['/admin', '/__sandbox'];
 function useIsChromelessRoute() {
   const { pathname } = useLocation();
-  return CHROMELESS_ROUTES.includes(pathname);
+  return (
+    CHROMELESS_ROUTES.includes(pathname) ||
+    CHROMELESS_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  );
 }
 function SiteChrome({ children }: { children: ReactNode }) {
   const chromeless = useIsChromelessRoute();
@@ -166,6 +182,12 @@ const App = () => (
                 and are left alone. */}
             <Suspense fallback={<PageLoader />}>
             <Routes>
+              {/* Dev-only design sandbox for the admin shell, which is otherwise
+                  unreachable without an admin login. Renders mock props only —
+                  no Supabase access, not the real console, and NOT a way past
+                  the admin gate. The guard is a build-time constant, so this
+                  route does not exist in a production bundle. */}
+              {import.meta.env.DEV && <Route path="/__sandbox" element={<Sandbox />} />}
               <Route path="/" element={<Index />} />
               <Route path="/all-tuition-teachers-in-kolkata" element={
                 <Suspense fallback={<PageLoader />}>

@@ -328,6 +328,20 @@ codebase, confirm a negative twice before acting on it.
 a route renders it. PreFooter B3 was matched to its mockup while mounted
 nowhere; HowItWorks.tsx and Nudge.tsx were deleted for the same reason.
 
+**Dev sandbox for the admin shell: `/__sandbox`.** The console is behind an
+admin login, so its layout could never be looked at. `src/pages/Sandbox.tsx`
+renders the shell components — rail, toolbar, stat cards, table — against fixed
+mock props. It touches no Supabase, renders none of the real Admin* pages, and
+is registered behind `import.meta.env.DEV`, so the route does not exist in a
+production build (verified: the mock strings appear in no built chunk). It is a
+component gallery, not a way past the admin gate.
+
+It paid for itself immediately: every `/admin` route was rendering the public
+marketing TopBar above its own rail, so the console carried two navigations
+disagreeing about where you are, and started 68px down the page. `admin-01..05`
+show no public nav at all. `/admin` and the sandbox are now chromeless like
+`/auth` and `/select-role` already were.
+
 **Gated screens — statically compared, since running them needs a session.**
 Weaker than seeing them render, and not a substitute, but strong enough for
 hardcoded strings and missing queries. It found one real defect: the admin rail
