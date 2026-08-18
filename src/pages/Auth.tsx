@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, MessageCircle } from 'lucide-react';
+import { Loader2, MessageCircle, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
@@ -86,6 +86,7 @@ export default function Auth() {
     signUpWithEmail,
     signInWithEmail,
     resetPasswordForEmail,
+    sendMagicLink,
     updatePassword,
     user,
     loading: authLoading
@@ -276,6 +277,30 @@ export default function Auth() {
       toast.error('Something went wrong. Please try again.');
       setLoading(false);
     }
+  };
+
+  /* "Send me a link" — the primary action account-01-sign-in.png draws.
+     Errors surface inline rather than as a toast, because the most likely
+     failure here is a project-level mail configuration problem and the person
+     reading it needs the actual reason, not "something went wrong". */
+  const [magicSent, setMagicSent] = useState(false);
+  const [magicLoading, setMagicLoading] = useState(false);
+
+  const handleMagicLink = async () => {
+    setErrors({});
+    const parsed = emailSchema.safeParse(formData.email);
+    if (!parsed.success) {
+      setErrors({ email: 'Enter the email you want the link sent to' });
+      return;
+    }
+    setMagicLoading(true);
+    const { error } = await sendMagicLink(formData.email);
+    setMagicLoading(false);
+    if (error) {
+      setErrors({ email: error.message });
+      return;
+    }
+    setMagicSent(true);
   };
 
   const handleGoogleSignIn = async () => {
@@ -513,6 +538,7 @@ export default function Auth() {
                   <span className="text-[11.5px] text-background/45">or</span>
                   <span className="h-px flex-1 bg-white/[0.14]" />
                 </div>
+
               </div>
             )}
 
@@ -595,6 +621,30 @@ export default function Auth() {
                       className={`${DARK_FIELD} ${errors.email ? DARK_FIELD_ERROR : ''}`}
                     />
                     {errors.email && <p className="mt-2 text-sm text-destructive">{errors.email}</p>}
+
+                    {/* "Send me a link" sits immediately under the email field,
+                        which is the order account-01-sign-in.png draws: Google,
+                        "or", the address, then the link. Putting it above the
+                        field — as this first did — asks you to press a button
+                        before there is anywhere to type. Password sign-in
+                        continues below; this is the default path, not the only
+                        one, because eight existing accounts have passwords. */}
+                    {magicSent ? (
+                      <p className="mt-3 rounded-[14px] bg-white/[0.08] px-4 py-3 text-[14px] leading-[1.5] text-background/80">
+                        Link sent to <span className="font-semibold text-background">{formData.email}</span>. Open it on
+                        this device and you are in — no password needed.
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleMagicLink}
+                        disabled={magicLoading}
+                        className="shikshaq-tap mt-3 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-brand-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {magicLoading ? 'Sending…' : 'Send me a link'}
+                        {!magicLoading && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                      </button>
+                    )}
                   </div>
                 )}
 

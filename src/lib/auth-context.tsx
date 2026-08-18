@@ -20,6 +20,8 @@ interface AuthContextType {
   signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   resetPasswordForEmail: (email: string) => Promise<{ error: Error | null }>;
+  /** Magic link — the sign-in the design specifies ("Send me a link"). */
+  sendMagicLink: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   checkUserHasPassword: (email: string) => Promise<{ hasPassword: boolean; error: Error | null }>;
   checkUserExists: (email: string) => Promise<{ exists: boolean; error: Error | null }>;
@@ -342,6 +344,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
+  /* account-01-sign-in.png draws a passwordless form: Google, then an email
+     field, then "Send me a link". Password sign-in stays alongside it rather
+     than being replaced — eight existing accounts have passwords, and swapping
+     the method outright would lock them out if mail delivery is not configured.
+
+     shouldCreateUser is left at its default so a link works for a new address
+     as well as an existing one, matching the single-field flow the mockup
+     draws: one field, one button, no separate sign-up. */
+  const sendMagicLink = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth` },
+    });
+    return { error: error as Error | null };
+  };
+
   const updatePassword = async (newPassword: string) => {
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
@@ -431,6 +449,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle, 
       signUpWithEmail, 
       signInWithEmail,
+      sendMagicLink,
       resetPasswordForEmail,
       updatePassword,
       checkUserHasPassword,
