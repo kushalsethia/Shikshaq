@@ -683,12 +683,28 @@ export default function Index() {
         {/* ----------------------------------------------------- Board pill stack */}
         {Object.keys(boardCounts).length > 0 && (
           <PageContainer as="section" className="py-8 sm:py-12">
-            <div className="space-y-4">
+            <div className="space-y-2">
+              {/* Home concepts.dc.html line 158, the literal pixel spec: a real
+                  <h2>"Your board"</h2> (Archivo 800, 21px, -0.03em, #1F1F1F)
+                  sits above these bars. It had been omitted entirely — the
+                  colored rows rendered with real live counts, just with no
+                  label explaining what they were. */}
+              <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+                Your board
+              </h2>
+              {/* Home concepts.dc.html: height:52px; padding:0 18px;
+                  border-radius:9999px (a true capsule, not a rounded
+                  rectangle); gap:8px between rows. This was rounded-2xl
+                  (16px corners) at auto height with 16px gaps — visually a
+                  different shape and a looser rhythm than the pill stack the
+                  handoff draws. `{{ boards }}` in the spec is a live-data
+                  loop, so real teacher board counts (5 here, not a fixed 4)
+                  is correct, not a mismatch. */}
               {BOARD_ORDER.filter((b) => boardCounts[b]).map((b, i) => (
                 <Link
                   key={b}
                   to={`/all-tuition-teachers-in-kolkata?filter_boards=${encodeURIComponent(b)}`}
-                  className={`flex min-h-[44px] items-center justify-between rounded-2xl px-6 py-4 transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'}`}
+                  className={`flex h-[52px] min-h-[44px] items-center justify-between rounded-full px-[18px] transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'}`}
                   style={{ transform: `rotate(${BOARD_TILTS[i % BOARD_TILTS.length]}deg)` }}
                 >
                   <span className="font-display text-card-title-lg font-bold">{b}</span>
