@@ -19,7 +19,6 @@ import { ControlBlock, PageContainer, BottomNavSpacer } from '@/components/layou
 import { PreFooter } from '@/components/layout/PreFooter';
 import { ListLoading, ListEmpty, ListOverFiltered, ListError, ListEnd } from '@/components/ui/list-states';
 import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKeywordExtractor';
-import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
 import { getSubjectPalette } from '@/lib/subject-palette';
@@ -1355,16 +1354,9 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     return teachers.filter((t) => t.is_featured).slice(0, 8);
   }, [teachers, isDefaultView]);
 
-  // Subjects in display order for Browse dropdowns (UI only)
-  const sortedSubjectsForDisplay = useMemo(() => {
-    return [...subjects].sort((a, b) => {
-      const i = SUBJECT_DISPLAY_ORDER.indexOf(a.name);
-      const j = SUBJECT_DISPLAY_ORDER.indexOf(b.name);
-      const orderA = i === -1 ? 9999 : i;
-      const orderB = j === -1 ? 9999 : j;
-      return orderA - orderB;
-    });
-  }, [subjects]);
+  /* sortedSubjectsForDisplay was removed with the subject quick-pick pills —
+     it had no other reader, so keeping it would have meant sorting the subject
+     list on every change for nobody. */
 
   // Generate dynamic heading based on filters
   const getHeading = () => {
@@ -1654,26 +1646,15 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           On a bone ground they need their own container padding, which the
           control block was previously providing. */}
       <PageContainer className="pt-4">
-        {/* Subject quick-picks -- default view only. Restrained tint/text
-            pairing so ten hues side by side don't read as candy. Not shown on
-            subject pages: the subject is already locked by the route. */}
-        {!isSubjectPage && isDefaultView && sortedSubjectsForDisplay.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {sortedSubjectsForDisplay.slice(0, 10).map((subject) => {
-              const palette = getSubjectPalette(subject.name);
-              return (
-                <button
-                  key={subject.id}
-                  onClick={() => handleSubjectChange(subject.slug)}
-                  className="flex min-h-11 items-center rounded-full px-4 text-sm font-semibold transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
-                  style={{ backgroundColor: palette.tint, color: palette.text }}
-                >
-                  {subject.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {/* The ten tinted subject quick-pick pills that used to sit here are
+            removed at the owner's direction. Ten subject hues stacked three
+            rows deep was the loudest thing on a page whose job is to show
+            teachers, and it pushed the first row of results below the fold.
+
+            Nothing became unreachable: subjects remain one tap away in the
+            filter sheet, every subject has its own indexed route linked from
+            the footer on this page, and the search field takes a subject name
+            directly. */}
 
         {/* Class quick-pick pills (secondary-01-subject-page.png): "All
             classes" + the classes actually offered, wired to the same
