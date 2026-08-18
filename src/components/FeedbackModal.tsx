@@ -18,13 +18,18 @@ interface FeedbackModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// F6 (changelog C-045). The mood picker is now the Blob family (five flat
-// shapes, no emoji) instead of lucide face icons — one rating scale, still
-// 1-5, still lands in `feedback.rating` exactly as before, so the write shape
-// and the `feedback` table are untouched.
+// F6 (changelog C-045). The mood picker is the Blob family (flat shapes, no
+// emoji) instead of lucide face icons — one rating scale, still 1-5, still
+// lands in `feedback.rating` exactly as before, so the write shape and the
+// `feedback` table are untouched.
+//
+// Only three of the five blobs, though: code.md's mood-to-use map is binding
+// — "rough = error states only · meh = empty-after-filters · fine/good/great
+// = feedback sheet and tour" — and pages.md spells it out for this exact
+// screen ("Sheet shows three blobs... not five — the five exist in the
+// family, the sheet uses three"). Rough and meh are reserved for surfaces
+// this component doesn't own.
 const MOODS: { rating: number; mood: BlobMood; label: string; highlight?: boolean }[] = [
-  { rating: 1, mood: 'rough', label: 'Rough' },
-  { rating: 2, mood: 'meh', label: 'Meh' },
   { rating: 3, mood: 'fine', label: 'Fine' },
   { rating: 4, mood: 'good', label: 'Good' },
   { rating: 5, mood: 'great', label: 'Great', highlight: true },
@@ -171,7 +176,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                           : 'bg-card shadow-border'
                     }`}
                   >
-                    <Blob mood={mood} size={40} label={label} />
+                    <Blob mood={mood} size={64} label={label} />
                     <span
                       className={`text-[13.5px] font-extrabold ${
                         isSelected ? (highlight ? 'text-brand-deep' : 'text-foreground') : 'text-warm-prose'
