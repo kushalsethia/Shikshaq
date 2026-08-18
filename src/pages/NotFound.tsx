@@ -45,7 +45,7 @@ const NotFound = () => {
   return (
     <div className="min-h-screen bg-background">
 
-      <main className="pb-20 lg:pb-0">
+      <main>
         <PageContainer as="section" className="flex flex-col items-center justify-center pt-10 sm:pt-16 lg:pt-20">
           <div className="relative w-full max-w-[430px] overflow-hidden rounded-[26px] bg-brand p-[18px] pb-[22px] text-brand-foreground sm:p-8 sm:pb-10">
             <span

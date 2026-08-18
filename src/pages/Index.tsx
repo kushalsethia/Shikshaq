@@ -438,7 +438,7 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-background">
 
-      <main id="main-content" className="pb-20 lg:pb-0">
+      <main id="main-content">
         {/* ---------------------------------------------------- Control block */}
         <section className="relative">
           <ControlBlock mode="dark" className="relative overflow-hidden pb-16 sm:pb-20 lg:pb-24">

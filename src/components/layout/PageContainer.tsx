@@ -97,7 +97,18 @@ ControlBlock.displayName = "ControlBlock";
    element on a page is never sitting under it. design.md §1 / components.md S1
    call for 130px on mobile; the nav is lg:hidden, so the reserve is too. */
 function BottomNavSpacer() {
-  return <div aria-hidden className="h-[130px] lg:hidden" />;
+  /* 84px, not 130. The bottom nav measures 60px tall and floats 12px off the
+     bottom edge, so the real clearance needed is 72px plus the safe-area
+     inset. 130px was a guess, and every page that rendered this ALSO carried
+     `pb-20` on <main>, reserving 210px in total for a 72px nav — which is the
+     bulk of the dead space that appeared above the footer. */
+  return (
+    <div
+      aria-hidden
+      className="lg:hidden"
+      style={{ height: 'calc(84px + env(safe-area-inset-bottom))' }}
+    />
+  );
 }
 
 export { PageContainer, Slab, ControlBlock, BottomNavSpacer, SLAB_FILLS };

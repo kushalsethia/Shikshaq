@@ -97,7 +97,7 @@ export default function About() {
   return (
     <div className="min-h-screen bg-background">
 
-      <main className="pb-20 lg:pb-0">
+      <main>
         <PageContainer as="section" className="pt-6 sm:pt-10 lg:pt-14">
           <AnnotatedStatement
             statement={statement}
