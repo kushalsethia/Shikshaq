@@ -133,9 +133,21 @@ canonical, so the two stop competing for the same query. That is the standard
 remedy for duplicate content and needed no product decision — it states what is
 already true. Both URLs still work and both still serve 29 teachers.
 
-What is still yours to decide is the taxonomy: whether these should be one
-subject, or two with genuinely different lists. If they ever diverge, delete the
-entry in `src/lib/canonical.ts`.
+**Taxonomy: settled — stay as one subject, canonicalised.** Splitting them was
+considered and rejected on evidence: `select count(*) from "Shikshaqmine" where
+"Subjects" ilike '%commercial studies%'` returns **0**. Not one of the 147
+teachers lists Commercial Studies; all 29 list Commerce. So a literal split
+produces an indexed page with no teachers on it.
+
+The only real-world distinction available is that Commercial Studies is the ICSE
+Class 9–10 name for the subject — scoping to ICSE + classes 9–10 yields 22
+teachers against Commerce's 29, with 22 of them the same people. Two overlapping
+views of one group is not two subjects, and would likely still read as duplicate
+content.
+
+Revisit only if teachers are ever tagged with the two subjects separately in
+`Shikshaqmine`. At that point delete the entry in `src/lib/canonical.ts` and add
+a distinct mapping in `src/utils/subjectMapping.ts` — both are one line.
 
 Original note:
 
@@ -151,7 +163,29 @@ The prose now differs per route; the results do not. Options are differentiate,
 canonicalise one to the other, or leave — see `docs/SEO_STRATEGY.md`. This is a
 product decision.
 
-### 6. Screens not compared against their mockup
+### 6. Paper reader and gate — verified once, against seeded test data
+The gate (`core-06-paper-gate.png`) and the reader route were verified by
+inserting two clearly-marked throwaway rows into `papers`, checking the screens,
+and deleting them again. `papers` is back to 0 rows; the deletion was confirmed
+by re-querying.
+
+What that proved: `/past-papers/:id` resolves and renders the paper's title,
+school, board, class and exam type; the signed-out gate matches its mockup —
+heading, sub-line, all three benefit lines, indigo Continue-with-Google,
+copyright strip, blurred page behind; `/past-papers` swaps its "DAY ONE" empty
+state for a real "2 past papers, free to read" and "From 1 school", correctly
+singular; and `/past-papers/results?filter_classes=10` reports "1 paper found"
+with the matching card. The count guards fixed earlier behave correctly in both
+directions — suppressed at zero, present with data.
+
+Still unverified: the reader's SIGNED-IN state, which needs a session. The gate
+is what a signed-out visitor sees, and that is the state now checked.
+
+One deliberate deviation confirmed as correct: the mockup's secondary button
+reads "Use a phone number"; the build says "More ways to sign in", because phone
+sign-in does not exist. The build is the honest label.
+
+### 7. Screens not compared against their mockup
 Most were. Not compared: the admin console frames (need an admin session), the
 dashboards (need a session), the paper reader shell and gate, and the desktop
 grid card stickers.
@@ -170,13 +204,13 @@ with no main landmark at all (shared shell), `RecommendTeacher` likewise, and
 two sibling `<main>` elements plus an h1→h3 jump on `/join`. All fixed. Re-run
 that sweep after adding a route; the check that catches this is cheap.
 
-### 7. Legal copy has never been reviewed by a lawyer
+### 8. Legal copy has never been reviewed by a lawyer
 Open question O-06. The operative clauses were restored after a rebuild
 replaced them with the mockup's short summary copy — Terms and Privacy each
 carry the plain-English answer AND the original clause beneath it. Both files
 open with a `TODO(O-06)`.
 
-### 8. Two nav items have no index page to point at
+### 9. Two nav items have no index page to point at
 The desktop top bar carries "Subjects" and "Schools" per desktop-01-home.png,
 but neither index exists as a route. They previously pointed at
 `/maths-tuition-teachers-in-kolkata` and `/cbse-ncert-tuition-teachers-in-kolkata`
@@ -186,7 +220,7 @@ which is honest but leaves "Subjects" sharing a destination with "Find
 teachers". A subjects index and a schools index are the real fix;
 `secondary-02-school-page.png` is the design for the latter and is unbuilt.
 
-### 9. Verification documents (O-07)
+### 10. Verification documents (O-07)
 The join form deliberately does not build the mockup's ID/degree upload block:
 where those documents live, who can read them and what deletes them after a
 decision is undecided.
