@@ -151,6 +151,18 @@ export default function WhatsAppRedirect() {
       <p className="mt-2 text-sm text-muted-foreground">
         {name ? `Connecting you with ${name}.` : 'Connecting you with your teacher.'}
       </p>
+      {/* secondary-05-success-handoff.png puts a line of coaching on this
+          screen: "Say which class and subject you need — teachers reply faster
+          to a specific first message." It was missing, and it is the only text
+          here that does any work. "Connecting you with Uresh Rai" confirms what
+          the user just tapped; this changes what they type next, on the one
+          action the whole product exists to produce — and it matters because
+          the prefilled message is deliberately generic, so editing it is the
+          difference between a fast reply and a slow one. */}
+      <p className="mx-auto mt-2 max-w-[34ch] text-sm text-muted-foreground">
+        Say which class and subject you need — teachers reply faster to a specific first
+        message.
+      </p>
 
       {/* On mobile, wa.me hands off to the app and this tab stays parked here,
           so the page needs a real way onward rather than a bare spinner. */}
