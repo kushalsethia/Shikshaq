@@ -168,9 +168,17 @@ export function HomeActivitySection() {
 
   return (
     <section className={`${CONTAINER} ${SECTION}`}>
+      {/* min-w-0 on the columns AND on each row below: grid items default to
+          min-width:auto, so the truncating spans inside a row contributed their
+          FULL untruncated text width to the column min-content. At 390px that
+          computed a 429px column inside a 358px container and pushed the page
+          56px wider than the viewport — invisible because html{overflow-x:hidden}
+          silently cut it rather than letting it scroll. Only reproduced once the
+          device had recently-visited history, which is why an empty first load
+          looked fine. */}
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-6">
         {/* Favourites */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="flex items-center gap-2">
             <Heart className="h-5 w-5 text-brand" strokeWidth={2} aria-hidden="true" />
             <h2 className="text-subsection font-display font-bold">Favourites</h2>
@@ -219,7 +227,7 @@ export function HomeActivitySection() {
         </div>
 
         {/* Recently visited */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-brand-blue" strokeWidth={2} aria-hidden="true" />
             <h2 className="text-subsection font-display font-bold">Recently visited</h2>
@@ -231,7 +239,7 @@ export function HomeActivitySection() {
                 const Icon = item.type === 'teacher' ? GraduationCap : FileText;
                 const teacherLiked = item.type === 'teacher' && user ? isLiked(item.id) : false;
                 return (
-                  <li key={`${item.type}-${item.id}`} className="flex items-center">
+                  <li key={`${item.type}-${item.id}`} className="flex min-w-0 items-center">
                     <Link
                       to={item.path}
                       className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-warm-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
