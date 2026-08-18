@@ -12,6 +12,7 @@ import { getSubjectPalette, paletteFromSeed, SUBJECT_SEEDS } from '@/lib/subject
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { PillRow } from '@/components/devices';
 import { useAuth } from '@/lib/auth-context';
+import { GoalRing } from '@/components/papers/goal-ring';
 import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { schoolSlug } from '@/lib/school-slug';
@@ -204,6 +205,51 @@ export default function PastPapers() {
     },
   });
 
+  /* Weekly goal + new-paper count (pages.md §4 section 1). Both were dropped as
+     "per-user data this schema does not have" — paper_reads now provides it.
+     Keyed on the user id so one reader's numbers can never be served from
+     another's cache entry, and skipped entirely when signed out. */
+  const WEEKLY_GOAL = 5;
+  const personal = useQuery({
+    enabled: Boolean(user),
+    queryKey: ['papers', 'personal', user?.id],
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const [thisWeek, lastRead] = await Promise.all([
+        supabase
+          .from('paper_reads')
+          .select('id', { count: 'exact', head: true })
+          .gte('read_at', weekAgo),
+        supabase
+          .from('paper_reads')
+          .select('read_at')
+          .order('read_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      /* "New" means published since you last opened anything. A reader who has
+         never opened a paper has no "since", so the clause is dropped rather
+         than defaulting to the whole library and calling all of it new. */
+      let newCount: number | null = null;
+      if (lastRead.data?.read_at) {
+        const { count } = await supabase
+          .from('papers')
+          .select('id', { count: 'exact', head: true })
+          .eq('is_published', true)
+          .gt('created_at', lastRead.data.read_at);
+        newCount = count ?? 0;
+      }
+
+      return { readThisWeek: thisWeek.count ?? 0, newCount };
+    },
+  });
+
+  const readThisWeek = personal.data?.readThisWeek ?? 0;
+  const newPaperCount = personal.data?.newCount ?? null;
+
   const schoolStats = landing.data?.schoolStats ?? [];
   const mostRead = landing.data?.mostRead ?? [];
   const recentPapers = landing.data?.recentPapers ?? [];
@@ -242,18 +288,41 @@ export default function PastPapers() {
             edge. The mockup's headline ("You have 12 new papers waiting on
             your shelf") and the streak/goal-ring pill both depend on
             per-user data this schema does not have (no streak table, no
-            per-user new-paper count) — DROPPED per the data-honesty rule.
-            The headline instead states the one number that IS a real query
-            result: the total published paper count. */}
+            per-user new-paper count) — both are now REAL, from paper_reads,
+            and render only for a signed-in reader who has opened something.
+            The headline still falls back to the total published count for
+            everyone else. */}
         <div className="relative overflow-hidden bg-brand-blue px-4 pb-0 pt-10 sm:px-6 sm:pt-14 lg:px-8">
           <span aria-hidden className="pointer-events-none absolute -left-10 top-5 h-[180px] w-[180px] rounded-full bg-white/[.06] sm:h-[240px] sm:w-[240px]" />
           <span aria-hidden className="pointer-events-none absolute -right-10 top-16 h-[210px] w-[210px] rounded-full bg-white/[.06] sm:h-[280px] sm:w-[280px]" />
 
           <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
+            {/* Streak pill — GoalRing size 24 beside "N of 5 this week". Only
+                for a signed-in reader who has opened something: a ring reading
+                0 of 5 is not encouragement, it is a scold on a first visit. */}
+            {user && readThisWeek > 0 && (
+              <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-[12.5px] font-bold text-white">
+                <GoalRing value={readThisWeek} goal={WEEKLY_GOAL} size={24} showValue={false} />
+                {readThisWeek} of {WEEKLY_GOAL} this week
+              </span>
+            )}
             <h1 className="font-display text-[34px] font-black leading-[.98] tracking-[-0.03em] text-white sm:text-[52px] lg:text-[74px] lg:leading-[.94]">
-              {!loading && !loadError && totalPapers != null && totalPapers > 0
-                ? <>{totalPapers.toLocaleString('en-IN')} past papers,<br />free to read</>
-                : <>Past papers from{' '}<br />Kolkata schools</>}
+              {/* "You have N new papers waiting on your shelf" (pages.md §4.1)
+                  when there genuinely are new ones for THIS reader — published
+                  since the last paper they opened. Falls back to the library
+                  total, then to the generic line, so the headline always states
+                  something true rather than reaching for the personal version
+                  and finding nothing. */}
+              {newPaperCount != null && newPaperCount > 0 ? (
+                <>
+                  You have {newPaperCount.toLocaleString('en-IN')} new paper
+                  {newPaperCount === 1 ? '' : 's'},<br />waiting on your shelf
+                </>
+              ) : !loading && !loadError && totalPapers != null && totalPapers > 0 ? (
+                <>{totalPapers.toLocaleString('en-IN')} past papers,<br />free to read</>
+              ) : (
+                <>Past papers from{' '}<br />Kolkata schools</>
+              )}
             </h1>
             <p className="mt-3 max-w-[62ch] text-[15px] leading-[1.55] text-white/[.82] sm:mt-4 sm:text-[17.5px]">
               {schoolStats.length > 0
