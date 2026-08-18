@@ -95,18 +95,39 @@ A dedicated pass should: move only the paging/chunking mechanics into
 `teachers.ts`, leave the filter semantics in `Browse.tsx`, and verify result
 COUNTS before and after on at least two filter combinations plus a subject route.
 
-### 2. react-query is partially adopted
+### 2. Index coverage — checked, correct, nothing to do
+Verified against what the app actually queries, so nobody spends a day on it:
+
+| Query | Index |
+|---|---|
+| Browse's `order('is_featured').order('name')` | `idx_teachers_list_featured_name (is_featured, name)` — composite, matching order |
+| `.in('Slug', chunk)` on Shikshaqmine | `idx_shikshaqmine_slug` |
+| profile by slug | `teachers_list_slug_key` (unique) |
+| likes / upvotes / comments by user and by teacher | indexed both ways, plus unique pairs |
+| papers by board / class / school / subject / published | all indexed, plus trigram indexes for search |
+
+Three indexes are technically redundant — `teachers_list_is_featured_idx` and
+`idx_teachers_list_slug` are prefixes of, or duplicates of, better ones, and
+`profiles_role_idx` duplicates the `(role, email)` composite. **Leave them.**
+The largest of these tables is 377 rows and its entire index footprint is 120
+kB; dropping them is a production change with no measurable benefit, which is
+the definition of optimisation theatre. Revisit if a table passes six figures.
+
+`papers` shows 10,250 index scans against 14 sequential — the paper queries are
+using their indexes correctly even with the table empty.
+
+### 3. react-query is partially adopted
 `QueryClient` was configured app-wide but `useQuery` appeared in zero files.
 `PastPapers.tsx` and `TeacherProfile.tsx` are migrated. `Index.tsx` is not — its
 effect is ~180 lines with a stale-while-revalidate localStorage cache. Do not
 delete `src/utils/cache.ts`; other call sites still use it.
 
-### 3. No audit log exists
+### 4. No audit log exists
 Mockup `admin-05-audit-log.png` shows a full page — actor, action, target,
 reason, timestamp. Nothing in the schema records any of it. This is a new table
 plus instrumentation on every admin mutation, not a UI task.
 
-### 4. Two URLs serve one result set — canonicalised, taxonomy still open
+### 5. Two URLs serve one result set — canonicalised, taxonomy still open
 **Half done.** `/commercial-studies-` now declares `/commerce-` as its
 canonical, so the two stop competing for the same query. That is the standard
 remedy for duplicate content and needed no product decision — it states what is
@@ -130,7 +151,7 @@ The prose now differs per route; the results do not. Options are differentiate,
 canonicalise one to the other, or leave — see `docs/SEO_STRATEGY.md`. This is a
 product decision.
 
-### 5. Screens not compared against their mockup
+### 6. Screens not compared against their mockup
 Most were. Not compared: the admin console frames (need an admin session), the
 dashboards (need a session), the paper reader shell and gate, and the desktop
 grid card stickers.
@@ -149,13 +170,13 @@ with no main landmark at all (shared shell), `RecommendTeacher` likewise, and
 two sibling `<main>` elements plus an h1→h3 jump on `/join`. All fixed. Re-run
 that sweep after adding a route; the check that catches this is cheap.
 
-### 6. Legal copy has never been reviewed by a lawyer
+### 7. Legal copy has never been reviewed by a lawyer
 Open question O-06. The operative clauses were restored after a rebuild
 replaced them with the mockup's short summary copy — Terms and Privacy each
 carry the plain-English answer AND the original clause beneath it. Both files
 open with a `TODO(O-06)`.
 
-### 7. Two nav items have no index page to point at
+### 8. Two nav items have no index page to point at
 The desktop top bar carries "Subjects" and "Schools" per desktop-01-home.png,
 but neither index exists as a route. They previously pointed at
 `/maths-tuition-teachers-in-kolkata` and `/cbse-ncert-tuition-teachers-in-kolkata`
@@ -165,7 +186,7 @@ which is honest but leaves "Subjects" sharing a destination with "Find
 teachers". A subjects index and a schools index are the real fix;
 `secondary-02-school-page.png` is the design for the latter and is unbuilt.
 
-### 8. Verification documents (O-07)
+### 9. Verification documents (O-07)
 The join form deliberately does not build the mockup's ID/degree upload block:
 where those documents live, who can read them and what deletes them after a
 decision is undecided.
