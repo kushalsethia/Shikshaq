@@ -490,7 +490,13 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                     onClick={() => setField(open ? 'q' : key)}
                     aria-expanded={open}
                     className={`flex min-h-11 flex-none snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${
-                      selected ? accent.subtle : 'bg-muted text-foreground'
+                      /* Matches the Chip primitive's own facet tone
+                         ("bg-muted text-foreground hover:bg-accent") — this
+                         button is hand-rolled rather than <Chip>, and had
+                         dropped the hover half of that pair, so an unselected
+                         facet pill gave no feedback on pointer-hover devices
+                         until the moment it was clicked. */
+                      selected ? accent.subtle : 'bg-muted text-foreground hover:bg-accent'
                     }`}
                   >
                     <Icon className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -534,7 +540,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                         aria-pressed={picked}
                         onClick={() => setSelections((s) => ({ ...s, [displayField]: toggleValue(s[displayField], opt) }))}
                         className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${
-                          picked ? accent.subtle : 'bg-muted text-foreground'
+                          picked ? accent.subtle : 'bg-muted text-foreground hover:bg-accent'
                         }`}
                       >
                         {opt}
@@ -621,7 +627,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                           <button
                             type="button"
                             onClick={() => setMode(mode === 'teachers' ? 'papers' : 'teachers')}
-                            className={`mt-4 flex min-h-11 items-center rounded-lg px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring bg-muted text-foreground`}
+                            className={`mt-4 flex min-h-11 items-center rounded-lg px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring bg-muted text-foreground hover:bg-accent`}
                           >
                             Search {MODE_LABEL[mode === 'teachers' ? 'papers' : 'teachers']} instead
                           </button>
