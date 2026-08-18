@@ -66,23 +66,23 @@ export default function WhatsAppRedirect() {
       // Direct hit, refresh, or shared link: no router state, so look the
       // teacher up by slug and resolve the destination here instead.
       if (!target) {
-        const { data: teacher } = await supabase
-          .from('teachers_list')
-          .select('name, slug')
-          .eq('slug', slug)
-          .maybeSingle();
+        /* Both lookups key off the same slug and neither feeds the other, so
+           they run together. Awaiting them in sequence doubled the round
+           trips on a redirect interstitial, which is a screen whose entire
+           job is to be over quickly — latency here IS the experience. */
+        const [teacherRes, rawLink] = await Promise.all([
+          supabase.from('teachers_list').select('name, slug').eq('slug', slug).maybeSingle(),
+          getWhatsAppLinkBySlug(slug),
+        ]);
 
         if (cancelled) return;
 
+        const teacher = teacherRes.data;
         if (!teacher) {
           setStatus('notfound');
           return;
         }
         setName((teacher as { name?: string }).name ?? null);
-
-        const rawLink = await getWhatsAppLinkBySlug(slug);
-
-        if (cancelled) return;
 
         target = resolveTeacherWhatsAppUrl(rawLink);
       }

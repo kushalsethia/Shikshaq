@@ -171,7 +171,7 @@ export default function Index() {
          stays for the call sites still using it. */
 
         const desiredSubjects = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
-        const [subjectsRes, upvoteStatsRes, allTeachersRes, papersRes] = await Promise.all([
+        const [subjectsRes, upvoteStatsRes, allTeachersRes, papersRes, boardRowsRes] = await Promise.all([
           supabase.from('subjects').select('*').in('name', desiredSubjects).limit(10),
           // teacher_upvote_stats is a pre-aggregated view (teacher_id, upvote_count) —
           // avoids pulling every teacher_upvotes row down and counting client-side.
@@ -181,6 +181,11 @@ export default function Index() {
             .select('id, name, slug, image_url, is_verified, subject_id, classes, subjects(name, slug), subjects_text:subjects')
             .limit(200),
           supabase.from('papers').select('board, class').eq('is_published', true),
+          /* Board counts joined this batch instead of running after it. It
+             shares no input with the four above and nothing waits on it, so
+             awaiting it separately was a free extra round trip on the
+             homepage's critical path. */
+          supabase.from('Shikshaqmine').select('"School Boards Catered"'),
         ]);
 
         if (subjectsRes.error || upvoteStatsRes.error || allTeachersRes.error || papersRes.error) {
@@ -282,11 +287,9 @@ export default function Index() {
         // same column Browse already tokenizes for its board filter. Counting
         // papers also meant the whole section vanished on a database with no
         // papers in it, which is the state this one is in.
-        const { data: boardRows, error: boardErr } = await supabase
-          .from('Shikshaqmine')
-          .select('"School Boards Catered"');
-        if (boardErr) {
-          logger.error('Board counts failed', boardErr);
+        const boardRows = boardRowsRes.data;
+        if (boardRowsRes.error) {
+          logger.error('Board counts failed', boardRowsRes.error);
         }
         const boardTally: Record<string, number> = {};
         (boardRows || []).forEach((row) => {

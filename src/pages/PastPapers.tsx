@@ -141,11 +141,16 @@ export default function PastPapers() {
     enabled: !hasFilters,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const [schoolsRes, recentRes, subjectsRes, countRes] = await Promise.all([
+      const [schoolsRes, recentRes, subjectsRes, countRes, readRes] = await Promise.all([
         supabase.from('papers').select('school,board').eq('is_published', true),
         supabase.from('papers').select('id,title,school,subject,class,board,exam_type,year,file_url,created_at').eq('is_published', true).order('created_at', { ascending: false }).limit(6),
         supabase.from('papers').select('subject').eq('is_published', true),
         supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+        /* Most-read joins the batch. It shares no input with the four above
+           and nothing derives from it, so awaiting it afterwards was a free
+           serial round trip before the shelf could render. */
+        supabase.from('paper_read_stats').select('paper_id, title, school, read_count')
+          .order('read_count', { ascending: false }).limit(3),
       ]);
 
       const firstError = schoolsRes.error || recentRes.error || subjectsRes.error || countRes.error;
@@ -183,11 +188,7 @@ export default function PastPapers() {
          paper_reads and never leave it. Papers nobody has opened are excluded
          rather than listed at zero, so the panel disappears entirely on a
          library nobody has read yet instead of ranking a column of noughts. */
-      const { data: readRows } = await supabase
-        .from('paper_read_stats')
-        .select('paper_id, title, school, read_count')
-        .order('read_count', { ascending: false })
-        .limit(3);
+      const readRows = readRes.data;
 
       return {
         schoolStats,
