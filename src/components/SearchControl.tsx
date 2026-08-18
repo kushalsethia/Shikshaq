@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Search, GraduationCap, ChevronDown, Clock,
+  Search, GraduationCap, ChevronDown, Clock, ArrowRight,
   BookOpen, MapPin, Landmark, School as SchoolIcon,
 } from 'lucide-react';
 import {
@@ -398,7 +398,11 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               onFocus={expandBar}
               onKeyDown={(e) => { if (e.key === 'Enter') runSearch(); }}
               aria-label={mode === 'teachers' ? 'Search teachers' : 'Search past papers'}
-              placeholder={mode === 'teachers' ? 'e.g. maths near Ballygunge' : "e.g. ICSE Class 10 maths, La Martiniere"}
+              /* "Subject, class or area" — the placeholder in Home concepts 2a.
+                 The "e.g. maths near Ballygunge" wording was invented here; the
+                 spec's version says what the field accepts rather than showing
+                 one example, which matters because the field takes all three. */
+              placeholder={mode === 'teachers' ? 'Subject, class or area' : 'Board, class, subject or school'}
               className="min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
             />
 
@@ -413,7 +417,11 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                 narrow ? 'w-11' : 'px-4'
               }`}
             >
-              <Search className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
+              {/* Arrow, not a magnifier. dc.html draws this as a 44x44 orange
+                  tile holding `M5 12h14M13 6l6 6-6 6` — the magnifier already
+                  sits at the other end of the field, so repeating it says
+                  nothing, where the arrow says "go". */}
+              <ArrowRight className="h-[17px] w-[17px]" strokeWidth={2.5} aria-hidden="true" />
               {!narrow && <span className="whitespace-nowrap">Search</span>}
             </button>
           </div>

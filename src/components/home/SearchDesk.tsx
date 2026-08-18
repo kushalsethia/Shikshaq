@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import { SearchControl } from '@/components/SearchControl';
 import { HeroFieldSearch } from '@/components/home/HeroFieldSearch';
 import { Chip } from '@/components/ui/chip';
-import { Eyebrow } from '@/components/ui/eyebrow';
 import type { SearchMode } from '@/utils/searchFacets';
 
 /* Redesign C5 (design.md §2.8, C-053).
@@ -44,11 +43,11 @@ export function SearchDesk({ onModeChange, className = '' }: SearchDeskProps) {
       </div>
       <HeroFieldSearch className="hidden lg:block" />
 
-      <div className="-mx-4 mt-4 overflow-x-auto px-4 scrollbar-hide sm:mx-0 sm:px-0">
+      {/* No "Popular" label. Home concepts 2a runs the facet chips straight
+          under the field with nothing introducing them — the row is self-evident
+          and the label was costing a chip's width of scroll on a 390px screen. */}
+      <div className="-mx-3 mt-2.5 overflow-x-auto px-3 pb-0.5 scrollbar-hide sm:mx-0 sm:px-0">
         <div className="flex w-max items-center gap-2 sm:w-full sm:flex-wrap">
-          <Eyebrow as="span" className="flex-none">
-            Popular
-          </Eyebrow>
           {POPULAR_CHIPS.map((c) => (
             <Chip
               key={c.label}

@@ -448,39 +448,60 @@ export default function Index() {
             />
 
             <div className="relative max-w-2xl space-y-4">
-              <Eyebrow onDark>Tutors &amp; past papers, Kolkata</Eyebrow>
-              <h1 className="font-display text-display-hero font-black leading-[0.98] text-background">
-                Who do you need to{' '}
-                <span
-                  className="marker-highlight marker-highlight--tilt"
-                  style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
-                >
-                  learn from?
+              {/* No eyebrow. "Home concepts.dc.html" concept 2a — the chosen
+                  direction — opens the dark block with the logo row and then the
+                  headline. The "TUTORS & PAST PAPERS, KOLKATA" eyebrow was added
+                  here and appears nowhere in the spec. */}
+              {/* Line breaks are the spec's: "Who do you / need to / learn from?"
+                  (<br> after "you" and "to"), and "learn from?" carries a 9px
+                  underline bar at 85% brand rather than the filled tilted marker
+                  used elsewhere — dc.html sets
+                  `bottom:3px; height:9px; background:rgba(255,128,0,.85)`. */}
+              <h1 className="font-display text-display-hero font-black leading-[0.96] tracking-[-0.04em] text-background">
+                Who do you
+                <br />
+                need to
+                <br />
+                <span className="relative inline-block">
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-0 bottom-[3px] h-[9px] rounded-full bg-brand/85"
+                  />
+                  <span className="relative">learn from?</span>
                 </span>
               </h1>
 
-              {/* Stat pills — mockup shows two tilted badges here; real counts
-                  only (design.md §0.10), so they render once both queries have
-                  resolved rather than ever showing a fabricated number. Chips
-                  never tilt per components.md P2, so this is a plain pill row
-                  rather than the mockup's hand-placed tilt — deliberate
-                  token-system deviation. */}
-              {/* Guarded on > 0, not on != null. design.md §3.2 is explicit that we
-                  never advertise emptiness — "0 free papers" is worse than saying
-                  nothing, and a real zero is a plausible state here while the paper
-                  library is still filling up. A count of zero drops its pill entirely. */}
+              {/* Stat pills, per Home concepts 2a. They are speech bubbles, not
+                  plain chips: rotate(∓1.5deg), a 7px dot in the colour of the
+                  thing counted, and an 8px square rotated 45° tucked under the
+                  bottom edge as the tail — orange pill's tail on the left, blue
+                  pill's on the right. An earlier pass flattened them to plain
+                  pills citing "chips never tilt"; these are not chips, and the
+                  tilt is what makes the pair read as two voices rather than a
+                  toolbar. Reduced motion is irrelevant — it is a static
+                  transform, not an animation.
+
+                  Still guarded on > 0: design.md §3.2, a zero drops its pill. */}
               {((stats.teachers ?? 0) > 0 || (stats.papers ?? 0) > 0) && (
                 <div className="flex flex-wrap items-center gap-2">
                   {(stats.teachers ?? 0) > 0 && (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-card px-3 py-1.5 text-meta font-bold text-foreground">
+                    <span className="relative inline-flex -rotate-[1.5deg] items-center gap-1.5 rounded-full bg-card px-3 py-1.5 text-meta font-bold text-foreground">
                       <span className="h-[7px] w-[7px] rounded-full bg-brand" aria-hidden="true" />
                       {stats.teachers} verified tutors
+                      <span
+                        aria-hidden="true"
+                        className="absolute bottom-[-4px] left-4 h-2 w-2 rotate-45 bg-card"
+                      />
                     </span>
                   )}
                   {(stats.papers ?? 0) > 0 && (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-card px-3 py-1.5 text-meta font-bold text-foreground">
+                    <span className="relative inline-flex rotate-[1.5deg] items-center gap-1.5 rounded-full bg-card px-3 py-1.5 text-meta font-bold text-foreground">
                       <span className="h-[7px] w-[7px] rounded-full bg-brand-blue" aria-hidden="true" />
                       {stats.papers} free papers
+                      <span
+                        aria-hidden="true"
+                        className="absolute bottom-[-4px] right-[18px] h-2 w-2 rotate-45 bg-card"
+                      />
                     </span>
                   )}
                 </div>

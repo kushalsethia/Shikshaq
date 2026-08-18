@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
 import { getSubjectPalette, paletteFromSeed, resolveSubjectFamily, SUBJECT_SEEDS } from '@/lib/subject-palette';
-import { CutPaperShape } from '@/components/devices';
 
 // Deterministic per-subject shape variant so the same subject always gets the
 // same mark across renders/reloads (matches the seeded-palette determinism
@@ -168,38 +167,39 @@ function SubjectCardComponent({
      intentional" (§5): tinted cards drop the ring/shadow that neutral cards
      (TeacherCard) keep — the tint alone carries the surface. Inline style is
      the sanctioned exception for getSubjectPalette values. */
-  // Signpost shape (VISUAL_DIRECTION §2 wayfinding metaphor) at card scale — a
-  // pointed left edge reading as a route marker. This grid is a scannable,
-  // comparable list (§4 "Crisp"), so no rotation/tape/grain/stickers here —
-  // the signpost clip-path is the only character device, and it's structural,
-  // not decorative.
-  const shapeVariant = SHAPE_VARIANTS[hashString(name) % SHAPE_VARIANTS.length];
+  // No signpost clip-path. It cut a pointed left edge into every card, which is
+  // what was clipping the icon tile, and Home concepts 2a draws these as plain
+  // rounded rectangles — the tint and the icon carry the identity.
 
   return (
     <Link
       to={href}
-      className="signpost-card relative block min-h-11 overflow-hidden rounded-2xl p-4 text-left transition-transform duration-hover hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      /* Geometry straight off Home concepts 2a: radius 18, padding 14, a 30px
+         icon tile at radius 10 with 10px below it, name 19px/800/-0.03em, meta
+         12.5px 2px under it. Was radius 16 / padding 16 / a 40px tile at radius
+         8, which read as a chunkier, blunter card than the mosaic the spec
+         draws. */
+      className="relative block min-h-11 rounded-[18px] p-[14px] text-left transition-transform duration-hover hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0"
       style={{ backgroundColor: palette.tint }}
     >
-      {/* Cut-paper mark (device S) — every subject card gets presence, even
-          the flat-palette overflow subjects, so nothing looks unfinished. */}
-      <CutPaperShape
-        variant={shapeVariant}
-        color={palette.solid}
-        size={72}
-        outlined={false}
-        className="pointer-events-none absolute -bottom-4 -right-4 opacity-[0.16]"
-      />
+      {/* No cut-paper mark. The spec's subject tile is the tint, the icon, the
+          name and the count — nothing else. The decorative shape added here sat
+          at -bottom-4 -right-4 under overflow-hidden, so what it actually
+          produced was a clipped wedge in the corner of every card. */}
       <span
-        className="relative mb-3 flex h-10 w-10 items-center justify-center rounded-lg"
+        className="mb-[10px] flex h-[30px] w-[30px] items-center justify-center rounded-[10px]"
         style={{ backgroundColor: palette.solid, color: palette.badgeText }}
       >
         {iconComponent ?? <Icon className="h-4 w-4" strokeWidth={2} aria-hidden="true" />}
       </span>
-      <h3 className="relative truncate text-card-title font-display font-bold" style={{ color: palette.text }} title={name}>
+      <h3
+        className="truncate font-display text-[19px] font-extrabold tracking-[-0.03em]"
+        style={{ color: palette.text }}
+        title={name}
+      >
         {name}
       </h3>
-      <p className="relative mt-1 truncate text-meta tabular-nums" style={{ color: palette.meta }}>
+      <p className="mt-0.5 truncate text-[12.5px] tabular-nums" style={{ color: palette.meta }}>
         {meta}
       </p>
     </Link>
