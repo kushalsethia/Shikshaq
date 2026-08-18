@@ -216,7 +216,7 @@ export function generateLocalBusinessSchema(params?: {
       'Free online tutor-student matchmaking platform serving Kolkata and surrounding areas',
     url: SITE_URL,
     telephone: params?.telephone || '+91-8240980312',
-    email: params?.email || 'support@shikshaq.in',
+    email: params?.email || 'ngo.aquaterra@gmail.com',
     address: {
       '@type': 'PostalAddress',
       addressLocality: 'Kolkata',

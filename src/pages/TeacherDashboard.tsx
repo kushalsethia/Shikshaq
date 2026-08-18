@@ -769,7 +769,7 @@ export default function TeacherDashboard() {
 
       if (!profile?.email) {
         toast.error(
-          "We couldn't find an email on your account, so we can't save your listing. Contact support@shikshaq.com for help."
+          "We couldn't find an email on your account, so we can't save your listing. Contact ngo.aquaterra@gmail.com for help."
         );
         setSaving(false);
         return;
@@ -833,7 +833,7 @@ export default function TeacherDashboard() {
       // Surface it with a concrete next step instead of a silent no-op save.
       if (!teacherRecord) {
         toast.error(
-          `We couldn't find a listing matching ${profile.email}. Contact support@shikshaq.com with this email so we can fix the mismatch.`
+          `We couldn't find a listing matching ${profile.email}. Contact ngo.aquaterra@gmail.com with this email so we can fix the mismatch.`
         );
         setSaving(false);
         return;
@@ -848,7 +848,7 @@ export default function TeacherDashboard() {
         if (import.meta.env.DEV) {
           console.error('Error updating teacher data:', error);
         }
-        toast.error('Failed to update profile. Please try again, or contact support@shikshaq.com if it persists.');
+        toast.error('Failed to update profile. Please try again, or contact ngo.aquaterra@gmail.com if it persists.');
         setSaving(false);
         return;
       }
@@ -924,8 +924,8 @@ export default function TeacherDashboard() {
             </p>
             <p className="mt-4 text-sm font-semibold text-foreground">
               Contact support at{' '}
-              <a href="mailto:support@shikshaq.com" className="text-brand-blue underline underline-offset-2">
-                support@shikshaq.com
+              <a href="mailto:ngo.aquaterra@gmail.com" className="text-brand-blue underline underline-offset-2">
+                ngo.aquaterra@gmail.com
               </a>{' '}
               and include this email:
             </p>

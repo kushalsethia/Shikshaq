@@ -537,7 +537,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
 
             {/* 3. Contact lines */}
             <div className="space-y-1 border-t border-white/10 pt-6 text-sm text-white/85">
-              <a href="mailto:join.shikshaq@gmail.com" className={FOOTER_LINK}>join.shikshaq@gmail.com</a>
+              <a href="mailto:ngo.aquaterra@gmail.com" className={FOOTER_LINK}>ngo.aquaterra@gmail.com</a>
               <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className={FOOTER_LINK}>
                 WhatsApp · +91 82409 80312
               </a>
@@ -546,7 +546,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             {/* 4. Social discs */}
             <div className="flex gap-2">
               <a
-                href="mailto:join.shikshaq@gmail.com"
+                href="mailto:ngo.aquaterra@gmail.com"
                 aria-label="Email Shikshaq"
                 className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
               >

@@ -109,8 +109,15 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
       // - Public can see approved comments
       // - Users can see their own pending comments
       const { data: commentsData, error: commentsError } = await supabase
-        .from('teacher_comments')
-        .select('id, comment, rating, created_at, updated_at, user_id, is_anonymous, approved, approved_by, approved_at')
+        /* Reads go through teacher_comments_public; only writes and the
+           own-row delete touch the base table. `anon` has no SELECT on
+           teacher_comments.user_id any more — that column joined against an
+           unfiltered public_profiles undid "post as anonymous" for all 158
+           anonymous reviews. The view nulls the author id on anonymous rows
+           EXCEPT your own, so you can still find and delete a review you
+           posted anonymously. */
+        .from('teacher_comments_public')
+        .select('id, comment, rating, created_at, updated_at, user_id, is_anonymous, approved')
         .eq('teacher_id', teacherId)
         .order('created_at', { ascending: false });
 
@@ -137,7 +144,12 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
         (comment) => comment.approved || (user && comment.user_id === user.id),
       );
 
-      const userIds = [...new Set(filteredComments.map((c) => c.user_id))];
+      /* Boolean filter is load-bearing now: teacher_comments_public returns
+         user_id as NULL for anonymous reviews, and passing those straight into
+         .in('id', …) sent the string "null" to PostgREST, which rejected the
+         whole request with 'invalid input syntax for type uuid'. Anonymous
+         rows have no profile to look up by design. */
+      const userIds = [...new Set(filteredComments.map((c) => c.user_id).filter(Boolean))];
       if (userIds.length === 0) {
         setComments([]);
         return;

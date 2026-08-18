@@ -236,10 +236,10 @@ export function LegalReader({
                   WhatsApp us
                 </a>
                 <a
-                  href="mailto:hello@shikshaq.in"
+                  href="mailto:ngo.aquaterra@gmail.com"
                   className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[13px] bg-white/10 px-[18px] text-[14.5px] font-bold text-white transition-colors duration-150 hover:bg-white/15 sm:w-auto"
                 >
-                  hello@shikshaq.in
+                  ngo.aquaterra@gmail.com
                 </a>
               </div>
             </div>

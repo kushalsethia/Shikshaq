@@ -386,7 +386,12 @@ export default function Index() {
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<StudentQuote[]> => {
       const { data: comments } = await supabase
-        .from('teacher_comments')
+        /* teacher_comments_public, not the base table: `anon` no longer holds
+           SELECT on teacher_comments.user_id, because that column plus an
+           unfiltered public_profiles made every anonymous review
+           de-anonymisable by a single join. The view nulls user_id on
+           anonymous rows and is the only read path a logged-out visitor has. */
+        .from('teacher_comments_public')
         .select('id, comment, is_anonymous, user_id, created_at')
         .eq('approved', true)
         .order('created_at', { ascending: false })

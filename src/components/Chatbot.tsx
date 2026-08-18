@@ -120,7 +120,7 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
   {
     keywords: ['how to contact you', 'contact shikshaq', 'whatsapp number', 'support number', 'reach you', 'customer support', 'contact support', 'your email', 'your whatsapp'],
-    response: 'You can reach Team Shikshaq via WhatsApp at +91 8240980312 or email at join.shikshaq@gmail.com. We aim to respond within 48 hours.',
+    response: 'You can reach Team Shikshaq via WhatsApp at +91 8240980312 or email at ngo.aquaterra@gmail.com. We aim to respond within 48 hours.',
   },
 ];
 
@@ -295,9 +295,9 @@ export function Chatbot() {
       if (error.name === 'AbortError' || error.message?.includes('timeout')) {
         errorMessage = "The request is taking too long. For quick answers, try asking 'Is Shikshaq free?' or 'How do I contact you?'. You can also reach us directly via WhatsApp (+91 8240980312).";
       } else if (error.message?.includes('API key')) {
-        errorMessage = "The chatbot is temporarily unavailable. Please contact us directly via WhatsApp (+91 8240980312) or email (join.shikshaq@gmail.com).";
+        errorMessage = "The chatbot is temporarily unavailable. Please contact us directly via WhatsApp (+91 8240980312) or email (ngo.aquaterra@gmail.com).";
       } else {
-        errorMessage += "Please contact us directly via WhatsApp (+91 8240980312) or email (join.shikshaq@gmail.com) for assistance.";
+        errorMessage += "Please contact us directly via WhatsApp (+91 8240980312) or email (ngo.aquaterra@gmail.com) for assistance.";
       }
 
       setMessages((prev) => [

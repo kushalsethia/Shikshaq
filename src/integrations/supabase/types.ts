@@ -891,6 +891,29 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_comments_public: {
+        Row: {
+          approved: boolean | null
+          comment: string | null
+          created_at: string | null
+          id: string | null
+          is_anonymous: boolean | null
+          rating: number | null
+          teacher_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      teacher_rating_stats: {
+        Row: {
+          average_rating: number | null
+          rating_count: number | null
+          teacher_id: string | null
+          teacher_slug: string | null
+        }
+        Relationships: []
+      }
       public_profiles: {
         Row: {
           avatar_url: string | null

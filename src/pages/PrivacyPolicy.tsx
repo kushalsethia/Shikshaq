@@ -296,8 +296,8 @@ const SECTIONS: LegalSection[] = [
           <li>
             <strong>Deletion:</strong> You can request deletion of your account and associated data by
             contacting us at{' '}
-            <a href="mailto:join.shikshaq@gmail.com" className={linkClass}>
-              join.shikshaq@gmail.com
+            <a href="mailto:ngo.aquaterra@gmail.com" className={linkClass}>
+              ngo.aquaterra@gmail.com
             </a>
             .
           </li>
@@ -407,8 +407,8 @@ const SECTIONS: LegalSection[] = [
         <p className={pMtClass}>
           If you are a parent or guardian and believe we have collected information from your child without
           proper consent, please contact us immediately at{' '}
-          <a href="mailto:join.shikshaq@gmail.com" className={linkClass}>
-            join.shikshaq@gmail.com
+          <a href="mailto:ngo.aquaterra@gmail.com" className={linkClass}>
+            ngo.aquaterra@gmail.com
           </a>{' '}
           or our Grievance Officer (details provided in Section 13).
         </p>
@@ -479,8 +479,8 @@ const SECTIONS: LegalSection[] = [
         <ul className={ulClass}>
           <li>
             <strong>Email:</strong>{' '}
-            <a href="mailto:join.shikshaq@gmail.com" className={linkClass}>
-              join.shikshaq@gmail.com
+            <a href="mailto:ngo.aquaterra@gmail.com" className={linkClass}>
+              ngo.aquaterra@gmail.com
             </a>
           </li>
           <li>
