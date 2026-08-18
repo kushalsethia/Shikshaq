@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { canonicalPathFor } from "@/lib/canonical";
 
 const SITE_URL = "https://www.shikshaq.in";
 
@@ -18,8 +19,7 @@ export const CanonicalTag = () => {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    // Drop the trailing slash so /faq/ and /faq don't canonicalise differently.
-    const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : "/";
+    const path = canonicalPathFor(pathname);
 
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
     if (!canonical) {

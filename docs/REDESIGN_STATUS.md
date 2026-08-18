@@ -106,7 +106,19 @@ Mockup `admin-05-audit-log.png` shows a full page — actor, action, target,
 reason, timestamp. Nothing in the schema records any of it. This is a new table
 plus instrumentation on every admin mutation, not a UI task.
 
-### 4. Two URLs serve one result set
+### 4. Two URLs serve one result set — canonicalised, taxonomy still open
+**Half done.** `/commercial-studies-` now declares `/commerce-` as its
+canonical, so the two stop competing for the same query. That is the standard
+remedy for duplicate content and needed no product decision — it states what is
+already true. Both URLs still work and both still serve 29 teachers.
+
+What is still yours to decide is the taxonomy: whether these should be one
+subject, or two with genuinely different lists. If they ever diverge, delete the
+entry in `src/lib/canonical.ts`.
+
+Original note:
+
+
 `/commerce-tuition-teachers-in-kolkata` and
 `/commercial-studies-tuition-teachers-in-kolkata` both map to the filter value
 `Commerce` in `src/utils/subjectMapping.ts` and return an **identical

@@ -20,6 +20,7 @@
  */
 
 import { useEffect } from 'react';
+import { canonicalPathFor } from '@/lib/canonical';
 
 const SITE_URL = 'https://www.shikshaq.in';
 const SITE_NAME = 'Shikshaq';
@@ -100,7 +101,11 @@ export function SEOHead({
 
     // Build canonical URL
     const fullCanonicalURL =
-      canonicalURL || (canonical ? `${SITE_URL}${canonical}` : `${SITE_URL}${window.location.pathname}`);
+      /* Resolved through canonicalPathFor, so a page passing its own pathname
+         still gets duplicate-route aliasing. SEOHead runs after CanonicalTag
+         and overwrites it, so a rule applied only there would never survive. */
+      canonicalURL ||
+      `${SITE_URL}${canonicalPathFor(canonical ?? window.location.pathname)}`;
 
     // Build OG image
     const fullOGImage = ogImage || DEFAULT_OG_IMAGE;
