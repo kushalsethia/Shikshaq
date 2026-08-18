@@ -66,15 +66,44 @@ export interface AdminTableProps {
 
 /** One shared column template — every section passes its own columns/rows. */
 export function AdminTable({ columns, rows, className }: AdminTableProps) {
-  const gridTemplate = columns.map((c) => c.width).join(' ');
+  /* Every row renders a trailing action cell (primary button + optional
+     overflow disc) unconditionally below — it isn't one of the caller's
+     declared `columns`. Some callers compensate by adding their own matching
+     `{ key: 'actions', width: ... }` entry (AdminApplications, AdminFeedback,
+     AdminUpvotes, AdminComments, AdminRecommendations, AdminPapers); two
+     forgot to (AdminTeachers, AdminAuditLog), which leaves the actions cell
+     to fall into an unbounded implicit grid track sized to its own content —
+     widening the row past the card, which then silently clips it via
+     `overflow-hidden`, hiding the Edit/Open button entirely on narrower
+     screens. Owning the track here, once, means every section lines up the
+     same way regardless of what its own column list says, and a caller-
+     supplied `actions` entry (kept for backward compat) is ignored for
+     sizing rather than doubled up. `auto` (not a guessed fixed px value)
+     sizes the track to what the buttons actually need — AdminPapers already
+     used `auto` for this same column, which is the value adopted here.
+
+     The first column is documented above as always being the initial disc +
+     title + subtitle block, and that block's title wrapper carries `min-w-0`
+     so its text can truncate instead of forcing the column wide. A bare
+     `Nfr` track has no minimum of its own beyond that, so on a narrow
+     viewport the grid is free to squeeze it to 0px — while the 38px avatar
+     disc inside is `shrink-0` and refuses to shrink with it, so it renders
+     floating on top of the next column's text instead of sizing its column.
+     `minmax(…, Nfr)` gives that first track a floor (disc + gap + a few
+     characters of name) it can never be squeezed under. */
+  const dataColumns = columns.filter((c) => c.key !== 'actions');
+  const gridTemplate = [
+    ...dataColumns.map((c, i) => (i === 0 ? `minmax(160px, ${c.width})` : c.width)),
+    'auto',
+  ].join(' ');
 
   return (
-    <div className={cn('overflow-hidden rounded-[20px] bg-card shadow-border', className)}>
+    <div className={cn('overflow-x-auto overflow-y-hidden rounded-[20px] bg-card shadow-border', className)}>
       <div
         className="grid gap-4 bg-muted px-5 py-[14px]"
         style={{ gridTemplateColumns: gridTemplate }}
       >
-        {columns.map((c) => (
+        {dataColumns.map((c) => (
           <span key={c.key} className="text-[11.5px] font-bold uppercase tracking-[.07em] text-warm-label">
             {c.label}
           </span>
