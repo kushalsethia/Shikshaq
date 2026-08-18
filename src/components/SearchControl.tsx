@@ -73,6 +73,17 @@ interface SearchControlProps {
   align?: 'center' | 'flex-start';
   /** Segmented toggle placement: inline inside the bar (default) or stacked above it. Never both. */
   stackedToggle?: boolean;
+  /**
+   * Renders the field for a dark control block: translucent white fill, white
+   * text, white/45 placeholder.
+   *
+   * pages.md §2 puts browse's search field INSIDE the near-black block
+   * ("`bg-white/10` field, white text, white/45 placeholder"), where home's
+   * sits in its own bone card overhanging the block. Same component, two
+   * grounds — without this the browse field rendered bone-on-black, which is
+   * the one combination the spec never draws.
+   */
+  onDark?: boolean;
   /** Only meaningful with `stackedToggle`: keeps the stacked toggle visible at rest instead of
    *  gating it behind `reveal` (expanded/focused). Lets a page surface Teachers/Papers as an
    *  always-present control on first fold without touching the reveal-gated bar/facet-row logic. */
@@ -83,7 +94,7 @@ interface SearchControlProps {
   onModeChange?: (mode: SearchMode) => void;
 }
 
-export function SearchControl({ className = '', align = 'center', stackedToggle = false, alwaysShowModeToggle = false, initialMode, onModeChange }: SearchControlProps) {
+export function SearchControl({ className = '', align = 'center', stackedToggle = false, alwaysShowModeToggle = false, onDark = false, initialMode, onModeChange }: SearchControlProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -389,8 +400,18 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
         <div className="relative">
           {/* The search field. §11 hero spec: full width, h-14, rounded-2xl,
               shadow-border, leading icon, text-base (16px so iOS never zooms). */}
-          <div className="flex h-14 items-center gap-2 rounded-2xl bg-card pl-4 pr-2 shadow-border transition-shadow duration-150 focus-within:shadow-border-hover">
-            <Search className="h-5 w-5 flex-none text-muted-foreground" strokeWidth={2.25} aria-hidden="true" />
+          <div
+            className={`flex h-14 items-center gap-2 rounded-2xl pl-4 pr-2 transition-shadow duration-150 ${
+              onDark
+                ? 'bg-white/10 focus-within:bg-white/[0.14]'
+                : 'bg-card shadow-border focus-within:shadow-border-hover'
+            }`}
+          >
+            <Search
+              className={`h-5 w-5 flex-none ${onDark ? 'text-white/45' : 'text-muted-foreground'}`}
+              strokeWidth={2.25}
+              aria-hidden="true"
+            />
             <input
               ref={inputRef}
               value={q}
@@ -403,7 +424,9 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                  spec's version says what the field accepts rather than showing
                  one example, which matters because the field takes all three. */
               placeholder={mode === 'teachers' ? 'Subject, class or area' : 'Board, class, subject or school'}
-              className="min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
+              className={`min-w-0 flex-1 border-0 bg-transparent text-base outline-none ${
+                onDark ? 'text-white placeholder:text-white/45' : 'text-foreground placeholder:text-muted-foreground'
+              }`}
             />
 
             {/* Inline segmented toggle */}

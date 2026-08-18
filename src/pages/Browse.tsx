@@ -1632,7 +1632,11 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         )}
 
         <div ref={searchControlWrapRef} className="mt-[12px] min-w-0 max-w-[820px]">
-          <SearchControl align="flex-start" stackedToggle initialMode="teachers" onModeChange={handleSearchModeChange} />
+          {/* onDark: pages.md §2 puts this field inside the near-black block,
+              `bg-white/10` with white text and a white/45 placeholder. It was
+              rendering as a bone card on black — the one ground pairing the
+              spec never draws for this field. */}
+          <SearchControl align="flex-start" stackedToggle onDark initialMode="teachers" onModeChange={handleSearchModeChange} />
         </div>
 
         {/* Subject quick-picks -- default view only. Restrained tint/text
