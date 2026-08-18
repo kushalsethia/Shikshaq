@@ -29,9 +29,15 @@ const ORG_ID = `${SITE_URL}/#organization`;
    profiles between them (ngo.aquaterra + shikshaqkolkata here,
    shikshaq.in + shikshaq.in in the head), which prevents Google resolving a
    single knowledge-graph entity — exactly the signal a local directory needs.
-   Unverifiable handles are omitted rather than guessed; sameAs is an identity
-   claim, not a hint. */
-const SAME_AS = ['https://www.instagram.com/shikshaq.in/'];
+   Both handles confirmed real by the owner: shikshaq.in is the product's
+   account and ngo.aquaterra is the parent NGO's, which index.html already
+   names as parentOrganization. facebook.com/shikshaqkolkata and
+   facebook.com/shikshaq.in stay out — neither was confirmed, and sameAs is
+   an identity claim, not a hint. */
+const SAME_AS = [
+  'https://www.instagram.com/shikshaq.in/',
+  'https://www.instagram.com/ngo.aquaterra/',
+];
 
 /**
  * Generate ItemList schema for teacher listing pages

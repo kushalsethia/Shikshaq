@@ -250,7 +250,7 @@ function TeacherCardComponent({
       className={`flex items-center gap-1 font-display font-extrabold tracking-[-0.03em] text-foreground ${isSm || isRow ? 'text-card-title' : 'min-w-0 truncate text-[15.5px] sm:text-[19px]'}`}
       title={displayName}
     >
-      <span className="truncate">{displayName}</span>
+      <span className="min-w-0 truncate">{displayName}</span>
       {verified && (
         <BadgeCheck className="h-4 w-4 shrink-0 fill-brand text-brand-foreground" aria-label="Verified" />
       )}
@@ -326,8 +326,8 @@ function TeacherCardComponent({
         >
           <div className="h-[120px] w-24 shrink-0 overflow-hidden rounded-[12px] bg-muted">{photo}</div>
           <div className="min-w-0 flex-1 py-1">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">{nameHeading}</div>
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+              <div className="min-w-[132px] flex-1">{nameHeading}</div>
               {upvotePill}
             </div>
             {metaRow}
@@ -372,8 +372,8 @@ function TeacherCardComponent({
 
         {/* Body — everything the photo used to carry now lives here. */}
         <div className="px-1 pb-0.5 pt-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">{nameHeading}</div>
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+            <div className="min-w-[132px] flex-1">{nameHeading}</div>
             <div className="flex flex-none items-center gap-1">
               {upvotePill}
               {heartButton}
