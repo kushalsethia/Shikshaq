@@ -19,10 +19,19 @@ import { toast } from 'sonner';
 //
 // There is no backend "contact" table in this codebase (checked: only
 // teacher_recommendations exists), so "send it" composes a mailto: to
-// hello@shikshaq.in with the reason pre-filled in the subject line, per the
+// ngo.aquaterra@gmail.com with the reason pre-filled in the subject line, per the
 // changelog note ("reason chip pre-fills the subject line") — it does not
 // silently do nothing, and it does not invent a fake success state that isn't
 // backed by a real send.
+//
+// DO NOT change this address to hello@shikshaq.in, hello@shikshaq.com,
+// join.shikshaq@gmail.com, or support@shikshaq.com. Every one of those
+// appeared somewhere in this codebase at some point (including in this exact
+// file) and got consolidated here on the OWNER'S EXPLICIT confirmation mid-
+// session: "ngo.aquaterra@gmail.com is the real email ID." The design
+// handoff's contact-01-mobile.png export shows hello@shikshaq.in — that PNG
+// predates the correction and is wrong for this one specific fact. A design
+// export is not authoritative over the person who owns the inbox.
 const REASONS = [
   { id: 'teacher', label: 'Finding a teacher', icon: GraduationCap },
   { id: 'paper', label: 'A paper or takedown', icon: FileText },
@@ -63,9 +72,9 @@ export default function Contact() {
     const body = encodeURIComponent(
       `Name: ${name}\nReach me on: ${contact}\n\n${message}`
     );
-    window.location.href = `mailto:hello@shikshaq.in?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:ngo.aquaterra@gmail.com?subject=${subject}&body=${body}`;
     setSent(true);
-    toast.success('Opening your email app to send this to hello@shikshaq.in');
+    toast.success('Opening your email app to send this to ngo.aquaterra@gmail.com');
   };
 
   const statement = (
@@ -139,10 +148,10 @@ export default function Contact() {
                 write to us
               </span>
               <a
-                href="mailto:hello@shikshaq.in"
+                href="mailto:ngo.aquaterra@gmail.com"
                 className="block font-display text-[20px] font-black tracking-[-0.03em] text-brand-foreground lg:text-2xl"
               >
-                hello@shikshaq.in
+                ngo.aquaterra@gmail.com
               </a>
               <span className="mt-[14px] hidden text-[15px] leading-[1.6] text-brand-foreground/90 lg:block">
                 Mon to Sat, 10 am &ndash; 8 pm
@@ -267,7 +276,7 @@ export default function Contact() {
             </a>
 
             <a
-              href="mailto:hello@shikshaq.in"
+              href="mailto:ngo.aquaterra@gmail.com"
               className="flex min-h-[44px] items-center gap-[14px] rounded-[20px] bg-card p-[16px] text-foreground shadow-border transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] bg-muted">
@@ -275,7 +284,7 @@ export default function Contact() {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">Email</div>
-                <div className="mt-[2px] text-[15px] font-bold lg:text-[16px]">hello@shikshaq.in</div>
+                <div className="mt-[2px] text-[15px] font-bold lg:text-[16px]">ngo.aquaterra@gmail.com</div>
               </div>
               <ArrowRight className="h-4 w-4 flex-none text-warm-label" aria-hidden="true" />
             </a>
