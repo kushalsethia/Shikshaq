@@ -20,6 +20,22 @@ const NotFound = () => {
     'The link may be old. Try a subject, or start a new search.'
   );
 
+  /* Soft-404 defence. vercel.json rewrites everything to index.html, so a
+     garbage URL returns HTTP 200 and Google indexes it as thin content, then
+     reports it under "Soft 404". A real 404 status is not available from a
+     static SPA, so `noindex, follow` is the practical fix — follow, not
+     nofollow, so the two working exits on this page still pass equity.
+
+     This is paired with removing `Disallow: /404` from robots.txt: a page
+     that cannot be fetched cannot have its noindex read. */
+  useEffect(() => {
+    const tag = document.createElement('meta');
+    tag.name = 'robots';
+    tag.content = 'noindex, follow';
+    document.head.appendChild(tag);
+    return () => tag.remove();
+  }, []);
+
   useEffect(() => {
     if (import.meta.env.DEV) {
       console.error('404 Error: User attempted to access non-existent route:', location.pathname);

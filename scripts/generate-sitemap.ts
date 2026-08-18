@@ -19,6 +19,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
+/* Imported, not reimplemented. A local copy of this drifted immediately: it
+   omitted the `&` -> ' and ' expansion that schoolSlug does before stripping
+   non-alphanumerics, so any school with an ampersand would have been listed in
+   the sitemap under a slug SchoolPage.tsx cannot resolve — a submitted URL
+   that 404s, which is the exact bug already fixed once for /cbse-ncert-. */
+import { schoolSlug } from '../src/lib/school-slug';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,6 +59,13 @@ const STATIC_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
   { loc: '/privacy-policy', changefreq: 'yearly', priority: 0.3 },
   { loc: '/terms-of-service', changefreq: 'yearly', priority: 0.3 },
   { loc: '/recommend-teacher', changefreq: 'monthly', priority: 0.5 },
+  /* /about and /more were internally linked but absent here. /contact was
+     neither — grep found no `to="/contact"` anywhere in src/, so with zero
+     inbound links and no sitemap entry it would effectively never be
+     crawled, despite being a direct trust signal for a local-services site. */
+  { loc: '/about', changefreq: 'monthly', priority: 0.6 },
+  { loc: '/more', changefreq: 'monthly', priority: 0.4 },
+  { loc: '/contact', changefreq: 'monthly', priority: 0.5 },
 ];
 
 /**
@@ -111,6 +124,50 @@ const BOARD_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
 /**
  * Fetch all approved teacher slugs from Supabase
  */
+/**
+ * /school/:slug pages are generated the same way teacher profiles are. They
+ * existed and were linked from exactly one place (PastPapers.tsx), with no
+ * sitemap entry at all — yet this is the URL shape that ranks for queries like
+ * "la martiniere question paper", which SEO_STRATEGY.md names as the highest
+ * value untapped pattern. There is no schools table, so the slugs are derived
+ * from the papers rows, matching how SchoolPage.tsx resolves them.
+ */
+async function fetchSchoolSlugs(): Promise<SitemapURL[]> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return [];
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  try {
+    console.log('Fetching school data from Supabase...');
+    const { data, error } = await supabase
+      .from('papers')
+      .select('school')
+      .eq('is_published', true);
+    if (error) {
+      console.error('Database error:', error.message);
+      return [];
+    }
+    const currentDate = new Date().toISOString().split('T')[0];
+    const counts = new Map<string, number>();
+    for (const row of data || []) {
+      const name = (row as { school: string | null }).school;
+      if (!name || !name.trim()) continue;
+      counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    const seen = new Set<string>();
+    const urls: SitemapURL[] = [];
+    for (const [name] of counts) {
+      const slug = schoolSlug(name);
+      if (!slug || seen.has(slug)) continue;
+      seen.add(slug);
+      urls.push({ loc: `/school/${slug}`, changefreq: 'weekly', priority: 0.5, lastmod: currentDate });
+    }
+    console.log(`Found ${urls.length} schools`);
+    return urls;
+  } catch (err) {
+    console.error('Failed to fetch schools:', err);
+    return [];
+  }
+}
+
 async function fetchTeacherSlugs(): Promise<SitemapURL[]> {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     console.error('ERROR: Missing Supabase credentials');
@@ -189,6 +246,7 @@ async function main() {
 
   // Fetch dynamic teacher pages
   const teacherPages = await fetchTeacherSlugs();
+  const schoolPages = await fetchSchoolSlugs();
 
   // Combine all URLs
   const allURLs: SitemapURL[] = [
@@ -196,6 +254,7 @@ async function main() {
     ...SUBJECT_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
     ...BOARD_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
     ...teacherPages,
+    ...schoolPages,
   ];
 
   console.log('\n📊 Sitemap Statistics:');
@@ -203,6 +262,7 @@ async function main() {
   console.log(`   Subject pages:      ${SUBJECT_PAGES.length}`);
   console.log(`   Board pages:        ${BOARD_PAGES.length}`);
   console.log(`   Teacher profiles:   ${teacherPages.length}`);
+  console.log(`   School pages:       ${schoolPages.length}`);
   console.log(`   ─────────────────────────────────`);
   console.log(`   Total URLs:         ${allURLs.length}`);
 

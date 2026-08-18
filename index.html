@@ -41,6 +41,15 @@
     <meta property="og:url" content="https://www.shikshaq.in/" />
     <meta property="og:site_name" content="Shikshaq" />
     <meta property="og:locale" content="en_IN" />
+    <!-- og:image and twitter:image were absent entirely, while twitter:card
+         below declares summary_large_image — an explicitly broken contract.
+         Every share of this site, including on WhatsApp which is the product's
+         main distribution channel, rendered a blank card. -->
+    <meta property="og:image" content="https://www.shikshaq.in/og-image-default.jpg" />
+    <meta property="og:image:width" content="600" />
+    <meta property="og:image:height" content="315" />
+    <meta property="og:image:alt" content="ShikshAQ — find a tuition teacher in Kolkata. Message them yourself on WhatsApp." />
+    <meta name="twitter:image" content="https://www.shikshaq.in/og-image-default.jpg" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Shikshaq - Find Tuition Teachers in Kolkata" />

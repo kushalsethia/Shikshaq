@@ -192,7 +192,32 @@
     @apply border-border;
   }
 
-  /* Global keyboard focus indicator — nothing else in the app provides one */
+  /* Global keyboard focus indicator — nothing else in the app provides one.
+
+     The outline alone was invisible on every dark slab: --ring is
+     hsl(30 10% 25%) = rgb(70,64,57) against --panel-dark #1B1A18, which
+     measures 1.70:1 where WCAG 1.4.11 requires 3:1. That covered the whole
+     footer nav, the home hero block and the dark CTA slabs — text on those
+     surfaces is 16:1, so only the focus indicator failed.
+
+     The paired outline + white halo fixes it without needing every dark
+     surface to opt in: on light grounds the dark outline carries (9.47:1) and
+     the halo is barely visible; on dark grounds the halo carries (15.8:1
+     against #1B1A18) and the outline recedes. One rule, both directions —
+     which matters because focusable elements move between grounds and a
+     scoped override would need maintaining forever.
+
+     Scoped with :not() rather than by overriding box-shadow afterwards.
+     Tailwind's ring-* utilities are themselves box-shadow, so a trailing
+     `box-shadow: none` would have silently erased every custom focus ring in
+     the app instead of just skipping the halo. */
+  :focus-visible:not([class*="focus-visible:ring-"]):not([class*="focus-visible:outline-"]) {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgb(255 255 255 / 0.9);
+  }
+
+  /* Elements that opt into their own ring keep the plain outline rule. */
   :focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;

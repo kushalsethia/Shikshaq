@@ -503,7 +503,12 @@ const App = () => (
                 </Suspense>
               } />
               <Route path="/404" element={<NotFound />} />
-              <Route path="*" element={<Navigate to="/404" replace />} />
+              {/* Render in place rather than Navigate to /404: redirecting
+                  rewrote the address bar and destroyed the URL that actually
+                  failed, so a broken link could not be reported or shared, and
+                  the diagnostic below logged the useless string "/404". /404
+                  stays as an explicit alias. */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
             </Suspense>
             </RouteTransition>

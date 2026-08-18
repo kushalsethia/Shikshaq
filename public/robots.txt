@@ -23,10 +23,22 @@ Disallow: /my-teachers
 # still reachable and crawlable via /join's link, just not indexed standalone.
 Disallow: /join/apply
 
-# Block deprecated/redirect routes
+# Block deprecated routes
 Disallow: /help
-Disallow: /teacher/
-Disallow: /404
+
+# /teacher/ is NOT blocked. It is a live redirect to /tuition-teachers/*, and a
+# disallowed URL is never fetched — so Googlebot would never see the redirect
+# and never consolidate historical links or rankings onto the current URLs.
+# Blocking a redirect is the one case where Disallow destroys value instead of
+# saving crawl budget.
+
+# /404 is NOT blocked either. It carries `noindex, follow`, and a page that
+# cannot be fetched cannot have its noindex read.
+
+# Filter-results URLs: unbounded query-string variants, one shared title and
+# one shared description. The existing /*?*filter_* rules below do not match
+# this route's params.
+Disallow: /past-papers/results
 
 # Block click-tracking interstitials
 Disallow: /*/whatsapp-click
