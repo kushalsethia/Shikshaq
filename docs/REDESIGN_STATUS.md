@@ -275,6 +275,24 @@ desktop-04 papers, micro-01 to -06, fun-01 sticker family, account-06 recommend,
 secondary-05 success/hand-off, core-06 paper gate, contact-02 desktop,
 reviews-01 desktop fan, admin-01 (statically).
 
+**Deliberately not built, with the reasoning** — so these are not mistaken for
+oversights and not added blindly:
+
+- `account-08-help-faq-legal` shows a "Search help" field and audience tabs
+  ("For guardians / For students / For teachers") on the FAQ shell. Neither is
+  built. Search would filter eight questions that all fit on one screen, and the
+  shell already carries an "ON THIS PAGE" contents list doing the same job. The
+  tabs need every FAQ tagged by audience; `FAQ_ITEMS` has only `question` and
+  `answer`, so adding them means inventing a taxonomy for eight items. Worth
+  revisiting past roughly twenty questions — not before.
+- `fun-03` specifies a reactive result count: "only the numeral animates — a
+  150ms vertical roll per digit… the count turns brand-deep for one beat when it
+  changes." The count updates correctly but does not animate. Left unbuilt
+  rather than half-built: a partial motion spec reads worse than none, and a
+  careless digit-roll is exactly the kind of thing that ends up firing on page
+  load, which rule 7 forbids. Its pull-to-refresh half is not applicable to
+  mobile web.
+
 **Compared and found already correct, no change needed** — recorded so the same
 ground is not re-walked:
 
