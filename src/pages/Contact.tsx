@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 //
 // There is no backend "contact" table in this codebase (checked: only
 // teacher_recommendations exists), so "send it" composes a mailto: to
-// ngo.aquaterra@gmail.com with the reason pre-filled in the subject line, per the
+// hello@shikshaq.in with the reason pre-filled in the subject line, per the
 // changelog note ("reason chip pre-fills the subject line") — it does not
 // silently do nothing, and it does not invent a fake success state that isn't
 // backed by a real send.
@@ -35,7 +35,8 @@ type ReasonId = (typeof REASONS)[number]['id'];
 export default function Contact() {
   usePageMeta(
     'Contact ShikshAQ | Talk to a real person',
-    'Reach the two people who run ShikshAQ directly — finding a teacher, a paper takedown, listing yourself, or anything that feels wrong. A real person replies, usually the same day.'
+    // Was 178 chars, truncated in the SERP snippet. 149 now.
+    'Reach the two people who run ShikshAQ directly for teacher search, paper takedowns, or listing yourself. A real person replies, usually the same day.'
   );
 
   const [reason, setReason] = useState<ReasonId>('teacher');
@@ -62,9 +63,9 @@ export default function Contact() {
     const body = encodeURIComponent(
       `Name: ${name}\nReach me on: ${contact}\n\n${message}`
     );
-    window.location.href = `mailto:ngo.aquaterra@gmail.com?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:hello@shikshaq.in?subject=${subject}&body=${body}`;
     setSent(true);
-    toast.success('Opening your email app to send this to ngo.aquaterra@gmail.com');
+    toast.success('Opening your email app to send this to hello@shikshaq.in');
   };
 
   const statement = (
@@ -109,8 +110,15 @@ export default function Contact() {
           />
 
           {/* the rising dome — a purely decorative echo of the F5/mockup device,
-              built from the same tokens as everything else on the page */}
-          <div className="relative -mx-4 -mt-[46px] h-[140px] overflow-hidden sm:-mx-6 lg:-mx-8 lg:h-[190px]" aria-hidden="true">
+              built from the same tokens as everything else on the page.
+              mt-5 (not a negative pull-up) on mobile: the annotation pills sit
+              flush with the statement block's own bottom edge (see
+              annotated-statement.tsx), so a negative margin here pulled the
+              dome up far enough to bury the bottom-anchored "or just
+              WhatsApp" / "papers takedowns too" pills underneath it. Desktop's
+              much taller display-type box gives the same -46px plenty of
+              clearance, so only the mobile value changes. */}
+          <div className="relative -mx-4 mt-5 h-[140px] overflow-hidden sm:-mx-6 lg:-mx-8 lg:-mt-[46px] lg:h-[190px]" aria-hidden="true">
             <span className="absolute left-[-14%] right-[-14%] top-0 h-[420px] rounded-t-full bg-brand" />
             <div className="absolute left-0 right-0 top-[64px] flex justify-center gap-[22px] lg:top-[82px] lg:gap-10">
               <span className="relative h-[80px] w-[58px] rounded-full bg-card lg:h-[132px] lg:w-[96px]">
@@ -131,10 +139,10 @@ export default function Contact() {
                 write to us
               </span>
               <a
-                href="mailto:ngo.aquaterra@gmail.com"
+                href="mailto:hello@shikshaq.in"
                 className="block font-display text-[20px] font-black tracking-[-0.03em] text-brand-foreground lg:text-2xl"
               >
-                ngo.aquaterra@gmail.com
+                hello@shikshaq.in
               </a>
               <span className="mt-[14px] hidden text-[15px] leading-[1.6] text-brand-foreground/90 lg:block">
                 Mon to Sat, 10 am &ndash; 8 pm
@@ -259,7 +267,7 @@ export default function Contact() {
             </a>
 
             <a
-              href="mailto:ngo.aquaterra@gmail.com"
+              href="mailto:hello@shikshaq.in"
               className="flex min-h-[44px] items-center gap-[14px] rounded-[20px] bg-card p-[16px] text-foreground shadow-border transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] bg-muted">
@@ -267,7 +275,7 @@ export default function Contact() {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">Email</div>
-                <div className="mt-[2px] text-[15px] font-bold lg:text-[16px]">ngo.aquaterra@gmail.com</div>
+                <div className="mt-[2px] text-[15px] font-bold lg:text-[16px]">hello@shikshaq.in</div>
               </div>
               <ArrowRight className="h-4 w-4 flex-none text-warm-label" aria-hidden="true" />
             </a>

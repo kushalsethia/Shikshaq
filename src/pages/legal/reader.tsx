@@ -136,8 +136,11 @@ export function LegalReader({
         </p>
         <span className="mt-[14px] block text-[12.5px] text-warm-meta sm:text-[13.5px]">{updated}</span>
 
-        {/* four-card summary strip */}
-        <div className="mt-[22px] grid grid-cols-1 gap-[10px] sm:mt-[32px] sm:grid-cols-2 lg:grid-cols-4">
+        {/* four-card summary strip — pages.md #16 calls for "2-col mobile /
+            4-col desktop"; sm:grid-cols-2 waited until 640px, so a 390px
+            phone got one full-width card per row (correct content, wrong
+            layout — a lot of dead scroll). grid-cols-2 is now the base. */}
+        <div className="mt-[22px] grid grid-cols-2 gap-[10px] sm:mt-[32px] lg:grid-cols-4">
           {summary.map((s) => (
             <div
               key={s.head}
