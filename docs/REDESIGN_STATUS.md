@@ -273,6 +273,28 @@ codebase, confirm a negative twice before acting on it.
 a route renders it. PreFooter B3 was matched to its mockup while mounted
 nowhere; HowItWorks.tsx and Nudge.tsx were deleted for the same reason.
 
+**Gated screens — statically compared, since running them needs a session.**
+Weaker than seeing them render, and not a substitute, but strong enough for
+hardcoded strings and missing queries. It found one real defect: the admin rail
+displayed the mockup's placeholder name "Sourav · owner" to every admin, sitting
+directly under "Every approve, reject and edit is logged with your name" — and
+contradicting the audit log, which records the real actor id. Fixed.
+
+The rest of that sweep came back clean and is recorded so nobody repeats it:
+no other mockup placeholder survives in any admin or dashboard file (no sample
+applicant names, no "oldest is 2 days old" captions, no Ranchi-era areas); the
+teacher dashboard's unbacked "Profile views" and "WhatsApp taps" tiles were
+removed rather than faked, with the reasoning in-file; all three dashboards
+handle their empty state with `ListEmpty`; and the `All {likedCount}` links are
+gated on `hasMoreSavedTeachers`, so none can render "All 0".
+
+**Audit coverage verified:** every mutating call in every Admin page is followed
+by `recordAdminAction` — approvals, edits, inserts, deletes, publish toggles.
+The one unaudited write is AdminPapers' revert-on-failure, which is a rollback
+rather than an admin action. RLS on `admin_audit_log` is on with exactly two
+policies, SELECT and INSERT, both admin-only: no UPDATE or DELETE policy exists
+for anyone, so the log stays append-only as designed.
+
 **Not compared, and why:** the five admin frames and three dashboards need a
 signed-in session; the paper reader, its gate and the school page need one real
 row in `papers`; reviews R3 needs both. The remaining sheets (fun-01 to -05,
