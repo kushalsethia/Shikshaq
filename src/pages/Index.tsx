@@ -466,7 +466,17 @@ export default function Index() {
                   (<br> after "you" and "to"), and "learn from?" carries a 9px
                   underline bar at 85% brand rather than the filled tilted marker
                   used elsewhere — dc.html sets
-                  `bottom:3px; height:9px; background:rgba(255,128,0,.85)`. */}
+                  `bottom:3px; height:9px; background:rgba(255,128,0,.85)`.
+
+                  KNOWN HANDOFF CONTRADICTION, do not "fix" this to two lines.
+                  pages.md §1's reviewer numbers require "Hero h1 <= 2 lines at
+                  375px", but the same handoff sets display-hero to 40px at that
+                  width. Measured at 375: "Who do you need to" renders 376px
+                  wide against 343px of available h1 width, so two lines do not
+                  fit — they would need roughly 36px type. The two requirements
+                  are arithmetically incompatible; three lines at the specified
+                  size is the only reading that honours the drawing, and it is
+                  what 2a draws. Reported rather than silently resolved. */}
               <h1 className="font-display text-display-hero font-black leading-[0.96] tracking-[-0.04em] text-background">
                 Who do you
                 <br />
