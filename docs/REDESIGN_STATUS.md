@@ -116,7 +116,25 @@ the definition of optimisation theatre. Revisit if a table passes six figures.
 `papers` shows 10,250 index scans against 14 sequential — the paper queries are
 using their indexes correctly even with the table empty.
 
-### 3. react-query is partially adopted
+### 3. react-query — fully adopted on the home route
+**Done.** The landing query was migrated earlier; the three remaining bare
+effects on `Index.tsx` (stats counts, recent papers, the student-quote rail)
+are now `useQuery` too. Six requests used to fire on every mount with no cache
+and no dedup, so returning home from a teacher profile re-ran all six.
+
+Measured with `fetch` instrumented, first visit versus returning to `/` from
+another route: **20 requests down to 10**, with `subjects`,
+`teacher_upvote_stats`, `teacher_comments` and `public_profiles` all served from
+cache on the second visit. The queries are unchanged; three `useState` hooks and
+their setters disappear, because the value IS the query result rather than
+something an effect copies into state.
+
+Three keys rather than one, deliberately: they fail independently, and an empty
+`papers` table should not cost the page its stats or its quotes.
+
+Old note, no longer accurate:
+
+
 `QueryClient` was configured app-wide but `useQuery` appeared in zero files.
 `PastPapers.tsx` and `TeacherProfile.tsx` are migrated. `Index.tsx` is not — its
 effect is ~180 lines with a stale-while-revalidate localStorage cache. Do not
@@ -343,6 +361,15 @@ routes (48 distinct non-teacher paths) resolves to a declared route in App.tsx,
 parameterised ones included. All 190 sitemap URLs are routable. In-page anchors
 resolve on both legal pages. The skip link was the only dead anchor on the site,
 and it was on every page — fixed separately.
+
+**`scrollWidth - clientWidth` is NOT "the page scrolls sideways".** This was the
+overflow check used throughout the audit. It reads 0 on every route but `/`,
+where it reports 66px — and on `/` the page still cannot be scrolled sideways at
+all, because `html` carries `overflow-x: hidden`. The 66px came from a
+`position: fixed` product-tour overlay left mounted from an earlier interaction.
+Nothing was ever wrong, but the check is weaker than it sounds: the honest test
+is `window.scrollTo(300, 0)` and then reading `window.scrollX`, which is what a
+user can actually do.
 
 **Verification traps hit six times.** Six apparent defects were artifacts of how
 I looked, not of the build: PreFooter B2 "missing" (route still loading at

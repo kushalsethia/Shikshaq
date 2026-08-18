@@ -108,9 +108,6 @@ function parseClassNumbers(raw: string | null | undefined): number[] {
 
 export default function Index() {
   const { open: tourOpen, setOpen: setTourOpen } = useProductTour();
-  const [recentPapers, setRecentPapers] = useState<RecentPaper[]>([]);
-  const [studentQuotes, setStudentQuotes] = useState<StudentQuote[]>([]);
-  const [stats, setStats] = useState({ teachers: null as number | null, papers: null as number | null, reviews: null as number | null });
 
   const navigate = useNavigate();
 
@@ -334,52 +331,67 @@ export default function Index() {
 
   useEffect(() => { clearExpiredCache(); }, []);
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const [teachersRes, papersRes, reviewsRes] = await Promise.all([
-          supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
-          supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
-          supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('approved', true),
-        ]);
-        if (teachersRes.error && import.meta.env.DEV) console.error('Index.fetchStats teachers error:', teachersRes.error);
-        if (papersRes.error && import.meta.env.DEV) console.error('Index.fetchStats papers error:', papersRes.error);
-        if (reviewsRes.error && import.meta.env.DEV) console.error('Index.fetchStats reviews error:', reviewsRes.error);
-        setStats({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null, reviews: reviewsRes.count ?? null });
-      } catch (error) {
-        if (import.meta.env.DEV) console.error('Error fetching homepage stats:', error);
-      }
-    }
-    fetchStats();
-  }, []);
+  /* The three remaining home fetches, moved off bare useEffect onto react-query
+     alongside the landing query above. They were the last of the ~180-line
+     effect era on this route: six requests fired on every single mount, with no
+     cache, no dedup and no shared staleness — so returning home from a teacher
+     profile re-ran all six.
 
-  // New papers — the three most recently published papers, real order by
-  // created_at desc (C-007 / O-01: the query just needed a `board`/`class`
-  // select added, the ordering itself already exists on the table).
-  useEffect(() => {
-    async function fetchRecentPapers() {
+     The queries themselves are unchanged, character for character. What changes
+     is that they now answer from cache for five minutes like the landing data
+     does, and that three pieces of state and their setters disappear: the value
+     IS the query result rather than something an effect copies into a hook.
+
+     Kept as three keys rather than one, because they fail independently — an
+     empty papers table should not cost the page its stats or its quotes. */
+  const statsQuery = useQuery({
+    queryKey: ['home', 'stats'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const [teachersRes, papersRes, reviewsRes] = await Promise.all([
+        supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
+        supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+        supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('approved', true),
+      ]);
+      return {
+        teachers: teachersRes.count ?? null,
+        papers: papersRes.count ?? null,
+        reviews: reviewsRes.count ?? null,
+      };
+    },
+  });
+  const stats = statsQuery.data ?? { teachers: null, papers: null, reviews: null };
+
+  // New papers — the three most recently published, real order by created_at
+  // desc (C-007 / O-01).
+  const recentPapersQuery = useQuery({
+    queryKey: ['home', 'recent-papers'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
       const { data } = await supabase
         .from('papers')
         .select('id, title, school, board, class, year, created_at')
         .eq('is_published', true)
         .order('created_at', { ascending: false })
         .limit(3);
-      setRecentPapers((data || []) as RecentPaper[]);
-    }
-    fetchRecentPapers();
-  }, []);
+      return (data || []) as RecentPaper[];
+    },
+  });
+  const recentPapers = recentPapersQuery.data ?? [];
 
   // Student quote rail (C-009) — real, approved teacher_comments only. Never
-  // ships placeholder quotes (design.md §0.10 / changelog notes).
-  useEffect(() => {
-    async function fetchQuotes() {
+  // ships placeholder quotes (design.md §0.10).
+  const quotesQuery = useQuery({
+    queryKey: ['home', 'quotes'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<StudentQuote[]> => {
       const { data: comments } = await supabase
         .from('teacher_comments')
         .select('id, comment, is_anonymous, user_id, created_at')
         .eq('approved', true)
         .order('created_at', { ascending: false })
         .limit(6);
-      if (!comments || comments.length === 0) return;
+      if (!comments || comments.length === 0) return [];
 
       const userIds = [...new Set(comments.filter((c) => !c.is_anonymous).map((c) => c.user_id))];
       const profilesMap = new Map<string, { full_name: string | null; role: string | null; school_college: string | null; grade: string | null }>();
@@ -388,12 +400,12 @@ export default function Index() {
           .from('public_profiles')
           .select('id, full_name, role, school_college, grade')
           .in('id', userIds);
-        (profiles || []).forEach((p) => {
-          if (p.id) profilesMap.set(p.id, p);
+        (profiles || []).forEach((pr) => {
+          if (pr.id) profilesMap.set(pr.id, pr);
         });
       }
 
-      const quotes: StudentQuote[] = comments.map((c) => {
+      return comments.map((c) => {
         const profile = c.is_anonymous ? null : profilesMap.get(c.user_id);
         const name = c.is_anonymous ? 'Anonymous' : profile?.full_name || 'A ShikshAQ user';
         const metaParts = c.is_anonymous
@@ -408,10 +420,9 @@ export default function Index() {
           authorMeta: (metaParts as string[]).join(' · '),
         };
       });
-      setStudentQuotes(quotes);
-    }
-    fetchQuotes();
-  }, []);
+    },
+  });
+  const studentQuotes = quotesQuery.data ?? [];
 
   const [heroMode, setHeroMode] = useState<SearchMode>('teachers');
   const isPapersMode = heroMode === 'papers';
