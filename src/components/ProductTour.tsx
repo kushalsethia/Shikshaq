@@ -89,8 +89,8 @@ type CardMode = "dark" | "brand" | "whatsapp" | "papers";
    body colour, which loses the two-tone the headline is built around. */
 const CARD_ACCENT: Record<CardMode, string> = {
   dark: "text-brand",
-  brand: "text-[#B35900]",
-  whatsapp: "text-[#0B3D1F]",
+  brand: "text-brand-deep",            // #B35900
+  whatsapp: "text-whatsapp-text",      // #0B3D1F
   papers: "text-background/70",
 };
 
@@ -101,7 +101,10 @@ const CARD_ACCENT: Record<CardMode, string> = {
    re-specified here: overriding a variant's background by appending a class
    depends on tailwind-merge resolving the two, which it does not do reliably
    for a variant applied inside the component. */
-const PAPERS_CTA = "bg-[#FCFAF7] text-[#2E3AD6] hover:bg-white";
+/* Tokens, not literals: --card is #FCFAF7 and --brand-blue-deep is #2E3AD6,
+   so these were re-typing values the theme already owns and would not follow
+   a token change. */
+const PAPERS_CTA = "bg-card text-brand-blue-deep hover:bg-white";
 
 const CARD_FILL: Record<CardMode, string> = {
   dark: "bg-panel text-background",

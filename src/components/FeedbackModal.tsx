@@ -107,7 +107,10 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
         if (!next) reset();
       }}
     >
-      <DialogContent className="w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] p-0 sm:max-w-md">
+      <DialogContent
+        aria-describedby={undefined}
+        className="w-[calc(100vw-2rem)] overflow-hidden rounded-[28px] p-0 sm:max-w-md"
+      >
         {sent ? (
           // F6c — sent
           <div className="flex flex-col items-center bg-brand p-[30px] text-center text-brand-foreground">

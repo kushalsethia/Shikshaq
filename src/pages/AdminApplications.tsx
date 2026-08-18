@@ -475,7 +475,7 @@ export default function AdminApplications() {
 
       {/* Application Detail Modal */}
       <Dialog open={!!selectedApplication} onOpenChange={(open) => { if (!open) setSelectedApplication(null); }}>
-        <DialogContent
+        <DialogContent aria-describedby={undefined}
           className="max-w-4xl w-full max-h-[90vh] overflow-y-auto"
           style={{ ...adminPanelStyle, padding: 24 }}
         >

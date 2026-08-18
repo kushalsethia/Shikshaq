@@ -701,7 +701,7 @@ export default function AdminPapers() {
 
         {/* Edit panel (Manage tab -> Edit) */}
         <Dialog open={editing && activeTab === 'manage'} onOpenChange={(open) => { if (!open) closeEditor(); }}>
-          <DialogContent
+          <DialogContent aria-describedby={undefined}
             className="max-w-lg w-full max-h-[90vh] overflow-y-auto"
             style={{ ...adminPanelStyle, padding: 24 }}
           >

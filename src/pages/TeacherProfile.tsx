@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Footer } from '@/components/Footer';
+import { ListError } from '@/components/ui/list-states';
 import { Heart, Share2, ArrowLeft, Clock, Wallet, Users, ShieldCheck } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
@@ -410,6 +411,21 @@ export default function TeacherProfile() {
             <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
             <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
           </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  /* A failed fetch is not a missing teacher. This used to fall through to
+     "Teacher not found", telling someone their teacher had been removed when
+     the network had simply failed — and offering no retry. Checked before the
+     !teacher branch so a real 404 still reads as a 404. */
+  if (profileQuery.isError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
+          <ListError onRetry={() => profileQuery.refetch()} />
         </main>
         <Footer />
       </div>
