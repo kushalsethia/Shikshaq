@@ -432,6 +432,11 @@ export default function Index() {
   const [heroMode, setHeroMode] = useState<SearchMode>('teachers');
   const isPapersMode = heroMode === 'papers';
 
+  /* Only teachers who actually have a photo. The stack is a row of faces; an
+     initial placeholder in it would read as a missing image rather than a
+     person. */
+  const featuredWithPhotos = featuredTeachers.filter((t) => Boolean(t.image_url));
+
   const leadTeacher = featuredTeachers[0];
   const railTeachers = featuredTeachers.slice(1);
 
@@ -509,6 +514,38 @@ export default function Index() {
                       />
                     </span>
                   )}
+                </div>
+              )}
+
+              {/* D1's overlapping face stack. Desktop only — the mobile
+                  drawing (2a) has no equivalent and the stat pills already
+                  carry the count there.
+
+                  The faces are the real featured teachers already rendered
+                  further down this same page, not stock or invented portraits,
+                  and it draws nothing at all until at least three of them have
+                  a photo. A stack of two, or of placeholder initials, would be
+                  a worse claim than no stack. */}
+              {featuredWithPhotos.length >= 3 && (stats.teachers ?? 0) > 0 && (
+                <div className="hidden items-center gap-3 lg:flex">
+                  <div className="flex -space-x-3">
+                    {featuredWithPhotos.slice(0, 5).map((t) => (
+                      <img
+                        key={t.id}
+                        src={t.image_url as string}
+                        alt=""
+                        aria-hidden="true"
+                        loading="lazy"
+                        decoding="async"
+                        width={44}
+                        height={44}
+                        className="h-11 w-11 rounded-full border-2 border-panel object-cover"
+                      />
+                    ))}
+                  </div>
+                  <span className="text-meta font-semibold text-background/75">
+                    {stats.teachers} verified tutors in Kolkata
+                  </span>
                 </div>
               )}
 
