@@ -18,7 +18,10 @@ type Selections = Record<FacetKey, string[]>;
 
 const EMPTY_SELECTIONS: Selections = { subject: [], cls: [], area: [], board: [], school: [] };
 
-const MODE_LABEL: Record<SearchMode, string> = { teachers: 'Teachers', papers: 'Papers' };
+/* 'Past papers', not 'Papers' — the handoff labels this tab in full, and it
+   matches the nav and the footer toggle, which already said 'Past papers'.
+   The two read as different destinations when they are the same one. */
+const MODE_LABEL: Record<SearchMode, string> = { teachers: 'Teachers', papers: 'Past papers' };
 
 const POPULAR: Record<SearchMode, string[]> = {
   teachers: ['Maths near Ballygunge', 'Physics Class 10', 'ICSE tutors', 'Online tuition', 'Class 12 Chemistry'],
@@ -346,7 +349,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     <div className="relative flex flex-none rounded-full bg-muted p-1">
       <span
         aria-hidden="true"
-        className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-card shadow-border transition-transform duration-300 ease-out ${
+        className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-panel shadow-border transition-transform duration-300 ease-out motion-reduce:transition-none ${
           mode === 'papers' ? 'translate-x-full' : 'translate-x-0'
         }`}
       />
@@ -357,8 +360,8 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           onClick={() => setMode(m)}
           aria-pressed={mode === m}
           className={`relative z-10 flex min-h-11 items-center justify-center rounded-full text-sm font-medium transition-colors duration-150 ${FOCUS} focus-visible:ring-ring ${
-            narrow ? 'w-16' : 'w-20'
-          } ${mode === m ? ACCENT[m].text : 'text-muted-foreground'}`}
+            narrow ? 'min-w-[76px] px-3' : 'min-w-[92px] px-3.5'
+          } ${mode === m ? 'font-bold text-background' : 'text-muted-foreground'}`}
         >
           {MODE_LABEL[m]}
         </button>
