@@ -307,6 +307,13 @@ export default {
          verifying with grep that no file under src/ references them.
          Do not re-add. Hover/press are transitions, not animations. */
       keyframes: {
+        /* One-shot hint that a rail scrolls: it drifts left and settles back,
+           the way a thumbed page does. Small (6px) and single-pass — a looping
+           twitch reads as a broken animation rather than an invitation. */
+        "rail-nudge": {
+          "0%, 100%": { transform: "translateX(0)" },
+          "40%": { transform: "translateX(-6px)" },
+        },
         "accordion-down": {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
@@ -370,6 +377,7 @@ export default {
         },
       },
       animation: {
+        "rail-nudge": "rail-nudge 0.9s cubic-bezier(0.16, 1, 0.3, 1) 1",
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-slide-up": "fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",

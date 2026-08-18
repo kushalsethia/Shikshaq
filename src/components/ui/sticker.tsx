@@ -23,7 +23,10 @@ import { cn } from "@/lib/utils";
    - Decorative tilt only — the text inside is real text, and reduced motion
      flattens the rotation (design.md §3) */
 const stickerVariants = cva(
-  "pointer-events-none absolute z-10 inline-flex items-center whitespace-nowrap rounded-full px-3 text-[11px] font-extrabold uppercase tracking-[0.04em] shadow-border",
+  /* No `uppercase`: the handoff sets these in sentence case ("312 tutors",
+     "no commission", "Takes 3 minutes"). Forcing caps also broke the drawn
+     width, which is what pushed some stickers past their container edge. */
+  "pointer-events-none absolute z-10 inline-flex items-center whitespace-nowrap rounded-full px-3 text-[11px] font-extrabold tracking-[0.01em] shadow-border",
   {
     variants: {
       tone: {

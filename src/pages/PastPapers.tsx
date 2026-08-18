@@ -354,7 +354,11 @@ export default function PastPapers() {
               papers are still loading or the catalogue is empty. */}
           {!loading && !loadError && recentPapers.length > 0 && (
             <div className="relative mx-auto mt-10 max-w-[1000px] rounded-t-[28px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pt-5 sm:px-[26px] sm:pt-[26px]">
-              <div className="flex items-end justify-center gap-3 overflow-x-auto pb-0 sm:gap-[18px] sm:overflow-visible">
+              {/* items-end + overflow-y-visible: the covers stand OUT of the
+                  tray's top edge, so a clipping scroller would slice their
+                  tops off. ScrollRail hides the native bar and fades the edge
+                  instead. */}
+              <div className="scrollbar-hide flex items-end justify-center gap-3 overflow-x-auto overflow-y-visible pb-0 sm:gap-[18px] sm:overflow-visible">
                 {recentPapers.slice(0, 5).map((p) => (
                   <PaperCover
                     key={p.id}

@@ -641,36 +641,19 @@ export default function Index() {
           </PageContainer>
         )}
 
-        {/* --------------------------------------------------------- Ticker rail */}
-        {/* Full-bleed dark marquee (Home concepts.dc.html "Marquee ticker"),
-            not a light Chip row — the mockup runs subject + board labels as
-            plain white text on a near-black band, edge to edge. */}
-        {subjects.length > 0 && (
-          <section className="overflow-hidden bg-panel py-3">
-            <div className="overflow-x-auto scrollbar-hide">
-              <ul className="flex w-max items-center gap-[22px] whitespace-nowrap px-4">
-                {[...subjects.map((s) => s.name), ...BOARD_ORDER.filter((b) => boardCounts[b])].map((label) => (
-                  <li key={label}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/all-tuition-teachers-in-kolkata?q=${encodeURIComponent(label)}`)}
-                      /* tap-44 keeps the ticker's drawn 23px type while giving
-                         each item the 44px target design.md §7 requires. */
-                      className="tap-44 inline-flex items-center gap-[10px] font-display text-[15px] font-extrabold tracking-tight text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
-                    >
-                      {label}
-                      <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        )}
+        {/* The dark subject/board ticker rail that used to sit here has been
+            removed at the owner's direction. Every label it carried is still
+            reachable: subjects from section 02, boards from the board strip,
+            and all of them from the footer's full subject and board lists — so
+            nothing became unreachable, only less shouty. */}
 
         {/* ------------------------------------------------------ How it works */}
         <PageContainer as="section" className="py-8 sm:py-12">
-          <Slab fill="brand" className="relative overflow-hidden p-6 sm:p-8">
+          {/* overflow-visible, not hidden: the Sticker overhangs the top edge by
+              -10px and its own contract says the parent must not clip, or the
+              overhang is cut off (design.md §8). This block previously carried
+              overflow-hidden and sliced the top off "Takes 3 minutes". */}
+          <Slab fill="brand" className="relative overflow-visible p-6 sm:p-8">
             <Sticker tone="dark" tilt={-6} size={30} className="right-6 sm:right-10">
               Takes 3 minutes
             </Sticker>

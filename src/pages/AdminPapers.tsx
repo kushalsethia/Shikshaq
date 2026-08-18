@@ -211,7 +211,13 @@ export default function AdminPapers() {
     if (file) handleFileUpload(file);
   }
 
-  async function handleSave() {
+  /* publishedOverride exists because "Save as draft" used to call
+     handleChange('is_published', false) and handleSave() in the same tick.
+     handleChange is a setState, so handleSave still read the PRE-update
+     formData from its render closure and wrote is_published: true (the
+     BLANK_FORM default) — every paper "saved as a draft" went live
+     immediately. Passing the value in sidesteps the stale closure entirely. */
+  async function handleSave(publishedOverride?: boolean) {
     if (!formData.title?.trim() || !formData.school?.trim() || !formData.subject || !formData.class || !formData.board || !formData.year) {
       adminToast('Title, school, subject, class, board and year are required');
       return;
@@ -227,7 +233,7 @@ export default function AdminPapers() {
         exam_type: formData.exam_type || EXAM_TYPES[0],
         year: Number(formData.year),
         file_url: formData.file_url || null,
-        is_published: formData.is_published ?? true,
+        is_published: publishedOverride ?? formData.is_published ?? true,
       };
 
       if (selected) {
@@ -633,7 +639,7 @@ export default function AdminPapers() {
 
             <div className="flex gap-2 flex-wrap" style={{ marginTop: 22 }}>
               <button
-                onClick={handleSave}
+                onClick={() => handleSave()}
                 disabled={saving}
                 style={{ ...adminPrimaryBtnStyle, minHeight: 48 }}
                 className="disabled:opacity-60"
@@ -642,7 +648,7 @@ export default function AdminPapers() {
                 Publish this paper
               </button>
               <button
-                onClick={() => { handleChange('is_published', false); handleSave(); }}
+                onClick={() => { handleChange('is_published', false); handleSave(false); }}
                 disabled={saving}
                 style={adminSecondaryBtnStyle}
                 className="disabled:opacity-60"
@@ -769,7 +775,7 @@ export default function AdminPapers() {
                   <Label htmlFor="eis_published" className="!mb-0" style={{ fontSize: 13.5, color: SURFACE_TOKENS.textBody }}>Published (visible on the site)</Label>
                 </div>
                 <div className="flex items-center gap-2 pt-2">
-                  <button onClick={handleSave} disabled={saving} style={adminPrimaryBtnStyle} className="disabled:opacity-60">
+                  <button onClick={() => handleSave()} disabled={saving} style={adminPrimaryBtnStyle} className="disabled:opacity-60">
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     {selected ? 'Save changes' : 'Add paper'}
                   </button>

@@ -134,7 +134,13 @@ export function TopBar({ className }: { className?: string }) {
             {NAV_LINKS.map(({ to, label, icon: Icon, match }) => {
               const active = match(location.pathname);
               return (
-                <li key={to}>
+                /* key={label}, not key={to}: NAV_LINKS has four entries but only
+                   two distinct destinations ("Find teachers"/"Subjects" both go
+                   to browse, "Past papers"/"Schools" both to papers), so keying
+                   on `to` produced two pairs of duplicate keys on every render —
+                   ~50 console errors per page load, and a real risk of the
+                   aria-current highlight attaching to the wrong item. */
+                <li key={label}>
                   <Link
                     to={to}
                     aria-current={active ? "page" : undefined}

@@ -45,7 +45,11 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
   const [sent, setSent] = useState(false);
 
   const reset = () => {
-    setSelectedRating(3);
+    // null, not 3. Closing and reopening previously re-armed a preselected 3/5
+    // with the Send button already enabled, so an untouched form submitted a
+    // rating nobody chose — the exact bug the comment above the initial state
+    // warns about, reintroduced on the second open.
+    setSelectedRating(null);
     setComment('');
     setGuestEmail('');
     setSent(false);

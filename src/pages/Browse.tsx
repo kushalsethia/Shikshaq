@@ -12,6 +12,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { Chip, chipVariants } from '@/components/ui/chip';
 import { Button } from '@/components/ui/button';
 import { IconDisc } from '@/components/ui/icon-disc';
+import { ScrollRail } from '@/components/ui/scroll-rail';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 import { cn } from '@/lib/utils';
 import { ControlBlock, PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
@@ -1724,7 +1725,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               )}
             </button>
 
-            <div className="min-w-0 flex-1 overflow-x-auto">
+            <ScrollRail railClassName="flex-1" fadeFrom="from-card">
               <FilterChips
                 mode="teachers"
                 chips={filterChips}
@@ -1732,14 +1733,14 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                 onEditSearch={handleEditSearch}
                 handoff={{ label: 'See papers with these filters →', onClick: () => handleSearchModeChange('papers') }}
               />
-            </div>
+            </ScrollRail>
           </div>
 
           <div className="mt-[10px] flex flex-wrap items-center justify-between gap-2">
             <p className="text-[12.5px] text-warm-secondary tabular-nums">
               {resultCountLabel} teacher{teachers.length === 1 ? '' : 's'}
             </p>
-            <div className="flex min-w-0 items-center gap-[8px] overflow-x-auto">
+            <ScrollRail className="flex items-center gap-[8px] py-1" fadeFrom="from-card">
               {sortPills.map((s) => (
                 <Chip
                   key={s.value}
@@ -1751,7 +1752,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                   {s.label}
                 </Chip>
               ))}
-            </div>
+            </ScrollRail>
           </div>
         </PageContainer>
       </div>

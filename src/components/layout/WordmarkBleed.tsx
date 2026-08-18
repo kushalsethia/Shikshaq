@@ -29,7 +29,10 @@ export interface WordmarkBleedProps {
 
 function WordmarkBleed({ stickers = [], className }: WordmarkBleedProps) {
   /* Alternate the tilt so the row reads as hand-placed rather than stepped. */
-  const tilts: (-6 | -3 | 3 | 6)[] = [-3, 3, -6];
+  /* Handoff tilts: -8 / 6 / -5. Sticker's tilt prop carries the angle as a CSS
+     custom property precisely so any integer in the ±3–9 range works. */
+  const tilts = [-8, 6, -5];
+  const STICKER_TONES = ["brand", "whatsapp", "papers"] as const;
 
   /* The floating nav pill sits at `inset-x-3 bottom-3` and is 60px tall, so it
      occupies the bottom ~72px of the viewport plus the safe-area inset. The
@@ -46,10 +49,15 @@ function WordmarkBleed({ stickers = [], className }: WordmarkBleedProps) {
           out a second time. */}
       <div aria-hidden className="overflow-hidden">
         <span
-          className="block select-none whitespace-nowrap font-display font-black leading-[0.78] text-background/10"
+          /* Solid bone (#F9F5F1), not 10% alpha. The handoff draws this
+             wordmark as the footer's largest element; at text-background/10 it
+             was all but invisible against the near-black slab, which is why the
+             whole footer read as unfinished. Tracking and line-height are the
+             handoff's too — -0.06em and 1, not the 0.78 that was crushing it. */
+          className="block select-none whitespace-nowrap font-display font-black leading-[1] tracking-[-0.06em] text-background"
           style={{
             fontStretch: "125%",
-            fontSize: "clamp(4.5rem, 22vw, 14rem)",
+            fontSize: "clamp(5.125rem, 22vw, 14rem)",
             /* Clipped by the container's bottom edge: the descender sits below
                the box on purpose. */
             marginBottom: "-0.18em",
@@ -64,7 +72,12 @@ function WordmarkBleed({ stickers = [], className }: WordmarkBleedProps) {
           {stickers.slice(0, 3).map((label, i) => (
             <span key={label} className="relative">
               {/* Sticker positions itself absolutely against this span. */}
-              <Sticker tone={i === 0 ? "brand" : "bone"} tilt={tilts[i]} size={30}>
+              {/* One tone per sticker, per the handoff: orange for the tutor
+                  count, WhatsApp green for "no commission" (the promise the
+                  green is doing the work of), indigo for the paper count —
+                  papers are the indigo half of the brand pair. Two of the three
+                  were rendering as undifferentiated bone. */}
+              <Sticker tone={STICKER_TONES[i]} tilt={tilts[i]} size={26}>
                 {label}
               </Sticker>
             </span>
