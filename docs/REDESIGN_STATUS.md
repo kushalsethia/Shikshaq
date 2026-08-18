@@ -203,7 +203,16 @@ is at the bottom.
 core-04 papers, desktop-01 home, desktop-04 papers, account-01 sign-in,
 secondary-01 subject page, secondary-03 assistant, secondary-04 onboarding,
 secondary-06 product tour, secondary-07 about, contact-01, join-01,
-prefooter-01 to -04, micro-06 non-negotiables.
+prefooter-01 to -04, legal-01 terms, legal-02 privacy, desktop-03 profile,
+desktop-04 papers, micro-01 to -06, fun-01 sticker family.
+
+**fun-01 sticker family — audited, all four rules hold.** Worth recording as
+checked rather than assumed, since three of the four are the kind that rot
+quietly as data grows: one sticker per card (no card carries two); never on a
+result row (24 row-shaped browse cards, zero stickers); never on more than a
+third of a grid (home featured grid runs 1 of 8, 13%); and Verified is a mark
+beside the name, not a sticker — there is no "Verified" sticker text anywhere in
+the DOM. Re-check the third rule if featured selection ever widens.
 
 **The rules sheet was the highest-yield source.** micro-06 is not a screen, it
 is seven rules, and auditing against it found four systemic violations spanning
