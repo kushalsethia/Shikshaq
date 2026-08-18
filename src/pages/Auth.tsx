@@ -432,7 +432,7 @@ export default function Auth() {
           the edge anyway, so clipping is the correct look as well as the fix. */}
       {!showResetPassword && (
         <div
-          className="relative mx-auto mt-2 h-[132px] w-full max-w-[470px] overflow-hidden px-5"
+          className="relative mx-auto mt-2 h-[400px] w-full max-w-[470px] overflow-hidden px-5"
           aria-hidden="true"
         >
           {/* The mosaic's four pale pills are four DIFFERENT hues in

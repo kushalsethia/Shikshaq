@@ -362,6 +362,20 @@ export default function SelectRole() {
               {loading ? 'Creating profile...' : 'Continue'}
             </button>
           </form>
+
+          {/* account-03-pick-role.png / pages.md §10: a fourth ghost row lets
+              a visitor move on without choosing. design.md's own rule for this
+              screen — "the answer sets home emphasis... it never gates
+              content" — means role is a personalization hint, not a
+              requirement, so skipping has to be possible. This page had no
+              way out short of picking a role and agreeing to terms. */}
+          <button
+            type="button"
+            onClick={() => navigate(isValidRedirect(redirectTo) ? redirectTo : '/')}
+            className="mx-auto mt-4 block min-h-11 px-2 text-center text-sm font-semibold text-warm-meta"
+          >
+            Skip for now
+          </button>
         </div>
       </main>
 
