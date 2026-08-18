@@ -205,6 +205,35 @@ export type Database = {
         }
         Relationships: []
       }
+      paper_reads: {
+        Row: {
+          id: string
+          paper_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          paper_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          paper_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paper_reads_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       papers: {
         Row: {
           board: string
@@ -848,6 +877,17 @@ export type Database = {
       }
     }
     Views: {
+      paper_read_stats: {
+        Row: {
+          class: string | null
+          paper_id: string | null
+          read_count: number | null
+          school: string | null
+          subject: string | null
+          title: string | null
+        }
+        Relationships: []
+      }
       public_profiles: {
         Row: {
           avatar_url: string | null

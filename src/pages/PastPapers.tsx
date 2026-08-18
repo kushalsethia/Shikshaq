@@ -34,6 +34,13 @@ interface Paper {
   created_at: string;
 }
 
+interface MostReadPaper {
+  paper_id: string;
+  title: string;
+  school: string;
+  read_count: number;
+}
+
 interface SchoolStat {
   school: string;
   board: string;
@@ -175,17 +182,30 @@ export default function PastPapers() {
       const subjectCounts: Record<string, number> = {};
       (subjectsRes.data || []).forEach((p) => { subjectCounts[p.subject] = (subjectCounts[p.subject] || 0) + 1; });
 
+      /* Most read (pages.md §4 section 6). Reads come from paper_read_stats,
+         a public aggregate view — individual reads stay behind RLS in
+         paper_reads and never leave it. Papers nobody has opened are excluded
+         rather than listed at zero, so the panel disappears entirely on a
+         library nobody has read yet instead of ranking a column of noughts. */
+      const { data: readRows } = await supabase
+        .from('paper_read_stats')
+        .select('paper_id, title, school, read_count')
+        .order('read_count', { ascending: false })
+        .limit(3);
+
       return {
         schoolStats,
         boardCounts,
         subjectCounts,
         recentPapers: (recentRes.data || []) as Paper[],
         totalPapers: countRes.count ?? 0,
+        mostRead: ((readRows || []) as MostReadPaper[]).filter((r) => r.read_count > 0),
       };
     },
   });
 
   const schoolStats = landing.data?.schoolStats ?? [];
+  const mostRead = landing.data?.mostRead ?? [];
   const recentPapers = landing.data?.recentPapers ?? [];
   const subjectCounts = landing.data?.subjectCounts ?? {};
   const boardCounts = landing.data?.boardCounts ?? {};
@@ -388,6 +408,42 @@ export default function PastPapers() {
             </section>
           )}
         </div>
+
+        {/* -------------------------------------------------------- Most read */}
+        {/* pages.md §4 section 6: bg-muted rounded-3xl p-4, hairline rows, rank
+            numeral in display type. Rendered only when something has actually
+            been read — a "Most read" list of unread papers is not a ranking,
+            it is three arbitrary rows. */}
+        {mostRead.length > 0 && (
+          <section className={`${CONTAINER} pb-[24px]`}>
+            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+              Most read
+            </h2>
+            <div className="rounded-3xl bg-muted p-4">
+              <ol className="divide-y divide-border/70">
+                {mostRead.map((paper, i) => (
+                  <li key={paper.paper_id}>
+                    <a
+                      href={`/past-papers/${paper.paper_id}`}
+                      className={`flex min-h-11 items-center gap-3 py-3 transition-opacity duration-150 hover:opacity-80 ${FOCUS_BLUE}`}
+                    >
+                      <span className="w-6 flex-none font-display text-[22px] font-black leading-none text-warm-label">
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14.5px] font-bold text-foreground">{paper.title}</span>
+                        <span className="block truncate text-meta text-warm-meta">{paper.school}</span>
+                      </span>
+                      <span className="flex-none text-meta tabular-nums text-warm-meta">
+                        {paper.read_count} read{paper.read_count === 1 ? '' : 's'}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </section>
+        )}
 
         {/* --------------------------------------------------------- By school */}
         {/* S4/D4: a flat list of school rows on the page ground — each row is
