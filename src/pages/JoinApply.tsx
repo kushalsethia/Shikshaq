@@ -64,8 +64,19 @@ const STEPS = [
   { label: 'What you teach', head: 'What do you teach?', lede: 'Pick everything you genuinely teach. Guardians filter on this, so be honest.' },
   { label: 'Where you teach', head: 'Where do you teach?', lede: 'Travel radius matters more than an address. Nobody sees your exact address.' },
   { label: 'Your fee, your terms', head: 'What do you charge?', lede: 'You set it, you keep it. ShikshAQ takes nothing and never handles the money.' },
-  { label: 'With us now', head: 'With us now', lede: 'A person reads every application. Usually the same day, at worst two.' },
+  { label: 'Verify & consent', head: 'One quick check', lede: 'A student we can call to confirm you teach, then your consent to go live.' },
 ];
+
+// J5 copy (copy.md §8) — belongs to the post-submission waiting-review screen,
+// not the pre-submission verify-and-consent step above. Was previously shown
+// prematurely on step 5's form (which still required two fields and a
+// checkbox before the actual submit), which read as if the application had
+// already been sent. Moved to the `submitted` view where it's actually true.
+const WAITING_ON_REVIEW = {
+  head: 'With us now',
+  lede: 'A person reads every application. Usually the same day, at worst two.',
+  note: 'Nothing goes live until a human has read it. If something is missing we message you on WhatsApp instead of rejecting you.',
+};
 
 function Pill({
   label,
@@ -498,10 +509,10 @@ export default function JoinApply() {
               <CheckCircle2 className="w-8 h-8 text-foreground" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mb-3">
-              Application submitted!
+              {WAITING_ON_REVIEW.head}
             </h1>
             <p className="text-base leading-relaxed text-muted-foreground mb-2">
-              Nothing goes live until a human has read it. If something is missing we message you on WhatsApp instead of rejecting you.
+              {WAITING_ON_REVIEW.lede} {WAITING_ON_REVIEW.note}
             </p>
             <p className="text-sm text-warm-meta">
               You will be notified via email once your application has been reviewed.
@@ -1007,12 +1018,17 @@ export default function JoinApply() {
               </div>
             )}
 
-            {/* J5 — with us now */}
+            {/* Verify & consent — collects the two legacy verification fields
+                (reference_name/reference_number) and MOU consent that the J1–J5
+                mockup has no slot for. This is where the real "Send" happens,
+                so its copy must not borrow J5's post-submission "With us now"
+                language (see WAITING_ON_REVIEW above, used on the submitted
+                screen instead). */}
             {step === 4 && (
               <div className="joinApplyRise">
                 <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
                 <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">
-                  {currentStep.lede} Nothing goes live until a human has read it. If something is missing we message you on WhatsApp instead of rejecting you.
+                  {currentStep.lede}
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -1110,10 +1126,10 @@ export default function JoinApply() {
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Submitting...
+                    Sending...
                   </>
                 ) : (
-                  'Send application'
+                  'Send for review'
                 )}
               </Button>
             )}
