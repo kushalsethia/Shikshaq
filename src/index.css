@@ -238,6 +238,13 @@
   html {
     overflow-x: hidden;
     width: 100%;
+    /* Pull-to-refresh (use-pull-to-refresh.ts) drives its own touch handling
+       from scrollY 0. Without this, Chrome mobile's native overscroll-refresh
+       (and an installed PWA's) fires at the same time as ours on the exact
+       same gesture — two refresh UIs stacked on one pull. `contain` stops the
+       browser's own refresh/navigation gesture from triggering while leaving
+       normal scrolling everywhere else untouched. */
+    overscroll-behavior-y: contain;
   }
 
   /* `body` intentionally does NOT also get overflow-x:hidden: setting overflow

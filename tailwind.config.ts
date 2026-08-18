@@ -316,6 +316,21 @@ export default {
         /* One-shot hint that a rail scrolls: it drifts left and settles back,
            the way a thumbed page does. Small (6px) and single-pass — a looping
            twitch reads as a broken animation rather than an invitation. */
+        /* Pull-to-refresh (fun-03.png, F3). "One soft bounce" on release —
+           overshoots past 1 and settles, a single pass, not a loop. */
+        "pull-bounce": {
+          "0%": { transform: "scale(1)" },
+          "40%": { transform: "scale(1.12)" },
+          "70%": { transform: "scale(0.97)" },
+          "100%": { transform: "scale(1)" },
+        },
+        /* "Pill pulses twice" while the real refresh is in flight. */
+        "pull-pulse": {
+          "0%, 100%": { transform: "scale(1)", opacity: "1" },
+          "25%": { transform: "scale(1.08)", opacity: "0.85" },
+          "50%": { transform: "scale(1)", opacity: "1" },
+          "75%": { transform: "scale(1.08)", opacity: "0.85" },
+        },
         "rail-nudge": {
           "0%, 100%": { transform: "translateX(0)" },
           "40%": { transform: "translateX(-6px)" },
@@ -384,6 +399,12 @@ export default {
       },
       animation: {
         "rail-nudge": "rail-nudge 0.9s cubic-bezier(0.16, 1, 0.3, 1) 1",
+        "pull-bounce": "pull-bounce 0.26s cubic-bezier(0.34, 1.56, 0.64, 1) 1",
+        /* Exactly two pulses, once — not a loop, since "refreshing" is a
+           finite state that ends when the list re-enters. Duration matches
+           MIN_REFRESHING_MS in use-pull-to-refresh.ts so the animation is
+           never cut off mid-pulse by a fast-resolving refetch. */
+        "pull-pulse": "pull-pulse 0.8s ease-in-out 1",
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-slide-up": "fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",

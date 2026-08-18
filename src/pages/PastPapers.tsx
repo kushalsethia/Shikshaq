@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/auth-context';
 import { GoalRing } from '@/components/papers/goal-ring';
 import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
 import { IconDisc } from '@/components/ui/icon-disc';
+import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { schoolSlug } from '@/lib/school-slug';
 
 interface Paper {
@@ -277,6 +278,7 @@ export default function PastPapers() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <main className="flex-1">
+      <PullToRefresh onRefresh={() => landing.refetch()} disabled={hasFilters}>
         {/* ------------------------------------------------------------- Hero */}
         {/* D4 "Papers library" hero: saturated indigo band with two soft
             radial blobs, a centered Archivo-900 headline, lede, sign-in CTA,
@@ -805,6 +807,7 @@ export default function PastPapers() {
             </div>
           </div>
         </section>
+      </PullToRefresh>
       </main>
       <Footer />
     </div>

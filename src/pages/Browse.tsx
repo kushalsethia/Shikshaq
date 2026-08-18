@@ -12,6 +12,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { Chip, chipVariants } from '@/components/ui/chip';
 import { Button } from '@/components/ui/button';
 import { IconDisc } from '@/components/ui/icon-disc';
+import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { ScrollRail } from '@/components/ui/scroll-rail';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 import { cn } from '@/lib/utils';
@@ -1575,6 +1576,15 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         </>
       )}
 
+      {/* handleRetry() is fire-and-forget (bumps retryToken, the real fetch
+          runs inside a debounced effect with no promise handle back to here)
+          — the pill's minimum on-screen time in the hook covers "refreshing"
+          feels instant even when it is; the results grid keeps its own
+          loading state independently if the real fetch runs long. Disabled
+          while the loading skeleton is already showing, so a pull can't
+          double-trigger a fetch that's already in flight. */}
+      <PullToRefresh onRefresh={handleRetry} disabled={loading}>
+
       {/* Control block (design.md S1 / S4 "Browse (S1)"): near-black,
           rounded-b-4xl, carrying the back row, the real result-count h1, and
           the search field. */}
@@ -1980,7 +1990,11 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       <PreFooter variant="B2" counts={{ teachers: teachers.length, reviews: reviewsCount }} />
       <Footer />
       <BottomNavSpacer />
+      </PullToRefresh>
 
+      {/* Outside the wrapper on purpose: FilterSheet is a Radix Sheet, which
+          portals to document.body regardless of where it's written in JSX —
+          it isn't part of the page content the pull gesture shifts. */}
       <FilterSheet
         open={filterSheetOpen}
         onOpenChange={setFilterSheetOpen}
