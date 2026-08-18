@@ -24,6 +24,7 @@ import {
   useAdminGuard,
 } from '@/components/AdminConsole';
 import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 interface Comment {
   id: string;
@@ -54,6 +55,7 @@ const COMMENTS_PAGE_SIZE = 50;
 const TINT = { bg: ACCENT_TOKENS.settledBg, text: ACCENT_TOKENS.settledText };
 
 export default function AdminComments() {
+  const { confirm, confirmDialog } = useConfirm();
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
   const [comments, setComments] = useState<Comment[]>([]);
@@ -270,9 +272,12 @@ export default function AdminComments() {
   };
 
   const handleDelete = async (commentId: string) => {
-    if (!window.confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Delete this comment?',
+      description: 'It disappears from the teacher’s profile straight away. This cannot be undone.',
+      confirmLabel: 'Delete comment',
+    });
+    if (!ok) return;
 
     try {
       const { error } = await supabase
@@ -533,6 +538,7 @@ export default function AdminComments() {
         <AdminAuditFootnote />
       </>
       )}
+      {confirmDialog}
     </AdminConsole>
   );
 }

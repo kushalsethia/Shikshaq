@@ -28,6 +28,7 @@ import {
   AdminStatTiles,
 } from '@/components/AdminConsole';
 import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 const PAPER_CLASSES = CLASSES.filter((c) => c !== 'UG');
 const PAPERS_TINT = MODE_TOKENS.papers; // indigo — this route's own accent, not a console tab
@@ -60,6 +61,7 @@ const BLANK_FORM: FormState = {
 };
 
 export default function AdminPapers() {
+  const { confirm, confirmDialog } = useConfirm();
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
   const navigate = useNavigate();
@@ -271,7 +273,12 @@ export default function AdminPapers() {
 
   async function handleDelete() {
     if (!selected) return;
-    if (!window.confirm(`Delete "${selected.title}"? This cannot be undone.`)) return;
+    const ok = await confirm({
+      title: `Delete “${selected.title}”?`,
+      description: 'The paper stops being readable straight away. This cannot be undone.',
+      confirmLabel: 'Delete paper',
+    });
+    if (!ok) return;
     try {
       setDeleting(true);
       const { error } = await supabase.from('papers').delete().eq('id', selected.id);
@@ -776,6 +783,7 @@ export default function AdminPapers() {
               </div>
           </DialogContent>
         </Dialog>
+      {confirmDialog}
     </AdminConsole>
   );
 }

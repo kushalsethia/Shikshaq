@@ -35,6 +35,7 @@ import {
   adminToast,
 } from '@/components/AdminConsole';
 import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 // Constants matching FilterPanel
 const SUBJECTS = [
@@ -114,6 +115,7 @@ interface TeacherData {
 const TEACHERS_TINT = { bg: SURFACE_TOKENS.mutedFill, text: SURFACE_TOKENS.textBody };
 
 export default function AdminTeachers() {
+  const { confirm, confirmDialog } = useConfirm();
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
   const navigate = useNavigate();
@@ -553,9 +555,12 @@ export default function AdminTeachers() {
     const teacher = target ?? selectedTeacher;
     if (!teacher) return;
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${teacher.Title}"? This will remove them from Shikshaqmine and their profile role will be reverted to student.`
-    );
+    const confirmed = await confirm({
+      title: `Delete ${teacher.Title}?`,
+      description:
+        'They are removed from Shikshaqmine and their profile role reverts to student. This cannot be undone.',
+      confirmLabel: 'Delete teacher',
+    });
     if (!confirmed) return;
 
     try {
@@ -1388,6 +1393,7 @@ export default function AdminTeachers() {
             )}
           </div>
         </div>
+      {confirmDialog}
     </AdminConsole>
   );
 }

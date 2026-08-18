@@ -15,6 +15,7 @@ import {
   adminToast,
 } from '@/components/AdminConsole';
 import { AdminTable, type AdminTableColumn, type AdminTableRow, type AdminPillTone } from '@/pages/admin/AdminTable';
+import { useConfirm } from '@/components/ui/use-confirm';
 
 interface Feedback {
   id: string;
@@ -55,6 +56,7 @@ const ratingTone = (rating: number): AdminPillTone => {
 };
 
 export default function AdminFeedback() {
+  const { confirm, confirmDialog } = useConfirm();
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
   const [feedback, setFeedback] = useState<Feedback[]>([]);
@@ -182,9 +184,12 @@ export default function AdminFeedback() {
   }, [filter, isAdmin]);
 
   const handleDelete = async (feedbackId: string) => {
-    if (!confirm('Are you sure you want to delete this feedback?')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Delete this feedback?',
+      description: 'The message and its rating are removed for good.',
+      confirmLabel: 'Delete feedback',
+    });
+    if (!ok) return;
 
     try {
       const { error } = await supabase
@@ -366,6 +371,7 @@ export default function AdminFeedback() {
       ) : (
         <AdminTable columns={feedbackColumns} rows={feedbackRows} />
       )}
+      {confirmDialog}
     </AdminConsole>
   );
 }
