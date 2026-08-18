@@ -108,7 +108,27 @@
       "priceRange": "Free"
     }
     </script>
-    
+
+    <!-- WebSite entity. Every CollectionPage schema this site emits (subject
+         pages, board pages, /all-tuition-teachers-in-kolkata) points its
+         isPartOf at "#website" (src/utils/structuredDataGenerators.ts), but
+         until now no node with that @id existed anywhere on the site — the
+         same dangling-reference bug the #organization @id had before it was
+         anchored here. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": "https://www.shikshaq.in/#website",
+      "name": "Shikshaq",
+      "url": "https://www.shikshaq.in",
+      "publisher": {
+        "@id": "https://www.shikshaq.in/#organization"
+      },
+      "inLanguage": "en-IN"
+    }
+    </script>
+
     <!-- Microsoft Clarity -->
     <script type="text/javascript">
         (function(c,l,a,r,i,t,y){

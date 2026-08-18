@@ -14,7 +14,8 @@ const SECTIONS: LegalSection[] = FAQ_ITEMS.map((faq, i) => ({
 export default function FAQPage() {
   usePageMeta(
     'Tuition FAQs for Students and Parents in Kolkata | Shikshaq',
-    'Answers to common questions about finding a tuition teacher in Kolkata on Shikshaq: how matching works, fees, verification, and contacting tutors directly for free.'
+    // Was 164 chars, over the ~160 SERP-snippet guideline. 153 now.
+    'Common questions about finding a tuition teacher in Kolkata on Shikshaq: how matching works, fees, verification, and contacting tutors directly for free.'
   );
 
   useEffect(() => {

@@ -183,7 +183,14 @@ export default function PaperReader() {
   }, [paper?.id]);
 
   usePageMeta(
-    paper ? `${paper.title} | ${paper.school} | Shikshaq Past Papers` : 'Past paper | Shikshaq',
+    // Suffix was " | Shikshaq Past Papers" (23 chars) vs. every other route's
+    // " | Shikshaq" (11 chars) — on real data this pushed titles to 67-74+
+    // chars, well past the point Google truncates in the SERP (measured live:
+    // "Mathematics Prelim Paper 1 | La Martiniere for Boys | Shikshaq Past
+    // Papers" = 74 chars). paper.title/paper.school are real, variable-length
+    // data that shouldn't be truncated blind, so this only trims the one part
+    // that's actually fixed, saving 12 chars on every paper page.
+    paper ? `${paper.title} | ${paper.school} | Shikshaq` : 'Past paper | Shikshaq',
     paper ? `${paper.subject} Class ${paper.class} ${paper.board} paper from ${paper.school}, shared free on Shikshaq.` : 'Read a free past year question paper on Shikshaq.'
   );
 

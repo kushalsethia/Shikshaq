@@ -27,7 +27,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { FAQSchema } from '@/components/FAQSchema';
 import { SEOContentBlock } from '@/components/seo/SEOContentBlock';
 import type { SubjectContent } from '@/content/subject-seo';
-import { generateSubjectPageSchemas, generateBoardPageSchemas } from '@/utils/structuredDataGenerators';
+import { generateSubjectPageSchemas, generateBoardPageSchemas, generateBrowsePageSchemas, injectSchemas } from '@/utils/structuredDataGenerators';
 
 
 interface Teacher {
@@ -551,6 +551,23 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       if (metaDesc) metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board. No commission, no middlemen.');
     };
   }, [manageSeo]);
+
+  // Schema for the generic "/all-tuition-teachers-in-kolkata" route. The ~35
+  // templated subject/board routes get CollectionPage+Service+Breadcrumb via
+  // seoSchemas below (SEOHead owns injection there); this is the one other
+  // real landing page Browse renders (seo unset, pageContext unset), and it
+  // had no page-level JSON-LD at all — generateBrowsePageSchemas existed in
+  // structuredDataGenerators.ts for exactly this page but was never called
+  // from anywhere. Waits for the real fetch to finish so numberOfItems is
+  // never a stale/zero count from the loading state.
+  useEffect(() => {
+    if (!manageSeo || seo || loading) return;
+    injectSchemas(generateBrowsePageSchemas({ teacherCount: teachers.length }));
+    return () => {
+      const existing = document.getElementById('page-schemas');
+      if (existing) existing.remove();
+    };
+  }, [manageSeo, seo, loading, teachers.length]);
 
   useEffect(() => {
     async function fetchSubjects() {

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, FileText } from 'lucide-react';
@@ -12,6 +12,7 @@ import { PageContainer, BottomNavSpacer } from '@/components/layout/PageContaine
 import { ListLoading, ListEmpty, ListError } from '@/components/ui/list-states';
 import { Button } from '@/components/ui/button';
 import { BROWSE_PATH, PAST_PAPERS_PATH } from '@/lib/nav-config';
+import { generateBreadcrumbSchema, injectSchemas } from '@/utils/structuredDataGenerators';
 
 /* S16 — the school page.
  *
@@ -97,6 +98,27 @@ export default function SchoolPage() {
       ? `${papers.length} past papers from ${name}, free to read on Shikshaq.`
       : 'Past papers from Kolkata schools, free to read on Shikshaq.',
   );
+
+  // This route (S16, "new" per a-to-z.md) shipped with no structured data at
+  // all — every other listing-style page (Browse, subject/board pages) emits
+  // at least a BreadcrumbList. Only injected once a real school has resolved
+  // (papers.length > 0), matching what usePageMeta above already does for
+  // title/description, so a not-found slug doesn't assert a fake breadcrumb
+  // for a page name that isn't real.
+  useEffect(() => {
+    if (!papers.length) return;
+    injectSchemas([
+      generateBreadcrumbSchema([
+        { name: 'Home', url: '/' },
+        { name: 'Past papers', url: PAST_PAPERS_PATH },
+        { name, url: `/school/${slug}` },
+      ]),
+    ]);
+    return () => {
+      const existing = document.getElementById('page-schemas');
+      if (existing) existing.remove();
+    };
+  }, [papers.length, name, slug]);
 
   return (
     <div className="min-h-screen bg-background">
