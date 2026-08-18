@@ -516,6 +516,18 @@ export default function TeacherProfile() {
   const classSizeValue = teacher.class_size ? teacher.class_size.replace(/\bSolo\b/g, 'One-on-one') : null;
   const hasStats = Boolean(teacher.experience_years || feesValue || classSizeValue);
 
+  /* The six facts pages.md §3 names, in its order. Built as a list so a missing
+     value drops its row instead of rendering a label with nothing under it. */
+  const teachingDetails = [
+    { label: 'Subjects', value: subjectsList.join(', ') },
+    { label: 'Classes', value: classesList.join(', ') },
+    { label: 'Boards', value: boardsList.join(', ') },
+    { label: 'Mode', value: modeList.join(', ') },
+    { label: 'Fee', value: feesValue },
+    { label: 'Class size', value: classSizeValue },
+    { label: 'Areas', value: taughtAreas.join(', ') },
+  ].filter((row): row is { label: string; value: string } => Boolean(row.value));
+
   const firstName = teacher.name.trim().split(/\s+/)[0] || teacher.name;
 
   const descriptionHtml = teacher.description
@@ -718,51 +730,30 @@ export default function TeacherProfile() {
               </>
             )}
 
-            {classesList.length > 0 && (
-              <>
-                <SectionHeading>Classes taught</SectionHeading>
-                <div className="stagger-children flex flex-wrap gap-2">
-                  {classesList.map((cls) => (
-                    <span
-                      key={cls}
-                      className="animate-card-reveal flex h-[38px] items-center whitespace-nowrap rounded-full bg-muted px-[14px] text-[14px] font-semibold text-foreground"
-                    >
-                      {cls}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
+            {/* One "Teaching details" section, not three.
+                pages.md §3 section 4 asks for a 2-col meta grid — label 11.5px
+                above value 15px — covering subjects, classes, boards, mode, fee
+                and availability, with the rule that every field the old page
+                showed must appear. It was three separate h2 sections of chip
+                rows (Classes taught / Where they teach / Mode of teaching),
+                which spread six short facts down a screen and a half and made
+                comparing two teachers a scrolling exercise.
 
-            {taughtAreas.length > 0 && (
+                Each row is dropped when its value is missing rather than shown
+                empty, and the whole section disappears if nothing survives. */}
+            {teachingDetails.length > 0 && (
               <>
-                <SectionHeading>Where they teach</SectionHeading>
-                <div className="stagger-children flex flex-wrap gap-2">
-                  {taughtAreas.map((a) => (
-                    <span
-                      key={a}
-                      className="animate-card-reveal flex h-[38px] items-center whitespace-nowrap rounded-full bg-muted px-[14px] text-[14px] font-semibold text-foreground"
-                    >
-                      {a}
-                    </span>
+                <SectionHeading>Teaching details</SectionHeading>
+                <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                  {teachingDetails.map(({ label, value }) => (
+                    <div key={label}>
+                      <dt className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">
+                        {label}
+                      </dt>
+                      <dd className="mt-1 text-[15px] leading-[1.5] text-foreground">{value}</dd>
+                    </div>
                   ))}
-                </div>
-              </>
-            )}
-
-            {modeList.length > 0 && (
-              <>
-                <SectionHeading>Mode of teaching</SectionHeading>
-                <div className="stagger-children flex flex-wrap gap-2">
-                  {modeList.map((mode) => (
-                    <span
-                      key={mode}
-                      className="animate-card-reveal flex h-[38px] items-center whitespace-nowrap rounded-full bg-muted px-[14px] text-[14px] font-semibold text-foreground"
-                    >
-                      {mode}
-                    </span>
-                  ))}
-                </div>
+                </dl>
               </>
             )}
 
