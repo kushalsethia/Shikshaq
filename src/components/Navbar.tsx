@@ -25,7 +25,7 @@ const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visibl
  * The tour itself is mounted by the page and listens for the event, so the
  * trigger needs no prop path to it.
  */
-function LogoOrTourTrigger() {
+function LogoOrTourTrigger({ onDark = false }: { onDark?: boolean }) {
   const location = useLocation();
   const isHome = location.pathname === '/';
 
@@ -38,6 +38,7 @@ function LogoOrTourTrigger() {
       <Logo
         size="nav"
         className="tap-44 flex-none"
+        onDark={onDark}
         ariaLabel="How ShikshAQ works"
         priority
         onClick={(e) => {
@@ -48,7 +49,7 @@ function LogoOrTourTrigger() {
     );
   }
 
-  return <Logo size="nav" className="tap-44 flex-none" priority />;
+  return <Logo size="nav" className="tap-44 flex-none" onDark={onDark} priority />;
 }
 
 export function Navbar() {
@@ -100,6 +101,9 @@ export function Navbar() {
   // "scrolled" states. `prefers-reduced-motion` makes the transition instant via
   // the global guard in index.css, so no separate branch is needed here.
   const [scrolled, setScrolled] = useState(false);
+  /* Only the home hero is a dark slab; every other route puts bone under this
+     bar, where a white logo would vanish. */
+  const onDarkBlock = location.pathname === '/' && !scrolled;
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 48);
     onScroll();
@@ -109,8 +113,19 @@ export function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 backdrop-blur transition-colors duration-300 border-b lg:hidden ${
-        scrolled ? 'border-border bg-background/95' : 'border-transparent bg-background/70'
+      /* On home, 2a draws the logo and Sign in INSIDE the dark control block
+         rather than in a separate bone bar above it. Rendering it as a
+         transparent overlay achieves that without moving the markup into
+         Index.tsx and without dropping the sheet menu, which is the only
+         mobile route to Sign out, admin, favourites and My teachers. Once
+         scrolled past the block it becomes the normal opaque bar, because
+         white-on-bone would be unreadable. */
+      className={`sticky top-0 backdrop-blur transition-colors duration-300 lg:hidden ${
+        scrolled
+          ? 'border-b border-border bg-background/95'
+          : onDarkBlock
+            ? 'border-b border-transparent bg-transparent'
+            : 'border-b border-transparent bg-background/70'
       } ${searchExpanded ? 'z-30' : 'z-50'}`}
       /* Desktop chrome now lives in <TopBar> (mounted globally, hidden below
          lg). Navbar is retained purely for the mobile sticky bar + sheet menu
@@ -121,12 +136,16 @@ export function Navbar() {
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* Mobile: short bar — logo + a single action. The bottom tab bar carries navigation. */}
         <div className="flex h-14 items-center justify-between gap-4">
-          <LogoOrTourTrigger />
+          <LogoOrTourTrigger onDark={onDarkBlock} />
 
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger
               aria-label="Open menu"
-              className={`flex h-11 w-11 flex-none items-center justify-center rounded-full text-foreground shadow-border transition-colors duration-150 hover:bg-muted active:scale-[0.97] ${FOCUS_RING}`}
+              className={`flex h-11 w-11 flex-none items-center justify-center rounded-full transition-colors duration-150 active:scale-[0.97] ${
+                onDarkBlock
+                  ? 'text-background shadow-none hover:bg-white/10'
+                  : 'text-foreground shadow-border hover:bg-muted'
+              } ${FOCUS_RING}`}
             >
               <Menu className="h-5 w-5" aria-hidden />
             </SheetTrigger>
