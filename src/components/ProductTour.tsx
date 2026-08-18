@@ -83,6 +83,26 @@ type CardMode = "dark" | "brand" | "whatsapp" | "papers";
    solid #FF8000 and solid WhatsApp green edge to edge, which is a very
    different thing to look at — two full-screen saturated panels in a four-card
    sequence — and it left the card's own CTA with no colour of its own to be. */
+/* The italic half of each headline takes that card's own accent ink — dc.html
+   sets accentInk per card (#FF8000 on the dark card, #B35900 on cream, #0B3D1F
+   on mint, white-72 on indigo). Without it all four soft halves rendered in the
+   body colour, which loses the two-tone the headline is built around. */
+const CARD_ACCENT: Record<CardMode, string> = {
+  dark: "text-brand",
+  brand: "text-[#B35900]",
+  whatsapp: "text-[#0B3D1F]",
+  papers: "text-background/70",
+};
+
+/* Card 4's CTA only. The spec pairs ctaBg #FCFAF7 with ctaFg #2E3AD6, and the
+   `muted` variant renders bone-on-warm-grey instead — the indigo ink is what
+   ties the button to the indigo card behind it. The other three cards are
+   served correctly by their variants, so they are left alone rather than
+   re-specified here: overriding a variant's background by appending a class
+   depends on tailwind-merge resolving the two, which it does not do reliably
+   for a variant applied inside the component. */
+const PAPERS_CTA = "bg-[#FCFAF7] text-[#2E3AD6] hover:bg-white";
+
 const CARD_FILL: Record<CardMode, string> = {
   dark: "bg-panel text-background",
   brand: "bg-brand-subtle text-foreground",
@@ -113,7 +133,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
       mode: "dark",
       headline: (
         <>
-          Say what you need, <em className="not-italic font-normal italic">in three taps.</em>
+          Say what you need, <em className={cn("font-normal italic", CARD_ACCENT.dark)}>in three taps.</em>
         </>
       ),
       body: "Subject, class, area. No account, no forms, no waiting for a callback.",
@@ -144,7 +164,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
       mode: "brand",
       headline: (
         <>
-          Every teacher is <em className="not-italic font-normal italic">checked by a human.</em>
+          Every teacher is <em className={cn("font-normal italic", CARD_ACCENT.brand)}>checked by a human.</em>
         </>
       ),
       body: "ID and degree verified before a profile goes live. Reviews come from students who actually took classes.",
@@ -166,7 +186,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
       mode: "whatsapp",
       headline: (
         <>
-          Then talk to them <em className="not-italic font-normal italic">yourself, on WhatsApp.</em>
+          Then talk to them <em className={cn("font-normal italic", CARD_ACCENT.whatsapp)}>yourself, on WhatsApp.</em>
         </>
       ),
       body: "No agent in the middle, no commission on the fee. You and the teacher agree the rest.",
@@ -188,7 +208,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
               the words "0 past papers, free to read." in front of anyone taking
               the tour. design.md §3.2: never advertise emptiness. */}
           {(paperCount ?? 0) > 0 ? `${paperCount} past papers, ` : "Past papers, "}
-          <em className="not-italic font-normal italic">free to read.</em>
+          <em className={cn("font-normal italic", CARD_ACCENT.papers)}>free to read.</em>
         </>
       ),
       /* "24 Kolkata schools" was a copy-deck number with nothing behind it —
@@ -244,14 +264,20 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
 
           {/* Progress bar + Skip */}
           <div className="flex items-center gap-3 p-4 sm:p-6">
-            <div className="flex flex-1 gap-1.5" role="tablist" aria-label="Tour progress">
+            {/* Dots, not a segmented fill bar. dc.html draws four 5px-tall
+                pills where only the CURRENT one is 20px wide and the rest stay
+                5px — so it reads as "you are here", not "this much is done".
+                The build had four equal bars filling left-to-right, which is a
+                different idea and made a four-card tour look like a long form. */}
+            <div className="flex flex-1 items-center gap-[5px]" aria-hidden>
               {CARDS.map((_, i) => (
-                <span key={i} aria-hidden className="h-1 flex-1 overflow-hidden rounded-full bg-current/25">
-                  <span
-                    className="block h-full rounded-full bg-current transition-transform duration-300 ease-settle"
-                    style={{ transform: `scaleX(${i <= step ? 1 : 0})`, transformOrigin: "left" }}
-                  />
-                </span>
+                <span
+                  key={i}
+                  className={cn(
+                    "h-[5px] rounded-full transition-all duration-300 ease-settle",
+                    i === step ? "w-5 bg-current" : "w-[5px] bg-current/40",
+                  )}
+                />
               ))}
             </div>
             <DialogPrimitive.Close className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-body-secondary font-semibold text-current/80 transition-colors duration-150 hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
@@ -260,10 +286,12 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
           </div>
 
           <div className="flex flex-1 flex-col justify-center px-6 pb-8 text-left sm:px-8">
-            <h2 className="max-w-sm font-display text-display-hero font-extrabold leading-tight tracking-tight sm:max-w-md">
+            {/* 31px / 900 / 1.02 / -0.04em per dc.html, not display-hero — the
+                tour card is 300px wide in the spec and the hero size overran it. */}
+            <h2 className="max-w-sm font-display text-[31px] font-black leading-[1.02] tracking-[-0.04em] sm:max-w-md sm:text-[34px]">
               {card.headline}
             </h2>
-            <p className="mt-4 max-w-sm text-body-secondary opacity-90 sm:max-w-md">{card.body}</p>
+            <p className="mt-2.5 max-w-sm text-[14px] leading-[1.55] opacity-90 sm:max-w-md">{card.body}</p>
             <div className="mt-6 w-full max-w-xs">{card.illustration}</div>
           </div>
 
@@ -272,7 +300,10 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
               variant={card.mode === "whatsapp" ? "whatsapp" : card.mode === "papers" ? "muted" : "primary"}
               size={54}
               onClick={advance}
-              className="w-full max-w-xs justify-center"
+              className={cn(
+                "w-full max-w-xs justify-center",
+                card.mode === "papers" && PAPERS_CTA,
+              )}
             >
               {card.cta}
               {isLast ? null : <ChevronRight aria-hidden className="ml-1 size-4" />}
