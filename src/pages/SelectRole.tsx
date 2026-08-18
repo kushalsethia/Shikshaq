@@ -151,7 +151,7 @@ export default function SelectRole() {
         });
 
       if (error) {
-        console.error('Error updating profile:', error);
+        if (import.meta.env.DEV) console.error('Error updating profile:', error);
         toast.error('Failed to update profile. Please try again.');
         setLoading(false);
         return;

@@ -13,11 +13,25 @@
  */
 
 const SITE_URL = 'https://www.shikshaq.in';
-// Anchored to the homepage's LocalBusiness @id (see generateLocalBusinessSchema /
-// Index.tsx) — that's the only Organization-type entity actually emitted anywhere
-// on the site, so every other schema that references "Shikshaq the org" points here
-// rather than to a dangling, never-emitted #organization id.
-const ORG_ID = `${SITE_URL}/#localbusiness`;
+/* Anchored to #organization, which index.html emits on EVERY route as an
+   EducationalOrganization. The previous comment here asserted the opposite —
+   that #organization was "dangling, never-emitted" and that #localbusiness was
+   the only org entity on the site. That was backwards: LocalBusiness is
+   emitted by Index.tsx on the HOMEPAGE ONLY, so on all ~36 other commercial
+   routes every Service.provider, Person.memberOf and
+   EducationalOccupationalProgram.provider pointed at an @id absent from that
+   page's graph, while a perfectly good #organization node sat in the head. */
+const ORG_ID = `${SITE_URL}/#organization`;
+
+/* One list, used by both this file and index.html. Only profiles the site
+   actually links are asserted: the footer links instagram.com/shikshaq.in and
+   nothing else. Previously two schemas on the same page claimed four different
+   profiles between them (ngo.aquaterra + shikshaqkolkata here,
+   shikshaq.in + shikshaq.in in the head), which prevents Google resolving a
+   single knowledge-graph entity — exactly the signal a local directory needs.
+   Unverifiable handles are omitted rather than guessed; sameAs is an identity
+   claim, not a hint. */
+const SAME_AS = ['https://www.instagram.com/shikshaq.in/'];
 
 /**
  * Generate ItemList schema for teacher listing pages
@@ -244,8 +258,7 @@ export function generateLocalBusinessSchema(params?: {
       'Behala',
     ],
     sameAs: params?.sameAs || [
-      'https://www.instagram.com/ngo.aquaterra/',
-      'https://www.facebook.com/shikshaqkolkata/',
+      ...SAME_AS,
     ],
   };
 }

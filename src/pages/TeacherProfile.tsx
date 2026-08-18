@@ -382,9 +382,13 @@ export default function TeacherProfile() {
     ? `${metaSubjects} tuition classes for ${metaClasses} in ${metaArea} via ${metaMode}`
     : 'Shikshaq connects students with real local tuition teachers for free. Discover trusted, verified educators near you for school subjects and exams- simple, genuine, and community-driven learning with no hidden costs.';
   if (teacher && metaExpanded) {
+    /* Cap the COMPOSED string, not just the appended fragment. Capping only
+       the fragment at 150 let the total reach 221 characters (measured on
+       /tuition-teachers/aroon), and Google truncates around 155-160 — so 60+
+       characters of the differentiating copy never rendered in the SERP. */
     const expandedText = DOMPurify.sanitize(metaExpanded, { ALLOWED_TAGS: [] }).trim();
-    const expandedPreview = expandedText.length > 150 ? expandedText.substring(0, 147) + '...' : expandedText;
-    pageDescription = `${pageDescription}. ${expandedPreview}`;
+    const composed = `${pageDescription}. ${expandedText}`;
+    pageDescription = composed.length > 157 ? `${composed.substring(0, 154).trimEnd()}...` : composed;
   }
 
   usePageMeta(pageTitle, pageDescription);

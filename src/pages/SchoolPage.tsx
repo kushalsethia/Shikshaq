@@ -9,7 +9,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { Footer } from '@/components/Footer';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
 import { PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
-import { ListLoading, ListEmpty } from '@/components/ui/list-states';
+import { ListLoading, ListEmpty, ListError } from '@/components/ui/list-states';
 import { Button } from '@/components/ui/button';
 import { BROWSE_PATH, PAST_PAPERS_PATH } from '@/lib/nav-config';
 
@@ -123,8 +123,15 @@ export default function SchoolPage() {
         </div>
 
         <PageContainer className="pt-6">
+          {/* isError before the empty check. A failed fetch used to fall
+              through to "No papers from this school yet.", which is a factual
+              claim about the data made on the strength of a network error, and
+              it offered no way to retry. ListError already exists and is wired
+              correctly in Browse and PaperResults. */}
           {query.isLoading ? (
             <ListLoading />
+          ) : query.isError ? (
+            <ListError onRetry={() => query.refetch()} />
           ) : papers.length === 0 ? (
             <ListEmpty line="No papers from this school yet." />
           ) : (

@@ -139,7 +139,10 @@ const App = () => (
             <StudiesWithProvider>
             <Toaster />
             <Sonner />
-          <BrowserRouter>
+          {/* Opt into the v7 behaviours now rather than at the upgrade. Both
+              warnings fired on every page load; startTransition also stops
+              route changes blocking paint on slow renders. */}
+          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             {/* Skip link. The href stayed #main-content, but only Index.tsx ever
                 set that id — so on every route except the home page this, the
                 first control a keyboard or screen-reader user meets, pointed at

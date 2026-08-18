@@ -127,7 +127,7 @@ export default function AdminRecommendations() {
         .eq('id', id);
 
       if (error) {
-        console.error('Error updating recommendation:', error);
+        if (import.meta.env.DEV) console.error('Error updating recommendation:', error);
         adminToast('Failed to update. You may need to update via Supabase Dashboard.');
         return;
       }

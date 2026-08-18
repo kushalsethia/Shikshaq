@@ -1592,7 +1592,14 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         )}
 
         <h1 className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.035em] text-background">
-          {isSubjectPage ? `${pageContext!.label} tuition teachers in Kolkata` : (
+          {/* Board routes take the labelled heading too. They used to fall
+              through to the generic count branch, so /icse-…, /cbse-ncert-…,
+              /igcse-…, /international-board-… and /state-board-… all rendered
+              "147 tuition teachers in Kolkata" with the board name nowhere in
+              the h1 — the strongest on-page relevance signal, missing the
+              target keyword on five commercial routes whose title tag and URL
+              are both built from it. */}
+          {pageContext ? `${pageContext.label} tuition teachers in Kolkata` : (
             /* "147 tuition teachers in Kolkata", not the bare "147 teachers"
                this used to render. Two reasons it has to carry the phrase:
                core-01-browse-teachers.png shows the count and the phrase
@@ -1605,7 +1612,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             <>{resultCountLabel} tuition teacher{teachers.length === 1 ? '' : 's'} in Kolkata</>
           )}
         </h1>
-        {isSubjectPage ? (
+        {pageContext ? (
           <p className="mt-1 text-[14.5px] text-white/70">
             {loading ? 'Loading teachers…' : `${resultCountLabel} teacher${teachers.length === 1 ? '' : 's'} in Kolkata`}
           </p>
