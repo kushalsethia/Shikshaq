@@ -271,7 +271,23 @@ core-04 papers, desktop-01 home, desktop-04 papers, account-01 sign-in,
 secondary-01 subject page, secondary-03 assistant, secondary-04 onboarding,
 secondary-06 product tour, secondary-07 about, contact-01, join-01,
 prefooter-01 to -04, legal-01 terms, legal-02 privacy, desktop-03 profile,
-desktop-04 papers, micro-01 to -06, fun-01 sticker family.
+desktop-04 papers, micro-01 to -06, fun-01 sticker family, account-06 recommend,
+secondary-05 success/hand-off, core-06 paper gate, contact-02 desktop,
+reviews-01 desktop fan, admin-01 (statically).
+
+**Compared and found already correct, no change needed** — recorded so the same
+ground is not re-walked:
+
+- `contact-02-desktop` — hours, location, the orange band, the WhatsApp card at
+  #25D366, email and location cards, "before you write", all four topic chips.
+- `reviews-01-desktop-fan` — the section renders real reviews with a real count.
+  Everything absent from it is absent on purpose and already documented: the
+  4.9-star rating (no rating column, O-02), the derived tag chips
+  ("Explains clearly 31") and "Read all 38" (no tag data to count). "Add your
+  review" is the single CTA; "Sign in to leave a review" beside it is helper
+  text, not a second button.
+- `secondary-05` sign-up-success panel and the feedback sheet — both verified
+  earlier; only its middle panel needed the coaching line.
 
 **fun-01 sticker family — audited, all four rules hold.** Worth recording as
 checked rather than assumed, since three of the four are the kind that rot
