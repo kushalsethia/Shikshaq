@@ -8,19 +8,13 @@ import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
-import { getSubjectPalette, paletteFromSeed, SUBJECT_SEEDS } from '@/lib/subject-palette';
+import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
-import { PillRow } from '@/components/devices';
 import { useAuth } from '@/lib/auth-context';
 import { GoalRing } from '@/components/papers/goal-ring';
 import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { schoolSlug } from '@/lib/school-slug';
-
-// Cycled (not hashed) for pure visual variety across the class/board pill
-// walls — these are not subject-coded lists, so there's no "correct" mapping
-// per item, just the mandate for each pill to carry a different token color.
-const PILL_SEEDS = Object.values(SUBJECT_SEEDS);
 
 interface Paper {
   id: string;
@@ -676,49 +670,46 @@ export default function PastPapers() {
           <section className={`${CONTAINER} pb-8`}>
             <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">By class &amp; board</h2>
 
-            {/* PILL-WALL FIX: this used to be one flat 17-item `flex-wrap`
-                block (12 class pills + 5 board pills) — a long, low-density
-                scroll segment right at the first decision point. Device M
-                (`PillRow`) replaces it: full-width rows, each a different
-                token color, each led by a small contrasting badge holding
-                the class numeral or board's short code. Colors are cycled
-                through the sanctioned subject-palette generator (not a new
-                hex) purely for visual variety — these aren't subject-coded
-                lists. */}
+            {/* Flat pill wall, per S4/D4. This was a PillRow device whose
+                colours came from paletteFromSeed — the SUBJECT palette, which
+                is warm/orange-family. On a page that is indigo throughout,
+                that put subject-coded hues on lists that are not subject
+                coded, and the device's shadow-border plus hover translate got
+                clipped by the row above it. Flat pills carry no shadow, so
+                there is nothing to clip.
+
+                Classes are 9-12 only: those are the classes the handoff draws,
+                and the ones papers actually exist for. */}
             <div className="space-y-6">
               <div>
                 <p className="mb-3 text-label font-bold uppercase text-muted-foreground">Class</p>
-                <PillRow
-                  layout="grid"
-                  items={PAPER_CLASSES.map((c, i) => {
-                    const p = paletteFromSeed(PILL_SEEDS[i % PILL_SEEDS.length]);
-                    return {
-                      key: `class-${c}`,
-                      badge: c,
-                      label: `Class ${c}`,
-                      color: p.tint,
-                      textColor: p.text,
-                      onClick: () => navigate(`/past-papers/results?filter_classes=${encodeURIComponent(c)}`),
-                    };
-                  })}
-                />
+                <div className="flex flex-wrap gap-2">
+                  {PAPER_CLASSES.filter((c) => ['9', '10', '11', '12'].includes(c)).map((c) => (
+                    <button
+                      key={`class-${c}`}
+                      type="button"
+                      onClick={() => navigate(`/past-papers/results?filter_classes=${encodeURIComponent(c)}`)}
+                      className="inline-flex h-11 items-center rounded-full bg-brand-blue-subtle px-4 text-[14px] font-bold text-brand-blue-deep transition-colors duration-150 hover:bg-brand-blue hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      Class {c}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div>
                 <p className="mb-3 text-label font-bold uppercase text-muted-foreground">Board</p>
-                <PillRow
-                  layout="grid"
-                  items={BOARDS.map((b, i) => {
-                    const p = paletteFromSeed(PILL_SEEDS[(i + 3) % PILL_SEEDS.length]);
-                    return {
-                      key: `board-${b}`,
-                      badge: b.slice(0, 2).toUpperCase(),
-                      label: b,
-                      color: p.tint,
-                      textColor: p.text,
-                      onClick: () => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`),
-                    };
-                  })}
-                />
+                <div className="flex flex-wrap gap-2">
+                  {BOARDS.map((b) => (
+                    <button
+                      key={`board-${b}`}
+                      type="button"
+                      onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
+                      className="inline-flex h-11 items-center rounded-full bg-muted px-4 text-[14px] font-bold text-foreground transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </section>

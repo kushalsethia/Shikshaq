@@ -151,16 +151,23 @@ export async function getTeachersByIds(ids: string[]): Promise<TeacherCardLite[]
   const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
   if (uniqueIds.length === 0) return [];
 
-  const results: TeacherCardLite[] = [];
-  for (const group of chunk(uniqueIds, CHUNK_SIZE)) {
-    const { data, error } = await supabase
-      .from('teachers_list')
-      .select('id, name, slug, image_url, subjects(name, slug)')
-      .in('id', group);
-
-    if (error) throw error;
-    if (data) results.push(...(data as any[]));
-  }
+  /* Promise.all, not a serial for-await. Each chunk is an independent query
+     against a different id set, so awaiting them one at a time made the total
+     latency the SUM of every round trip instead of the slowest one. The
+     sibling fetchShikshaqmineChunked in this same file already fans out this
+     way; this loop and the one above were the two stragglers. */
+  const groups = chunk(uniqueIds, CHUNK_SIZE);
+  const settled = await Promise.all(
+    groups.map(async (group) => {
+      const { data, error } = await supabase
+        .from('teachers_list')
+        .select('id, name, slug, image_url, subjects(name, slug)')
+        .in('id', group);
+      if (error) throw error;
+      return (data as any[]) || [];
+    }),
+  );
+  const results: TeacherCardLite[] = settled.flat();
 
   if (results.length === 0) return [];
 
