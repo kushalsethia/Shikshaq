@@ -435,7 +435,11 @@ export default function PastPapers() {
                         <span className="block truncate text-meta text-warm-meta">{paper.school}</span>
                       </span>
                       <span className="flex-none text-meta tabular-nums text-warm-meta">
-                        {paper.read_count} read{paper.read_count === 1 ? '' : 's'}
+                        {/* "opened", not "read" — what is recorded is that
+                            someone opened the paper. Nothing observes whether
+                            they finished it, and the heading can say Most read
+                            without the row claiming more than happened. */}
+                        {paper.read_count} opened
                       </span>
                     </a>
                   </li>

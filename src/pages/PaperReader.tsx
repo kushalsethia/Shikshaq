@@ -75,8 +75,10 @@ const FOCUS_DARK =
  *    reached for the scrollbar on a phone.
  *  - Deliberately does NOT imply "continue reading" / reading history exists
  *    (VISUAL_DIRECTION §9.2): there is no reading-progress table in the DB.
- *  - Skips "reading a paper records to history" — needs a new table plus
- *    StudentDashboard wiring, both out of this task's file scope.
+ *  - Reading a paper NOW records to history: paper_reads exists (migration
+ *    20260818140000) and this file upserts a row on open for a signed-in
+ *    reader. What it records is an OPEN, not a finish — see the effect below
+ *    for why a finish is not observable here.
  */
 
 export default function PaperReader() {
@@ -118,6 +120,33 @@ export default function PaperReader() {
     fetchPaper();
     return () => { cancelled = true; };
   }, [id]);
+
+  /* Record that this reader opened this paper.
+   *
+   * The note above explains why there is no reading-progress indicator: the PDF
+   * renders in a cross-origin viewer whose scroll position cannot be read, so
+   * "reached the last page" is not observable from here. The spec advances the
+   * weekly goal on the last page; that trigger does not exist, so this records
+   * the event that IS real — the paper was opened — rather than inferring a
+   * finish that was never detected.
+   *
+   * That is also the spec's own vocabulary elsewhere: account-04's student
+   * dashboard counts "Papers opened", not papers finished.
+   *
+   * Signed-in only, because RLS scopes a row to its owner and an anonymous
+   * reader has no owner. Unique on (user, paper), so re-opening the same paper
+   * does not inflate anything; the conflict is ignored rather than treated as
+   * an error. Fire-and-forget: a failed insert must never interrupt reading.
+   */
+  useEffect(() => {
+    if (!paper || !user) return;
+    void supabase
+      .from('paper_reads')
+      .upsert({ user_id: user.id, paper_id: paper.id }, { onConflict: 'user_id,paper_id', ignoreDuplicates: true })
+      .then(({ error }) => {
+        if (error && import.meta.env.DEV) console.warn('paper_reads upsert failed:', error.message);
+      });
+  }, [paper, user]);
 
   // Sibling papers (same subject/class/board) for the signed-in prev/next rail.
   useEffect(() => {
