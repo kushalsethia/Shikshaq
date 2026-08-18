@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
-import { IconDisc } from "@/components/ui/icon-disc";
 import { StripePlaceholder } from "@/components/ui/stripe-placeholder";
 import { BROWSE_PATH } from "@/lib/nav-config";
 import { supabase } from "@/integrations/supabase/client";
@@ -172,15 +171,32 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
       ),
       body: "ID and degree verified before a profile goes live. Reviews come from students who actually took classes.",
       cta: "Next",
+      /* secondary-06 draws this as an actual teacher-card fragment: avatar +
+         name + verified mark, THEN a row of subject chips underneath — the
+         same shape TeacherCard renders everywhere else in the app. The build
+         stopped at the name row and dropped the chips, which is the one
+         thing that makes it read as a teacher card rather than a contact
+         row. Chip tone="subject" pulls its fill from getSubjectPalette, same
+         as every other subject chip on the site — no new colour here. */
       illustration: (
-        <div className="flex items-center gap-3 rounded-2xl bg-card p-3 text-foreground shadow-border">
-          <StripePlaceholder name="Ananya Ghosh" initialSize={40} className="size-11 shrink-0 rounded-full" />
-          <div className="min-w-0">
-            <span className="flex items-center gap-1 text-body-secondary font-semibold">
-              Ananya Ghosh
-              <BadgeCheck aria-hidden className="size-4 shrink-0 text-brand" />
-            </span>
-            <span className="block truncate text-meta text-warm-meta">Maths · Ballygunge</span>
+        <div className="flex flex-col gap-2.5 rounded-2xl bg-card p-3 text-foreground shadow-border">
+          <div className="flex items-center gap-3">
+            <StripePlaceholder name="Ananya Ghosh" initialSize={40} className="size-11 shrink-0 rounded-full" />
+            <div className="min-w-0">
+              <span className="flex items-center gap-1 text-body-secondary font-semibold">
+                Ananya Ghosh
+                <BadgeCheck aria-hidden className="size-4 shrink-0 text-brand" />
+              </span>
+              <span className="block truncate text-meta text-warm-meta">Ballygunge · ID verified</span>
+            </div>
+          </div>
+          <div className="flex gap-1.5">
+            <Chip asChild tone="subject" subject="Maths" size={34}>
+              Maths
+            </Chip>
+            <Chip asChild tone="subject" subject="Physics" size={34}>
+              Physics
+            </Chip>
           </div>
         </div>
       ),
@@ -194,12 +210,23 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
       ),
       body: "No agent in the middle, no commission on the fee. You and the teacher agree the rest.",
       cta: "Next",
+      /* secondary-06 illustrates this card with an actual two-bubble WhatsApp
+         exchange plus an "Opens in WhatsApp" tag — a real conversation
+         fragment. An icon disc with a caption is a drawn icon, which is
+         exactly what this file's own top comment says the illustrations are
+         not supposed to be. */
       illustration: (
-        <div className="flex items-center gap-3 rounded-2xl bg-white/90 p-3 text-foreground">
-          <IconDisc tone="whatsapp" size={40} shape="circle">
-            <MessageCircle aria-hidden className="size-4" />
-          </IconDisc>
-          <span className="text-body-secondary">One tap, then you're talking to them</span>
+        <div className="flex flex-col gap-2 rounded-2xl bg-card p-3 shadow-border">
+          <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-whatsapp px-3 py-2 text-meta text-whatsapp-text">
+            Hello ma'am, do you take Class 10 ICSE Maths?
+          </div>
+          <div className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-meta text-foreground">
+            Yes — free trial class this Saturday, 5pm?
+          </div>
+          <span className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-whatsapp px-3 py-1.5 text-meta font-semibold text-whatsapp-text">
+            <MessageCircle aria-hidden className="size-3.5 shrink-0" />
+            Opens in WhatsApp
+          </span>
         </div>
       ),
     },
