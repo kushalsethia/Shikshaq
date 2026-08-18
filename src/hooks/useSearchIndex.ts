@@ -63,11 +63,14 @@ async function loadIndex(): Promise<void> {
   let teachersData = teachersRes.data ?? [];
 
   // Exclude paused listings (Shikshaqmine.is_paused — the self-service pause toggle teachers
-  // flip from their dashboard). Kept as its own query that fails soft ON PURPOSE: migration
-  // 20260812060000_add_is_paused_to_shikshaqmine.sql has not been applied to the live database,
-  // so this errors with 42703 and returns no rows. That costs us the pause filter and nothing
-  // else — the search index still builds. Do NOT merge this column into the main teachers
-  // select; doing that in Browse rejected the whole query and wiped out all teacher data.
+  // flip from their dashboard). is_paused IS live (migration
+  // 20260816160605_add_is_paused_to_shikshaqmine, boolean not null default false, confirmed
+  // against the running database) — the fail-soft handling below is not compensating for a
+  // missing column any more. It stays anyway: this is a separate, isolated query specifically
+  // so a pause-filter failure of ANY kind (RLS, a future rename, a transient error) costs only
+  // the pause filter and never the search index itself. Do NOT merge this column into the main
+  // teachers select; doing that in Browse rejected the whole query and wiped out all teacher
+  // data — that failure mode has nothing to do with whether the column exists.
   if (teachersData.length > 0) {
     const { data: pausedRows, error: pausedError } = await (supabase
       .from('Shikshaqmine')

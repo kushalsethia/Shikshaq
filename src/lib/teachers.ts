@@ -402,11 +402,14 @@ export interface ChunkedShikshaqmineOptions {
  * Fetch Shikshaqmine rows for a slug list, chunked so no single `.in()` grows
  * unbounded.
  *
- * The is_paused fallback is load-bearing and preserved exactly: if ANY chunk
- * errors with the column selected, the WHOLE batch is retried without it. A
- * per-chunk retry would mix shapes across chunks and make `'is_paused' in row`
- * — which the caller uses to decide whether pause filtering is even possible —
- * true for some rows and false for others in the same result set.
+ * is_paused is a live column (migration 20260816160605, boolean not null
+ * default false) — on the current schema every chunk succeeds on its first
+ * attempt and the retry path below never fires. It stays as a whole-batch
+ * fallback rather than being deleted: if a FUTURE schema change ever drops or
+ * renames the column, a per-chunk retry would mix shapes across chunks and
+ * make `'is_paused' in row` — which the caller uses to decide whether pause
+ * filtering is even possible — true for some rows and false for others in the
+ * same result set. Retrying the whole batch keeps that boolean meaningful.
  */
 export async function fetchShikshaqmineChunked(
   opts: ChunkedShikshaqmineOptions,

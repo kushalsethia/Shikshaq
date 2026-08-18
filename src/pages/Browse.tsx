@@ -308,9 +308,10 @@ function filterShikshaqRecords(recordsToFilter: any[], effectiveFilters: FilterS
 }
 
 // Columns filterShikshaqRecords() and the enrichment step actually read (verified by
-// grepping every `record.X` / `record["X"]` access in this file). `is_paused` is added
-// separately per-query with a fail-soft retry (see runShikshaqQuery/runChunk below) so a
-// missing column never takes down the whole query the way it did before.
+// grepping every `record.X` / `record["X"]` access in this file). `is_paused` is a live
+// column (migration 20260816160605) added separately per-query with a fail-soft retry
+// (see runShikshaqQuery/runChunk below); on the current schema that retry never fires,
+// and it stays as protection against a future schema change rather than a live one.
 const SHIKSHAQ_COLUMNS =
   'Slug, Subjects, "Classes Taught for Backend", "Classes Taught", "School Boards Catered", "Class Size (Group/ Solo)", Area, "Mode of Teaching", "Place of Teaching", "Min Fees", "Max Fees", "Sir/Ma\'am?", "Years they started teaching", "Link"';
 
