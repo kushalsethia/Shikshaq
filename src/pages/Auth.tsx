@@ -410,7 +410,18 @@ export default function Auth() {
           className="relative mx-auto mt-2 h-[132px] w-full max-w-[470px] overflow-hidden px-5"
           aria-hidden="true"
         >
-          <span className="absolute left-[2%] top-[6%] -rotate-6 whitespace-nowrap rounded-full bg-brand-blue-subtle px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-blue-deep">
+          {/* The mosaic's four pale pills are four DIFFERENT hues in
+              "Redesign Account screens.dc.html" — blue hsl(210 62% 93%), mint
+              hsl(168 45% 93%), purple hsl(262 52% 93%), each with its own 26%
+              ink. The build reused brand-blue-subtle for two of them and
+              brand-subtle for the third, so the scatter read as two colours
+              repeating instead of a spread of real subjects. These are literal
+              spec values, not tokens, because the mosaic is deliberately
+              outside the palette — it is standing in for many subjects. */}
+          <span
+            className="absolute left-[2%] top-[6%] -rotate-6 whitespace-nowrap rounded-full px-[14px] py-[9px] font-display text-[15px] font-extrabold"
+            style={{ background: 'hsl(210 62% 93%)', color: 'hsl(210 45% 26%)' }}
+          >
             Maths, Ballygunge
           </span>
           {(teacherCount ?? 0) > 0 && (
@@ -418,7 +429,10 @@ export default function Auth() {
               {teacherCount} verified tutors
             </span>
           )}
-          <span className="absolute left-[6%] top-[40%] rotate-3 whitespace-nowrap rounded-full bg-brand-blue-subtle px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-blue-deep">
+          <span
+            className="absolute left-[6%] top-[40%] rotate-3 whitespace-nowrap rounded-full px-[14px] py-[9px] font-display text-[15px] font-extrabold"
+            style={{ background: 'hsl(168 45% 93%)', color: 'hsl(168 45% 26%)' }}
+          >
             Chemistry prelims
           </span>
           {/* > 0, not !== null. design.md §3.2 forbids advertising emptiness,
@@ -430,7 +444,10 @@ export default function Auth() {
               {paperCount} free papers
             </span>
           )}
-          <span className="absolute bottom-[6%] left-0 rotate-[5deg] whitespace-nowrap rounded-full bg-brand-subtle px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-deep">
+          <span
+            className="absolute bottom-[6%] left-0 rotate-[5deg] whitespace-nowrap rounded-full px-[14px] py-[9px] font-display text-[15px] font-extrabold"
+            style={{ background: 'hsl(262 52% 93%)', color: 'hsl(262 45% 26%)' }}
+          >
             English, Class 12
           </span>
           <span className="absolute bottom-[14%] right-[2%] flex h-14 w-14 -rotate-[8deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text">
