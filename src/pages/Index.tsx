@@ -733,7 +733,21 @@ export default function Index() {
         {/* ------------------------------------------------------- 04 New papers */}
         <PageContainer as="section" className="py-8 sm:py-12">
           <div className="space-y-6">
-            <NumberedHeading line1="Or read what" ordinal="04" line2="the boards set" />
+            {/* "All" sits inline to the right of the heading, per 2a's 04
+                strip. It used to trail the list as a lone link, which left 88px
+                of stacked padding (32 section + 32 section + 24 card) between a
+                short line of text and the next heading — the gap the owner
+                flagged. Moving it up removes the trailing block entirely. */}
+            <div className="flex items-end justify-between gap-4">
+              <NumberedHeading line1="Or read what" ordinal="04" line2="the boards set" />
+              <Link
+                to="/past-papers"
+                className="inline-flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-lg text-[13.5px] font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                All
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
 
             {recentPapers.length > 0 ? (
               <div className="divide-y divide-border overflow-hidden rounded-2xl bg-card shadow-border">
@@ -765,13 +779,6 @@ export default function Index() {
               />
             )}
 
-            <Link
-              to="/past-papers"
-              className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-lg text-body-secondary font-medium text-brand-blue transition-colors duration-150 hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-            >
-              All past papers
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
           </div>
         </PageContainer>
 
