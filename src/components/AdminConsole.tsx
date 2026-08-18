@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth-context';
 import { Footer } from '@/components/Footer';
 import { PreFooter } from '@/components/layout/PreFooter';
 import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
@@ -202,6 +203,19 @@ interface AdminConsoleProps {
 
 export function AdminConsole({ activeTab, title, subtitle, tint, tabCount, search, sort, children }: AdminConsoleProps) {
   const counts = useAdminTabCounts(activeTab, tabCount);
+  const { user, profile } = useAuth();
+
+  /* The rail said "Sourav · owner" for everyone — the mockup's placeholder,
+     shipped as a literal. Directly beneath it the panel reads "Every approve,
+     reject and edit is logged with your name", so the console was telling
+     whoever was signed in that their destructive actions are attributed to
+     someone else. The audit log records the real actor id, so the display was
+     also contradicting the data.
+
+     Same derivation the admin pages already use for the audit trail
+     (profile.full_name ?? email), so the name in the rail and the name in the
+     log are now the same string. */
+  const signedInName = profile?.full_name || user?.email || 'Signed-in admin';
 
   // Redesign S7/C-061 — real per-section counts only, never a placeholder.
   const shellNav: AdminNavItem[] = [
@@ -262,7 +276,7 @@ export function AdminConsole({ activeTab, title, subtitle, tint, tabCount, searc
     <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
       {/* Desktop: S7 rail (fixed, near-black) — the one place desktop leads
           (design.md §5). No fun layer — rule 10. */}
-      <AdminRail nav={shellNav} signedInName="Sourav · owner" />
+      <AdminRail nav={shellNav} signedInName={signedInName} />
 
       <div className="flex min-h-screen flex-col lg:pl-[244px]">
         {/* Desktop toolbar, 68px. Mobile keeps its own header below. */}
