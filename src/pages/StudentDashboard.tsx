@@ -32,7 +32,7 @@ import {
   Heart,
   BookOpen,
   UserRound,
-  Bell,
+  GraduationCap,
   ShieldCheck,
   LogOut,
   ChevronRight,
@@ -533,17 +533,29 @@ export default function StudentDashboard() {
       icon: <Heart className="h-4 w-4" strokeWidth={2} aria-hidden="true" />,
       onClick: () => navigate('/liked-teachers'),
     },
+    /* account-04-student-account.png lists "My teachers" here. The route
+       exists and works; it was reachable only from the hamburger menu, not from
+       the student's own account list where the mockup puts it. */
     {
-      key: 'notifications',
-      label: 'Notifications',
-      icon: <Bell className="h-4 w-4" strokeWidth={2} aria-hidden="true" />,
-      onClick: () => navigate('/notifications'),
+      key: 'my-teachers',
+      label: 'My teachers',
+      icon: <GraduationCap className="h-4 w-4" strokeWidth={2} aria-hidden="true" />,
+      onClick: () => navigate('/my-teachers'),
     },
+    /* The mockup also lists "Notifications", but nothing backs it — there is no
+       notifications table, no route, and no UI anywhere in the codebase. This
+       row navigated to /notifications, which is not a declared route, so it
+       dropped the user on the 404 page. A menu item that 404s is worse than an
+       absent one, and design.md §0.10's rule against showing what cannot be
+       fetched applies to destinations as much as to counts. Restore it when
+       there is something to notify about. */
     {
       key: 'privacy',
       label: 'Privacy & terms',
       icon: <ShieldCheck className="h-4 w-4" strokeWidth={2} aria-hidden="true" />,
-      onClick: () => navigate('/privacy'),
+      /* Was '/privacy', which is not a route either — the page is
+         /privacy-policy. Second dead destination in the same list. */
+      onClick: () => navigate('/privacy-policy'),
     },
     {
       key: 'sign-out',
