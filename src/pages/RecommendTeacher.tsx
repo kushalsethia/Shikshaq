@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
 import { PageContainer, ControlBlock, BottomNavSpacer } from '@/components/layout/PageContainer';
 import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { Chip } from '@/components/ui/chip';
+import { SUBJECTS } from '@/utils/searchFacets';
 
 const recommendSchema = z.object({
   teacherName: z.string().trim().min(1, "Please enter the teacher's name").max(100, "Teacher's name is too long"),
@@ -164,19 +166,50 @@ export default function RecommendTeacher() {
                 )}
               </Field>
 
+              {/* account-06-recommend-teacher.png makes Subject a row of chips,
+                  not a text box. Worth following for more than fidelity: free
+                  text meant an admin received "maths", "Mathematics", "Math" and
+                  had to reconcile each against the real subject list by hand
+                  before the recommendation could become a listing. The chips are
+                  the SAME canonical list the filters, the hero search and the
+                  footer sentence builder already use, so a recommendation now
+                  arrives already speaking the site's vocabulary.
+
+                  Tapping the selected chip again clears it — the field is
+                  optional, and without that there would be no way back to
+                  "not sure". */}
+              <div className="mb-4">
+                <span
+                  id="recommend-subject-label"
+                  className="mb-2 block text-label font-bold uppercase tracking-[0.07em] text-warm-label"
+                >
+                  Subject
+                </span>
+                <div
+                  role="group"
+                  aria-labelledby="recommend-subject-label"
+                  className="flex flex-wrap gap-2"
+                >
+                  {SUBJECTS.map((subject) => {
+                    const selected = formData.subject === subject;
+                    return (
+                      <Chip
+                        key={subject}
+                        tone={selected ? 'facet-on' : 'facet'}
+                        size={40}
+                        aria-pressed={selected}
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, subject: selected ? '' : subject }))
+                        }
+                      >
+                        {subject}
+                      </Chip>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Subject">
-                  {(controlProps) => (
-                    <FieldInput
-                      {...controlProps}
-                      name="subject"
-                      placeholder="e.g. Maths"
-                      value={formData.subject}
-                      onChange={handleChange}
-                      maxLength={100}
-                    />
-                  )}
-                </Field>
                 <Field label="Area they teach in">
                   {(controlProps) => (
                     <FieldInput
