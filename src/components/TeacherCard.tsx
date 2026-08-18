@@ -195,7 +195,14 @@ function TeacherCardComponent({
       variant="whatsapp"
       size={isSm ? 40 : isRow ? 40 : 44}
       onClick={handleWhatsAppClick}
-      className={isRow ? 'shrink-0' : 'mt-2 w-full'}
+      /* micro-04-cards-lists-pages.png: "The whole card is one target... the
+         WhatsApp button inside does not grow its own hover — only one thing may
+         respond at a time." The card lifts on hover and so did this button, so
+         pointing at Chat lifted the button inside a card that was already
+         lifting. hover:translate-y-0 lands in the same tailwind-merge class
+         group as the variant's hover:-translate-y-0.5 and replaces it, leaving
+         the card as the only thing that moves. */
+      className={`hover:translate-y-0 ${isRow ? 'shrink-0' : 'mt-2 w-full'}`}
     >
       <WhatsAppIcon className="h-4 w-4" />
       {isRow ? 'Chat' : 'WhatsApp'}
