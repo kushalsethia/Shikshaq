@@ -1,14 +1,28 @@
 import { useEffect } from 'react';
-import { LegalReader, type LegalSection } from '@/pages/legal/reader';
 import { FAQ_ITEMS } from '@/components/FAQ';
 import { FAQSchema } from '@/components/FAQSchema';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { HelpFaqStack, type HelpFaqCategory, type HelpFaqQuestion } from '@/components/help/HelpFaqStack';
+import { useHelpTopics, topicToGuideBody } from '@/hooks/useHelpTopics';
 
-const SECTIONS: LegalSection[] = FAQ_ITEMS.map((faq, i) => ({
-  n: String(i + 1).padStart(2, '0'),
-  title: faq.question,
-  short: faq.answer,
-  body: '',
+// FAQ_ITEMS (components/FAQ.tsx) is shared with Index.tsx's teaser block, so
+// its question/answer strings stay the single source of truth for the JSON-LD
+// (byte-identical, unchanged) — `category` is layered on here, display-only,
+// for the HP-002 chip filter this page adds.
+const CATEGORY_BY_QUESTION: Record<string, HelpFaqCategory> = {
+  'What is Shikshaq and how does it work?': 'general',
+  'Which classes/grades and boards do you support?': 'teachers',
+  'Which cities or localities do you currently cater to?': 'general',
+  'How do I find the right tutor on Shikshaq?': 'finding',
+  'How do I contact a teacher through Shikshaq?': 'finding',
+  'Do I pay through Shikshaq or directly to the teacher?': 'general',
+  'Is my phone number and personal data safe on Shikshaq?': 'general',
+};
+
+const QUESTIONS: HelpFaqQuestion[] = FAQ_ITEMS.map((f) => ({
+  question: f.question,
+  answer: f.answer,
+  category: CATEGORY_BY_QUESTION[f.question] ?? 'general',
 }));
 
 export default function FAQPage() {
@@ -18,6 +32,8 @@ export default function FAQPage() {
     'Common questions about finding a tuition teacher in Kolkata on Shikshaq: how matching works, fees, verification, and contacting tutors directly for free.'
   );
 
+  const topics = useHelpTopics();
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
@@ -25,22 +41,13 @@ export default function FAQPage() {
   return (
     <>
       <FAQSchema faqs={FAQ_ITEMS} url="/faq" />
-      <LegalReader
-        pill="matching, fees, verification"
-        pillTone="brand"
-        h1="Questions people actually ask"
-        lede="Matching, fees, verification, and how to reach a teacher directly — answered plainly."
-        updated={`${FAQ_ITEMS.length} questions · free, always`}
-        accent="brand"
-        summary={[
-          { head: 'Free, always', text: 'No listing fee, no commission, no premium tier — for anyone.', tone: 'bone' },
-          { head: 'You pay the teacher', text: 'Fees are settled directly between you. We never touch the money.', tone: 'brand' },
-          { head: 'Kolkata only', text: 'Every teacher and every filter is local to this city.', tone: 'muted' },
-          { head: 'Your number stays private', text: 'Shown to a teacher only when you choose to message them.', tone: 'mint' },
-        ]}
-        sections={SECTIONS}
-        footHead="Still have a question?"
-        footBody="Ask our assistant, or write to us on WhatsApp — we reply within a day."
+      <HelpFaqStack
+        heading={{ line1: 'Questions people', ordinal: '01', line2: 'actually ask' }}
+        questionsHeading="Common questions"
+        questions={QUESTIONS}
+        guides={topics.map((t) => ({ title: t.title, body: topicToGuideBody(t.body) }))}
+        contactHeading="Still have a question?"
+        contactBody="Ask our assistant, or write to us on WhatsApp. We reply within a day."
       />
     </>
   );

@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
-import { Footer } from '@/components/Footer';
-import { PreFooter } from '@/components/layout/PreFooter';
-import { PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
-import { AnnotatedStatement } from '@/components/marketing/annotated-statement';
+import { ArrowRight, GraduationCap } from 'lucide-react';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { AnnotatedStatement, AnnotatedHighlight } from '@/components/marketing/annotated-statement';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
+import { IconDisc } from '@/components/ui/icon-disc';
 import { Button } from '@/components/ui/button';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
+import { useChromeConfig } from '@/components/layout/AppShell';
 
 // S21 — one typographic statement on a faint grid ground ("a straight line
 // between a parent and a teacher"), three tilted annotation pills, an origin
@@ -20,6 +22,13 @@ export default function About() {
     'About Shikshaq | Free tuition teacher matching in Kolkata',
     'Shikshaq is a free platform connecting Kolkata students with verified tuition teachers directly, with no commission and no middlemen.'
   );
+
+  // Handoff AB-001: this route renders its own eyes panel, replacing
+  // AppShell's default pre-footer.
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
 
   // Every stat is a real running query (design.md §0.10 / brief rule 5). A stat
   // whose count fails to fetch is dropped from the tile list entirely, never
@@ -64,28 +73,23 @@ export default function About() {
      §3.2: never advertise emptiness. A zero drops its tile. */
   const statTiles = [
     (stats.teachers ?? 0) > 0
-      ? { value: stats.teachers!.toLocaleString('en-IN'), label: 'verified teachers listed', ink: 'text-foreground' }
+      ? { value: stats.teachers!.toLocaleString('en-IN'), label: 'verified teachers listed', ink: 'text-foreground', tint: 'bg-muted' }
       : null,
     (stats.papers ?? 0) > 0
-      ? { value: stats.papers!.toLocaleString('en-IN'), label: 'past papers, free to read', ink: 'text-brand-blue-deep' }
+      ? { value: stats.papers!.toLocaleString('en-IN'), label: 'past papers, free to read', ink: 'text-foreground', tint: 'bg-muted' }
       : null,
     // A fact, not a query — always true, so it always shows (same reasoning
     // PreFooter's B2 uses for its commission line).
-    { value: '₹0', label: 'commission taken from a fee', ink: 'text-brand-deep' },
+    { value: '₹0', label: 'commission taken from a fee', ink: 'text-brand-deep', tint: 'bg-brand-subtle' },
     (stats.schools ?? 0) > 0
-      ? { value: stats.schools!.toLocaleString('en-IN'), label: 'Kolkata schools represented', ink: 'text-foreground' }
+      ? { value: stats.schools!.toLocaleString('en-IN'), label: 'Kolkata schools represented', ink: 'text-foreground', tint: 'bg-muted' }
       : null,
-  ].filter(Boolean) as { value: string; label: string; ink: string }[];
+  ].filter(Boolean) as { value: string; label: string; ink: string; tint: string }[];
 
   const statement = (
     <>
       a straight{' '}
-      <span
-        className="marker-highlight marker-highlight--pill"
-        style={{ '--marker-color': 'hsl(var(--brand-subtle))' } as React.CSSProperties}
-      >
-        line
-      </span>
+      <AnnotatedHighlight tone="pill-brand">line</AnnotatedHighlight>
       <br className="lg:hidden" />
       <span className="hidden lg:inline"> </span>between{' '}
       <br className="lg:hidden" />
@@ -96,58 +100,55 @@ export default function About() {
 
   return (
     <div className="min-h-screen bg-background">
-
       <main>
-        <PageContainer as="section" className="pt-6 sm:pt-10 lg:pt-14">
-          <AnnotatedStatement
-            statement={statement}
-            align="left"
-            className="px-[18px] py-6 lg:px-10 lg:py-14 lg:text-center"
-            /* The third pill was hard-coded to the copy deck's "846 past papers,
-               free" while the library actually holds none — a fabricated number
-               on the page that exists to establish trust. It now states the
-               real count, and drops out entirely rather than saying zero. */
-            pills={[
-              { label: 'No commission, ever', anchor: 'top-right' as const, tone: 'dark' as const, tilt: 4 },
-              { label: 'WhatsApp, not a call centre', anchor: 'bottom-left' as const, tone: 'bone' as const, tilt: -3 },
-              ...((stats.papers ?? 0) > 0
-                ? [{
-                    label: `${stats.papers!.toLocaleString('en-IN')} past papers, free`,
-                    anchor: 'bottom-right' as const,
-                    tone: 'indigo' as const,
-                    tilt: -3,
-                    dot: true,
-                  }]
-                : []),
-            ]}
-          />
-        </PageContainer>
+        <BentoStack>
+          {/* Handoff AB-002: the annotated statement, now inside a bone header panel. */}
+          <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[26px]">
+            <AnnotatedStatement
+              statement={statement}
+              align="left"
+              statementClassName="text-[38px] leading-[1.04] tracking-[-0.05em]"
+              className="mt-5"
+              pills={[
+                { label: 'No commission, ever', anchor: 'top-right', tone: 'dark', tilt: 4, dot: false },
+                { label: 'WhatsApp, not a call centre', anchor: 'bottom-left', tone: 'bone', tilt: -3, dot: false },
+              ]}
+            />
+          </BentoPanel>
 
-        {/* Story + stats + founders card */}
-        <PageContainer as="section" className="pt-8 sm:pt-10 lg:grid lg:grid-cols-[1.1fr_0.9fr] lg:gap-10 lg:pt-14">
-          <div>
-            <p className="max-w-prose text-body-secondary leading-[1.6] text-warm-prose">
+          {/* Handoff AB-003: lede + stats grid. */}
+          <BentoPanel fill="card">
+            <p className="text-[15px] leading-[1.6] text-warm-prose">
               ShikshAQ started because finding a tutor in Kolkata still meant asking three
               neighbours and trusting a photocopied leaflet. We list teachers, verify who they
               say they are, and then get out of the way. The fee you agree is the fee the
               teacher keeps.
             </p>
-            <div className="mt-[14px] grid grid-cols-2 gap-[10px] lg:grid-cols-4">
+            <div className="mt-4 grid grid-cols-2 gap-2.5">
               {statTiles.map((st) => (
-                <div key={st.label} className="rounded-[18px] bg-card p-[14px] shadow-border">
-                  <div className={`font-display text-[24px] lg:text-[28px] font-black tracking-[-0.04em] tabular-nums ${st.ink}`}>
+                <div
+                  key={st.label}
+                  className={`flex h-[120px] flex-col justify-center rounded-[18px] p-[14px] ${st.tint}`}
+                >
+                  <div className={`font-display text-[24px] font-black tracking-[-0.04em] tabular-nums ${st.ink}`}>
                     {st.value}
                   </div>
-                  <div className="mt-[2px] text-[12.5px] leading-[1.4] text-warm-label">{st.label}</div>
+                  <div className="mt-0.5 text-[12.5px] leading-[1.4] text-warm-label">{st.label}</div>
                 </div>
               ))}
             </div>
-          </div>
+          </BentoPanel>
 
-          <div className="mt-[14px] rounded-[22px] bg-panel p-[18px] text-background lg:mt-0 lg:p-6">
+          {/* Handoff AB-004: founders panel. */}
+          <BentoPanel fill="dark">
             <div className="mb-3 flex items-center gap-3">
-              <div className="h-11 w-11 flex-none overflow-hidden rounded-full lg:h-[52px] lg:w-[52px]">
-                <StripePlaceholder name="Sourav" initialSize={19} />
+              <div className="flex flex-none -space-x-3">
+                <div className="h-14 w-14 overflow-hidden rounded-full ring-2 ring-panel">
+                  <StripePlaceholder name="Sourav" initialSize={19} />
+                </div>
+                <div className="h-14 w-14 overflow-hidden rounded-full ring-2 ring-panel">
+                  <StripePlaceholder name="Arka" initialSize={19} />
+                </div>
               </div>
               <div>
                 <div className="text-[14.5px] font-bold">Made by two people</div>
@@ -159,41 +160,53 @@ export default function About() {
               should be able to find them in under a minute &mdash; and talk to them without
               anyone taking a cut.&rdquo;
             </p>
-            <Button asChild variant="primary" size={46} className="mt-4 hidden lg:inline-flex">
+            <Button asChild variant="primary" size={46} className="mt-4">
               <Link to="/join">
                 List yourself as a teacher
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </Button>
-          </div>
-        </PageContainer>
+          </BentoPanel>
 
-        {/* Retained: the existing "recommend a teacher" flow isn't in the S21
-            mockup, but it's real functionality (a live route + form the app
-            depends on), so it stays — styled in the mockup's own language
-            rather than dropped (brief "keep functionality"). */}
-        <PageContainer as="section" className="py-8 sm:py-12">
-          <Link
-            to="/recommend-teacher"
-            className="flex items-center gap-4 rounded-3xl bg-card p-4 shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-6"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="font-display text-card-title font-semibold text-foreground">Know a good teacher?</p>
-              <p className="text-body-secondary text-muted-foreground">
-                Recommend them &mdash; we&rsquo;ll reach out and get them listed, free.
-              </p>
-            </div>
-            <ArrowRight className="h-5 w-5 flex-none text-warm-label" aria-hidden="true" />
-          </Link>
-        </PageContainer>
+          {/* Handoff AB-005: recommend CTA, identical to Home's H-020 row.
+              Retained: the existing "recommend a teacher" flow isn't in the
+              mockup, but it's real functionality (a live route + form the app
+              depends on), so it stays — styled in the mockup's own language
+              rather than dropped. */}
+          <BentoPanel fill="card" className="!py-[18px]">
+            <Link
+              to="/recommend-teacher"
+              className="flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <IconDisc tone="muted" size={44}>
+                <GraduationCap />
+              </IconDisc>
+              <div className="min-w-0 flex-1">
+                <p className="text-[16px] font-semibold text-foreground">Know a good teacher?</p>
+                <p className="mt-0.5 text-[14px] leading-[1.45] text-warm-secondary">
+                  Recommend them &mdash; we&rsquo;ll reach out and get them listed, free.
+                </p>
+              </div>
+              <ArrowRight className="h-4 w-4 flex-none text-warm-label" aria-hidden="true" />
+            </Link>
+          </BentoPanel>
 
-        <PageContainer as="section" className="pb-8 sm:pb-12">
-          <PreFooter variant="B1" />
-        </PageContainer>
-        <BottomNavSpacer />
+          {/* Shared tail. */}
+          <EyesPanel
+            mode={builderMode}
+            onModeChange={setBuilderMode}
+            heading={(
+              <>
+                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+              </>
+            )}
+            subline="Fill in the blanks and we'll take you straight there."
+            slots={builderSlots}
+            onSlotChange={handleSlotChange}
+            onSubmit={handleBuilderSubmit}
+          />
+        </BentoStack>
       </main>
-
-      <Footer />
     </div>
   );
 }

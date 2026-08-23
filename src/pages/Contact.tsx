@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { GraduationCap, FileText, Users, ShieldAlert, Mail, MapPin, ArrowRight } from 'lucide-react';
+import { GraduationCap, FileText, Users, ShieldAlert, ArrowRight } from 'lucide-react';
 import { useChromeConfig } from '@/components/layout/AppShell';
-import { PageContainer } from '@/components/layout/PageContainer';
-import { AnnotatedStatement } from '@/components/marketing/annotated-statement';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { AnnotatedStatement, AnnotatedHighlight } from '@/components/marketing/annotated-statement';
 import { NumberedHeading } from '@/components/ui/numbered-heading';
-import { Chip } from '@/components/ui/chip';
 import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { toast } from 'sonner';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 
 // S22 — new route. Same annotation device as About (C-058) so the two pages
 // read as a pair (changelog C-059): a statement + rising dome, tilted pills,
@@ -42,10 +42,12 @@ const REASONS = [
 type ReasonId = (typeof REASONS)[number]['id'];
 
 export default function Contact() {
-  // preFooterFor(pathname) would give /contact the default B4; this route
-  // keeps the fuller B1 explainer, same as home/about, so it needs the
-  // explicit override.
-  useChromeConfig({ preFooter: 'B1' });
+  // Handoff CT-001: this route renders its own eyes panel, replacing
+  // AppShell's default pre-footer.
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
 
   usePageMeta(
     'Contact ShikshAQ | Talk to a real person',
@@ -53,7 +55,9 @@ export default function Contact() {
     'Reach the two people who run ShikshAQ directly for teacher search, paper takedowns, or listing yourself. A real person replies, usually the same day.'
   );
 
-  const [reason, setReason] = useState<ReasonId | null>(null);
+  // Handoff CT-003: one topic is always selected (defaults to the first) —
+  // the form used to stay hidden until a reason was picked.
+  const [reason, setReason] = useState<ReasonId>(REASONS[0].id);
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
   const [message, setMessage] = useState('');
@@ -84,248 +88,152 @@ export default function Contact() {
 
   const statement = (
     <>
-      {/* ONE copy of the phrase, with the line breaks doing the work.
-          `display:none` does NOT remove text from textContent or from the
-          accessible name, so the previous approach — two copies, one hidden per
-          breakpoint — made the h1 read "Don't hesitate to ask us.to ask us." at
-          BOTH sizes, in the accessible name and in any search snippet.
-          Only the <br>s are breakpoint-conditional now:
-            mobile   Don't / hesitate / to ask / us.
-            desktop  Don't hesitate / to ask us.        */}
-      Don&rsquo;t
-      <br className="lg:hidden" /> hesitate
-      <br /> to ask
-      <br className="lg:hidden" /> us.
+      <span className="block">Tell us what</span>{' '}
+      <span className="block">you need. <AnnotatedHighlight tone="block-dark">We reply.</AnnotatedHighlight></span>
     </>
   );
 
   return (
     <div className="min-h-screen bg-background">
-
       <main>
-        <PageContainer as="section" className="pt-6 sm:pt-10 lg:pt-14">
-          <AnnotatedStatement
-            statement={statement}
-            align="center"
-            className="px-[18px] py-6 lg:px-10 lg:py-14"
-            pills={[
-              { label: 'a real person replies', anchor: 'top-left', tone: 'brand', tilt: -9, dot: false },
-              { label: 'same day, usually', anchor: 'top-right', tone: 'bone', tilt: 7 },
-              {
-                label: 'or just WhatsApp',
-                anchor: 'bottom-left',
-                tone: 'whatsapp',
-                tilt: 5,
-                dot: false,
-                icon: <WhatsAppIcon className="h-[13px] w-[13px]" />,
-              },
-              { label: 'papers takedowns too', anchor: 'bottom-right', tone: 'dark', tilt: -5 },
-            ]}
-          />
+        <BentoStack>
+          {/* Handoff CT-002: the annotated statement, now inside a bone header panel. */}
+          <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[26px]">
+            <AnnotatedStatement
+              statement={statement}
+              align="left"
+              statementClassName="text-[36px] leading-[1.05] tracking-[-0.05em]"
+              className="mt-5"
+              pills={[
+                { label: 'a real person replies', anchor: 'bottom-left', tone: 'brand', tilt: -9, dot: false },
+                { label: 'same day, usually', anchor: 'bottom-right', tone: 'bone', tilt: 7, dot: false },
+              ]}
+            />
+          </BentoPanel>
 
-          {/* the rising dome — a purely decorative echo of the F5/mockup device,
-              built from the same tokens as everything else on the page.
-              mt-5 (not a negative pull-up) on mobile: the annotation pills sit
-              flush with the statement block's own bottom edge (see
-              annotated-statement.tsx), so a negative margin here pulled the
-              dome up far enough to bury the bottom-anchored "or just
-              WhatsApp" / "papers takedowns too" pills underneath it.
-              Desktop measured the same way (1440px, via getBoundingClientRect):
-              the bottom pills sit at y446-486 while a -46px pull-up put the
-              dome's flat top at y434 — squarely on top of the pills, not
-              "plenty of clearance" as the old comment here claimed. lg:mt-8
-              instead gives the dome top a real ~30px gap below the pills. */}
-          <div className="relative -mx-4 mt-5 h-[140px] overflow-hidden sm:-mx-6 lg:-mx-8 lg:mt-8 lg:h-[190px]" aria-hidden="true">
-            <span className="absolute left-[-14%] right-[-14%] top-0 h-[420px] rounded-t-full bg-brand" />
-            <div className="absolute left-0 right-0 top-[64px] flex justify-center gap-[22px] lg:top-[82px] lg:gap-10">
-              <span className="relative h-[80px] w-[58px] rounded-full bg-card lg:h-[132px] lg:w-[96px]">
-                <span className="absolute left-[26px] top-[46px] h-[22px] w-[22px] rounded-full bg-panel lg:left-[44px] lg:top-[76px] lg:h-9 lg:w-9" />
-              </span>
-              <span className="relative h-[80px] w-[58px] rounded-full bg-card lg:h-[132px] lg:w-[96px]">
-                <span className="absolute left-[22px] top-[46px] h-[22px] w-[22px] rounded-full bg-panel lg:left-9 lg:top-[76px] lg:h-9 lg:w-9" />
-              </span>
+          {/* Handoff CT-003: topic picker — the reason a message arrives now
+              travels with it (as the mailto subject line), so a takedown
+              request and a tutoring question no longer look identical. */}
+          <BentoPanel fill="card">
+            <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-warm-label">
+              What is it about
+            </span>
+            <div className="mt-3 flex flex-col gap-2">
+              {REASONS.map((r) => {
+                const on = reason === r.id;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setReason(r.id)}
+                    aria-pressed={on}
+                    className={`flex h-[52px] items-center gap-2.5 rounded-[18px] px-4 text-[14.5px] transition-colors duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                      on ? 'bg-panel font-bold text-background' : 'bg-muted font-semibold text-foreground'
+                    }`}
+                  >
+                    <r.icon className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden="true" />
+                    {r.label}
+                  </button>
+                );
+              })}
             </div>
-          </div>
-        </PageContainer>
+          </BentoPanel>
 
-        {/* orange band */}
-        <div className="bg-brand px-4 py-[8px] pb-[26px] text-brand-foreground sm:px-6 lg:px-8 lg:py-3 lg:pb-11">
-          <PageContainer className="!px-0 lg:grid lg:grid-cols-[0.7fr_1.3fr] lg:gap-12 lg:items-start">
-            <div>
-              <span className="mb-[6px] block text-[11px] font-extrabold uppercase tracking-[0.1em] text-brand-foreground/75">
-                write to us
-              </span>
-              <a
-                href="mailto:ngo.aquaterra@gmail.com"
-                className="block font-display text-[20px] font-black tracking-[-0.03em] text-brand-foreground lg:text-2xl"
-              >
-                ngo.aquaterra@gmail.com
-              </a>
-              <span className="mt-[14px] hidden text-[15px] leading-[1.6] text-brand-foreground/90 lg:block">
-                Mon to Sat, 10 am &ndash; 8 pm
-                <br />
-                Kolkata, West Bengal
-              </span>
-            </div>
-            <p className="mt-4 text-[16px] leading-[1.55] text-brand-foreground lg:mt-0 lg:text-[22px] lg:leading-[1.45]">
-              We are two people, not a call centre. Tell us what you are looking for &mdash; a
-              subject, a class, an area &mdash; and we will point you at the teachers worth
-              messaging.{' '}
-              <span className="lg:inline">
-                If you are a school asking us to take a paper down, say so in the first line and
-                it happens the same day.
-              </span>
-            </p>
-          </PageContainer>
-        </div>
-
-        {/* form + direct lines */}
-        <PageContainer as="section" className="pt-6 sm:pt-8 lg:grid lg:grid-cols-[1.25fr_0.75fr] lg:gap-10 lg:pt-11">
-          <div>
+          {/* Handoff CT-004: the form itself — same four fields, same handler. */}
+          <BentoPanel fill="card">
             <NumberedHeading
               line1="Send us a note"
               ordinal="01"
               line2="four fields, no login"
-              className="mb-[14px]"
             />
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-[14px]">
-              <div className="flex flex-wrap gap-2">
-                {REASONS.map((r) => {
-                  const on = reason === r.id;
-                  return (
-                    <Chip
-                      key={r.id}
-                      type="button"
-                      tone={on ? 'dark' : 'facet'}
-                      size={44}
-                      icon={<r.icon className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />}
-                      aria-pressed={on}
-                      onClick={() => setReason(r.id)}
-                    >
-                      {r.label}
-                    </Chip>
-                  );
-                })}
+            <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-[14px]">
+              <div className="grid gap-[14px] sm:grid-cols-2">
+                <Field label="Your name" error={nameField.error} required>
+                  {(cp) => (
+                    <FieldInput
+                      {...cp}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      onBlur={nameField.onBlur}
+                      placeholder="Priya Sharma"
+                    />
+                  )}
+                </Field>
+                <Field label="WhatsApp number or email" error={contactField.error} required>
+                  {(cp) => (
+                    <FieldInput
+                      {...cp}
+                      value={contact}
+                      onChange={(e) => setContact(e.target.value)}
+                      onBlur={contactField.onBlur}
+                      placeholder="+91 …"
+                    />
+                  )}
+                </Field>
               </div>
 
-              {reason ? (
-                <div className="flex flex-col gap-[14px] animate-fade-slide-up">
-                  <div className="grid gap-[14px] sm:grid-cols-2">
-                    <Field label="Your name" error={nameField.error} required>
-                      {(cp) => (
-                        <FieldInput
-                          {...cp}
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          onBlur={nameField.onBlur}
-                          placeholder="Priya Sharma"
-                        />
-                      )}
-                    </Field>
-                    <Field label="WhatsApp number or email" error={contactField.error} required>
-                      {(cp) => (
-                        <FieldInput
-                          {...cp}
-                          value={contact}
-                          onChange={(e) => setContact(e.target.value)}
-                          onBlur={contactField.onBlur}
-                          placeholder="+91 …"
-                        />
-                      )}
-                    </Field>
-                  </div>
+              <Field label="What do you need?" error={messageField.error} required>
+                {(cp) => (
+                  <FieldTextarea
+                    {...cp}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onBlur={messageField.onBlur}
+                    placeholder="Class 10 ICSE Maths, somewhere near Ballygunge, evenings after 6…"
+                  />
+                )}
+              </Field>
 
-                  <Field label="What do you need?" error={messageField.error} required>
-                    {(cp) => (
-                      <FieldTextarea
-                        {...cp}
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        onBlur={messageField.onBlur}
-                        placeholder="Class 10 ICSE Maths, somewhere near Ballygunge, evenings after 6…"
-                      />
-                    )}
-                  </Field>
-
-                  <div className="flex flex-wrap items-center gap-[18px]">
-                    <Button type="submit" variant="primary" size={52} className="w-full sm:w-auto">
-                      Send it
-                      <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />
-                    </Button>
-                    <span className="max-w-[40ch] text-[13px] leading-[1.55] text-warm-label">
-                      Goes straight to the two people who run ShikshAQ. No newsletter, and we never
-                      pass your number to a teacher without asking.
-                    </span>
-                  </div>
-                  {sent ? (
-                    <p role="status" className="text-body-secondary text-brand-deep">
-                      Your email app should be open now &mdash; send it from there and we&rsquo;ll reply.
-                    </p>
-                  ) : null}
-                </div>
+              <Button type="submit" variant="primary" size={52}>
+                Send it
+                <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />
+              </Button>
+              <span className="text-[13px] leading-[1.55] text-warm-label">
+                Goes straight to the two people who run ShikshAQ. No newsletter, and we never
+                pass your number to a teacher without asking.
+              </span>
+              {sent ? (
+                <p role="status" className="text-body-secondary text-brand-deep">
+                  Your email app should be open now &mdash; send it from there and we&rsquo;ll reply.
+                </p>
               ) : null}
             </form>
-          </div>
+          </BentoPanel>
 
-          <div className="mt-6 flex flex-col gap-3 lg:mt-0">
+          {/* Handoff CT-005: the real published WhatsApp number, or nothing. */}
+          <BentoPanel fill="mint" className="py-[18px]">
             <a
               href={getWhatsAppLink('8240980312')}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex min-h-[44px] items-center gap-[14px] rounded-[20px] bg-whatsapp p-[16px] text-whatsapp-text transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex items-center gap-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] bg-card/90">
+              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-whatsapp">
                 <WhatsAppIcon className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-whatsapp-text/70">
-                  WhatsApp us
-                </div>
-                <div className="mt-[2px] text-[15px] font-bold lg:text-[16px]">+91 82409 80312</div>
+                <p className="text-[16px] font-bold text-[#24603D]">or just WhatsApp</p>
+                <p className="mt-0.5 text-[13.5px] text-[#3E6F53]">+91 82409 80312</p>
               </div>
-              <ArrowRight className="h-4 w-4 flex-none" aria-hidden="true" />
             </a>
+          </BentoPanel>
 
-            <a
-              href="mailto:ngo.aquaterra@gmail.com"
-              className="flex min-h-[44px] items-center gap-[14px] rounded-[20px] bg-card p-[16px] text-foreground shadow-border transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] bg-muted">
-                <Mail className="h-[19px] w-[19px]" strokeWidth={2} aria-hidden="true" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">Email</div>
-                <div className="mt-[2px] text-[15px] font-bold lg:text-[16px]">ngo.aquaterra@gmail.com</div>
-              </div>
-              <ArrowRight className="h-4 w-4 flex-none text-warm-label" aria-hidden="true" />
-            </a>
-
-            <div className="flex min-h-[44px] items-center gap-[14px] rounded-[20px] bg-card p-[16px] text-foreground shadow-border">
-              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] bg-muted">
-                <MapPin className="h-[19px] w-[19px]" strokeWidth={2} aria-hidden="true" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">Where we are</div>
-                <div className="mt-[2px] text-[15px] font-bold lg:text-[16px]">Kolkata, West Bengal</div>
-              </div>
-            </div>
-
-            <div className="mt-[6px] rounded-[22px] bg-panel p-[22px] text-background">
-              <span className="mb-3 inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-card px-[11px] text-[11.5px] font-bold text-foreground">
-                before you write
-              </span>
-              <p className="text-[14.5px] leading-[1.65] text-background/78">
-                Fees, verification, how papers are hosted and what we do with your number are all
-                answered in{' '}
-                <Link to="/faq" className="text-brand-blue underline-offset-4 hover:underline">
-                  Help &amp; FAQ
-                </Link>
-                .
-              </p>
-            </div>
-          </div>
-        </PageContainer>
+          {/* Shared tail. */}
+          <EyesPanel
+            mode={builderMode}
+            onModeChange={setBuilderMode}
+            heading={(
+              <>
+                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+              </>
+            )}
+            subline="Fill in the blanks and we'll take you straight there."
+            slots={builderSlots}
+            onSlotChange={handleSlotChange}
+            onSubmit={handleBuilderSubmit}
+          />
+        </BentoStack>
       </main>
     </div>
   );

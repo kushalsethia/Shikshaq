@@ -2,11 +2,14 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-/* Redesign C11 (components.md entry C11, design.md §5, S21/S22 mockups).
+/* Handoff AB-002/CT-002 (About Contact Help 404 Redesign.dc.html).
 
-   A giant display statement sitting on a faint grid ground, with 3-4 tilted
-   annotation pills scattered around it. Used on About (S21) and Contact (S22)
-   so the two pages read as a pair.
+   A quiet display statement — regular weight, one word picked out with a
+   HighlightSpan — with exactly two tilted annotation pills anchored to its
+   corners. Used on About and Contact so the two pages read as a pair.
+   Replaces the previous "giant black statement on a faint grid ground with
+   3-4 pills" treatment entirely (that ground and weight belonged to the old
+   hero; this component now lives inside a plain bone BentoPanel).
 
    IMPORTANT: the pills are NOT hand-placed at fixed pixel offsets computed for
    one specific string. They are laid out on a 2-column x 3-row grid overlay
@@ -55,6 +58,29 @@ const ANCHOR_CELL: Record<AnnotatedPillAnchor, string> = {
   "bottom-right": "col-start-2 row-start-3 justify-self-end self-end",
 };
 
+export type AnnotatedHighlightTone = "pill-brand" | "block-dark";
+
+const HIGHLIGHT_BG_CLASS: Record<AnnotatedHighlightTone, string> = {
+  "pill-brand": "-inset-x-2 rounded-full bg-brand-subtle",
+  "block-dark": "-inset-x-1.5 rounded-[10px] bg-panel",
+};
+
+const HIGHLIGHT_TEXT_CLASS: Record<AnnotatedHighlightTone, string> = {
+  "pill-brand": "",
+  "block-dark": "text-background",
+};
+
+/** The one weight-900 word/phrase inside an otherwise regular-weight statement
+ *  — a pill highlight (About's "line") or a dark block (Contact's "We reply."). */
+function AnnotatedHighlight({ tone, children }: { tone: AnnotatedHighlightTone; children: React.ReactNode }) {
+  return (
+    <span className="relative inline-block font-black">
+      <span aria-hidden className={cn("absolute top-[2px] bottom-[2px]", HIGHLIGHT_BG_CLASS[tone])} />
+      <span className={cn("relative", HIGHLIGHT_TEXT_CLASS[tone])}>{children}</span>
+    </span>
+  );
+}
+
 const TILT_CLASS: Record<number, string> = {
   [-9]: "-rotate-[9deg]",
   [-8]: "-rotate-[8deg]",
@@ -82,7 +108,7 @@ export interface AnnotatedPill {
 }
 
 export interface AnnotatedStatementProps extends React.HTMLAttributes<HTMLDivElement> {
-  /** The statement itself, already composed with a marker-highlight span. */
+  /** The statement itself, composed with an <AnnotatedHighlight> span for the one weight-900 word/phrase. */
   statement: React.ReactNode;
   pills: AnnotatedPill[];
   align?: "left" | "center";
@@ -93,25 +119,35 @@ export interface AnnotatedStatementProps extends React.HTMLAttributes<HTMLDivEle
    * primary on-page SEO signal). Pass "div" only where a real h1 exists above.
    */
   as?: "h1" | "h2" | "div";
+  /**
+   * Handoff AB-002/CT-002: About and Contact use different sizes/line-heights
+   * for the same regular-weight statement (38px/1.04 vs 36px/1.05) — passed
+   * here rather than hardcoded so the one shared component can serve both.
+   */
+  statementClassName?: string;
 }
 
 const AnnotatedStatement = React.forwardRef<HTMLDivElement, AnnotatedStatementProps>(
-  ({ className, statement, pills, align = "left", as = "h1", ...props }, ref) => {
+  ({ className, statement, pills, align = "left", as = "h1", statementClassName, ...props }, ref) => {
     const Statement = as as React.ElementType;
+    // The pill overlay below is a 3-row grid spanning this wrapper's full box
+    // (see ANCHOR_CELL) — a top/bottom-anchored pill needs real empty space
+    // in that row, or it lands on top of the statement's own first/last
+    // line. Padding on the wrapper (not the Statement text) creates that
+    // clearance without moving the overlay, which anchors to the padding
+    // edge regardless of how much padding exists.
+    const hasTopPill = pills.some((p) => p.anchor.startsWith("top"));
+    const hasBottomPill = pills.some((p) => p.anchor.startsWith("bottom"));
     return (
       <div
         ref={ref}
-        className={cn(
-          "ground-graph relative isolate overflow-visible rounded-3xl",
-          "[--graph-cell:26px]",
-          className,
-        )}
+        className={cn("relative isolate overflow-visible", hasTopPill && "pt-7", hasBottomPill && "pb-12", className)}
         {...props}
       >
         <Statement
           className={cn(
-            "font-display font-black leading-[0.94] tracking-[-0.05em] text-foreground",
-            "text-[44px] sm:text-[56px] lg:text-[80px]",
+            "font-display font-normal text-foreground",
+            statementClassName,
             align === "center" ? "text-center" : "text-left",
           )}
         >
@@ -131,7 +167,7 @@ const AnnotatedStatement = React.forwardRef<HTMLDivElement, AnnotatedStatementPr
               <span
                 key={i}
                 className={cn(
-                  "pointer-events-auto inline-flex h-[28px] items-center gap-[6px] whitespace-nowrap rounded-full px-3 text-[11px] font-extrabold",
+                  "pointer-events-auto inline-flex h-[34px] items-center gap-[6px] whitespace-nowrap rounded-full px-[14px] text-[12.5px] font-extrabold lg:rotate-0",
                   PILL_TONE_CLASS[tone],
                   ANCHOR_CELL[pill.anchor],
                   TILT_CLASS[tilt] ?? "",
@@ -152,4 +188,4 @@ const AnnotatedStatement = React.forwardRef<HTMLDivElement, AnnotatedStatementPr
 );
 AnnotatedStatement.displayName = "AnnotatedStatement";
 
-export { AnnotatedStatement };
+export { AnnotatedStatement, AnnotatedHighlight };
