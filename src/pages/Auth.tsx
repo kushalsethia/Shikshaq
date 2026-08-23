@@ -6,25 +6,33 @@ import { toast } from 'sonner';
 import { Loader2, MessageCircle, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
-import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
 import { Logo } from '@/components/Logo';
+import { getSubjectPalette } from '@/lib/subject-palette';
 
-/* C-032 — proof mosaic above the fold. Counts are real (Supabase), never hardcoded; the pill
-   is simply not rendered until its count arrives. */
+/* C-032 / handoff AU-003a — proof counts above the fold. Counts are real
+   (Supabase), never hardcoded; the sticker that needs one simply doesn't
+   render until it arrives. Maths/Science added for the sticker cluster's
+   two subject pills. */
 function useAuthProofCounts() {
   const [teacherCount, setTeacherCount] = useState<number | null>(null);
   const [paperCount, setPaperCount] = useState<number | null>(null);
+  const [mathsCount, setMathsCount] = useState<number | null>(null);
+  const [scienceCount, setScienceCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [{ count: teachers }, { count: papers }] = await Promise.all([
+        const [{ count: teachers }, { count: papers }, { count: maths }, { count: science }] = await Promise.all([
           supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
           supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+          supabase.from('teachers_list').select('id', { count: 'exact', head: true }).ilike('subjects', '%Maths%'),
+          supabase.from('teachers_list').select('id', { count: 'exact', head: true }).ilike('subjects', '%Science%'),
         ]);
         if (!cancelled) {
           if (typeof teachers === 'number') setTeacherCount(teachers);
           if (typeof papers === 'number') setPaperCount(papers);
+          if (typeof maths === 'number') setMathsCount(maths);
+          if (typeof science === 'number') setScienceCount(science);
         }
       } catch {
         // Counts stay null; the pills that need them simply don't render (design.md §0.10).
@@ -34,12 +42,8 @@ function useAuthProofCounts() {
       cancelled = true;
     };
   }, []);
-  return { teacherCount, paperCount };
+  return { teacherCount, paperCount, mathsCount, scienceCount };
 }
-
-const FIELD_BASE =
-  'w-full box-border min-h-12 px-4 py-3 rounded-lg bg-card text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline shikshaq-auth-field';
-const FIELD_ERROR = 'ring-destructive';
 
 const emailSchema = z.string().email('Please enter a valid email');
 const passwordSchema = z.string()
@@ -69,6 +73,11 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  // Owner mobile-QA fix (bug 3): the email/password path used to render as a
+  // full form directly under Google, matching its visual weight. Google is
+  // now the sole primary CTA (bug 1) and email sign-in is a de-emphasized
+  // entry point below it — the form only mounts once this is toggled on.
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [processingOAuth, setProcessingOAuth] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -92,7 +101,7 @@ export default function Auth() {
     loading: authLoading
   } = useAuth();
   const navigate = useNavigate();
-  const { teacherCount, paperCount } = useAuthProofCounts();
+  const { paperCount, mathsCount, scienceCount } = useAuthProofCounts();
 
   // Save redirect on mount (backup — primary save happens at the click source)
   useEffect(() => {
@@ -285,6 +294,13 @@ export default function Auth() {
      reading it needs the actual reason, not "something went wrong". */
   const [magicSent, setMagicSent] = useState(false);
   const [magicLoading, setMagicLoading] = useState(false);
+  // Whether the form is in "email me a link" mode. Separate from the
+  // send itself: toggling this just swaps which fields/CTA show — it must
+  // not fire validation or the send request on its own (that used to happen
+  // because the toggle button called handleMagicLink directly, which meant
+  // clicking it with an empty Email field immediately painted a destructive
+  // ring, as if the user had made an error before typing anything).
+  const [magicLinkMode, setMagicLinkMode] = useState(false);
 
   const handleMagicLink = async () => {
     setErrors({});
@@ -301,6 +317,12 @@ export default function Auth() {
       return;
     }
     setMagicSent(true);
+  };
+
+  const toggleMagicLinkMode = () => {
+    setMagicLinkMode((prev) => !prev);
+    setErrors({});
+    setMagicSent(false);
   };
 
   const handleGoogleSignIn = async () => {
@@ -380,13 +402,17 @@ export default function Auth() {
     }
   };
 
-  // Segmented tab pill — switches sign-in / create-account mode.
-  // Same state reset the old bottom-of-form toggle used to perform.
+  // Switches sign-in / create-account mode. Formerly driven by a segmented
+  // tab pill above the Google button (owner mobile-QA fix, bug 2); now
+  // triggered by the small "Create an account" / "Sign in" link that sits
+  // under the email form's submit button once that form is open.
   const switchAuthMode = (loginMode: boolean) => {
     if (isLogin === loginMode) return;
     setIsLogin(loginMode);
     setErrors({});
     setFormData({ fullName: '', email: '', password: '', confirmPassword: '', newPassword: '', confirmNewPassword: '' });
+    setMagicLinkMode(false);
+    setMagicSent(false);
   };
 
   // Show loading state while processing OAuth callback
@@ -409,91 +435,101 @@ export default function Auth() {
   // not exist in this app (Supabase email/password + Google only), so the
   // dark field row is reused for the real password form instead — reported.
   const DARK_FIELD =
-    'w-full box-border min-h-[54px] h-[54px] px-4 rounded-[14px] bg-white/[0.08] text-[15px] text-background placeholder:text-background/40 outline-none shikshaq-auth-field';
+    'w-full box-border min-h-[54px] h-[54px] px-4 rounded-xl bg-white/[0.08] text-[15px] text-background placeholder:text-background/40 outline-none shikshaq-auth-field';
   const DARK_FIELD_ERROR = 'ring-2 ring-destructive';
+  const mathsPalette = getSubjectPalette('Maths');
+  const sciencePalette = getSubjectPalette('Science');
 
   return (
-    <div className="flex min-h-screen flex-col bg-panel">
-      {/* Header — logo (doubles as "back to home") + Skip, per mockup S6 */}
-      <header className="flex items-center justify-between gap-3 px-5 pt-5">
-        <Logo size="md" onDark ariaLabel="Back to home" />
-        <Link
-          to="/"
-          className="inline-flex min-h-11 items-center px-2 py-1 text-[13px] font-semibold text-background/55"
-        >
-          Skip
-        </Link>
-      </header>
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Handoff AU-003: the page splits into two stacked blocks with a 6px
+          seam, instead of one flat near-black ground. Desktop keeps the same
+          two blocks side by side rather than stacked (06's own geometry
+          appendix only specifies the 375px stack; this is the least-surprise
+          desktop analogue). */}
+      <div className="lg:mx-auto lg:flex lg:w-full lg:max-w-[1160px] lg:flex-1 lg:items-center lg:justify-center lg:gap-8 lg:px-10 lg:py-10">
 
-      {/* C-032 — scattered proof mosaic, positions/rotations per mockup S6 */}
-      {/* overflow-hidden below: the pills are rotated, and rotation grows the
-          bounding box, so the outermost ones pushed 2px past the viewport and
-          created horizontal scroll at 390px. Mockup S6 shows them bleeding off
-          the edge anyway, so clipping is the correct look as well as the fix. */}
-      {!showResetPassword && (
-        <div
-          className="relative mx-auto mt-2 h-[400px] w-full max-w-[470px] overflow-hidden px-5"
-          aria-hidden="true"
-        >
-          {/* The mosaic's four pale pills are four DIFFERENT hues in
-              "Redesign Account screens.dc.html" — blue hsl(210 62% 93%), mint
-              hsl(168 45% 93%), purple hsl(262 52% 93%), each with its own 26%
-              ink. The build reused brand-blue-subtle for two of them and
-              brand-subtle for the third, so the scatter read as two colours
-              repeating instead of a spread of real subjects. These are literal
-              spec values, not tokens, because the mosaic is deliberately
-              outside the palette — it is standing in for many subjects. */}
-          <span
-            className="absolute left-[2%] top-[6%] -rotate-6 whitespace-nowrap rounded-full px-[14px] py-[9px] font-display text-[15px] font-extrabold"
-            style={{ background: 'hsl(210 62% 93%)', color: 'hsl(210 45% 26%)' }}
-          >
-            Maths, Ballygunge
-          </span>
-          {(teacherCount ?? 0) > 0 && (
-            <span className="absolute right-0 top-[22%] rotate-[4deg] whitespace-nowrap rounded-full bg-brand px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-foreground">
-              {teacherCount} verified tutors
-            </span>
+        {/* Orange hero block (AU-003 point 1) — nav row, eyebrow, h1, sticker
+            cluster. This block is the page's whole accent budget. */}
+        <div className="rounded-b-bento bg-brand px-5 pb-[26px] lg:flex-1 lg:rounded-bento lg:self-stretch">
+          <header className="flex items-center justify-between gap-3 pt-5">
+            <Logo size="md" ariaLabel="Back to home" />
+            <Link
+              to="/"
+              className="inline-flex min-h-11 items-center px-2 py-1 text-[13px] font-semibold text-[rgba(31,31,31,.6)]"
+            >
+              Skip
+            </Link>
+          </header>
+
+          {showResetPassword ? (
+            <h1 className="mt-6 font-display text-[34px] font-black leading-[1.02] tracking-[-0.04em] text-[#1F1F1F]">
+              Reset your password
+            </h1>
+          ) : (
+            <>
+              {/* Handoff AU-004: eyebrow on the orange block. */}
+              <p className="mt-6 text-[11.5px] font-bold uppercase tracking-[0.08em] text-[rgba(31,31,31,.6)]">
+                Free, always
+              </p>
+              {/* h1 46px/.92/-0.055em/400, "then talk" highlighted at 900 on
+                  a bg-panel block. Line breaks are fixed. */}
+              <h1 className="mt-1 font-display text-[46px] font-normal leading-[.92] tracking-[-0.055em] text-[#1F1F1F]">
+                One tap,<br />
+                <span className="inline-block -mx-[6px] rounded-[10px] bg-panel px-[6px] font-black text-[#FCFAF7]">then talk</span><br />
+                to the teacher.
+              </h1>
+
+              {/* Handoff AU-003a: sticker cluster replaces the mosaic — an
+                  86px well under the h1, four stickers at fixed rotations. */}
+              <div className="relative mt-5 h-[86px]" aria-hidden="true">
+                {mathsCount != null && mathsCount > 0 && (
+                  <span
+                    className="absolute left-0 top-0 inline-flex h-9 -rotate-6 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-extrabold shadow-[0_6px_18px_rgba(0,0,0,.10)]"
+                    style={{ backgroundColor: mathsPalette.tint, color: mathsPalette.text }}
+                  >
+                    Maths · {mathsCount}
+                  </span>
+                )}
+                {scienceCount != null && scienceCount > 0 && (
+                  <span
+                    className="absolute right-0 top-[10px] inline-flex h-9 rotate-[4deg] items-center whitespace-nowrap rounded-full px-4 text-[14px] font-extrabold shadow-[0_6px_18px_rgba(0,0,0,.10)]"
+                    style={{ backgroundColor: sciencePalette.tint, color: sciencePalette.text }}
+                  >
+                    Science · {scienceCount}
+                  </span>
+                )}
+                {(paperCount ?? 0) > 0 && (
+                  <span className="absolute bottom-[10px] left-[6%] inline-flex h-9 rotate-[7deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-4 text-[14px] font-extrabold text-brand-blue-deep shadow-[0_6px_18px_rgba(0,0,0,.10)]">
+                    {paperCount} papers
+                  </span>
+                )}
+                <span className="absolute bottom-0 right-[8%] flex h-8 w-8 -rotate-[10deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text shadow-[0_6px_18px_rgba(0,0,0,.10)]">
+                  <MessageCircle size={16} fill="currentColor" strokeWidth={0} />
+                </span>
+              </div>
+            </>
           )}
-          <span
-            className="absolute left-[6%] top-[40%] rotate-3 whitespace-nowrap rounded-full px-[14px] py-[9px] font-display text-[15px] font-extrabold"
-            style={{ background: 'hsl(168 45% 93%)', color: 'hsl(168 45% 26%)' }}
-          >
-            Chemistry prelims
-          </span>
-          {/* > 0, not !== null. design.md §3.2 forbids advertising emptiness,
-              and the paper library is genuinely empty right now, so this
-              rendered a literal "0 free papers" badge on the sign-in screen.
-              A count of zero drops the sticker instead. */}
-          {(paperCount ?? 0) > 0 && (
-            <span className="absolute right-[6%] top-[57%] -rotate-[4deg] whitespace-nowrap rounded-full bg-brand-blue px-[14px] py-[9px] font-display text-[15px] font-extrabold text-brand-blue-foreground">
-              {paperCount} free papers
-            </span>
-          )}
-          <span
-            className="absolute bottom-[6%] left-0 rotate-[5deg] whitespace-nowrap rounded-full px-[14px] py-[9px] font-display text-[15px] font-extrabold"
-            style={{ background: 'hsl(262 52% 93%)', color: 'hsl(262 45% 26%)' }}
-          >
-            English, Class 12
-          </span>
-          <span className="absolute bottom-[14%] right-[2%] flex h-14 w-14 -rotate-[8deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text">
-            <MessageCircle size={26} fill="currentColor" strokeWidth={0} />
-          </span>
         </div>
-      )}
 
-      <main className="flex-1 pb-8">
-        <div className="mx-auto w-full max-w-[470px] px-5 pt-2">
+        {/* 6px seam of page ground between the two blocks (stacked only). */}
+        <div aria-hidden className="h-seam bg-background lg:hidden" />
+
+      {/* pb-40 on mobile: /auth is a chromeless route with no bottom tab bar,
+          but the global help FAB (Chatbot.tsx) still parks at bottom-[88px]
+          right-6 on routes without one — sized to clear a tab bar this page
+          doesn't have. Extra bottom padding here keeps the disclaimer text
+          from sitting under the 56px circle (88px-144px from viewport
+          bottom) instead of trying to make the shared FAB route-aware.
+          Handoff AU-003 point 2: near-black sign-in block, bg-panel
+          rounded-bento p-[22px_20px] flex-1. */}
+      <main className="flex-1 rounded-bento bg-panel p-[22px_20px] pb-40 lg:flex-1 lg:pb-[22px]">
+        <div className="mx-auto w-full max-w-[470px] lg:mx-0">
           <div className="flex flex-col gap-[18px]">
             <div>
-              {!showResetPassword && (
-                <p className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-background/55">
-                  Free, always
-                </p>
-              )}
-              <h1 className="font-display text-[34px] font-black leading-[1.02] tracking-[-0.04em] text-background">
-                {showResetPassword ? 'Reset your password' : 'One tap, then talk to the teacher.'}
-              </h1>
-              <p className="mt-3 text-[14.5px] leading-relaxed text-background/70">
+              {/* Handoff AU-004: sub-line moves here, first element of the
+                  dark block. */}
+              <p className="text-[14.5px] leading-[1.6] text-[rgba(249,245,241,.7)]">
                 {showResetPassword
                   ? 'Enter your new password below'
                   : isLogin
@@ -502,43 +538,34 @@ export default function Auth() {
               </p>
             </div>
 
-            {/* Segmented tab pill — Sign in / Create account */}
-            {!showResetPassword && (
-              <div className="flex gap-1 rounded-2xl bg-white/[0.08] p-1">
-                <button
-                  type="button"
-                  onClick={() => switchAuthMode(true)}
-                  className={`shikshaq-tap min-h-11 flex-1 rounded-[10px] p-3 text-center text-sm font-semibold transition-all duration-150 ${isLogin ? 'bg-background text-foreground shadow-border' : 'bg-transparent text-background/70'}`}
-                >
-                  Sign in
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchAuthMode(false)}
-                  className={`shikshaq-tap min-h-11 flex-1 rounded-[10px] p-3 text-center text-sm font-semibold transition-all duration-150 ${!isLogin ? 'bg-background text-foreground shadow-border' : 'bg-transparent text-background/70'}`}
-                >
-                  Create account
-                </button>
-              </div>
-            )}
-
-            {/* Google button + divider — every screen except password reset */}
+            {/* Owner mobile-QA fix (bugs 1 & 2): the sign-in/create-account
+                segmented tab pill is removed — Google/email auth here is
+                mode-agnostic (signUpWithEmail vs signInWithEmail still run
+                as separate Supabase calls, gated below by isLogin, but the
+                mode no longer needs a prominent tab switcher up top). Google
+                is now the immediate, sole, full-weight CTA right after the
+                h1/sentence; email sign-in is a small link beneath it (see
+                showEmailForm), and switching sign-in/create-account is a
+                small inline link near the email form's submit button. */}
             {!showResetPassword && (
               <div className="flex flex-col gap-[10px]">
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
-                  className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-[10px] rounded-[14px] bg-background text-[15px] font-bold text-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98]"
+                  className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-[10px] rounded-[18px] bg-background text-[15px] font-bold text-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98]"
                 >
                   <GoogleIcon size={20} />
                   Continue with Google
                 </button>
-                <div className="my-[2px] flex items-center gap-[10px]">
-                  <span className="h-px flex-1 bg-white/[0.14]" />
-                  <span className="text-[11.5px] text-background/45">or</span>
-                  <span className="h-px flex-1 bg-white/[0.14]" />
-                </div>
-
+                {!showForgotPassword && (
+                  <button
+                    type="button"
+                    onClick={() => setShowEmailForm((prev) => !prev)}
+                    className="shikshaq-tap mx-auto mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-background/60 underline underline-offset-2"
+                  >
+                    {showEmailForm ? 'Hide email sign-in' : 'Sign in with email'}
+                  </button>
+                )}
               </div>
             )}
 
@@ -578,15 +605,27 @@ export default function Auth() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-brand-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[18px] bg-brand text-[15px] font-bold text-brand-foreground hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                   {loading ? 'Updating password...' : 'Update Password'}
                 </button>
               </form>
-            ) : (
-              /* Regular Sign In / Sign Up form */
-              <form onSubmit={isLogin ? handleSignIn : handleSignUp} className="flex flex-col gap-4">
+            ) : (showEmailForm || showForgotPassword) && (
+              /* Regular Sign In / Sign Up form — mounted only once the
+                 "Sign in with email" link (or, once inside it, "Forgot
+                 password?") has been used; see showEmailForm above. */
+              <form
+                onSubmit={(e) => {
+                  if (magicLinkMode) {
+                    e.preventDefault();
+                    handleMagicLink();
+                    return;
+                  }
+                  return isLogin ? handleSignIn(e) : handleSignUp(e);
+                }}
+                className="flex flex-col gap-4"
+              >
                 {!isLogin && (
                   <div className="animate-fade-slide-up">
                     <label htmlFor="fullName" className="mb-2 block text-sm font-semibold text-background">Full name</label>
@@ -629,26 +668,31 @@ export default function Auth() {
                         before there is anywhere to type. Password sign-in
                         continues below; this is the default path, not the only
                         one, because eight existing accounts have passwords. */}
-                    {magicSent ? (
-                      <p className="mt-3 rounded-[14px] bg-white/[0.08] px-4 py-3 text-[14px] leading-[1.5] text-background/80">
+                    {isLogin && (magicSent ? (
+                      <p className="mt-3 rounded-[18px] bg-white/[0.08] px-4 py-3 text-[14px] leading-[1.5] text-background/80">
                         Link sent to <span className="font-semibold text-background">{formData.email}</span>. Open it on
-                        this device and you are in — no password needed.
+                        this device and you are in, no password needed.
                       </p>
                     ) : (
+                      /* Demoted to a plain-text toggle, not a second full-weight
+                         button: Google is the one dominant CTA on this screen
+                         (pages.md §8), and the password "Sign in" button below
+                         is the form's own submit action. A second orange
+                         54px button here competed with both. */
                       <button
                         type="button"
-                        onClick={handleMagicLink}
+                        onClick={toggleMagicLinkMode}
                         disabled={magicLoading}
-                        className="shikshaq-tap mt-3 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-brand-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="shikshaq-tap mt-2 inline-flex min-h-11 items-center gap-1.5 text-[13.5px] font-semibold text-indigo-link-on-dark disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {magicLoading ? 'Sending…' : 'Send me a link'}
-                        {!magicLoading && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                        {magicLinkMode ? 'Or sign in with a password instead' : 'Or email me a sign-in link instead'}
+                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                       </button>
-                    )}
+                    ))}
                   </div>
                 )}
 
-                {!showForgotPassword && (
+                {!showForgotPassword && !magicLinkMode && (
                   <div>
                     <div className="mb-2 flex items-center justify-between">
                       <label htmlFor="password" className="text-sm font-semibold text-background">Password</label>
@@ -660,7 +704,7 @@ export default function Auth() {
                             setErrors({});
                             setFormData({ ...formData, password: '' });
                           }}
-                          className="shikshaq-tap -my-3 inline-flex min-h-11 items-center px-1 text-sm font-semibold text-brand-blue-subtle"
+                          className="shikshaq-tap -my-3 inline-flex min-h-11 items-center px-1 text-sm font-semibold text-indigo-link-on-dark"
                         >
                           Forgot password?
                         </button>
@@ -707,7 +751,7 @@ export default function Auth() {
                           setErrors({});
                           setFormData({ ...formData, email: '' });
                         }}
-                        className="shikshaq-tap min-h-12 flex-1 rounded-[14px] bg-white/[0.08] text-sm font-semibold text-background"
+                        className="shikshaq-tap min-h-12 flex-1 rounded-[18px] bg-white/[0.08] text-sm font-semibold text-background hover:-translate-y-0.5"
                       >
                         Back
                       </button>
@@ -715,7 +759,7 @@ export default function Auth() {
                         type="button"
                         onClick={handleForgotPassword}
                         disabled={loading}
-                        className="shikshaq-tap flex min-h-12 flex-1 items-center justify-center gap-2 rounded-[14px] bg-brand text-sm font-semibold text-brand-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                        className="shikshaq-tap flex min-h-12 flex-1 items-center justify-center gap-2 rounded-[18px] bg-brand text-sm font-semibold text-brand-foreground hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                       >
                         {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                         {loading ? 'Sending...' : 'Send Reset Link'}
@@ -742,37 +786,72 @@ export default function Auth() {
                   </div>
                 )}
 
-                {!showForgotPassword && (
+                {!showForgotPassword && !(magicLinkMode && magicSent) && (
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-[15px] font-bold text-brand-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:active:scale-100"
+                    disabled={magicLinkMode ? magicLoading : loading}
+                    className="shikshaq-tap flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[18px] bg-brand text-[15px] font-bold text-brand-foreground transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:active:scale-100"
                   >
-                    {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                    {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
+                    {(magicLinkMode ? magicLoading : loading) && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                    {magicLinkMode
+                      ? (magicLoading ? 'Sending link...' : 'Send link')
+                      : (loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account')}
                   </button>
                 )}
               </form>
             )}
 
+            {/* Owner mobile-QA fix (bug 2): replaces the removed segmented
+                tab pill as the only way to reach sign-up — kept small and
+                textual rather than a competing full-weight control. Only
+                shown once the email form is actually open. */}
+            {showEmailForm && !showForgotPassword && !magicLinkMode && (
+              <p className="text-center text-[13.5px] text-background/60">
+                {isLogin ? 'New here? ' : 'Already have an account? '}
+                <button
+                  type="button"
+                  onClick={() => switchAuthMode(!isLogin)}
+                  className="shikshaq-tap font-semibold text-indigo-link-on-dark underline underline-offset-2"
+                >
+                  {isLogin ? 'Create an account' : 'Sign in'}
+                </button>
+              </p>
+            )}
+
+            {/* Handoff AU-007 (new): names what signing in actually unlocks —
+                the gate sheets elsewhere say this, this page never did. */}
+            {!showResetPassword && !showForgotPassword && (
+              <div className="rounded-[20px] bg-white/[0.06] p-4">
+                <p className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-[rgba(249,245,241,.5)]">
+                  Why sign in
+                </p>
+                <p className="mt-1.5 text-[14px] leading-[1.55] text-[rgba(249,245,241,.75)]">
+                  Message teachers on WhatsApp, save a shortlist, and open past papers. No fees, ever.
+                </p>
+              </div>
+            )}
+
             {!showResetPassword && !showForgotPassword && (
               <p className="text-[12px] leading-relaxed text-background/45">
                 By continuing you agree to our{' '}
-                <Link to="/terms-of-service" className="-my-3.5 inline-flex min-h-11 items-center px-0.5 align-middle font-semibold text-background/70 underline">
+                {/* target="_blank" — not a client-side <Link> — so reading the legal
+                    text mid sign-up doesn't unmount this form and lose whatever the
+                    person already typed (name/email/password). Matches the same
+                    fix already applied on select-role and teacher-terms-agreement. */}
+                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="-my-3.5 inline-flex min-h-11 items-center px-0.5 align-middle font-semibold text-background/70 underline">
                   Terms of Service
-                </Link>{' '}
+                </a>{' '}
                 and{' '}
-                <Link to="/privacy-policy" className="-my-3.5 inline-flex min-h-11 items-center px-0.5 align-middle font-semibold text-background/70 underline">
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="-my-3.5 inline-flex min-h-11 items-center px-0.5 align-middle font-semibold text-background/70 underline">
                   Privacy Policy
-                </Link>
+                </a>
                 . Your number is never shared with a teacher until you message them.
               </p>
             )}
           </div>
         </div>
       </main>
-
-      <PreFooter variant={preFooterFor('/auth')} />
+      </div>
 
       <style>{`
         .shikshaq-auth-field { transition: box-shadow .15s ease; }
