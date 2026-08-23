@@ -1,12 +1,9 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/lib/auth-context';
-import { Footer } from '@/components/Footer';
-import { PreFooter } from '@/components/layout/PreFooter';
-import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
+import { saveAuthRedirect } from '@/utils/authRedirect';
 import { toast as sonnerToast } from 'sonner';
-import { SURFACE_TOKENS, ACCENT_TOKENS, MODE_TOKENS, EASE } from '@/utils/searchFacets';
+import { SURFACE_TOKENS } from '@/utils/searchFacets';
 import type { User } from '@supabase/supabase-js';
 
 /**
@@ -15,6 +12,13 @@ import type { User } from '@supabase/supabase-js';
  * AdminConsole (the layout shell) since a couple of callers need the
  * isAdmin/checkingAdmin flags before they've fetched their own data.
  */
+// The admin-role lookup must never hang the UI indefinitely — a stalled
+// request (bad connection, unreachable Supabase) used to leave every /admin/*
+// page stuck on its loading skeleton (or a blank `return null`) forever, with
+// no way to tell "unauthorized" apart from "broken". This timeout guarantees
+// the check always resolves to granted / denied / error within a bounded time.
+const ADMIN_CHECK_TIMEOUT_MS = 12000;
+
 export function useAdminGuard(
   user: User | null | undefined,
   opts?: { onGranted?: () => void; redirectOnDenied?: boolean }
@@ -22,28 +26,48 @@ export function useAdminGuard(
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     async function run() {
+      setCheckingAdmin(true);
+      setError(null);
+
       if (!user) {
         if (!cancelled) {
           setCheckingAdmin(false);
           setIsAdmin(false);
+          if (opts?.redirectOnDenied) {
+            saveAuthRedirect(window.location.pathname);
+            navigate(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+          }
         }
         return;
       }
 
       try {
-        const { data, error } = await supabase
-          .from('admins')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle();
+        const timeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('timeout')), ADMIN_CHECK_TIMEOUT_MS);
+        });
+        const { data, error: queryError } = await Promise.race([
+          supabase.from('admins').select('id').eq('id', user.id).maybeSingle(),
+          timeout,
+        ]);
 
         if (cancelled) return;
 
-        if (!error && data?.id === user.id) {
+        if (queryError) {
+          // A real error from the query (network, RLS, etc.) is not the same
+          // as "checked and you're not an admin" — surface it instead of
+          // silently denying/redirecting.
+          setIsAdmin(false);
+          setError("Couldn't verify your access — try again.");
+          return;
+        }
+
+        if (data?.id === user.id) {
           setIsAdmin(true);
           opts?.onGranted?.();
         } else {
@@ -53,7 +77,11 @@ export function useAdminGuard(
           }
         }
       } catch {
-        if (!cancelled) setIsAdmin(false);
+        // Includes the timeout above and any thrown/network failure.
+        if (!cancelled) {
+          setIsAdmin(false);
+          setError("Couldn't verify your access — try again.");
+        }
       } finally {
         if (!cancelled) setCheckingAdmin(false);
       }
@@ -64,9 +92,33 @@ export function useAdminGuard(
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, retryCount]);
 
-  return { isAdmin, checkingAdmin };
+  const retry = () => setRetryCount((n) => n + 1);
+
+  return { isAdmin, checkingAdmin, error, retry };
+}
+
+/**
+ * Shared error state for a failed/timed-out admin check — rendered by every
+ * /admin/* page in place of an indefinite skeleton or a silent blank page.
+ * Deliberately minimal (no rail/toolbar dependency on auth state) so it
+ * renders even if the surrounding shell also depends on admin data.
+ */
+export function AdminGuardErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-warm-page">
+      <div className={`mx-auto w-full max-w-sm p-8 text-center ${adminPanelStyle}`}>
+        <p className="text-[15.5px] font-semibold text-foreground">Couldn't verify your access</p>
+        <p className="mt-2 text-[13.5px] text-warm-prose">
+          We weren't able to confirm your admin permissions. Check your connection and try again.
+        </p>
+        <button type="button" onClick={onRetry} className={`mt-5 ${adminPrimaryBtnStyle}`}>
+          Try again
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -112,288 +164,12 @@ export function useReviewerNames(reviewerIds: (string | null | undefined)[]) {
   return names;
 }
 
-/**
- * Shared shell for every /admin/* console screen — see design-handoff
- * pages/AdminConsole.md. Six routes (applications, teachers, upvotes,
- * comments, feedback, recommendations) render through this shell so the
- * eyebrow, heading, tab rail, row shape, and toast style stay identical.
- * AdminPapers.tsx (upload/manage) is a separate, differently-shaped screen
- * and only reuses the row/button/pill primitives, not the tab rail.
- */
-
-export type AdminTabKey =
-  | 'applications'
-  | 'teachers'
-  | 'papers'
-  | 'upvotes'
-  | 'comments'
-  | 'feedback'
-  | 'recommendations';
-
-const TAB_ORDER: { key: AdminTabKey; label: string; path: string }[] = [
-  { key: 'applications', label: 'Applications', path: '/admin/applications' },
-  { key: 'teachers', label: 'Teachers', path: '/admin/teachers' },
-  { key: 'papers', label: 'Papers', path: '/admin/papers' },
-  { key: 'upvotes', label: 'Upvotes', path: '/admin/upvotes' },
-  { key: 'comments', label: 'Comments', path: '/admin/comments' },
-  { key: 'feedback', label: 'Feedback', path: '/admin/feedback' },
-  { key: 'recommendations', label: 'Recommendations', path: '/admin/recommendations' },
-];
-
-/**
- * Lightweight, read-only badge counts for the tab rail. Each admin page
- * that already has its own data loaded passes its own live number in via
- * `tabCount` (so the tab you're on updates instantly as you clear items);
- * the other five come from a cheap head-count query on mount so the rail
- * is never empty on first paint.
- */
-function useAdminTabCounts(activeTab: AdminTabKey, liveCount?: number) {
-  const [counts, setCounts] = useState<Partial<Record<AdminTabKey, number>>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      const [applications, comments, recommendations, feedback, teachers, upvotes, papers] = await Promise.all([
-        supabase.from('teacher_applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('approved', false),
-        supabase.from('teacher_recommendations').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('feedback').select('id', { count: 'exact', head: true }),
-        supabase.from('Shikshaqmine').select('id', { count: 'exact', head: true }),
-        supabase.from('teacher_upvotes').select('teacher_id', { count: 'exact', head: true }),
-        supabase.from('papers').select('id', { count: 'exact', head: true }),
-      ]);
-      if (cancelled) return;
-      setCounts({
-        applications: applications.count ?? undefined,
-        comments: comments.count ?? undefined,
-        recommendations: recommendations.count ?? undefined,
-        feedback: feedback.count ?? undefined,
-        teachers: teachers.count ?? undefined,
-        upvotes: upvotes.count ?? undefined,
-        papers: papers.count ?? undefined,
-      });
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (liveCount !== undefined) {
-    return { ...counts, [activeTab]: liveCount };
-  }
-  return counts;
-}
-
-interface AdminConsoleProps {
-  activeTab: AdminTabKey;
-  title: string;
-  subtitle: string;
-  tint: { bg: string; text: string };
-  /** Live count for the tab currently being viewed, computed from data the page already fetched. */
-  tabCount?: number;
-  /** Search field rendered in the 68px desktop toolbar, top-right. Omit if the page has no search. */
-  search?: ReactNode;
-  /** Sort control rendered in the toolbar next to search. Only pass when a real, meaningful
-   *  data column backs it (e.g. created_at) — never a fake/dead sort. */
-  sort?: ReactNode;
-  children: ReactNode;
-}
-
-export function AdminConsole({ activeTab, title, subtitle, tint, tabCount, search, sort, children }: AdminConsoleProps) {
-  const counts = useAdminTabCounts(activeTab, tabCount);
-  const { user, profile } = useAuth();
-
-  /* The rail said "Sourav · owner" for everyone — the mockup's placeholder,
-     shipped as a literal. Directly beneath it the panel reads "Every approve,
-     reject and edit is logged with your name", so the console was telling
-     whoever was signed in that their destructive actions are attributed to
-     someone else. The audit log records the real actor id, so the display was
-     also contradicting the data.
-
-     Same derivation the admin pages already use for the audit trail
-     (profile.full_name ?? email), so the name in the rail and the name in the
-     log are now the same string. */
-  const signedInName = profile?.full_name || user?.email || 'Signed-in admin';
-
-  // Redesign S7/C-061 — real per-section counts only, never a placeholder.
-  const shellNav: AdminNavItem[] = [
-    ...TAB_ORDER.map((tab) => ({
-      key: tab.key,
-      label: tab.label,
-      path: tab.path,
-      count: counts[tab.key],
-      active: tab.key === activeTab,
-    })),
-    // Audit log (admin-05) is a separately-shaped screen, like AdminPapers —
-    // it does not join the AdminTabKey union or the tab-count query, it just
-    // needs a rail entry so every other admin page can reach it.
-    { key: 'audit', label: 'Audit log', path: '/admin/audit', active: false },
-  ];
-  const activeCount = counts[activeTab];
-
-  const uploadLinks = (
-    <div style={{ display: 'flex', gap: 10, marginTop: 26, flexWrap: 'wrap' }}>
-      <Link
-        to="/admin/papers?tab=upload"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          minHeight: 46,
-          padding: '13px 20px',
-          borderRadius: 12,
-          fontSize: 13.5,
-          fontWeight: 600,
-          color: SURFACE_TOKENS.textPrimary,
-          background: SURFACE_TOKENS.field,
-          boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-        }}
-      >
-        Upload papers
-      </Link>
-      <Link
-        to="/admin/papers?tab=manage"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          minHeight: 46,
-          padding: '13px 20px',
-          borderRadius: 12,
-          fontSize: 13.5,
-          fontWeight: 600,
-          color: SURFACE_TOKENS.textPrimary,
-          background: SURFACE_TOKENS.field,
-          boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-        }}
-      >
-        Manage papers
-      </Link>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
-      {/* Desktop: S7 rail (fixed, near-black) — the one place desktop leads
-          (design.md §5). No fun layer — rule 10. */}
-      <AdminRail nav={shellNav} signedInName={signedInName} />
-
-      <div className="flex min-h-screen flex-col lg:pl-[244px]">
-        {/* Desktop toolbar, 68px. Mobile keeps its own header below. */}
-        <AdminToolbar
-          title={title}
-          badge={typeof activeCount === 'number' ? `${activeCount} waiting` : undefined}
-          search={search}
-          sort={sort}
-        />
-
-        {/* Mobile / tablet: the existing tab-row console (design.md §4 "Admin
-            (S12)") stays the on-call view, unchanged. */}
-        <div className="lg:hidden">
-        </div>
-
-        <main className="flex-1 w-full mx-auto lg:max-w-none" style={{ maxWidth: 1100 }}>
-          <div
-            className="lg:hidden"
-            style={{ padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 0' }}
-          >
-            <p style={{ fontSize: 13, fontWeight: 600, color: SURFACE_TOKENS.textTertiary }}>Admin console</p>
-            <h1
-              style={{
-                marginTop: 8,
-                fontSize: 'clamp(25px,3.4vw,38px)',
-                lineHeight: 1,
-                fontWeight: 700,
-                color: SURFACE_TOKENS.textPrimary,
-                letterSpacing: '-.05em',
-              }}
-            >
-              {title}
-            </h1>
-            <p style={{ marginTop: 10, fontSize: 15, color: SURFACE_TOKENS.textSecondary }}>{subtitle}</p>
-
-            <nav
-              aria-label="Admin sections"
-              style={{
-                display: 'flex',
-                gap: 6,
-                marginTop: 22,
-                padding: 5,
-                width: 'max-content',
-                maxWidth: '100%',
-                borderRadius: 999,
-                background: SURFACE_TOKENS.mutedFill,
-                overflowX: 'auto',
-                scrollbarWidth: 'none',
-              }}
-            >
-              {TAB_ORDER.map((tab) => {
-                const active = tab.key === activeTab;
-                const count = counts[tab.key];
-                return (
-                  <Link
-                    key={tab.key}
-                    to={tab.path}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      minHeight: 42,
-                      padding: '11px 18px',
-                      borderRadius: 999,
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      whiteSpace: 'nowrap',
-                      background: active ? SURFACE_TOKENS.field : 'transparent',
-                      color: active ? SURFACE_TOKENS.textPrimary : SURFACE_TOKENS.textBody,
-                      boxShadow: active ? `0 0 0 1px ${SURFACE_TOKENS.hairline}` : 'none',
-                      transition: `background .2s ${EASE}, box-shadow .2s ${EASE}`,
-                    }}
-                  >
-                    {tab.label}
-                    {typeof count === 'number' && (
-                      <span style={{ marginLeft: 8, opacity: 0.55 }}>{count}</span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* Shared body — rendered once, used by both breakpoints. */}
-          <div
-            className="lg:mx-auto lg:w-full lg:max-w-[1100px]"
-            style={{ padding: 'clamp(16px,3vw,28px)' }}
-          >
-            <p className="mb-5 hidden max-w-prose text-body-secondary text-warm-prose lg:block">{subtitle}</p>
-            {children}
-            {uploadLinks}
-          </div>
-        </main>
-
-        <PreFooter variant="B4" />
-        <Footer />
-      </div>
-    </div>
-  );
-}
-
 // ---- Shared row / pill / button primitives (used by AdminConsole routes and AdminPapers) ----
 
-export const adminRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  alignItems: 'center',
-  gap: 14,
-  padding: '18px 20px',
-  borderRadius: 18,
-  background: SURFACE_TOKENS.field,
-  boxShadow: '0 0 0 1px rgba(0,0,0,.06), 0 2px 4px rgba(0,0,0,.04)',
-};
+export const adminRowStyle =
+  'flex flex-wrap items-center gap-3.5 rounded-[18px] bg-warm-card px-5 py-[18px] shadow-[0_0_0_1px_rgba(0,0,0,.06),0_2px_4px_rgba(0,0,0,.04)]';
 
-export const adminRowListStyle: CSSProperties = {
-  display: 'grid',
-  gap: 10,
-};
+export const adminRowListStyle = 'grid gap-2.5';
 
 export function AdminTile({
   tint,
@@ -404,19 +180,8 @@ export function AdminTile({
 }) {
   return (
     <div
-      style={{
-        width: 42,
-        height: 42,
-        borderRadius: 13,
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 15,
-        fontWeight: 700,
-        background: tint.bg,
-        color: tint.text,
-      }}
+      className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[13px] text-[15px] font-bold"
+      style={{ background: tint.bg, color: tint.text }}
     >
       {children}
     </div>
@@ -425,69 +190,32 @@ export function AdminTile({
 
 export type AdminPillTone = 'settled' | 'pending' | 'flagged' | 'destructive';
 
-const PILL_TONE_STYLE: Record<AdminPillTone, CSSProperties> = {
-  settled: { background: ACCENT_TOKENS.settledBg, color: ACCENT_TOKENS.settledText },
-  pending: { background: SURFACE_TOKENS.mutedFill, color: SURFACE_TOKENS.textBody },
-  flagged: { background: MODE_TOKENS.teachers.tintBg, color: MODE_TOKENS.teachers.tintText },
-  // hsl(var(--destructive)) — not a raw hex literal (design.md §0.1). ACCENT_TOKENS.destructive
-  // stays for the icon-only usages below that pre-date this component.
-  destructive: { background: 'hsl(var(--destructive) / 0.1)', color: 'hsl(var(--destructive))' },
+const PILL_TONE_CLASS: Record<AdminPillTone, string> = {
+  settled: 'bg-success-subtle-bg text-success-subtle-text',
+  pending: 'bg-warm-muted text-warm-prose',
+  flagged: 'bg-brand-subtle text-brand-deep',
+  // hsl(var(--destructive)) via the Tailwind `destructive` token, not a raw hex literal
+  // (design.md §0.1).
+  destructive: 'bg-destructive/10 text-destructive',
 };
 
 export function AdminPill({ tone, children }: { tone: AdminPillTone; children: ReactNode }) {
   return (
     <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        padding: '6px 12px',
-        borderRadius: 999,
-        fontSize: 11.5,
-        fontWeight: 700,
-        whiteSpace: 'nowrap',
-        ...PILL_TONE_STYLE[tone],
-      }}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 text-[11.5px] font-bold ${PILL_TONE_CLASS[tone]}`}
     >
       {children}
     </span>
   );
 }
 
-export const adminPrimaryBtnStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 6,
-  minHeight: 44,
-  padding: '11px 17px',
-  borderRadius: 12,
-  fontSize: 13,
-  fontWeight: 600,
-  background: SURFACE_TOKENS.ink,
-  color: '#fff',
-  border: 'none',
-};
+export const adminPrimaryBtnStyle =
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border-0 bg-panel px-[17px] text-[13px] font-semibold text-white';
 
-export const adminSecondaryBtnStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 6,
-  minHeight: 44,
-  padding: '11px 17px',
-  borderRadius: 12,
-  fontSize: 13,
-  fontWeight: 600,
-  background: SURFACE_TOKENS.field,
-  color: SURFACE_TOKENS.textPrimary,
-  boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-};
+export const adminSecondaryBtnStyle =
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-warm-card px-[17px] text-[13px] font-semibold text-foreground shadow-border';
 
-export const adminDestructiveBtnStyle: CSSProperties = {
-  ...adminSecondaryBtnStyle,
-  color: ACCENT_TOKENS.destructive,
-};
+export const adminDestructiveBtnStyle = `${adminSecondaryBtnStyle} text-facet-destructive`;
 
 /**
  * Single toast system for the admin console (see _rules.md #19 and
@@ -514,12 +242,7 @@ export function adminToast(message: string, opts?: { description?: string; undo?
   });
 }
 
-export const adminFieldStyle: CSSProperties = {
-  background: SURFACE_TOKENS.shell,
-  boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-  borderRadius: 12,
-  minHeight: 48,
-};
+export const adminFieldStyle = 'min-h-[48px] rounded-xl bg-warm-page shadow-border';
 
 /**
  * Squircle stat-tile row for admin console headers — the same device the dashboards use
@@ -529,32 +252,16 @@ export const adminFieldStyle: CSSProperties = {
  * a free device to reuse since it only ever renders numbers each page has already fetched.
  */
 export function AdminStatTiles({ stats }: { stats: { label: string; value: number | string }[] }) {
-  const fills = [SURFACE_TOKENS.field, MODE_TOKENS.papers.tintBg, SURFACE_TOKENS.mutedFill, ACCENT_TOKENS.settledBg];
+  const fills = ['bg-warm-card', 'bg-brand-blue-subtle', 'bg-warm-muted', 'bg-success-subtle-bg'];
   return (
     <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(${Math.min(stats.length, 4)}, minmax(0,1fr))`,
-        gap: 10,
-        marginBottom: 18,
-      }}
+      className="mb-[18px] grid gap-2.5"
+      style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 4)}, minmax(0,1fr))` }}
     >
       {stats.map((st, i) => (
-        <div
-          key={st.label}
-          style={{
-            borderRadius: 18,
-            padding: '14px 16px',
-            background: fills[i % fills.length],
-            boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.02em', textTransform: 'uppercase', color: SURFACE_TOKENS.textTertiary }}>
-            {st.label}
-          </div>
-          <div style={{ marginTop: 4, fontSize: 24, fontWeight: 700, color: SURFACE_TOKENS.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
-            {st.value}
-          </div>
+        <div key={st.label} className={`rounded-[18px] px-4 py-3.5 shadow-border ${fills[i % fills.length]}`}>
+          <div className="text-[11px] font-semibold uppercase tracking-[.02em] text-warm-label">{st.label}</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-foreground">{st.value}</div>
         </div>
       ))}
     </div>
@@ -575,8 +282,4 @@ export function AdminAuditFootnote() {
   );
 }
 
-export const adminPanelStyle: CSSProperties = {
-  background: SURFACE_TOKENS.field,
-  boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-  borderRadius: 20,
-};
+export const adminPanelStyle = 'rounded-[20px] bg-warm-card shadow-border';

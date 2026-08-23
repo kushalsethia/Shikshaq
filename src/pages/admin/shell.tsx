@@ -46,7 +46,7 @@ export function AdminRail({ nav, signedInName, className }: AdminRailProps) {
     >
       <div className="flex items-center gap-[10px]">
         <Logo className="h-7 w-auto brightness-0 invert" />
-        <span className="inline-flex h-[22px] items-center rounded-full bg-white/12 px-[9px] text-[10.5px] font-extrabold tracking-[.06em] text-white/75">
+        <span className="inline-flex h-[22px] items-center rounded-full bg-background/12 px-[9px] text-[10.5px] font-extrabold tracking-[.06em] text-background/75">
           ADMIN
         </span>
       </div>
@@ -59,15 +59,15 @@ export function AdminRail({ nav, signedInName, className }: AdminRailProps) {
             aria-current={item.active ? 'page' : undefined}
             className={cn(
               'flex h-11 items-center gap-[11px] rounded-xl px-3 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel',
-              item.active ? 'bg-white/12 font-bold text-white' : 'font-semibold text-white/62 hover:bg-white/8 hover:text-white',
+              item.active ? 'bg-background/12 font-bold text-background' : 'font-semibold text-background/62 hover:bg-background/8 hover:text-background',
             )}
           >
             <span className="flex-1">{item.label}</span>
             {typeof item.count === 'number' ? (
               <span
                 className={cn(
-                  'inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-[7px] text-[11.5px] font-bold',
-                  item.active ? 'bg-brand text-brand-foreground' : 'bg-white/12 text-white/70',
+                  'inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-[7px] text-[11.5px] font-bold tabular-nums',
+                  item.active ? 'bg-brand text-brand-foreground' : 'bg-background/12 text-background/70',
                 )}
               >
                 {item.count}
@@ -77,10 +77,10 @@ export function AdminRail({ nav, signedInName, className }: AdminRailProps) {
         ))}
       </nav>
 
-      <div className="mt-auto rounded-2xl bg-white/6 p-[14px]">
-        <div className="text-[11px] font-bold uppercase tracking-[.07em] text-white/45">Signed in</div>
-        <div className="mt-[5px] text-sm font-bold text-white">{signedInName}</div>
-        <div className="mt-0.5 text-[12.5px] leading-[1.45] text-white/55">
+      <div className="mt-auto rounded-2xl bg-background/6 p-[14px]">
+        <div className="text-[11px] font-bold uppercase tracking-[.07em] text-background/45">Signed in</div>
+        <div className="mt-[5px] text-sm font-bold text-background">{signedInName}</div>
+        <div className="mt-0.5 text-[12.5px] leading-[1.45] text-background/55">
           Every approve, reject and edit is logged with your name.
         </div>
       </div>
@@ -107,7 +107,7 @@ export function AdminToolbar({ title, badge, search, sort, className }: AdminToo
       <div className="flex items-center gap-[14px]">
         <span className="font-display text-[22px] font-extrabold tracking-[-0.03em] text-foreground">{title}</span>
         {badge ? (
-          <span className="inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-brand-subtle px-[11px] text-xs font-bold text-brand-deep">
+          <span className="inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-brand-subtle px-[11px] text-xs font-bold tabular-nums text-brand-deep">
             {badge}
           </span>
         ) : null}

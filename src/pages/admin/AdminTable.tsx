@@ -62,10 +62,12 @@ export interface AdminTableProps {
   columns: AdminTableColumn[];
   rows: AdminTableRow[];
   className?: string;
+  /** A5 audit log: hides the action column entirely, both grid and mobile list. */
+  readOnly?: boolean;
 }
 
 /** One shared column template — every section passes its own columns/rows. */
-export function AdminTable({ columns, rows, className }: AdminTableProps) {
+export function AdminTable({ columns, rows, className, readOnly }: AdminTableProps) {
   /* Every row renders a trailing action cell (primary button + optional
      overflow disc) unconditionally below — it isn't one of the caller's
      declared `columns`. Some callers compensate by adding their own matching
@@ -94,76 +96,134 @@ export function AdminTable({ columns, rows, className }: AdminTableProps) {
   const dataColumns = columns.filter((c) => c.key !== 'actions');
   const gridTemplate = [
     ...dataColumns.map((c, i) => (i === 0 ? `minmax(160px, ${c.width})` : c.width)),
-    'auto',
+    ...(readOnly ? [] : ['auto']),
   ].join(' ');
 
-  return (
-    <div className={cn('overflow-x-auto overflow-y-hidden rounded-[20px] bg-card shadow-border', className)}>
-      <div
-        className="grid gap-4 bg-muted px-5 py-[14px]"
-        style={{ gridTemplateColumns: gridTemplate }}
+  const actions = (row: AdminTableRow) => (
+    <div className="flex gap-2">
+      {/* Mockup draws these controls at 38px. Rule 4 (BRIEF.md) forbids
+          regressing the tap target, so the visible pill stays 38px while
+          the button element itself is the full 44px hit area. */}
+      <button
+        type="button"
+        onClick={row.onAction}
+        className="inline-flex h-11 items-center justify-center whitespace-nowrap rounded-[11px] px-[3px] text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        {dataColumns.map((c) => (
-          <span key={c.key} className="text-[11.5px] font-bold uppercase tracking-[.07em] text-warm-label">
-            {c.label}
+        <span className="inline-flex h-[38px] items-center whitespace-nowrap rounded-[11px] bg-foreground px-[15px]">
+          {row.actionLabel}
+        </span>
+      </button>
+      {row.onOverflow ? (
+        <button
+          type="button"
+          onClick={row.onOverflow}
+          aria-label="More actions"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-[11px] text-warm-prose transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <span className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-muted">
+            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
           </span>
+        </button>
+      ) : null}
+    </div>
+  );
+
+  return (
+    <div className={cn('rounded-[20px] bg-card shadow-border', className)}>
+      {/* Desktop / tablet: the original grid, lg: and up. Horizontal scroll only
+          ever applied here — never as the mobile fallback. */}
+      <div className="hidden overflow-x-auto overflow-y-hidden rounded-[20px] lg:block">
+        <div
+          className="grid gap-4 bg-muted px-5 py-[14px]"
+          style={{ gridTemplateColumns: gridTemplate }}
+        >
+          {dataColumns.map((c) => (
+            <span key={c.key} className="text-[11.5px] font-bold uppercase tracking-[.07em] text-warm-label">
+              {c.label}
+            </span>
+          ))}
+        </div>
+
+        {rows.map((row) => (
+          <div
+            key={row.id}
+            className="grid items-center gap-4 border-t border-warm-hairline px-5 py-[15px] transition-colors duration-150 hover:bg-muted/50"
+            style={{ gridTemplateColumns: gridTemplate }}
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              {row.initial ? (
+                <span className="stripe-placeholder flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] text-[15px] font-semibold text-foreground/40">
+                  {row.initial}
+                </span>
+              ) : null}
+              <div className="min-w-0">
+                <div className="truncate text-[14.5px] font-bold text-foreground">{row.title}</div>
+                {row.subtitle ? <div className="mt-px truncate text-[12.5px] text-warm-label">{row.subtitle}</div> : null}
+              </div>
+            </div>
+
+            {row.cells.map((cell, i) => (
+              // min-w-0 lets a grid item shrink below its content's intrinsic
+              // width (the grid default is min-width:auto, which otherwise
+              // refuses to shrink and pushes the row wider than the fr track
+              // it was given — the same class of bug documented above for the
+              // first column). truncate then keeps a long cell (a joined
+              // subjects/boards string, a long paper title) from silently
+              // widening its column and knocking every row out of alignment
+              // with the header.
+              <span key={i} className="min-w-0 truncate text-[13.5px] leading-[1.45] text-warm-prose">
+                {cell}
+              </span>
+            ))}
+
+            <AdminStatePill tone={row.tone}>{row.tag}</AdminStatePill>
+
+            {readOnly ? null : actions(row)}
+          </div>
         ))}
       </div>
 
-      {rows.map((row) => (
-        <div
-          key={row.id}
-          className="grid items-center gap-4 border-t border-warm-hairline px-5 py-[15px]"
-          style={{ gridTemplateColumns: gridTemplate }}
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            {row.initial ? (
-              <span className="stripe-placeholder flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] text-[15px] font-semibold text-foreground/40">
-                {row.initial}
-              </span>
-            ) : null}
-            <div className="min-w-0">
-              <div className="truncate text-[14.5px] font-bold text-foreground">{row.title}</div>
-              {row.subtitle ? <div className="mt-px truncate text-[12.5px] text-warm-label">{row.subtitle}</div> : null}
+      {/* Mobile / tablet: a genuine single-column list of row cards — not a
+          horizontal scroll of the desktop grid. Each card stacks the title
+          block, every labeled cell, the state pill, and the action row. Auto
+          height (72px+) so wrapped content never clips. */}
+      <div className="divide-y divide-warm-hairline lg:hidden">
+        {rows.map((row) => (
+          <div key={row.id} className="flex min-h-[72px] flex-col gap-3 px-5 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                {row.initial ? (
+                  <span className="stripe-placeholder flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] text-[15px] font-semibold text-foreground/40">
+                    {row.initial}
+                  </span>
+                ) : null}
+                <div className="min-w-0">
+                  <div className="truncate text-[14.5px] font-bold text-foreground">{row.title}</div>
+                  {row.subtitle ? <div className="mt-px truncate text-[12.5px] text-warm-label">{row.subtitle}</div> : null}
+                </div>
+              </div>
+              <AdminStatePill tone={row.tone}>{row.tag}</AdminStatePill>
             </div>
-          </div>
 
-          {row.cells.map((cell, i) => (
-            <span key={i} className="text-[13.5px] leading-[1.45] text-warm-prose">
-              {cell}
-            </span>
-          ))}
-
-          <AdminStatePill tone={row.tone}>{row.tag}</AdminStatePill>
-
-          <div className="flex gap-2">
-            {/* Mockup draws these controls at 38px. Rule 4 (BRIEF.md) forbids
-                regressing the tap target, so the visible pill stays 38px while
-                the button element itself is the full 44px hit area. */}
-            <button
-              type="button"
-              onClick={row.onAction}
-              className="inline-flex h-11 items-center justify-center whitespace-nowrap rounded-[11px] px-[3px] text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <span className="inline-flex h-[38px] items-center whitespace-nowrap rounded-[11px] bg-foreground px-[15px]">
-                {row.actionLabel}
-              </span>
-            </button>
-            {row.onOverflow ? (
-              <button
-                type="button"
-                onClick={row.onOverflow}
-                aria-label="More actions"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-[11px] text-warm-prose transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <span className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-muted">
-                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-                </span>
-              </button>
+            {row.cells.length ? (
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+                {row.cells.map((cell, i) => (
+                  <div key={i} className="min-w-0">
+                    {dataColumns[i + 1] ? (
+                      <dt className="text-[10.5px] font-bold uppercase tracking-[.06em] text-warm-label">
+                        {dataColumns[i + 1].label}
+                      </dt>
+                    ) : null}
+                    <dd className="truncate text-[13.5px] leading-[1.45] text-warm-prose">{cell}</dd>
+                  </div>
+                ))}
+              </dl>
             ) : null}
+
+            {readOnly ? null : actions(row)}
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
