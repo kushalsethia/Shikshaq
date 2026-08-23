@@ -1,55 +1,48 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { GraduationCap, BookOpen, Presentation, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ArrowRight, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { hasSeenOnboarding, markOnboardingSeen } from "@/lib/onboarding";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Sticker } from "@/components/ui/sticker";
-import { IconDisc } from "@/components/ui/icon-disc";
+import { getSubjectPalette } from "@/lib/subject-palette";
+import { WhatsAppIcon } from "@/components/BrandIcons";
+import { Logo } from "@/components/Logo";
 
-/* Redesign S18 (design.md §4, changelog C-043) — first-time-visitor onboarding.
-   Shows once per browser (localStorage flag), never again after dismissal — see
-   src/lib/onboarding.ts.
+/* Handoff OB-001 — first-open welcome screen (Welcome Screen Redesign.dc.html).
+   Full-screen, not a route, shown once per browser behind hasSeenOnboarding().
+   Both actions dismiss (markOnboardingSeen()) and the screen never returns —
+   this is a hype/welcome moment, not a router: the old three-destination
+   picker (Find a teacher / Read papers / I teach) is gone, per the entry's
+   full replacement of this component's content and behaviour. */
 
-   Rebuilt to match the binding spec exactly: ONE bottom sheet, ONE question
-   ("What brings you here?" — copy.md §7, shared verbatim with Role select), a
-   tilted "Takes one tap" sticker, and three routes plus a skip. This replaces the
-   previous three-screen Instagram-Stories-style carousel, which answered a
-   question nobody asked (mode explainer) instead of routing the visitor.
-
-   Distinct from ProductTour (C-057): this is a first-run question, the tour is an
-   on-demand product explainer opened from the logo. */
-
-const ROUTES = [
-  {
-    key: "teacher",
-    label: "Find a teacher",
-    body: "Browse verified tutors and message them yourself.",
-    icon: GraduationCap,
-    tone: "brand" as const,
-    to: "/all-tuition-teachers-in-kolkata",
-  },
-  {
-    key: "papers",
-    label: "Read past papers",
-    body: "Free papers from Kolkata schools, by subject and class.",
-    icon: BookOpen,
-    tone: "papers" as const,
-    to: "/past-papers",
-  },
-  {
-    key: "teach",
-    label: "I teach — list me",
-    body: "List yourself — free to list, free to stay.",
-    icon: Presentation,
-    tone: "dark" as const,
-    to: "/join",
-  },
-];
+function useOnboardingCounts(enabled: boolean) {
+  return useQuery({
+    queryKey: ["onboarding", "counts"],
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const [mathsRes, icseRes, ballygungeRes, class10Res, papersRes, teachersRes] = await Promise.all([
+        supabase.from("teachers_list").select("id", { count: "exact", head: true }).ilike("subjects", "%Maths%"),
+        supabase.from("Shikshaqmine").select("id", { count: "exact", head: true }).ilike('"School Boards Catered"', "%ICSE%"),
+        supabase.from("Shikshaqmine").select("id", { count: "exact", head: true }).ilike("Area", "%Ballygunge%"),
+        supabase.from("teachers_list").select("id", { count: "exact", head: true }).ilike("classes", "%10%"),
+        supabase.from("papers").select("id", { count: "exact", head: true }).eq("is_published", true),
+        supabase.from("teachers_list").select("id", { count: "exact", head: true }),
+      ]);
+      return {
+        maths: mathsRes.count ?? null,
+        icse: icseRes.count ?? null,
+        ballygunge: ballygungeRes.count ?? null,
+        class10: class10Res.count ?? null,
+        papers: papersRes.count ?? null,
+        teachers: teachersRes.count ?? null,
+      };
+    },
+  });
+}
 
 export function OnboardingModal() {
   const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
+  const counts = useOnboardingCounts(open);
 
   useEffect(() => {
     if (!hasSeenOnboarding()) {
@@ -62,105 +55,110 @@ export function OnboardingModal() {
     setOpen(false);
   };
 
-  const choose = (to: string) => {
-    dismiss();
-    navigate(to);
-  };
+  if (!open) return null;
+
+  const maths = getSubjectPalette("Maths");
+  const science = getSubjectPalette("Science");
+  const c = counts.data;
 
   return (
-    <Sheet open={open} onOpenChange={(next) => !next && dismiss()}>
-      <SheetContent side="bottom" className="rounded-t-[28px] border-0 pb-8 pt-6">
-        <div className="relative pt-2">
-          {/* Sticker defaults to overhanging a card's top-right corner (see
-              sticker.tsx); here it sits above the headline instead, per mockup
-              S18, so it is repositioned to the top-left and the heading is
-              pushed down to clear it rather than being overlapped. */}
-          <Sticker tone="brand" tilt={-3} size={30} className="left-0 right-auto top-0">
-            Takes one tap
-          </Sticker>
-          {/* SheetTitle, not a bare h2. Radix requires a DialogTitle inside
-              DialogContent to label the dialog for assistive tech, and warned
-              about it in the console on every page — this sheet is mounted
-              site-wide. SheetTitle renders an h2 anyway, so nothing changes
-              visually. */}
-          <SheetTitle className="mt-9 font-display text-page-title font-bold text-foreground">
-            What brings you here?
-          </SheetTitle>
-          {/* The mockup's answer to "why am I being asked this" was missing
-              entirely. Without it the sheet interrupts a first-time visitor with
-              a question and no reason, and no hint that the choice is not
-              permanent. */}
-          <p className="mt-2 text-body-secondary text-warm-prose">
-            We&rsquo;ll put the right things on your home screen. Change it any time.
-          </p>
-        </div>
-
-        <div className="mt-6 grid gap-3">
-          {ROUTES.map((r) => {
-            const Icon = r.icon;
-            return (
-              <button
-                key={r.key}
-                type="button"
-                onClick={() => choose(r.to)}
-                /* S18 ranks the three answers by colour: solid orange for the
-                   thing most people came for, indigo-subtle for papers (the
-                   indigo half of the brand pair, as everywhere else), plain card
-                   for "I teach". All three rendered as near-identical pale
-                   cards, so the sheet asked a question and then declined to
-                   suggest an answer. */
-                className={cn(
-                  "flex min-h-[44px] items-center gap-4 rounded-2xl p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                  r.tone === "brand" && "bg-brand text-brand-foreground",
-                  r.tone === "papers" && "bg-brand-blue-subtle",
-                  r.tone === "dark" && "bg-card",
-                )}
-              >
-                <IconDisc
-                  tone={r.tone === "brand" ? "on-dark" : r.tone === "papers" ? "papers" : "muted"}
-                  size={44}
-                  shape="square"
-                >
-                  <Icon aria-hidden="true" />
-                </IconDisc>
-                <span className="flex-1">
-                  <span
-                    className={cn(
-                      "block text-body-secondary font-semibold",
-                      r.tone === "brand" ? "text-brand-foreground" : r.tone === "papers" ? "text-brand-blue-deep" : "text-foreground",
-                    )}
-                  >
-                    {r.label}
-                  </span>
-                  <span
-                    className={cn(
-                      "mt-0.5 block text-meta",
-                      r.tone === "brand" ? "text-brand-foreground/80" : r.tone === "papers" ? "text-brand-blue-deep/75" : "text-warm-meta",
-                    )}
-                  >
-                    {r.body}
-                  </span>
-                </span>
-                <ChevronRight
-                  aria-hidden
-                  className={cn(
-                    "size-5 shrink-0",
-                    r.tone === "brand" ? "text-brand-foreground/80" : r.tone === "papers" ? "text-brand-blue-deep/70" : "text-warm-label",
-                  )}
-                />
-              </button>
-            );
-          })}
-        </div>
-
+    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-brand" role="dialog" aria-modal="true" aria-label="Welcome to ShikshAQ">
+      <div className="flex h-14 items-center justify-between px-5">
+        {/* filter:brightness(0) — fully monochrome black, distinct from
+            Logo's own onDark (white-invert) or default (dark ink + orange
+            accent dot) treatments. */}
+        <Logo size="nav" className="tap-44 [&_img]:[filter:brightness(0)]" ariaLabel="Shikshaq home" priority />
         <button
           type="button"
           onClick={dismiss}
-          className="mt-4 flex min-h-11 w-full items-center justify-center rounded-lg text-body-secondary font-semibold text-warm-prose transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label="Skip"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgba(31,31,31,.14)] text-[#1F1F1F]"
         >
-          Just looking around
+          <X className="h-4 w-4" strokeWidth={2.25} aria-hidden />
         </button>
-      </SheetContent>
-    </Sheet>
+      </div>
+
+      <div className="relative flex flex-1 flex-col items-center justify-center px-5">
+        <h1 className="font-display text-[58px] font-black leading-[0.9] tracking-[-0.06em] text-[#FCFAF7]">
+          Search,<br />
+          shortlist,<br />
+          <span className="inline-block -mx-2 rounded-[6px] bg-[#FCFAF7] px-2 text-[#1F1F1F]">message.</span><br />
+          No agent<br />
+          in between.
+        </h1>
+
+        {/* Handoff OB-001 point 3: five tilted stickers around the headline. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          {c?.maths != null && c.maths > 0 && (
+            <span
+              className="absolute left-[6%] top-[18%] h-[34px] rotate-[7deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0"
+              style={{ backgroundColor: maths.tint, color: maths.text, display: "inline-flex" }}
+            >
+              Maths · {c.maths}
+            </span>
+          )}
+          {c?.icse != null && c.icse > 0 && (
+            <span
+              className="absolute right-[8%] top-[30%] h-[34px] rotate-[-6deg] items-center whitespace-nowrap rounded-full bg-panel px-[15px] text-[13.5px] font-extrabold text-background shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0"
+              style={{ display: "inline-flex" }}
+            >
+              ICSE · {c.icse}
+            </span>
+          )}
+          {c?.ballygunge != null && c.ballygunge > 0 && (
+            <span
+              className="absolute left-[10%] bottom-[26%] h-[34px] rotate-[5deg] items-center whitespace-nowrap rounded-full bg-card px-[15px] text-[13.5px] font-extrabold text-foreground shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0"
+              style={{ display: "inline-flex" }}
+            >
+              Ballygunge · {c.ballygunge}
+            </span>
+          )}
+          {c?.class10 != null && c.class10 > 0 && (
+            <span
+              className="absolute right-[6%] bottom-[12%] h-[34px] rotate-[-4deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0"
+              style={{ backgroundColor: science.tint, color: science.text, display: "inline-flex" }}
+            >
+              Class 10 · {c.class10}
+            </span>
+          )}
+          {c?.papers != null && c.papers > 0 && (
+            <span
+              className="absolute left-[22%] top-[46%] h-[34px] rotate-[6deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-[15px] text-[13.5px] font-extrabold text-brand-blue-deep shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0"
+              style={{ display: "inline-flex" }}
+            >
+              {c.papers} free papers
+            </span>
+          )}
+          <span
+            className="absolute right-[14%] top-[58%] flex h-8 w-8 rotate-[6deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text motion-reduce:rotate-0"
+          >
+            <WhatsAppIcon className="h-4 w-4" />
+          </span>
+        </div>
+      </div>
+
+      <div className="px-5 pb-8">
+        {c?.teachers != null && c.teachers > 0 && (
+          <p className="mb-4 text-center text-[14.5px] leading-[1.5] text-[rgba(31,31,31,.7)]">
+            {c.teachers} verified tutors in Kolkata. Free to search, free to contact.
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={dismiss}
+          className="flex h-[58px] w-full items-center justify-center gap-2 rounded-full bg-card text-[16px] font-extrabold text-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97]"
+        >
+          Get started
+          <ArrowRight className="h-[18px] w-[18px]" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={dismiss}
+          className="mt-2 flex h-11 w-full items-center justify-center text-[14px] font-semibold text-[rgba(31,31,31,.6)]"
+        >
+          Skip for now
+        </button>
+      </div>
+    </div>
   );
 }

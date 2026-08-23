@@ -1,11 +1,12 @@
 import * as React from "react";
-import { Search, BadgeCheck, MessageCircle, FileText, ChevronRight } from "lucide-react";
+import { Search, BadgeCheck, MessageCircle, FileText, ChevronRight, X } from "lucide-react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { StripePlaceholder } from "@/components/ui/stripe-placeholder";
+import { Logo } from "@/components/Logo";
 import { BROWSE_PATH } from "@/lib/nav-config";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -86,11 +87,23 @@ type CardMode = "dark" | "brand" | "whatsapp" | "papers";
    sets accentInk per card (#FF8000 on the dark card, #B35900 on cream, #0B3D1F
    on mint, white-72 on indigo). Without it all four soft halves rendered in the
    body colour, which loses the two-tone the headline is built around. */
+/* Handoff OB-002: every step is now `fixed inset-0 bg-panel` (uniformly
+   dark), so the accent ink is each mode's own saturated colour rather than
+   the light-background "deep"/ink variants the old per-card fills used. */
 const CARD_ACCENT: Record<CardMode, string> = {
   dark: "text-brand",
-  brand: "text-brand-deep",            // #B35900
-  whatsapp: "text-whatsapp-text",      // #0B3D1F
-  papers: "text-background/70",
+  brand: "text-brand",
+  whatsapp: "text-whatsapp",
+  papers: "text-brand-blue",
+};
+
+/* The two flat background shapes behind each step's illustration, in that
+   step's mode colour, bleeding off the art well's edges. */
+const CARD_SHAPES: Record<CardMode, string> = {
+  dark: "bg-brand",
+  brand: "bg-brand",
+  whatsapp: "bg-whatsapp",
+  papers: "bg-brand-blue",
 };
 
 /* Card 4's CTA only. The spec pairs ctaBg #FCFAF7 with ctaFg #2E3AD6, and the
@@ -103,13 +116,13 @@ const CARD_ACCENT: Record<CardMode, string> = {
 /* Tokens, not literals: --card is #FCFAF7 and --brand-blue-deep is #2E3AD6,
    so these were re-typing values the theme already owns and would not follow
    a token change. */
-const PAPERS_CTA = "bg-card text-brand-blue-deep hover:bg-white";
-
-const CARD_FILL: Record<CardMode, string> = {
-  dark: "bg-panel text-background",
-  brand: "bg-brand-subtle text-foreground",
-  whatsapp: "bg-mint text-foreground",
-  papers: "bg-brand-blue text-brand-blue-foreground",
+/* Handoff OB-002: every step shares one fill now (bg-panel), so this
+   per-mode fill map is gone — kept only as the CTA variant map below. */
+const CARD_CTA_VARIANT: Record<CardMode, "primary" | "whatsapp" | "indigo"> = {
+  dark: "primary",
+  brand: "primary",
+  whatsapp: "whatsapp",
+  papers: "indigo",
 };
 
 interface TourCard {
@@ -279,10 +292,11 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
     <DialogPrimitive.Root open={open} onOpenChange={(next) => !next && dismiss()}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-foreground/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        {/* Handoff OB-002: every step is now fixed inset-0 bg-panel, no
+            rounding — nav row -> art well -> text block. */}
         <DialogPrimitive.Content
           className={cn(
-            "fixed inset-0 z-[100] flex flex-col overflow-hidden outline-none",
-            CARD_FILL[card.mode],
+            "fixed inset-0 z-[100] flex flex-col overflow-hidden bg-panel text-background outline-none",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
@@ -292,52 +306,64 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
             A short tour of finding teachers and reading past papers on ShikshAQ.
           </DialogPrimitive.Description>
 
-          {/* Progress bar + Skip */}
-          <div className="flex items-center gap-3 p-4 sm:p-6">
-            {/* Dots, not a segmented fill bar. dc.html draws four 5px-tall
-                pills where only the CURRENT one is 20px wide and the rest stay
-                5px — so it reads as "you are here", not "this much is done".
-                The build had four equal bars filling left-to-right, which is a
-                different idea and made a four-card tour look like a long form. */}
-            <div className="flex flex-1 items-center gap-[5px]" aria-hidden>
-              {CARDS.map((_, i) => (
-                <span
-                  key={i}
-                  className={cn(
-                    "h-[5px] rounded-full transition-[width,background-color] duration-300 ease-settle",
-                    i === step ? "w-5 bg-current" : "w-[5px] bg-current/40",
-                  )}
-                />
-              ))}
-            </div>
-            <DialogPrimitive.Close className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-body-secondary font-semibold text-current/80 transition-colors duration-150 hover:text-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-              Skip
+          {/* Nav row: inverted logo left, 40px close disc right. */}
+          <div className="flex h-14 items-center justify-between px-4 sm:px-6">
+            <Logo size="nav" onDark ariaLabel="Shikshaq" className="tap-44" />
+            <DialogPrimitive.Close className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-background transition-colors duration-150 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel">
+              <X className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+              <span className="sr-only">Close</span>
             </DialogPrimitive.Close>
           </div>
 
-          <div className="flex flex-1 flex-col justify-center px-6 pb-8 text-left sm:px-8">
-            {/* 31px / 900 / 1.02 / -0.04em per dc.html, not display-hero — the
-                tour card is 300px wide in the spec and the hero size overran it. */}
-            <h2 className="max-w-sm font-display text-[31px] font-black leading-[1.02] tracking-[-0.04em] sm:max-w-md sm:text-[34px]">
-              {card.headline}
-            </h2>
-            <p className="mt-2.5 max-w-sm text-[14px] leading-[1.55] opacity-90 sm:max-w-md">{card.body}</p>
-            <div className="mt-6 w-full max-w-xs">{card.illustration}</div>
+          {/* Art well: the step's existing illustration plus two flat mode-
+              coloured shapes bleeding off the edges, clipped by the well. */}
+          <div className="relative m-[10px_16px_0] flex-1 overflow-hidden rounded-[34px] bg-white/[0.04]">
+            <span
+              aria-hidden
+              className={cn("pointer-events-none absolute -left-16 -top-16 h-[240px] w-[240px] rounded-full opacity-[0.16]", CARD_SHAPES[card.mode])}
+            />
+            <span
+              aria-hidden
+              className={cn("pointer-events-none absolute -bottom-20 -right-14 h-[280px] w-[280px] rounded-[40px] opacity-[0.16]", CARD_SHAPES[card.mode])}
+            />
+            <div className="relative flex h-full items-center justify-center p-6">
+              <div className="w-full max-w-xs rotate-[-2deg] drop-shadow-[0_18px_30px_rgba(0,0,0,.35)]">{card.illustration}</div>
+            </div>
           </div>
 
-          <div className="flex flex-col items-stretch gap-3 px-6 pb-8 sm:pb-12">
-            <Button
-              variant={card.mode === "whatsapp" ? "whatsapp" : card.mode === "papers" ? "muted" : "primary"}
-              size={54}
-              onClick={advance}
-              className={cn(
-                "w-full max-w-xs justify-center",
-                card.mode === "papers" && PAPERS_CTA,
-              )}
-            >
-              {card.cta}
-              {isLast ? null : <ChevronRight aria-hidden className="ml-1 size-4" />}
-            </Button>
+          <div className="p-[22px_22px_26px]">
+            <h2 className="font-display text-[30px] font-bold leading-[1.06] tracking-[-0.045em] text-background">
+              {card.headline}
+            </h2>
+            <p className="mt-[10px] text-[14.5px] leading-[1.55] text-background/65">{card.body}</p>
+
+            <div className="mt-5 flex items-center justify-between gap-3">
+              {/* Dots, not a segmented fill bar. dc.html draws four 6px-tall
+                  pills where only the CURRENT one is 20px wide and the rest
+                  stay 6px — so it reads as "you are here", not "this much is
+                  done". */}
+              <div className="flex items-center gap-1.5" aria-hidden>
+                {CARDS.map((_, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      "h-[6px] rounded-full transition-[width,background-color] duration-300 ease-settle",
+                      i === step ? "w-5 bg-background" : "w-[6px] bg-background/28",
+                    )}
+                  />
+                ))}
+              </div>
+              <Button variant={CARD_CTA_VARIANT[card.mode]} size={52} onClick={advance} className="flex-none">
+                {card.cta}
+                {isLast ? null : <ChevronRight aria-hidden className="ml-1 size-4" />}
+              </Button>
+            </div>
+
+            {!isLast && (
+              <DialogPrimitive.Close className="mt-1 flex h-11 w-full items-center justify-center text-[13.5px] font-semibold text-background/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel">
+                Skip
+              </DialogPrimitive.Close>
+            )}
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
