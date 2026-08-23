@@ -34,28 +34,26 @@ const Contact = lazy(() => import("./pages/Contact"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const SubjectsPage = lazy(() => import("./pages/SubjectsPage"));
+const SchoolsPage = lazy(() => import("./pages/SchoolsPage"));
 
 // Lazy load heavy components for better performance on mobile
 const SubjectPage = lazy(() => import("./pages/SubjectPage"));
 const WhatsAppRedirect = lazy(() => import("./pages/WhatsAppRedirect"));
 const BoardPage = lazy(() => import("./pages/BoardPage"));
 const RecommendTeacher = lazy(() => import("./pages/RecommendTeacher"));
-const AdminRecommendations = lazy(() => import("./pages/AdminRecommendations"));
-const AdminComments = lazy(() => import("./pages/AdminComments"));
-const AdminUpvotes = lazy(() => import("./pages/AdminUpvotes"));
-const AdminFeedback = lazy(() => import("./pages/AdminFeedback"));
-const AdminTeachers = lazy(() => import("./pages/AdminTeachers"));
-const AdminApplications = lazy(() => import("./pages/AdminApplications"));
-const AdminPapers = lazy(() => import("./pages/AdminPapers"));
-const AdminAuditLog = lazy(() => import("./pages/AdminAuditLog"));
+const AdminApprovals = lazy(() => import("./pages/admin/approvals"));
+const AdminTeachersPage = lazy(() => import("./pages/admin/teachers"));
+const AdminPapersPage = lazy(() => import("./pages/admin/papers"));
+const AdminReviews = lazy(() => import("./pages/admin/reviews"));
+const AdminAuditLog = lazy(() => import("./pages/admin/audit"));
 const LikedTeachers = lazy(() => import("./pages/LikedTeachers"));
 const MyTeachers = lazy(() => import("./pages/MyTeachers"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
 const TeacherTermsAgreement = lazy(() => import("./pages/TeacherTermsAgreement"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const SignUpSuccess = lazy(() => import("./pages/SignUpSuccess"));
-const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
-const GuardianDashboard = lazy(() => import("./pages/GuardianDashboard"));
+const Account = lazy(() => import("./pages/Account"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -174,14 +172,16 @@ const App = () => (
                 </Suspense>
               } />
               <Route path="/teacher/:slug" element={<TeacherRedirect />} />
-              <Route path="/liked-teachers" element={
+              {/* pages.md §11 O-05: "/liked-teachers" and "/my-teachers" become deep
+                  links into the unified /account screen rather than 301s — the
+                  more conservative, reversible choice per the spec's own framing
+                  ("do not pick for the owner"); a permanent redirect is the other
+                  option the spec leaves open if the owner wants that instead. */}
+              <Route path="/liked-teachers" element={<Navigate to="/account?tab=saved" replace />} />
+              <Route path="/my-teachers" element={<Navigate to="/account?tab=contacted" replace />} />
+              <Route path="/account" element={
                 <Suspense fallback={<PageLoader />}>
-                  <LikedTeachers />
-                </Suspense>
-              } />
-              <Route path="/my-teachers" element={
-                <Suspense fallback={<PageLoader />}>
-                  <MyTeachers />
+                  <Account />
                 </Suspense>
               } />
               <Route path="/more" element={<Help />} />
@@ -207,6 +207,19 @@ const App = () => (
               {/* S16. a-to-z.md marks this the one route that is `new` — the
                   by-school rows on /past-papers previously went nowhere. */}
               <Route path="/school/:slug" element={<SchoolPage />} />
+              {/* TopBar's "Subjects" and "Schools" nav links used to fall back to
+                  BROWSE_PATH/PAST_PAPERS_PATH with `match: () => false` because
+                  neither index existed. These are their real destinations. */}
+              <Route path="/subjects" element={
+                <Suspense fallback={<PageLoader />}>
+                  <SubjectsPage />
+                </Suspense>
+              } />
+              <Route path="/schools" element={
+                <Suspense fallback={<PageLoader />}>
+                  <SchoolsPage />
+                </Suspense>
+              } />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={
                 <Suspense fallback={<PageLoader />}>
@@ -220,40 +233,25 @@ const App = () => (
                   <RecommendTeacher />
                 </Suspense>
               } />
-              <Route path="/admin" element={<Navigate to="/admin/recommendations" replace />} />
-              <Route path="/admin/recommendations" element={
+              <Route path="/admin" element={<Navigate to="/admin/approvals" replace />} />
+              <Route path="/admin/approvals" element={
                 <Suspense fallback={<PageLoader />}>
-                  <AdminRecommendations />
-                </Suspense>
-              } />
-              <Route path="/admin/comments" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminComments />
-                </Suspense>
-              } />
-              <Route path="/admin/upvotes" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminUpvotes />
-                </Suspense>
-              } />
-              <Route path="/admin/feedback" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminFeedback />
+                  <AdminApprovals />
                 </Suspense>
               } />
               <Route path="/admin/teachers" element={
                 <Suspense fallback={<PageLoader />}>
-                  <AdminTeachers />
-                </Suspense>
-              } />
-              <Route path="/admin/applications" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminApplications />
+                  <AdminTeachersPage />
                 </Suspense>
               } />
               <Route path="/admin/papers" element={
                 <Suspense fallback={<PageLoader />}>
-                  <AdminPapers />
+                  <AdminPapersPage />
+                </Suspense>
+              } />
+              <Route path="/admin/reviews" element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminReviews />
                 </Suspense>
               } />
               <Route path="/admin/audit" element={
@@ -261,6 +259,12 @@ const App = () => (
                   <AdminAuditLog />
                 </Suspense>
               } />
+              {/* Legacy admin URLs redirect into the 5-section console (pages.md §15). */}
+              <Route path="/admin/applications" element={<Navigate to="/admin/approvals" replace />} />
+              <Route path="/admin/recommendations" element={<Navigate to="/admin/reviews" replace />} />
+              <Route path="/admin/comments" element={<Navigate to="/admin/reviews" replace />} />
+              <Route path="/admin/upvotes" element={<Navigate to="/admin/reviews" replace />} />
+              <Route path="/admin/feedback" element={<Navigate to="/admin/reviews" replace />} />
               <Route path="/select-role" element={
                 <Suspense fallback={<PageLoader />}>
                   <SelectRole />
@@ -276,21 +280,18 @@ const App = () => (
                   <SignUpSuccess />
                 </Suspense>
               } />
-              <Route path="/dashboard/student" element={
-                <Suspense fallback={<PageLoader />}>
-                  <StudentDashboard />
-                </Suspense>
-              } />
+              {/* StudentDashboard.tsx / GuardianDashboard.tsx are folded into
+                  /account (pages.md §11) — these two routes now redirect there
+                  instead of rendering the old pages directly. The files are
+                  kept, unrouted, in case anything still imports a piece of them. */}
+              <Route path="/dashboard/student" element={<Navigate to="/account?tab=saved" replace />} />
+              <Route path="/dashboard/guardian" element={<Navigate to="/account?tab=contacted" replace />} />
               <Route path="/dashboard/teacher" element={
                 <Suspense fallback={<PageLoader />}>
                   <TeacherDashboard />
                 </Suspense>
               } />
-              <Route path="/dashboard/guardian" element={
-                <Suspense fallback={<PageLoader />}>
-                  <GuardianDashboard />
-                </Suspense>
-              } />
+              <Route path="/teacher-dashboard" element={<Navigate to="/dashboard/teacher" replace />} />
               {/* Subject-specific pages */}
               <Route path="/maths-tuition-teachers-in-kolkata" element={
                 <Suspense fallback={<PageLoader />}>
