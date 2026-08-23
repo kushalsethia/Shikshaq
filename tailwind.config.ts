@@ -172,6 +172,9 @@ export default {
         "3xl": "1.5rem",
         /* VISUAL_LANGUAGE.md §1.1/§6 — 32px, the saturated slabs only. */
         "4xl": "2rem",
+        /* Handoff T-001 — bento stack panels, 30px, between the 20px card
+           and the 32px slab. */
+        bento: "1.875rem",
       },
       /* DESIGN_SYSTEM.md §5: depth comes from these, never border + shadow. */
       boxShadow: {
@@ -181,8 +184,11 @@ export default {
            special stat-card shadows. Saturated surfaces only. */
         "glow-brand": "var(--shadow-glow-brand)",
         "glow-brand-blue": "var(--shadow-glow-brand-blue)",
+        "glow-brand-tight": "var(--shadow-glow-brand-tight)",
+        "glow-brand-blue-tight": "var(--shadow-glow-brand-blue-tight)",
         "card-bone": "var(--shadow-card-bone)",
         "card-mint": "var(--shadow-card-mint)",
+        pill: "var(--shadow-pill)",
       },
       /* ---- Unified type scale (task #2) -------------------------------------
          ONE scale, as real fontSize tokens (each entry: [size, {lineHeight,
@@ -272,6 +278,8 @@ export default {
         2: "0.5rem",
         3: "0.75rem",
         4: "1rem",
+        /* Handoff T-002 — the 6px seam between stacked bento panels. */
+        seam: "0.375rem",
         6: "1.5rem",
         8: "2rem",
         12: "3rem",

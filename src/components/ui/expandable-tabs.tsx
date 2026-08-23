@@ -81,7 +81,11 @@ export function ExpandableTabs({
               onMouseLeave={() => setPeekIndex((v) => (v === index ? null : v))}
               onFocus={() => !active && setPeekIndex(index)}
               onBlur={() => setPeekIndex((v) => (v === index ? null : v))}
-              className={`relative flex h-11 w-full items-center justify-center gap-1.5 overflow-hidden rounded-full transition-[background-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 ${accentRing} focus-visible:ring-offset-2 active:scale-[0.94] ${
+              className={`relative flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-full transition-[background-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 ${accentRing} focus-visible:ring-offset-2 active:scale-[0.94] ${
+                /* Handoff T-008: active pill grows to 46px with 20px side
+                   padding; inactive tabs keep the 44px hit target. */
+                active ? 'h-[46px] px-5' : 'h-11'
+              } ${
                 isDark
                   ? `focus-visible:ring-offset-panel ${active ? accentBg : ''}`
                   : `focus-visible:ring-offset-background ${active ? `${accentBg} shadow-border-hover` : 'text-foreground hover:bg-muted'}`
@@ -109,7 +113,7 @@ export function ExpandableTabs({
                   marginLeft: expanded ? 6 : 0,
                 }}
                 transition={{ duration: prefersReducedMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className={`relative z-10 overflow-hidden whitespace-nowrap text-xs font-medium motion-reduce:transition-none ${
+                className={`relative z-10 overflow-hidden whitespace-nowrap text-[14px] font-bold tracking-[-0.01em] motion-reduce:transition-none ${
                   isDark ? 'text-white' : active ? 'text-white' : 'text-foreground'
                 }`}
               >

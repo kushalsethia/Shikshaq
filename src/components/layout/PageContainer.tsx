@@ -74,10 +74,28 @@ const CONTROL_FILLS = {
 
 export interface ControlBlockProps extends React.HTMLAttributes<HTMLElement> {
   mode?: keyof typeof CONTROL_FILLS;
+  /**
+   * Override the inner PageContainer's padding. Defaults to the original
+   * uniform `py-8` every other consumer (Index's hero, Auth, Account, the
+   * dashboards, …) still gets unchanged.
+   *
+   * Browse passes a bottom-only override here (interface-details /
+   * make-interfaces-feel-better: concentric corners, innerRadius =
+   * outerRadius - padding). The block's bottom corners round at 32px
+   * (rounded-b-4xl); with the default `py-8` the search field nested inside
+   * — itself a spec'd `rounded-2xl` (16px) — sat 32px above that curve while
+   * only 16px in from the sides, an asymmetric gap that made its 16px corner
+   * read as arbitrarily smaller than the 32px one wrapping it rather than as
+   * the same curve continuing inward. Matching the bottom gap to
+   * PageContainer's own responsive side gutter (16/24/32px) reproduces
+   * `32 - 16 = 16` exactly at the mobile width this was flagged on, so the
+   * search field's rounded-2xl corner nests cleanly into the block's.
+   */
+  contentClassName?: string;
 }
 
 const ControlBlock = React.forwardRef<HTMLElement, ControlBlockProps>(
-  ({ className, mode = "dark", children, ...props }, ref) => (
+  ({ className, mode = "dark", contentClassName, children, ...props }, ref) => (
     /* A <div>, not a <header>. TopBar and Navbar are already top-level
        <header> elements, and this block sits outside <main> too — so making it
        a third one gave the page three `banner` landmarks, where ARIA allows
@@ -87,7 +105,7 @@ const ControlBlock = React.forwardRef<HTMLElement, ControlBlockProps>(
       className={cn("rounded-b-4xl", CONTROL_FILLS[mode], className)}
       {...props}
     >
-      <PageContainer className="py-8">{children}</PageContainer>
+      <PageContainer className={contentClassName ?? "py-8"}>{children}</PageContainer>
     </div>
   ),
 );
@@ -103,12 +121,69 @@ function BottomNavSpacer() {
      `pb-20` on <main>, reserving 210px in total for a 72px nav — which is the
      bulk of the dead space that appeared above the footer. */
   return (
+    <div aria-hidden className="lg:hidden h-[calc(84px+env(safe-area-inset-bottom))]" />
+  );
+}
+
+/* Reserves the space the floating top-nav pill occupies, now that both
+   TopBar (desktop) and Navbar (mobile) are `fixed` rather than `sticky` —
+   taking them out of flow means the page's first real element would render
+   underneath the pill without this. Mirrors BottomNavSpacer's approach.
+
+   Two breakpoint-specific divs, not one responsive height, because the two
+   bars are different heights: Navbar's mobile pill is h-14 (56px), TopBar's
+   desktop pill is h-[72px]. Both sit top-3 (12px) off the viewport edge;
+   the spacer adds a further 12px gap before page content starts. */
+function TopNavSpacer() {
+  return (
+    <>
+      <div aria-hidden className="lg:hidden h-[calc(56px+12px+12px)]" />
+      <div aria-hidden className="hidden lg:block h-[calc(72px+12px+12px)]" />
+    </>
+  );
+}
+
+/* Handoff T-004 — one owner for the 6px seam between stacked panels and the
+   page ground (`bg-background`) that shows through it. */
+export function BentoStack({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('flex flex-col gap-seam bg-background', className)} {...props} />;
+}
+
+/* Handoff T-005 — every section on every redesigned screen is one of these.
+   Separation between panels comes from fill alone (no ring, no shadow); see
+   00-shared-components.md's binding rule. */
+const PANEL_FILLS = {
+  card: 'bg-card',
+  muted: 'bg-muted',
+  brandTint: 'bg-brand-subtle',
+  papersTint: 'bg-brand-blue-subtle',
+  mint: 'bg-mint',
+  brand: 'bg-brand',
+  papers: 'bg-brand-blue',
+  dark: 'bg-panel text-background',
+} as const;
+
+export interface BentoPanelProps extends React.HTMLAttributes<HTMLDivElement> {
+  fill?: keyof typeof PANEL_FILLS;
+  /** 'top' = square top corners (first panel, meets the nav), 'bottom' =
+      square bottom corners (panel that butts the nav reserve), undefined =
+      all four rounded. */
+  edge?: 'top' | 'bottom';
+}
+
+export function BentoPanel({ fill = 'card', edge, className, ...props }: BentoPanelProps) {
+  return (
     <div
-      aria-hidden
-      className="lg:hidden"
-      style={{ height: 'calc(84px + env(safe-area-inset-bottom))' }}
+      className={cn(
+        'rounded-bento px-5 py-5 lg:px-8 lg:py-8',
+        edge === 'top' && 'rounded-t-none',
+        edge === 'bottom' && 'rounded-b-none',
+        PANEL_FILLS[fill],
+        className,
+      )}
+      {...props}
     />
   );
 }
 
-export { PageContainer, Slab, ControlBlock, BottomNavSpacer, SLAB_FILLS };
+export { PageContainer, Slab, ControlBlock, BottomNavSpacer, TopNavSpacer, SLAB_FILLS };

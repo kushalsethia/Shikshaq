@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { Home, Search, FileText, User } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { ExpandableTabs, type ExpandableTab } from '@/components/ui/expandable-tabs';
+import { useSearchExpanded } from '@/hooks/useSearchExpanded';
 import {
   BROWSE_PATH, isHomeActive, isBrowseActive, isPapersActive, isAccountActive, getAccountPath, type UserRole,
 } from '@/lib/nav-config';
@@ -20,6 +21,7 @@ import {
 export function BottomNav() {
   const location = useLocation();
   const { user, profile } = useAuth();
+  const searchExpanded = useSearchExpanded();
 
   const role = (profile?.role as UserRole) || null;
   const accountPath = getAccountPath(user, role);
@@ -50,14 +52,23 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-3 bottom-3 z-50 lg:hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      /* Same fix as Navbar.tsx's top pill: while SearchControl's mobile-pinned
+         popup is open, its "Past papers" tab sits directly under where the
+         popup's tall suggestion list can scroll to. With SearchControl's
+         scroll-lock setting `document.body.style.position = 'fixed'`, a
+         plain z-index drop doesn't reliably keep this bar out of hit-testing
+         (see the Navbar.tsx comment for the confirmed repro) — pointer-events
+         is the part that actually stops a tap meant for the popup from
+         quietly landing on "Past papers" underneath and navigating away. */
+      className={`fixed inset-x-3 bottom-3 pb-[env(safe-area-inset-bottom)] lg:hidden ${
+        searchExpanded ? 'z-30 pointer-events-none' : 'z-50'
+      }`}
     >
       <ExpandableTabs
         tabs={tabs}
         pathname={location.pathname}
         theme="dark"
-        className="mx-auto max-w-sm rounded-full bg-panel px-2 shadow-[0_8px_28px_-6px_rgba(0,0,0,0.45)]"
+        className="mx-auto max-w-sm rounded-full bg-panel px-2.5 shadow-pill"
       />
     </nav>
   );
