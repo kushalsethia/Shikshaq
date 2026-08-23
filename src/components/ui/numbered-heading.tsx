@@ -29,11 +29,20 @@ export interface NumberedHeadingProps extends React.HTMLAttributes<HTMLElement> 
   /** Heading level — never skip levels (design.md §7). */
   as?: "h2" | "h3";
   onDark?: boolean;
+  /**
+   * Handoff H-012: inside a BentoPanel, the fluid `text-section-head` clamp
+   * reads oversized next to the panel's own 22px padding — 'compact' is the
+   * flat 23px/800/-0.04em/leading-1.1 two-line treatment the home stack's
+   * numbered sections use instead. Defaults to the original fluid size so
+   * pages outside this session's scope (Contact, SubjectsPage, SchoolsPage)
+   * are unaffected.
+   */
+  size?: "default" | "compact";
 }
 
 const NumberedHeading = React.forwardRef<HTMLElement, NumberedHeadingProps>(
   (
-    { className, line1, ordinal, line2, support, as = "h2", onDark = false, ...props },
+    { className, line1, ordinal, line2, support, as = "h2", onDark = false, size = "default", ...props },
     ref,
   ) => {
     const Heading = as as React.ElementType;
@@ -65,7 +74,8 @@ const NumberedHeading = React.forwardRef<HTMLElement, NumberedHeadingProps>(
           <Heading
             ref={ref}
             className={cn(
-              "font-display font-extrabold text-section-head",
+              "font-display font-extrabold",
+              size === "compact" ? "text-[23px] leading-[1.1] tracking-[-0.04em]" : "text-section-head",
               onDark ? "text-background" : "text-foreground",
             )}
           >

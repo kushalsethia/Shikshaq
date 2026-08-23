@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Search, GraduationCap, ChevronDown, Clock, ArrowRight,
   BookOpen, MapPin, Landmark, School as SchoolIcon,
@@ -95,14 +96,22 @@ interface SearchControlProps {
   initialMode?: SearchMode;
   /** Notified whenever the mode changes, so a page can morph copy (headline, placeholder text) alongside it. */
   onModeChange?: (mode: SearchMode) => void;
+  /**
+   * Handoff H-009: the home hero's field grows to 60px / rounded-[22px] /
+   * bg-muted with a dedicated 46px round submit disc, instead of the shared
+   * h-14/rounded-2xl/shadow-border bar Browse and PastPapers still use. Opt-in
+   * so this session's Home work doesn't reach into those other pages' own
+   * change-log entries ahead of their turn.
+   */
+  heroDesk?: boolean;
 }
 
-export function SearchControl({ className = '', align = 'center', stackedToggle = false, alwaysShowModeToggle = false, onDark = false, initialMode, onModeChange }: SearchControlProps) {
+export function SearchControl({ className = '', align = 'center', stackedToggle = false, alwaysShowModeToggle = false, onDark = false, initialMode, onModeChange, heroDesk = false }: SearchControlProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { ensureLoaded, search, schools, ready } = useSearchIndex();
+  const { ensureLoaded, search, schools, ready, featuredTeachers, recentPapers } = useSearchIndex();
 
   const [mode, setMode] = useState<SearchMode>(initialMode || (location.pathname === '/past-papers' ? 'papers' : 'teachers'));
 
@@ -163,7 +172,30 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   // the top of the viewport instead of sitting wherever the collapsed pill happened
   // to be in normal flow, the scrim darkens further, and background scroll locks.
   // Desktop keeps the original in-flow dropdown + light scrim untouched.
-  const mobilePinned = reveal && isMobile;
+  //
+  // `pinEngaged` deliberately lags `reveal && isMobile` by one animation frame.
+  // The very tap that focuses the field is what sets `reveal` true — if pinning
+  // (a `relative` → `fixed inset-x-3 top-3` swap) applied on that SAME render,
+  // the control physically jumped out from under the pointer mid-gesture: the
+  // browser resolves `mousedown` against the field at its in-flow position, the
+  // reflow happens before `mouseup`, and the click/tap that completes the
+  // gesture lands on whatever page content the jump just exposed underneath —
+  // a teacher card, a "See all" link, anything that happened to sit at that
+  // pixel. That is what read as the popup "taking me" somewhere else and
+  // "overflowing": it wasn't the popup misbehaving, it was a real navigation on
+  // an unrelated element one frame after open. Engaging the pin a frame later
+  // lets the tap resolve against the field first; the pin then settles in
+  // without ever occupying the space under an in-flight pointer.
+  const [pinEngaged, setPinEngaged] = useState(false);
+  useEffect(() => {
+    if (!(reveal && isMobile)) {
+      setPinEngaged(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => setPinEngaged(true));
+    return () => cancelAnimationFrame(id);
+  }, [reveal, isMobile]);
+  const mobilePinned = reveal && isMobile && pinEngaged;
 
   // Notifies the sticky header to drop below the scrim while this control is
   // expanded, so nothing of the header shows through the scrim unblurred.
@@ -347,11 +379,17 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
   const segmentedToggle = (
     <div className="relative flex flex-none rounded-full bg-muted p-1">
-      <span
+      {/* flex-1 on both buttons (not just the indicator's calc(50%)) so the
+         two segments are always exactly equal width — "Past papers" is
+         longer text than "Teachers", so without flex-1 the buttons sized to
+         their own content and the 50%-split indicator drifted out from under
+         whichever button was narrower. */}
+      <motion.span
         aria-hidden="true"
-        className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-panel shadow-border transition-transform duration-300 ease-out motion-reduce:transition-none ${
-          mode === 'papers' ? 'translate-x-full' : 'translate-x-0'
-        }`}
+        layout
+        className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-panel shadow-border backdrop-blur-sm motion-reduce:transition-none"
+        animate={{ x: mode === 'papers' ? '100%' : '0%' }}
+        transition={{ type: 'spring', stiffness: 460, damping: 36 }}
       />
       {(['teachers', 'papers'] as SearchMode[]).map((m) => (
         <button
@@ -359,8 +397,14 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           type="button"
           onClick={() => setMode(m)}
           aria-pressed={mode === m}
-          className={`relative z-10 flex min-h-11 items-center justify-center rounded-full text-sm font-medium transition-colors duration-150 ${FOCUS} focus-visible:ring-ring ${
-            narrow ? 'min-w-[76px] px-3' : 'min-w-[92px] px-3.5'
+          /* whitespace-nowrap + tracking-tight: "Past papers" is the longer of
+             the two labels, and at the fixed 40px toggle height (pages.md §1)
+             plus this button's own px padding, it was wrapping to 2 lines on
+             narrow phones and blowing out the pill's height. Tightened
+             tracking buys back a few px before padding needs to shrink
+             further, rather than truncating the label. */
+          className={`relative z-10 flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-full text-sm font-medium tracking-tight transition-colors duration-150 ${FOCUS} focus-visible:ring-ring ${
+            narrow ? 'px-2.5' : 'px-3.5'
           } ${mode === m ? 'font-bold text-background' : 'text-muted-foreground'}`}
         >
           {MODE_LABEL[m]}
@@ -402,16 +446,22 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
         <div className="relative">
           {/* The search field. §11 hero spec: full width, h-14, rounded-2xl,
-              shadow-border, leading icon, text-base (16px so iOS never zooms). */}
+              shadow-border, leading icon, text-base (16px so iOS never zooms).
+              Handoff H-009 overrides this to a 60px/rounded-[22px]/bg-muted
+              field with its own 46px round submit disc when heroDesk is set. */}
           <div
-            className={`flex h-14 items-center gap-2 rounded-2xl pl-4 pr-2 transition-shadow duration-150 ${
-              onDark
-                ? 'bg-white/10 focus-within:bg-white/[0.14]'
-                : 'bg-card shadow-border focus-within:shadow-border-hover'
-            }`}
+            className={
+              heroDesk
+                ? 'flex h-[60px] items-center gap-[10px] rounded-[22px] bg-muted pl-[18px] pr-2 transition-shadow duration-150'
+                : `flex h-14 items-center gap-2 rounded-2xl pl-4 pr-2 transition-shadow duration-150 ${
+                    onDark
+                      ? 'bg-white/10 focus-within:bg-white/[0.14]'
+                      : 'bg-card shadow-border focus-within:shadow-border-hover'
+                  }`
+            }
           >
             <Search
-              className={`h-5 w-5 flex-none ${onDark ? 'text-white/45' : 'text-muted-foreground'}`}
+              className={heroDesk ? 'h-[19px] w-[19px] flex-none text-warm-tertiary' : `h-5 w-5 flex-none ${onDark ? 'text-white/45' : 'text-muted-foreground'}`}
               strokeWidth={2.25}
               aria-hidden="true"
             />
@@ -427,9 +477,13 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                  spec's version says what the field accepts rather than showing
                  one example, which matters because the field takes all three. */
               placeholder={mode === 'teachers' ? 'Subject, class or area' : 'Board, class, subject or school'}
-              className={`min-w-0 flex-1 border-0 bg-transparent text-base outline-none ${
-                onDark ? 'text-white placeholder:text-white/45' : 'text-foreground placeholder:text-muted-foreground'
-              }`}
+              className={
+                heroDesk
+                  ? 'min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-warm-tertiary'
+                  : `min-w-0 flex-1 border-0 bg-transparent text-base outline-none ${
+                      onDark ? 'text-white placeholder:text-white/45' : 'text-foreground placeholder:text-muted-foreground'
+                    }`
+              }
             />
 
             {/* Inline segmented toggle */}
@@ -439,16 +493,20 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               type="button"
               onClick={runSearch}
               aria-label="Search"
-              className={`flex h-11 flex-none items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} ${accent.solid} ${accent.ring} ${
-                narrow ? 'w-11' : 'px-4'
-              }`}
+              className={
+                heroDesk
+                  ? `flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full transition-colors duration-150 active:scale-[0.97] ${FOCUS} ${accent.solid} ${accent.ring}`
+                  : `flex h-11 flex-none items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} ${accent.solid} ${accent.ring} ${
+                      narrow ? 'w-11' : 'px-4'
+                    }`
+              }
             >
               {/* Arrow, not a magnifier. dc.html draws this as a 44x44 orange
                   tile holding `M5 12h14M13 6l6 6-6 6` — the magnifier already
                   sits at the other end of the field, so repeating it says
                   nothing, where the arrow says "go". */}
-              <ArrowRight className="h-[17px] w-[17px]" strokeWidth={2.5} aria-hidden="true" />
-              {!narrow && <span className="whitespace-nowrap">Search</span>}
+              <ArrowRight className={heroDesk ? 'h-[19px] w-[19px]' : 'h-[17px] w-[17px]'} strokeWidth={2.5} aria-hidden="true" />
+              {!heroDesk && !narrow && <span className="whitespace-nowrap">Search</span>}
             </button>
           </div>
 
@@ -474,8 +532,14 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                 className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent sm:hidden"
               />
               <div
+                key={mode}
                 ref={facetRowRef}
-                className={`flex snap-x items-center gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible ${
+                /* key={mode}: Area (teachers) and School (papers) are different
+                   facet sets, so a mode switch swaps this row's chips outright —
+                   animate-fade-slide-up (the project's one whitelisted entrance
+                   keyframe) cross-fades that swap instead of it snapping,
+                   matching the resting shelf below. */
+                className={`flex snap-x animate-fade-slide-up items-center gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible ${
                   align === 'center' ? 'sm:justify-center' : 'sm:justify-start'
                 }`}
               >
@@ -556,7 +620,13 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           {overlayPresence.mounted && (
             <div className={`${dropdownShell(overlayPresence.closing)} overflow-hidden`}>
               {displayOverlayResting && (
-                <div className="p-4 sm:p-6">
+                /* key={mode} cross-fades the whole resting shelf (facet-driven
+                   copy, popular chips, suggestions) in on a mode switch instead
+                   of the content just snapping to its Papers/Teachers values —
+                   requirement 6. animate-fade-slide-up is the project's one
+                   whitelisted entrance keyframe (tailwind.config.ts), reused
+                   rather than inventing a new one. */
+                <div key={mode} className="animate-fade-slide-up p-4 sm:p-6">
                   {recents.length > 0 && (
                     <>
                       <div className={`${sectionLabel} mb-2`}>Recent searches</div>
@@ -593,6 +663,53 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                       </button>
                     ))}
                   </div>
+
+                  {/* Suggested/recent shelf — teachers flavor reuses the same real
+                      `is_featured` column Browse.tsx's "Featured teachers" shelf
+                      reads; papers flavor is the head of the already
+                      year-descending papers fetch. Hidden (not a fabricated
+                      empty state) until the index has real rows to show. */}
+                  {mode === 'teachers' && featuredTeachers.length > 0 && (
+                    <>
+                      <div className={`${sectionLabel} mb-2 mt-6`}>Suggested teachers</div>
+                      <div className="grid gap-1">
+                        {featuredTeachers.map((t) => (
+                          <button key={t.id} type="button" onClick={() => openTeacher(t)} className={rowBase}>
+                            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
+                              {initial(t.name)}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-base font-semibold text-foreground">{t.name}</span>
+                              <span className="block truncate text-sm text-muted-foreground">
+                                {[t.subjects?.split(',')[0]?.trim(), t.location?.split(',')[0]?.trim()].filter(Boolean).join(' · ')}
+                              </span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {mode === 'papers' && recentPapers.length > 0 && (
+                    <>
+                      <div className={`${sectionLabel} mb-2 mt-6`}>Recently added papers</div>
+                      <div className="grid gap-1">
+                        {recentPapers.map((p) => (
+                          <button key={p.id} type="button" onClick={() => openPaper(p)} className={rowBase}>
+                            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
+                              {initial(p.school)}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-base font-semibold text-foreground">{p.title}</span>
+                              <span className="block truncate text-sm text-muted-foreground">
+                                {p.school} · {p.board} Class {p.class}
+                              </span>
+                            </span>
+                            <span className="flex-none text-xs tabular-nums text-muted-foreground">{p.year}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 

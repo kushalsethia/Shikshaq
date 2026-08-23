@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
@@ -9,8 +8,6 @@ import { Chip } from '@/components/ui/chip';
 import { iconDiscVariants } from '@/components/ui/icon-disc';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { WordmarkBleed } from '@/components/layout/WordmarkBleed';
-import { SentenceBuilder, type SentenceSlot } from '@/components/home/SentenceBuilder';
-import { SUBJECTS, CLASSES, AREAS, BOARDS } from '@/utils/searchFacets';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { useAuth } from '@/lib/auth-context';
@@ -133,22 +130,12 @@ export function Footer({ expandedContent }: FooterProps = {}) {
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const userRole = (profile?.role as 'student' | 'guardian' | 'teacher') || null;
   const [isAdmin, setIsAdmin] = useState(false);
   const dashboardPath = userRole === 'student' ? '/dashboard/student' : userRole === 'guardian' ? '/dashboard/guardian' : userRole === 'teacher' ? '/dashboard/teacher' : null;
-  const [ctaTotals, setCtaTotals] = useState<{ teachers: number | null; papers: number | null; schools: number | null }>({ teachers: null, papers: null, schools: null });
-  const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
-
-  // Sentence builder (C8) state — teachers/papers mode, defaulting to whichever
-  // side of the site the visitor is currently on.
-  const [builderMode, setBuilderMode] = useState<'teachers' | 'papers'>(
-    location.pathname.startsWith('/past-papers') ? 'papers' : 'teachers',
-  );
-  const [teacherSlotValues, setTeacherSlotValues] = useState<Record<string, string>>({});
-  const [paperSlotValues, setPaperSlotValues] = useState<Record<string, string>>({});
+  const [ctaTotals, setCtaTotals] = useState<{ teachers: number | null; papers: number | null }>({ teachers: null, papers: null });
 
   useEffect(() => {
     if (!user) { setIsAdmin(false); return; }
@@ -162,18 +149,14 @@ export function Footer({ expandedContent }: FooterProps = {}) {
   useEffect(() => {
     let cancelled = false;
     async function fetchCtaTotals() {
-      const [teachersRes, papersRes, schoolsRes] = await Promise.all([
+      const [teachersRes, papersRes] = await Promise.all([
         supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
         supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
-        supabase.from('papers').select('school').eq('is_published', true),
       ]);
       if (cancelled) return;
       if (teachersRes.error) logger.error('Footer.fetchCtaTotals.teachers', teachersRes.error);
       if (papersRes.error) logger.error('Footer.fetchCtaTotals.papers', papersRes.error);
-      if (schoolsRes.error) logger.error('Footer.fetchCtaTotals.schools', schoolsRes.error);
-      const uniqueSchools = schoolsRes.data ? Array.from(new Set(schoolsRes.data.map((p) => p.school))).sort() : [];
-      setCtaTotals({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null, schools: schoolsRes.data ? uniqueSchools.length : null });
-      setSchoolOptions(uniqueSchools);
+      setCtaTotals({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null });
     }
     fetchCtaTotals();
     return () => { cancelled = true; };
@@ -389,47 +372,6 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     label: `${label} tuition teachers in Kolkata`,
   }));
 
-  // --- Sentence builder (C8) --------------------------------------------
-  const teacherSlots: SentenceSlot[] = useMemo(() => ([
-    { key: 'subject', placeholder: 'subject', value: teacherSlotValues.subject, options: SUBJECTS },
-    { key: 'cls', placeholder: 'class', value: teacherSlotValues.cls, options: CLASSES.map((c) => `Class ${c}`) },
-    { key: 'area', placeholder: 'area', value: teacherSlotValues.area, options: AREAS },
-  ]), [teacherSlotValues]);
-
-  const paperSlots: SentenceSlot[] = useMemo(() => ([
-    { key: 'board', placeholder: 'board', value: paperSlotValues.board, options: BOARDS },
-    { key: 'cls', placeholder: 'class', value: paperSlotValues.cls, options: CLASSES.map((c) => `Class ${c}`) },
-    { key: 'subject', placeholder: 'subject', value: paperSlotValues.subject, options: SUBJECTS },
-    { key: 'school', placeholder: 'school', value: paperSlotValues.school, options: schoolOptions },
-  ]), [paperSlotValues, schoolOptions]);
-
-  const handleSlotChange = useCallback((key: string, value: string) => {
-    if (builderMode === 'teachers') {
-      setTeacherSlotValues((prev) => ({ ...prev, [key]: value }));
-    } else {
-      setPaperSlotValues((prev) => ({ ...prev, [key]: value }));
-    }
-  }, [builderMode]);
-
-  const handleSubmit = useCallback(() => {
-    if (builderMode === 'teachers') {
-      const params = new URLSearchParams();
-      if (teacherSlotValues.subject) params.set('filter_subjects', teacherSlotValues.subject);
-      if (teacherSlotValues.cls) params.set('filter_classes', teacherSlotValues.cls.replace(/^Class /, ''));
-      if (teacherSlotValues.area) params.set('filter_areas', teacherSlotValues.area);
-      const qs = params.toString();
-      navigate(`/all-tuition-teachers-in-kolkata${qs ? `?${qs}` : ''}`);
-    } else {
-      const params = new URLSearchParams();
-      if (paperSlotValues.board) params.set('filter_boards', paperSlotValues.board);
-      if (paperSlotValues.cls) params.set('filter_classes', paperSlotValues.cls.replace(/^Class /, ''));
-      if (paperSlotValues.subject) params.set('filter_subjects', paperSlotValues.subject);
-      if (paperSlotValues.school) params.set('filter_schools', paperSlotValues.school);
-      const qs = params.toString();
-      navigate(`/past-papers/results${qs ? `?${qs}` : ''}`);
-    }
-  }, [builderMode, teacherSlotValues, paperSlotValues, navigate]);
-
   // Wordmark stickers — real counts only; a count that failed to load drops
   // its clause instead of shipping the literal copy-deck numbers (design.md
   // §0.10, brief WORDMARK STICKERS note).
@@ -443,76 +385,14 @@ export function Footer({ expandedContent }: FooterProps = {}) {
 
   return (
     <footer className="bg-background">
-      {/* Inset rounded slab — design.md §1: `mx-3`, `rounded-4xl`, `bg-panel`.
-          Not full-bleed, so page background shows either side of it. */}
-      <div className="mx-3 overflow-hidden rounded-4xl bg-panel text-white">
-        <PageContainer className="px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
+      {/* Handoff H-021: the footer is the stack's final panel, not an inset
+          slab floating on page ground — no mx-3 inset, radius is top-only
+          (it butts the bottom-nav reserve). */}
+      <div className="overflow-hidden rounded-t-bento bg-panel text-white">
+        <PageContainer className="px-5 py-8 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <div className="space-y-8">
-            {/* 1. Sentence builder (C8) — mode toggle + live-count CTA */}
-            <div className="space-y-4">
-              <div className="flex gap-2" role="tablist" aria-label="Search mode">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={builderMode === 'teachers'}
-                  aria-pressed={builderMode === 'teachers'}
-                  onClick={() => setBuilderMode('teachers')}
-                  className={cn(
-                    "relative isolate flex h-10 items-center rounded-full px-4 text-[13.5px] font-bold transition-colors duration-300",
-                    builderMode === 'teachers' ? "text-brand-foreground" : "text-white/70 hover:text-white",
-                  )}
-                >
-                  {builderMode === 'teachers' && (
-                    <motion.span
-                      layoutId="sentence-mode-pill"
-                      className="absolute inset-0 -z-10 rounded-full bg-brand shadow-glow-brand-tight backdrop-blur-md"
-                      transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                    />
-                  )}
-                  Teachers
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={builderMode === 'papers'}
-                  aria-pressed={builderMode === 'papers'}
-                  onClick={() => setBuilderMode('papers')}
-                  className={cn(
-                    "relative isolate flex h-10 items-center rounded-full px-4 text-[13.5px] font-bold transition-colors duration-300",
-                    builderMode === 'papers' ? "text-brand-blue-foreground" : "text-white/70 hover:text-white",
-                  )}
-                >
-                  {builderMode === 'papers' && (
-                    <motion.span
-                      layoutId="sentence-mode-pill"
-                      className="absolute inset-0 -z-10 rounded-full bg-brand-blue shadow-glow-brand-blue-tight backdrop-blur-md"
-                      transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                    />
-                  )}
-                  Past papers
-                </button>
-              </div>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={builderMode}
-                  initial={{ opacity: 0, filter: 'blur(6px)', y: 6 }}
-                  animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-                  exit={{ opacity: 0, filter: 'blur(6px)', y: -6 }}
-                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <SentenceBuilder
-                    mode={builderMode}
-                    slots={builderMode === 'teachers' ? teacherSlots : paperSlots}
-                    onChange={handleSlotChange}
-                    onSubmit={handleSubmit}
-                    count={builderMode === 'teachers' ? (ctaTotals.teachers || undefined) : (ctaTotals.papers || undefined)}
-                  />
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
             {/* Identity */}
-            <div className="space-y-3 border-t border-white/10">
+            <div className="space-y-3">
               <Logo size="nav" onDark className="tap-44" />
               <p className="max-w-prose text-sm text-white/70">
                 Quality tuition teachers in Kolkata, and past papers from Kolkata schools. Free on both counts.

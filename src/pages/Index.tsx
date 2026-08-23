@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
+  ArrowUpRight,
   BookOpen,
   FileText,
   GraduationCap,
@@ -20,18 +21,24 @@ import { SubjectCard } from '@/components/SubjectCard';
 import { HomeGreeting } from '@/components/HomeGreeting';
 import { HomeActivitySection } from '@/components/HomeActivitySection';
 import { SearchDesk } from '@/components/home/SearchDesk';
-import { PageContainer, ControlBlock, Slab } from '@/components/layout/PageContainer';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { useChromeConfig } from '@/components/layout/AppShell';
 import { ProductTour, useProductTour } from '@/components/ProductTour';
 import { NumberedHeading } from '@/components/ui/numbered-heading';
-import { Eyebrow } from '@/components/ui/eyebrow';
-import { Sticker } from '@/components/ui/sticker';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { PaperCover } from '@/components/papers/paper-cover';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
+import type { SentenceSlot } from '@/components/home/SentenceBuilder';
+import { useAuth } from '@/lib/auth-context';
+import { useLikes } from '@/lib/likes-context';
+import { resolveHeroCopy } from '@/lib/hero-copy';
+import { getSubjectPalette } from '@/lib/subject-palette';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { clearExpiredCache } from '@/utils/cache';
 import { getShikshaqmineBasicBySlugs } from '@/lib/teachers';
 import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
+import { SUBJECTS, CLASSES, AREAS, BOARDS } from '@/utils/searchFacets';
 import type { SearchMode } from '@/utils/searchFacets';
 
 interface Teacher {
@@ -119,8 +126,15 @@ export default function Index() {
   const { open: tourOpen, setOpen: setTourOpen } = useProductTour();
 
   const navigate = useNavigate();
+  const { profile } = useAuth();
+  const { likedTeacherIds, likedCount } = useLikes();
 
   useRequireRole();
+
+  // Handoff H-023/S-015: Home renders its own eyes panel inline (with the
+  // real sentence-builder data this page already fetches), replacing
+  // AppShell's default pre-footer for this route only.
+  useChromeConfig({ preFooter: 'none' });
 
   // Homepage-specific JSON-LD structured data
   useEffect(() => {
@@ -332,7 +346,7 @@ export default function Index() {
             }
           });
         });
-        
+
 
         // By-class rail — real per-class teacher counts, tokenized from the
         // teachers_list `classes` column (same pattern as the subject counts
@@ -345,7 +359,7 @@ export default function Index() {
             if (n >= 9 && n <= 12) classTally[n] = (classTally[n] || 0) + 1;
           });
         });
-        
+
 
       return { featured, subjectList, boardTally, classTally };
     },
@@ -357,6 +371,7 @@ export default function Index() {
   const classCounts = home.data?.classTally ?? {};
   const loading = home.isPending;
   const loadError = home.isError;
+  void classCounts;
 
   useEffect(() => { clearExpiredCache(); }, []);
 
@@ -459,146 +474,264 @@ export default function Index() {
   });
   const studentQuotes = quotesQuery.data ?? [];
 
+  // Handoff H-023: the sentence builder moved out of Footer.tsx, "move not
+  // copy" — same component, same slot logic and submit routes, just owned
+  // here now since this is the one page that renders it. schoolOptions is
+  // the one genuinely new query this move needs (Footer used to fetch it for
+  // the same purpose); teacher/paper counts reuse the `stats` query above
+  // instead of re-fetching them a second time.
+  const [builderMode, setBuilderMode] = useState<SearchMode>('teachers');
+  const [teacherSlotValues, setTeacherSlotValues] = useState<Record<string, string>>({});
+  const [paperSlotValues, setPaperSlotValues] = useState<Record<string, string>>({});
+
+  const schoolOptionsQuery = useQuery({
+    queryKey: ['home', 'school-options'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase.from('papers').select('school').eq('is_published', true);
+      return data ? Array.from(new Set(data.map((p) => p.school))).sort() : [];
+    },
+  });
+  const schoolOptions = schoolOptionsQuery.data ?? [];
+
+  const teacherSlots: SentenceSlot[] = useMemo(() => ([
+    { key: 'subject', placeholder: 'subject', value: teacherSlotValues.subject, options: SUBJECTS },
+    { key: 'cls', placeholder: 'class', value: teacherSlotValues.cls, options: CLASSES.map((c) => `Class ${c}`) },
+    { key: 'area', placeholder: 'area', value: teacherSlotValues.area, options: AREAS },
+  ]), [teacherSlotValues]);
+
+  const paperSlots: SentenceSlot[] = useMemo(() => ([
+    { key: 'board', placeholder: 'board', value: paperSlotValues.board, options: BOARDS },
+    { key: 'cls', placeholder: 'class', value: paperSlotValues.cls, options: CLASSES.map((c) => `Class ${c}`) },
+    { key: 'subject', placeholder: 'subject', value: paperSlotValues.subject, options: SUBJECTS },
+    { key: 'school', placeholder: 'school', value: paperSlotValues.school, options: schoolOptions },
+  ]), [paperSlotValues, schoolOptions]);
+
+  const handleSlotChange = useCallback((key: string, value: string) => {
+    if (builderMode === 'teachers') {
+      setTeacherSlotValues((prev) => ({ ...prev, [key]: value }));
+    } else {
+      setPaperSlotValues((prev) => ({ ...prev, [key]: value }));
+    }
+  }, [builderMode]);
+
+  const handleBuilderSubmit = useCallback(() => {
+    if (builderMode === 'teachers') {
+      const params = new URLSearchParams();
+      if (teacherSlotValues.subject) params.set('filter_subjects', teacherSlotValues.subject);
+      if (teacherSlotValues.cls) params.set('filter_classes', teacherSlotValues.cls.replace(/^Class /, ''));
+      if (teacherSlotValues.area) params.set('filter_areas', teacherSlotValues.area);
+      const qs = params.toString();
+      navigate(`/all-tuition-teachers-in-kolkata${qs ? `?${qs}` : ''}`);
+    } else {
+      const params = new URLSearchParams();
+      if (paperSlotValues.board) params.set('filter_boards', paperSlotValues.board);
+      if (paperSlotValues.cls) params.set('filter_classes', paperSlotValues.cls.replace(/^Class /, ''));
+      if (paperSlotValues.subject) params.set('filter_subjects', paperSlotValues.subject);
+      if (paperSlotValues.school) params.set('filter_schools', paperSlotValues.school);
+      const qs = params.toString();
+      navigate(`/past-papers/results${qs ? `?${qs}` : ''}`);
+    }
+  }, [builderMode, teacherSlotValues, paperSlotValues, navigate]);
+
   const [heroMode, setHeroMode] = useState<SearchMode>('teachers');
-  const isPapersMode = heroMode === 'papers';
 
   /* Only teachers who actually have a photo. The stack is a row of faces; an
      initial placeholder in it would read as a missing image rather than a
      person. */
   const featuredWithPhotos = featuredTeachers.filter((t) => Boolean(t.image_url));
 
+  // H-005 branch 1b needs the single liked teacher's name. H-005 adds no new
+  // query, so this only resolves when that teacher is already in the
+  // featured list this page already fetched — otherwise 1b falls through to 2.
+  const likedSingleTeacherName = useMemo(() => {
+    if (likedCount !== 1) return null;
+    const [onlyId] = Array.from(likedTeacherIds);
+    return featuredTeachers.find((t) => t.id === onlyId)?.name ?? null;
+  }, [likedCount, likedTeacherIds, featuredTeachers]);
+
+  const heroCopy = useMemo(
+    () => resolveHeroCopy({ profile, likedCount, likedSingleTeacherName }),
+    [profile, likedCount, likedSingleTeacherName],
+  );
+  // The hero's own mode (from the copy resolver) drives the search desk's
+  // initial mode too, the same way the old two-line headline used to swap
+  // with SearchDesk's onModeChange — except now the direction of truth runs
+  // the other way for the papers branch: H-005's branch 5 both names the
+  // hero copy AND wants the desk in papers mode from first paint.
+  useEffect(() => {
+    if (heroCopy.mode === 'papers') setHeroMode('papers');
+  }, [heroCopy.mode]);
+
+  const heroAvatarChip = heroCopy.chip === null ? null : (
+    <span
+      aria-hidden
+      className="relative inline-block h-[28px] w-[28px] shrink-0 overflow-hidden rounded-full align-[-6px] ring-1 ring-warm-hairline"
+    >
+      {featuredTeachers[0]?.image_url ? (
+        <img src={featuredTeachers[0].image_url} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <StripePlaceholder name={featuredTeachers[0]?.name} initialSize={14} className="h-full w-full" />
+      )}
+    </span>
+  );
+
   const leadTeacher = featuredTeachers[0];
-  const railTeachers = featuredTeachers.slice(1);
 
   return (
     <div className="min-h-screen bg-background">
-
       <main id="main-content">
-        {/* ---------------------------------------------------- Control block */}
-        <section className="relative">
-          {/* pb trimmed from 16/20/24 to 8/10/12: with the hero fixed to two
-              lines (see h1 above), the old bottom padding plus the stat
-              pills/face-stack/paragraph pushed this block to ~2x pages.md
-              §1's spec'd height (385px vs 196px at 375px). The overhanging
-              search card already supplies the visual breathing room below. */}
-          <ControlBlock mode="dark" className="relative overflow-hidden pb-8 sm:pb-10 lg:pb-12">
-            <div className="relative max-w-2xl space-y-4">
-              {/* No eyebrow. "Home concepts.dc.html" concept 2a — the chosen
-                  direction — opens the dark block with the logo row and then the
-                  headline. The "TUTORS & PAST PAPERS, KOLKATA" eyebrow was added
-                  here and appears nowhere in the spec. */}
-              {/* Line breaks: "Who do you need to" / "learn from?" — two lines,
-                  per pages.md §1's reviewer numbers ("Hero h1 <= 2 lines at
-                  375px"). "learn from?" carries a 9px underline bar at 85%
-                  brand rather than the filled tilted marker used elsewhere —
-                  dc.html sets `bottom:3px; height:9px;
-                  background:rgba(255,128,0,.85)`.
+        <BentoStack>
+          {/* -------------------------------------------------------- 1 · Greeting */}
+          <BentoPanel fill="card" edge="top" className="relative overflow-hidden">
+            <p className="mt-[14px] text-[12.5px] font-medium text-warm-tertiary">{heroCopy.eyebrow}</p>
+            <h1
+              key={heroCopy.before + heroCopy.bold}
+              className="animate-hero-swap mt-[6px] font-display text-[34px] font-normal leading-[1.14] tracking-[-0.045em] text-foreground"
+            >
+              {heroAvatarChip}
+              {heroAvatarChip ? ' ' : null}
+              {heroCopy.before}
+              <span className="font-extrabold">{heroCopy.bold}</span>
+              {heroCopy.after}
+            </h1>
 
-                  RESOLVED HANDOFF CONTRADICTION: the same handoff also sets
-                  display-hero to 40px at 375px width, and at that size "Who do
-                  you need to" measures ~376px against ~343px of available h1
-                  width — three lines, not two. text-display-hero and the
-                  ≤2-line rule cannot both hold for this copy. Copy is
-                  spec-locked ("Who do you need to learn from?"), so the type
-                  size was the free variable: dropped one step to
-                  text-page-title (clamps 28px→40px, vs. display-hero's
-                  40px→86px), which fits "Who do you need to" on one line at
-                  375px and lets "learn from?" wrap to a genuine second line. */}
-              {/* Mode-aware headline: swaps copy between Teachers/Papers search
-                  modes (owner request — the H1 should reflect papers mode, not
-                  just the search desk below it). `key={heroMode}` forces a
-                  remount on every mode change so `animate-hero-swap` (§7's
-                  blur+fade+rise keyframe, already in the motion whitelist,
-                  previously defined but unused anywhere) replays each time
-                  instead of only on first paint. */}
-              <h1
-                key={heroMode}
-                className="animate-hero-swap font-display text-page-title leading-[0.96] tracking-[-0.04em] text-background"
-              >
-                <span className="font-normal">{isPapersMode ? 'Which paper do you' : 'Who do you need to'}</span>
-                <br />
-                <span className="relative inline-block font-black">
-                  <span
-                    aria-hidden="true"
-                    className={`absolute inset-x-0 bottom-[3px] h-[9px] rounded-full ${isPapersMode ? 'bg-brand-blue/85' : 'bg-brand/85'}`}
-                  />
-                  <span className="relative">{isPapersMode ? 'need today?' : 'learn from?'}</span>
+            {/* H-007: live facet-count pills replace the old stat-pill pair. */}
+            {subjects.length > 0 && (
+              <div className="-mx-[22px] mt-4 overflow-x-auto px-[22px] scrollbar-hide">
+                <div className="flex w-max items-center gap-2">
+                  {subjects.slice(0, 3).map((s) => (
+                    <span
+                      key={s.id}
+                      className="flex h-[38px] shrink-0 items-center gap-[7px] whitespace-nowrap rounded-full bg-muted px-3.5 text-[13px] font-semibold text-foreground"
+                    >
+                      <span
+                        aria-hidden
+                        className="h-2 w-2 rounded-[2px]"
+                        style={{ backgroundColor: getSubjectPalette(s.name).solid }}
+                      />
+                      {s.name} · {s.teacherCount}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* D1's overlapping face stack. Desktop only — the mobile drawing
+                has no equivalent and the facet pills already carry the count
+                there. The faces are the real featured teachers rendered
+                further down this same page, not stock or invented portraits,
+                and it draws nothing at all until at least three of them have
+                a photo. */}
+            {featuredWithPhotos.length >= 3 && (stats.teachers ?? 0) > 0 && (
+              <div className="mt-4 hidden items-center gap-3 lg:flex">
+                <div className="flex -space-x-3">
+                  {featuredWithPhotos.slice(0, 5).map((t) => (
+                    <img
+                      key={t.id}
+                      src={t.image_url as string}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      decoding="async"
+                      width={44}
+                      height={44}
+                      className="h-11 w-11 rounded-full border-2 border-card object-cover"
+                    />
+                  ))}
+                </div>
+                <span className="text-meta font-semibold text-muted-foreground">
+                  {stats.teachers} verified tutors in Kolkata
                 </span>
-              </h1>
+              </div>
+            )}
+          </BentoPanel>
 
-              {/* Stat pills ("145 verified tutors" / "18 free papers") removed
-                  at the owner's direction — pages.md §1's search-desk stack
-                  lists a mode toggle, one field and 4 popular chips only; no
-                  stat chips belong in this section. The underlying stats query
-                  stays (it still feeds the desktop face-stack label below and
-                  the "All N teachers" link further down the page). */}
+          {/* ---------------------------------------------------------- 2 · Search */}
+          <SearchDesk onModeChange={setHeroMode} />
 
-              {/* D1's overlapping face stack. Desktop only — the mobile
-                  drawing (2a) has no equivalent and the stat pills already
-                  carry the count there.
-
-                  The faces are the real featured teachers already rendered
-                  further down this same page, not stock or invented portraits,
-                  and it draws nothing at all until at least three of them have
-                  a photo. A stack of two, or of placeholder initials, would be
-                  a worse claim than no stack. */}
-              {featuredWithPhotos.length >= 3 && (stats.teachers ?? 0) > 0 && (
-                <div className="hidden items-center gap-3 lg:flex">
-                  <div className="flex -space-x-3">
-                    {featuredWithPhotos.slice(0, 5).map((t) => (
+          {/* --------------------------------------------------- 3 · Teachers fork */}
+          <BentoPanel fill="brandTint" className="!py-[18px]">
+            <div className="flex items-center justify-between">
+              <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand text-[#1F1F1F]">
+                <Users className="h-[19px] w-[19px]" strokeWidth={2.25} aria-hidden />
+              </span>
+              {featuredWithPhotos.length > 0 && (
+                <div className="flex items-center">
+                  <div className="flex -space-x-2.5">
+                    {featuredWithPhotos.slice(0, 3).map((t) => (
                       <img
                         key={t.id}
                         src={t.image_url as string}
                         alt=""
-                        aria-hidden="true"
+                        aria-hidden
                         loading="lazy"
-                        decoding="async"
-                        width={44}
-                        height={44}
-                        className="h-11 w-11 rounded-full border-2 border-panel object-cover"
+                        width={30}
+                        height={30}
+                        className="h-[30px] w-[30px] rounded-full object-cover ring-2 ring-brand-subtle"
                       />
                     ))}
                   </div>
-                  <span className="text-meta font-semibold text-background/75">
-                    {stats.teachers} verified tutors in Kolkata
-                  </span>
+                  <Link
+                    to="/all-tuition-teachers-in-kolkata"
+                    aria-label="Find a teacher"
+                    className="tap-44 ml-2 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-panel text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97]"
+                  >
+                    <ArrowUpRight className="h-4 w-4" aria-hidden />
+                  </Link>
                 </div>
               )}
             </div>
-          </ControlBlock>
+            <Link to="/all-tuition-teachers-in-kolkata" className="mt-[14px] block">
+              <p className="text-[12.5px] font-medium text-warm-secondary">Find a teacher</p>
+              <p className="mt-[2px] font-display text-[25px] font-extrabold leading-[1.05] tracking-[-0.045em]">
+                <span className="text-brand-deep">Message them</span>{' '}
+                <span className="font-normal text-foreground">yourself, free</span>
+              </p>
+            </Link>
+          </BentoPanel>
 
-          {/* Overhanging search card — design.md §2.8 / C-053: -26px mobile, -56px desktop. */}
-          <PageContainer className="relative z-10 -mt-[26px] lg:-mt-[56px]">
-            <SearchDesk onModeChange={setHeroMode} />
-          </PageContainer>
-        </section>
+          {/* ----------------------------------------------------- 4 · Papers fork */}
+          <BentoPanel fill="papersTint" className="!py-[18px]">
+            <Link to="/past-papers" className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[12.5px] font-medium text-warm-secondary">Past papers</p>
+                <p className="mt-[2px] font-display text-[22px] font-extrabold tracking-[-0.04em]">
+                  <span className="text-brand-blue-deep">Revise</span>{' '}
+                  <span className="font-normal text-foreground">for free</span>
+                </p>
+              </div>
+              <span
+                aria-hidden
+                className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-brand-blue text-white"
+              >
+                <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={2.5} />
+              </span>
+            </Link>
+          </BentoPanel>
 
-        {/* --------------------------------------------------- 01 Featured teachers */}
-        <PageContainer as="section" className="py-5 sm:py-8">
-          <div className="space-y-6">
-            <NumberedHeading
-              /* 2a (the chosen direction) breaks this as "Start with the" /
-                 01 / "teachers parents pick" — matches the mockup's own
-                 "01 Start with the teachers parents pick" heading. */
-              line1="Start with the"
-              ordinal="01"
-              line2="teachers parents pick"
-            />
+          {/* --------------------------------------------- 5 · 01 Featured teachers */}
+          <BentoPanel fill="card" className="!px-0 !py-[22px]">
+            <div className="px-[22px]">
+              <NumberedHeading
+                size="compact"
+                line1="Start with the"
+                ordinal="01"
+                line2="teachers parents pick"
+              />
+            </div>
 
             {loading ? (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="mt-4 grid grid-cols-2 gap-4 px-[22px] sm:grid-cols-3 lg:grid-cols-4">
                 {[...Array(4)].map((_, i) => (
                   <div key={i} className="aspect-[4/5] rounded-2xl bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer" />
                 ))}
               </div>
             ) : leadTeacher ? (
-              /* Owner asked for an actual horizontal carousel/rail on both
-                 mobile AND desktop — not a grid that wraps — so this scrolls
-                 left-to-right with snap points at every breakpoint. */
-              <div className="-mx-4 overflow-x-auto overflow-y-visible px-4 py-1 scrollbar-hide sm:mx-0 sm:px-0">
-                <ul className="flex w-max snap-x snap-mandatory gap-4">
-                  {featuredTeachers.map((t, i) => (
-                    <li key={t.id} className="w-[168px] flex-none snap-start sm:w-[200px] lg:w-[220px]">
+              <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] pt-3 scrollbar-hide">
+                <ul className="flex w-max snap-x snap-mandatory gap-3">
+                  {featuredTeachers.map((t) => (
+                    <li key={t.id} className="w-[168px] flex-none snap-start">
                       <TeacherCard
                         id={t.id}
                         name={t.name}
@@ -607,7 +740,6 @@ export default function Index() {
                         subjectSlug={t.subjects?.slug}
                         imageUrl={t.image_url ?? undefined}
                         verified={t.is_verified ?? undefined}
-                        isFeatured={i === 0}
                         variant="grid-compact"
                         minFees={t.minFees}
                         maxFees={t.maxFees}
@@ -617,37 +749,33 @@ export default function Index() {
                 </ul>
               </div>
             ) : (
-              <EmptyResults
-                icon={<Users className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-                heading={loadError ? 'We could not load teachers just now' : 'Refreshing our featured teachers'}
-                message={
-                  loadError
-                    ? 'Check your connection and try again. The full list is still there.'
-                    : 'The full list of verified tutors is still searchable in the meantime.'
-                }
-                action={{ label: 'Browse all teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
-              />
+              <div className="px-[22px] pt-3">
+                <EmptyResults
+                  icon={<Users className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+                  heading={loadError ? 'We could not load teachers just now' : 'Refreshing our featured teachers'}
+                  message={
+                    loadError
+                      ? 'Check your connection and try again. The full list is still there.'
+                      : 'The full list of verified tutors is still searchable in the meantime.'
+                  }
+                  action={{ label: 'Browse all teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
+                />
+              </div>
             )}
 
             <Link
               to="/all-tuition-teachers-in-kolkata"
-              className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-lg text-body-secondary font-medium text-brand-blue transition-colors duration-tap hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              className="flex h-11 items-center gap-2 whitespace-nowrap px-[22px] pt-[18px] text-body-secondary font-medium text-brand-blue transition-colors duration-tap hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
-              {/* desktop-01-home.png labels this "All 312 teachers", not a bare
-                  "All teachers" — the number is the reason to click, and it is
-                  the same real count already shown in the hero, so nothing new
-                  is claimed. Falls back to the bare label until stats load
-                  rather than flashing a placeholder number. */}
               {(stats.teachers ?? 0) > 0 ? `All ${stats.teachers} teachers` : 'All teachers'}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-          </div>
-        </PageContainer>
+          </BentoPanel>
 
-        {/* --------------------------------------------------------- 02 Subjects */}
-        <PageContainer as="section" className="py-5 sm:py-8">
-          <div className="space-y-6">
+          {/* --------------------------------------------------------- 6 · Subjects */}
+          <BentoPanel fill="card">
             <NumberedHeading
+              size="compact"
               line1="Or go straight"
               ordinal="02"
               line2="to the subject"
@@ -655,308 +783,252 @@ export default function Index() {
             />
 
             {loading && subjects.length === 0 ? (
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+              <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
                 {[...Array(8)].map((_, i) => (
                   <div key={i} className="h-28 rounded-2xl bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer" />
                 ))}
               </div>
             ) : subjects.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-                {/* Fixed at 8 tiles on every breakpoint — 2x4 mobile, 2x4
-                    desktop — so the grid never leaves a lonely single tile
-                    orphaned on its own row (a 9th tile at lg:grid-cols-4
-                    used to do exactly that). */}
+              <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
                 {subjects.slice(0, 8).map((s) => (
                   <SubjectCard key={s.id} name={s.name} slug={s.slug} context="teachers" teacherCount={s.teacherCount} paperCount={s.paperCount} />
                 ))}
               </div>
             ) : (
-              <EmptyResults
-                icon={<BookOpen className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-                heading="Subjects are being updated"
-                message="Please check back shortly. You can still search for any subject directly."
-                action={{ label: 'Browse all teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
-              />
+              <div className="mt-4">
+                <EmptyResults
+                  icon={<BookOpen className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+                  heading="Subjects are being updated"
+                  message="Please check back shortly. You can still search for any subject directly."
+                  action={{ label: 'Browse all teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
+                />
+              </div>
             )}
-          </div>
-        </PageContainer>
+          </BentoPanel>
 
-        {/* ----------------------------------------------------- Board pill stack */}
-        {Object.keys(boardCounts).length > 0 && (
-          <PageContainer as="section" className="py-5 sm:py-8">
-            <div className="stagger-children space-y-2">
-              {/* Home concepts.dc.html line 158, the literal pixel spec: a real
-                  <h2>"Your board"</h2> (Archivo 800, 21px, -0.03em, #1F1F1F)
-                  sits above these bars. It had been omitted entirely — the
-                  colored rows rendered with real live counts, just with no
-                  label explaining what they were. */}
+          {/* ---------------------------------------------------- 7 · Your board */}
+          {Object.keys(boardCounts).length > 0 && (
+            <BentoPanel fill="card">
               <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
                 Your board
               </h2>
-              {/* Home concepts.dc.html: height:52px; padding:0 18px;
-                  border-radius:9999px (a true capsule, not a rounded
-                  rectangle); gap:8px between rows. This was rounded-2xl
-                  (16px corners) at auto height with 16px gaps — visually a
-                  different shape and a looser rhythm than the pill stack the
-                  handoff draws. `{{ boards }}` in the spec is a live-data
-                  loop, so real teacher board counts (5 here, not a fixed 4)
-                  is correct, not a mismatch. */}
-              {BOARD_ORDER.filter((b) => boardCounts[b]).map((b, i) => (
-                <Link
-                  key={b}
-                  to={`/all-tuition-teachers-in-kolkata?filter_boards=${encodeURIComponent(b)}`}
-                  className={`flex h-[52px] min-h-[44px] items-center justify-between rounded-full px-[18px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-card-reveal ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'} ${BOARD_TILT_CLASSES[i % BOARD_TILT_CLASSES.length]}`}
-                >
-                  <span className="font-display text-card-title-lg font-bold">{b}</span>
-                  <span className="text-body-secondary tabular-nums opacity-80">
-                    {boardCounts[b]} {boardCounts[b] === 1 ? 'tutor' : 'tutors'}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </PageContainer>
-        )}
+              <div className="stagger-children mt-[14px] space-y-2">
+                {BOARD_ORDER.filter((b) => boardCounts[b]).map((b, i) => (
+                  <Link
+                    key={b}
+                    to={`/all-tuition-teachers-in-kolkata?filter_boards=${encodeURIComponent(b)}`}
+                    className={`flex h-[52px] min-h-[44px] items-center justify-between rounded-full px-[18px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-card-reveal ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'} ${BOARD_TILT_CLASSES[i % BOARD_TILT_CLASSES.length]}`}
+                  >
+                    <span className="font-display text-card-title-lg font-bold">{b}</span>
+                    <span className="text-body-secondary tabular-nums opacity-80">
+                      {boardCounts[b]} {boardCounts[b] === 1 ? 'tutor' : 'tutors'}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </BentoPanel>
+          )}
 
-        {/* The dark subject/board ticker rail that used to sit here has been
-            removed at the owner's direction. Every label it carried is still
-            reachable: subjects from section 02, boards from the board strip,
-            and all of them from the footer's full subject and board lists — so
-            nothing became unreachable, only less shouty. */}
-
-        {/* ------------------------------------------------------ How it works */}
-        <PageContainer as="section" className="py-5 sm:py-8">
-          {/* overflow-visible, not hidden: the Sticker overhangs the top edge by
-              -10px and its own contract says the parent must not clip, or the
-              overhang is cut off (design.md §8). This block previously carried
-              overflow-hidden and sliced the top off "Takes 3 minutes". */}
-          <Slab fill="brand" className="relative overflow-visible p-6 sm:p-8">
-            <Sticker tone="dark" tilt={-6} size={30} className="right-6 sm:right-10">
+          {/* ------------------------------------------------------ How it works */}
+          <BentoPanel fill="brand" className="relative mt-seam overflow-visible">
+            <span
+              aria-hidden
+              className="absolute right-[22px] top-[-12px] -rotate-[6deg] rounded-full bg-panel px-3 py-1.5 text-[11px] font-bold text-background"
+            >
               Takes 3 minutes
-            </Sticker>
+            </span>
 
-            <Eyebrow onDark className="text-white/75">
+            <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/75">
               02 · Two minutes, start to finish
-            </Eyebrow>
-            {/* No lg:text-page-title: section-head now clamps to 46px at 1440,
-                and page-title caps at 40 — the override made this heading
-                SMALLER than its siblings on desktop.
-                White, not brand-foreground: brand-foreground is a near-black
-                token meant for small-control contrast (buttons, chips) — on a
-                large orange panel the house rule is white text on orange,
-                always. */}
-            <h2 className="mt-2 font-display text-section-head font-extrabold text-white">
+            </p>
+            <h2 className="mt-2 font-display text-[28px] font-extrabold tracking-[-0.045em] text-white">
               Then talk to them yourself
             </h2>
 
-            <ol className="mt-8 grid gap-6 sm:grid-cols-3">
+            <ol className="mt-[22px] flex flex-col gap-[18px] sm:grid sm:grid-cols-3 sm:gap-6">
               {[
                 { icon: <Search />, title: 'Tell us the subject', body: 'Subject, class and your area. Three taps, no account needed.' },
                 { icon: <Users />, title: 'Compare real profiles', body: 'Rates, boards, reviews and travel radius, all on one card.' },
                 { icon: <MessageCircle />, title: 'Message on WhatsApp', body: 'Talk to the teacher directly. ShikshAQ never sits in the middle.' },
               ].map((step, i) => (
-                <li key={step.title} className={`flex flex-col gap-3 ${i > 0 ? 'sm:border-l sm:border-background/25 sm:pl-6' : ''}`}>
+                <li key={step.title} className={`flex flex-col ${i > 0 ? 'sm:border-l sm:border-background/25 sm:pl-6' : ''}`}>
                   <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-background/15 text-white [&_svg]:size-5">
                     {step.icon}
                   </span>
-                  <h3 className="font-display text-subsection font-bold text-white">{step.title}</h3>
-                  <p className="text-body-secondary text-white/85">{step.body}</p>
+                  <h3 className="mt-[10px] font-display text-[17px] font-bold text-white">{step.title}</h3>
+                  <p className="mt-1 text-[14px] leading-[1.5] text-white/85">{step.body}</p>
                 </li>
               ))}
             </ol>
 
-            <p className="mt-8 text-body-secondary text-white/80">
+            <p className="mt-[22px] text-[14px] text-white/80">
               No fees, no middleman, no commission, ever.
             </p>
-          </Slab>
-        </PageContainer>
+          </BentoPanel>
 
-        {/* --------------------------------------------------------- 03 By class */}
-        <PageContainer as="section" className="py-5 sm:py-8">
-          <div className="space-y-6">
+          {/* --------------------------------------------------------- 9 · By class */}
+          <BentoPanel fill="card">
             <NumberedHeading
+              size="compact"
               line1="Or by the class"
               ordinal="03"
               line2="they are sitting"
               support="Classes 1 through 12."
             />
 
-            {/* Spec: "Classes 1-12 as 44px chips, 4 per row mobile." Was
-                hardcoded to [9,10,11,12]; now the full range.
-
-                No counts shown — O-01 in pages.md is an explicitly blocked/
-                unresolved open question ("Do not guess; ship without the
-                clause"), so classCounts is intentionally not read here even
-                though it's still computed above for other call sites. */}
-            {/* grid, not flex-wrap, at every breakpoint — a wrapped flex row
-                of 44px chips left a large dead strip on the right of a 1200px+
-                container. The grid stretches each chip's tap target to fill
-                its column instead, so 12 columns of chips actually use the
-                section's full measure on desktop. */}
-            <ul className="grid grid-cols-6 gap-3 sm:grid-cols-8 lg:grid-cols-12">
+            <ul className="mt-4 grid grid-cols-6 gap-2 sm:grid-cols-8 lg:grid-cols-12">
               {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
                 <li key={n}>
                   <Link
                     to={`/all-tuition-teachers-in-kolkata?filter_classes=${n}`}
-                    className="flex h-11 w-full items-center justify-center rounded-2xl bg-card shadow-border transition-transform duration-tap hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-muted transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    <span className="font-display text-card-title font-extrabold tabular-nums">{n}</span>
+                    <span className="font-display text-[16px] font-extrabold tabular-nums">{n}</span>
                   </Link>
                 </li>
               ))}
             </ul>
-          </div>
-        </PageContainer>
+          </BentoPanel>
 
-        {/* ------------------------------------------------------- 04 New papers */}
-        {/* Rebuilt per pages.md §1 / audit: "indigo mode. Dashed tray, 5
-            covers peeking, indigo CTA 'Browse past papers'." Was a plain
-            white row list with no indigo, no tray, no cover art — now reuses
-            the exact indigo-band + dashed-tray + PaperCover pattern the Past
-            Papers page header already ships (src/pages/PastPapers.tsx, the
-            D4 hero), rather than inventing a second version of the same
-            idea. */}
-        <PageContainer as="section" className="py-5 sm:py-8">
-          <div className="space-y-6">
-            <NumberedHeading line1="Or read what" ordinal="04" line2="the boards set" />
+          {/* ------------------------------------------------------- 10 · New papers */}
+          <BentoPanel fill="papers" className="relative overflow-hidden">
+            <span aria-hidden className="pointer-events-none absolute -left-10 top-0 h-[160px] w-[160px] rounded-full bg-white/[.06]" />
+            <span aria-hidden className="pointer-events-none absolute -right-10 top-10 h-[190px] w-[190px] rounded-full bg-white/[.06]" />
+
+            <p className="relative text-[11.5px] font-bold uppercase tracking-[.04em] text-white/70">04</p>
+            <h2 className="relative font-display text-[23px] font-extrabold text-white">the boards set</h2>
 
             {recentPapers.length > 0 ? (
-              <div className="relative overflow-hidden rounded-4xl bg-brand-blue px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-8">
-                <span aria-hidden className="pointer-events-none absolute -left-10 top-0 h-[160px] w-[160px] rounded-full bg-white/[.06]" />
-                <span aria-hidden className="pointer-events-none absolute -right-10 top-10 h-[190px] w-[190px] rounded-full bg-white/[.06]" />
-
-                {/* Dashed shelf tray, covers peeking out the top — the same
-                    treatment as the Past Papers page hero. Bottom padding on
-                    the tray (not just the outer panel) so a cover's own
-                    height/shadow never lands flush on the panel's rounded
-                    edge — that flush collision was what read as "clipped". */}
-                {/* Owner QA: this tray was showing 5 covers squeezed down to
-                    100x132 (below PaperCover's own 118x156 "mobile" size) so
-                    the board eyebrow, 3-line subject clamp and truncated
-                    title line all fought for space on an undersized card —
-                    "too much text crammed in". Trimmed to the 3 newest papers
-                    at PaperCover's real mobile size (matches the 118x156 the
-                    component and pages.md §1 both already spec) instead of
-                    shrinking the card to force a 5th one in. max-w sized for
-                    3 covers (118px + 12px gap x 3) plus the box's own px-6
-                    padding, so justify-center centers the row with no
-                    scroll. */}
-                <div className="relative mx-auto max-w-[420px] rounded-t-[24px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-5">
-                  <div className="scrollbar-hide flex items-end justify-center gap-3 overflow-x-auto overflow-y-visible">
-                    {recentPapers.slice(0, 3).map((p) => (
-                      <PaperCover
-                        key={p.id}
-                        paper={p}
-                        href={`/past-papers/${p.id}`}
-                        size="mobile"
-                        className="flex-none"
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="relative mt-6 flex flex-col items-center gap-1 text-center">
-                  <p className="max-w-prose text-body-secondary text-white/80">
-                    Free past papers from Kolkata schools: ICSE, CBSE and ISC, classes 9 to 12.
-                  </p>
-                  <Link
-                    to="/past-papers"
-                    className="mt-3 inline-flex h-11 min-h-11 items-center gap-2 whitespace-nowrap rounded-full bg-warm-card px-6 text-[14px] font-extrabold text-brand-blue-deep transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue"
-                  >
-                    Browse past papers
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
+              <div className="relative mx-auto mt-5 max-w-[420px] rounded-t-[24px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pb-3 pt-4">
+                <div className="scrollbar-hide flex items-end justify-center gap-3 overflow-x-auto overflow-y-visible">
+                  {recentPapers.slice(0, 3).map((p) => (
+                    <PaperCover
+                      key={p.id}
+                      paper={p}
+                      href={`/past-papers/${p.id}`}
+                      size="mobile"
+                      className="flex-none"
+                    />
+                  ))}
                 </div>
               </div>
             ) : (
-              <EmptyResults
-                icon={<FileText className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-                heading="Papers are being added"
-                message="Free, from Kolkata schools. Check back shortly."
-                action={{ label: 'Browse past papers', onClick: () => navigate('/past-papers') }}
-              />
+              <div className="relative mt-5">
+                <EmptyResults
+                  icon={<FileText className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+                  heading="Papers are being added"
+                  message="Free, from Kolkata schools. Check back shortly."
+                  action={{ label: 'Browse past papers', onClick: () => navigate('/past-papers') }}
+                />
+              </div>
             )}
-          </div>
-        </PageContainer>
 
-        {/* --------------------------------------------------- Guardian trust panel */}
-        <PageContainer as="section" className="py-5 sm:py-8">
-          <div className="rounded-3xl bg-brand-subtle p-6 sm:p-8">
-            <div className="flex items-center gap-3">
-              <IconDisc tone="brand" size={32} shape="square"><ShieldCheck /></IconDisc>
-              <h2 className="font-display text-section-head font-extrabold text-brand-deep">Why guardians use ShikshAQ</h2>
+            <div className="relative mt-5 flex flex-col items-center gap-1 text-center">
+              <p className="max-w-prose text-[14px] leading-[1.5] text-white/80">
+                Free past papers from Kolkata schools: ICSE, CBSE and ISC, classes 9 to 12.
+              </p>
+              <Link
+                to="/past-papers"
+                className="mt-[14px] inline-flex h-[46px] items-center gap-2 whitespace-nowrap rounded-full bg-warm-card px-6 text-[14px] font-extrabold text-brand-blue-deep transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue"
+              >
+                Browse past papers
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
             </div>
-            <ul className="mt-6 grid gap-6 sm:grid-cols-3">
+          </BentoPanel>
+
+          {/* --------------------------------------------------- 11 · Guardian trust */}
+          <BentoPanel fill="brandTint">
+            <div className="flex items-center gap-3">
+              <IconDisc tone="brand" size={38} shape="square"><ShieldCheck className="h-[19px] w-[19px]" /></IconDisc>
+              <h2 className="font-display text-[22px] font-extrabold tracking-[-0.04em] text-brand-deep">Why guardians use ShikshAQ</h2>
+            </div>
+            <ul className="mt-[18px] flex flex-col gap-4">
               {[
                 { icon: <ShieldCheck />, title: 'Verified, every one', body: 'ID and degree checked by a human before a profile goes live.' },
                 { icon: <IndianRupee />, title: 'No commission, ever', body: 'Teachers keep every rupee of their fee. We never invoice anyone.' },
                 { icon: <Users />, title: 'Reviews you can trust', body: 'Every review comes from a student who actually messaged the teacher.' },
               ].map((row) => (
                 <li key={row.title} className="flex items-start gap-3">
-                  <IconDisc tone="brand-subtle" size={36}>{row.icon}</IconDisc>
+                  <IconDisc tone="muted" size={36} className="text-brand-deep"><span className="[&_svg]:h-[17px] [&_svg]:w-[17px]">{row.icon}</span></IconDisc>
                   <div>
-                    <p className="font-display text-card-title font-semibold text-brand-deep">{row.title}</p>
-                    <p className="text-body-secondary text-warm-prose">{row.body}</p>
+                    <p className="text-[16px] font-semibold text-brand-deep">{row.title}</p>
+                    <p className="mt-0.5 text-[14px] leading-[1.5] text-warm-prose">{row.body}</p>
                   </div>
                 </li>
               ))}
             </ul>
-          </div>
-        </PageContainer>
+          </BentoPanel>
 
-        {/* ------------------------------------------------------ Student quotes */}
-        {studentQuotes.length > 0 && (
-          <PageContainer as="section" className="py-5 sm:py-8">
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <IconDisc tone="muted" size={32} shape="square"><MessageCircle /></IconDisc>
-                <h2 className="font-display text-section-head font-extrabold">From students</h2>
+          {/* ------------------------------------------------------ 12 · From students */}
+          {studentQuotes.length > 0 && (
+            <BentoPanel fill="card" className="!px-0 !py-[22px]">
+              <div className="flex items-center gap-3 px-[22px]">
+                <IconDisc tone="muted" size={32} shape="square" className="!rounded-xl"><MessageCircle /></IconDisc>
+                <h2 className="font-display text-[22px] font-extrabold">From students</h2>
               </div>
 
-              <div className="-mx-4 overflow-x-auto overflow-y-visible px-4 py-2 scrollbar-hide sm:mx-0 sm:px-0">
-                <ul className="flex w-max gap-4">
+              <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] scrollbar-hide">
+                <ul className="flex w-max gap-3">
                   {studentQuotes.map((q) => (
-                    <li key={q.id} className="flex w-[250px] flex-none flex-col gap-4 rounded-2xl bg-card p-4 shadow-border">
-                      <p className="line-clamp-5 text-body-secondary text-warm-prose">&ldquo;{q.comment}&rdquo;</p>
+                    <li key={q.id} className="flex w-[250px] flex-none flex-col gap-[14px] rounded-[20px] bg-muted p-4">
+                      <p className="line-clamp-5 text-[14px] leading-[1.55] text-[#4A443E]">&ldquo;{q.comment}&rdquo;</p>
                       <div className="mt-auto flex items-center gap-2">
                         <StripePlaceholder name={q.authorName} initialSize={14} className="h-[26px] w-[26px] flex-none rounded-full" />
                         <div className="min-w-0">
-                          <p className="truncate text-meta font-semibold text-foreground">{q.authorName}</p>
-                          {q.authorMeta && <p className="truncate text-meta text-muted-foreground">{q.authorMeta}</p>}
+                          <p className="truncate text-[12.5px] font-semibold text-foreground">{q.authorName}</p>
+                          {q.authorMeta && <p className="truncate text-[12.5px] text-warm-tertiary">{q.authorMeta}</p>}
                         </div>
                       </div>
                     </li>
                   ))}
                 </ul>
               </div>
-            </div>
-          </PageContainer>
-        )}
+            </BentoPanel>
+          )}
 
-        {/* ------------------------------------------------------- Recommend CTA */}
-        <PageContainer as="section" className="py-5 sm:py-8">
-          <Link
-            to="/recommend-teacher"
-            className="flex items-center gap-4 rounded-3xl bg-card p-4 shadow-border transition-transform duration-tap hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-6"
-          >
-            <IconDisc tone="muted" size={44}>
-              <GraduationCap />
-            </IconDisc>
-            <div className="min-w-0 flex-1">
-              <p className="font-display text-card-title font-semibold text-foreground">Know a good teacher?</p>
-              <p className="text-body-secondary text-muted-foreground">Recommend them and we'll reach out and get them listed, free.</p>
-            </div>
-            <ArrowRight className="h-5 w-5 flex-none text-warm-label" aria-hidden="true" />
-          </Link>
-        </PageContainer>
+          {/* ------------------------------------------------------- 13 · Recommend */}
+          <BentoPanel fill="card" className="!py-[18px]">
+            <Link
+              to="/recommend-teacher"
+              className="flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <IconDisc tone="muted" size={44}>
+                <GraduationCap />
+              </IconDisc>
+              <div className="min-w-0 flex-1">
+                <p className="text-[16px] font-semibold text-foreground">Know a good teacher?</p>
+                <p className="mt-0.5 text-[14px] leading-[1.45] text-warm-secondary">Recommend them and we'll reach out and get them listed, free.</p>
+              </div>
+              <ArrowRight className="h-5 w-5 flex-none text-warm-label" aria-hidden="true" />
+            </Link>
+          </BentoPanel>
 
-        {/* HomeGreeting / HomeActivitySection (Favourites, Recently visited) are
-            real, existing localStorage/likes-backed features with no home in
-            the mockup's own section order — mockup goes search-card straight
-            into "01 Start with the teachers parents pick". Per BUILD FROM ZERO
-            + KEEP FUNCTIONALITY, they are kept but moved below the mockup's own
-            sections, just above the prefooter, rather than deleted. */}
-        <HomeGreeting />
-        <HomeActivitySection />
+          {/* HomeGreeting / HomeActivitySection (Favourites, Recently visited) are
+              real, existing localStorage/likes-backed features with no home in
+              the mockup's own section order. Kept, moved below the mockup's own
+              sections, just above the eyes panel, rather than deleted. */}
+          <BentoPanel fill="card">
+            <HomeGreeting />
+            <HomeActivitySection />
+          </BentoPanel>
+
+          {/* ---------------------------------------- 14 · Eyes + sentence builder */}
+          <EyesPanel
+            mode={builderMode}
+            onModeChange={setBuilderMode}
+            heading={(
+              <>
+                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+              </>
+            )}
+            subline="Fill in the blanks and we'll take you straight there."
+            slots={builderMode === 'teachers' ? teacherSlots : paperSlots}
+            onSlotChange={handleSlotChange}
+            onSubmit={handleBuilderSubmit}
+            count={builderMode === 'teachers' ? (stats.teachers || undefined) : (stats.papers || undefined)}
+          />
+        </BentoStack>
       </main>
 
       {/* Opened by tapping the wordmark in the nav (components.md C10). The
