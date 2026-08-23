@@ -35,8 +35,6 @@ export interface FilterChipsProps {
   chips: FilterChipItem[];
   /** Shown only when chips.length > 0. */
   onClearAll?: () => void;
-  /** Right-aligned "Edit search" ring button — typically re-focuses/re-expands SearchControl. Omit to hide. */
-  onEditSearch?: () => void;
   /** Right-aligned cross-mode handoff button (e.g. "See papers with these filters"). Omit to hide. */
   handoff?: FilterChipsHandoff;
   /** Optional one-sentence note under the row naming what carries over on handoff (Browse only per spec). */
@@ -48,10 +46,12 @@ export interface FilterChipsProps {
 const FOCUS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
-/** Selected chips carry the accent (§2); everything else is `bg-muted`. */
+/* Handoff B-009: applied chips are subject-tinted, not solid — an applied
+   filter reads as a tint pill (matching the chip tone matrix's facet-on /
+   facet-on-papers pair, S-006), not the saturated mode accent. */
 const SELECTED_TINT: Record<SearchMode, string> = {
-  teachers: 'bg-brand text-brand-foreground',
-  papers: 'bg-brand-blue text-brand-blue-foreground',
+  teachers: 'bg-brand-subtle text-brand-deep',
+  papers: 'bg-brand-blue-subtle text-brand-blue-deep',
 };
 
 /** Subject-filter chips ("subjects:Maths" on Browse, the bare "filter_subjects"
@@ -66,16 +66,16 @@ export function FilterChips({
   mode,
   chips,
   onClearAll,
-  onEditSearch,
   handoff,
   carryOverNote,
   className,
   style,
 }: FilterChipsProps) {
-  const hasRow = chips.length > 0 || Boolean(onEditSearch) || Boolean(handoff);
+  const hasRow = chips.length > 0 || Boolean(handoff);
   if (!hasRow) return null;
 
-  const pillBase = `flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${FOCUS}`;
+  /* Handoff B-009: h44, px-[14px], 13.5px trailing X; Clear all bg-muted/text-warm-secondary. */
+  const pillBase = `flex h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-[14px] text-[13.5px] font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${FOCUS}`;
 
   return (
     <div className={className} style={style}>
@@ -97,7 +97,7 @@ export function FilterChips({
               }
             >
               <span className="max-w-[12rem] truncate">{chip.label}</span>
-              <X className="h-4 w-4 flex-none opacity-70" aria-hidden="true" />
+              <X className="h-[13px] w-[13px] flex-none opacity-70" aria-hidden="true" />
             </button>
           );
         })}
@@ -106,28 +106,21 @@ export function FilterChips({
           <button
             type="button"
             onClick={onClearAll}
-            className={`${pillBase} bg-transparent px-2 text-muted-foreground hover:text-foreground`}
+            className={`${pillBase} bg-muted font-semibold text-warm-secondary hover:text-foreground`}
           >
             Clear all
           </button>
         )}
 
-        {(onEditSearch || handoff) && (
+        {handoff && (
           <div className="ml-auto flex flex-none items-center gap-2">
-            {onEditSearch && (
-              <button type="button" onClick={onEditSearch} className={`${pillBase} bg-muted text-foreground`}>
-                Edit search
-              </button>
-            )}
-            {handoff && (
-              <button
-                type="button"
-                onClick={handoff.onClick}
-                className={`${pillBase} bg-muted text-foreground`}
-              >
-                {handoff.label}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handoff.onClick}
+              className={`${pillBase} bg-muted text-foreground`}
+            >
+              {handoff.label}
+            </button>
           </div>
         )}
       </div>

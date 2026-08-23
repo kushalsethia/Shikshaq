@@ -17,6 +17,7 @@ import { Sheet, SheetContent, SheetTitle, SheetClose } from '@/components/ui/she
 import { Button } from '@/components/ui/button';
 import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import type { FilterState } from '@/components/FilterPanel';
+import { BentoPanel } from '@/components/layout/PageContainer';
 
 /**
  * C6 — components.md §2 / design.md §2.3.
@@ -559,14 +560,16 @@ export function FilterSheet({
 export function FilterRail({ filters, onFilterChange, resultCount }: FilterGroupsProps) {
   return (
     <nav aria-label="Filters" className="hidden lg:block lg:w-[284px] lg:flex-none">
-      <div className="sticky top-6">
+      {/* Handoff B-014: the rail is a BentoPanel now — sticky top-24, no
+          border/shadow, separated from the results panel by fill alone. */}
+      <BentoPanel fill="card" className="sticky top-24">
         {/* The group labels below are h3. The mobile sheet gives them an h2
             ("Filters") to sit under; the rail draws no such title, which left a
             h1 -> h3 skip on desktop. This supplies the level without adding a
             heading the mockup does not show. */}
         <h2 className="sr-only">Filters</h2>
         <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} selectedTone="dark" />
-      </div>
+      </BentoPanel>
     </nav>
   );
 }

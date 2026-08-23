@@ -210,31 +210,22 @@ function TeacherCardComponent({
   //   grid:         years + location only (no fee) — Browse dropped the price.
   const isCompact = resolvedVariant === 'grid-compact';
   const isPlainGrid = resolvedVariant === 'grid';
-  // `row` is the one density a `meta` line is ever passed into (Browse only —
-  // "Class 9-12 · Ballygunge"), and that line already carries area. Showing
-  // years+area again here duplicated the location a second time on Browse's
-  // list rows ("22 yrs · Bhavanipur" stacked directly under the meta line).
-  // Row callers that don't pass `meta` (MyTeachers, LikedTeachers,
-  // GuardianDashboard, StudentDashboard, Account, the chatbot) are
-  // unaffected — this is the only place their card shows either fact, so
-  // they keep years+area exactly as before.
-  const rowFactsRedundant = isRow && !!meta;
+  // Handoff B-012: row no longer uses this joined text line at all — its
+  // experience/fee facts moved into rowBadgeRow as separate pills/text
+  // below. grid/grid-compact keep the joined-text line exactly as before.
   const factsParts = [
-    !isCompact && !rowFactsRedundant && experienceYears != null ? `${experienceYears} yrs` : null,
+    !isCompact && !isRow && experienceYears != null ? `${experienceYears} yrs` : null,
     // Plain `grid` already shows area in metaRow ("Class range · Area") —
     // repeating it here read as the same fact printed twice on one card.
-    !isCompact && !isPlainGrid && !rowFactsRedundant ? area || null : null,
-    isPlainGrid ? null : feeLabel,
+    !isCompact && !isPlainGrid && !isRow ? area || null : null,
+    isPlainGrid || isRow ? null : feeLabel,
   ].filter(Boolean) as string[];
   const factsLine = factsParts.length > 0 ? factsParts.join(' · ') : null;
 
   // Neither grid density (`grid` nor `grid-compact`) keeps a WhatsApp button
-  // on the card body anymore (owner's live review, both rounds). Browse's
-  // row cards drop it too now — contact happens on the teacher's own profile
-  // page, not inline on the browse-list card. Row callers elsewhere that
-  // don't pass `meta` (MyTeachers, LikedTeachers, GuardianDashboard,
-  // StudentDashboard, Account, the chatbot) keep the button.
-  const whatsappButton = !isCompact && !isPlainGrid && !rowFactsRedundant && whatsappLink !== undefined && (
+  // on the card body anymore (owner's live review, both rounds). Row gets
+  // its own disc (whatsappDisc, B-012) instead of this labelled button.
+  const whatsappButton = !isCompact && !isPlainGrid && !isRow && whatsappLink !== undefined && (
     <Button
       variant="whatsapp"
       /* Handoff S-007: 40 is no longer a legal Button size; 44 is the floor.
@@ -249,10 +240,10 @@ function TeacherCardComponent({
          lifting. hover:translate-y-0 lands in the same tailwind-merge class
          group as the variant's hover:-translate-y-0.5 and replaces it, leaving
          the card as the only thing that moves. */
-      className={`hover:translate-y-0 ${isRow ? 'shrink-0' : 'mt-2 w-full'}`}
+      className="hover:translate-y-0 mt-2 w-full"
     >
       <WhatsAppIcon className="h-4 w-4" />
-      {isRow ? 'Chat' : 'WhatsApp'}
+      WhatsApp
     </Button>
   );
 
@@ -382,13 +373,33 @@ function TeacherCardComponent({
     </Chip>
   ) : null;
 
-  // Row's chip row now carries the inline subject badge (S-003) alongside
-  // the rating, since row no longer overlays a badge on the photo. Vanishes
-  // entirely when there's neither, rather than reserving empty space
+  // grid/rail only — row's rating (if any) moves into rowBadgeRow below.
+  // Vanishes entirely when absent, rather than reserving empty space
   // (design.md §0.10 — never a fabricated/empty row).
-  const chipsRow = (isRow && hasRealSubject) || rating !== undefined ? (
+  const chipsRow = !isRow && rating !== undefined ? (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-      {isRow && subjectBadgeInline}
+      <span className="inline-flex items-center gap-1 text-meta font-bold tabular-nums text-foreground">
+        ★ {rating.toFixed(1)}
+      </span>
+    </div>
+  ) : null;
+
+  // Handoff B-012: row's badge row — subject badge, experience badge, fee,
+  // fixed order, each optional. Replaces the old chipsRow/factsRow pairing
+  // for this variant only.
+  const experienceBadge = isRow && experienceYears != null ? (
+    <span className="inline-flex h-[26px] items-center rounded-full bg-card px-[10px] text-[11.5px] font-semibold text-warm-secondary">
+      {experienceYears} yrs
+    </span>
+  ) : null;
+  const feeBadgeText = isRow && feeLabel ? (
+    <span className="text-[13px] font-bold text-foreground">{feeLabel}</span>
+  ) : null;
+  const rowBadgeRow = isRow && (subjectBadgeInline || experienceBadge || feeBadgeText || rating !== undefined) ? (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {subjectBadgeInline}
+      {experienceBadge}
+      {feeBadgeText}
       {rating !== undefined && (
         <span className="inline-flex items-center gap-1 text-meta font-bold tabular-nums text-foreground">
           ★ {rating.toFixed(1)}
@@ -396,6 +407,20 @@ function TeacherCardComponent({
       )}
     </div>
   ) : null;
+
+  // Handoff B-012: row gets a 44x44 WhatsApp DISC (not the labelled button
+  // grid/rail use), trailing and top-aligned with the name — restored after
+  // an earlier pass had dropped it specifically for Browse's row cards.
+  const whatsappDisc = isRow && whatsappLink !== undefined && (
+    <button
+      type="button"
+      onClick={handleWhatsAppClick}
+      aria-label={`Message ${name} on WhatsApp`}
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-whatsapp text-whatsapp-text transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
+    >
+      <WhatsAppIcon className="h-[19px] w-[19px]" />
+    </button>
+  );
 
   // Favourite heart — real 44px hit target, now living beside the name instead
   // of overlapping the photo (design.md §2.5 binding rule).
@@ -449,12 +474,11 @@ function TeacherCardComponent({
               {upvotePill}
             </div>
             {metaRow}
-            {chipsRow}
-            {factsRow}
+            {rowBadgeRow}
           </div>
           <div className="flex flex-none flex-col items-end gap-1">
             {heartButton}
-            {whatsappButton}
+            {whatsappDisc}
           </div>
         </Link>
         {whatsappLink !== undefined && (

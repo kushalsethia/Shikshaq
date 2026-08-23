@@ -8,7 +8,7 @@ import { useChromeConfig } from '@/components/layout/AppShell';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { type FilterState } from '@/components/FilterPanel';
 import { FilterSheet, FilterRail, activeFilterCount } from '@/components/browse/FilterGroups';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, ArrowLeft } from 'lucide-react';
 import { Chip, chipVariants } from '@/components/ui/chip';
 import { Button } from '@/components/ui/button';
 import { IconDisc } from '@/components/ui/icon-disc';
@@ -16,7 +16,7 @@ import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { ScrollRail } from '@/components/ui/scroll-rail';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 import { cn } from '@/lib/utils';
-import { ControlBlock, PageContainer } from '@/components/layout/PageContainer';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { ListLoading, ListEmpty, ListOverFiltered, ListError, ListEnd } from '@/components/ui/list-states';
 import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKeywordExtractor';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
@@ -1344,14 +1344,6 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   // featured teachers also match the active filters for no real benefit).
   const isDefaultView = !searchParams.get('q') && !selectedSubject && !selectedClass && filterChips.length === 0;
 
-  // Horizontal shelf source (VISUAL_UPGRADE_PLAN.md / WAVE2_INSPO.md ref 05, the
-  // books-app shelf) — real is_featured teachers already in hand from the main fetch,
-  // not a separate query or invented data.
-  const featuredTeachers = useMemo(() => {
-    if (!isDefaultView) return [];
-    return teachers.filter((t) => t.is_featured).slice(0, 8);
-  }, [teachers, isDefaultView]);
-
   /* sortedSubjectsForDisplay was removed with the subject quick-pick pills —
      it had no other reader, so keeping it would have meant sorting the subject
      list on every change for nobody. */
@@ -1563,36 +1555,26 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           while the loading skeleton is already showing, so a pull can't
           double-trigger a fetch that's already in flight. */}
       <PullToRefresh onRefresh={handleRetry} disabled={loading}>
+      <BentoStack>
 
-      {/* Control block (design.md S1 / S4 "Browse (S1)"): near-black,
-          rounded-b-4xl, carrying the back row, the real result-count h1, and
-          the search field.
-
-          contentClassName: concentric corners (interface-details /
-          make-interfaces-feel-better). Bottom padding matched to the same
-          responsive gutter PageContainer already uses on the sides, so the
-          search field's rounded-2xl corner nests into the block's 32px
-          rounded-b-4xl corner (32 - 16 = 16, at the mobile width this was
-          flagged on) instead of sitting in an asymmetric 32px-bottom /
-          16px-side gap that made its corner look arbitrarily smaller than
-          the one wrapping it. See PageContainer.tsx's ControlBlock. */}
-      <ControlBlock mode="dark" contentClassName="pt-8 pb-4 sm:pb-6 lg:pb-8">
+      {/* Handoff B-002: the near-black control block becomes the stack's
+          bone header panel — one dark surface on this page (the footer), not
+          two fighting the tinted result cards. */}
+      <BentoPanel fill="card" edge="top" className="pt-[14px] pb-5">
+        {/* Handoff B-003: its own 44px row, lucide ArrowLeft (not the literal
+            glyph), warm-secondary ink. */}
         <Link
           to="/"
-          className="shikshaq-tap -mt-1 mb-[14px] inline-flex min-h-11 items-center py-1 text-[13px] font-semibold text-white/70 transition-colors duration-tap hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+          className="shikshaq-tap mb-[14px] flex h-11 w-fit items-center gap-1.5 text-[13px] font-semibold text-warm-secondary transition-colors duration-tap hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
         >
-          {'←'} {isSubjectPage ? 'All subjects' : 'Home'}
+          <ArrowLeft className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+          {isSubjectPage ? 'All subjects' : 'Home'}
         </Link>
 
         {/* Subject icon tile (secondary-01-subject-page.png): a subject-tinted
             square disc above the h1, templated across the ~35 subject routes
             the same way the rest of this first fold is (VISUAL_DIRECTION.md
             §9a). Not present on the generic /all- route or board routes. */}
-        {/* The wrapper is load-bearing: IconDisc is inline-flex, and the back
-            link above is inline too, so without a block-level parent the tile
-            rendered on the SAME line as "← All subjects" — reading as a badge
-            attached to the back control rather than the subject mark heading the
-            page, which is what the comment above and the mockup both intend. */}
         {isSubjectPage && (
           <div className="mb-[14px]">
             <IconDisc
@@ -1607,7 +1589,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           </div>
         )}
 
-        <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-background">
+        <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-foreground">
           {/* Board routes take the labelled heading too. They used to fall
               through to the generic count branch, so /icse-…, /cbse-ncert-…,
               /igcse-…, /international-board-… and /state-board-… all rendered
@@ -1631,12 +1613,12 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           )}
         </h1>
         {pageContext ? (
-          <p className="mt-1 text-[14.5px] text-white/70">
+          <p className="mt-1 text-[14.5px] text-warm-tertiary">
             {loading ? 'Loading teachers…' : `${resultCountLabel} teacher${teachers.length === 1 ? '' : 's'} in Kolkata`}
           </p>
         ) : subLineParts.length > 0 && (
           <p
-            className="mt-1 text-[14.5px] text-white/70"
+            className="mt-1 text-[14.5px] text-warm-tertiary"
             style={headerAccent ? { color: headerAccent } : undefined}
           >
             {subLineParts.join(' · ')}
@@ -1644,49 +1626,24 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         )}
 
         {!loading && resultsTruncated && (
-          <p className="mt-2 text-xs font-medium text-white/60">
+          <p className="mt-2 text-xs font-medium text-warm-tertiary">
             Showing the first {teachers.length} results. Narrow your search to see more.
           </p>
         )}
 
-        <div className="mt-[12px] min-w-0 max-w-[820px]">
-          {/* onDark: pages.md §2 puts this field inside the near-black block,
-              `bg-white/10` with white text and a white/45 placeholder. It was
-              rendering as a bone card on black — the one ground pairing the
-              spec never draws for this field. */}
-          <SearchControl align="flex-start" stackedToggle onDark initialMode="teachers" onModeChange={handleSearchModeChange} />
+        <div className="mt-3 min-w-0 max-w-[820px]">
+          {/* Handoff B-005: drop onDark — the panel is bone now, so the field
+              inherits Home's H-009 metrics (60px, rounded-[22px], bg-muted,
+              46px submit disc) via heroDesk instead. */}
+          <SearchControl align="flex-start" stackedToggle heroDesk initialMode="teachers" onModeChange={handleSearchModeChange} />
         </div>
 
-      </ControlBlock>
-
-      {/* Subject and class quick-picks sit BELOW the control block, not inside
-          it. pages.md §2 gives the block three things — eyebrow, result-count
-          h1, search field — and sizes it 148px mobile / 180px desktop. With
-          these two chip rows inside, it measured 459px: three times the spec,
-          and the first fold was mostly chrome before a single teacher appeared.
-
-          They are kept rather than cut, because each is a one-tap route to a
-          subject or class that the filter sheet makes a three-tap job. Moving
-          them out satisfies the block's proportions without removing the path.
-          On a bone ground they need their own container padding, which the
-          control block was previously providing. */}
-      <PageContainer className="pt-4">
-        {/* The ten tinted subject quick-pick pills that used to sit here are
-            removed at the owner's direction. Ten subject hues stacked three
-            rows deep was the loudest thing on a page whose job is to show
-            teachers, and it pushed the first row of results below the fold.
-
-            Nothing became unreachable: subjects remain one tap away in the
-            filter sheet, every subject has its own indexed route linked from
-            the footer on this page, and the search field takes a subject name
-            directly. */}
-
-        {/* Class quick-pick pills (secondary-01-subject-page.png): "All
-            classes" + the classes actually offered, wired to the same
-            selectedClass/handleClassChange state and `class` URL param the
-            generic Browse dropdown already uses -- no new filter contract. */}
+        {/* Handoff B-006: class quick-picks move inside the header panel,
+            directly under the search field — they used to sit in their own
+            bare container between two panels, where the seam made them look
+            like a dropped element. */}
         {isSubjectPage && (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             <Chip
               tone={!quickPickClassValue ? 'facet-on' : 'facet'}
               size={44}
@@ -1708,27 +1665,23 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             ))}
           </div>
         )}
-      </PageContainer>
+      </BentoPanel>
 
 
       {/* Sticky filter bar (design.md S4 "Browse (S1)"): dark Filters pill
           with an orange count badge (mobile -- desktop uses the persistent
           rail below instead), applied chips, count + sort line. */}
-      {/* isolate: without its own stacking context, the backdrop-blur +
-          sticky combination on this bar can paint above the results grid
-          below it during scroll compositing (observed at 1440px, where the
-          bar's rendered box outlives the space reserved for it and covers
-          the first card row) even though z-30 vs the grid's implicit z-0
-          "should" already resolve it. Pairing isolate here with the results
-          container's own z-0 stacking context (below) removes the ambiguity
-          instead of relying on paint order. */}
-      <div className="sticky top-0 z-30 isolate border-b border-border/60 bg-background/95 backdrop-blur-sm">
-        <PageContainer className="pb-[10px] pt-[12px]">
-          <div className="flex items-center gap-[8px]">
+      {/* Handoff B-007: sticky filter bar becomes a floating BentoPanel pill
+          row — no hairline, no blur, opaque bg-card. `isolate` stays: without
+          its own stacking context this bar can paint above the results grid
+          during scroll compositing (observed at 1440px), even though z-30 vs
+          the grid's implicit z-0 "should" already resolve it. */}
+      <BentoPanel fill="card" className="sticky top-[80px] z-30 isolate px-0 py-3 pl-4">
+          <div className="flex items-center gap-[8px] pr-4">
             <button
               type="button"
               onClick={() => setFilterSheetOpen(true)}
-              className="shikshaq-tap flex min-h-11 flex-none items-center gap-[7px] rounded-full bg-panel px-[16px] text-[13.5px] font-bold text-background transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
+              className="shikshaq-tap flex h-11 flex-none items-center gap-[7px] rounded-full bg-panel px-[16px] text-[13.5px] font-bold text-background transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
             >
               <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden />
               Filters
@@ -1747,48 +1700,27 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               />
             </ScrollRail>
           </div>
-        </PageContainer>
-      </div>
+      </BentoPanel>
 
-      <PageContainer as="main" className="relative z-0 pb-[40px] pt-[20px] lg:flex lg:items-start lg:gap-[32px] lg:pt-[40px]">
-        {/* Desktop persistent 284px filter rail (design.md S5 / C-048) -- the
-            sheet's content unwrapped, same FilterGroupsBody as the mobile sheet. */}
+      {/* Handoff B-014: the desktop two-column shell (rail + results) is
+          unchanged in structure, each side now its own BentoPanel. */}
+      <div className="lg:flex lg:items-start lg:gap-8">
+        {/* Desktop persistent filter rail (design.md S5 / C-048) -- the
+            sheet's content unwrapped, same FilterGroupsBody as the mobile
+            sheet. Handoff B-014: FilterRail renders itself as a BentoPanel now. */}
         <FilterRail filters={filters} onFilterChange={setFilters} resultCount={teachers.length} />
 
-        <div className="min-w-0 flex-1">
-          {/* Featured teachers shelf -- default (unfiltered, un-searched) view
-              only. Real is_featured data from the main fetch. */}
-          {!loading && featuredTeachers.length > 0 && (
-            <div className="mb-6">
-              <h2 className="mb-3 font-display text-section-head font-bold text-foreground">Featured teachers</h2>
-              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                {featuredTeachers.map((teacher) => {
-                  const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
-                  const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
-                  const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
-                  return (
-                    <div key={teacher.id} className="w-[150px] flex-none snap-start sm:w-[170px]">
-                      <TeacherCard
-                        id={teacher.id}
-                        name={teacher.name}
-                        slug={teacher.slug}
-                        subject={firstSubject}
-                        subjectSlug={teacher.subjects?.slug}
-                        imageUrl={teacher.image_url ?? undefined}
-                        sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
-                        isFeatured
-                        size="sm"
-                        whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
-                        experienceYears={deriveExperienceYears((teacher as { _yearStarted?: number | null })._yearStarted)}
-                        minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
-                        maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+        {/* Handoff B-011/B-013: results live inside one BentoPanel — list
+            states render inside it too, so the panel is never empty while a
+            state shows. */}
+        <BentoPanel fill="card" className="min-w-0 flex-1 px-4 py-[18px] lg:p-6">
+          {/* Handoff B-010: the "Featured teachers" shelf is removed —
+              featured teachers already sort first in the results list itself
+              (is_featured drives the fetch's order()), so this repeated the
+              same people in a second presentation immediately above them.
+              Only this render block and its now-dead `featuredTeachers`
+              local are deleted; the query, the select and the order() chain
+              are untouched. */}
 
           {/* Five list states (design.md Section 3). */}
           {fetchError ? (
@@ -1905,18 +1837,17 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           ) : (
             <ListOverFiltered onClear={clearFilters} />
           )}
-        </div>
-      </PageContainer>
+        </BentoPanel>
+      </div>
 
-      {/* "{Subject} papers too" promo (secondary-01-subject-page.png) --
-          orange-tinted, indigo CTA into the papers surface, subject filter
-          carried through so the handoff lands pre-filtered. Real counts only
-          (papers table, is_published + subject match); the whole card is
-          skipped if the subject has no published papers rather than showing
-          a zero or fabricated stat. */}
+      {/* Handoff B-016: "{Subject} papers too" promo becomes a BentoPanel
+          (orange-tinted, indigo CTA into the papers surface, subject filter
+          carried through so the handoff lands pre-filtered). Real counts
+          only (papers table, is_published + subject match); the whole card
+          is skipped if the subject has no published papers rather than
+          showing a zero or fabricated stat. */}
       {isSubjectPage && subjectPapers && subjectPapers.count > 0 && (
-        <PageContainer className="pb-[24px]">
-          <div className="rounded-3xl bg-brand-subtle p-6 sm:p-8">
+        <BentoPanel fill="brandTint">
             <h2 className="font-display text-section-head font-extrabold text-brand-deep">
               {pageContext!.label} papers too
             </h2>
@@ -1935,16 +1866,16 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                 </Link>
               </Button>
             </div>
-          </div>
-        </PageContainer>
+        </BentoPanel>
       )}
 
-      {/* "{Subject} tuition, by area" link grid (secondary-01-subject-page.png)
-          -- real Kolkata localities from utils/searchFacets AREAS (the same
-          list the filter panel's Area facet uses), routed through the
-          existing filter_areas query param so the URL contract is untouched. */}
+      {/* Handoff B-016: "{Subject} tuition, by area" link grid becomes a
+          BentoPanel -- real Kolkata localities from utils/searchFacets AREAS
+          (the same list the filter panel's Area facet uses), routed through
+          the existing filter_areas query param so the URL contract is
+          untouched. */}
       {isSubjectPage && (
-        <PageContainer className="pb-[24px]">
+        <BentoPanel fill="card">
           <h2 className="font-display text-section-head font-extrabold text-foreground">
             {pageContext!.label} tuition, by area
           </h2>
@@ -1959,14 +1890,17 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               </Link>
             ))}
           </div>
-        </PageContainer>
+        </BentoPanel>
       )}
+
+      </BentoStack>
 
       {/* pages.md §6 order: facet chips -> result rows -> papers cross-link
           strip -> area pill grid -> SEO prose block -> B2 strip. The prose
           block used to render first, ahead of the cross-link strip and the
           area grid above -- moved here so it sits last, immediately before
-          the B2 strip, matching the spec. */}
+          the B2 strip, matching the spec. Not itself a stack panel — not in
+          03's geometry appendix / COVERAGE. */}
       {seo?.content && pageContext && <SEOContentBlock content={seo.content} label={pageContext.label} />}
 
       </PullToRefresh>
