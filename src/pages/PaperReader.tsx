@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, Lock, Maximize2 } from 'lucide-react';
-import { Footer } from '@/components/Footer';
+import { ArrowLeft, ExternalLink, Lock, Maximize2, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +11,7 @@ import { getWhatsAppLink } from '@/utils/whatsapp';
 import { recordVisit } from '@/lib/recently-visited';
 import { GateSheet } from '@/components/auth/gate-sheet';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
+import { generateBreadcrumbSchema, injectSchemas } from '@/utils/structuredDataGenerators';
 
 interface Paper {
   id: string;
@@ -194,6 +195,35 @@ export default function PaperReader() {
     paper ? `${paper.subject} Class ${paper.class} ${paper.board} paper from ${paper.school}, shared free on Shikshaq.` : 'Read a free past year question paper on Shikshaq.'
   );
 
+  // This page had zero structured data despite being the one route with real
+  // per-item educational content (title, subject, board, class, year) —
+  // LearningResource is schema.org's type for exactly this. Breadcrumb mirrors
+  // the pattern already used on SchoolPage/TeacherProfile.
+  useEffect(() => {
+    if (!paper) return;
+    injectSchemas([
+      {
+        '@context': 'https://schema.org',
+        '@type': 'LearningResource',
+        name: paper.title,
+        description: `${paper.subject} Class ${paper.class} ${paper.board} paper from ${paper.school}.`,
+        educationalLevel: paper.class,
+        about: paper.subject,
+        provider: { '@type': 'Organization', name: 'Shikshaq', url: 'https://www.shikshaq.in' },
+        dateCreated: String(paper.year),
+      },
+      generateBreadcrumbSchema([
+        { name: 'Home', url: '/' },
+        { name: 'Past papers', url: '/past-papers' },
+        { name: paper.title, url: `/past-papers/${paper.id}` },
+      ]),
+    ]);
+    return () => {
+      const existing = document.getElementById('page-schemas');
+      if (existing) existing.remove();
+    };
+  }, [paper]);
+
   // Full-screen the viewer shell (not the iframe itself, so the watermark
   // layer above it travels with it). Presentation only — no data, no history.
   function openFullScreen() {
@@ -208,6 +238,12 @@ export default function PaperReader() {
   const nextPaper = currentIndex >= 0 && currentIndex < siblings.length - 1 ? siblings[currentIndex + 1] : null;
 
   const signedIn = !authLoading && !!user;
+  // Whether there's anything to put in the rail column at all. Drives
+  // whether the two-column grid renders — without this, a signed-in reader
+  // with no sibling papers (or a signed-out visitor) gets an empty second
+  // column and the same lopsided "dead space on the right" layout this file
+  // was fixed to avoid.
+  const hasRail = signedIn && !!(prevPaper || nextPaper);
 
   // Opens the gate sheet automatically once we know the visitor is signed
   // out and the paper metadata (not the file) has resolved — design.md §6.5:
@@ -218,6 +254,29 @@ export default function PaperReader() {
     else setGateOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, authLoading, !!paper, signedIn]);
+
+  // Share the real paper URL — the path of least resistance for passing a
+  // paper along should be "share the link", not a screenshot. No website can
+  // actually block OS-level screenshots/screen recording, so this is
+  // deterrence-by-convenience, not enforcement: give the easy option and let
+  // it win on its own merits.
+  async function handleShare(p: Paper) {
+    const shareUrl = `${window.location.origin}/past-papers/${p.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: p.title, url: shareUrl });
+        return;
+      } catch {
+        // fall through to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Link copied');
+    } catch {
+      // clipboard unavailable — no-op, share button stays non-fatal
+    }
+  }
 
   function requestRemovalUrl(p: Paper): string {
     const message = `Hi! I'd like to request removal of a paper on Shikshaq: "${p.title}" (${p.school}, ${p.subject} Class ${p.class} ${p.board}, ${p.year}). Paper ID: ${p.id}.`;
@@ -241,7 +300,6 @@ export default function PaperReader() {
             <div className={`h-56 rounded-2xl ${SKELETON}`} />
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -253,7 +311,7 @@ export default function PaperReader() {
         <main className={`flex-1 ${CONTAINER} pb-16 pt-8`}>
           <Link
             to="/past-papers"
-            className="mb-[18px] inline-flex min-h-11 items-center text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="mb-[18px] inline-flex min-h-11 items-center text-sm font-semibold text-muted-foreground transition-colors duration-tap hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             ← Back to papers
           </Link>
@@ -263,7 +321,6 @@ export default function PaperReader() {
             action={{ label: 'Browse past papers', onClick: () => navigate('/past-papers') }}
           />
         </main>
-        <Footer />
       </div>
     );
   }
@@ -283,7 +340,8 @@ export default function PaperReader() {
           page-title h1) is replaced by this, per "mockup wins" — but every
           field it carried (class, board, exam type, year) is preserved in
           the meta line below so no data is dropped. */}
-      <header className="pr-hide-print border-b border-white/10">
+      {/* Handoff RD-002: ring, not a border. */}
+      <header className="pr-hide-print shadow-[inset_0_-1px_0_rgba(255,255,255,.10)]">
         <div className={`${CONTAINER} flex items-center gap-3 py-[14px]`}>
           <Link
             to="/past-papers"
@@ -305,12 +363,27 @@ export default function PaperReader() {
               {paper.school} · {paper.board} Class {paper.class} · {paper.exam_type} · {paper.year}
             </p>
           </div>
+
+          <button
+            type="button"
+            onClick={() => void handleShare(paper)}
+            aria-label="Share this paper"
+            className={`flex h-11 w-11 flex-none items-center justify-center rounded-full text-white transition-colors duration-tap ease-tap hover:bg-white/20 focus-visible:ring-offset-panel ${FOCUS}`}
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+              <Share2 size={16} strokeWidth={2.2} aria-hidden="true" />
+            </span>
+          </button>
         </div>
       </header>
 
       {/* F4 — permanent strip under the header, regardless of sign-in state.
-          School name is per-paper data, never static copy. */}
-      <div className="pr-hide-print">
+          School name is per-paper data, never static copy. Deliberately NOT
+          .pr-hide-print: this carries the copyright notice, so if a visitor
+          does print the page (Ctrl+P bypasses no client-side control), the
+          copyright/attribution line should still be there — only the document
+          viewport itself is withheld from print, further down. */}
+      <div>
         <DisclaimerStrip tone="dark" school={paper.school} reportHref={requestRemovalUrl(paper)} />
       </div>
 
@@ -325,13 +398,22 @@ export default function PaperReader() {
           </div>
         )}
 
-        <div className="pr-hide-print mt-4 grid grid-cols-1 gap-6 sm:grid-cols-[2fr,1fr] sm:gap-8">
+        <div
+          className={`pr-hide-print mt-4 ${
+            hasRail
+              ? 'grid grid-cols-1 gap-6 sm:grid-cols-[2fr,1fr] sm:gap-8'
+              : `mx-auto grid grid-cols-1 ${signedIn ? 'max-w-3xl' : 'max-w-2xl'}`
+          }`}
+        >
           {/* ---------------- Paper body ---------------- */}
           {/* S5: the paper is the one light surface on the dark ground —
               radius 12px, no hairline (the mockup separates it with a drop
               shadow against the dark panel, not a border). */}
           <div
-            className={`${signedIn ? 'p-3 pb-0 sm:p-4 sm:pb-0' : 'p-0'} relative select-none overflow-hidden rounded-xl bg-card`}
+            /* Handoff RD-004: radius unchanged (12px) — this is not a bento
+               panel — plus a lift shadow so it reads as the one lit surface
+               on the dark ground. */
+            className={`${signedIn ? 'p-3 pb-0 sm:p-4 sm:pb-0' : 'p-0'} relative select-none overflow-hidden rounded-xl bg-card shadow-[0_18px_40px_rgba(0,0,0,.45)]`}
             onContextMenu={(e) => e.preventDefault()}
             onCopy={(e) => e.preventDefault()}
           >
@@ -346,11 +428,20 @@ export default function PaperReader() {
                       new tab where zoom and page controls actually work.
                       This does not "unlock" anything — file_url is a public
                       bucket URL and always was. */}
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                  {/* Handoff RD-005: one h48 r999 bg-white/10 track. The
+                     entry's −/percentage/+ zoom group isn't built: this
+                     embed has no custom zoom (the file's own top-of-file
+                     note explains why — the native viewer's zoom is used
+                     instead, and adding a JS PDF renderer to get a real
+                     zoom control is out of scope) — a non-functional zoom
+                     readout would be dishonest UI, so the track keeps the
+                     two real actions instead. "Open in a new tab" ->
+                     "Open full PDF", restyled indigo per the entry. */}
+                  <div className="mb-3 flex h-12 w-fit items-center gap-1 rounded-full bg-white/10 p-1">
                     <button
                       type="button"
                       onClick={openFullScreen}
-                      className={`flex min-h-11 items-center gap-2 rounded-full bg-muted px-4 text-[14px] font-semibold text-foreground transition-colors duration-tap ease-tap hover:bg-border active:scale-[0.97] ${FOCUS}`}
+                      className={`flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-white transition-colors duration-tap ease-tap hover:bg-white/10 active:scale-[0.97] ${FOCUS_DARK}`}
                     >
                       <Maximize2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
                       Full screen
@@ -359,10 +450,10 @@ export default function PaperReader() {
                       href={paper.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`flex min-h-11 items-center gap-2 rounded-full bg-muted px-4 text-[14px] font-semibold text-foreground transition-colors duration-tap ease-tap hover:bg-border active:scale-[0.97] ${FOCUS}`}
+                      className={`flex h-9 items-center gap-2 rounded-full bg-brand-blue px-4 text-[13px] font-bold text-white transition-colors duration-tap ease-tap hover:bg-brand-blue-hover active:scale-[0.97] ${FOCUS_DARK}`}
                     >
                       <ExternalLink className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
-                      Open in a new tab
+                      Open full PDF
                     </a>
                   </div>
 
@@ -399,7 +490,7 @@ export default function PaperReader() {
                   <EmptyResults
                     className="bg-transparent shadow-none"
                     heading="This paper's file hasn't been uploaded yet"
-                    message='The listing is here but the PDF itself is still missing. Check back soon — or use "Request removal" above if this listing looks wrong.'
+                    message='The listing is here but the PDF itself is still missing. Check back soon, or use "Request removal" above if this listing looks wrong.'
                     action={{ label: 'Browse other papers', onClick: () => navigate('/past-papers') }}
                   />
                 </div>
@@ -442,45 +533,62 @@ export default function PaperReader() {
           </div>
 
           {/* ---------------- Rail ---------------- */}
-          <div className="pr-rail">
-            {/* Redistribution copy — deliberately says "please don't", not
-                "you can't". Downloading and printing are NOT blocked (public
-                bucket URL); do not reintroduce any claim that they are. */}
-            <div className="rounded-2xl bg-white/[.06] px-4 py-3 text-[11.5px] leading-[1.5] text-white/[.66]">
-              These papers are shared for personal study only. Please don't redistribute or reupload them elsewhere — schools can request removal any time.
+          {/* The old redundant "shared for personal study only" note card is
+              gone: it restated the disclaimer strip already pinned under the
+              header (same "don't redistribute" / "schools can request
+              removal" points), just competing for attention from a
+              disconnected floating position instead of reinforcing it. One
+              clear disclaimer beats two half-attended ones. What's left in
+              the rail is real navigation, so it only renders when there's
+              actually something to navigate to — no more empty rail column
+              leaving dead space next to a signed-out visitor's blurred
+              preview. */}
+          {signedIn && (prevPaper || nextPaper) && (
+            <div className="pr-rail grid gap-2">
+              {/* Route markers along the same stretch of road: the previous
+                  and next paper in this subject/class/board run. This is
+                  sibling navigation, NOT reading history — nothing here
+                  claims the student has read anything (VISUAL_DIRECTION
+                  §9.2). */}
+              {/* Handoff RD-007: radius 16->20, fill white/.06->white/.07,
+                  py-3->py-[14px], label 50% white (was the indigo link tone). */}
+              {prevPaper && (
+                <Link
+                  to={`/past-papers/${prevPaper.id}`}
+                  className={`flex min-h-11 flex-col justify-center rounded-[20px] bg-white/[.07] px-4 py-[14px] transition-colors duration-tap ease-tap hover:bg-white/10 ${FOCUS_DARK}`}
+                >
+                  <span className="block text-[11.5px] font-bold uppercase tracking-[.04em] text-white/50">← Previous</span>
+                  <span className="mt-1 block break-words text-[14px] font-semibold tabular-nums text-white">{prevPaper.title} ({prevPaper.year})</span>
+                </Link>
+              )}
+              {nextPaper && (
+                <Link
+                  to={`/past-papers/${nextPaper.id}`}
+                  className={`flex min-h-11 flex-col justify-center rounded-[20px] bg-white/[.07] px-4 py-[14px] transition-colors duration-tap ease-tap hover:bg-white/10 ${FOCUS_DARK}`}
+                >
+                  <span className="block text-[11.5px] font-bold uppercase tracking-[.04em] text-white/50">Next →</span>
+                  <span className="mt-1 block break-words text-[14px] font-semibold tabular-nums text-white">{nextPaper.title} ({nextPaper.year})</span>
+                </Link>
+              )}
             </div>
+          )}
+        </div>
 
-            {/* Route markers along the same stretch of road: the previous and
-                next paper in this subject/class/board run. This is sibling
-                navigation, NOT reading history — nothing here claims the
-                student has read anything (VISUAL_DIRECTION §9.2). */}
-            {signedIn && (prevPaper || nextPaper) && (
-              <div className="mt-4 grid gap-2">
-                {prevPaper && (
-                  <Link
-                    to={`/past-papers/${prevPaper.id}`}
-                    className={`flex min-h-11 flex-col justify-center rounded-2xl bg-white/[.06] px-4 py-3 transition-colors duration-tap ease-tap hover:bg-white/10 ${FOCUS_DARK}`}
-                  >
-                    <span className="block text-label font-bold uppercase text-indigo-link-on-dark">← Previous</span>
-                    <span className="mt-1 block break-words text-[14px] font-semibold tabular-nums text-white">{prevPaper.title} ({prevPaper.year})</span>
-                  </Link>
-                )}
-                {nextPaper && (
-                  <Link
-                    to={`/past-papers/${nextPaper.id}`}
-                    className={`flex min-h-11 flex-col justify-center rounded-2xl bg-white/[.06] px-4 py-3 transition-colors duration-tap ease-tap hover:bg-white/10 ${FOCUS_DARK}`}
-                  >
-                    <span className="block text-label font-bold uppercase text-indigo-link-on-dark">Next →</span>
-                    <span className="mt-1 block break-words text-[14px] font-semibold tabular-nums text-white">{nextPaper.title} ({nextPaper.year})</span>
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
+        {/* Handoff RD-008: the one orange object on this page — new, this
+            block didn't exist before. Copy is subject-scoped, built from the
+            paper's own subject, never hardcoded. */}
+        <div className="pr-hide-print mt-6 rounded-[24px] bg-brand p-[18px]">
+          <p className="font-display text-[17px] font-extrabold tracking-[-0.03em] text-[#1F1F1F]">
+            Need a tutor for {paper.subject}?
+          </p>
+          <Link
+            to={`/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(paper.subject)}`}
+            className={`mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[14.5px] font-bold text-[#FCFAF7] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] ${FOCUS_DARK}`}
+          >
+            Browse {paper.subject} teachers
+          </Link>
         </div>
       </main>
-
-      <div className="pr-hide-print"><Footer /></div>
 
       <GateSheet
         open={gateOpen}

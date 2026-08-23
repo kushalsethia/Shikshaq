@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Users, Lock } from 'lucide-react';
+import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck } from 'lucide-react';
 import { SearchControl } from '@/components/SearchControl';
-import { Footer } from '@/components/Footer';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +15,12 @@ import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { schoolSlug } from '@/lib/school-slug';
+import { generateCollectionPageSchema, injectSchemas } from '@/utils/structuredDataGenerators';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
+import { useChromeConfig } from '@/components/layout/AppShell';
+import { BROWSE_PATH } from '@/lib/nav-config';
 
 interface Paper {
   id: string;
@@ -45,10 +50,12 @@ interface SchoolStat {
 }
 
 const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
-// Tighter than the marketing-page SECTION rhythm (py-16..24) — this is a
-// dense utility page stacking several full-bleed colored slabs; that much
-// air between them read as wasted space rather than breathing room.
-const SECTION = 'py-8 sm:py-12';
+// One vertical rhythm for the whole stack below the hero: every section
+// contributes its own bottom gap only (no per-section top padding fighting
+// the previous section's bottom padding), so the page reads as one
+// consistent beat instead of ad-hoc pb-8/pb-12/pb-[24px] values that used
+// to drift section to section. Sub-element gap (heading -> its content) is
+// exactly half of this, mb-3 (12px) against pb-10/14 (40/56px).
 const SKELETON = 'bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer';
 const FOCUS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
@@ -75,12 +82,6 @@ const PAPER_STEPS = [
   { n: '01', icon: Search, title: 'Find the paper', body: 'Search by school, subject, class or board, or browse the sections below.' },
   { n: '02', icon: FileText, title: 'Read it here', body: 'Papers open right in the browser. No app to install, nothing to buy.' },
   { n: '03', icon: ShieldCheck, title: "It's free, always", body: "Shared by students, for students. We don't charge for a single page." },
-];
-
-const PAPER_PROMISES = [
-  { icon: FileText, title: 'Opens in the browser', body: 'Every paper reads in the page. No app, no account needed to browse.' },
-  { icon: Users, title: 'Shared by students', body: "The collection grows as students who've sat these exams share their papers." },
-  { icon: ShieldCheck, title: 'Removed on request', body: 'Any school that wants a paper taken down can have it removed, no argument.' },
 ];
 
 /**
@@ -110,7 +111,7 @@ function ShelfSkeleton() {
 export default function PastPapers() {
   usePageMeta(
     // 58 chars. Was 74, so ~14 characters were truncated out of the SERP.
-    'Free Past Year Question Papers — CBSE, ICSE, ISC | Shikshaq',
+    'Free Past Year Question Papers - CBSE, ICSE, ISC | Shikshaq',
     'Download free past year question papers and previous year solved papers for CBSE, ICSE, ISC and West Bengal State Board exams. Practice PYQs by subject and class.'
   );
 
@@ -119,6 +120,14 @@ export default function PastPapers() {
   const [searchParams] = useSearchParams();
 
   const [groupMode, setGroupMode] = useState<GroupMode>('subject');
+
+  // Handoff PP-014: this route renders its own eyes panel (papers mode),
+  // replacing AppShell's B3 pre-footer.
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
+  useEffect(() => { setBuilderMode('papers'); }, [setBuilderMode]);
 
 
   // The old /past-papers route used to render results inline; that's now the
@@ -267,8 +276,29 @@ export default function PastPapers() {
   const subjectsCovered = Object.keys(subjectCounts).length;
   const isEmptyCatalogue = !loading && !loadError && totalPapers === 0;
 
+  // No structured data existed on this page at all — it's the index of every
+  // past paper on the site, the same kind of listing page Browse/Subject/Board
+  // pages already emit a CollectionPage schema for. Only fires once a real
+  // count has resolved, matching the loading/empty guards above.
+  useEffect(() => {
+    if (loading || totalPapers == null || totalPapers === 0) return;
+    injectSchemas([
+      generateCollectionPageSchema({
+        url: 'https://www.shikshaq.in/past-papers',
+        name: 'Free past year question papers',
+        description: `${totalPapers.toLocaleString('en-IN')} free past year question papers for CBSE, ICSE, ISC and West Bengal State Board exams.`,
+        about: 'Past year question papers',
+        numberOfItems: totalPapers,
+      }),
+    ]);
+    return () => {
+      const existing = document.getElementById('page-schemas');
+      if (existing) existing.remove();
+    };
+  }, [loading, totalPapers]);
+
   const requestPaperUrl = `${getWhatsAppLink('8240980312')}?text=${encodeURIComponent(
-    "Hi! I'm looking for a past paper on Shikshaq — could you add it?"
+    "Hi! I'm looking for a past paper on Shikshaq, could you add it?"
   )}`;
 
   if (hasFilters) {
@@ -279,6 +309,7 @@ export default function PastPapers() {
     <div className="flex min-h-screen flex-col bg-background">
       <main className="flex-1">
       <PullToRefresh onRefresh={() => landing.refetch()} disabled={hasFilters}>
+      <BentoStack>
         {/* ------------------------------------------------------------- Hero */}
         {/* D4 "Papers library" hero: saturated indigo band with two soft
             radial blobs, a centered Archivo-900 headline, lede, sign-in CTA,
@@ -289,8 +320,12 @@ export default function PastPapers() {
             per-user new-paper count) — both are now REAL, from paper_reads,
             and render only for a signed-in reader who has opened something.
             The headline still falls back to the total published count for
-            everyone else. */}
-        <div className="relative overflow-hidden bg-brand-blue px-4 pb-0 pt-10 sm:px-6 sm:pt-14 lg:px-8">
+            everyone else.
+            Handoff PP-002: BentoPanel fill="papers" edge="top" — square-topped,
+            30px bottom corners. No separate in-panel logo/menu row added: per
+            Home (H-002) and Browse (B-003b), the floating Navbar pill already
+            carries that, and this route doesn't duplicate it either. */}
+        <BentoPanel fill="papers" edge="top" className="relative overflow-hidden px-4 pt-[14px] pb-0 sm:px-6 lg:px-8">
           <span aria-hidden className="pointer-events-none absolute -left-10 top-5 h-[180px] w-[180px] rounded-full bg-white/[.06] sm:h-[240px] sm:w-[240px]" />
           <span aria-hidden className="pointer-events-none absolute -right-10 top-16 h-[210px] w-[210px] rounded-full bg-white/[.06] sm:h-[280px] sm:w-[280px]" />
 
@@ -299,12 +334,12 @@ export default function PastPapers() {
                 for a signed-in reader who has opened something: a ring reading
                 0 of 5 is not encouragement, it is a scold on a first visit. */}
             {user && readThisWeek > 0 && (
-              <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-[12.5px] font-bold text-white">
+              <span className="mb-4 inline-flex h-[30px] items-center gap-2 whitespace-nowrap rounded-full bg-white/15 px-3 py-1.5 text-[12.5px] font-bold text-white">
                 <GoalRing value={readThisWeek} goal={WEEKLY_GOAL} size={24} showValue={false} />
                 {readThisWeek} of {WEEKLY_GOAL} this week
               </span>
             )}
-            <h1 className="font-display text-[34px] font-black leading-[.98] tracking-[-0.03em] text-white sm:text-[52px] lg:text-[74px] lg:leading-[.94]">
+            <h1 className="font-display text-[34px] font-normal leading-[.98] tracking-[-0.03em] text-white sm:text-[52px] lg:text-[74px] lg:leading-[.94]">
               {/* "You have N new papers waiting on your shelf" (pages.md §4.1)
                   when there genuinely are new ones for THIS reader — published
                   since the last paper they opened. Falls back to the library
@@ -314,31 +349,35 @@ export default function PastPapers() {
               {newPaperCount != null && newPaperCount > 0 ? (
                 <>
                   You have {newPaperCount.toLocaleString('en-IN')} new paper
-                  {newPaperCount === 1 ? '' : 's'},<br />waiting on your shelf
+                  {newPaperCount === 1 ? '' : 's'},<br /><span className="font-black">waiting on your shelf</span>
                 </>
               ) : !loading && !loadError && totalPapers != null && totalPapers > 0 ? (
-                <>{totalPapers.toLocaleString('en-IN')} past papers,<br />free to read</>
+                <>{totalPapers.toLocaleString('en-IN')} past papers,<br /><span className="font-black">free to read</span></>
               ) : (
-                <>Past papers from{' '}<br />Kolkata schools</>
+                <>Past papers from{' '}<br /><span className="font-black">Kolkata schools</span></>
               )}
             </h1>
+            {/* Was a school-count + "classes 9 to 12" range ("From 6 schools
+                across ICSE, CBSE and ISC, classes 9 to 12...") — owner mobile
+                QA: a number range under the H1 read as a stray stat, not a
+                sentence. Rewritten as plain descriptive copy with no invented
+                or fragile-looking numbers, matching the tone of the B3
+                pre-footer's "Real school papers, shared by students, free to
+                read." headline just below on this same page. */}
             <p className="mt-3 max-w-[62ch] text-[15px] leading-[1.55] text-white/[.82] sm:mt-4 sm:text-[17.5px]">
-              {schoolStats.length > 0
-                ? `From ${schoolStats.length} school${schoolStats.length === 1 ? '' : 's'} across ICSE, CBSE and ISC, classes 9 to 12. Free to read, with marking schemes where the boards publish them.`
-                : 'ICSE, CBSE and ISC, classes 9 to 12. Free to read, with marking schemes where the boards publish them.'}
+              Past papers from Kolkata schools, shared by students. Free to read, with marking schemes where the boards publish them.
             </p>
-            {!user ? (
-              <Link
-                to="/auth"
-                className={`mt-5 flex h-[54px] min-h-11 w-fit items-center gap-2.5 rounded-full bg-warm-card px-[26px] text-[16px] font-extrabold text-brand-blue-deep transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
-              >
-                <Lock className="h-[18px] w-[18px]" strokeWidth={2.4} aria-hidden="true" />
-                Sign in free to read
-              </Link>
-            ) : (
+            {/* Owner mobile QA: "Sign in free to read" here was a second,
+                premature sign-in CTA above the fold — the gate a reader
+                actually hits is the lock disc on a locked cover (below) or
+                the PaperGate sheet it opens, both of which already name the
+                paper and ask to sign in. A signed-out visitor gets no
+                competing button here; a signed-in one still gets a real
+                shortcut into the full list. */}
+            {user && (
               <button
                 onClick={() => navigate('/past-papers/results')}
-                className={`mt-5 flex h-[54px] min-h-11 w-fit items-center gap-2.5 rounded-full bg-warm-card px-[26px] text-[16px] font-extrabold text-brand-blue-deep transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
+                className={`mt-5 flex h-[54px] min-h-11 w-fit items-center gap-2.5 rounded-full bg-warm-card pl-[26px] pr-6 text-[16px] font-extrabold text-brand-blue-deep transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:hover:translate-y-0 ${FOCUS_BLUE}`}
               >
                 Browse every paper
                 <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
@@ -349,9 +388,11 @@ export default function PastPapers() {
           {/* Shelf tray: covers peeking out of the indigo band. Dashed
               border, radius 28px on top only, no bottom border — literal
               per D4. Falls back to nothing (not an empty dashed box) while
-              papers are still loading or the catalogue is empty. */}
+              papers are still loading or the catalogue is empty.
+              Handoff PP-005: full-bleed inside the panel on mobile (-mx-4
+              px-4), mx-auto max-w-[1000px] kept from sm: up. */}
           {!loading && !loadError && recentPapers.length > 0 && (
-            <div className="relative mx-auto mt-10 max-w-[1000px] rounded-t-[28px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pt-5 sm:px-[26px] sm:pt-[26px]">
+            <div className="relative -mx-4 mt-[26px] rounded-t-[28px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pt-[18px] sm:mx-auto sm:max-w-[1000px] sm:px-[26px] sm:pt-[26px]">
               {/* items-end + overflow-y-visible: the covers stand OUT of the
                   tray's top edge, so a clipping scroller would slice their
                   tops off. ScrollRail hides the native bar and fades the edge
@@ -370,59 +411,61 @@ export default function PastPapers() {
               </div>
             </div>
           )}
-        </div>
+        </BentoPanel>
 
         {/* ------------------------------------------------------ Board tabs */}
         {/* D4: board tabs with live counts, mirrored on mobile. Real counts
             from boardCounts (already fetched for the By subject/board
-            toggle below) — never a placeholder. */}
+            toggle below) — never a placeholder.
+            Handoff PP-006: BentoPanel, single horizontal scroller, no border-b. */}
         {!loading && !loadError && featuredBoards.length > 0 && (
-          <section className={`${CONTAINER} flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border pb-3 pt-6`}>
-            {featuredBoards.map((b) => (
-              <button
-                key={b}
-                onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
-                className={`flex min-h-11 items-center gap-2 whitespace-nowrap font-display text-[17px] font-extrabold tracking-[-0.02em] text-foreground transition-colors duration-tap ease-tap hover:text-brand-blue ${FOCUS_BLUE}`}
-              >
-                {b}
-                <span className="inline-flex h-[26px] min-w-[26px] items-center justify-center rounded-full bg-brand-blue-subtle px-[9px] font-sans text-[12.5px] font-bold text-brand-blue-deep tabular-nums">
-                  {boardCounts[b]}
-                </span>
-              </button>
-            ))}
-          </section>
+          <BentoPanel fill="card" className="!px-0 py-4 pl-4">
+            <div className="flex gap-[18px] overflow-x-auto pr-4 scrollbar-hide">
+              {featuredBoards.map((b) => (
+                <button
+                  key={b}
+                  onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
+                  className={`flex min-h-11 flex-none items-center gap-2 whitespace-nowrap font-display text-[17px] font-extrabold tracking-[-0.02em] text-foreground transition-colors duration-tap ease-tap hover:text-brand-blue ${FOCUS_BLUE}`}
+                >
+                  {b}
+                  <span className="inline-flex h-[26px] min-w-[26px] items-center justify-center rounded-full bg-brand-blue-subtle px-[9px] font-sans text-[12.5px] font-bold text-brand-blue-deep tabular-nums">
+                    {boardCounts[b]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </BentoPanel>
         )}
 
         {/* D4's hero drops the search bar entirely (it's a hand-off frame,
             not a functional prototype). "Design wins, keep functionality" —
             the filtered-search entry point is a real feature this page
             currently exposes, so it stays, just relocated below the hero
-            instead of living inside it. */}
-        <section className={`${CONTAINER} pt-6`}>
-          <SearchControl align="flex-start" stackedToggle initialMode="papers" onModeChange={handleSearchModeChange} />
-        </section>
+            instead of living inside it.
+            Handoff PP-007: BentoPanel wrap, H-009 field metrics via heroDesk
+            (submit disc is bg-brand-blue automatically — SearchControl's
+            accent already switches on mode, and this control's mode is papers). */}
+        <BentoPanel fill="card">
+          <SearchControl align="flex-start" stackedToggle heroDesk initialMode="papers" onModeChange={handleSearchModeChange} />
+        </BentoPanel>
 
-        <div className="bg-gradient-to-b from-brand-blue-subtle to-background pt-8">
-          {loading && <ShelfSkeleton />}
+        {loading && <ShelfSkeleton />}
 
-          {/* ----------------------------------------------------- Recently added */}
-          {/* C-055: papers as objects standing on a shelf ledge, not a row of
-              cards — PaperCover (C2) + ShelfLedge (C4). Locked covers (26px
-              lock disc) when signed out, per design.md §6.5: browsing is
-              open, opening is not. */}
-          {!loading && !loadError && recentPapers.length > 0 && (
-            <section className={`${CONTAINER} pb-12`}>
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-section-head font-display font-bold">Recently added</h2>
-                {!user && (
-                  <Link
-                    to="/auth"
-                    className={`flex min-h-11 items-center rounded-full bg-brand-blue-subtle px-4 text-body-secondary font-semibold text-brand-blue-deep transition-colors duration-tap ease-tap hover:bg-brand-blue/20 ${FOCUS_BLUE}`}
-                  >
-                    Sign in to read
-                  </Link>
-                )}
-              </div>
+        {/* ----------------------------------------------------- Recently added */}
+        {/* C-055: papers as objects standing on a shelf ledge, not a row of
+            cards — PaperCover (C2) + ShelfLedge (C4). Locked covers (26px
+            lock disc) when signed out, per design.md §6.5: browsing is
+            open, opening is not.
+            Handoff PP-008: BentoPanel, heading+rail get px-[22px]. */}
+        {!loading && !loadError && recentPapers.length > 0 && (
+          <BentoPanel fill="card" className="!px-0 !py-[22px]">
+            {/* The "Sign in to read" pill that used to sit beside this
+                heading was a second extraneous sign-in CTA (owner mobile
+                QA) — the actual gate lives on each locked cover's 28px
+                lock disc below, which already opens PaperGate naming the
+                paper. Nothing else needs to ask twice. */}
+            <h2 className="mb-3 px-[22px] text-section-head font-display font-bold">Recently added</h2>
+            <div className="px-[22px]">
               <ShelfLedge>
                 {recentPapers.map((p) => (
                   <PaperCover
@@ -434,104 +477,100 @@ export default function PastPapers() {
                   />
                 ))}
               </ShelfLedge>
-            </section>
-          )}
+            </div>
+          </BentoPanel>
+        )}
 
-          {/* ------------------------------------------------------- Error state */}
-          {loadError && (
-            <section className={`${CONTAINER} pb-12`}>
-              <EmptyResults
-                tone="papers"
-                heading="Unable to load the paper collection right now"
-                message="This is on us, not on your connection necessarily. Refresh and it usually comes straight back."
-                action={{ label: 'Refresh', onClick: () => window.location.reload() }}
-              />
-            </section>
-          )}
+        {/* ------------------------------------------------------- Error state */}
+        {loadError && (
+          <BentoPanel fill="card">
+            <EmptyResults
+              tone="papers"
+              heading="Unable to load the paper collection right now"
+              message="This is on us, not on your connection necessarily. Refresh and it usually comes straight back."
+              action={{ label: 'Refresh', onClick: () => window.location.reload() }}
+            />
+          </BentoPanel>
+        )}
 
-          {/* --------------------------------------------- Global-zero empty state */}
-          {/* LOUD moment (VISUAL_DIRECTION §4): nothing is being compared here,
-              so the collage grammar is fully permitted — thick outline, offset
-              shadow, halftone grain, a rotated sticker. This is the single
-              highest-leverage screen on the papers surface: it is where a
-              first visitor to a sparse catalogue currently dead-ends. */}
-          {isEmptyCatalogue && (
-            <section className={`${CONTAINER} pb-12`}>
-              <div className="halftone-overlay outline-thick outline-offset-shadow relative rounded-4xl bg-brand-blue-subtle p-6 sm:p-12">
-                {/* Indigo, not the orange brand token — papers mode carries no
-                    orange (devices.md §5 sticker, tone=papers). */}
-                <span className="sticker sticker-rotate-md animate-pop absolute -top-3 right-6 rounded-full bg-brand-blue px-4 py-1 text-label font-bold uppercase text-white motion-reduce:animate-none">
-                  Day one
-                </span>
-                <EmptyResults
-                  tone="papers"
-                  className="bg-transparent shadow-none"
-                  icon={<FileText className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-                  heading="The collection is just getting started"
-                  message="We're still gathering papers from Kolkata schools — nothing's uploaded yet. Tell us which paper you need and we'll chase it down, or find a teacher who can help in the meantime."
-                  options={[{ label: 'Browse teachers instead', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }]}
-                  action={{
-                    label: 'Request a paper',
-                    onClick: () => window.open(requestPaperUrl, '_blank', 'noopener,noreferrer'),
-                  }}
-                />
-              </div>
-            </section>
-          )}
-        </div>
+        {/* --------------------------------------------- Global-zero empty state */}
+        {/* LOUD moment (VISUAL_DIRECTION §4): nothing is being compared here,
+            so the collage grammar is fully permitted — thick outline, offset
+            shadow, halftone grain, a rotated sticker. This is the single
+            highest-leverage screen on the papers surface: it is where a
+            first visitor to a sparse catalogue currently dead-ends. */}
+        {isEmptyCatalogue && (
+          <BentoPanel fill="papersTint" className="halftone-overlay relative">
+            {/* Indigo, not the orange brand token — papers mode carries no
+                orange (devices.md §5 sticker, tone=papers). */}
+            <span className="sticker sticker-rotate-md animate-card-reveal absolute -top-3 right-6 rounded-full bg-brand-blue px-4 py-1 text-label font-bold uppercase text-white motion-reduce:animate-none">
+              Day one
+            </span>
+            <EmptyResults
+              tone="papers"
+              className="bg-transparent shadow-none"
+              icon={<FileText className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+              heading="The collection is just getting started"
+              message="We're still gathering papers from Kolkata schools, nothing's uploaded yet. Tell us which paper you need and we'll chase it down, or find a teacher who can help in the meantime."
+              options={[{ label: 'Browse teachers instead', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }]}
+              action={{
+                label: 'Request a paper',
+                onClick: () => window.open(requestPaperUrl, '_blank', 'noopener,noreferrer'),
+              }}
+            />
+          </BentoPanel>
+        )}
 
         {/* -------------------------------------------------------- Most read */}
         {/* pages.md §4 section 6: bg-muted rounded-3xl p-4, hairline rows, rank
             numeral in display type. Rendered only when something has actually
             been read — a "Most read" list of unread papers is not a ranking,
-            it is three arbitrary rows. */}
+            it is three arbitrary rows.
+            Handoff PP-009: BentoPanel fill="muted", radius 24 -> 30, hairline
+            expressed as an inset shadow instead of divide-y. */}
         {mostRead.length > 0 && (
-          <section className={`${CONTAINER} pb-[24px]`}>
+          <BentoPanel fill="muted" className="!p-[18px]">
             <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
               Most read
             </h2>
-            <div className="rounded-3xl bg-muted p-4">
-              <ol className="divide-y divide-border/70">
-                {mostRead.map((paper, i) => (
-                  <li key={paper.paper_id}>
-                    <a
-                      href={`/past-papers/${paper.paper_id}`}
-                      className={`flex min-h-11 items-center gap-3 py-3 transition-opacity duration-150 hover:opacity-80 ${FOCUS_BLUE}`}
-                    >
-                      <span className="w-6 flex-none font-display text-[22px] font-black leading-none text-warm-label">
-                        {i + 1}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14.5px] font-bold text-foreground">{paper.title}</span>
-                        <span className="block truncate text-meta text-warm-meta">{paper.school}</span>
-                      </span>
-                      <span className="flex-none text-meta tabular-nums text-warm-meta">
-                        {/* "opened", not "read" — what is recorded is that
-                            someone opened the paper. Nothing observes whether
-                            they finished it, and the heading can say Most read
-                            without the row claiming more than happened. */}
-                        {paper.read_count} opened
-                      </span>
-                    </a>
+            <ol className="stagger-children">
+              {mostRead.map((paper, i) => (
+                <li
+                  key={paper.paper_id}
+                  className={`animate-card-reveal motion-reduce:animate-none ${i < mostRead.length - 1 ? 'shadow-[inset_0_-1px_0_rgba(231,223,213,.9)]' : ''}`}
+                >
+                  <a
+                    href={`/past-papers/${paper.paper_id}`}
+                    className={`flex min-h-11 items-center gap-3 py-3 transition-opacity duration-tap hover:opacity-80 ${FOCUS_BLUE}`}
+                  >
+                    <span className="w-6 flex-none font-display text-[22px] font-black leading-none text-warm-label">
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14.5px] font-bold text-foreground">{paper.title}</span>
+                      <span className="block truncate text-meta text-warm-meta">{paper.school}</span>
+                    </span>
+                    <span className="flex-none text-meta tabular-nums text-warm-meta">
+                      {/* "opened", not "read" — what is recorded is that
+                          someone opened the paper. Nothing observes whether
+                          they finished it, and the heading can say Most read
+                          without the row claiming more than happened. */}
+                      {paper.read_count} opened
+                    </span>
+                  </a>
                   </li>
                 ))}
               </ol>
-            </div>
-          </section>
+          </BentoPanel>
         )}
 
         {/* --------------------------------------------------------- By school */}
-        {/* S4/D4: a flat list of school rows on the page ground — each row is
-            an initial disc + name + count + chevron, `shadow-border` only
-            (no border+shadow stack, tokens.md §6). The previous build wrapped
-            this in a full bg-brand-blue rounded-4xl slab, which the mockup
-            does not do — that big a saturated surface here read as a second
-            "By class & board" slab competing with the one below it. */}
+        {/* S4/D4: a flat list of school rows — each row is an initial disc +
+            name + count + chevron.
+            Handoff PP-010: wrapped in a BentoPanel; rows bg-card -> bg-muted,
+            shadow-border removed (bone on bone). */}
         {!loading && !loadError && schoolStats.length > 0 && (
-          <section className={`${CONTAINER} pb-8`}>
-            {/* S4 literals: h2 21px/800 ls -0.03em, mb 12px. Rows gap 8px
-                (D4: 2-col, gap 10px), padding 12px 14px, radius 16px, disc
-                38×38 radius 12px, gap 12px, name 14.5px/700, count 12px. */}
+          <BentoPanel fill="card">
             <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">By school</h2>
             <div className="stagger-children grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]">
               {schoolStats.map(({ school, board, count, otherBoardCount }) => (
@@ -543,10 +582,18 @@ export default function PastPapers() {
                 <Link
                   key={school}
                   to={`/school/${schoolSlug(school)}`}
-                  className={`flex min-h-11 animate-card-reveal items-center gap-3 rounded-2xl bg-card px-[14px] py-3 text-left shadow-border transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 lg:px-[15px] lg:py-[13px] ${FOCUS_BLUE}`}
+                  className={`flex min-h-11 animate-card-reveal items-center gap-3 rounded-2xl bg-muted px-[14px] py-3 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 lg:px-[15px] lg:py-[13px] ${FOCUS_BLUE}`}
                 >
+                  {/* pages.md §4 row 7: "school initial tile 40px solid" — this
+                      was tone="papers-subtle", the same pale indigo-on-pale
+                      background the By-subject tiles use for their whole card
+                      ground, not their icon tile. On a small 38px square that
+                      washed-out pairing read as flat and low-contrast (owner
+                      mobile QA: "really horribly designed"). Solid matches
+                      the spec literally and the same tone already used for
+                      the By-board tiles a few sections down. */}
                   <IconDisc
-                    tone="papers-subtle"
+                    tone="papers"
                     size={40}
                     shape="square"
                     className="h-[38px] w-[38px] rounded-xl font-display text-[15px] font-extrabold"
@@ -564,27 +611,30 @@ export default function PastPapers() {
                 </Link>
               ))}
             </div>
-          </section>
+          </BentoPanel>
         )}
 
         {/* -------------------------------------------------------- By subject / board */}
+        {/* Handoff PP-011: BentoPanel wrap; toggle track drops shadow-border
+            on the active segment; subject rows become horizontal signposts
+            at base (a tile grid returns from sm:). */}
         {!loading && !loadError && (featuredSubjects.length > 0 || featuredBoards.length > 0) && (
-          <section className={`${CONTAINER} ${SECTION} pt-0`}>
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <BentoPanel fill="card">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-4">
               <h2 className="text-section-head font-display font-bold">
                 By {groupMode === 'subject' ? 'subject' : 'board'}
               </h2>
               {/* Segmented toggle mapped to the two real groupings this page
                   already fetches — subjectCounts and boardCounts. */}
-              <div role="tablist" aria-label="Group papers by" className="inline-flex rounded-full bg-muted p-1">
+              <div role="tablist" aria-label="Group papers by" className="inline-flex h-11 items-center rounded-full bg-muted p-1">
                 {(['subject', 'board'] as GroupMode[]).map((mode) => (
                   <button
                     key={mode}
                     role="tab"
                     aria-selected={groupMode === mode}
                     onClick={() => setGroupMode(mode)}
-                    className={`min-h-11 rounded-full px-4 text-body-secondary font-semibold capitalize transition-colors duration-tap ease-tap ${FOCUS} ${
-                      groupMode === mode ? 'bg-card text-foreground shadow-border' : 'text-muted-foreground hover:text-foreground'
+                    className={`flex h-9 items-center rounded-full px-[14px] text-[13.5px] font-bold capitalize transition-colors duration-tap ease-tap ${FOCUS} ${
+                      groupMode === mode ? 'bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     {mode}
@@ -600,6 +650,11 @@ export default function PastPapers() {
                 the label (a signpost read horizontally), flipping to the stacked
                 tile from `sm:` where there is width for it. Same destinations,
                 same counts, no truncation at 375. */}
+            {/* Handoff PP-011: base rows are horizontal signposts —
+                rounded-[18px] p-[14px], a 30x30 r10 solid icon tile, name
+                19px/800/-0.03em, count right-aligned 12.5px/600. The existing
+                stacked tile (sm:block, 40x40 icon, badge-pill count) returns
+                unchanged from sm:. */}
             {groupMode === 'subject' ? (
               <div className="stagger-children grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
                 {featuredSubjects.map((s) => {
@@ -610,24 +665,31 @@ export default function PastPapers() {
                     <button
                       key={s}
                       onClick={() => navigate(`/past-papers/results?filter_subjects=${encodeURIComponent(s)}`)}
-                      className={`flex min-h-11 animate-card-reveal items-center gap-4 rounded-2xl p-4 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 sm:block sm:p-6 ${FOCUS_BLUE}`}
+                      className={`flex min-h-11 animate-card-reveal items-center gap-4 rounded-[18px] p-[14px] text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 sm:block sm:rounded-2xl sm:p-6 ${FOCUS_BLUE}`}
                       style={{ backgroundColor: palette.tint }}
                     >
                       <span
-                        className="flex h-10 w-10 flex-none items-center justify-center rounded-lg sm:mb-6"
+                        className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] sm:h-10 sm:w-10 sm:rounded-lg sm:mb-6"
                         style={{ backgroundColor: palette.solid }}
                       >
                         <Icon size={21} strokeWidth={1.9} aria-hidden="true" style={{ color: palette.badgeText }} />
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block break-words text-card-title-lg font-bold" style={{ color: palette.text }}>
+                      <span className="flex min-w-0 flex-1 items-center justify-between gap-3 sm:block">
+                        <span
+                          className="block break-words text-[19px] font-extrabold tracking-[-0.03em] sm:text-card-title-lg sm:font-bold sm:tracking-normal"
+                          style={{ color: palette.text }}
+                        >
                           {s}
                         </span>
                         {/* Live count from the existing subjectCounts state —
                             never a literal zero, since featuredSubjects already
-                            filters those out (DESIGN_SYSTEM §13). */}
+                            filters those out (DESIGN_SYSTEM §13). Base:
+                            plain right-aligned text; sm+: the badge pill. */}
+                        <span className="flex-none text-[12.5px] font-semibold tabular-nums sm:hidden" style={{ color: palette.meta }}>
+                          {count} paper{count === 1 ? '' : 's'}
+                        </span>
                         <span
-                          className="mt-2 inline-flex items-center rounded-full px-3 py-1 text-label font-bold uppercase tabular-nums"
+                          className="mt-2 hidden items-center rounded-full px-3 py-1 text-label font-bold uppercase tabular-nums sm:inline-flex"
                           style={{ backgroundColor: palette.solid, color: palette.badgeText }}
                         >
                           {count} paper{count === 1 ? '' : 's'}
@@ -645,14 +707,17 @@ export default function PastPapers() {
                     <button
                       key={b}
                       onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
-                      className={`flex min-h-11 animate-card-reveal items-center gap-4 rounded-2xl bg-brand-blue-subtle p-4 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 sm:block sm:p-6 ${FOCUS_BLUE}`}
+                      className={`flex min-h-11 animate-card-reveal items-center gap-4 rounded-[18px] bg-brand-blue-subtle p-[14px] text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 sm:block sm:rounded-2xl sm:p-6 ${FOCUS_BLUE}`}
                     >
-                      <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-blue sm:mb-6">
+                      <span className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] bg-brand-blue sm:h-10 sm:w-10 sm:rounded-lg sm:mb-6">
                         <LandmarkIcon size={21} className="text-white" strokeWidth={1.9} aria-hidden="true" />
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block break-words text-card-title-lg font-bold text-brand-blue-deep">{b}</span>
-                        <span className="mt-2 inline-flex items-center rounded-full bg-brand-blue px-3 py-1 text-label font-bold uppercase tabular-nums text-white">
+                      <span className="flex min-w-0 flex-1 items-center justify-between gap-3 sm:block">
+                        <span className="block break-words text-[19px] font-extrabold tracking-[-0.03em] text-brand-blue-deep sm:text-card-title-lg sm:font-bold sm:tracking-normal">{b}</span>
+                        <span className="flex-none text-[12.5px] font-semibold tabular-nums text-brand-blue-deep sm:hidden">
+                          {count} paper{count === 1 ? '' : 's'}
+                        </span>
+                        <span className="mt-2 hidden items-center rounded-full bg-brand-blue px-3 py-1 text-label font-bold uppercase tabular-nums text-white sm:inline-flex">
                           {count} paper{count === 1 ? '' : 's'}
                         </span>
                       </span>
@@ -661,66 +726,48 @@ export default function PastPapers() {
                 })}
               </div>
             )}
-          </section>
+          </BentoPanel>
         )}
 
-        {/* --------------------------------------------------- By class & board */}
+        {/* --------------------------------------------------------- By class */}
         {/* S4/D4: plain wrapped pills directly on the page ground, no colored
             slab. Previously wrapped in a `bg-brand` (orange) rounded-4xl slab
             — a hard violation on this page: papers mode is indigo-only,
             orange must never appear here (tokens.md §2). Removed the slab
             entirely to match the mockup rather than merely recolor it. */}
+        {/* Handoff PP-012: BentoPanel wrap; chips h-12 rounded-2xl
+            bg-brand-blue-subtle, grid-cols-4 at base (was a flex-wrap flat
+            pill wall). */}
         {!loadError && (
-          <section className={`${CONTAINER} pb-8`}>
-            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">By class &amp; board</h2>
+          <BentoPanel fill="card">
+            {/* Was "By class & board" with a Board pill row underneath Class —
+                Board tabs already run WBBSE/CBSE/ICSE/ISC counts near the top
+                of this page (pages.md §4 row 3), so this second Board facet
+                a few sections down duplicated the same filter with a second,
+                inconsistent style (owner mobile QA: "keep class there, remove
+                board from there"). Board stays as its own tabs section; this
+                row now carries Class only. */}
+            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">By class</h2>
 
-            {/* Flat pill wall, per S4/D4. This was a PillRow device whose
-                colours came from paletteFromSeed — the SUBJECT palette, which
-                is warm/orange-family. On a page that is indigo throughout,
-                that put subject-coded hues on lists that are not subject
-                coded, and the device's shadow-border plus hover translate got
-                clipped by the row above it. Flat pills carry no shadow, so
-                there is nothing to clip.
-
-                Classes are 9-12 only: those are the classes the handoff draws,
+            {/* Classes are 9-12 only: those are the classes the handoff draws,
                 and the ones papers actually exist for. */}
-            <div className="space-y-6">
-              <div>
-                <p className="mb-3 text-label font-bold uppercase text-muted-foreground">Class</p>
-                <div className="flex flex-wrap gap-2">
-                  {PAPER_CLASSES.filter((c) => ['9', '10', '11', '12'].includes(c)).map((c) => (
-                    <button
-                      key={`class-${c}`}
-                      type="button"
-                      onClick={() => navigate(`/past-papers/results?filter_classes=${encodeURIComponent(c)}`)}
-                      className="inline-flex h-11 items-center rounded-full bg-brand-blue-subtle px-4 text-[14px] font-bold text-brand-blue-deep transition-colors duration-150 hover:bg-brand-blue hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                      Class {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="mb-3 text-label font-bold uppercase text-muted-foreground">Board</p>
-                <div className="flex flex-wrap gap-2">
-                  {BOARDS.map((b) => (
-                    <button
-                      key={`board-${b}`}
-                      type="button"
-                      onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
-                      className="inline-flex h-11 items-center rounded-full bg-muted px-4 text-[14px] font-bold text-foreground transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                      {b}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div className="grid grid-cols-4 gap-2">
+              {PAPER_CLASSES.filter((c) => ['9', '10', '11', '12'].includes(c)).map((c) => (
+                <button
+                  key={`class-${c}`}
+                  type="button"
+                  onClick={() => navigate(`/past-papers/results?filter_classes=${encodeURIComponent(c)}`)}
+                  className="flex h-12 items-center justify-center rounded-2xl bg-brand-blue-subtle text-[16px] font-extrabold tabular-nums text-brand-blue-deep transition-colors duration-tap hover:bg-brand-blue hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  Class {c}
+                </button>
+              ))}
             </div>
-          </section>
+          </BentoPanel>
         )}
 
         {/* ------------------------------------------------------------ 3 steps */}
-        <section className={`${CONTAINER} ${SECTION} pt-0`}>
+        <BentoPanel fill="card">
           <h2 className="mb-8 text-center text-section-head font-display font-bold">
             Three steps, no cost,{' '}<br />no catch.
           </h2>
@@ -738,78 +785,64 @@ export default function PastPapers() {
               </div>
             ))}
           </div>
-        </section>
+        </BentoPanel>
 
-        {/* ------------------------------------------- B3 explainer slab */}
-        {/* S4 "How the paper library works": indigo-subtle slab, radius 26px,
-            padding 20px 18px; eyebrow 11px/700 uppercase ls .08em; heading
-            22px/900 lh 1.15 ls -0.035em; points gap 10px with 26×26 radius-9px
-            indigo icon tiles; two 44px radius-12px buttons, gap 8px, mt 16px.
-            This REPLACES the old three-card "Promises" grid rather than being
-            added alongside it — same three promise items, same copy, rehoused
-            in the mockup's device so the content isn't duplicated. */}
-        <section className={`${CONTAINER} pb-8`}>
-          <div className="rounded-[26px] bg-brand-blue-subtle px-[18px] py-5">
-            <p className="mb-1 text-[11px] font-bold uppercase tracking-[.08em] text-brand-blue">
-              How the paper library works
-            </p>
-            <p className="mb-[14px] font-display text-[22px] font-black leading-[1.15] tracking-[-0.035em] text-brand-blue-deep">
-              Real school papers, shared by students, free to read.
-            </p>
-            <div className="flex flex-col gap-[10px]">
-              {PAPER_PROMISES.map((pp) => (
-                <div key={pp.title} className="flex items-start gap-[10px]">
-                  <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-[9px] bg-brand-blue">
-                    <pp.icon size={14} className="text-white" strokeWidth={2.2} aria-hidden="true" />
-                  </span>
-                  <p className="text-[13.5px] leading-[1.55] text-brand-blue-deep">
-                    <span className="font-bold">{pp.title}.</span> {pp.body}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => navigate('/past-papers/results')}
-                className={`flex h-11 flex-1 items-center justify-center rounded-xl bg-brand-blue text-[14px] font-bold text-white transition-transform duration-hover ease-settle active:scale-[0.97] ${FOCUS_BLUE}`}
-              >
-                Browse papers
-              </button>
-              <a
-                href={requestPaperUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex h-11 flex-1 items-center justify-center rounded-xl bg-card text-[14px] font-bold text-brand-blue-deep transition-transform duration-hover ease-settle active:scale-[0.97] ${FOCUS_BLUE}`}
-              >
-                Share a paper
-              </a>
-            </div>
-          </div>
-        </section>
+        {/* NOTE: no inline "How the paper library works" slab here — this route
+            (anything starting with /past-papers) already gets that exact
+            explainer from AppShell's global PreFooter, variant B3
+            (see preFooterFor() in PreFooter.tsx). A near-duplicate hand-built
+            copy of it used to live here too, so the block rendered twice in a
+            row on every load of this page, with two different sets of CTAs.
+            Removed rather than kept in sync — B3 is the single source per
+            pages.md's "pre-footer block, decided in AppShell, never in the
+            page" rule. */}
 
         {/* ----------------------------------------------------------- Ownership */}
-        <section className={`${CONTAINER} pb-16`}>
-          {/* S4 literals: radius 24px, padding 18px, h2 19px/800 mb 6px,
-              on the near-black panel token,
-              body 13.5px lh 1.6 at white/72. D4 turns it into a 1fr/1.4fr
-              two-column band with 28px radius and 28px/32px padding. */}
-          <div className="rounded-3xl bg-panel p-[18px] lg:grid lg:grid-cols-[1fr_1.4fr] lg:items-center lg:gap-10 lg:rounded-[28px] lg:px-8 lg:py-7">
-            <h2 className="mb-1.5 font-display text-[19px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white lg:mb-0 lg:text-[26px]">
-              Who owns these papers
-            </h2>
-            <div className="space-y-3">
-              <p className="text-[13.5px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
-                Every paper here is the property of the school that set it. Shikshaq claims no ownership over any paper, derives no revenue from any paper, and hosts these materials solely as a free community resource for students.
-              </p>
-              <p className="text-[13.5px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
-                Any school that wishes a paper removed can have it removed on request, without argument.
-              </p>
-            </div>
+        {/* Handoff PP-013: BentoPanel fill="dark", radius 24/28 -> 30. This
+            is also the page's teacher cross-sell — the CTA below is new,
+            the page's one orange element (label matches Home's H-011 fork
+            tile, "Find a teacher" — the entry names the treatment but not
+            exact copy, so this reuses the site's existing wording for the
+            identical action rather than inventing new copy). */}
+        <BentoPanel fill="dark" className="lg:grid lg:grid-cols-[1fr_1.4fr] lg:items-center lg:gap-10 lg:px-8 lg:py-7">
+          <h2 className="mb-1.5 font-display text-[19px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white lg:mb-0 lg:text-[26px]">
+            Who owns these papers
+          </h2>
+          <div className="space-y-3">
+            <p className="text-[13.5px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
+              Every paper here is the property of the school that set it. Shikshaq claims no ownership over any paper, derives no revenue from any paper, and hosts these materials solely as a free community resource for students.
+            </p>
+            <p className="text-[13.5px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
+              Any school that wishes a paper removed can have it removed on request, without argument.
+            </p>
+            <Link
+              to={BROWSE_PATH}
+              className="inline-flex h-12 items-center rounded-full bg-brand px-5 text-[14.5px] font-bold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+            >
+              Find a teacher
+            </Link>
           </div>
-        </section>
+        </BentoPanel>
+
+        {/* Handoff PP-014: shared tail, identical to Home — the sentence-
+            builder mode is pinned to 'papers' above (useEffect), so the
+            dome renders indigo on load here. */}
+        <EyesPanel
+          mode={builderMode}
+          onModeChange={setBuilderMode}
+          heading={(
+            <>
+              Need a paper? <span className="font-extrabold">We keep an eye out.</span>
+            </>
+          )}
+          subline="Fill in the blanks and we'll take you straight there."
+          slots={builderSlots}
+          onSlotChange={handleSlotChange}
+          onSubmit={handleBuilderSubmit}
+        />
+      </BentoStack>
       </PullToRefresh>
       </main>
-      <Footer />
     </div>
   );
 }

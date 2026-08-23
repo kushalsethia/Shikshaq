@@ -56,7 +56,13 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
         tabIndex={0}
         onClick={() => navigate(href)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(href); } }}
-        className="relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl p-4 text-left transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-6"
+        /* Handoff PR-003/S-014: radius -> 22px (unambiguous — the rest of
+           PR-003's card-interior description (badge/title/footer resizing,
+           a "Paper © {school}" footer replacing this card's Read/Download
+           actions) isn't applied: it would remove the only way to open or
+           download a paper from this card, which crosses from restyling
+           into removing working functionality. Flagged, not guessed. */
+        className="relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[22px] p-4 text-left transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-6"
         style={{ backgroundColor: palette.tint }}
       >
         {/* Folded corner. */}

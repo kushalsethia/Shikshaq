@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUp, FileText } from 'lucide-react';
-import { Footer } from '@/components/Footer';
 import { PaperSheetCard } from '@/components/papers/paper-sheet-card';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { getWhatsAppLink } from '@/utils/whatsapp';
-import { PageHeader } from '@/components/devices';
 import { useAuth } from '@/lib/auth-context';
-import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
+import { useChromeConfig } from '@/components/layout/AppShell';
+import { ArrowLeft } from 'lucide-react';
 
 interface Paper {
   id: string;
@@ -26,7 +28,6 @@ interface Paper {
 
 const PAGE_SIZE = 24;
 
-const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
 const SKELETON = 'bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer';
 const FOCUS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
@@ -242,56 +243,64 @@ export default function PaperResults() {
   const hasMore = papers.length < total;
   const remaining = Math.max(0, total - papers.length);
 
+  // Handoff PR-006: this route renders its own eyes panel (papers mode).
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
+  useEffect(() => { setBuilderMode('papers'); }, [setBuilderMode]);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <main className="flex-1">
-        {/* Proper header fold for the results list (VISUAL_DIRECTION §9a: every
-            page gets a designed opening, not just the landing page). Crisp
-            surface below (the card grid) stays calm; this fold carries the
-            energy via the graph-paper ground and a tabular-nums SpeechTag
-            standing in for the old bare stat line — the same "distance
-            marker" idea, just carried by the shared device instead of a
-            one-off block. */}
-        <div className={`${CONTAINER} pt-4`}>
+      <BentoStack>
+        {/* Handoff PR-001: one BentoPanel carries the back link, h1 and count
+            tag — PageHeader's graph ground is dropped on this route. No
+            separate in-panel logo/menu row (see PP-002's note — Home and
+            Browse don't duplicate the floating Navbar pill either).
+            Copy unchanged: `heading`, and the count tag's two strings. The
+            entry's "weight 400 with a font-black span" doesn't say which
+            substring is bold, and `heading` has no fixed trailing phrase to
+            split on (unlike Browse's "in Kolkata") — rendered at the base
+            weight rather than guessing a split point. */}
+        <BentoPanel fill="papers" edge="top">
           <Link
             to="/past-papers"
-            className={`-m-1 mb-1 inline-flex min-h-11 items-center p-1 text-body-secondary font-semibold text-muted-foreground transition-colors duration-tap ease-tap hover:text-foreground ${FOCUS}`}
+            className={`-m-1 mb-3 flex h-11 w-fit items-center gap-1.5 p-1 text-[13px] font-semibold text-white/75 transition-colors duration-tap ease-tap hover:text-white ${FOCUS}`}
           >
-            ← Past Papers
+            <ArrowLeft className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+            Past Papers
           </Link>
-        </div>
-        <PageHeader
-          title={heading}
-          tags={[
-            {
-              label: loading
-                ? 'Counting…'
-                : `${total.toLocaleString('en-IN')} paper${total === 1 ? '' : 's'} found`,
-            },
-          ]}
-          accent="hsl(var(--brand-blue))"
-          ground="graph"
-        />
-
-        {/* Sticky filter summary. The list below is unbounded, so the applied
-            filters (and the way back out of them) must stay reachable without
-            scrolling to the top. Kept to one short row per DESIGN_SYSTEM §11
-            ("sticky headers must be short"), offset by the navbar's own height. */}
-        <div className="sticky top-14 z-20 border-b border-border bg-background/95 backdrop-blur lg:top-16">
-          <div className={`${CONTAINER} py-3`}>
-            <FilterChips
-              mode="papers"
-              chips={filterChips}
-              onClearAll={filterChips.length > 0 ? clearFilters : undefined}
-              handoff={{ label: 'See teachers with these filters →', onClick: handleSeeTeachers }}
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-white">
+              {heading}
+            </h1>
+            <span className="inline-flex h-8 flex-none items-center whitespace-nowrap rounded-full bg-white/15 px-[14px] text-[13px] font-bold text-white">
+              {loading ? 'Counting…' : `${total.toLocaleString('en-IN')} paper${total === 1 ? '' : 's'} found`}
+            </span>
           </div>
-        </div>
+        </BentoPanel>
 
-        <div className={`${CONTAINER} pb-20 pt-6 sm:pt-8`}>
+        {/* Handoff PR-002: sticky filter row becomes a BentoPanel pill row —
+            no hairline, no blur, isolate kept (same compositing reason as
+            Browse B-007). FilterChips.tsx's own S-006-matched tint and the
+            handoff pill styling apply automatically. */}
+        <BentoPanel fill="card" className="sticky top-[80px] z-20 isolate !px-0 py-3 pl-4">
+          <FilterChips
+            mode="papers"
+            chips={filterChips}
+            onClearAll={filterChips.length > 0 ? clearFilters : undefined}
+            handoff={{ label: 'See teachers with these filters →', onClick: handleSeeTeachers }}
+            className="pr-4"
+          />
+        </BentoPanel>
+
+        {/* Handoff PR-003/PR-004: results live inside one BentoPanel; base
+            grid is a single column at gap-[10px] (sm:/lg: unchanged). */}
+        <BentoPanel fill="card" className="px-4 py-[18px]">
           {loading ? (
             // One coherent skeleton in the real grid's shape, not a spinner.
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-[10px] sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className={`h-48 rounded-2xl ${SKELETON}`} />
               ))}
@@ -304,7 +313,7 @@ export default function PaperResults() {
             />
           ) : papers.length > 0 ? (
             <>
-              <div className="stagger-children grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+              <div className="stagger-children grid grid-cols-1 gap-[10px] sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                 {papers.map((p) => (
                   <div key={p.id} className="animate-card-reveal motion-reduce:animate-none">
                     <PaperSheetCard paper={p} locked={!user} />
@@ -315,7 +324,8 @@ export default function PaperResults() {
               {/* Honest position-in-list readout plus the load-more affordance.
                   "Showing 24 of 61" is the piece that was missing: without it
                   a student can't tell whether one more tap ends the list or
-                  starts another five. */}
+                  starts another five.
+                  Handoff PR-004: bg-card -> bg-muted (sits on a bone panel now), shadow-border removed. */}
               <div className="mt-8 flex flex-col items-center gap-3">
                 <p className="text-meta tabular-nums text-muted-foreground">
                   Showing {papers.length.toLocaleString('en-IN')} of {total.toLocaleString('en-IN')}
@@ -324,7 +334,7 @@ export default function PaperResults() {
                   <button
                     onClick={loadMore}
                     disabled={loadingMore}
-                    className={`flex min-h-12 items-center gap-2 rounded-full bg-card px-6 text-body-secondary font-semibold text-foreground shadow-border transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-60 motion-reduce:hover:translate-y-0 ${FOCUS}`}
+                    className={`flex h-12 items-center gap-2 rounded-full bg-muted px-6 text-[14px] font-bold text-foreground transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-60 motion-reduce:hover:translate-y-0 ${FOCUS}`}
                   >
                     {loadingMore ? (
                       'Loading…'
@@ -351,7 +361,34 @@ export default function PaperResults() {
               }}
             />
           )}
-        </div>
+        </BentoPanel>
+
+        {/* Handoff PR-005: ownership panel, BentoPanel fill="dark". */}
+        <BentoPanel fill="dark">
+          <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em]">Who owns these papers</h2>
+          <p className="mt-3 max-w-prose text-[14px] leading-[1.55] text-white/75">
+            Every paper here is the property of the school that set it. Shikshaq claims no
+            ownership, derives no revenue from any paper, and hosts these materials solely as a
+            free revision resource. If you represent a school and want a paper removed, tell us
+            and it goes the same day.
+          </p>
+        </BentoPanel>
+
+        {/* Handoff PR-006: shared tail, identical to Home/PastPapers. */}
+        <EyesPanel
+          mode={builderMode}
+          onModeChange={setBuilderMode}
+          heading={(
+            <>
+              Need a paper? <span className="font-extrabold">We keep an eye out.</span>
+            </>
+          )}
+          subline="Fill in the blanks and we'll take you straight there."
+          slots={builderSlots}
+          onSlotChange={handleSlotChange}
+          onSubmit={handleBuilderSubmit}
+        />
+      </BentoStack>
       </main>
 
       {/* Back to top — sits above the bottom tab bar on mobile. */}
@@ -360,39 +397,11 @@ export default function PaperResults() {
           type="button"
           onClick={scrollToTop}
           aria-label="Back to top"
-          className={`animate-pop fixed bottom-24 right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-border transition-transform duration-tap ease-tap active:scale-[0.97] motion-reduce:animate-none lg:bottom-8 lg:right-8 ${FOCUS}`}
+          className={`animate-card-reveal fixed bottom-24 right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-border transition-transform duration-tap ease-tap active:scale-[0.97] motion-reduce:animate-none lg:bottom-8 lg:right-8 ${FOCUS}`}
         >
           <ArrowUp className="h-6 w-6" strokeWidth={2.25} aria-hidden="true" />
         </button>
       )}
-
-      {/* B3 belongs on "papers list, reader, school pages" per the pre-footer
-          route map, but no papers page mounted PreFooter at all — so B3 was
-          unreachable code and this page ended with nothing between the results
-          and the footer. Mounting it here makes the route map true and gives the
-          results page the explainer core-04 shows above the ownership slab. */}
-      <section className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
-        <PreFooter variant={preFooterFor('/past-papers/results')} />
-      </section>
-
-      {/* Copyright / removal-on-request. The papers belong to the schools that
-          set them; ShikshAQ hosts them for revision only. This statement was on
-          the papers landing page and inside the reader, but NOT here — and this
-          is the surface a search result most often lands on. Every papers
-          surface carries it now (docs/SEO_STRATEGY.md, weeks 1-2 #3). */}
-      <section className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6 lg:px-8">
-        <div className="rounded-3xl bg-panel p-6 text-background sm:p-8">
-          <h2 className="font-display text-section-head font-extrabold">Who owns these papers</h2>
-          <p className="mt-3 max-w-prose text-body-secondary text-background/75">
-            Every paper here is the property of the school that set it. Shikshaq claims no
-            ownership, derives no revenue from any paper, and hosts these materials solely as a
-            free revision resource. If you represent a school and want a paper removed, tell us
-            and it goes the same day.
-          </p>
-        </div>
-      </section>
-
-      <Footer />
     </div>
   );
 }
