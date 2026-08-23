@@ -5,14 +5,16 @@ import { ArrowLeft, ArrowRight, FileText } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
 import { schoolSlug } from '@/lib/school-slug';
+import { getSubjectPalette } from '@/lib/subject-palette';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useChromeConfig } from '@/components/layout/AppShell';
-import { PageContainer } from '@/components/layout/PageContainer';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { ListLoading, ListEmpty, ListError } from '@/components/ui/list-states';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { ScrollRail } from '@/components/ui/scroll-rail';
-import { TeacherCard } from '@/components/TeacherCard';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { getShikshaqmineBasicBySlugs } from '@/lib/teachers';
 import { BROWSE_PATH, PAST_PAPERS_PATH } from '@/lib/nav-config';
 import { generateBreadcrumbSchema, generateCollectionPageSchema, injectSchemas } from '@/utils/structuredDataGenerators';
@@ -28,6 +30,11 @@ import { generateBreadcrumbSchema, generateCollectionPageSchema, injectSchemas }
  * schools table, so the summary line, the facets and the year range are all
  * computed from what has actually been uploaded, and a school with no papers
  * cannot exist as a page at all.
+ *
+ * Handoff 09g (SP-001..SP-004) rebuilds this as a BentoStack, matching the
+ * rest of the already-migrated papers funnel (PastPapers.tsx, SchoolsPage.tsx)
+ * — same indigo header, same PP-010 school-row visual language for the
+ * canonical patterns it reuses.
  */
 
 /* Mixed-weight H1 split (design system signature move, see Index.tsx/Join.tsx
@@ -51,9 +58,14 @@ interface SchoolPaper {
 
 export default function SchoolPage() {
   // /school/:slug doesn't match any of preFooterFor's own patterns, so it
-  // would otherwise default to B4; this route wants the papers-flavoured B3,
-  // same as the rest of the papers surface.
-  useChromeConfig({ preFooter: 'B3' });
+  // would otherwise default to B4; this route renders its own eyes panel
+  // (papers mode), same as PastPapers/SchoolsPage (handoff 09g note on SP-004).
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
+  useEffect(() => { setBuilderMode('papers'); }, [setBuilderMode]);
+
   const { slug = '' } = useParams();
 
   const query = useQuery({
@@ -190,6 +202,13 @@ export default function SchoolPage() {
   });
   const railTeachers = crossSellTeachers.data ?? [];
 
+  // SP-004: the pill's destination reuses the exact same board-first-else-
+  // subjects facet the query above ranks on, so "See N teachers" always
+  // lands on a Browse result that actually contains them.
+  const crossSellHref = boards.length > 0
+    ? `${BROWSE_PATH}?filter_boards=${encodeURIComponent(boards.join(','))}`
+    : `${BROWSE_PATH}?filter_subjects=${encodeURIComponent(subjects.join(','))}`;
+
   const name = school?.name ?? 'School';
   usePageMeta(
     papers.length ? `${name} past papers | Shikshaq` : 'School past papers | Shikshaq',
@@ -226,173 +245,195 @@ export default function SchoolPage() {
     };
   }, [papers.length, name, slug]);
 
+  const hasResults = !query.isLoading && !query.isError && papers.length > 0;
+
   return (
     <div className="min-h-screen bg-background">
       <main>
-        {/* Indigo header — papers are the indigo half of the brand pair (S16). */}
-        <div className="rounded-b-4xl bg-brand-blue px-4 pb-5 pt-4 sm:px-6 lg:px-8">
-          <div className="mx-auto w-full max-w-6xl">
-            <Link
-              to={PAST_PAPERS_PATH}
-              className="mb-4 inline-flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-white/80 transition-colors duration-tap hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              All schools
-            </Link>
+        <BentoStack>
+          {/* SP-001: indigo header — papers are the indigo half of the brand
+              pair. No in-panel logo/menu row: the floating Navbar pill
+              already carries that everywhere on the redesign (PP-002's
+              rationale), so only the back link survives from the mockup's
+              two-row nav. splitNameForHeading and the summary line's data
+              are unchanged — restyled only. */}
+          <BentoPanel fill="papers" edge="top" className="relative overflow-hidden px-4 pt-[14px] pb-5 sm:px-6 lg:px-8">
+            <span aria-hidden className="pointer-events-none absolute -right-[50px] top-10 h-[200px] w-[200px] rounded-full bg-white/[.06]" />
+            <div className="relative mx-auto w-full max-w-6xl">
+              <Link
+                to={PAST_PAPERS_PATH}
+                className="mb-4 inline-flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-white/80 transition-colors duration-tap hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                All schools
+              </Link>
+              <h1 className="font-display text-[28px] font-normal leading-[1.05] tracking-[-0.035em] text-white">
+                {(() => {
+                  const [base, payoff] = splitNameForHeading(name);
+                  return base ? <>{base} <span className="font-black">{payoff}</span></> : <span className="font-black">{payoff}</span>;
+                })()}
+              </h1>
+              {summary && <p className="mt-2.5 text-[14px] leading-[1.55] tabular-nums text-white/80">{summary}</p>}
+            </div>
+          </BentoPanel>
 
-            <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 font-display text-[22px] font-black text-white">
-              {name.charAt(0).toUpperCase()}
-            </span>
-            <h1 className="font-display text-[28px] font-normal leading-[1.05] tracking-[-0.035em] text-white">
-              {(() => {
-                const [base, payoff] = splitNameForHeading(name);
-                return base ? <>{base} <span className="font-black">{payoff}</span></> : <span className="font-black">{payoff}</span>;
-              })()}
-            </h1>
-            {summary && <p className="mt-2 text-[14px] leading-[1.55] tabular-nums text-white/85">{summary}</p>}
-          </div>
-        </div>
-
-        <PageContainer className="pt-6">
-          {/* isError before the empty check. A failed fetch used to fall
-              through to "No papers from this school yet.", which is a factual
-              claim about the data made on the strength of a network error, and
-              it offered no way to retry. ListError already exists and is wired
-              correctly in Browse and PaperResults. */}
-          {query.isLoading ? (
-            <ListLoading />
-          ) : query.isError ? (
-            <ListError onRetry={() => query.refetch()} />
-          ) : papers.length === 0 ? (
-            <ListEmpty line="No papers from this school yet." />
+          {!hasResults ? (
+            /* isError before the empty check. A failed fetch used to fall
+               through to "No papers from this school yet.", which is a
+               factual claim about the data made on the strength of a
+               network error, and it offered no way to retry. */
+            <BentoPanel fill="card">
+              {query.isLoading ? (
+                <ListLoading />
+              ) : query.isError ? (
+                <ListError onRetry={() => query.refetch()} />
+              ) : (
+                <ListEmpty line="No papers from this school yet." />
+              )}
+            </BentoPanel>
           ) : (
             <>
-              {/* Year chips, per S16: "year chips → subject chips → hairline
-                  paper rows". Client-side toggle over the already-loaded set —
-                  there's one query per school page, so no round-trip is
-                  needed to re-slice it by year. */}
+              {/* SP-002: year filter. Client-side toggle over the
+                  already-loaded set — one query per school page, so no
+                  round-trip is needed to re-slice it by year. */}
               {years.length > 1 && (
-                <div className="-mx-4 mb-2.5 px-4 sm:mx-0 sm:px-0">
-                  <ScrollRail className="flex items-center gap-2" fadeFrom="from-background">
-                    <Chip
-                      tone={selectedYear == null ? 'facet-on-papers' : 'facet'}
-                      size={44}
-                      onClick={() => setSelectedYear(null)}
-                      aria-pressed={selectedYear == null}
-                    >
-                      All years
-                    </Chip>
-                    {years.map((year) => (
+                <BentoPanel fill="card" className="px-0 py-3.5 pl-4">
+                  <ScrollRail fadeFrom="from-card">
+                    <div className="flex items-center gap-2 pr-4">
                       <Chip
-                        key={year}
-                        tone={selectedYear === year ? 'facet-on-papers' : 'facet'}
+                        tone={selectedYear == null ? 'dark' : 'facet'}
                         size={44}
-                        onClick={() => setSelectedYear((prev) => (prev === year ? null : year))}
-                        aria-pressed={selectedYear === year}
+                        onClick={() => setSelectedYear(null)}
+                        aria-pressed={selectedYear == null}
                       >
-                        {year}
+                        All years
                       </Chip>
-                    ))}
-                  </ScrollRail>
-                </div>
-              )}
-
-              {subjects.length > 1 && (
-                <div className="-mx-4 mb-5 overflow-x-auto px-4 scrollbar-hide sm:mx-0 sm:px-0">
-                  <div className="flex w-max gap-2">
-                    {subjects.map((subject) => (
-                      <Link
-                        key={subject}
-                        to={`${PAST_PAPERS_PATH}/results?filter_subjects=${encodeURIComponent(subject)}`}
-                        className="inline-flex h-11 items-center whitespace-nowrap rounded-full bg-muted px-4 text-[13.5px] font-semibold text-warm-prose transition-colors duration-tap hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      >
-                        {subject}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {filteredPapers.length === 0 ? (
-                <ListEmpty line={`No papers from ${selectedYear}.`} />
-              ) : (
-              /* Hairline rows, per S16 — not cover cards. This page is a list
-                  you scan by year; the shelf is the browsing surface. */
-              <ul className="divide-y divide-border">
-                {filteredPapers.map((paper) => (
-                  <li key={paper.id}>
-                    <Link
-                      to={`${PAST_PAPERS_PATH}/${paper.id}`}
-                      className="flex min-h-11 items-center gap-3 py-3 transition-colors duration-tap hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                      <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-brand-blue-subtle text-brand-blue-deep">
-                        <FileText className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold text-foreground">{paper.title}</span>
-                        <span className="block truncate text-meta text-warm-meta">
-                          {[paper.subject, paper.class ? `Class ${paper.class}` : null, paper.board, paper.year]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              )}
-
-              {/* Orange cross-sell (S16). The papers surface is indigo
-                  throughout, so this is the one warm block on the page and it
-                  points at the other half of the product. Real rail cards when
-                  a board/subject match exists; the generic CTA is the fallback
-                  for a school where nothing matches rather than an empty or
-                  broken rail. */}
-              <div className="mt-8 rounded-3xl bg-brand-subtle p-6 sm:p-8">
-                <h2 className="font-display text-section-head font-extrabold text-brand-deep">
-                  {railTeachers.length > 0
-                    ? "Teachers who teach this school's syllabus"
-                    : 'Need someone to go through these with you?'}
-                </h2>
-                <p className="mt-2 max-w-prose text-body-secondary text-warm-prose">
-                  Verified tuition teachers in Kolkata, free to contact. No commission, ever.
-                </p>
-
-                {railTeachers.length > 0 ? (
-                  <div className="-mx-2 mt-5 px-2">
-                    <ScrollRail className="flex items-stretch gap-3" fadeFrom="from-brand-subtle">
-                      {railTeachers.map((t) => (
-                        <div key={t.id} className="w-[172px] flex-none">
-                          <TeacherCard
-                            id={t.id}
-                            name={t.name}
-                            slug={t.slug}
-                            subject={t.firstSubject || t.subjects?.name || 'Tuition Teacher'}
-                            subjectSlug={t.subjects?.slug}
-                            imageUrl={t.image_url ?? undefined}
-                            variant="grid-compact"
-                            size="sm"
-                            minFees={t.minFees}
-                            maxFees={t.maxFees}
-                          />
-                        </div>
+                      {years.map((year) => (
+                        <Chip
+                          key={year}
+                          tone={selectedYear === year ? 'dark' : 'facet'}
+                          size={44}
+                          onClick={() => setSelectedYear((prev) => (prev === year ? null : year))}
+                          aria-pressed={selectedYear === year}
+                        >
+                          {year}
+                        </Chip>
                       ))}
+                    </div>
+                  </ScrollRail>
+                </BentoPanel>
+              )}
+
+              {/* SP-003: subject chips, h40, subject tints, linking into the
+                  existing results query. */}
+              {subjects.length > 1 && (
+                <BentoPanel fill="card" className="!px-0 !py-[22px]">
+                  <h2 className="px-[22px] font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+                    Subjects here
+                  </h2>
+                  <div className="mt-3 px-[22px]">
+                    <ScrollRail fadeFrom="from-card">
+                      <div className="flex gap-2 pr-[22px]">
+                        {subjects.map((subject) => {
+                          const palette = getSubjectPalette(subject);
+                          return (
+                            <Link
+                              key={subject}
+                              to={`${PAST_PAPERS_PATH}/results?filter_subjects=${encodeURIComponent(subject)}`}
+                              className="flex h-10 flex-none items-center whitespace-nowrap rounded-full px-4 text-[13.5px] font-bold transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                              style={{ backgroundColor: palette.tint, color: palette.text }}
+                            >
+                              {subject}
+                            </Link>
+                          );
+                        })}
+                      </div>
                     </ScrollRail>
                   </div>
+                </BentoPanel>
+              )}
+
+              {/* SP-003: paper rows — r18 in the subject tint, a 30×38 r7
+                  cover-shaped tile in the subject text colour, subject-
+                  tinted meta. Rows stay <Link>s, never buttons, and
+                  ListEmpty copy for a filtered-empty year is unchanged. */}
+              <BentoPanel fill="card" className="px-4 py-[18px]">
+                {filteredPapers.length === 0 ? (
+                  <ListEmpty line={`No papers from ${selectedYear}.`} />
                 ) : (
-                  <div className="mt-6">
-                    <Button asChild variant="primary" size={44}>
-                      <Link to={BROWSE_PATH}>
-                        Find a teacher
-                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                      </Link>
-                    </Button>
+                  <div className="flex flex-col gap-2">
+                    {filteredPapers.map((paper) => {
+                      const palette = getSubjectPalette(paper.subject);
+                      return (
+                        <Link
+                          key={paper.id}
+                          to={`${PAST_PAPERS_PATH}/${paper.id}`}
+                          className="flex min-h-11 items-center gap-3 rounded-[18px] p-[14px] transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
+                          style={{ backgroundColor: palette.tint }}
+                        >
+                          <span
+                            className="flex h-[38px] w-[30px] flex-none items-center justify-center rounded-[7px]"
+                            style={{ backgroundColor: palette.text }}
+                          >
+                            <FileText className="h-[15px] w-[15px]" style={{ color: palette.tint }} aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[15px] font-bold tracking-[-0.02em]" style={{ color: palette.text }}>
+                              {paper.title}
+                            </span>
+                            <span className="mt-px block truncate text-[12px]" style={{ color: palette.meta }}>
+                              {[paper.subject, paper.class ? `Class ${paper.class}` : null, paper.board, paper.year]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </span>
+                          </span>
+                          <ArrowRight className="h-4 w-4 flex-none" style={{ color: palette.meta }} aria-hidden="true" />
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
-              </div>
+              </BentoPanel>
+
+              {/* SP-004: orange cross-sell, the one warm element on an
+                  otherwise all-indigo page. Adapted from the mockup's literal
+                  headline+line+pill (no card rail in the source) — the real
+                  overlap-ranked query still gates whether this panel renders
+                  at all and supplies the real (not fabricated) count on the
+                  pill; it never renders a fallback when the count is zero. */}
+              {railTeachers.length > 0 && (
+                <BentoPanel fill="brandTint">
+                  <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-brand-deep">
+                    Teachers who know this syllabus
+                  </h2>
+                  <p className="mt-2 max-w-prose text-[14px] leading-[1.55] text-warm-prose">
+                    Ranked by overlap with the boards and subjects on this page.
+                  </p>
+                  <Button asChild variant="primary" size={48} className="mt-4">
+                    <Link to={crossSellHref}>
+                      See {railTeachers.length} teacher{railTeachers.length === 1 ? '' : 's'}
+                      <ArrowRight className="h-[15px] w-[15px]" aria-hidden="true" />
+                    </Link>
+                  </Button>
+                </BentoPanel>
+              )}
             </>
           )}
-        </PageContainer>
+
+          <EyesPanel
+            mode={builderMode}
+            onModeChange={setBuilderMode}
+            heading={(
+              <>
+                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+              </>
+            )}
+            subline="Fill in the blanks and we'll take you straight there."
+            slots={builderSlots}
+            onSlotChange={handleSlotChange}
+            onSubmit={handleBuilderSubmit}
+          />
+        </BentoStack>
       </main>
     </div>
   );

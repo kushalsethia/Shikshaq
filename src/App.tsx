@@ -11,9 +11,7 @@ import { StudiesWithProvider } from "@/lib/studies-with-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { CanonicalTag } from "@/components/CanonicalTag";
 import { Chatbot } from "@/components/Chatbot";
-import { BottomNav } from "@/components/BottomNav";
-import { Navbar } from "@/components/Navbar";
-import { TopBar } from "@/components/layout/TopBar";
+import { AppShell } from "@/components/layout/AppShell";
 import { OnboardingModal } from "@/components/OnboardingModal";
 /* Index stays EAGER: it is the landing route, so code-splitting it would only
    add a round trip before first paint. Everything else is lazy - an /impeccable
@@ -87,38 +85,6 @@ const TeacherRedirect = () => {
   return <Navigate to={`/tuition-teachers/${slug}`} replace />;
 };
 
-// The auth flow (S6 sign-in, S8 pick-your-role) is a chromeless, full-bleed
-// screen in the mockups: its own logo/Skip, no site header, no bottom tab
-// bar. Both TopBar and Navbar render their own logo + menu globally, and
-// BottomNav floats a fixed pill over the bottom of every route, so without
-// this guard they doubled up on the auth pages' own header and covered the
-// password field. Keep this list to auth-only chromeless routes.
-const CHROMELESS_ROUTES = ['/auth', '/select-role'];
-
-/* The admin console is chromeless for the same reason, and was not treated as
-   such: admin-01..05 give it its own chrome — a 244px rail and a toolbar — and
-   show no public navigation anywhere. Every /admin page was rendering the
-   marketing TopBar ("Find teachers · Past papers · Subjects · Schools · Sign in
-   · List yourself") above that rail, so the console carried two navigations
-   that disagree about where you are, and the whole thing started 68px down the
-   page.
-
-   Found via the dev sandbox below, which renders the admin shell without a
-   login — this is exactly the class of defect a session-gated screen hides. */
-const CHROMELESS_PREFIXES = ['/admin', '/__sandbox'];
-function useIsChromelessRoute() {
-  const { pathname } = useLocation();
-  return (
-    CHROMELESS_ROUTES.includes(pathname) ||
-    CHROMELESS_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
-  );
-}
-function SiteChrome({ children }: { children: ReactNode }) {
-  const chromeless = useIsChromelessRoute();
-  if (chromeless) return null;
-  return <>{children}</>;
-}
-
 // Short, subtle crossfade on route change. Keyed on pathname only (not query
 // params) so filter/search changes within a page never re-trigger it.
 const RouteTransition = ({ children }: { children: ReactNode }) => {
@@ -175,10 +141,7 @@ const App = () => (
             <CanonicalTag />
             <Chatbot />
             <OnboardingModal />
-            <SiteChrome>
-              <TopBar />
-              <Navbar />
-            </SiteChrome>
+            <AppShell>
             <RouteTransition>
             {/* One Suspense boundary around the whole route table. The routes
                 that were eager until now are lazy, and each would otherwise
@@ -515,9 +478,7 @@ const App = () => (
             </Routes>
             </Suspense>
             </RouteTransition>
-            <SiteChrome>
-              <BottomNav />
-            </SiteChrome>
+            </AppShell>
           </BrowserRouter>
             </StudiesWithProvider>
           </UpvotesProvider>

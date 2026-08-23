@@ -1,16 +1,27 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Footer } from '@/components/Footer';
+import { FileText } from 'lucide-react';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getWhatsAppLink } from '@/utils/whatsapp';
-import { BottomNavSpacer } from '@/components/layout/PageContainer';
+import { useChromeConfig } from '@/components/layout/AppShell';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 
 /**
  * C15 — LegalReader (handoff\components.md line 48).
  *
- * "Pill + display h1 + lede + updated line; four-card summary strip; 240px
- * contents rail + prose column; each section opens with a bold one-line
- * answer." Built once, reused by Terms, Privacy, Help and FAQ (handoff
- * "Redesign Legal pages.dc.html" L1/L2, reused per components.md).
+ * Built once, reused by Terms and Privacy (Help/FAQ moved off this onto their
+ * own HelpFaqStack in the immediately-preceding phase — see the note on that
+ * component; LegalReader still serves the actual legal pages).
+ *
+ * Handoff 09h (LG-001..LG-003) rebuilds this as a BentoStack: header → a
+ * 4-card summary strip → a contents panel → flowing prose → a highlighted
+ * "papers and copyright" callout (Terms only, LG-003) → a privacy/terms
+ * cross-link row → a "still stuck" WhatsApp/email contact panel (kept — a
+ * real, working way to reach us that the 09h geometry appendix doesn't
+ * itemise but that LG-001..003 never asks to remove) → the shared eyes panel
+ * → the global footer (now owned by AppShell, not self-rendered here — see
+ * the removed <Footer>/<BottomNavSpacer> below).
  *
  * Pixel values below are transcribed literally from the L1/L2 mockup per the
  * owner's pixel-exact override — arbitrary Tailwind values throughout,
@@ -46,8 +57,22 @@ export interface LegalReaderProps {
   accent: 'brand' | 'blue';
   footHead: string;
   footBody: string;
-  /** Extra content rendered after the accordion — e.g. FAQ's "Tell us here" line. */
+  /** Extra content rendered after the contact panel — e.g. a page-specific closing line. */
   footerExtra?: ReactNode;
+  /**
+   * LG-003: `n` of the section that gets the indigo "papers and copyright"
+   * callout treatment instead of the normal flowing-prose treatment. Omit
+   * for a document with no such section (Privacy has none today).
+   */
+  copyrightSectionN?: string;
+  /**
+   * WhatsApp link for the copyright section's "Request a removal" action.
+   * Required together with `copyrightSectionN` — the callout does not
+   * render without both (S16/LG-003: never a dead-end action).
+   */
+  removalUrl?: string;
+  /** LG-001 geometry appendix: the privacy/terms cross-link row. Omit to skip it. */
+  crossLink?: { label: string; href: string };
 }
 
 const SUMMARY_TONE_CLASS: Record<SummaryTone, string> = {
@@ -90,7 +115,19 @@ export function LegalReader({
   footHead,
   footBody,
   footerExtra,
+  copyrightSectionN,
+  removalUrl,
+  crossLink,
 }: LegalReaderProps) {
+  // This route renders its own eyes panel below, replacing AppShell's
+  // default pre-footer — same convention every other BentoStack page uses
+  // (PastPapers/SchoolsPage/SchoolPage). Owned here, once, so both real
+  // callers (Terms, Privacy) get it automatically.
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
+
   const pillClass =
     pillTone === 'blue'
       ? 'bg-brand-blue-subtle text-brand-blue-deep'
@@ -118,29 +155,35 @@ export function LegalReader({
     return () => observer.disconnect();
   }, [sections.length]);
 
-  return (
-    <div className="min-h-screen bg-background">
+  const copyrightSection = copyrightSectionN
+    ? sections.find((s) => s.n === copyrightSectionN)
+    : undefined;
+  const proseSections = copyrightSection
+    ? sections.filter((s) => s.n !== copyrightSectionN)
+    : sections;
 
-      <main className="mx-auto max-w-[980px] px-4 pb-[90px] pt-[44px] sm:px-[40px]">
-        {/* pill + h1 + lede + updated */}
+  return (
+    <BentoStack>
+      {/* LG-001 header: pill + h1 + lede + updated line. h1 drops the old
+          38/60px display clamp for the 27px/800/-0.04em size every other
+          migrated page's header uses (SchoolsPage, TeacherTermsAgreement). */}
+      <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[22px]">
         <span
           className={`inline-flex h-[32px] items-center gap-2 whitespace-nowrap rounded-full px-[14px] text-[12px] font-bold ${pillClass}`}
         >
           {pill}
         </span>
-        <h1 className="mt-[16px] mb-[12px] font-display text-[38px] font-black leading-[.96] tracking-[-0.045em] text-foreground sm:text-[60px] sm:tracking-[-0.04em]">
+        <h1 className="mt-[14px] font-display text-[27px] font-extrabold leading-[1.1] tracking-[-0.04em] text-foreground">
           {h1}
         </h1>
-        <p className="m-0 max-w-[66ch] text-[16px] leading-[1.6] text-warm-prose sm:text-[18px]">
-          {lede}
-        </p>
-        <span className="mt-[14px] block text-[12.5px] text-warm-meta sm:text-[13.5px]">{updated}</span>
+        <p className="mt-2 max-w-[62ch] text-[15px] leading-[1.6] text-warm-prose">{lede}</p>
+        <span className="mt-[10px] block text-[13.5px] text-warm-meta">{updated}</span>
+      </BentoPanel>
 
-        {/* four-card summary strip — pages.md #16 calls for "2-col mobile /
-            4-col desktop"; sm:grid-cols-2 waited until 640px, so a 390px
-            phone got one full-width card per row (correct content, wrong
-            layout — a lot of dead scroll). grid-cols-2 is now the base. */}
-        <div className="mt-[22px] grid grid-cols-2 gap-[10px] sm:mt-[32px] lg:grid-cols-4">
+      {/* Four-card summary strip — real authored content, kept from the
+          previous build. 2-col at base, 4-col from lg:. */}
+      <BentoPanel fill="card">
+        <div className="grid grid-cols-2 gap-[10px] lg:grid-cols-4">
           {summary.map((s) => (
             <div
               key={s.head}
@@ -155,105 +198,175 @@ export function LegalReader({
             </div>
           ))}
         </div>
+      </BentoPanel>
 
-        {/* 240px contents rail + prose column */}
-        <div className="mt-[26px] grid grid-cols-1 gap-[28px] sm:mt-[40px] lg:grid-cols-[240px_1fr] lg:gap-[40px]">
-          <nav aria-label="On this page" className="hidden flex-col gap-[3px] lg:flex">
-            <span className="mb-2 text-[11.5px] font-bold uppercase tracking-[.07em] text-warm-label">
-              On this page
-            </span>
-            {sections.map((s, i) => {
-              const isActive = i === activeIndex;
-              return (
-                <a
-                  key={s.n}
-                  href={`#legal-section-${s.n}`}
-                  className={`flex min-h-[44px] items-center gap-[10px] rounded-[11px] px-[12px] py-[9px] text-[13.5px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                    isActive
-                      ? 'bg-muted font-bold text-foreground'
-                      : 'font-semibold text-warm-secondary hover:bg-muted/60'
-                  }`}
-                >
-                  <span className="w-[18px] flex-none text-[11.5px] font-bold text-warm-label">{s.n}</span>
-                  {s.title}
-                </a>
-              );
-            })}
-          </nav>
-
-          <div className="flex flex-col gap-[22px] sm:gap-[28px]">
-            {sections.map((s, i) => (
-              <div
+      {/* LG-001 contents panel — numbered rows, hairline between them, no
+          hairline after the last row. Derived from `sections`, never
+          hardcoded, so every h2 in the document gets a jump-to row. */}
+      <BentoPanel fill="card" className="p-[18px]">
+        <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">
+          On this page
+        </span>
+        <nav aria-label="On this page" className="mt-[10px] grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">
+          {sections.map((s, i) => {
+            const isActive = i === activeIndex;
+            const isLast = i === sections.length - 1;
+            return (
+              <a
                 key={s.n}
-                id={`legal-section-${s.n}`}
-                ref={(el) => {
-                  sectionRefs.current[i] = el;
-                }}
-                className="scroll-mt-24"
+                href={`#legal-section-${s.n}`}
+                className={`flex min-h-11 items-center gap-3 py-[9px] text-[14.5px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  isLast ? '' : 'shadow-[inset_0_-1px_0_#F0EAE2]'
+                }`}
               >
-                <div className="mb-[8px] flex items-baseline gap-[10px] sm:mb-[10px] sm:gap-[12px]">
-                  <span className="text-[11.5px] font-bold tracking-[.05em] text-warm-label sm:text-[13px] sm:tracking-[.04em]">
-                    {s.n}
-                  </span>
-                  <h2 className="m-0 font-display text-[22px] font-extrabold leading-[1.1] tracking-[-0.03em] text-foreground sm:text-[26px]">
-                    {s.title}
-                  </h2>
+                <span className="w-[18px] flex-none text-[12.5px] font-bold tabular-nums text-warm-label">
+                  {i + 1}
+                </span>
+                <span className={`flex-1 truncate font-semibold text-brand-blue ${isActive ? 'text-brand-blue-deep' : ''}`}>
+                  {s.title}
+                </span>
+              </a>
+            );
+          })}
+        </nav>
+      </BentoPanel>
+
+      {/* LG-002 prose — 16px/1.7 measure, h2 19px/800/-0.03em with mt-[26px]
+          (first has none). The copyright section (if any) is pulled out into
+          its own callout below instead of rendering here. */}
+      <BentoPanel fill="card" className="p-[24px_22px]">
+        <div className="flex flex-col text-[16px] leading-[1.7] text-warm-prose">
+          {proseSections.map((s, i) => (
+            <div
+              key={s.n}
+              id={`legal-section-${s.n}`}
+              ref={(el) => {
+                const idx = sections.findIndex((sec) => sec.n === s.n);
+                sectionRefs.current[idx] = el;
+              }}
+              className={`max-w-[62ch] scroll-mt-24 ${i === 0 ? '' : 'mt-[26px]'}`}
+            >
+              <h2 className="m-0 font-display text-[19px] font-extrabold leading-[1.15] tracking-[-0.03em] text-foreground">
+                {s.title}
+              </h2>
+              <p className="m-0 mt-3.5 font-bold text-foreground">{s.short}</p>
+              <div className="mt-3.5">{s.body}</div>
+
+              {s.bullets && s.bullets.length > 0 && (
+                <div className="mt-3.5 flex flex-col gap-2">
+                  {s.bullets.map((b) => (
+                    <div key={b} className="flex items-start gap-[11px]">
+                      <span className={`mt-[9px] h-[6px] w-[6px] flex-none rounded-full ${accentDotClass}`} />
+                      <span className="text-[15px] leading-[1.6] text-warm-prose">{b}</span>
+                    </div>
+                  ))}
                 </div>
-                <p className="m-0 mb-[8px] max-w-[70ch] text-[15.5px] font-bold leading-[1.5] text-foreground sm:mb-[10px] sm:text-[17px] sm:leading-[1.55]">
-                  {s.short}
-                </p>
-                <div className="max-w-[70ch] text-[15px] leading-[1.7] text-warm-prose sm:text-[16px]">{s.body}</div>
-
-                {s.bullets && s.bullets.length > 0 && (
-                  <div className="mt-[14px] flex flex-col gap-[8px]">
-                    {s.bullets.map((b) => (
-                      <div key={b} className="flex max-w-[70ch] items-start gap-[11px]">
-                        <span className={`mt-[9px] h-[6px] w-[6px] flex-none rounded-full ${accentDotClass}`} />
-                        <span className="text-[15px] leading-[1.6] text-warm-prose sm:text-[15.5px]">{b}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* dark "still stuck" panel */}
-            <div className="rounded-[22px] bg-panel p-[20px] text-white sm:p-[24px]">
-              <span className="mb-[12px] inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-warm-card px-[11px] text-[11.5px] font-bold text-foreground">
-                questions
-              </span>
-              <div className="mb-[8px] font-display text-[20px] font-extrabold leading-[1.15] tracking-[-0.03em] sm:text-[23px]">
-                {footHead}
-              </div>
-              <p className="m-0 mb-[14px] max-w-[62ch] text-[14px] leading-[1.65] text-white/78 sm:mb-[16px] sm:text-[15px]">
-                {footBody}
-              </p>
-              <div className="flex flex-wrap gap-[10px]">
-                <a
-                  href={getWhatsAppLink('8240980312')}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-[13px] bg-whatsapp px-[18px] text-[14.5px] font-extrabold text-whatsapp-text transition-transform duration-150 active:scale-[0.97] sm:w-auto"
-                >
-                  <WhatsAppIcon className="h-[17px] w-[17px]" />
-                  WhatsApp us
-                </a>
-                <a
-                  href="mailto:ngo.aquaterra@gmail.com"
-                  className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[13px] bg-white/10 px-[18px] text-[14.5px] font-bold text-white transition-colors duration-150 hover:bg-white/15 sm:w-auto"
-                >
-                  ngo.aquaterra@gmail.com
-                </a>
-              </div>
+              )}
             </div>
-
-            {footerExtra}
-          </div>
+          ))}
         </div>
-      </main>
+      </BentoPanel>
 
-      <BottomNavSpacer />
-      <Footer />
-    </div>
+      {/* LG-003 — the papers/copyright section is called out in indigo,
+          because it is the clause people arrive at this page for. Only
+          renders when the caller supplies both the section and a removal
+          link — never a dead "Request a removal" action. */}
+      {copyrightSection && removalUrl && (
+        <BentoPanel
+          fill="papersTint"
+          id={`legal-section-${copyrightSection.n}`}
+          ref={(el: HTMLDivElement | null) => {
+            const idx = sections.findIndex((sec) => sec.n === copyrightSection.n);
+            sectionRefs.current[idx] = el;
+          }}
+          className="scroll-mt-24"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-xl bg-brand-blue">
+              <FileText className="h-[19px] w-[19px] text-white" aria-hidden="true" />
+            </span>
+            <h2 className="m-0 font-display text-[19px] font-extrabold tracking-[-0.03em] text-brand-blue-deep">
+              {copyrightSection.title}
+            </h2>
+          </div>
+          <p className="m-0 mt-3 max-w-[62ch] text-[15px] leading-[1.65] text-warm-prose">
+            {copyrightSection.short}
+          </p>
+          <div className="mt-4 max-w-[62ch] text-[15px] leading-[1.65] text-warm-prose">{copyrightSection.body}</div>
+          <a
+            href={removalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex h-12 items-center rounded-full bg-brand-blue px-5 text-[14.5px] font-extrabold text-white transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+          >
+            Request a removal
+          </a>
+        </BentoPanel>
+      )}
+
+      {/* LG-001 geometry appendix: the privacy/terms cross-link row. */}
+      {crossLink && (
+        <BentoPanel fill="card" className="p-[18px_22px]">
+          <a
+            href={crossLink.href}
+            className="flex min-h-11 items-center gap-3 text-[14.5px] font-semibold text-foreground transition-colors duration-150 hover:text-brand-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <span className="flex-1">{crossLink.label}</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-none text-warm-label">
+              <path d="M5 12h14" />
+              <path d="m13 6 6 6-6 6" />
+            </svg>
+          </a>
+        </BentoPanel>
+      )}
+
+      {/* Dark "still stuck" contact panel — a real, working WhatsApp/email
+          way to reach us. Kept from the previous build; the 09h geometry
+          appendix doesn't itemise it but LG-001..003 never ask to remove it,
+          and dropping a real contact channel would be exactly the kind of
+          silent functionality loss the migration rules warn against. */}
+      <BentoPanel fill="dark">
+        <span className="mb-3 inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-warm-card px-[11px] text-[11.5px] font-bold text-foreground">
+          questions
+        </span>
+        <h2 className="m-0 mb-2 font-display text-[20px] font-extrabold leading-[1.15] tracking-[-0.03em] sm:text-[23px]">
+          {footHead}
+        </h2>
+        <p className="m-0 mb-4 max-w-[62ch] text-[14px] leading-[1.65] text-white/78 sm:text-[15px]">{footBody}</p>
+        <div className="flex flex-wrap gap-[10px]">
+          <a
+            href={getWhatsAppLink('8240980312')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-[13px] bg-whatsapp px-[18px] text-[14.5px] font-extrabold text-whatsapp-text transition-transform duration-150 active:scale-[0.97] sm:w-auto"
+          >
+            <WhatsAppIcon className="h-[17px] w-[17px]" />
+            WhatsApp us
+          </a>
+          <a
+            href="mailto:ngo.aquaterra@gmail.com"
+            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[13px] bg-white/10 px-[18px] text-[14.5px] font-bold text-white transition-colors duration-150 hover:bg-white/15 sm:w-auto"
+          >
+            ngo.aquaterra@gmail.com
+          </a>
+        </div>
+      </BentoPanel>
+
+      {footerExtra}
+
+      <EyesPanel
+        mode={builderMode}
+        onModeChange={setBuilderMode}
+        heading={(
+          <>
+            Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+          </>
+        )}
+        subline="Fill in the blanks and we'll take you straight there."
+        slots={builderSlots}
+        onSlotChange={handleSlotChange}
+        onSubmit={handleBuilderSubmit}
+      />
+    </BentoStack>
   );
 }

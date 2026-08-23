@@ -590,6 +590,7 @@ export default function PrivacyPolicy() {
       sections={SECTIONS}
       footHead="Want your data, or want it gone?"
       footBody="Ask on WhatsApp or by email. We will send you everything we hold within a week, or delete it — your choice, and no questions asked."
+      crossLink={{ label: 'Terms of use', href: '/terms-of-service' }}
     />
   );
 }
