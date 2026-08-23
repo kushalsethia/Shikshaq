@@ -171,9 +171,10 @@ export interface BentoPanelProps extends React.HTMLAttributes<HTMLDivElement> {
   edge?: 'top' | 'bottom';
 }
 
-export function BentoPanel({ fill = 'card', edge, className, ...props }: BentoPanelProps) {
-  return (
+export const BentoPanel = React.forwardRef<HTMLDivElement, BentoPanelProps>(
+  ({ fill = 'card', edge, className, ...props }, ref) => (
     <div
+      ref={ref}
       className={cn(
         'rounded-bento px-5 py-5 lg:px-8 lg:py-8',
         edge === 'top' && 'rounded-t-none',
@@ -183,7 +184,8 @@ export function BentoPanel({ fill = 'card', edge, className, ...props }: BentoPa
       )}
       {...props}
     />
-  );
-}
+  ),
+);
+BentoPanel.displayName = 'BentoPanel';
 
 export { PageContainer, Slab, ControlBlock, BottomNavSpacer, TopNavSpacer, SLAB_FILLS };

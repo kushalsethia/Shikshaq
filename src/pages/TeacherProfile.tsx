@@ -2,29 +2,30 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Footer } from '@/components/Footer';
+import { useChromeConfig } from '@/components/layout/AppShell';
 import { ListError } from '@/components/ui/list-states';
 import { Heart, Share2, ArrowLeft, Clock, Wallet, Users, ShieldCheck } from 'lucide-react';
 import { useLikes } from '@/lib/likes-context';
-import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getSubjectPalette } from '@/lib/subject-palette';
-import { getTeacherBySlug } from '@/lib/teachers';
+import { getTeacherBySlug, getTeachersByIds } from '@/lib/teachers';
+import { TeacherCard } from '@/components/TeacherCard';
 import DOMPurify from 'dompurify';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { recordVisit } from '@/lib/recently-visited';
 import { TeacherComments } from '@/components/TeacherComments';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { Button } from '@/components/ui/button';
-import { PreFooter } from '@/components/layout/PreFooter';
-import { BottomNavSpacer } from '@/components/layout/PageContainer';
-import { SignInSheet } from '@/components/SignInSheet';
+import { ContactGateSheet } from '@/components/ContactGateSheet';
 import { toast } from 'sonner';
 import { BROWSE_PATH } from '@/lib/nav-config';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import {
   generateTeacherPersonSchema,
   generateBreadcrumbSchema,
@@ -68,13 +69,20 @@ interface Teacher {
   max_fees?: number | null;
 }
 
-function formatDisplayName(name: string, sirMaam?: string | null): string {
-  if (!sirMaam) return name;
-  const lower = String(sirMaam).toLowerCase().trim();
-  let honorific: string | null = null;
-  if (lower === 'sir' || lower.includes('sir')) honorific = 'Sir';
-  else if (lower === "ma'am" || lower === 'maam' || lower.includes("ma'am")) honorific = "Ma'am";
-  return honorific ? `${name}, ${honorific}` : name;
+/* Bug fix, mobile QA pass: this heading used to run a mixed-weight H1 split
+   (design system signature move, see Index.tsx/Join.tsx hero H1s) — a
+   font-normal base clause followed by a font-black payoff, with the payoff
+   falling on "Sir"/"Ma'am" when there was one. That put the honorific in
+   bold and the teacher's actual name in font-normal: backwards for a
+   profile, where the name is the primary identity element and the
+   honorific is a secondary courtesy label. The name now always renders at
+   full display weight; this helper only extracts the honorific so it can
+   render separately, at its own small/light size. */
+function getHonorific(sirMaam?: string | null): string | null {
+  const lower = String(sirMaam ?? '').toLowerCase().trim();
+  if (lower === 'sir' || lower.includes('sir')) return 'Sir';
+  if (lower === "ma'am" || lower === 'maam' || lower.includes("ma'am")) return "Ma'am";
+  return null;
 }
 
 function parseCommaList(value: string | null | undefined): string[] {
@@ -99,7 +107,7 @@ function SubjectPill({ label }: { label: string }) {
   const palette = getSubjectPalette(label);
   return (
     <span
-      className="animate-pop inline-flex h-[32px] items-center whitespace-nowrap rounded-full px-[14px] text-[13.5px] font-bold"
+      className="animate-card-reveal motion-reduce:animate-none inline-flex h-[32px] items-center whitespace-nowrap rounded-full px-[14px] text-[13.5px] font-bold"
       style={{ backgroundColor: palette.tint, color: palette.text }}
     >
       {label}
@@ -107,41 +115,48 @@ function SubjectPill({ label }: { label: string }) {
   );
 }
 
-function TagPill({ label, variant }: { label: string; variant: 'blue' | 'brand' }) {
-  const classes = variant === 'blue' ? 'bg-brand-blue-subtle text-brand-blue-deep' : 'bg-brand-subtle text-brand-deep';
-  return (
-    <span className={`animate-pop inline-flex h-[32px] items-center whitespace-nowrap rounded-full px-[14px] text-[13.5px] font-bold ${classes}`}>
-      {label}
-    </span>
-  );
-}
-
 // S3 header chips: height:26px padding:0 10px font-size:11.5px font-weight:700.
-function SpeechChip({ children }: { children: React.ReactNode }) {
+// max-w-full + truncate: bug fix (mobile QA) — a joined boards string like
+// "ICSE/ISC + CBSE + State" is longer than any single mock's example data,
+// and this chip's whitespace-nowrap had no width limit, so on narrow phones
+// it overflowed past the identity card's rounded edge instead of wrapping or
+// shrinking. Truncating with an ellipsis keeps the chip inside the card at
+// every width instead of spilling over it.
+// Handoff P-005: the first chip (boards) becomes the page's single accent
+// above the CTA; the rest stay bone. Geometry (h26/px-10/11.5px/700) is
+// unchanged from source — the changelog's own "h32/px-14/13.5px" before-
+// value doesn't match what's actually here, so nothing to restyle there.
+function SpeechChip({ children, accent = false }: { children: React.ReactNode; accent?: boolean }) {
   return (
-    <span className="animate-pop inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-card/90 px-[10px] text-[11.5px] font-bold text-foreground shadow-border backdrop-blur-sm">
+    <span
+      className={`animate-card-reveal motion-reduce:animate-none inline-flex h-[26px] max-w-full min-w-0 items-center truncate whitespace-nowrap rounded-full px-[10px] text-[11.5px] font-bold backdrop-blur-sm ${
+        accent ? 'bg-brand text-brand-foreground' : 'bg-card/90 text-foreground shadow-border'
+      }`}
+    >
       {children}
     </span>
   );
 }
 
-// S3 stat tile: radius:16px padding:12px, icon mb:6px, label font:11px, value mt:2px font:15px.
+// Handoff P-007: a BentoPanel now, not a shadow-bordered card — radius 16 -> 30.
 function StatTile({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: string }) {
   return (
-    <div className="animate-card-reveal rounded-[16px] bg-card p-[12px] shadow-border">
-      <div className="mb-[6px] flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.06em] text-warm-meta">
-        <Icon size={13} className="text-warm-meta" strokeWidth={2} aria-hidden="true" />
+    <BentoPanel fill="card" className="animate-card-reveal flex-1 px-[14px] py-4">
+      <Icon size={18} className="text-warm-tertiary" strokeWidth={2} aria-hidden="true" />
+      <div className="mt-[10px] text-[11.5px] font-bold uppercase tracking-[0.04em] text-warm-label">
         {label}
       </div>
-      <div className="mt-[2px] font-display tabular-nums text-[15px] font-extrabold tracking-[-0.02em] text-foreground">{value}</div>
-    </div>
+      <div className="mt-[3px] font-display tabular-nums text-[16px] font-extrabold tracking-[-0.03em] text-foreground">{value}</div>
+    </BentoPanel>
   );
 }
 
-// S3/D3 section heading: mobile margin-bottom:10px font:18px; desktop margin-bottom:12px font:26px.
+// Handoff P-009: every heading below is now the first child of its own
+// BentoPanel — the panel's own padding plus the stack's seam replace the
+// old inter-section margin, so this carries no top margin any more.
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mt-[18px] mb-[10px] font-display text-[18px] font-extrabold tracking-[-0.03em] text-foreground lg:mt-[24px] lg:mb-[12px] lg:text-[26px] lg:tracking-[-0.02em]">
+    <h2 className="mb-[10px] font-display text-[18px] font-extrabold tracking-[-0.03em] text-foreground lg:mb-[12px] lg:text-[26px] lg:tracking-[-0.02em]">
       {children}
     </h2>
   );
@@ -152,7 +167,6 @@ export default function TeacherProfile() {
 
   const { user } = useAuth();
   const { isLiked, toggleLike } = useLikes();
-  const { isUpvoted, toggleUpvote, getUpvoteCount } = useUpvotes();
   const navigate = useNavigate();
   const location = useLocation();
   const [primaryCtaVisible, setPrimaryCtaVisible] = useState(true);
@@ -161,6 +175,12 @@ export default function TeacherProfile() {
   // never a route change; after auth the visitor continues to what they tapped.
   const [signInSheetOpen, setSignInSheetOpen] = useState(false);
   const [signInIntent, setSignInIntent] = useState<'message' | 'save'>('message');
+
+  // Handoff P-014: the eyes panel at the bottom of this page needs the same
+  // live sentence-builder data Home's does.
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
 
   useRequireRole();
 
@@ -210,6 +230,37 @@ export default function TeacherProfile() {
 
   const teacher = profileQuery.data ?? null;
   const loading = profileQuery.isPending && Boolean(slug);
+
+  /* pages.md §3 row 7 — "Similar teachers | rail | 6 cards, rail density".
+     Same subject, excluding this teacher, featured first. Enriched via the
+     shared getTeachersByIds (same fee/area/experience fields Browse/Index's
+     rails use) so the cards render with real data, never a bare name+photo. */
+  const similarTeachersQuery = useQuery({
+    queryKey: ['similar-teachers', teacher?.subjects?.slug, teacher?.id],
+    enabled: Boolean(teacher?.subjects?.slug && teacher?.id),
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('teachers_list')
+        .select('id, name, slug, image_url, subjects!inner(name, slug)')
+        .eq('subjects.slug', teacher!.subjects!.slug)
+        .neq('id', teacher!.id)
+        .order('is_featured', { ascending: false })
+        .limit(6);
+      if (error || !data) return [];
+      return getTeachersByIds((data as any[]).map((t) => t.id));
+    },
+  });
+  const similarTeachers = similarTeachersQuery.data ?? [];
+
+  // Called unconditionally, above the loading/error/not-found early returns
+  // below — AppShell already renders the B2 pre-footer + Footer for this
+  // route from the URL alone, this only adds the profile's own "Find the
+  // best teachers for you" blurb once the teacher has loaded.
+  // Handoff P-014: the eyes panel (H-023) replaces the old B2 pre-footer on
+  // this route, rendered inline as the stack's own second-to-last panel —
+  // same as Home.
+  useChromeConfig({ preFooter: 'none', footerExpandedContent: teacher?.expanded || null });
 
   // Auto-continue after sign-in — see handleWhatsAppClick's sessionStorage flag.
   useEffect(() => {
@@ -376,7 +427,7 @@ export default function TeacherProfile() {
      searching for anyway. */
   const areaForTitle = (value: string) => parts(value)[0] || 'Kolkata';
   const pageTitle = teacher
-    ? `${teacher.name} — ${subjectsForTitle(metaSubjects)} tuition in ${areaForTitle(metaArea)} | Shikshaq`
+    ? `${teacher.name} - ${subjectsForTitle(metaSubjects)} tuition in ${areaForTitle(metaArea)} | Shikshaq`
     : 'Shikshaq - by AquaTerra';
 
   let pageDescription = teacher
@@ -392,7 +443,13 @@ export default function TeacherProfile() {
     pageDescription = composed.length > 157 ? `${composed.substring(0, 154).trimEnd()}...` : composed;
   }
 
-  usePageMeta(pageTitle, pageDescription);
+  /* WhatsApp is this product's main distribution channel — a teacher's own
+     photo makes a far more compelling share card than the generic default.
+     Only pass real http(s) URLs through: og:image consumers (WhatsApp,
+     Facebook) can't resolve blob:/data: URIs. */
+  const safeTeacherImage = teacher?.image_url ? validateImageSrc(teacher.image_url) : '';
+  const ogImage = safeTeacherImage.startsWith('http') ? safeTeacherImage : undefined;
+  usePageMeta(pageTitle, pageDescription, ogImage);
 
   const backHref = (location.state as { fromBrowse?: string })?.fromBrowse ?? BROWSE_PATH;
 
@@ -400,7 +457,7 @@ export default function TeacherProfile() {
     return (
       <div className="min-h-screen bg-background">
         <div className="h-[280px] w-full animate-shimmer bg-muted" />
-        <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-10 sm:px-6 sm:py-8 lg:pb-16 lg:px-8">
           <div className="h-8 w-2/3 animate-shimmer rounded-lg bg-muted" />
           <div className="mt-4 flex gap-2">
             <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
@@ -412,7 +469,6 @@ export default function TeacherProfile() {
             <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -424,10 +480,9 @@ export default function TeacherProfile() {
   if (profileQuery.isError) {
     return (
       <div className="min-h-screen bg-background">
-        <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-10 sm:px-6 sm:py-8 lg:pb-16 lg:px-8">
           <ListError onRetry={() => profileQuery.refetch()} />
         </main>
-        <Footer />
       </div>
     );
   }
@@ -442,7 +497,6 @@ export default function TeacherProfile() {
             <Link to={BROWSE_PATH}>Browse all teachers</Link>
           </Button>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -459,15 +513,6 @@ export default function TeacherProfile() {
       return;
     }
     await toggleLike(teacher.id);
-  };
-
-  const handleUpvoteClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!user) {
-      openSignInSheet('save');
-      return;
-    }
-    await toggleUpvote(teacher.id);
   };
 
   const handleWhatsAppClick = () => {
@@ -506,8 +551,6 @@ export default function TeacherProfile() {
   };
 
   const liked = isLiked(teacher.id);
-  const upvoted = isUpvoted(teacher.id);
-  const upvoteCount = getUpvoteCount(teacher.id);
 
   const subjectsList = teacher.subjects_from_shikshaq
     ? parseCommaList(teacher.subjects_from_shikshaq)
@@ -549,6 +592,7 @@ export default function TeacherProfile() {
   ].filter((row): row is { label: string; value: string } => Boolean(row.value));
 
   const firstName = teacher.name.trim().split(/\s+/)[0] || teacher.name;
+  const honorific = getHonorific(teacher.sir_maam);
 
   const descriptionHtml = teacher.description
     ? /<[a-z][\s\S]*>/i.test(teacher.description)
@@ -564,15 +608,28 @@ export default function TeacherProfile() {
   return (
     <div className="min-h-screen bg-background">
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-16 sm:px-6 sm:py-8 lg:px-8">
+      {/* Bug fix, mobile QA: pb-10 not the old pb-[104px]. That 104px was
+          reserving clearance for the fixed bottom nav a second time —
+          AppShell already reserves it once via BottomNavSpacer, rendered
+          after this page's PreFooter/Footer. Stacked on top of each other,
+          the two reservations left a dead gap between the last section here
+          (the "similar teachers" link) and the B2 strip that follows. */}
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-10 sm:px-6 sm:py-8 lg:pb-16 lg:px-8">
         {/* Desktop: 1fr / 384px grid. Left = photo/name card + prose sections. Right = sticky contact card. */}
         <div className="lg:grid lg:grid-cols-[1fr_384px] lg:gap-[40px]">
-          <div className="min-w-0">
+          <BentoStack className="min-w-0">
             {/* Profile card — design.md "Teacher profile (S3/D3)": photo sits
                 inside the card beside the name, never underneath overlaid
                 chips/badges — nothing may cover a teacher's face. Dark panel +
-                white text on mobile (S3); light bordered card on desktop (D3). */}
-            <div className="rounded-[28px] bg-panel p-[14px] pb-[20px] lg:rounded-[24px] lg:border lg:border-border lg:bg-card lg:px-[30px] lg:py-[28px] lg:shadow-none">
+                white text on mobile (S3); light bordered card on desktop (D3).
+                Handoff P-002: radius 28 -> square-topped 30 on mobile (it
+                meets the nav), 24 -> 30 on desktop; the dark fill stays —
+                it's the one dark surface above the footer on this page. */}
+            <BentoPanel
+              fill="dark"
+              edge="top"
+              className="p-[14px] pb-5 lg:rounded-[30px] lg:border lg:border-border lg:bg-card lg:px-[30px] lg:py-[28px] lg:shadow-none"
+            >
               {/* S3 top row: 40x40 icon buttons, 18px icons, 8px gap, 16px margin-bottom.
                   Kept at a 44px hit area (padding) around the 40px visual per the
                   44px-minimum rule — mockup draws the control smaller than the a11y floor. */}
@@ -585,7 +642,7 @@ export default function TeacherProfile() {
                   relying on a bare chevron, since there is room for it here. */}
               <Link
                 to={backHref}
-                className="mb-[16px] hidden items-center gap-2 text-[13px] font-semibold text-background/70 transition-colors duration-150 hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:inline-flex"
+                className="mb-[16px] hidden min-h-11 items-center gap-2 text-[13px] font-semibold text-background/70 transition-colors duration-150 hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:inline-flex"
               >
                 <ArrowLeft size={16} aria-hidden="true" />
                 Back to all teachers
@@ -606,7 +663,7 @@ export default function TeacherProfile() {
                     onClick={handleHeartClick}
                     aria-label={liked ? 'Remove from favourites' : 'Save teacher'}
                     aria-pressed={liked}
-                    className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="relative flex h-[40px] w-[40px] items-center justify-center rounded-full bg-background/10 transition-transform duration-150 before:absolute before:-inset-[2px] before:content-[''] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     <Heart size={18} className={liked ? 'fill-destructive text-destructive' : 'text-background/70'} />
                   </button>
@@ -622,11 +679,11 @@ export default function TeacherProfile() {
               </div>
 
               <div className="flex items-end gap-[14px] lg:items-start lg:gap-[28px]">
-                <div className="relative h-[166px] w-[132px] shrink-0 overflow-hidden rounded-[20px] lg:h-[280px] lg:w-[224px]">
+                <div className="relative h-[166px] w-[132px] shrink-0 overflow-hidden rounded-[20px] outline outline-1 -outline-offset-1 outline-black/10 lg:h-[280px] lg:w-[224px]">
                   {teacher.image_url ? (
                     <img
                       src={validateImageSrc(teacher.image_url)}
-                      alt={teacher.name}
+                      alt={`${teacher.name}, ${subjectsForTitle(metaSubjects)} tutor in ${areaForTitle(metaArea)}, Kolkata`}
                       width={224}
                       height={280}
                       decoding="async"
@@ -649,16 +706,24 @@ export default function TeacherProfile() {
                   {/* S3 header chips: gap:6px margin-bottom:10px — both exact tokens (gap-1.5 / mb-2.5), kept. */}
                   {(boardsList.length > 0 || teacher.area || teacher.experience_years) && (
                     <div className="stagger-children mb-2.5 flex flex-wrap gap-1.5 lg:hidden">
-                      {boardsList.length > 0 && <SpeechChip>{boardsList.join(' + ')}</SpeechChip>}
+                      {boardsList.length > 0 && <SpeechChip accent>{boardsList.join(' + ')}</SpeechChip>}
                       {teacher.area && <SpeechChip>{teacher.area}</SpeechChip>}
                       {teacher.experience_years && <SpeechChip>{teacher.experience_years}+ years</SpeechChip>}
                     </div>
                   )}
 
-                  <div className="flex items-center gap-[7px]">
+                  <div className="flex flex-wrap items-center gap-x-[7px] gap-y-1">
+                    {/* Name is always the bold element; "Sir"/"Ma'am" is a
+                        secondary courtesy label and reads small and light
+                        next to it, never matching its weight. */}
                     <h1 className="font-display text-[27px] font-black leading-[1] tracking-[-0.04em] text-background lg:text-[44px] lg:tracking-[-0.03em] lg:text-foreground">
-                      {formatDisplayName(teacher.name, teacher.sir_maam)}
+                      {teacher.name}
                     </h1>
+                    {honorific && (
+                      <span className="text-[14px] font-normal leading-[1] text-background/60 lg:text-[17px] lg:text-muted-foreground">
+                        {honorific}
+                      </span>
+                    )}
                     {teacher.is_verified && (
                       <span title="Verified by ShikshAQ" className="flex-none">
                         <ShieldCheck
@@ -696,37 +761,28 @@ export default function TeacherProfile() {
                   )}
                 </div>
               </div>
-            </div>
+            </BentoPanel>
 
-            {(subjectsList.length > 0 || boardsList.length > 0 || teacher.area) && (
-              <div className="stagger-children mt-4 flex flex-wrap gap-2 lg:hidden">
-                {subjectsList.map((subject) => (
-                  <SubjectPill key={subject} label={subject} />
-                ))}
-                {boardsList.map((board) => (
-                  <TagPill key={board} label={board} variant="blue" />
-                ))}
-                {teacher.area && <TagPill label={teacher.area} variant="brand" />}
-              </div>
-            )}
-
+            {/* Handoff P-007: a 3-across row at every width, each tile its
+                own BentoPanel — was a stacked grid that cost three rows for
+                three short facts at 375px. */}
             {hasStats ? (
-              <div className="stagger-children mt-[18px] grid grid-cols-1 gap-[8px] sm:grid-cols-3">
+              <div className="stagger-children flex gap-seam">
                 {teacher.experience_years && <StatTile icon={Clock} label="Experience" value={`${teacher.experience_years}+ years`} />}
                 {feesValue && <StatTile icon={Wallet} label="Fees / month" value={feesValue} />}
                 {classSizeValue && <StatTile icon={Users} label="Class size" value={classSizeValue} />}
               </div>
             ) : (
-              <div className="mt-[18px] rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
-                Experience, fees, and class size aren't listed yet — ask {firstName} directly on WhatsApp.
-              </div>
+              <BentoPanel fill="muted" className="text-sm text-muted-foreground">
+                Experience, fees, and class size aren't listed yet, ask {firstName} directly on WhatsApp.
+              </BentoPanel>
             )}
 
             {/* Contact panel — mobile/tablet only; desktop's contact card lives in
                 the sticky right column below. Green WhatsApp CTA (design.md §4).
-                S3: radius:20px padding:16px, text:13.5px/1.55 mb:12px before the button. */}
-            <div ref={primaryCtaRef} className="mt-[18px] flex flex-col rounded-[20px] bg-muted p-[16px] lg:hidden">
-              <p className="mb-[12px] text-[13.5px] leading-[1.55] text-warm-prose">
+                Handoff P-008: bg-muted -> bg-mint, radius 20 -> 30. */}
+            <BentoPanel ref={primaryCtaRef} fill="mint" className="flex flex-col p-4 lg:hidden">
+              <p className="mb-[12px] text-[13.5px] leading-[1.55] text-[#3E6F53]">
                 Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
               </p>
               <Button variant="whatsapp" size={52} onClick={handleWhatsAppClick} className="whatsapp-pulse-once">
@@ -734,20 +790,27 @@ export default function TeacherProfile() {
                 Message on WhatsApp
               </Button>
               {!user && (
-                <span className="mt-[10px] flex items-center justify-center gap-1.5 text-xs font-semibold text-brand-blue">
-                  Sign in to message — quick, one tap.
+                // Bug fix, mobile QA: this line sat directly under the green
+                // WhatsApp CTA in brand blue — the one sanctioned colour on a
+                // WhatsApp button/its caption is green (rule: never blue next
+                // to it). Desktop's equivalent caption (below) was already
+                // neutral; this brings mobile in line with it.
+                // Handoff P-008: neutral-on-mint (never blue) — #3E6F53.
+                <span className="mt-[10px] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#3E6F53]">
+                  Sign in to message, quick, one tap.
                 </span>
               )}
-            </div>
+            </BentoPanel>
 
+            {/* Handoff P-009: each of these three becomes its own BentoPanel. */}
             {descriptionHtml && (
-              <>
+              <BentoPanel fill="card">
                 <SectionHeading>About {firstName}</SectionHeading>
                 <div
                   className="max-w-prose text-[15px] leading-[1.65] text-warm-prose [&_p+p]:mt-3 lg:text-[16px] lg:leading-[1.6]"
                   dangerouslySetInnerHTML={{ __html: descriptionHtml }}
                 />
-              </>
+              </BentoPanel>
             )}
 
             {/* One "Teaching details" section, not three.
@@ -760,11 +823,12 @@ export default function TeacherProfile() {
                 comparing two teachers a scrolling exercise.
 
                 Each row is dropped when its value is missing rather than shown
-                empty, and the whole section disappears if nothing survives. */}
+                empty, and the whole section disappears if nothing survives.
+                Handoff P-009: grid-cols-2 at every width now (was 1 col mobile). */}
             {teachingDetails.length > 0 && (
-              <>
+              <BentoPanel fill="card">
                 <SectionHeading>Teaching details</SectionHeading>
-                <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
                   {teachingDetails.map(({ label, value }) => (
                     <div key={label}>
                       <dt className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">
@@ -774,37 +838,84 @@ export default function TeacherProfile() {
                     </div>
                   ))}
                 </dl>
-              </>
+              </BentoPanel>
             )}
 
             {qualificationsText && (
-              <>
+              <BentoPanel fill="card">
                 <SectionHeading>Qualifications</SectionHeading>
                 <p className="max-w-prose text-[15px] leading-[1.65] text-warm-prose lg:text-[16px] lg:leading-[1.6]">{qualificationsText}</p>
-              </>
+              </BentoPanel>
             )}
 
-            <TeacherComments teacherId={teacher.id} subject={primarySubject} />
+            {/* Handoff P-010: wrapped in one orange-tinted panel — see
+                TeacherComments.tsx for the heading/write-review pill/card
+                treatment. */}
+            <BentoPanel fill="brandTint">
+              <TeacherComments teacherId={teacher.id} subject={primarySubject} teacherSlug={teacher.slug} />
+            </BentoPanel>
 
-            {/* Sentence footer — scoped to this teacher's subject and area. */}
-            <p className="mt-8 text-base text-warm-prose">
-              Looking for more{' '}
-              <Link to={BROWSE_PATH} className="font-semibold text-foreground underline underline-offset-2">
-                {primarySubject || 'tuition'} teachers near {areaLabel}
-              </Link>
-              ?
-            </p>
-          </div>
+            {/* Handoff P-011: the similar-teachers rail and the closing
+                sentence share one panel now, instead of sitting loose on
+                page ground. */}
+            <BentoPanel fill="card" className="!px-0 !py-[22px]">
+              {similarTeachers.length > 0 && (
+                <>
+                  <div className="px-[22px]">
+                    <SectionHeading>Similar teachers</SectionHeading>
+                  </div>
+                  <div className="overflow-x-auto overflow-y-visible px-[22px] py-1 scrollbar-hide">
+                    <ul className="flex w-max snap-x snap-mandatory gap-4">
+                      {similarTeachers.map((t) => (
+                        <li key={t.id} className="w-[168px] flex-none snap-start sm:w-[200px] lg:w-[220px]">
+                          <TeacherCard
+                            id={t.id}
+                            name={t.name}
+                            slug={t.slug}
+                            subject={t.subjects?.name || 'Tuition Teacher'}
+                            subjectSlug={t.subjects?.slug}
+                            imageUrl={t.image_url ?? undefined}
+                            sirMaam={t.sirMaam}
+                            whatsappLink={t.whatsappLink}
+                            experienceYears={t.experienceYears}
+                            minFees={t.minFees}
+                            maxFees={t.maxFees}
+                            area={t.area}
+                            variant="rail"
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
+
+              {/* Sentence footer — scoped to this teacher's subject and area. */}
+              <p className="mt-[18px] px-[22px] text-base text-warm-prose">
+                Looking for more{' '}
+                <Link
+                  to={BROWSE_PATH}
+                  className="font-semibold text-foreground underline underline-offset-2 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  {primarySubject || 'tuition'} teachers near {areaLabel}
+                </Link>
+                ?
+              </p>
+            </BentoPanel>
+          </BentoStack>
 
           {/* Right column — desktop only: sticky near-black contact card + "not the right fit" panel.
               D3 sticky card: radius:24px padding:26px gap:16px; fee font:36px; WhatsApp h:54 radius:15;
-              save/share h:46 radius:13; "not the right fit" card radius:20 padding:20 mt:16. */}
+              save/share h:46 radius:13; "not the right fit" card radius:20 padding:20 mt:16.
+              Handoff P-012: radius 24 -> 30 on both cards; shadow-border
+              removed from the dark card — it's the only dark object in this
+              column and needs no ring. */}
           <aside className="mt-8 hidden lg:mt-0 lg:block">
             <div className="lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-[16px]">
-              <div className="rounded-[24px] bg-panel p-[26px] text-background shadow-border">
+              <div className="rounded-[30px] bg-panel p-[26px] text-background">
                 {feesValue && (
                   <p className="flex items-baseline gap-2">
-                    <span className="font-display text-[36px] font-black tracking-[-0.03em] text-background">{feesValue}</span>
+                    <span className="font-display tabular-nums text-[36px] font-black tracking-[-0.03em] text-background">{feesValue}</span>
                     <span className="text-sm text-background/60">per month</span>
                   </p>
                 )}
@@ -837,35 +948,58 @@ export default function TeacherProfile() {
                     Share
                   </Button>
                 </div>
-                {!user && <p className="mt-3 text-xs text-background/70">Sign in to message — quick, one tap.</p>}
+                {!user && <p className="mt-3 text-xs text-background/70">Sign in to message, quick, one tap.</p>}
                 <ul className="mt-4 space-y-2 text-xs text-background/70">
                   {teacher.is_verified && <li>ID and degree verified by ShikshAQ</li>}
                   <li>Fees are settled directly with the teacher. Shikshaq takes no commission.</li>
                 </ul>
               </div>
 
-              <div className="rounded-[20px] bg-brand-subtle p-[20px]">
+              <div className="rounded-[30px] bg-brand-subtle p-[20px]">
                 <p className="font-display text-[18px] font-extrabold tracking-[-0.02em] text-brand-deep">Not the right fit?</p>
                 <p className="mt-1 text-[14.5px] leading-[1.55] text-warm-prose">
                   See other {primarySubject || 'tuition'} teachers near {areaLabel}.
                 </p>
-                <Link to={BROWSE_PATH} className="mt-[4px] inline-block text-[14px] font-semibold text-brand-deep underline underline-offset-2">
+                <Link
+                  to={BROWSE_PATH}
+                  className="mt-[4px] inline-block text-[14px] font-semibold text-brand-deep underline underline-offset-2 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
                   See them all →
                 </Link>
               </div>
             </div>
           </aside>
         </div>
-
-        <PreFooter variant="B2" className="mt-12" />
       </main>
+
+      {/* Handoff P-014: the eyes panel + footer render as the stack's last
+          two panels here too, exactly as on Home — AppShell's old B2
+          pre-footer is suppressed above (useChromeConfig). */}
+      <EyesPanel
+        mode={builderMode}
+        onModeChange={setBuilderMode}
+        heading={(
+          <>
+            Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+          </>
+        )}
+        subline="Fill in the blanks and we'll take you straight there."
+        slots={builderSlots}
+        onSlotChange={handleSlotChange}
+        onSubmit={handleBuilderSubmit}
+      />
 
       {/* Floating mobile CTA — the WhatsApp button must stay reachable as the
           parent reads the whole profile, not just while the panel above is on
           screen. Desktop's sticky contact card keeps the CTA in reach, so this
-          is mobile-only. Sits above the fixed bottom nav bar. */}
+          is mobile-only. Sits above the fixed bottom nav bar.
+          Handoff P-013: bottom clears the nav pill (was bottom-20, a fixed
+          80px); z-50 to match the two floating pills it sits between. */}
       {!primaryCtaVisible && (
-        <div className="animate-pop fixed inset-x-4 bottom-20 z-40 lg:hidden">
+        <div
+          className="animate-pop fixed inset-x-4 z-50 lg:hidden"
+          style={{ bottom: 'calc(84px + env(safe-area-inset-bottom))' }}
+        >
           <Button variant="whatsapp" size={54} onClick={handleWhatsAppClick} className="sticker outline-offset-shadow w-full">
             <WhatsAppIcon className="h-5 w-5" />
             {feesValue ? `${feesValue} · Message` : 'Message on WhatsApp'}
@@ -873,11 +1007,7 @@ export default function TeacherProfile() {
         </div>
       )}
 
-      <BottomNavSpacer />
-
-      <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent={signInIntent} teacherName={teacher?.name ?? null} />
-
-      <Footer expandedContent={teacher.expanded || null} />
+      <ContactGateSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent={signInIntent} teacherName={teacher?.name ?? null} />
     </div>
   );
 }

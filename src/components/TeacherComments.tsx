@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Clock, Trash2, Sparkles, CheckCircle2, Star, X } from 'lucide-react';
+import { Clock, Trash2, Sparkles, CheckCircle2, Star, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { saveAuthRedirect } from '@/utils/authRedirect';
@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { hasContactedTeacher } from '@/lib/contact-record';
 
 interface Comment {
   id: string;
@@ -45,6 +46,10 @@ interface TeacherCommentsProps {
   teacherId: string;
   /** Primary subject, so review cards pick up the same subject tint as the rest of the page. */
   subject?: string | null;
+  /** Teacher's slug — used only to check whether this device has a recorded
+      WhatsApp contact with them (pages.md §"Reviews": the write-review
+      button is gated on a recorded contact). */
+  teacherSlug?: string | null;
 }
 
 function getCommentAuthorName(comment: Comment): string {
@@ -75,7 +80,7 @@ function getCommentInitials(comment: Comment): string {
   return 'U';
 }
 
-export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
+export function TeacherComments({ teacherId, subject, teacherSlug }: TeacherCommentsProps) {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -94,6 +99,17 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
   // comparison. Distinguishes the immediate-post case from the anonymous
   // approval-queue case, since those are genuinely different outcomes.
   const [justSubmitted, setJustSubmitted] = useState<'approved' | 'pending' | null>(null);
+  /* Recomputed on mount and on window focus — the common path is: tap
+     WhatsApp, leave the tab (mobile hands off to the WhatsApp app; desktop
+     opens a new tab), come back, the button should now be enabled without a
+     full page reload. */
+  const [contacted, setContacted] = useState(() => hasContactedTeacher(teacherSlug));
+  useEffect(() => {
+    setContacted(hasContactedTeacher(teacherSlug));
+    const onFocus = () => setContacted(hasContactedTeacher(teacherSlug));
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [teacherSlug]);
 
   useEffect(() => {
     fetchComments();
@@ -255,6 +271,10 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
       navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
       return;
     }
+    if (!contacted) {
+      toast.info('Message the teacher on WhatsApp first, then you can leave a review.');
+      return;
+    }
     setWriteSheetOpen(true);
   };
 
@@ -283,21 +303,21 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
       : null;
 
   return (
-    <div className="mt-12 min-w-0 border-t border-border px-4 pt-8 md:px-0">
-      {/* R1/R2 — "What her students / actually say", 27px mobile / 46px desktop. */}
-      <div className="mb-[16px] flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <MessageCircle className="h-6 w-6 text-foreground" aria-hidden="true" />
-          <h2 className="font-display text-[27px] font-extrabold leading-[1] tracking-[-0.04em] text-foreground md:text-[46px]">
+    <div className="min-w-0">
+      {/* Handoff P-010: heading 18px/800/-0.03em/text-brand-deep (was
+          27px/900 mobile, 46px desktop, text-foreground — this section now
+          lives inside its own orange-tinted BentoPanel, so it takes that
+          panel's heading scale, not the page's section-break scale).
+          ⚠ Ratings kept per owner direction — the changelog's "no rating
+          column" premise predates this feature; only restyled, not removed. */}
+      <div className="mb-[16px] flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="font-display text-[18px] font-extrabold tracking-[-0.03em] text-brand-deep">
             Reviews
           </h2>
-          {/* O-02 resolved: ratings are real now, so the average appears —
-              but only when at least three people have actually given one.
-              Rule 10 still holds for everything behind it: no fallback star
-              count, no "no ratings yet" line advertising the absence. */}
-          <span className="tabular-nums text-muted-foreground">({comments.length})</span>
+          <span className="tabular-nums text-warm-tertiary">({comments.length})</span>
           {average !== null && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-subtle px-2.5 py-1 text-[13px] font-bold text-brand-deep">
+            <span className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-[13px] font-bold text-brand-deep">
               <Star className="h-[13px] w-[13px] fill-current" aria-hidden="true" />
               <span className="tabular-nums">{average.toFixed(1)}</span>
               <span className="font-semibold text-warm-meta">
@@ -306,10 +326,26 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
             </span>
           )}
         </div>
-        <Button variant="muted" size={44} className="rounded-[12px] text-[14px] font-bold" onClick={handleWriteReviewClick}>
+        <Button
+          size={44}
+          className="h-10 rounded-full bg-brand text-[14px] font-bold text-brand-foreground hover:bg-brand-hover"
+          onClick={handleWriteReviewClick}
+          disabled={Boolean(user) && !contacted}
+          title={user && !contacted ? 'Message the teacher on WhatsApp first to unlock this' : undefined}
+        >
           Add your review
         </Button>
       </div>
+
+      {/* Gate notice — pages.md §"Reviews": the write-review button is only
+          offered once a WhatsApp contact is on record for this user + teacher.
+          Stated plainly rather than left as a silently-disabled button, per
+          design.md's rule that a gate names itself on the page. */}
+      {user && !contacted && (
+        <p className="mb-6 text-sm text-muted-foreground">
+          Message the teacher on WhatsApp first, then you can leave a review.
+        </p>
+      )}
 
       {/* Post-submission success — LOUD moment (task #4). Anonymous reviews go to
           an approval queue, which is a genuinely different outcome from an
@@ -334,14 +370,14 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
             <p className="mt-1 text-sm text-warm-prose">
               {justSubmitted === 'approved'
                 ? 'Your review is live for other parents and students to see.'
-                : "Anonymous reviews are checked by our team first — yours will appear here once it's approved."}
+                : "Anonymous reviews are checked by our team first. Yours will appear here once it's approved."}
             </p>
           </div>
           <button
             type="button"
             onClick={() => setJustSubmitted(null)}
             aria-label="Dismiss"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-brand-deep/70 transition-colors duration-150 hover:bg-brand/10 hover:text-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-brand-deep/70 transition-colors duration-150 before:absolute before:-inset-1 before:content-[''] hover:bg-brand/10 hover:text-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -386,16 +422,18 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
         </div>
       ) : (
         <>
-          {/* Mobile: horizontal scroll rail. Desktop: fanned overlapping stack
-              (C7 / C-062) — −22px overlap approximated with allowed spacing
-              steps, see review-card.tsx. */}
-          <div className="stagger-children -mx-4 flex gap-[12px] overflow-x-auto px-4 pb-4 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-8">
+          {/* Mobile: vertical stack, top to bottom (bug fix, mobile QA — was
+              a horizontal scroll rail, which buried later reviews behind a
+              swipe nobody was told to make). Desktop: fanned overlapping
+              stack (C7 / C-062) — −22px overlap approximated with allowed
+              spacing steps, see review-card.tsx. */}
+          <div className="stagger-children flex flex-col gap-[12px] pb-4 pt-2 md:flex-row md:flex-wrap md:gap-[12px] md:overflow-visible md:pb-8 md:pt-0">
             {cards.map((card, i) => (
               <ReviewCard key={card.id} review={card} index={i} fan className="hidden md:block" />
             ))}
             {cards.map((card, i) => (
-              <div key={card.id} className="shrink-0 md:hidden">
-                <ReviewCard review={card} index={i} fan={false} />
+              <div key={card.id} className="md:hidden">
+                <ReviewCard review={card} index={i} fan={false} fullWidth />
               </div>
             ))}
           </div>
@@ -411,7 +449,7 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
                 .map((c) => (
                   <div key={c.id} className="flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-xs text-warm-meta">
                     {!c.approved && (
-                      <span className="inline-flex items-center gap-1 text-yellow-600">
+                      <span className="inline-flex items-center gap-1 text-warm-meta">
                         <Clock className="h-3 w-3" aria-hidden="true" />
                         Pending approval
                       </span>
@@ -420,7 +458,7 @@ export function TeacherComments({ teacherId, subject }: TeacherCommentsProps) {
                       type="button"
                       onClick={() => setPendingDeleteId(c.id)}
                       disabled={deletingCommentId === c.id}
-                      className="inline-flex items-center gap-1 font-semibold text-destructive transition-colors duration-150 hover:underline"
+                      className="inline-flex items-center gap-1 rounded-sm font-semibold text-destructive transition-colors duration-150 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <Trash2 className="h-3 w-3" aria-hidden="true" />
                       Delete your review

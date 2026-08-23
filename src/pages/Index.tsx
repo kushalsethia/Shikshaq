@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -29,16 +29,15 @@ import { NumberedHeading } from '@/components/ui/numbered-heading';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { PaperCover } from '@/components/papers/paper-cover';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
-import type { SentenceSlot } from '@/components/home/SentenceBuilder';
 import { useAuth } from '@/lib/auth-context';
 import { useLikes } from '@/lib/likes-context';
 import { resolveHeroCopy } from '@/lib/hero-copy';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { useRequireRole } from '@/hooks/use-require-role';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { clearExpiredCache } from '@/utils/cache';
 import { getShikshaqmineBasicBySlugs } from '@/lib/teachers';
 import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
-import { SUBJECTS, CLASSES, AREAS, BOARDS } from '@/utils/searchFacets';
 import type { SearchMode } from '@/utils/searchFacets';
 
 interface Teacher {
@@ -475,64 +474,12 @@ export default function Index() {
   const studentQuotes = quotesQuery.data ?? [];
 
   // Handoff H-023: the sentence builder moved out of Footer.tsx, "move not
-  // copy" — same component, same slot logic and submit routes, just owned
-  // here now since this is the one page that renders it. schoolOptions is
-  // the one genuinely new query this move needs (Footer used to fetch it for
-  // the same purpose); teacher/paper counts reuse the `stats` query above
-  // instead of re-fetching them a second time.
-  const [builderMode, setBuilderMode] = useState<SearchMode>('teachers');
-  const [teacherSlotValues, setTeacherSlotValues] = useState<Record<string, string>>({});
-  const [paperSlotValues, setPaperSlotValues] = useState<Record<string, string>>({});
-
-  const schoolOptionsQuery = useQuery({
-    queryKey: ['home', 'school-options'],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data } = await supabase.from('papers').select('school').eq('is_published', true);
-      return data ? Array.from(new Set(data.map((p) => p.school))).sort() : [];
-    },
-  });
-  const schoolOptions = schoolOptionsQuery.data ?? [];
-
-  const teacherSlots: SentenceSlot[] = useMemo(() => ([
-    { key: 'subject', placeholder: 'subject', value: teacherSlotValues.subject, options: SUBJECTS },
-    { key: 'cls', placeholder: 'class', value: teacherSlotValues.cls, options: CLASSES.map((c) => `Class ${c}`) },
-    { key: 'area', placeholder: 'area', value: teacherSlotValues.area, options: AREAS },
-  ]), [teacherSlotValues]);
-
-  const paperSlots: SentenceSlot[] = useMemo(() => ([
-    { key: 'board', placeholder: 'board', value: paperSlotValues.board, options: BOARDS },
-    { key: 'cls', placeholder: 'class', value: paperSlotValues.cls, options: CLASSES.map((c) => `Class ${c}`) },
-    { key: 'subject', placeholder: 'subject', value: paperSlotValues.subject, options: SUBJECTS },
-    { key: 'school', placeholder: 'school', value: paperSlotValues.school, options: schoolOptions },
-  ]), [paperSlotValues, schoolOptions]);
-
-  const handleSlotChange = useCallback((key: string, value: string) => {
-    if (builderMode === 'teachers') {
-      setTeacherSlotValues((prev) => ({ ...prev, [key]: value }));
-    } else {
-      setPaperSlotValues((prev) => ({ ...prev, [key]: value }));
-    }
-  }, [builderMode]);
-
-  const handleBuilderSubmit = useCallback(() => {
-    if (builderMode === 'teachers') {
-      const params = new URLSearchParams();
-      if (teacherSlotValues.subject) params.set('filter_subjects', teacherSlotValues.subject);
-      if (teacherSlotValues.cls) params.set('filter_classes', teacherSlotValues.cls.replace(/^Class /, ''));
-      if (teacherSlotValues.area) params.set('filter_areas', teacherSlotValues.area);
-      const qs = params.toString();
-      navigate(`/all-tuition-teachers-in-kolkata${qs ? `?${qs}` : ''}`);
-    } else {
-      const params = new URLSearchParams();
-      if (paperSlotValues.board) params.set('filter_boards', paperSlotValues.board);
-      if (paperSlotValues.cls) params.set('filter_classes', paperSlotValues.cls.replace(/^Class /, ''));
-      if (paperSlotValues.subject) params.set('filter_subjects', paperSlotValues.subject);
-      if (paperSlotValues.school) params.set('filter_schools', paperSlotValues.school);
-      const qs = params.toString();
-      navigate(`/past-papers/results${qs ? `?${qs}` : ''}`);
-    }
-  }, [builderMode, teacherSlotValues, paperSlotValues, navigate]);
+  // copy" — same component, same slot logic and submit routes. Its state now
+  // lives in the shared useSentenceBuilder hook (P-014 needs the identical
+  // builder on TeacherProfile too), not duplicated per page.
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
 
   const [heroMode, setHeroMode] = useState<SearchMode>('teachers');
 
@@ -1023,7 +970,7 @@ export default function Index() {
               </>
             )}
             subline="Fill in the blanks and we'll take you straight there."
-            slots={builderMode === 'teachers' ? teacherSlots : paperSlots}
+            slots={builderSlots}
             onSlotChange={handleSlotChange}
             onSubmit={handleBuilderSubmit}
             count={builderMode === 'teachers' ? (stats.teachers || undefined) : (stats.papers || undefined)}
