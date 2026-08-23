@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ThumbsUp } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
-import { Footer } from '@/components/Footer';
 import { SURFACE_TOKENS, MODE_TOKENS } from '@/utils/searchFacets';
 import {
   AdminConsole,
@@ -115,7 +114,6 @@ export default function AdminUpvotes() {
             <div className="h-4 w-48 rounded mx-auto" style={{ background: SURFACE_TOKENS.mutedFill }} />
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -137,7 +135,6 @@ export default function AdminUpvotes() {
             </Link>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -162,10 +159,9 @@ export default function AdminUpvotes() {
         {stat.upvote_count} upvote{stat.upvote_count === 1 ? '' : 's'}
       </span>,
     ],
-    tone: index === 0 ? 'ok' : 'info',
+    tone: index === 0 ? 'live' : 'info',
     tag: `#${index + 1}`,
-    actionLabel: 'View profile',
-    onAction: () => navigate(`/tuition-teachers/${stat.teacher_slug}`),
+    actions: [{ label: 'View profile', tone: 'neutral', onClick: () => navigate(`/tuition-teachers/${stat.teacher_slug}`) }],
   }));
 
   return (

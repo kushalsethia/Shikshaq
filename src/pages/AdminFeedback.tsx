@@ -5,7 +5,6 @@ import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { recordAdminAction } from '@/lib/audit';
-import { Footer } from '@/components/Footer';
 import { formatDistanceToNow } from 'date-fns';
 import { SURFACE_TOKENS } from '@/utils/searchFacets';
 import {
@@ -50,9 +49,9 @@ const ratingEmojis: { [key: number]: string } = {
 };
 
 const ratingTone = (rating: number): AdminPillTone => {
-  if (rating >= 4) return 'ok';
-  if (rating === 3) return 'idle';
-  return 'bad';
+  if (rating >= 4) return 'live';
+  if (rating === 3) return 'paused';
+  return 'hidden';
 };
 
 export default function AdminFeedback() {
@@ -263,7 +262,6 @@ export default function AdminFeedback() {
             </div>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -285,7 +283,6 @@ export default function AdminFeedback() {
             </Link>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -322,9 +319,10 @@ export default function AdminFeedback() {
       ],
       tone: ratingTone(item.rating),
       tag: `${ratingEmojis[item.rating]} ${ratingLabels[item.rating]}`,
-      actionLabel: 'Resolve',
-      onAction: () => handleDelete(item.id),
-      onOverflow: email ? () => { window.location.href = `mailto:${email}`; } : undefined,
+      actions: [
+        ...(email ? [{ label: 'Email', tone: 'neutral' as const, onClick: () => { window.location.href = `mailto:${email}`; } }] : []),
+        { label: 'Resolve', tone: 'destructive', onClick: () => handleDelete(item.id) },
+      ],
     };
   });
 

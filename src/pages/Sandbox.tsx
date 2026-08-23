@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ReviewCard, type ReviewCardData } from '@/components/reviews/review-card';
 import { WriteReviewSheet } from '@/components/reviews/write-review-sheet';
-import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
+import { AdminHeader, AdminAuditNote, type AdminNavItem } from '@/pages/admin/shell';
 import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 
 /* DEV-ONLY design sandbox.
@@ -52,11 +52,9 @@ const ROWS: AdminTableRow[] = [
     title: 'Sandbox Row A',
     subtitle: '+91 00000 00001',
     cells: ['Maths, Physics · 9–10', 'Ballygunge'],
-    tone: 'wait',
+    tone: 'pending',
     tag: 'Docs in',
-    actionLabel: 'Review',
-    onAction: () => {},
-    onOverflow: () => {},
+    actions: [{ label: 'Review', tone: 'neutral', onClick: () => {} }],
   },
   {
     id: 'b',
@@ -64,11 +62,9 @@ const ROWS: AdminTableRow[] = [
     title: 'Sandbox Row B',
     subtitle: '+91 00000 00002',
     cells: ['English · 6–10', 'Salt Lake'],
-    tone: 'bad',
+    tone: 'hidden',
     tag: 'No degree',
-    actionLabel: 'Review',
-    onAction: () => {},
-    onOverflow: () => {},
+    actions: [{ label: 'Review', tone: 'neutral', onClick: () => {} }],
   },
   {
     id: 'c',
@@ -76,11 +72,9 @@ const ROWS: AdminTableRow[] = [
     title: 'Sandbox Row C',
     subtitle: '+91 00000 00003',
     cells: ['Accounts · 11–12', 'Behala'],
-    tone: 'ok',
+    tone: 'live',
     tag: 'Approved',
-    actionLabel: 'Review',
-    onAction: () => {},
-    onOverflow: () => {},
+    actions: [{ label: 'Review', tone: 'neutral', onClick: () => {} }],
   },
 ];
 
@@ -120,13 +114,11 @@ export default function Sandbox() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
-      <AdminRail nav={NAV} signedInName="Sandbox viewer" />
+    <div className="flex min-h-screen flex-col gap-seam bg-muted">
+      <AdminHeader nav={NAV} signedInEmail="sandbox@shikshaq.com" />
 
-      <div className="flex min-h-screen flex-col lg:pl-[244px]">
-        <AdminToolbar title="Teacher approvals" badge="12 waiting" />
-
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+      <main className="flex-1">
+        <div className="mx-auto w-full max-w-[1100px] px-4 py-5 sm:px-6">
           <p className="mb-5 rounded-xl bg-brand-subtle px-4 py-3 text-body-secondary text-brand-deep">
             <strong className="font-bold">Design sandbox, development only.</strong> Mock props, no
             database access, not the real console. Registered only when <code>import.meta.env.DEV</code>{' '}
@@ -168,8 +160,10 @@ export default function Sandbox() {
               />
             </div>
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
+
+      <AdminAuditNote />
     </div>
   );
 }

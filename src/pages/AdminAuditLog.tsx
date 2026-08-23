@@ -1,31 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
-import { Footer } from '@/components/Footer';
-import { PreFooter } from '@/components/layout/PreFooter';
-import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
-import { AdminTable, AdminStatePill, type AdminTableColumn, type AdminTableRow, type AdminPillTone } from '@/pages/admin/AdminTable';
-import { useAdminGuard } from '@/components/AdminConsole';
+import { AdminConsole, useAdminGuard } from '@/components/AdminConsole';
+import { AdminTable, type AdminTableColumn, type AdminTableRow, type AdminStatusTone } from '@/pages/admin/AdminTable';
 import { SURFACE_TOKENS } from '@/utils/searchFacets';
 
-/* Redesign admin-05-audit-log.png — the last buildable gap in the redesign
-   (docs/REDESIGN_STATUS.md #3). Reads public.admin_audit_log (see
-   supabase/migrations/20260818000000_admin_audit_log.sql, applied by the
-   orchestrator). The table is written to by src/lib/audit.ts from every
-   other admin mutation. Rule 10: no stickers, no tilts, no blobs — admin
-   carries no fun layer. */
-
-const NAV_ITEMS: { key: string; label: string; path: string }[] = [
-  { key: 'applications', label: 'Teacher approvals', path: '/admin/applications' },
-  { key: 'teachers', label: 'Live teachers', path: '/admin/teachers' },
-  { key: 'papers', label: 'Papers', path: '/admin/papers' },
-  { key: 'upvotes', label: 'Reviews', path: '/admin/upvotes' },
-  { key: 'recommendations', label: 'Recommendations', path: '/admin/recommendations' },
-  { key: 'feedback', label: 'Enquiries', path: '/admin/feedback' },
-  { key: 'audit', label: 'Audit log', path: '/admin/audit' },
-];
+/* Redesign 09i (changelog/09-...-Admin.md, AD-008) — read-only, no actions
+   column. Reads public.admin_audit_log (see
+   supabase/migrations/20260818000000_admin_audit_log.sql). The table is
+   written to by src/lib/audit.ts from every other admin mutation. Now
+   routes through the shared `AdminConsole` shell (AD-002) instead of
+   duplicating the rail/toolbar/footer markup this file used to carry on
+   its own — same guard, same header, same "no eyes panel, no footer, no
+   bottom nav" as every other /admin route (AD-001). */
 
 interface AuditRow {
   id: string;
@@ -38,28 +26,20 @@ interface AuditRow {
   created_at: string;
 }
 
-const ACTION_TONE: Record<string, AdminPillTone> = {
-  approve: 'ok',
-  publish: 'ok',
-  sent_back: 'idle',
-  reject: 'bad',
-  takedown: 'bad',
-  delete: 'bad',
-  hold: 'wait',
-  edit: 'info',
-  resolve: 'ok',
-};
-
-const ACTION_PILL_LABEL: Record<string, string> = {
-  approve: 'Approve',
-  publish: 'Approve',
-  sent_back: 'Sent back',
-  reject: 'Reject',
-  takedown: 'Takedown',
-  delete: 'Takedown',
-  hold: 'Held',
-  edit: 'Edit',
-  resolve: 'Approve',
+// AD-008: "Result is the AD-004 status pill." An audit row has no status of
+// its own — this maps the real, already-stored `action` verb to the state
+// it left the target in, using the same tone vocabulary AdminStatePill
+// renders everywhere else.
+const ACTION_RESULT: Record<string, { tag: string; tone: AdminStatusTone }> = {
+  approve: { tag: 'Live', tone: 'live' },
+  publish: { tag: 'Live', tone: 'live' },
+  resolve: { tag: 'Resolved', tone: 'live' },
+  sent_back: { tag: 'Sent back', tone: 'paused' },
+  reject: { tag: 'Rejected', tone: 'hidden' },
+  takedown: { tag: 'Unpublished', tone: 'hidden' },
+  delete: { tag: 'Deleted', tone: 'hidden' },
+  hold: { tag: 'Held', tone: 'pending' },
+  edit: { tag: 'Edited', tone: 'info' },
 };
 
 function actionTitle(row: AuditRow): string {
@@ -98,17 +78,19 @@ function formatWhen(iso: string): string {
   return date.toLocaleDateString();
 }
 
+// AD-008 order: When · Who · Action · Target · Result. "When" is the row's
+// own first column (AdminTable always renders that one unconditionally);
+// these three are the plain `cells`, then AdminTable appends Result as the
+// status pill and (empty, since this screen has none) actions.
 const COLUMNS: AdminTableColumn[] = [
-  { key: 'action', label: 'Action', width: '2.4fr' },
-  { key: 'by', label: 'By', width: '1fr' },
-  { key: 'when', label: 'When', width: '1fr' },
-  { key: 'reason', label: 'Reason given', width: '1.2fr' },
+  { key: 'when', label: 'When' },
+  { key: 'who', label: 'Who' },
+  { key: 'action', label: 'Action' },
+  { key: 'target', label: 'Target' },
 ];
 
 export default function AdminAuditLog() {
-  const { user, profile } = useAuth();
-  const signedInName = profile?.full_name || user?.email || 'Admin';
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const { isAdmin, checkingAdmin } = useAdminGuard(user, { redirectOnDenied: true });
 
   const [rows, setRows] = useState<AuditRow[]>([]);
@@ -196,26 +178,23 @@ export default function AdminAuditLog() {
     );
   }, [rows, search]);
 
-  const tableRows: AdminTableRow[] = filteredRows.map((r) => ({
-    id: r.id,
-    title: actionTitle(r),
-    subtitle: `${r.target_label}${r.target_type ? ` · ${r.target_type.replace('_', ' ')}` : ''}`,
-    cells: [r.actor_name, formatWhen(r.created_at)],
-    tone: ACTION_TONE[r.action] || 'idle',
-    tag: ACTION_PILL_LABEL[r.action] || r.action,
-    actionLabel: 'Open',
-    onAction: () => {
-      // Audit rows are read-only records, not editable resources — "Open"
-      // routes back to the section that owns the target rather than to an
-      // edit form the audit log itself has no business exposing.
-      if (r.target_type === 'teacher_application') navigate('/admin/applications');
-      else if (r.target_type === 'teacher') navigate('/admin/teachers');
-      else if (r.target_type === 'paper') navigate('/admin/papers');
-      else if (r.target_type === 'comment') navigate('/admin/upvotes');
-      else if (r.target_type === 'recommendation') navigate('/admin/recommendations');
-      else if (r.target_type === 'feedback') navigate('/admin/feedback');
-    },
-  }));
+  const tableRows: AdminTableRow[] = filteredRows.map((r) => {
+    const result = ACTION_RESULT[r.action] || { tag: r.action, tone: 'paused' as AdminStatusTone };
+    return {
+      id: r.id,
+      title: formatWhen(r.created_at),
+      titleTone: 'muted',
+      cells: [
+        r.actor_name,
+        <span key="action" className="font-bold text-foreground">{actionTitle(r)}</span>,
+        `${r.target_label}${r.target_type ? ` · ${r.target_type.replace('_', ' ')}` : ''}`,
+      ],
+      tone: result.tone,
+      tag: result.tag,
+      // AD-008: read-only, no actions column. Nothing here mutates anything.
+      actions: [],
+    };
+  });
 
   if (checkingAdmin) {
     return (
@@ -229,118 +208,75 @@ export default function AdminAuditLog() {
     return null; // useAdminGuard already redirected
   }
 
-  const shellNav: AdminNavItem[] = NAV_ITEMS.map((item) => ({
-    key: item.key,
-    label: item.label,
-    path: item.path,
-    active: item.key === 'audit',
-  }));
+  const searchSlot = (
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search admin, action or teacher"
+        aria-label="Search admin, action or teacher"
+        className="h-11 w-[280px] rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
+      />
+    </div>
+  );
+
+  // The mockup's literal header meta reads "last 30 days · {n} entries", but
+  // this screen's real queries don't match that window (the log fetch is
+  // "most recent 100 rows", the stat cards below are a real 7-day window) —
+  // claiming "30 days" would not be true of what is actually being shown,
+  // so the count is described honestly instead of copying the mockup's
+  // literal string onto a different query shape.
+  const entriesMeta = errored ? undefined : `most recent ${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}`;
 
   return (
-    <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
-      <AdminRail nav={shellNav} signedInName={signedInName} />
-
-      <div className="flex min-h-screen flex-col lg:pl-[244px]">
-        <div className="hidden lg:flex h-[68px] items-center justify-between border-b border-warm-hairline bg-card px-7">
-          <div className="flex items-center gap-[14px]">
-            <span className="font-display text-[22px] font-extrabold tracking-[-0.03em] text-foreground">Audit log</span>
-            <span className="inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-muted px-[11px] text-xs font-bold text-warm-prose">
-              Append only
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search admin, action or teacher"
-                aria-label="Search admin, action or teacher"
-                className="h-11 w-[280px] rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand"
-              />
-            </div>
-            <span className="inline-flex h-11 items-center whitespace-nowrap rounded-full bg-foreground px-5 text-sm font-bold text-background">
-              Last 7 days
-            </span>
-          </div>
-        </div>
-
-        {/* Mobile header — the rail/toolbar above render lg: and up only. */}
-        <div className="lg:hidden" style={{ padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 0' }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: SURFACE_TOKENS.textTertiary }}>Admin console</p>
-          <div className="mt-2 flex items-center gap-2">
-            <h1 style={{ fontSize: 'clamp(25px,3.4vw,38px)', lineHeight: 1, fontWeight: 700, color: SURFACE_TOKENS.textPrimary, letterSpacing: '-.05em' }}>
-              Audit log
-            </h1>
-            <span className="inline-flex h-6 items-center whitespace-nowrap rounded-full bg-muted px-2.5 text-[11px] font-bold text-warm-prose">
-              Append only
-            </span>
-          </div>
-          <div className="relative mt-4">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search admin, action or teacher"
-              aria-label="Search admin, action or teacher"
-              className="h-11 w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none tap-44 focus-visible:ring-2 focus-visible:ring-brand"
-            />
-          </div>
-        </div>
-
-        <main className="flex-1 w-full lg:mx-auto lg:w-full lg:max-w-[1100px]" style={{ padding: 'clamp(16px,3vw,28px)' }}>
-          {/* Stat row — real counts only. A zero here is honest; a fabricated
-              count would not be (docs/REDESIGN_STATUS.md). */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-            <StatCard label="Actions this week" value={stats.total} caption={typeof stats.admins === 'number' ? `across ${stats.admins} admin${stats.admins === 1 ? '' : 's'}` : undefined} />
-            <StatCard label="Approvals" value={stats.approvals} caption="written with name and time" />
-            <StatCard label="Rejections" value={stats.rejections} caption="always carry a reason" />
-            <StatCard label="Takedowns" value={stats.takedowns} caption="acted within the week" />
-          </div>
-
-          <div className="mt-5">
-            {loading ? (
-              <div className="grid gap-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-[68px] rounded-2xl bg-warm-band motion-safe:animate-shimmer" />
-                ))}
-              </div>
-            ) : errored ? (
-              <div className="rounded-[20px] bg-card p-8 text-center shadow-border">
-                <p className="text-body text-foreground">We could not load the audit log just now.</p>
-                <button
-                  type="button"
-                  onClick={fetchLog}
-                  className="tap-44 mt-4 inline-flex h-11 items-center rounded-full bg-foreground px-5 text-sm font-bold text-background"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : tableRows.length === 0 ? (
-              <div className="rounded-[20px] bg-card p-8 text-center shadow-border">
-                <p className="text-body text-foreground">
-                  {search
-                    ? 'Nothing here matches that search.'
-                    : 'Nothing logged yet. Approvals, rejections and takedowns will appear here as soon as an admin acts.'}
-                </p>
-              </div>
-            ) : (
-              <AdminTable columns={COLUMNS} rows={tableRows} />
-            )}
-          </div>
-
-          <p className="mt-5 max-w-prose text-[13px] leading-[1.5] text-warm-label">
-            Approvals, rejections and takedowns are written to the audit log with your name and the exact time. Rejections
-            always carry a reason the teacher can read.
-          </p>
-        </main>
-
-        <PreFooter variant="B4" />
-        <Footer />
+    <AdminConsole
+      activeTab="audit"
+      title="Audit log"
+      subtitle="Every approve, reject and takedown, written with the acting account and a timestamp. Append only — nothing here can be edited or deleted."
+      search={searchSlot}
+    >
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        <StatCard label="Actions this week" value={stats.total} caption={typeof stats.admins === 'number' ? `across ${stats.admins} admin${stats.admins === 1 ? '' : 's'}` : undefined} />
+        <StatCard label="Approvals" value={stats.approvals} caption="written with name and time" />
+        <StatCard label="Rejections" value={stats.rejections} caption="always carry a reason" />
+        <StatCard label="Takedowns" value={stats.takedowns} caption="acted within the week" />
       </div>
-    </div>
+
+      {entriesMeta ? (
+        <p className="mb-2 text-[12.5px] text-warm-meta" style={{ fontVariantNumeric: 'tabular-nums' }}>{entriesMeta}</p>
+      ) : null}
+
+      {loading ? (
+        <div className="grid gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-[68px] rounded-2xl bg-warm-band motion-safe:animate-shimmer" />
+          ))}
+        </div>
+      ) : errored ? (
+        <div className="rounded-[20px] bg-card p-8 text-center shadow-border">
+          <p className="text-body text-foreground">We could not load the audit log just now.</p>
+          <button
+            type="button"
+            onClick={fetchLog}
+            className="tap-44 mt-4 inline-flex h-11 items-center rounded-full bg-foreground px-5 text-sm font-bold text-background"
+          >
+            Retry
+          </button>
+        </div>
+      ) : tableRows.length === 0 ? (
+        <div className="rounded-[20px] bg-card p-8 text-center shadow-border">
+          <p className="text-body text-foreground">
+            {search
+              ? 'Nothing here matches that search.'
+              : 'Nothing logged yet. Approvals, rejections and takedowns will appear here as soon as an admin acts.'}
+          </p>
+        </div>
+      ) : (
+        <AdminTable columns={COLUMNS} rows={tableRows} />
+      )}
+    </AdminConsole>
   );
 }
 

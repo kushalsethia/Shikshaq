@@ -1,7 +1,6 @@
 import { useEffect, useState, type DragEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -137,11 +136,10 @@ export default function AdminPapers() {
     });
 
   const paperColumns: AdminTableColumn[] = [
-    { key: 'paper', label: 'Paper', width: '2.2fr' },
-    { key: 'school', label: 'School', width: '1.3fr' },
-    { key: 'details', label: 'Details', width: '1.6fr' },
-    { key: 'state', label: 'State', width: '0.9fr' },
-    { key: 'actions', label: '', width: 'auto' },
+    { key: 'paper', label: 'Paper' },
+    { key: 'school', label: 'School' },
+    { key: 'details', label: 'Details' },
+    { key: 'state', label: 'State' },
   ];
 
   const paperRows: AdminTableRow[] = filteredPapers.map((p) => ({
@@ -152,11 +150,24 @@ export default function AdminPapers() {
       p.school,
       `${p.subject} · Class ${p.class} · ${p.board} · ${p.exam_type} · ${p.year}`,
     ],
-    tone: p.is_published ? 'ok' : 'idle',
+    tone: p.is_published ? 'live' : 'paused',
     tag: p.is_published ? 'Live' : 'Draft',
-    actionLabel: 'Edit',
-    onAction: () => selectPaper(p),
-    onOverflow: () => handleUnpublish(p),
+    // AD-006: Live rows offer Open (here, Edit — there is no separate public
+    // per-paper route to send admin to) then Unpublish, tinted and last.
+    // `handleUnpublish` is really a publish-state toggle (it flips
+    // `is_published` either way, unchanged from before this pass), so a
+    // draft row keeps the same real toggle, just relabelled Publish/mint —
+    // the row's only other affordance besides Edit was this toggle, and
+    // dropping it here would have removed a working action.
+    actions: p.is_published
+      ? [
+          { label: 'Edit', tone: 'neutral', onClick: () => selectPaper(p) },
+          { label: 'Unpublish', tone: 'destructive', onClick: () => handleUnpublish(p) },
+        ]
+      : [
+          { label: 'Edit', tone: 'neutral', onClick: () => selectPaper(p) },
+          { label: 'Publish', tone: 'positive', onClick: () => handleUnpublish(p) },
+        ],
   }));
 
   function selectPaper(p: PaperRow | null) {
@@ -355,7 +366,6 @@ export default function AdminPapers() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -387,7 +397,6 @@ export default function AdminPapers() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -409,7 +418,6 @@ export default function AdminPapers() {
             </Link>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }

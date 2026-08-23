@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Phone, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -203,13 +202,13 @@ export default function AdminRecommendations() {
   const pillTone = (status: Recommendation['status']): AdminPillTone => {
     switch (status) {
       case 'onboarded':
-        return 'ok';
+        return 'live';
       case 'rejected':
-        return 'bad';
+        return 'hidden';
       case 'contacted':
         return 'info';
       default:
-        return 'wait';
+        return 'pending';
     }
   };
 
@@ -236,7 +235,6 @@ export default function AdminRecommendations() {
             </div>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -271,7 +269,6 @@ export default function AdminRecommendations() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -294,7 +291,6 @@ export default function AdminRecommendations() {
             </Link>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -361,9 +357,10 @@ export default function AdminRecommendations() {
               ],
               tone: pillTone(rec.status),
               tag: rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
-              actionLabel: 'Contact',
-              onAction: () => handleQuickStatus(rec.id, 'contacted'),
-              onOverflow: () => handleEdit(rec),
+              actions: [
+                { label: 'Contact', tone: 'positive', onClick: () => handleQuickStatus(rec.id, 'contacted') },
+                { label: 'Edit', tone: 'neutral', onClick: () => handleEdit(rec) },
+              ],
             };
           })}
         />

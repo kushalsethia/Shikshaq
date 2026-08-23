@@ -5,7 +5,6 @@ import { ArrowLeft, CheckCircle, XCircle, Search, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { recordAdminAction } from '@/lib/audit';
 import { Link } from 'react-router-dom';
-import { Footer } from '@/components/Footer';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Select,
@@ -302,11 +301,11 @@ export default function AdminApplications() {
   const applicationStateTone = (status: TeacherApplication['status']): AdminStatePillTone => {
     switch (status) {
       case 'approved':
-        return 'ok';
+        return 'live';
       case 'rejected':
-        return 'bad';
+        return 'hidden';
       default:
-        return 'wait';
+        return 'pending';
     }
   };
 
@@ -335,7 +334,6 @@ export default function AdminApplications() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -359,7 +357,6 @@ export default function AdminApplications() {
             </Link>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -385,8 +382,13 @@ export default function AdminApplications() {
       cells: [teaches, application.location_v2 || 'N/A'],
       tone: applicationStateTone(application.status),
       tag: application.status.charAt(0).toUpperCase() + application.status.slice(1),
-      actionLabel: 'Review',
-      onAction: () => setSelectedApplication(application),
+      // A single neutral "Review" action rather than AD-003's literal inline
+      // Approve/Reject pair — this screen's decision needs qualifications,
+      // references and a hero image the table can't show, so the real
+      // approve/reject controls stay inside the detail modal (below) where
+      // that context is visible. Collapsing to inline row buttons would
+      // drop the reviewer's ability to see that context before deciding.
+      actions: [{ label: 'Review', tone: 'neutral', onClick: () => setSelectedApplication(application) }],
     };
   });
 
@@ -418,7 +420,7 @@ export default function AdminApplications() {
 
   return (
     <AdminConsole
-      activeTab="applications"
+      activeTab="approvals"
       title="Teacher applications"
       subtitle="Verify qualifications and references before a profile goes live."
       tint={TINT}

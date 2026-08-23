@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Lock, MessageCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -372,7 +371,6 @@ export default function AdminComments() {
             </div>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -407,7 +405,6 @@ export default function AdminComments() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -430,7 +427,6 @@ export default function AdminComments() {
             </Link>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -465,7 +461,7 @@ export default function AdminComments() {
 
   return (
     <AdminConsole
-      activeTab="comments"
+      activeTab="reviews"
       title="Reviews and comments"
       subtitle="Published student reviews, newest first."
       tint={TINT}
@@ -515,11 +511,21 @@ export default function AdminComments() {
               title: `"${comment.comment}"`,
               subtitle: [authorName, publishedMeta].filter(Boolean).join(' — '),
               cells: [teacherName],
-              tone: comment.approved ? 'ok' : 'wait',
+              tone: comment.approved ? 'live' : 'pending',
               tag: comment.approved ? 'Published' : 'Pending',
-              actionLabel: comment.approved ? 'Delete' : 'Publish',
-              onAction: () => (comment.approved ? handleDelete(comment.id) : handleApprove(comment.id)),
-              onOverflow: comment.approved ? undefined : () => handleReject(comment.id),
+              // AD-007's Keep/Hide pair maps to this screen's real actions:
+              // a still-pending comment gets Publish (positive) then Reject
+              // (destructive, last); an already-published one only has
+              // Delete, since there is no separate "hide" mutation here —
+              // this table's `.delete()` call already existed before this
+              // pass and is unchanged, just restyled and no longer behind
+              // an overflow disc.
+              actions: comment.approved
+                ? [{ label: 'Delete', tone: 'destructive', onClick: () => handleDelete(comment.id) }]
+                : [
+                    { label: 'Publish', tone: 'positive', onClick: () => handleApprove(comment.id) },
+                    { label: 'Reject', tone: 'destructive', onClick: () => handleReject(comment.id) },
+                  ],
             };
           })}
         />

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -626,13 +625,17 @@ export default function AdminTeachers() {
   const labelStyle: React.CSSProperties = { fontSize: 13.5, fontWeight: 600, color: SURFACE_TOKENS.textPrimary, marginBottom: 6, display: 'block' };
   const optionLabelStyle: React.CSSProperties = { fontSize: 13, color: SURFACE_TOKENS.textBody };
 
-  // AdminTable columns/rows for the teacher list (C13 shared table template).
-  // Only real, already-fetched fields are surfaced — no fabricated stats.
+  // AdminTable columns/rows for the teacher list — changelog 09i AD-005
+  // (Name · Area · Subjects · Fee · Status · Updated). "Updated" is omitted:
+  // Shikshaqmine has no real last-modified timestamp column in this
+  // codebase (only `created_at`-style columns exist on newer tables), and
+  // the anti-fabrication rule means not inventing one.
   const teacherColumns: AdminTableColumn[] = [
-    { key: 'teacher', label: 'Teacher', width: '2.2fr' },
-    { key: 'subjects', label: 'Subjects', width: '1.6fr' },
-    { key: 'fees', label: 'Fees / month', width: '1fr' },
-    { key: 'status', label: 'Status', width: '0.9fr' },
+    { key: 'teacher', label: 'Teacher' },
+    { key: 'area', label: 'Area' },
+    { key: 'subjects', label: 'Subjects' },
+    { key: 'fees', label: 'Fee' },
+    { key: 'status', label: 'Status' },
   ];
 
   const teacherRows: AdminTableRow[] = filteredTeachers.map((teacher) => {
@@ -652,14 +655,21 @@ export default function AdminTeachers() {
       initial: (teacher.Title || '?').trim().charAt(0).toUpperCase(),
       title: teacher.Title || 'Untitled',
       subtitle: teacher.Slug || undefined,
-      cells: [teacher.Subjects || '—', feesLabel],
-      tone: isSelected ? 'info' : teacher.is_paused ? 'idle' : teacher.Featured ? 'ok' : 'idle',
+      cells: [teacher.Area || '—', teacher.Subjects || '—', feesLabel],
+      tone: isSelected ? 'info' : teacher.is_paused ? 'paused' : teacher.Featured ? 'live' : 'paused',
       tag: isSelected ? 'Editing' : teacher.is_paused ? 'Paused' : teacher.Featured ? 'Featured' : 'Live',
-      actionLabel: 'Edit',
-      onAction: () => setSelectedTeacher(teacher),
-      // Reuses the same delete mutation the open editor's "Delete" button already calls — no new
-      // mutation, just a row-scoped entry point into it.
-      onOverflow: () => handleDelete(teacher),
+      // AD-005 calls for Edit + Pause/Unpause — this screen has no existing
+      // pause-toggle mutation to attach a real Pause action to (is_paused is
+      // a read/display-only column here; only TeacherDashboard's
+      // self-service flow writes it), and adding a new mutation is outside
+      // this task's restyling scope. Edit is kept; the row-level quick-
+      // delete previously behind an overflow disc is kept too (a real,
+      // pre-existing mutation) but restyled as a tinted, always-last
+      // destructive action per AD-003 rather than a separate icon control.
+      actions: [
+        { label: 'Edit', tone: 'neutral', onClick: () => setSelectedTeacher(teacher) },
+        { label: 'Delete', tone: 'destructive', onClick: () => handleDelete(teacher) },
+      ],
     };
   });
 
@@ -676,7 +686,6 @@ export default function AdminTeachers() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -698,7 +707,6 @@ export default function AdminTeachers() {
             </Link>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }

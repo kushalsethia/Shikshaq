@@ -1,10 +1,8 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
-import { Footer } from '@/components/Footer';
-import { PreFooter } from '@/components/layout/PreFooter';
-import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
+import { AdminHeader, AdminAuditNote, type AdminNavItem } from '@/pages/admin/shell';
 import { toast as sonnerToast } from 'sonner';
 import { SURFACE_TOKENS, ACCENT_TOKENS, MODE_TOKENS, EASE } from '@/utils/searchFacets';
 import type { User } from '@supabase/supabase-js';
@@ -113,64 +111,65 @@ export function useReviewerNames(reviewerIds: (string | null | undefined)[]) {
 }
 
 /**
- * Shared shell for every /admin/* console screen — see design-handoff
- * pages/AdminConsole.md. Six routes (applications, teachers, upvotes,
- * comments, feedback, recommendations) render through this shell so the
- * eyebrow, heading, tab rail, row shape, and toast style stay identical.
- * AdminPapers.tsx (upload/manage) is a separate, differently-shaped screen
- * and only reuses the row/button/pill primitives, not the tab rail.
+ * Shared shell for every /admin/* console screen — changelog 09i
+ * (AD-001/AD-002/AD-002a). One `AdminHeader` (logo, Admin chip, signed-in
+ * email, avatar, pill tab row) at every breakpoint — admin does not get the
+ * consumer redesign's tilts, stickers, eyes panel, footer or bottom nav
+ * (AD-001), only the 30px panel radius, the bone fill and the pill tabs.
+ *
+ * AD-002a's literal tab set is five: Approvals · Teachers · Papers ·
+ * Reviews · Audit, with a count badge on only the two queues. This
+ * codebase's actual admin surface has grown three more real, live,
+ * mutation-backed sections the handoff's mockup never details
+ * (Recommendations, Upvotes, Feedback) — dropping them from the nav would
+ * silently take away working functionality, so they stay as three more
+ * tabs after the canonical five, styled identically but never badged
+ * (AD-002a reserves badges for the two queues only).
  */
 
 export type AdminTabKey =
-  | 'applications'
+  | 'approvals'
   | 'teachers'
   | 'papers'
+  | 'reviews'
+  | 'audit'
+  | 'recommendations'
   | 'upvotes'
-  | 'comments'
-  | 'feedback'
-  | 'recommendations';
+  | 'feedback';
 
 const TAB_ORDER: { key: AdminTabKey; label: string; path: string }[] = [
-  { key: 'applications', label: 'Applications', path: '/admin/applications' },
+  { key: 'approvals', label: 'Approvals', path: '/admin/applications' },
   { key: 'teachers', label: 'Teachers', path: '/admin/teachers' },
   { key: 'papers', label: 'Papers', path: '/admin/papers' },
-  { key: 'upvotes', label: 'Upvotes', path: '/admin/upvotes' },
-  { key: 'comments', label: 'Comments', path: '/admin/comments' },
-  { key: 'feedback', label: 'Feedback', path: '/admin/feedback' },
+  { key: 'reviews', label: 'Reviews', path: '/admin/comments' },
+  { key: 'audit', label: 'Audit', path: '/admin/audit' },
   { key: 'recommendations', label: 'Recommendations', path: '/admin/recommendations' },
+  { key: 'upvotes', label: 'Upvotes', path: '/admin/upvotes' },
+  { key: 'feedback', label: 'Feedback', path: '/admin/feedback' },
 ];
 
+const QUEUE_TABS: AdminTabKey[] = ['approvals', 'reviews'];
+
 /**
- * Lightweight, read-only badge counts for the tab rail. Each admin page
- * that already has its own data loaded passes its own live number in via
- * `tabCount` (so the tab you're on updates instantly as you clear items);
- * the other five come from a cheap head-count query on mount so the rail
- * is never empty on first paint.
+ * Real pending counts for the two queue tabs only (AD-002a: badges belong to
+ * Approvals and Reviews alone). The page currently being viewed overrides
+ * with its own already-fetched live number, so the tab you're on updates
+ * instantly as you clear items instead of waiting on this background query.
  */
-function useAdminTabCounts(activeTab: AdminTabKey, liveCount?: number) {
+function useAdminQueueCounts(activeTab: AdminTabKey, liveCount?: number) {
   const [counts, setCounts] = useState<Partial<Record<AdminTabKey, number>>>({});
 
   useEffect(() => {
     let cancelled = false;
     async function run() {
-      const [applications, comments, recommendations, feedback, teachers, upvotes, papers] = await Promise.all([
+      const [applications, comments] = await Promise.all([
         supabase.from('teacher_applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('approved', false),
-        supabase.from('teacher_recommendations').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('feedback').select('id', { count: 'exact', head: true }),
-        supabase.from('Shikshaqmine').select('id', { count: 'exact', head: true }),
-        supabase.from('teacher_upvotes').select('teacher_id', { count: 'exact', head: true }),
-        supabase.from('papers').select('id', { count: 'exact', head: true }),
       ]);
       if (cancelled) return;
       setCounts({
-        applications: applications.count ?? undefined,
-        comments: comments.count ?? undefined,
-        recommendations: recommendations.count ?? undefined,
-        feedback: feedback.count ?? undefined,
-        teachers: teachers.count ?? undefined,
-        upvotes: upvotes.count ?? undefined,
-        papers: papers.count ?? undefined,
+        approvals: applications.count ?? undefined,
+        reviews: comments.count ?? undefined,
       });
     }
     run();
@@ -180,7 +179,7 @@ function useAdminTabCounts(activeTab: AdminTabKey, liveCount?: number) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (liveCount !== undefined) {
+  if (QUEUE_TABS.includes(activeTab) && liveCount !== undefined) {
     return { ...counts, [activeTab]: liveCount };
   }
   return counts;
@@ -190,189 +189,64 @@ interface AdminConsoleProps {
   activeTab: AdminTabKey;
   title: string;
   subtitle: string;
-  tint: { bg: string; text: string };
-  /** Live count for the tab currently being viewed, computed from data the page already fetched. */
+  /** @deprecated unused by the current shell — kept so existing callers
+   *  (all eight admin pages) don't need to drop the prop from their JSX. */
+  tint?: { bg: string; text: string };
+  /** Live count for the tab currently being viewed, computed from data the
+   *  page already fetched. Only rendered as a badge when activeTab is one
+   *  of the two queues (approvals/reviews) — AD-002a. */
   tabCount?: number;
-  /** Search field rendered in the 68px desktop toolbar, top-right. Omit if the page has no search. */
+  /** Search field slot, rendered above the content alongside the subtitle.
+   *  Omit if the page has no search. */
   search?: ReactNode;
-  /** Sort control rendered in the toolbar next to search. Only pass when a real, meaningful
-   *  data column backs it (e.g. created_at) — never a fake/dead sort. */
+  /** Sort control slot, next to search. Only pass this when a real,
+   *  meaningful data column backs the sort (e.g. created_at) — never a
+   *  placeholder. */
   sort?: ReactNode;
   children: ReactNode;
 }
 
-export function AdminConsole({ activeTab, title, subtitle, tint, tabCount, search, sort, children }: AdminConsoleProps) {
-  const counts = useAdminTabCounts(activeTab, tabCount);
+export function AdminConsole({ activeTab, title, subtitle, tabCount, search, sort, children }: AdminConsoleProps) {
+  const counts = useAdminQueueCounts(activeTab, tabCount);
   const { user, profile } = useAuth();
 
-  /* The rail said "Sourav · owner" for everyone — the mockup's placeholder,
-     shipped as a literal. Directly beneath it the panel reads "Every approve,
-     reject and edit is logged with your name", so the console was telling
-     whoever was signed in that their destructive actions are attributed to
-     someone else. The audit log records the real actor id, so the display was
-     also contradicting the data.
+  /* Same derivation the admin pages already use for the audit trail
+     (profile.full_name ?? email), so the name in the header and the name in
+     the log are the same string. */
+  const signedInEmail = user?.email || profile?.full_name || 'Signed-in admin';
 
-     Same derivation the admin pages already use for the audit trail
-     (profile.full_name ?? email), so the name in the rail and the name in the
-     log are now the same string. */
-  const signedInName = profile?.full_name || user?.email || 'Signed-in admin';
-
-  // Redesign S7/C-061 — real per-section counts only, never a placeholder.
-  const shellNav: AdminNavItem[] = [
-    ...TAB_ORDER.map((tab) => ({
-      key: tab.key,
-      label: tab.label,
-      path: tab.path,
-      count: counts[tab.key],
-      active: tab.key === activeTab,
-    })),
-    // Audit log (admin-05) is a separately-shaped screen, like AdminPapers —
-    // it does not join the AdminTabKey union or the tab-count query, it just
-    // needs a rail entry so every other admin page can reach it.
-    { key: 'audit', label: 'Audit log', path: '/admin/audit', active: false },
-  ];
-  const activeCount = counts[activeTab];
-
-  const uploadLinks = (
-    <div style={{ display: 'flex', gap: 10, marginTop: 26, flexWrap: 'wrap' }}>
-      <Link
-        to="/admin/papers?tab=upload"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          minHeight: 46,
-          padding: '13px 20px',
-          borderRadius: 12,
-          fontSize: 13.5,
-          fontWeight: 600,
-          color: SURFACE_TOKENS.textPrimary,
-          background: SURFACE_TOKENS.field,
-          boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-        }}
-      >
-        Upload papers
-      </Link>
-      <Link
-        to="/admin/papers?tab=manage"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          minHeight: 46,
-          padding: '13px 20px',
-          borderRadius: 12,
-          fontSize: 13.5,
-          fontWeight: 600,
-          color: SURFACE_TOKENS.textPrimary,
-          background: SURFACE_TOKENS.field,
-          boxShadow: `0 0 0 1px ${SURFACE_TOKENS.hairline}`,
-        }}
-      >
-        Manage papers
-      </Link>
-    </div>
-  );
+  const shellNav: AdminNavItem[] = TAB_ORDER.map((tab) => ({
+    key: tab.key,
+    label: tab.label,
+    path: tab.path,
+    count: QUEUE_TABS.includes(tab.key) ? counts[tab.key] : undefined,
+    active: tab.key === activeTab,
+  }));
 
   return (
-    <div className="min-h-screen" style={{ background: SURFACE_TOKENS.shell }}>
-      {/* Desktop: S7 rail (fixed, near-black) — the one place desktop leads
-          (design.md §5). No fun layer — rule 10. */}
-      <AdminRail nav={shellNav} signedInName={signedInName} />
+    <div className="flex min-h-screen flex-col gap-seam bg-muted">
+      <AdminHeader nav={shellNav} signedInEmail={signedInEmail} />
 
-      <div className="flex min-h-screen flex-col lg:pl-[244px]">
-        {/* Desktop toolbar, 68px. Mobile keeps its own header below. */}
-        <AdminToolbar
-          title={title}
-          badge={typeof activeCount === 'number' ? `${activeCount} waiting` : undefined}
-          search={search}
-          sort={sort}
-        />
+      <main className="flex-1">
+        <div className="mx-auto w-full max-w-[1100px] px-4 py-5 sm:px-6">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="font-display text-[22px] font-extrabold tracking-[-0.03em] text-foreground">{title}</h1>
+              <p className="mt-1.5 max-w-prose text-[13.5px] leading-[1.5] text-warm-secondary">{subtitle}</p>
+            </div>
+            {(search || sort) ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {search}
+                {sort}
+              </div>
+            ) : null}
+          </div>
 
-        {/* Mobile / tablet: the existing tab-row console (design.md §4 "Admin
-            (S12)") stays the on-call view, unchanged. */}
-        <div className="lg:hidden">
+          {children}
         </div>
+      </main>
 
-        <main className="flex-1 w-full mx-auto lg:max-w-none" style={{ maxWidth: 1100 }}>
-          <div
-            className="lg:hidden"
-            style={{ padding: 'clamp(24px,4vw,48px) clamp(16px,3vw,28px) 0' }}
-          >
-            <p style={{ fontSize: 13, fontWeight: 600, color: SURFACE_TOKENS.textTertiary }}>Admin console</p>
-            <h1
-              style={{
-                marginTop: 8,
-                fontSize: 'clamp(25px,3.4vw,38px)',
-                lineHeight: 1,
-                fontWeight: 700,
-                color: SURFACE_TOKENS.textPrimary,
-                letterSpacing: '-.05em',
-              }}
-            >
-              {title}
-            </h1>
-            <p style={{ marginTop: 10, fontSize: 15, color: SURFACE_TOKENS.textSecondary }}>{subtitle}</p>
-
-            <nav
-              aria-label="Admin sections"
-              style={{
-                display: 'flex',
-                gap: 6,
-                marginTop: 22,
-                padding: 5,
-                width: 'max-content',
-                maxWidth: '100%',
-                borderRadius: 999,
-                background: SURFACE_TOKENS.mutedFill,
-                overflowX: 'auto',
-                scrollbarWidth: 'none',
-              }}
-            >
-              {TAB_ORDER.map((tab) => {
-                const active = tab.key === activeTab;
-                const count = counts[tab.key];
-                return (
-                  <Link
-                    key={tab.key}
-                    to={tab.path}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      minHeight: 42,
-                      padding: '11px 18px',
-                      borderRadius: 999,
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      whiteSpace: 'nowrap',
-                      background: active ? SURFACE_TOKENS.field : 'transparent',
-                      color: active ? SURFACE_TOKENS.textPrimary : SURFACE_TOKENS.textBody,
-                      boxShadow: active ? `0 0 0 1px ${SURFACE_TOKENS.hairline}` : 'none',
-                      transition: `background .2s ${EASE}, box-shadow .2s ${EASE}`,
-                    }}
-                  >
-                    {tab.label}
-                    {typeof count === 'number' && (
-                      <span style={{ marginLeft: 8, opacity: 0.55 }}>{count}</span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* Shared body — rendered once, used by both breakpoints. */}
-          <div
-            className="lg:mx-auto lg:w-full lg:max-w-[1100px]"
-            style={{ padding: 'clamp(16px,3vw,28px)' }}
-          >
-            <p className="mb-5 hidden max-w-prose text-body-secondary text-warm-prose lg:block">{subtitle}</p>
-            {children}
-            {uploadLinks}
-          </div>
-        </main>
-
-        <PreFooter variant="B4" />
-        <Footer />
-      </div>
+      <AdminAuditNote />
     </div>
   );
 }
@@ -565,6 +439,10 @@ export function AdminStatTiles({ stats }: { stats: { label: string; value: numbe
  * Verbatim footnote shown under the table on every admin section page (applications, teachers,
  * papers, comments, recommendations) — NOT the audit log page, which has its own copy. The audit
  * log and its recordAdminAction instrumentation now exist, so this is factual, not aspirational.
+ *
+ * Superseded by `AdminAuditNote` (admin/shell.tsx), which AdminConsole now renders once at the
+ * bottom of every screen (AD-003's "the audit note is visible" acceptance line) — this export
+ * stays only because a couple of pages still import it directly for an inline mention.
  */
 export function AdminAuditFootnote() {
   return (

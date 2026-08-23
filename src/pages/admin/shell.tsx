@@ -1,123 +1,121 @@
-import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
+import { BentoPanel } from '@/components/layout/PageContainer';
 import { cn } from '@/lib/utils';
 
-/* Redesign S7 (components.md §3) — the desktop admin shell.
+/* Redesign 09i (changelog/09-Join-Onboarding-Shelf-Dashboards-School-Legal-
+   Admin.md, AD-001/AD-002) — the one admin header, replacing the earlier S7
+   244px rail + 68px toolbar pair. Admin opts out of the bento language
+   (tilts, stickers, the eyes panel, the footer, the bottom nav) but keeps the
+   30px panel radius, the bone/bg-card fill, the type scale and the pill tab
+   row (AD-001's "adopts from the redesign only" list) — one region for every
+   breakpoint, not a desktop rail + a separate mobile tab strip.
 
-   244px fixed near-black rail (logo + ADMIN tag, nav with real per-section
-   pending counts, signed-in card) + a body with a 68px toolbar. Desktop-first
-   — admin is the one place desktop leads (design.md §5, changelog C-061).
-   The mobile console keeps its existing tab row (design.md §4 "Admin (S12)");
-   the rail and toolbar here only render lg: and up.
-
-   Split into two chrome-only pieces (AdminRail, AdminToolbar) rather than one
-   shell that wraps children, so a page's body content — and its data-fetching
-   hooks — mount exactly once instead of once per breakpoint.
-
-   Rule 10 is absolute here: no stickers, no tilts, no blobs. Pixel values
-   below are transcribed literally from "Redesign Admin.dc.html" (A1–A5) per
-   the owner's pixel-exact override — rail 244px, rail padding 22px 16px, nav
-   gap 3px, nav item 44px/radius 12px, toolbar 68px/padding 0 28px. */
+   Pixel values below are transcribed literally from "Admin Screens
+   Redesign.dc.html" per the handoff's pixel-exact override: header padding
+   18px 24px, Admin chip h24 r8, avatar 36px, tab row h40 gap6, tab pill
+   px16 r999, badge h19 min-w19. */
 
 export interface AdminNavItem {
   key: string;
   label: string;
   path: string;
-  /** Real count only — omit rather than show a placeholder. */
+  /** Real count only — omit rather than show a placeholder. AD-002a: a
+   *  queue badge never renders 0, so a caller may also pass 0 and this
+   *  component will still hide it. */
   count?: number;
   active: boolean;
 }
 
-export interface AdminRailProps {
+export interface AdminHeaderProps {
   nav: AdminNavItem[];
-  signedInName: string;
+  signedInEmail: string;
   className?: string;
 }
 
-/** The 244px fixed rail. Renders lg: and up only. */
-export function AdminRail({ nav, signedInName, className }: AdminRailProps) {
+/** The header + pill tab row, in one `BentoPanel`. Renders at every
+ *  breakpoint — admin is dense and desktop-first (AD-001), so it does not
+ *  get the consumer redesign's separate mobile header treatment. */
+export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps) {
   return (
-    <aside
-      className={cn(
-        'fixed inset-y-0 left-0 z-20 hidden w-[244px] flex-col gap-[22px] overflow-y-auto bg-panel px-4 py-[22px] lg:flex',
-        className,
-      )}
+    <BentoPanel
+      fill="card"
+      edge="top"
+      className={cn('flex flex-col gap-4 px-4 py-[18px] sm:px-6', className)}
     >
-      <div className="flex items-center gap-[10px]">
-        <Logo className="h-7 w-auto brightness-0 invert" />
-        <span className="inline-flex h-[22px] items-center rounded-full bg-white/12 px-[9px] text-[10.5px] font-extrabold tracking-[.06em] text-white/75">
-          ADMIN
-        </span>
-      </div>
-
-      <nav aria-label="Admin sections" className="flex flex-col gap-[3px]">
-        {nav.map((item) => (
-          <Link
-            key={item.key}
-            to={item.path}
-            aria-current={item.active ? 'page' : undefined}
-            className={cn(
-              'flex h-11 items-center gap-[11px] rounded-xl px-3 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel',
-              item.active ? 'bg-white/12 font-bold text-white' : 'font-semibold text-white/62 hover:bg-white/8 hover:text-white',
-            )}
-          >
-            <span className="flex-1">{item.label}</span>
-            {typeof item.count === 'number' ? (
-              <span
-                className={cn(
-                  'inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-[7px] text-[11.5px] font-bold',
-                  item.active ? 'bg-brand text-brand-foreground' : 'bg-white/12 text-white/70',
-                )}
-              >
-                {item.count}
-              </span>
-            ) : null}
-          </Link>
-        ))}
-      </nav>
-
-      <div className="mt-auto rounded-2xl bg-white/6 p-[14px]">
-        <div className="text-[11px] font-bold uppercase tracking-[.07em] text-white/45">Signed in</div>
-        <div className="mt-[5px] text-sm font-bold text-white">{signedInName}</div>
-        <div className="mt-0.5 text-[12.5px] leading-[1.45] text-white/55">
-          Every approve, reject and edit is logged with your name.
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {/* Logo's presets top out at 28px (`size="sm"`) — the mockup's literal
+              22px is not one of them, and the component has no custom-height
+              escape hatch on the <img> itself (only on its <Link> wrapper,
+              which does not affect the image). Closest available preset. */}
+          <Logo size="sm" />
+          <span className="inline-flex h-6 items-center rounded-lg bg-muted px-[9px] text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-secondary">
+            Admin
+          </span>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className="hidden truncate text-[13px] text-warm-secondary sm:inline">{signedInEmail}</span>
+          <div className="h-9 w-9 shrink-0 rounded-full bg-muted" aria-hidden="true" />
         </div>
       </div>
-    </aside>
+
+      <nav
+        aria-label="Admin sections"
+        className="flex items-center gap-1.5 overflow-x-auto"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {nav.map((item) => {
+          const showBadge = typeof item.count === 'number' && item.count > 0;
+          return (
+            <Link
+              key={item.key}
+              to={item.path}
+              aria-current={item.active ? 'page' : undefined}
+              className={cn(
+                'inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[13.5px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                item.active
+                  ? 'bg-foreground font-bold text-background'
+                  : 'bg-muted font-semibold text-warm-secondary hover:bg-warm-hairline-raised',
+              )}
+            >
+              {item.label}
+              {showBadge ? (
+                <span
+                  className={cn(
+                    'inline-flex h-[19px] min-w-[19px] items-center justify-center rounded-full px-[5px] text-[11px] font-bold',
+                    item.active ? 'bg-brand text-foreground' : 'bg-card text-warm-secondary',
+                  )}
+                >
+                  {item.count}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
+    </BentoPanel>
   );
 }
 
-export interface AdminToolbarProps {
-  title: string;
-  /** Real "N waiting"-style badge. Omit if no count applies. */
-  badge?: string;
-  /** Search field slot, top-right of the toolbar. Omit if the page has no search. */
-  search?: ReactNode;
-  /** Sort control slot, top-right of the toolbar, next to search. Only pass this when a
-   *  real, meaningful data column backs the sort (e.g. created_at) — never a placeholder. */
-  sort?: ReactNode;
-  className?: string;
-}
-
-/** The 68px toolbar. Renders lg: and up only. */
-export function AdminToolbar({ title, badge, search, sort, className }: AdminToolbarProps) {
+/** The muted strip every admin screen ends on — AD-003's audit-log
+ *  reminder, always visible, never just a footnote under the fold. */
+export function AdminAuditNote({ auditHref = '/admin/audit' }: { auditHref?: string }) {
   return (
-    <div className={cn('hidden h-[68px] items-center justify-between gap-4 border-b border-warm-hairline bg-card px-7 lg:flex', className)}>
-      <div className="flex items-center gap-[14px]">
-        <span className="font-display text-[22px] font-extrabold tracking-[-0.03em] text-foreground">{title}</span>
-        {badge ? (
-          <span className="inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-brand-subtle px-[11px] text-xs font-bold text-brand-deep">
-            {badge}
-          </span>
-        ) : null}
-      </div>
-      {(search || sort) ? (
-        <div className="flex items-center gap-2">
-          {search}
-          {sort}
-        </div>
-      ) : null}
-    </div>
+    <BentoPanel
+      fill="muted"
+      edge="bottom"
+      className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6"
+    >
+      <span className="text-[12.5px] text-warm-secondary">
+        Every action is written to the audit log with your account and a timestamp.
+      </span>
+      <Link
+        to={auditHref}
+        className="shrink-0 text-[12.5px] font-bold text-brand-blue transition-colors hover:text-brand-blue-hover"
+      >
+        Open audit log
+      </Link>
+    </BentoPanel>
   );
 }
