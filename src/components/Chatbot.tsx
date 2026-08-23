@@ -2,14 +2,42 @@ import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { HelpCircle, X, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Chip } from '@/components/ui/chip';
+import { TeacherCard } from '@/components/TeacherCard';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { useExitPresence } from '@/hooks/useExitPresence';
 import DOMPurify from 'dompurify';
 
+interface ChatTeacher {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl: string | null;
+  subject: string;
+  sirMaam: string | null;
+  whatsappLink: string | null;
+  experienceYears: number | null;
+  minFees: number | null;
+  maxFees: number | null;
+  area: string | null;
+}
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  /** Real teacher records matched against this reply — rendered as TeacherCards, not prose. */
+  teachers?: ChatTeacher[];
 }
+
+// pages.md §19: shown as 34px chips above the composer only while the thread is empty.
+const SUGGESTED_PROMPTS = [
+  'Find a Maths teacher for Class 10',
+  'Teachers near me',
+  'Past papers for ICSE',
+  'Is Shikshaq free?',
+  'How do I contact a teacher?',
+  'Verified teachers only',
+];
 
 // Quick responses for common FAQ questions (instant, no API call). Order matters: more specific first.
 // Only add "contact" keywords when user is clearly asking how to reach Shikshaq support.
@@ -139,11 +167,29 @@ export function Chatbot() {
   // hidden until the user has scrolled a little way down any page — it can
   // never cover a first-fold control anywhere, and stays visible once open.
   const [scrolledPastFold, setScrolledPastFold] = useState(false);
+  // The launcher is also fixed at the same bottom-right screen coordinates
+  // on every scrolling list (e.g. Browse's teacher cards). Whenever a card's
+  // WhatsApp "Chat" pill happens to scroll into that region, the launcher
+  // sat on top of it and actually intercepted the tap (elementFromPoint
+  // returned the launcher's icon, not the button underneath) — a real
+  // click-blocker, not just visual overlap. Fading it out and disabling
+  // pointer-events while the page is actively scrolling closes that window;
+  // it settles back to full opacity shortly after the scroll stops.
+  const [isScrolling, setIsScrolling] = useState(false);
   useEffect(() => {
-    const onScroll = () => setScrolledPastFold(window.scrollY > 280);
+    let idleTimer: ReturnType<typeof setTimeout>;
+    const onScroll = () => {
+      setScrolledPastFold(window.scrollY > 280);
+      setIsScrolling(true);
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => setIsScrolling(false), 220);
+    };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      clearTimeout(idleTimer);
+    };
   }, []);
   const launcherVisible = scrolledPastFold || isOpen;
   // Keep the panel mounted briefly on close so it can play a subtle exit
@@ -228,13 +274,14 @@ export function Chatbot() {
     return null;
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
+  const handleSend = async (override?: string) => {
+    const raw = override ?? input;
+    if (!raw.trim() || loading) return;
 
-    const userMessage = input.trim();
+    const userMessage = raw.trim();
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
-    
+
     // Check for quick response first (instant, no API call)
     const quickResponse = getQuickResponse(userMessage);
     if (quickResponse) {
@@ -284,7 +331,14 @@ export function Chatbot() {
         throw new Error('No response from server');
       }
 
-      setMessages((prev) => [...prev, { role: 'assistant', content: data.response }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: data.response,
+          teachers: Array.isArray(data.teachers) && data.teachers.length > 0 ? data.teachers : undefined,
+        },
+      ]);
     } catch (error: any) {
       if (import.meta.env.DEV) {
         console.error('Chat error:', error);
@@ -324,8 +378,12 @@ export function Chatbot() {
       {/* Floating Button with ? icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed ${hasBottomBar ? 'bottom-[168px] lg:bottom-[104px]' : 'bottom-[88px] lg:bottom-6'} right-6 z-40 flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-[0.97] transition-[transform,box-shadow,opacity] duration-200 ${
-          launcherVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+        className={`fixed ${hasBottomBar ? 'bottom-[168px] lg:bottom-[104px]' : 'bottom-[88px] lg:bottom-6'} right-6 z-40 flex items-center justify-center w-14 h-14 bg-brand text-brand-foreground rounded-full shadow-lg hover:-translate-y-0.5 active:scale-[0.97] transition-[transform,box-shadow,opacity] duration-200 ${
+          launcherVisible
+            ? isScrolling && !isOpen
+              ? 'opacity-30 scale-90 pointer-events-none'
+              : 'opacity-100'
+            : 'pointer-events-none opacity-0'
         }`}
         aria-label="Ask AI"
         aria-hidden={!launcherVisible}
@@ -340,12 +398,9 @@ export function Chatbot() {
           so it used to pop in and vanish instantly despite the transition class. */}
       {panelPresence.mounted && (
         <div
-          className={`fixed ${hasBottomBar ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card border border-border rounded-2xl shadow-2xl flex flex-col origin-bottom-right`}
-          style={{
-            animation: panelPresence.closing
-              ? 'shikshaq-chat-fall .16s cubic-bezier(.4,0,1,1) both'
-              : 'shikshaq-chat-rise .22s cubic-bezier(.16,1,.3,1) both',
-          }}
+          className={`fixed ${hasBottomBar ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card rounded-2xl shadow-border-hover flex flex-col origin-bottom-right ${
+            panelPresence.closing ? 'animate-accordion-up' : 'animate-fade-slide-up'
+          }`}
         >
           {/* Header - Mobile: Larger, Desktop: Compact */}
           {/* Header per secondary-03-assistant.png: a dark slab with an orange
@@ -381,17 +436,19 @@ export function Chatbot() {
             {messages.map((message, index) => (
               <div
                 key={index}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
               >
+                {/* pages.md §19: user bubbles bg-brand text-white right-aligned max 82%,
+                    assistant bubbles bg-card shadow-border left. */}
                 <div
-                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-3 py-2 md:px-4 md:py-2.5 ${
+                  className={`max-w-[82%] rounded-2xl px-3 py-2 md:px-4 md:py-2.5 ${
                     message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground'
+                      ? 'bg-brand text-white'
+                      : 'bg-card shadow-border text-foreground'
                   }`}
                 >
-                  <div 
-                    className="text-sm whitespace-pre-wrap break-words [&_a]:text-primary [&_a]:underline [&_a]:font-medium [&_a]:hover:text-primary/80"
+                  <div
+                    className="text-sm whitespace-pre-wrap break-words [&_a]:text-brand-blue [&_a]:underline [&_a]:font-medium [&_a]:hover:text-brand-blue/80"
                     dangerouslySetInnerHTML={{ 
                       __html: (() => {
                         let content = message.content;
@@ -406,14 +463,15 @@ export function Chatbot() {
                         // Convert WhatsApp links (https://wa.me/...) to clickable links
                         content = content.replace(
                           /(https:\/\/wa\.me\/[\d]+)/g, 
-                          '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-primary underline font-medium">Contact us on WhatsApp →</a>'
+                          '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-brand-blue underline font-medium">Contact us on WhatsApp →</a>'
                         );
                         
-                        // If contact info is mentioned but no link present, add a WhatsApp link
-                        // Only add if there's no existing WhatsApp link
-                        if ((content.includes('8240980312') || content.includes('WhatsApp') || content.toLowerCase().includes('contact')) && !content.includes('wa.me') && !content.includes('<a href')) {
+                        // If contact info is mentioned but no link present, add a WhatsApp link.
+                        // Only add if there's no existing WhatsApp link, and not when real teacher
+                        // cards (each with their own WhatsApp disc) are about to render below.
+                        if (!message.teachers?.length && (content.includes('8240980312') || content.includes('WhatsApp') || content.toLowerCase().includes('contact')) && !content.includes('wa.me') && !content.includes('<a href')) {
                           const whatsappLink = getWhatsAppLink('8240980312');
-                          content += `\n\n<a href="${whatsappLink}" target="_blank" rel="noopener noreferrer" class="text-primary underline font-medium">Contact us on WhatsApp →</a>`;
+                          content += `\n\n<a href="${whatsappLink}" target="_blank" rel="noopener noreferrer" class="text-brand-blue underline font-medium">Contact us on WhatsApp →</a>`;
                         }
                         
                         // Convert line breaks to <br> for proper rendering
@@ -432,21 +490,71 @@ export function Chatbot() {
                     }} 
                   />
                 </div>
+
+                {/* Answers that name teachers end in real teacher cards (row density)
+                    with a green WhatsApp disc — never a list of names in prose. */}
+                {message.teachers && message.teachers.length > 0 && (
+                  <div className="mt-2 w-full max-w-[92%] space-y-2">
+                    {message.teachers.map((teacher) => (
+                      <TeacherCard
+                        key={teacher.id}
+                        id={teacher.id}
+                        name={teacher.name}
+                        slug={teacher.slug}
+                        subject={teacher.subject}
+                        imageUrl={teacher.imageUrl ?? undefined}
+                        sirMaam={teacher.sirMaam}
+                        whatsappLink={teacher.whatsappLink}
+                        experienceYears={teacher.experienceYears}
+                        minFees={teacher.minFees}
+                        maxFees={teacher.maxFees}
+                        area={teacher.area}
+                        variant="row"
+                        hideFavourite
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {loading && (
               <div className="flex justify-start">
-                <div className="bg-muted rounded-2xl px-3 py-2 md:px-4 md:py-2.5">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                {/* Typing indicator: three warm dots, 8px, 150ms stagger (pages.md §19).
+                    A one-shot fade-slide-up per dot, not an infinite loop. */}
+                <div className="bg-card shadow-border rounded-2xl px-4 py-3 flex items-center gap-1.5">
+                  <span className="chat-typing-dot animate-fade-slide-up" style={{ animationDelay: '0ms' }} />
+                  <span className="chat-typing-dot animate-fade-slide-up" style={{ animationDelay: '150ms' }} />
+                  <span className="chat-typing-dot animate-fade-slide-up" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input - Mobile: Better touch targets and padding */}
+          {/* Suggested prompts — 34px chips above the composer, only while the thread is empty.
+              A single horizontally-scrollable row, not a wrapping grid: six prompts wrapped
+              into 5+ rows on a 375px viewport (~200px tall), squeezing the messages list's
+              flex-1 area down to near zero and clipping the second line of the greeting
+              bubble underneath it. A fixed-height scroll strip keeps the chips from eating
+              the space the greeting needs. */}
+          {messages.length <= 1 && !loading && (
+            <div className="px-3 md:px-4 pb-2 flex-shrink-0 flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-hide">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <Chip
+                  key={prompt}
+                  tone="facet"
+                  size={44}
+                  onClick={() => handleSend(prompt)}
+                >
+                  {prompt}
+                </Chip>
+              ))}
+            </div>
+          )}
+
+          {/* Input - Composer 56px + 44px send disc (pages.md §19). */}
           <div className="p-3 md:p-4 border-t border-border flex-shrink-0 bg-card safe-area-pb">
-            <div className="flex gap-2 items-end">
+            <div className="flex gap-2 items-center h-14">
               <input
                 ref={inputRef}
                 type="text"
@@ -454,16 +562,17 @@ export function Chatbot() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask anything about tuition"
-                className="flex-1 px-3 py-2.5 md:px-4 md:py-2.5 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-base md:text-sm min-h-[44px] md:min-h-0"
+                className="flex-1 h-14 px-3 md:px-4 bg-background border border-border rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand text-base md:text-sm"
                 style={{ fontSize: '16px' }}
                 disabled={loading}
               />
               <Button
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={!input.trim() || loading}
-                size="icon"
+                variant="primary"
+                size={44}
                 aria-label="Send message"
-                className="flex-shrink-0 h-[44px] w-[44px] md:h-auto md:w-auto"
+                className="flex-shrink-0 w-11 rounded-full"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -480,13 +589,16 @@ export function Chatbot() {
       )}
 
       <style>{`
-        @keyframes shikshaq-chat-rise {
-          from { opacity: 0; transform: translateY(12px) scale(.98); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
+        /* Typing indicator: three warm dots, 8px, using the whitelisted shimmer
+           ambient loop instead of a bespoke infinite keyframe. */
+        .chat-typing-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 9999px;
+          background: hsl(var(--brand) / 0.55);
         }
-        @keyframes shikshaq-chat-fall {
-          from { opacity: 1; transform: translateY(0) scale(1); }
-          to { opacity: 0; transform: translateY(6px) scale(.98); }
+        @media (prefers-reduced-motion: reduce) {
+          .chat-typing-dot { animation: none; opacity: 0.7; }
         }
       `}</style>
     </>

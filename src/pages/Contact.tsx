@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { GraduationCap, FileText, Users, ShieldAlert, Mail, MapPin, ArrowRight } from 'lucide-react';
-import { Footer } from '@/components/Footer';
-import { PreFooter } from '@/components/layout/PreFooter';
-import { PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
+import { useChromeConfig } from '@/components/layout/AppShell';
+import { PageContainer } from '@/components/layout/PageContainer';
 import { AnnotatedStatement } from '@/components/marketing/annotated-statement';
 import { NumberedHeading } from '@/components/ui/numbered-heading';
 import { Chip } from '@/components/ui/chip';
@@ -42,13 +42,18 @@ const REASONS = [
 type ReasonId = (typeof REASONS)[number]['id'];
 
 export default function Contact() {
+  // preFooterFor(pathname) would give /contact the default B4; this route
+  // keeps the fuller B1 explainer, same as home/about, so it needs the
+  // explicit override.
+  useChromeConfig({ preFooter: 'B1' });
+
   usePageMeta(
     'Contact ShikshAQ | Talk to a real person',
     // Was 178 chars, truncated in the SERP snippet. 149 now.
     'Reach the two people who run ShikshAQ directly for teacher search, paper takedowns, or listing yourself. A real person replies, usually the same day.'
   );
 
-  const [reason, setReason] = useState<ReasonId>('teacher');
+  const [reason, setReason] = useState<ReasonId | null>(null);
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
   const [message, setMessage] = useState('');
@@ -68,7 +73,7 @@ export default function Contact() {
     if (!nameField.isValid || !contactField.isValid || !messageField.isValid) return;
 
     const reasonLabel = REASONS.find((r) => r.id === reason)?.label ?? 'General';
-    const subject = encodeURIComponent(`ShikshAQ — ${reasonLabel}`);
+    const subject = encodeURIComponent(`ShikshAQ - ${reasonLabel}`);
     const body = encodeURIComponent(
       `Name: ${name}\nReach me on: ${contact}\n\n${message}`
     );
@@ -114,7 +119,7 @@ export default function Contact() {
                 dot: false,
                 icon: <WhatsAppIcon className="h-[13px] w-[13px]" />,
               },
-              { label: 'papers takedowns too', anchor: 'bottom-right', tone: 'indigo', tilt: -5 },
+              { label: 'papers takedowns too', anchor: 'bottom-right', tone: 'dark', tilt: -5 },
             ]}
           />
 
@@ -124,10 +129,13 @@ export default function Contact() {
               flush with the statement block's own bottom edge (see
               annotated-statement.tsx), so a negative margin here pulled the
               dome up far enough to bury the bottom-anchored "or just
-              WhatsApp" / "papers takedowns too" pills underneath it. Desktop's
-              much taller display-type box gives the same -46px plenty of
-              clearance, so only the mobile value changes. */}
-          <div className="relative -mx-4 mt-5 h-[140px] overflow-hidden sm:-mx-6 lg:-mx-8 lg:-mt-[46px] lg:h-[190px]" aria-hidden="true">
+              WhatsApp" / "papers takedowns too" pills underneath it.
+              Desktop measured the same way (1440px, via getBoundingClientRect):
+              the bottom pills sit at y446-486 while a -46px pull-up put the
+              dome's flat top at y434 — squarely on top of the pills, not
+              "plenty of clearance" as the old comment here claimed. lg:mt-8
+              instead gives the dome top a real ~30px gap below the pills. */}
+          <div className="relative -mx-4 mt-5 h-[140px] overflow-hidden sm:-mx-6 lg:-mx-8 lg:mt-8 lg:h-[190px]" aria-hidden="true">
             <span className="absolute left-[-14%] right-[-14%] top-0 h-[420px] rounded-t-full bg-brand" />
             <div className="absolute left-0 right-0 top-[64px] flex justify-center gap-[22px] lg:top-[82px] lg:gap-10">
               <span className="relative h-[80px] w-[58px] rounded-full bg-card lg:h-[132px] lg:w-[96px]">
@@ -190,7 +198,7 @@ export default function Contact() {
                       key={r.id}
                       type="button"
                       tone={on ? 'solid' : 'facet'}
-                      size={40}
+                      size={44}
                       icon={<r.icon className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />}
                       aria-pressed={on}
                       onClick={() => setReason(r.id)}
@@ -201,57 +209,61 @@ export default function Contact() {
                 })}
               </div>
 
-              <div className="grid gap-[14px] sm:grid-cols-2">
-                <Field label="Your name" error={nameField.error} required>
-                  {(cp) => (
-                    <FieldInput
-                      {...cp}
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      onBlur={nameField.onBlur}
-                      placeholder="Priya Sharma"
-                    />
-                  )}
-                </Field>
-                <Field label="WhatsApp number or email" error={contactField.error} required>
-                  {(cp) => (
-                    <FieldInput
-                      {...cp}
-                      value={contact}
-                      onChange={(e) => setContact(e.target.value)}
-                      onBlur={contactField.onBlur}
-                      placeholder="+91 …"
-                    />
-                  )}
-                </Field>
-              </div>
+              {reason ? (
+                <div className="flex flex-col gap-[14px] animate-fade-slide-up">
+                  <div className="grid gap-[14px] sm:grid-cols-2">
+                    <Field label="Your name" error={nameField.error} required>
+                      {(cp) => (
+                        <FieldInput
+                          {...cp}
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          onBlur={nameField.onBlur}
+                          placeholder="Priya Sharma"
+                        />
+                      )}
+                    </Field>
+                    <Field label="WhatsApp number or email" error={contactField.error} required>
+                      {(cp) => (
+                        <FieldInput
+                          {...cp}
+                          value={contact}
+                          onChange={(e) => setContact(e.target.value)}
+                          onBlur={contactField.onBlur}
+                          placeholder="+91 …"
+                        />
+                      )}
+                    </Field>
+                  </div>
 
-              <Field label="What do you need?" error={messageField.error} required>
-                {(cp) => (
-                  <FieldTextarea
-                    {...cp}
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    onBlur={messageField.onBlur}
-                    placeholder="Class 10 ICSE Maths, somewhere near Ballygunge, evenings after 6…"
-                  />
-                )}
-              </Field>
+                  <Field label="What do you need?" error={messageField.error} required>
+                    {(cp) => (
+                      <FieldTextarea
+                        {...cp}
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onBlur={messageField.onBlur}
+                        placeholder="Class 10 ICSE Maths, somewhere near Ballygunge, evenings after 6…"
+                      />
+                    )}
+                  </Field>
 
-              <div className="flex flex-wrap items-center gap-[18px]">
-                <Button type="submit" variant="primary" size={52} className="w-full sm:w-auto">
-                  Send it
-                  <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />
-                </Button>
-                <span className="max-w-[40ch] text-[13px] leading-[1.55] text-warm-label">
-                  Goes straight to the two people who run ShikshAQ. No newsletter, and we never
-                  pass your number to a teacher without asking.
-                </span>
-              </div>
-              {sent ? (
-                <p role="status" className="text-body-secondary text-brand-deep">
-                  Your email app should be open now &mdash; send it from there and we&rsquo;ll reply.
-                </p>
+                  <div className="flex flex-wrap items-center gap-[18px]">
+                    <Button type="submit" variant="primary" size={52} className="w-full sm:w-auto">
+                      Send it
+                      <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />
+                    </Button>
+                    <span className="max-w-[40ch] text-[13px] leading-[1.55] text-warm-label">
+                      Goes straight to the two people who run ShikshAQ. No newsletter, and we never
+                      pass your number to a teacher without asking.
+                    </span>
+                  </div>
+                  {sent ? (
+                    <p role="status" className="text-body-secondary text-brand-deep">
+                      Your email app should be open now &mdash; send it from there and we&rsquo;ll reply.
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
             </form>
           </div>
@@ -306,22 +318,15 @@ export default function Contact() {
               <p className="text-[14.5px] leading-[1.65] text-background/78">
                 Fees, verification, how papers are hosted and what we do with your number are all
                 answered in{' '}
-                <a href="/faq" className="text-brand-blue underline-offset-4 hover:underline">
+                <Link to="/faq" className="text-brand-blue underline-offset-4 hover:underline">
                   Help &amp; FAQ
-                </a>
+                </Link>
                 .
               </p>
             </div>
           </div>
         </PageContainer>
-
-        <PageContainer as="section" className="py-8 sm:py-12">
-          <PreFooter variant="B1" />
-        </PageContainer>
-        <BottomNavSpacer />
       </main>
-
-      <Footer />
     </div>
   );
 }

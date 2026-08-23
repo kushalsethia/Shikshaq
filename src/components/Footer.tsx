@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { Logo } from '@/components/Logo';
@@ -364,6 +365,8 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     { to: '/', label: 'Home' },
     { to: '/all-tuition-teachers-in-kolkata', label: 'Browse teachers' },
     { to: '/past-papers', label: 'Past papers' },
+    { to: '/subjects', label: 'Subjects' },
+    { to: '/schools', label: 'Schools' },
     ...(dashboardPath ? [{ to: dashboardPath, label: 'Your dashboard' }] : []),
     { to: '/liked-teachers', label: 'Favourite teachers' },
     { to: '/about', label: 'About us' },
@@ -448,30 +451,64 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             {/* 1. Sentence builder (C8) — mode toggle + live-count CTA */}
             <div className="space-y-4">
               <div className="flex gap-2" role="tablist" aria-label="Search mode">
-                <Chip
-                  tone={builderMode === 'teachers' ? 'dark-on' : 'dark'}
-                  size={40}
-                  onClick={() => setBuilderMode('teachers')}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={builderMode === 'teachers'}
                   aria-pressed={builderMode === 'teachers'}
+                  onClick={() => setBuilderMode('teachers')}
+                  className={cn(
+                    "relative isolate flex h-10 items-center rounded-full px-4 text-[13.5px] font-bold transition-colors duration-300",
+                    builderMode === 'teachers' ? "text-brand-foreground" : "text-white/70 hover:text-white",
+                  )}
                 >
+                  {builderMode === 'teachers' && (
+                    <motion.span
+                      layoutId="sentence-mode-pill"
+                      className="absolute inset-0 -z-10 rounded-full bg-brand shadow-glow-brand-tight backdrop-blur-md"
+                      transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                    />
+                  )}
                   Teachers
-                </Chip>
-                <Chip
-                  tone={builderMode === 'papers' ? 'dark-on-papers' : 'dark'}
-                  size={40}
-                  onClick={() => setBuilderMode('papers')}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={builderMode === 'papers'}
                   aria-pressed={builderMode === 'papers'}
+                  onClick={() => setBuilderMode('papers')}
+                  className={cn(
+                    "relative isolate flex h-10 items-center rounded-full px-4 text-[13.5px] font-bold transition-colors duration-300",
+                    builderMode === 'papers' ? "text-brand-blue-foreground" : "text-white/70 hover:text-white",
+                  )}
                 >
+                  {builderMode === 'papers' && (
+                    <motion.span
+                      layoutId="sentence-mode-pill"
+                      className="absolute inset-0 -z-10 rounded-full bg-brand-blue shadow-glow-brand-blue-tight backdrop-blur-md"
+                      transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                    />
+                  )}
                   Past papers
-                </Chip>
+                </button>
               </div>
-              <SentenceBuilder
-                mode={builderMode}
-                slots={builderMode === 'teachers' ? teacherSlots : paperSlots}
-                onChange={handleSlotChange}
-                onSubmit={handleSubmit}
-                count={builderMode === 'teachers' ? (ctaTotals.teachers || undefined) : (ctaTotals.papers || undefined)}
-              />
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={builderMode}
+                  initial={{ opacity: 0, filter: 'blur(6px)', y: 6 }}
+                  animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                  exit={{ opacity: 0, filter: 'blur(6px)', y: -6 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <SentenceBuilder
+                    mode={builderMode}
+                    slots={builderMode === 'teachers' ? teacherSlots : paperSlots}
+                    onChange={handleSlotChange}
+                    onSubmit={handleSubmit}
+                    count={builderMode === 'teachers' ? (ctaTotals.teachers || undefined) : (ctaTotals.papers || undefined)}
+                  />
+                </motion.div>
+              </AnimatePresence>
             </div>
 
             {/* Identity */}
@@ -486,13 +523,13 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 papers · contact, as quick-access pills above the full column
                 groups, which stay intact for internal-linking / SEO. */}
             <div className="flex flex-wrap gap-2">
-              <Chip asChild tone="dark" size={40} className="cursor-default">
+              <Chip asChild tone="dark" size={38} className="cursor-default">
                 <Link to="/all-tuition-teachers-in-kolkata" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">find a teacher</Link>
               </Chip>
-              <Chip asChild tone="dark" size={40} className="cursor-default">
+              <Chip asChild tone="dark" size={38} className="cursor-default">
                 <Link to="/past-papers" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">past papers</Link>
               </Chip>
-              <Chip asChild tone="dark" size={40} className="cursor-default">
+              <Chip asChild tone="dark" size={38} className="cursor-default">
                 <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">contact</a>
               </Chip>
             </div>
@@ -506,7 +543,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               <FooterAccordion label="Tuition teachers by subject in Kolkata" links={subjectLinks} />
             </div>
 
-            <div className="hidden lg:grid lg:grid-cols-3 lg:gap-6">
+            <div className="hidden lg:flex lg:flex-wrap lg:justify-between lg:gap-x-16 lg:gap-y-6">
               <div className="space-y-2">
                 <h2 className={COL_LABEL}>Shikshaq</h2>
                 <LinkList links={shikshaqLinks} />
@@ -572,16 +609,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               </a>
             </div>
 
-            {/* 5. Footnote — copy.md §2 "Footer footnote", verbatim except the
-                Ranchi -> Kolkata substitution (handoff error, see BRIEF.md). */}
-            <div className="rounded-2xl bg-white/10 p-4 text-sm text-white/70">
-              We are two people in Kolkata. Messages reach a human, usually the same day — teachers keep every rupee of their fee.
-            </div>
-
-            <div className="rounded-2xl bg-white/10 p-4 text-sm text-white/70">
-              Past papers are the property of the schools that set them. Shikshaq claims no ownership and hosts them as a free community resource.{' '}
-              <Link to="/terms-of-service" className="tap-44 text-brand-blue-subtle underline-offset-2 hover:underline">Read our full position</Link>
-            </div>
+            <p className="text-sm text-white/70">
+              Past papers are the property of the schools that set them. Shikshaq claims no ownership and hosts them as a free community resource.
+            </p>
 
             <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-white/60">
               <a

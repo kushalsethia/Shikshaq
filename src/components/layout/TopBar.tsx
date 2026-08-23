@@ -2,13 +2,12 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Search, FileText, BookOpen, School, Heart, Shield, GraduationCap, Users,
-  MessageSquare, ThumbsUp, ClipboardList, BookMarked, type LucideIcon,
+  Search, FileText, Info, Heart, Shield, GraduationCap, Users,
+  MessageSquare, ThumbsUp, ClipboardList, BookMarked, BookOpen, School, type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
 import { Logo } from "@/components/Logo";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { useAuth } from "@/lib/auth-context";
@@ -35,27 +34,16 @@ import {
    On papers routes the orange CTA is replaced by the indigo Papers-mode tag,
    so the accent in view always matches the mode (design.md §0.6). */
 
+const isAboutActive = (p: string) => p === "/about";
+const isSubjectsActive = (p: string) => p === "/subjects";
+const isSchoolsActive = (p: string) => p === "/schools";
+
 const NAV_LINKS = [
   { to: BROWSE_PATH, label: "Find teachers", icon: Search, match: isBrowseActive },
   { to: PAST_PAPERS_PATH, label: "Past papers", icon: FileText, match: isPapersActive },
-  /* These two carried destinations that did not match their labels.
-     "Subjects" went to /maths-tuition-teachers-in-kolkata — one arbitrary
-     subject, not an index of them. "Schools" went to
-     /cbse-ncert-tuition-teachers-in-kolkata, which is a BOARD page: click
-     Schools, land on CBSE-NCERT teachers, which is a different concept
-     entirely.
-
-     Neither a subjects index nor a schools index exists as a route yet
-     (secondary-02-school-page.png is unbuilt, and the papers table is empty so
-     no school has any papers to index). Until they do, each points at the
-     surface where that concept actually lives today: every subject is a chip on
-     the browse hub and a link in its footer, and schools appear on the papers
-     page as its "find your own school" list. Sharing a destination with "Find
-     teachers" is a smaller problem than a label that lies about where it goes.
-
-     TODO: give both their own index route, then repoint these. */
-  { to: BROWSE_PATH, label: "Subjects", icon: BookOpen, match: () => false },
-  { to: PAST_PAPERS_PATH, label: "Schools", icon: School, match: () => false },
+  { to: "/subjects", label: "Subjects", icon: BookOpen, match: isSubjectsActive },
+  { to: "/schools", label: "Schools", icon: School, match: isSchoolsActive },
+  { to: "/about", label: "About", icon: Info, match: isAboutActive },
 ] as const;
 
 function LogoOrTourTrigger() {
@@ -123,8 +111,19 @@ export function TopBar({ className }: { className?: string }) {
 
   return (
     <header
-      className={cn("hidden bg-panel text-background lg:block", className)}
-      /* One <nav> per bar; the links inside are the primary desktop navigation. */
+      className={cn(
+        "fixed inset-x-3 top-3 z-40 hidden rounded-full bg-panel text-background shadow-pill ring-1 ring-white/10 lg:block",
+        className,
+      )}
+      /* One <nav> per bar; the links inside are the primary desktop navigation.
+         fixed (not sticky): a sticky element can't be inset from the side
+         edges and still read as a floating pill (its box still spans the
+         full flow width even with side margins), so this is `fixed` with a
+         `top-3` offset instead — same "pinned while scrolling" behaviour as
+         before, but now genuinely detached from the viewport edges like
+         BottomNav's own floating pill. Being taken out of flow means the
+         page needs an explicit offset underneath it: see TopNavSpacer in
+         PageContainer.tsx, rendered once by AppShell right after this bar. */
     >
       <PageContainer>
         <nav aria-label="Primary" className="flex h-[72px] items-center gap-8">
@@ -133,13 +132,10 @@ export function TopBar({ className }: { className?: string }) {
           <ul className="flex items-center gap-2">
             {NAV_LINKS.map(({ to, label, icon: Icon, match }) => {
               const active = match(location.pathname);
+              // All five NAV_LINKS entries now point at distinct routes, so
+              // key={to} is safe here; kept as key={label} anyway since
+              // label is what's user-facing and unique in this list too.
               return (
-                /* key={label}, not key={to}: NAV_LINKS has four entries but only
-                   two distinct destinations ("Find teachers"/"Subjects" both go
-                   to browse, "Past papers"/"Schools" both to papers), so keying
-                   on `to` produced two pairs of duplicate keys on every render —
-                   ~50 console errors per page load, and a real risk of the
-                   aria-current highlight attaching to the wrong item. */
                 <li key={label}>
                   <Link
                     to={to}
@@ -160,11 +156,6 @@ export function TopBar({ className }: { className?: string }) {
           </ul>
 
           <div className="ml-auto flex items-center gap-3">
-            {papersMode ? (
-              <Chip tone="dark-on-papers" size={40} asChild>
-                Papers mode
-              </Chip>
-            ) : null}
 
             {user ? (
               <div className="relative">
@@ -239,7 +230,7 @@ export function TopBar({ className }: { className?: string }) {
             )}
 
             {papersMode ? null : (
-              <Button asChild variant="primary" size={40}>
+              <Button asChild variant="primary" size={44}>
                 <Link to="/join">List yourself</Link>
               </Button>
             )}

@@ -18,8 +18,8 @@ import type { SearchMode } from '@/utils/searchFacets';
 const POPULAR_CHIPS: { label: string; href: string }[] = [
   { label: 'Class 10', href: '/all-tuition-teachers-in-kolkata?filter_classes=10' },
   { label: 'Maths', href: '/maths-tuition-teachers-in-kolkata' },
-  { label: 'Under ₹800', href: '/all-tuition-teachers-in-kolkata' },
-  { label: 'Home tuition', href: '/all-tuition-teachers-in-kolkata' },
+  { label: 'Under ₹800', href: '/all-tuition-teachers-in-kolkata?filter_maxFees=800' },
+  { label: 'Home tuition', href: `/all-tuition-teachers-in-kolkata?filter_placeOfTeaching=${encodeURIComponent("Student's Home")}` },
 ];
 
 export interface SearchDeskProps {
@@ -52,7 +52,7 @@ export function SearchDesk({ onModeChange, className = '' }: SearchDeskProps) {
             <Chip
               key={c.label}
               tone="facet"
-              size={40}
+              size={44}
               className="flex-none"
               onClick={() => navigate(c.href)}
             >

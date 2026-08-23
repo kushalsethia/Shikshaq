@@ -191,10 +191,10 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
             </div>
           </div>
           <div className="flex gap-1.5">
-            <Chip asChild tone="subject" subject="Maths" size={34}>
+            <Chip asChild tone="subject" subject="Maths" size={38}>
               Maths
             </Chip>
-            <Chip asChild tone="subject" subject="Physics" size={34}>
+            <Chip asChild tone="subject" subject="Physics" size={38}>
               Physics
             </Chip>
           </div>
@@ -221,7 +221,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
             Hello ma'am, do you take Class 10 ICSE Maths?
           </div>
           <div className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-meta text-foreground">
-            Yes — free trial class this Saturday, 5pm?
+            Yes, free trial class this Saturday, 5pm?
           </div>
           <span className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-whatsapp px-3 py-1.5 text-meta font-semibold text-whatsapp-text">
             <MessageCircle aria-hidden className="size-3.5 shrink-0" />
@@ -249,7 +249,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
       illustration: (
         <div className="flex items-center gap-2">
           {[0, 1, 2].map((i) => (
-            <Chip key={i} asChild tone="dark" size={34} icon={<FileText aria-hidden className="size-4" />}>
+            <Chip key={i} asChild tone="dark" size={38} icon={<FileText aria-hidden className="size-4" />}>
               {i === 0 ? "Class 10" : i === 1 ? "ICSE" : "Maths"}
             </Chip>
           ))}
@@ -304,7 +304,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
                 <span
                   key={i}
                   className={cn(
-                    "h-[5px] rounded-full transition-all duration-300 ease-settle",
+                    "h-[5px] rounded-full transition-[width,background-color] duration-300 ease-settle",
                     i === step ? "w-5 bg-current" : "w-[5px] bg-current/40",
                   )}
                 />

@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Heart, ArrowUp, BadgeCheck } from 'lucide-react';
+import { Heart, ArrowUp, ShieldCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
@@ -10,21 +11,30 @@ import { Chip } from '@/components/ui/chip';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { Button } from '@/components/ui/button';
 import { WhatsAppIcon } from '@/components/BrandIcons';
-import { SignInSheet } from '@/components/SignInSheet';
+import { ContactGateSheet } from '@/components/ContactGateSheet';
 import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
 
 /**
  * C1 — components.md §2 / design.md §2.1 + §2.5 (CONCENTRIC PHOTO, binding).
  *
- * The photo never carries type. The card is a padded frame (mobile 26px radius /
- * 8px padding / 19px inner radius; desktop 28 / 10 / 20) with the photo inset in
- * it; name, verified mark, rating, subject chip and meta all sit BELOW the
- * picture. No gradient scrim, no overhanging sticker, no "Teacher of the week"
- * badge on the image, nothing overlapping a teacher's face — that includes the
- * favourite heart, which moves off the photo into the body row next to the name.
+ * The photo never carries type. The card is a padded frame (grid: 32px radius /
+ * 8px mobile / 10px desktop padding / 24px mobile / 22px desktop inner radius;
+ * row: 24px radius / 10px padding / 14px inner radius) with the photo inset in
+ * it; name, verified mark, rating and meta sit BELOW the picture. The one
+ * exception is the subject chip, which overlays the photo's bottom-left corner
+ * (in the design system's solid per-subject colour, for contrast against any
+ * photo) — never a gradient scrim, an overhanging sticker, a "Teacher of the
+ * week"/"Featured" badge, or anything else overlapping a teacher's face. That
+ * includes the favourite heart, which lives in the body row next to the name.
  */
 
-export type TeacherCardVariant = 'grid' | 'rail' | 'row';
+/* 'grid-compact' is the home-rail card only (Index.tsx): no WhatsApp button,
+   no experience/area, fee only, upvote pill overlaid on the photo. Plain
+   'grid' (Browse.tsx) keeps its own, opposite shape: WhatsApp button stays,
+   location/years stay, fee is dropped from the meta line, upvote pill stays
+   in the body. They used to be the same variant; the owner's live review
+   asked for opposite treatment on each, so they split. */
+export type TeacherCardVariant = 'grid' | 'grid-compact' | 'rail' | 'row';
 
 interface TeacherCardProps {
   id: string;
@@ -95,7 +105,7 @@ function formatDisplayName(name: string, sirMaam?: string | null): string {
   let honorific: string | null = null;
   if (lower === 'sir' || lower.includes('sir')) honorific = 'Sir';
   else if (lower === "ma'am" || lower === 'maam' || lower.includes("ma'am")) honorific = "Ma'am";
-  return honorific ? `${name}, ${honorific}` : name;
+  return honorific ? `${name} ${honorific}` : name;
 }
 
 function TeacherCardComponent({
@@ -133,10 +143,20 @@ function TeacherCardComponent({
   const liked = isLiked(id);
   const upvoteCount = getUpvoteCount(id);
 
-  const showFavourite = !hideFavourite;
+  const showFavourite = !hideFavourite && resolvedVariant !== 'grid-compact';
   const showUpvotes = (showUpvotesProp ?? !isFeatured) && !isSm;
   const palette = getSubjectPalette(subject);
-  const placeholderInitialSize = resolvedVariant === 'grid' ? 64 : resolvedVariant === 'rail' ? 46 : 32;
+  const placeholderInitialSize = resolvedVariant === 'grid' || resolvedVariant === 'grid-compact' ? 64 : resolvedVariant === 'rail' ? 46 : 32;
+
+  // Bug 5 defence-in-depth: the real fix is at the data layer (each caller should
+  // resolve a teacher's actual subject before handing it to this card — see
+  // Index.tsx's featuredSubjectLabel and SchoolPage.tsx's basic.firstSubject,
+  // both of which used to fetch the real comma-list subject text and then
+  // silently discard it in favour of this generic string). But a record can
+  // still genuinely have no subject data, and in that case a fake-looking
+  // generic label ("Tuition Teacher") reads as real data when it isn't one —
+  // so this card never shows it as if it were an actual subject chip.
+  const hasRealSubject = !!subject && !/^tuition teachers?$/i.test(subject.trim());
 
   // WhatsApp — design.md §3 / micro-interactions: signed-out tap opens the soft
   // sign-in sheet (never a route change), and continues straight to the click-
@@ -183,17 +203,43 @@ function TeacherCardComponent({
   };
 
   const feeLabel = formatFeeLabel(minFees, maxFees);
+  // `grid-compact` (home rail, Index.tsx) and plain `grid` (Browse.tsx) now
+  // show opposite halves of this line per two rounds of live review:
+  //   grid-compact: fee only (no years, no location) — home rail decluttered.
+  //   grid:         years + location only (no fee) — Browse dropped the price.
+  const isCompact = resolvedVariant === 'grid-compact';
+  const isPlainGrid = resolvedVariant === 'grid';
+  // `row` is the one density a `meta` line is ever passed into (Browse only —
+  // "Class 9-12 · Ballygunge"), and that line already carries area. Showing
+  // years+area again here duplicated the location a second time on Browse's
+  // list rows ("22 yrs · Bhavanipur" stacked directly under the meta line).
+  // Row callers that don't pass `meta` (MyTeachers, LikedTeachers,
+  // GuardianDashboard, StudentDashboard, Account, the chatbot) are
+  // unaffected — this is the only place their card shows either fact, so
+  // they keep years+area exactly as before.
+  const rowFactsRedundant = isRow && !!meta;
   const factsParts = [
-    experienceYears != null ? `${experienceYears} yrs` : null,
-    area || null,
-    feeLabel,
+    !isCompact && !rowFactsRedundant && experienceYears != null ? `${experienceYears} yrs` : null,
+    // Plain `grid` already shows area in metaRow ("Class range · Area") —
+    // repeating it here read as the same fact printed twice on one card.
+    !isCompact && !isPlainGrid && !rowFactsRedundant ? area || null : null,
+    isPlainGrid ? null : feeLabel,
   ].filter(Boolean) as string[];
   const factsLine = factsParts.length > 0 ? factsParts.join(' · ') : null;
 
-  const whatsappButton = whatsappLink !== undefined && (
+  // Neither grid density (`grid` nor `grid-compact`) keeps a WhatsApp button
+  // on the card body anymore (owner's live review, both rounds). Browse's
+  // row cards drop it too now — contact happens on the teacher's own profile
+  // page, not inline on the browse-list card. Row callers elsewhere that
+  // don't pass `meta` (MyTeachers, LikedTeachers, GuardianDashboard,
+  // StudentDashboard, Account, the chatbot) keep the button.
+  const whatsappButton = !isCompact && !isPlainGrid && !rowFactsRedundant && whatsappLink !== undefined && (
     <Button
       variant="whatsapp"
-      size={isSm ? 40 : isRow ? 40 : 44}
+      /* Handoff S-007: 40 is no longer a legal Button size; 44 is the floor.
+         P-008/P-012 may retune this WhatsApp CTA further when the profile
+         page's own entries land. */
+      size={44}
       onClick={handleWhatsAppClick}
       /* micro-04-cards-lists-pages.png: "The whole card is one target... the
          WhatsApp button inside does not grow its own hover — only one thing may
@@ -214,6 +260,7 @@ function TeacherCardComponent({
     e.stopPropagation();
 
     if (!user) {
+      toast('Sign in to save favourite teachers');
       navigate('/auth');
       return;
     }
@@ -225,7 +272,7 @@ function TeacherCardComponent({
   const photo = imageUrl ? (
     <img
       src={validateImageSrc(imageUrl)}
-      alt={name}
+      alt={area ? `${name}, ${subject} tutor in ${area}, Kolkata` : `${name}, ${subject} tutor in Kolkata`}
       loading="lazy"
       decoding="async"
       className="h-full w-full object-cover"
@@ -234,62 +281,119 @@ function TeacherCardComponent({
     <StripePlaceholder name={name} initialSize={placeholderInitialSize} className="h-full w-full" />
   );
 
-  // §7 — an isFeatured card gets a facet chip in the body instead of a
-  // "Teacher of the week" badge on the photo (binding: never on the image).
-  const featuredChip = isFeatured ? (
-    <Chip tone="dark-on" size={34} asChild>
-      Featured
-    </Chip>
-  ) : null;
+  // Bug 1 — a "Featured" marker on the card was removed per the release
+  // checklist ("No teacher card has a sticker"). Featured teachers still sort
+  // first wherever the caller orders its list; this card just never renders
+  // anything to say so. `isFeatured` stays a prop only because it still feeds
+  // showUpvotes' default above.
 
   const nameHeading = (
     <h3
-      /* 700, not 600 — code.md C1 sets the name at 16px/700 on `row` and
-         15px/700 on `grid`. The card's name is the only thing on it competing
-         with the photo for attention, and semibold lost that fight. */
-      className={`flex items-center gap-1 font-display font-extrabold tracking-[-0.03em] text-foreground ${isSm || isRow ? 'text-card-title' : 'min-w-0 truncate text-[15.5px] sm:text-[19px]'}`}
+      /* 700, not 600 — the card's name is the only thing on it competing with
+         the photo for attention, and semibold lost that fight.
+         Bug 3: dropped one step down the type scale (tailwind.config.ts
+         fontSize) on every density — text-body-secondary (15px) throughout,
+         text-card-title (16px) added back on desktop grid — for a visually
+         smaller card, per the owner's live review. Was text-card-title
+         (16px) on row/rail and arbitrary text-[15.5px]/sm:text-[19px] (not a
+         scale token at all) on grid.
+         Was a single-line `truncate`, which on the actual card widths (a
+         3-up desktop grid, or a mobile row sharing space with the heart/
+         WhatsApp column) clips real names mid-word ("Deepak Kumar Shaw, …")
+         well before the container is genuinely out of room. The name is the
+         one piece of text on the card that must survive intact, so it wraps
+         onto a second line instead and only ellipsizes past that. */
+      /* min-h reserves 2 lines' worth of height even when a name is short
+         enough to fit one — without it, a row of cards where one name wraps
+         to 2 lines (e.g. "Deepak Kumar Shaw") stood taller than its
+         neighbours, so the row read as uneven card heights rather than a
+         matched grid (bug 7). Grid already had this; row/rail did not, so a
+         mobile results list could visibly step in height card to card —
+         added here too rather than only on grid. */
+      className={`flex items-start gap-1 font-display font-extrabold tracking-[-0.03em] text-foreground ${isSm || isRow ? 'min-w-0 min-h-[2.4em] text-body-secondary leading-[1.3]' : 'min-w-0 min-h-[2.6em] text-body-secondary leading-[1.3] sm:text-card-title sm:leading-[1.35]'}`}
       title={displayName}
     >
-      <span className="min-w-0 truncate">{displayName}</span>
+      <span className="min-w-0 line-clamp-2 break-words">{displayName}</span>
       {verified && (
-        <BadgeCheck className="h-4 w-4 shrink-0 fill-brand text-brand-foreground" aria-label="Verified" />
+        /* Handoff S-004: ShieldCheck is the only verification mark outside
+           the product tour (which uses BadgeCheck) — two glyphs for one
+           meaning would be a bug. text-brand-deep, no fill, on this light
+           card surface; the word "Verified" is never rendered, only the
+           aria-label. */
+        <ShieldCheck
+          strokeWidth={2.25}
+          className={`mt-0.5 shrink-0 text-brand-deep ${isRow ? 'h-[15px] w-[15px]' : 'h-4 w-4'}`}
+          aria-label="Verified"
+        />
       )}
     </h3>
   );
 
-  const upvotePill = showUpvotes && upvoteCount > 0 && (
-    <span className="flex flex-none items-center gap-1 rounded-full bg-muted px-2 py-1 text-meta font-bold tabular-nums text-foreground">
-      <ArrowUp className="h-3 w-3 text-brand" strokeWidth={2.5} aria-hidden="true" />
-      {upvoteCount}
-    </span>
-  );
+  // Upvote pill removed from every card per the owner's live review — void,
+  // not conditionally shown, so the corner overlay / body-row callers below
+  // render nothing rather than needing their own removal.
+  const upvotePill = null;
+  void showUpvotes;
+  void upvoteCount;
 
+  // Was `truncate` (single-line, hard-clip). On the actual card widths this
+  // string can run longer than the column, and a single-line ellipsis chops
+  // whichever field happens to sit at the cutoff mid-word (a location like
+  // "Bh…" or a fee like "₹5,…"). line-clamp-2 lets it wrap at a word/space
+  // boundary onto a second line first, and only ellipsizes past that.
   const metaRow = meta && (
-    <p className={`mt-1 truncate text-muted-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>{meta}</p>
+    <p className={`mt-1 line-clamp-2 break-words text-muted-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>{meta}</p>
   );
 
   // Experience / area / fee — design.md §2.1 card facts line ("8 yrs · Ballygunge ·
   // ₹1,800"). Entirely optional per-part; the line itself drops when every part is
-  // absent rather than rendering empty punctuation.
+  // absent rather than rendering empty punctuation. Same line-clamp-2 fix as
+  // metaRow above — the joined string was clipping mid-word inside whichever
+  // part (area, fee) landed on the truncation boundary.
   const factsRow = factsLine && (
-    <p className={`mt-1 truncate font-semibold tabular-nums text-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>
+    <p className={`mt-1 line-clamp-2 break-words font-semibold tabular-nums text-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>
       {factsLine}
     </p>
   );
 
-  const chipsRow = (
-    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      <Chip tone="subject" subject={subject} size={34} asChild className="max-w-full">
-        {subject}
-      </Chip>
-      {rating !== undefined && (
-        <span className="inline-flex items-center gap-1 text-meta font-bold tabular-nums text-foreground">
-          ★ {rating.toFixed(1)}
-        </span>
-      )}
-      {featuredChip}
+  // Bug 4 — the subject chip used to live here, in the body below the photo.
+  // It now overlays the photo's bottom-left corner instead (see
+  // `subjectBadge` below); this row is left with only the rating, and
+  // vanishes entirely when there's no rating rather than reserving empty
+  // space (design.md §0.10 — never a fabricated/empty row).
+  const chipsRow = rating !== undefined ? (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      <span className="inline-flex items-center gap-1 text-meta font-bold tabular-nums text-foreground">
+        ★ {rating.toFixed(1)}
+      </span>
     </div>
-  );
+  ) : null;
+
+  // Bug 4 — subject chip moved onto the photo's bottom-left corner rather
+  // than sitting in the body below it. Bug 5 defence: omitted entirely when
+  // there's no real subject (see hasRealSubject above) rather than showing a
+  // fake-looking generic label as if it were real data.
+  // Colour: getSubjectPalette's `solid`/`badgeText` pair — literally
+  // documented as "badge fill" / "text colour to use on top of solid" — not
+  // `tint`/`text` (the pastel pair Chip's tone="subject" uses by default,
+  // meant for a light card background). A pastel tint chip can wash out
+  // against an arbitrary photo; the saturated solid fill is the one the
+  // design system already reserves for exactly this "badge over anything"
+  // case, so contrast holds regardless of the photo underneath.
+  const subjectBadge = hasRealSubject ? (
+    <Chip
+      tone="subject"
+      subject={subject}
+      /* Handoff S-005: 34 is no longer a legal Chip size; 26 is the "badge
+         inside a card" size the new scale defines for exactly this case. */
+      size={26}
+      asChild
+      className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-12px)] shadow-border"
+      style={{ backgroundColor: palette.solid, color: palette.badgeText }}
+    >
+      {subject}
+    </Chip>
+  ) : null;
 
   // Favourite heart — real 44px hit target, now living beside the name instead
   // of overlapping the photo (design.md §2.5 binding rule).
@@ -308,7 +412,7 @@ function TeacherCardComponent({
     >
       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-colors duration-hover hover:bg-accent">
         <Heart
-          className={`h-4 w-4 transition-colors duration-150 ${
+          className={`h-4 w-4 transition-colors duration-tap ${
             liked ? 'fill-destructive text-destructive' : 'text-muted-foreground'
           }`}
         />
@@ -321,18 +425,26 @@ function TeacherCardComponent({
       <>
         <Link
           to={`/tuition-teachers/${slug}`}
-          /* code.md C1, `row` density: card radius 20, padding 10, photo
-             96x120 at radius 12. This was radius 16 / padding 8 / a 76x76
-             SQUARE photo — so the list showed cropped square thumbnails where
-             the spec calls for a portrait, and the concentric maths
-             (photo radius = card radius − padding) did not hold. A square crop
-             of a portrait photo takes the top of someone's head off. */
-          className="group flex items-start gap-3 rounded-[20px] bg-card p-2.5 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+          /* Was radius 20 / a 96x120 photo. Bug 8: corners read too sharp for
+             the owner's live review — bumped one step up the approved radii
+             scale (tailwind.config.ts borderRadius: 2xl 16 / 3xl 24 / 4xl 32)
+             to 3xl (24px), rather than inventing a new arbitrary value.
+             Bug 3: photo trimmed to 80x104 (was 96x120) for a smaller overall
+             card footprint, same portrait aspect. Inner radius recomputed to
+             stay concentric with the new outer radius (24 - padding 10 = 14),
+             per the binding "photo radius = card radius − card padding" rule. */
+          /* Handoff S-001: `row` is the only variant that always sits inside
+             a bg-card panel, so it separates by fill (bg-muted) instead of
+             a shadow — no shadow-border, no shadow-border-hover on hover. */
+          className="group flex items-start gap-3 rounded-[24px] bg-muted p-2.5 outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
         >
-          <div className="h-[120px] w-24 shrink-0 overflow-hidden rounded-[12px] bg-muted outline outline-1 -outline-offset-1 outline-black/10">{photo}</div>
+          <div className="relative h-[104px] w-20 shrink-0 overflow-hidden rounded-[14px] bg-muted outline outline-1 -outline-offset-1 outline-black/10">
+            {photo}
+            {subjectBadge}
+          </div>
           <div className="min-w-0 flex-1 py-1">
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-              <div className="min-w-[132px] flex-1">{nameHeading}</div>
+              <div className="min-w-[160px] flex-1">{nameHeading}</div>
               {upvotePill}
             </div>
             {metaRow}
@@ -345,7 +457,7 @@ function TeacherCardComponent({
           </div>
         </Link>
         {whatsappLink !== undefined && (
-          <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" teacherName={name} />
+          <ContactGateSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" teacherName={name} />
         )}
       </>
     );
@@ -355,24 +467,36 @@ function TeacherCardComponent({
     <>
       {/* §5: depth from shadow-border alone — never border + shadow stacked.
          §7: one bold title, everything else text-sm text-muted-foreground.
-         §2.5: concentric photo — 8px (mobile) / 10px (desktop) padded frame,
-         26px/28px outer radius, 19px/20px inner radius around the photo. */}
+         Bug 8: outer radius bumped one step up the approved radii scale
+         (tailwind.config.ts borderRadius: 2xl 16 / 3xl 24 / 4xl 32) to 4xl
+         (32px) — was an arbitrary 26/28px pair, not a scale token at all.
+         Flattened to one value across breakpoints since padding is the only
+         thing that still varies (8px mobile / 10px desktop). */}
       <Link
         to={`/tuition-teachers/${slug}`}
-        className="group block overflow-hidden rounded-[26px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:rounded-[28px] sm:p-2.5"
+        className="group block overflow-hidden rounded-[32px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:p-2.5"
       >
         {/* §2.5 compact grid card (mockup "01 Start with the teachers parents pick"):
             shorter photo than the old 4/5 portrait, tighter body, so four cards read
-            as a dense scannable row instead of large portrait tiles. */}
+            as a dense scannable row instead of large portrait tiles.
+            Bug 3: trimmed from aspect-[4/5] to aspect-[5/6] (shorter relative
+            to its width) for a smaller overall card footprint. */}
         <div /* Radius is card radius MINUS card padding, per code.md C1, which is
-           binding: 26-8=18 mobile and 28-10=18 desktop, so one value covers
-           both. components.md C1 tabulates 20 for desktop, which contradicts
-           its own subtraction; the rule wins because code.md marks it binding.
-           The previous desktop pair broke it outright (22-8=14, drawn as 16),
-           which is why the photo corner did not sit concentric inside the
-           card corner. */
-        className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-muted outline outline-1 -outline-offset-1 outline-black/10">
+           binding: 32-8=24 mobile, 32-10=22 desktop — recomputed from the new
+           32px outer radius above (bug 8), so this needs both breakpoints
+           again rather than the one shared value the old 26/28 pair allowed. */
+        className="relative aspect-[5/6] overflow-hidden rounded-[24px] bg-muted outline outline-1 -outline-offset-1 outline-black/10 sm:rounded-[22px]">
           {photo}
+          {subjectBadge}
+          {/* Upvote pill moves onto the photo per the owner's live review —
+              overlaid in a corner rather than sitting in the body row next
+              to the heart. Only the grid variant does this; row/rail keep
+              the pill in the body next to the name. */}
+          {isCompact && upvotePill && (
+            <span className="absolute right-1.5 top-1.5 rounded-full bg-card/90 shadow-border backdrop-blur-sm [&>span]:bg-transparent">
+              {upvotePill}
+            </span>
+          )}
         </div>
 
         {/* Body — everything the photo used to carry now lives here. */}
@@ -380,7 +504,7 @@ function TeacherCardComponent({
           <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
             <div className="min-w-[132px] flex-1">{nameHeading}</div>
             <div className="flex flex-none items-center gap-1">
-              {upvotePill}
+              {!isCompact && upvotePill}
               {heartButton}
             </div>
           </div>
@@ -391,7 +515,7 @@ function TeacherCardComponent({
         </div>
       </Link>
       {whatsappLink !== undefined && (
-        <SignInSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" teacherName={name} />
+        <ContactGateSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" teacherName={name} />
       )}
     </>
   );

@@ -1,18 +1,16 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { useRequireRole } from '@/hooks/use-require-role';
-import { Footer } from '@/components/Footer';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { logger } from '@/utils/logger';
 import { Button } from '@/components/ui/button';
 import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
-import { PageContainer, ControlBlock, BottomNavSpacer } from '@/components/layout/PageContainer';
-import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { PageContainer, ControlBlock, Slab } from '@/components/layout/PageContainer';
 import { Chip } from '@/components/ui/chip';
 import { SUBJECTS } from '@/utils/searchFacets';
 
@@ -31,7 +29,6 @@ export default function RecommendTeacher() {
   );
 
   const navigate = useNavigate();
-  const location = useLocation();
   const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
     teacherName: '',
@@ -140,11 +137,13 @@ export default function RecommendTeacher() {
       <PageContainer className="pt-8 sm:pt-10 pb-16">
         <div className="mx-auto max-w-3xl rounded-2xl bg-card p-6 shadow-border sm:p-8">
           {submitted ? (
-            <div className="py-2 text-center">
-              <p className="text-body font-semibold text-foreground">
+            // pages.md §14: "Success: orange slab + 'Thanks — we'll reach out
+            // to them.'" — was plain centered text with no slab at all.
+            <Slab fill="brand" className="animate-fade-slide-up rounded-2xl p-6 text-center sm:p-8">
+              <p className="text-body font-semibold">
                 Thanks — we will reach out to them this week.
               </p>
-            </div>
+            </Slab>
           ) : (
             <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
               <Field
@@ -178,7 +177,7 @@ export default function RecommendTeacher() {
                   Tapping the selected chip again clears it — the field is
                   optional, and without that there would be no way back to
                   "not sure". */}
-              <div className="mb-4">
+              <div>
                 <span
                   id="recommend-subject-label"
                   className="mb-2 block text-label font-bold uppercase tracking-[0.07em] text-warm-label"
@@ -196,8 +195,9 @@ export default function RecommendTeacher() {
                       <Chip
                         key={subject}
                         tone={selected ? 'facet-on' : 'facet'}
-                        size={40}
+                        size={44}
                         aria-pressed={selected}
+                        aria-label={subject}
                         onClick={() =>
                           setFormData((prev) => ({ ...prev, subject: selected ? '' : subject }))
                         }
@@ -209,22 +209,20 @@ export default function RecommendTeacher() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Area they teach in">
-                  {(controlProps) => (
-                    <FieldInput
-                      {...controlProps}
-                      name="area"
-                      placeholder="e.g. Ballygunge"
-                      value={formData.area}
-                      onChange={handleChange}
-                      maxLength={100}
-                    />
-                  )}
-                </Field>
-              </div>
+              <Field label="Area they teach in">
+                {(controlProps) => (
+                  <FieldInput
+                    {...controlProps}
+                    name="area"
+                    placeholder="e.g. Ballygunge"
+                    value={formData.area}
+                    onChange={handleChange}
+                    maxLength={100}
+                  />
+                )}
+              </Field>
 
-              <Field label="Their contact, if you have it" hint="Phone or WhatsApp — we verify, we never publish it.">
+              <Field label="Their contact, if you have it" hint="Phone or WhatsApp, we verify, we never publish it.">
                 {(controlProps) => (
                   <FieldInput
                     {...controlProps}
@@ -272,12 +270,6 @@ export default function RecommendTeacher() {
         </div>
       </PageContainer>
       </main>
-
-      <PageContainer className="pb-8">
-        <PreFooter variant={preFooterFor(location.pathname)} />
-      </PageContainer>
-      <BottomNavSpacer />
-      <Footer />
     </div>
   );
 }

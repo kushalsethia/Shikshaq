@@ -31,11 +31,13 @@ const chipVariants = cva(
         subject: "",
       },
       size: {
-        /* Read-only badge. Not a tap target — do not attach onClick. */
-        34: "h-[34px] px-3 text-meta",
-        40: "h-10 px-4 text-meta",
+        /* Handoff S-005: three legal sizes and nothing else. 34/40 removed —
+           every former 40px interactive chip is now 44, every purely
+           decorative one is 38. */
+        26: "h-[26px] px-[10px] text-[11.5px] font-bold",
+        38: "h-[38px] px-3.5 text-[13px] font-semibold",
         /* The default: meets the 44px floor. */
-        44: "h-11 px-4 text-body-secondary",
+        44: "h-11 px-[18px] text-body-secondary",
       },
     },
     defaultVariants: { tone: "facet", size: 44 },

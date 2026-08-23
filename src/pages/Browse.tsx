@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { SearchControl } from '@/components/SearchControl';
 import { TeacherCard } from '@/components/TeacherCard';
-import { Footer } from '@/components/Footer';
+import { useChromeConfig } from '@/components/layout/AppShell';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { type FilterState } from '@/components/FilterPanel';
 import { FilterSheet, FilterRail, activeFilterCount } from '@/components/browse/FilterGroups';
@@ -16,8 +16,7 @@ import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { ScrollRail } from '@/components/ui/scroll-rail';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 import { cn } from '@/lib/utils';
-import { ControlBlock, PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
-import { PreFooter } from '@/components/layout/PreFooter';
+import { ControlBlock, PageContainer } from '@/components/layout/PageContainer';
 import { ListLoading, ListEmpty, ListOverFiltered, ListError, ListEnd } from '@/components/ui/list-states';
 import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKeywordExtractor';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
@@ -77,24 +76,6 @@ interface BrowseProps {
    * once Browse's own fetch has run.
    */
   seo?: { title: string; description: string; content?: SubjectContent };
-}
-
-/**
- * Loading placeholder that mirrors TeacherCard's sm-size geometry (18px radius,
- * 4/5 portrait) so the list doesn't jump when results land. Grid matches the
- * live results grid via the shared .shikshaq-teacher-grid class — a fixed
- * 2-column layout below 640px (so mobile genuinely gets 2 columns rather than
- * relying on auto-fill math that can collapse to 1 column on narrow phones),
- * reverting to the original auto-fill minmax(220px,1fr) at sm+ (TeacherCard.md).
- */
-function TeacherCardSkeletons({ count }: { count: number }) {
-  return (
-    <div className="grid grid-cols-2 gap-[10px] sm:grid-cols-3 sm:gap-[18px]">
-      {[...Array(count)].map((_, i) => (
-        <div key={i} className="animate-shimmer aspect-[4/5] rounded-[18px] bg-warm-band" />
-      ))}
-    </div>
-  );
 }
 
 /**
@@ -475,8 +456,6 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   // Whether the base teachers_list fetch hit the pagination safety cap (see MAX_TEACHER_PAGES
   // below) and some teachers are therefore not represented in this result set.
   const [resultsTruncated, setResultsTruncated] = useState(false);
-  // Wraps SearchControl so "Edit search" can focus its input, which re-expands it
-  const searchControlWrapRef = useRef<HTMLDivElement>(null);
   // Snapshot of the Shikshaqmine records + effective filters behind the most recent
   // fetch, so the EmptyResults "relax a filter" options can be computed with real
   // counts (components/EmptyResults.md) without a second Supabase round trip.
@@ -495,6 +474,12 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   // uses for its own review count. Fetched once, independent of the main
   // teacher-list fetch above.
   const [reviewsCount, setReviewsCount] = useState<number | undefined>(undefined);
+
+  // AppShell renders the B2 pre-footer for this route already (preFooterFor
+  // matches BROWSE_PATH); this only hands it the live counts, which AppShell
+  // has no way to know on its own.
+  useChromeConfig({ preFooter: 'B2', preFooterCounts: { teachers: teachers.length, reviews: reviewsCount } });
+
   useEffect(() => {
     let cancelled = false;
     supabase
@@ -1309,12 +1294,6 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     setHasMore(true);
   };
 
-  // Re-focuses the input inside SearchControl, which re-expands it (SearchControl
-  // owns its own expand/collapse state; this just triggers the input's onFocus).
-  const handleEditSearch = () => {
-    searchControlWrapRef.current?.querySelector('input')?.focus();
-  };
-
   // Removes a single value from one of the "More filters" (advanced panel) arrays.
   const removeArrayFilterValue = (
     category: 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas' | 'modeOfTeaching' | 'placeOfTeaching',
@@ -1587,11 +1566,20 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
       {/* Control block (design.md S1 / S4 "Browse (S1)"): near-black,
           rounded-b-4xl, carrying the back row, the real result-count h1, and
-          the search field. */}
-      <ControlBlock mode="dark">
+          the search field.
+
+          contentClassName: concentric corners (interface-details /
+          make-interfaces-feel-better). Bottom padding matched to the same
+          responsive gutter PageContainer already uses on the sides, so the
+          search field's rounded-2xl corner nests into the block's 32px
+          rounded-b-4xl corner (32 - 16 = 16, at the mobile width this was
+          flagged on) instead of sitting in an asymmetric 32px-bottom /
+          16px-side gap that made its corner look arbitrarily smaller than
+          the one wrapping it. See PageContainer.tsx's ControlBlock. */}
+      <ControlBlock mode="dark" contentClassName="pt-8 pb-4 sm:pb-6 lg:pb-8">
         <Link
           to="/"
-          className="shikshaq-tap -mt-1 mb-[14px] inline-flex min-h-11 items-center py-1 text-[13px] font-semibold text-white/70 transition-colors duration-150 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+          className="shikshaq-tap -mt-1 mb-[14px] inline-flex min-h-11 items-center py-1 text-[13px] font-semibold text-white/70 transition-colors duration-tap hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
         >
           {'←'} {isSubjectPage ? 'All subjects' : 'Home'}
         </Link>
@@ -1619,7 +1607,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           </div>
         )}
 
-        <h1 className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.035em] text-background">
+        <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-background">
           {/* Board routes take the labelled heading too. They used to fall
               through to the generic count branch, so /icse-…, /cbse-ncert-…,
               /igcse-…, /international-board-… and /state-board-… all rendered
@@ -1627,7 +1615,9 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               the h1 — the strongest on-page relevance signal, missing the
               target keyword on five commercial routes whose title tag and URL
               are both built from it. */}
-          {pageContext ? `${pageContext.label} tuition teachers in Kolkata` : (
+          {pageContext ? (
+            <>{pageContext.label} tuition teachers <span className="font-black">in Kolkata</span></>
+          ) : (
             /* "147 tuition teachers in Kolkata", not the bare "147 teachers"
                this used to render. Two reasons it has to carry the phrase:
                core-01-browse-teachers.png shows the count and the phrase
@@ -1637,7 +1627,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                the strongest page on the site, was the only browse h1 dropping
                the phrase its own URL and title tag are built from. The count
                stays real; it just stopped being the whole heading. */
-            <>{resultCountLabel} tuition teacher{teachers.length === 1 ? '' : 's'} in Kolkata</>
+            <>{resultCountLabel} tuition teacher{teachers.length === 1 ? '' : 's'} <span className="font-black">in Kolkata</span></>
           )}
         </h1>
         {pageContext ? (
@@ -1655,11 +1645,11 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
         {!loading && resultsTruncated && (
           <p className="mt-2 text-xs font-medium text-white/60">
-            Showing the first {teachers.length} results {'—'} narrow your search to see more.
+            Showing the first {teachers.length} results. Narrow your search to see more.
           </p>
         )}
 
-        <div ref={searchControlWrapRef} className="mt-[12px] min-w-0 max-w-[820px]">
+        <div className="mt-[12px] min-w-0 max-w-[820px]">
           {/* onDark: pages.md §2 puts this field inside the near-black block,
               `bg-white/10` with white text and a white/45 placeholder. It was
               rendering as a bone card on black — the one ground pairing the
@@ -1699,7 +1689,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           <div className="mt-4 flex flex-wrap gap-2">
             <Chip
               tone={!quickPickClassValue ? 'facet-on' : 'facet'}
-              size={40}
+              size={44}
               onClick={() => handleClassChange('all')}
               aria-pressed={!quickPickClassValue}
             >
@@ -1709,7 +1699,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               <Chip
                 key={c}
                 tone={quickPickClassValue === c ? 'facet-on' : 'facet'}
-                size={40}
+                size={44}
                 onClick={() => handleClassChange(c)}
                 aria-pressed={quickPickClassValue === c}
               >
@@ -1724,13 +1714,21 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       {/* Sticky filter bar (design.md S4 "Browse (S1)"): dark Filters pill
           with an orange count badge (mobile -- desktop uses the persistent
           rail below instead), applied chips, count + sort line. */}
-      <div className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur-sm">
+      {/* isolate: without its own stacking context, the backdrop-blur +
+          sticky combination on this bar can paint above the results grid
+          below it during scroll compositing (observed at 1440px, where the
+          bar's rendered box outlives the space reserved for it and covers
+          the first card row) even though z-30 vs the grid's implicit z-0
+          "should" already resolve it. Pairing isolate here with the results
+          container's own z-0 stacking context (below) removes the ambiguity
+          instead of relying on paint order. */}
+      <div className="sticky top-0 z-30 isolate border-b border-border/60 bg-background/95 backdrop-blur-sm">
         <PageContainer className="pb-[10px] pt-[12px]">
           <div className="flex items-center gap-[8px]">
             <button
               type="button"
               onClick={() => setFilterSheetOpen(true)}
-              className="shikshaq-tap flex min-h-11 flex-none items-center gap-[7px] rounded-full bg-panel px-[16px] text-[13.5px] font-bold text-background transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
+              className="shikshaq-tap flex min-h-11 flex-none items-center gap-[7px] rounded-full bg-panel px-[16px] text-[13.5px] font-bold text-background transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
             >
               <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden />
               Filters
@@ -1746,34 +1744,13 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                 mode="teachers"
                 chips={filterChips}
                 onClearAll={clearFilters}
-                onEditSearch={handleEditSearch}
-                handoff={{ label: 'See papers with these filters →', onClick: () => handleSearchModeChange('papers') }}
               />
-            </ScrollRail>
-          </div>
-
-          <div className="mt-[10px] flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[12.5px] text-warm-secondary tabular-nums">
-              {resultCountLabel} teacher{teachers.length === 1 ? '' : 's'}
-            </p>
-            <ScrollRail className="flex items-center gap-[8px] py-1" fadeFrom="from-card">
-              {sortPills.map((s) => (
-                <Chip
-                  key={s.value}
-                  tone={currentSort === s.value ? 'facet-on' : 'facet'}
-                  size={40}
-                  onClick={() => handleSortChange(s.value)}
-                  aria-pressed={currentSort === s.value}
-                >
-                  {s.label}
-                </Chip>
-              ))}
             </ScrollRail>
           </div>
         </PageContainer>
       </div>
 
-      <PageContainer as="main" className="pb-[40px] pt-[14px] lg:flex lg:items-start lg:gap-[32px] lg:pt-[32px]">
+      <PageContainer as="main" className="relative z-0 pb-[40px] pt-[20px] lg:flex lg:items-start lg:gap-[32px] lg:pt-[40px]">
         {/* Desktop persistent 284px filter rail (design.md S5 / C-048) -- the
             sheet's content unwrapped, same FilterGroupsBody as the mobile sheet. */}
         <FilterRail filters={filters} onFilterChange={setFilters} resultCount={teachers.length} />
@@ -1783,7 +1760,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               only. Real is_featured data from the main fetch. */}
           {!loading && featuredTeachers.length > 0 && (
             <div className="mb-6">
-              <h2 className="mb-3 text-lg font-semibold tracking-tight">Featured teachers</h2>
+              <h2 className="mb-3 font-display text-section-head font-bold text-foreground">Featured teachers</h2>
               <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide">
                 {featuredTeachers.map((teacher) => {
                   const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
@@ -1931,8 +1908,6 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         </div>
       </PageContainer>
 
-      {seo?.content && pageContext && <SEOContentBlock content={seo.content} label={pageContext.label} />}
-
       {/* "{Subject} papers too" promo (secondary-01-subject-page.png) --
           orange-tinted, indigo CTA into the papers surface, subject filter
           carried through so the handoff lands pre-filtered. Real counts only
@@ -1978,7 +1953,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               <Link
                 key={area}
                 to={`${location.pathname}?filter_subjects=${encodeURIComponent(pageContext!.label)}&filter_areas=${encodeURIComponent(area)}`}
-                className={cn(chipVariants({ tone: 'facet', size: 40 }), 'tap-44 active:scale-[0.97] hover:-translate-y-0.5')}
+                className={cn(chipVariants({ tone: 'facet', size: 44 }), 'tap-44 active:scale-[0.97] hover:-translate-y-0.5')}
               >
                 {area}
               </Link>
@@ -1987,9 +1962,13 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         </PageContainer>
       )}
 
-      <PreFooter variant="B2" counts={{ teachers: teachers.length, reviews: reviewsCount }} />
-      <Footer />
-      <BottomNavSpacer />
+      {/* pages.md §6 order: facet chips -> result rows -> papers cross-link
+          strip -> area pill grid -> SEO prose block -> B2 strip. The prose
+          block used to render first, ahead of the cross-link strip and the
+          area grid above -- moved here so it sits last, immediately before
+          the B2 strip, matching the spec. */}
+      {seo?.content && pageContext && <SEOContentBlock content={seo.content} label={pageContext.label} />}
+
       </PullToRefresh>
 
       {/* Outside the wrapper on purpose: FilterSheet is a Radix Sheet, which

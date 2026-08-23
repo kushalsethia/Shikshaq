@@ -29,18 +29,40 @@ const iconDiscVariants = cva(
         subject: "",
       },
       size: {
-        /* Section heading tile — design.md §1 calls for 24–26px. */
+        /* Section heading tile — design.md §1 calls for 24–26px.
+           ⚠ Handoff S-008's closed set is 32/36/38/40/44/46 — it drops this
+           26 step. 26 is kept here (additive, not spec) because it is load-
+           bearing at 16+ call sites across pages not yet redesigned
+           (GuardianDashboard, StudentDashboard, TeacherDashboard, Index,
+           paper-sheet-card) and the changelog gives no 1:1 replacement value
+           for a "section heading tile" role — removing it now would mean
+           guessing 16 individual sizes. Revisit per-page as 06/09 land. */
         26: "h-[26px] w-[26px] [&_svg]:size-4",
+        32: "h-8 w-8 [&_svg]:size-4",
         36: "h-9 w-9 [&_svg]:size-4",
+        38: "h-[38px] w-[38px] [&_svg]:size-4",
         40: "h-10 w-10 [&_svg]:size-5",
         44: "h-11 w-11 [&_svg]:size-5",
+        46: "h-[46px] w-[46px] [&_svg]:size-5",
       },
       shape: {
         circle: "rounded-full",
-        /* 11–14px radius square (components.md P3) */
-        square: "rounded-xl",
+        square: "",
       },
     },
+    compoundVariants: [
+      /* Handoff S-008: square radius scales with disc size — 10px at 30
+         (nearest legal size below is 32, so 32 takes the 10px step too),
+         12px (rounded-xl) at 36-38, 13px at 40-46. 26 (kept above, not in
+         the spec's scale) stays on the pre-existing rounded-xl treatment. */
+      { shape: "square", size: 26, className: "rounded-xl" },
+      { shape: "square", size: 32, className: "rounded-[10px]" },
+      { shape: "square", size: 36, className: "rounded-xl" },
+      { shape: "square", size: 38, className: "rounded-xl" },
+      { shape: "square", size: 40, className: "rounded-[13px]" },
+      { shape: "square", size: 44, className: "rounded-[13px]" },
+      { shape: "square", size: 46, className: "rounded-[13px]" },
+    ],
     defaultVariants: { tone: "muted", size: 40, shape: "circle" },
   },
 );

@@ -53,15 +53,15 @@ const buttonVariants = cva(
         link: "rounded-md text-primary underline-offset-4 hover:underline",
       },
       size: {
-        /* redesign ramp. components.md §6 sets the tap target at 44px minimum on
-           mobile and 40px minimum on desktop (pointer), so the "40" step is 44px
-           until lg and 40px above it. An audit at 390px found 23 controls under
-           the mobile floor, nearly all of them this size. */
-        40: "h-11 lg:h-10 px-4 text-meta",
+        /* Handoff S-007: sizes are heights from a closed set — 44, 46, 48,
+           52, 54, 58. The old "40" step is removed; every former 40px
+           button is now 44 (the floor). */
         44: "h-11 px-6 text-body-secondary",
         46: "h-[46px] px-6 text-body-secondary",
+        48: "h-12 px-6 text-body-secondary",
         52: "h-[52px] px-8 text-body",
         54: "h-[54px] px-8 text-body",
+        58: "h-[58px] px-8 text-body",
 
         /* stock shadcn sizes (legacy) */
         default: "h-10 px-4 py-2 text-sm",

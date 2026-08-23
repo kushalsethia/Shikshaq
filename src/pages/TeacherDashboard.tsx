@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
-import { PageContainer, ControlBlock, BottomNavSpacer } from '@/components/layout/PageContainer';
+import { PageContainer, ControlBlock } from '@/components/layout/PageContainer';
 import { Sticker } from '@/components/ui/sticker';
 import { Chip } from '@/components/ui/chip';
 import { IconDisc } from '@/components/ui/icon-disc';
@@ -10,7 +9,6 @@ import { ListEmpty } from '@/components/ui/list-states';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
-import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,8 +33,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   Save, Lock, Upload, X, PencilLine, PauseCircle, PlayCircle, Link2,
-  ThumbsUp, MessageSquareText, Inbox, UserCircle2,
+  ThumbsUp, MessageSquareText, Inbox, UserCircle2, ChevronRight, MessageCircle,
 } from 'lucide-react';
+import { ProgressSteps } from '@/components/join/progress-bar';
+import { ReviewCard, type ReviewCardData } from '@/components/reviews/review-card';
+import { ListLoading, ListError } from '@/components/ui/list-states';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
@@ -152,6 +153,13 @@ export default function TeacherDashboard() {
   const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const [upvoteCount, setUpvoteCount] = useState<number | null>(null);
   const [reviewCount, setReviewCount] = useState<number | null>(null);
+  // Reviews list (pages.md §12: "reviews list → B4") — this teacher's own approved reviews,
+  // rendered with the same ReviewCard used on TeacherProfile.tsx / TeacherComments.tsx.
+  const [reviews, setReviews] = useState<ReviewCardData[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  // Bumped by the reviews list's Retry button to re-run the fetch effect below.
+  const [reviewsRetryKey, setReviewsRetryKey] = useState(0);
   // Set when the Shikshaqmine lookup/write by profile.email fails to find a matching row — lets
   // the "not found" screen tell the teacher which email to reference when contacting support,
   // instead of the old dead-end "Teacher profile not found" toast with no recovery path.
@@ -293,7 +301,10 @@ export default function TeacherDashboard() {
   useEffect(() => {
     async function fetchCounts() {
       const slug = teacherData?.Slug;
-      if (!slug) return;
+      if (!slug) {
+        setReviewsLoading(false);
+        return;
+      }
 
       try {
         const { data: listRow } = await supabase
@@ -302,7 +313,10 @@ export default function TeacherDashboard() {
           .eq('slug', slug)
           .maybeSingle();
 
-        if (!listRow) return;
+        if (!listRow) {
+          setReviewsLoading(false);
+          return;
+        }
 
         const [{ count: upvotes }, { count: reviews }] = await Promise.all([
           supabase.from('teacher_upvotes').select('id', { count: 'exact', head: true }).eq('teacher_id', listRow.id),
@@ -311,15 +325,88 @@ export default function TeacherDashboard() {
 
         setUpvoteCount(upvotes ?? 0);
         setReviewCount(reviews ?? 0);
+
+        await fetchReviewsList(listRow.id);
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error('Error fetching upvote/review counts:', error);
         }
+        setReviewsLoading(false);
+      }
+    }
+
+    // Reviews list — this teacher's own approved reviews, read through the same
+    // teacher_comments_public + public_profiles pairing TeacherComments.tsx uses (RLS on
+    // teacher_comments hides user_id from anon reads, and public_profiles avoids exposing PII).
+    async function fetchReviewsList(teacherListId: string) {
+      setReviewsLoading(true);
+      setReviewsError(null);
+      try {
+        const { data: commentsData, error: commentsError } = await supabase
+          .from('teacher_comments_public')
+          .select('id, comment, rating, created_at, user_id, is_anonymous, approved')
+          .eq('teacher_id', teacherListId)
+          .eq('approved', true)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (commentsError) throw commentsError;
+
+        const rows = commentsData || [];
+        const userIds = [...new Set(rows.map((c) => c.user_id).filter(Boolean))] as string[];
+
+        const profilesMap = new Map<string, { full_name: string | null; role: string | null; school_college: string | null; grade: string | null }>();
+        if (userIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from('public_profiles')
+            .select('id, full_name, role, school_college, grade')
+            .in('id', userIds);
+          (profilesData || []).forEach((p) => profilesMap.set(p.id, p));
+        }
+
+        const cards: ReviewCardData[] = rows.map((c) => {
+          const profile = c.user_id ? profilesMap.get(c.user_id) : undefined;
+          const name = c.is_anonymous ? 'Anonymous' : profile?.full_name || 'Anonymous';
+          const infoParts: string[] = [];
+          if (!c.is_anonymous) {
+            if (profile?.role === 'guardian') infoParts.push('Guardian');
+            else if (profile?.role === 'student') {
+              if (profile.school_college) infoParts.push(profile.school_college);
+              if (profile.grade) infoParts.push(`Grade ${profile.grade}`);
+            }
+          }
+          const initial = c.is_anonymous
+            ? 'A'
+            : profile?.full_name
+              ? profile.full_name.trim().charAt(0).toUpperCase() || 'U'
+              : 'U';
+
+          return {
+            id: c.id,
+            quote: c.comment,
+            subject: teacherData?.["Featured Subject"] || null,
+            className: null,
+            gain: null,
+            initial,
+            who: [name, infoParts.join(' · ')].filter(Boolean).join(' · '),
+            when: new Date(c.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+            rating: c.rating,
+          };
+        });
+
+        setReviews(cards);
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error('Error fetching reviews list:', error);
+        }
+        setReviewsError('Failed to load reviews');
+      } finally {
+        setReviewsLoading(false);
       }
     }
 
     fetchCounts();
-  }, [teacherData?.Slug]);
+  }, [teacherData?.Slug, reviewsRetryKey]);
 
   // "Pause your listing" — flips the self-service is_paused flag (see the TeacherData interface
   // note above), reverting on failure. Browse/search now filter on is_paused too (see Browse.tsx),
@@ -901,8 +988,6 @@ export default function TeacherDashboard() {
             ))}
           </div>
         </PageContainer>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
       </div>
     );
   }
@@ -924,18 +1009,16 @@ export default function TeacherDashboard() {
             </p>
             <p className="mt-4 text-sm font-semibold text-foreground">
               Contact support at{' '}
-              <a href="mailto:ngo.aquaterra@gmail.com" className="text-brand-blue underline underline-offset-2">
+              <a href="mailto:ngo.aquaterra@gmail.com" className="text-brand underline underline-offset-2">
                 ngo.aquaterra@gmail.com
               </a>{' '}
               and include this email:
             </p>
-            <p className="mt-1 text-sm font-semibold text-brand-blue">{lookupFailedEmail}</p>
+            <p className="mt-1 text-sm font-semibold text-brand">{lookupFailedEmail}</p>
             <Button variant="primary" size={46} className="mt-6" onClick={() => navigate('/')}>
               Go Home
             </Button>
           </PageContainer>
-          <PreFooter variant={preFooterFor(location.pathname)} />
-          <Footer />
         </div>
       );
     }
@@ -955,8 +1038,6 @@ export default function TeacherDashboard() {
             {user ? 'Go Home' : 'Sign In'}
           </Button>
         </PageContainer>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
       </div>
     );
   }
@@ -1011,8 +1092,8 @@ export default function TeacherDashboard() {
   // token fill per tile. Kept neutral/mint — no brand orange/blue — so the accent budget stays
   // spent on the "Save Changes" CTA and the live/paused status pill.
   const teacherStats = [
-    { label: 'Upvotes', value: upvoteCount ?? '—', meta: 'All time', fill: 'bg-mint' },
-    { label: 'Reviews', value: reviewCount ?? '—', meta: 'All time', fill: 'bg-card shadow-border' },
+    { label: 'Upvotes', value: upvoteCount ?? '-', meta: 'All time', fill: 'bg-mint' },
+    { label: 'Reviews', value: reviewCount ?? '-', meta: 'All time', fill: 'bg-card shadow-border' },
   ];
 
   // Profile-completeness bar — derived from already-loaded teacherData, no new fetching.
@@ -1021,7 +1102,7 @@ export default function TeacherDashboard() {
   // design.md §4 (S10): "a profile-completeness bar with a next-step line" — a plain bar, not a
   // ring; GoalRing is reserved for the weekly paper-reading goal only.
   const completenessChecks: { ok: boolean; label: string; action: string }[] = [
-    { ok: Boolean(teacherData["Hero Image"]), label: 'photo', action: 'Add a profile photo' },
+    { ok: Boolean(teacherData["Hero Image"]), label: 'photo', action: 'Add a photo' },
     { ok: Boolean(teacherData["Description"]), label: 'introduction', action: 'Write your profile introduction' },
     { ok: Boolean(teacherData["Phone Number"]), label: 'phone', action: 'Add your phone number' },
     { ok: Boolean(teacherData["LOCATION V2"]), label: 'place of teaching', action: 'Set where you teach' },
@@ -1030,11 +1111,13 @@ export default function TeacherDashboard() {
     { ok: Boolean(teacherData["Classes Taught for Backend"]), label: 'classes', action: 'Pick the classes you teach' },
     { ok: Boolean(teacherData["Mode of Teaching"]), label: 'mode', action: 'Set your mode of teaching' },
     { ok: Boolean(teacherData["Class Size (Group/ Solo)"]), label: 'structure', action: 'Set your class structure' },
+    { ok: Boolean(teacherData["Min Fees"]), label: 'fee', action: 'Add your fee' },
+    { ok: Boolean(teacherData["Qualifications etc"]), label: 'qualification', action: 'Add one qualification' },
   ];
   const completenessFilled = completenessChecks.filter((c) => c.ok).length;
   const completenessTotal = completenessChecks.length;
-  const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
-  const nextCompletenessStep = completenessChecks.find((c) => !c.ok)?.action ?? null;
+  // ALL currently-incomplete fields, not just the next one (pages.md §12).
+  const incompleteChecks = completenessChecks.filter((c) => !c.ok);
 
   // "Nobody has messaged you this month" (copy.md §9 Quiet listing nudge) is the honest state
   // for the Enquiries section — there is no whatsapp_clicks/enquiries table wired up yet (see the
@@ -1042,8 +1125,6 @@ export default function TeacherDashboard() {
   // verbatim nudge rather than a fabricated count.
   const quietListingNudge =
     'Nobody has messaged you this month. Adding a second subject usually helps.';
-  const profileHealthNudge =
-    'Your profile has no photo. Listings with a photo get about twice as many messages.';
 
   return (
     <div className="min-h-screen bg-background">
@@ -1053,7 +1134,10 @@ export default function TeacherDashboard() {
           for the weekly paper goal only). */}
       <ControlBlock mode="teacher" className="relative overflow-visible">
         {!isPaused && (
-          <Sticker tone="brand" tilt={-3} size={30} className="!bg-panel !text-background">
+          // tone="dark" (bg-panel/text-background) reads correctly against the orange
+          // control block; was tone="brand" fully overridden by `!` classes, which just
+          // relied on !important to fight the wrong variant instead of picking the right one.
+          <Sticker tone="dark" tilt={-3} size={30}>
             Live profile
           </Sticker>
         )}
@@ -1065,32 +1149,48 @@ export default function TeacherDashboard() {
             </h1>
             <p className="mt-2 text-body-secondary opacity-90">{summaryLine}</p>
           </div>
-          <Chip
-            asChild
-            tone={isPaused ? undefined : 'dark'}
-            size={40}
-            className={isPaused ? 'bg-panel text-background' : undefined}
-          >
+          {/* tone="solid" (bg-panel/text-background) is the exact token for this state —
+              was tone={undefined} (defaults to "facet": bg-muted + hover:bg-accent) with
+              a className override that only replaced the background/text colour, not the
+              "facet" tone's hover:bg-accent. Since hover: is a different tailwind-merge
+              group than the bare bg- override, that leftover hover class survived and
+              would flash the badge to a mismatched light fill on pointer-over. */}
+          <Chip asChild tone={isPaused ? 'solid' : 'dark'} size={38}>
             {isPaused ? 'Paused' : 'Profile live'}
           </Chip>
         </div>
 
+        {/* Profile health — pages.md §12: "a percentage ring is banned; use a segmented bar and
+            specific nudges ... each a 44px row with an arrow". ProgressSteps (join/progress-bar.tsx)
+            is the app's existing segmented-bar component, reused here instead of a new one. Every
+            currently-incomplete field gets its own row (not just the next one). */}
         <div className="mt-6 rounded-2xl bg-card/95 p-4 text-foreground sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-semibold">Profile health</span>
-            <span className="text-sm font-semibold tabular-nums text-warm-meta">{completenessPct}%</span>
           </div>
-          <div aria-hidden className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-brand transition-[width] duration-300 ease-settle"
-              style={{ width: `${completenessPct}%` }}
-            />
-          </div>
-          <p className="mt-2 text-body-secondary text-warm-prose">
-            {nextCompletenessStep ?? 'Your profile has everything filled in.'}
-          </p>
-          {!teacherData['Hero Image'] && (
-            <p className="mt-2 text-meta text-warm-meta">{profileHealthNudge}</p>
+          <ProgressSteps
+            steps={completenessTotal}
+            current={Math.max(completenessFilled - 1, 0)}
+            label={completenessFilled >= completenessTotal ? 'Profile complete' : `${completenessFilled} of ${completenessTotal} done`}
+            hideStepPrefix
+            className="mt-2"
+          />
+          {incompleteChecks.length > 0 ? (
+            <div className="mt-3 grid gap-1.5">
+              {incompleteChecks.map((check) => (
+                <button
+                  key={check.label}
+                  type="button"
+                  onClick={scrollToProfileForm}
+                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-background/60 px-3.5 py-2.5 text-left transition-colors duration-150 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <span className="text-sm font-semibold">{check.action}</span>
+                  <ChevronRight className="h-4 w-4 flex-none text-warm-meta" aria-hidden />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-body-secondary text-warm-prose">Your profile has everything filled in.</p>
           )}
         </div>
       </ControlBlock>
@@ -1105,7 +1205,12 @@ export default function TeacherDashboard() {
           {teacherStats.map((st) => (
             <div key={st.label} className={`rounded-2xl p-4 shadow-border sm:p-6 ${st.fill}`}>
               <div className="flex items-center gap-2">
-                <IconDisc tone="on-dark" size={26} className="bg-black/10 text-foreground">
+                {/* tone="muted" (bg-muted/text-foreground) is the base for a light tile; only
+                    the fill needs the flat black/10 dot treatment so it reads the same on
+                    both the mint and the bone tile. Was tone="on-dark" (bg-white/10/
+                    text-background, meant for dark slabs) fully overridden by className —
+                    same "pick a tone only to replace it" pattern as the Sticker above. */}
+                <IconDisc tone="muted" size={26} className="bg-black/10">
                   {st.label === 'Upvotes' ? (
                     <ThumbsUp className="h-4 w-4" aria-hidden />
                   ) : (
@@ -1134,6 +1239,33 @@ export default function TeacherDashboard() {
             Enquiries
           </h2>
           <ListEmpty line={quietListingNudge} />
+        </div>
+
+        {/* Reviews list — pages.md §12: "reviews list → B4", the individual reviews left by
+            this teacher's students, not just the Reviews count tile above. Reuses ReviewCard
+            (src/components/reviews/review-card.tsx), the same component TeacherProfile.tsx /
+            TeacherComments.tsx render on the public profile, so a review looks identical in
+            both places. */}
+        <div className="mt-8">
+          <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
+            <IconDisc tone="brand-subtle" size={26} shape="square">
+              <MessageCircle className="h-4 w-4" aria-hidden />
+            </IconDisc>
+            Reviews
+          </h2>
+          {reviewsLoading ? (
+            <ListLoading count={3} media={0} lines={3} className="grid-flow-col auto-cols-[16rem] overflow-x-hidden" />
+          ) : reviewsError ? (
+            <ListError onRetry={() => setReviewsRetryKey((k) => k + 1)} />
+          ) : reviews.length === 0 ? (
+            <ListEmpty line="No reviews yet. They'll show up here once students start leaving them." />
+          ) : (
+            <div className="stagger-children flex gap-3 overflow-x-auto pb-4 md:flex-wrap md:overflow-visible">
+              {reviews.map((review, i) => (
+                <ReviewCard key={review.id} review={review} index={i} fan={false} />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Your profile — manage-list idiom: edit / pause / request-review as one row of cards. */}
@@ -1282,7 +1414,7 @@ export default function TeacherDashboard() {
                   Enter 10 digit phone number. WhatsApp link will be auto-generated.
                 </p>
                 {teacherData["Link"] && (
-                  <p className="text-xs text-brand-blue">
+                  <p className="text-xs text-brand">
                     WhatsApp link: {teacherData["Link"]}
                   </p>
                 )}
@@ -1493,7 +1625,7 @@ export default function TeacherDashboard() {
                         onClick={() => handleMultiSelectChange("Mode of Teaching", mode, !selected)}
                         className={`min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ${
                           selected
-                            ? 'bg-brand-blue text-brand-blue-foreground'
+                            ? 'bg-brand text-brand-foreground'
                             : 'bg-muted text-foreground hover:bg-accent'
                         }`}
                       >
@@ -1522,7 +1654,7 @@ export default function TeacherDashboard() {
                         onClick={() => handleMultiSelectChange("Class Size (Group/ Solo)", size, !selected)}
                         className={`min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ${
                           selected
-                            ? 'bg-brand-blue text-brand-blue-foreground'
+                            ? 'bg-brand text-brand-foreground'
                             : 'bg-muted text-foreground hover:bg-accent'
                         }`}
                       >
@@ -1702,8 +1834,6 @@ export default function TeacherDashboard() {
               </div>
             </div>
         </div>
-
-        <BottomNavSpacer />
       </PageContainer>
 
       <AlertDialog open={pauseDialogOpen} onOpenChange={setPauseDialogOpen}>
@@ -1731,9 +1861,6 @@ export default function TeacherDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <PreFooter variant={preFooterFor(location.pathname)} />
-      <Footer />
     </div>
   );
 }
