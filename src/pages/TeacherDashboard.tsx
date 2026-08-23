@@ -1149,13 +1149,14 @@ export default function TeacherDashboard() {
             </h1>
             <p className="mt-2 text-body-secondary opacity-90">{summaryLine}</p>
           </div>
-          {/* tone="solid" (bg-panel/text-background) is the exact token for this state —
-              was tone={undefined} (defaults to "facet": bg-muted + hover:bg-accent) with
-              a className override that only replaced the background/text colour, not the
+          {/* tone="dark" (bg-panel/text-background, handoff S-006's rename of the
+              old "solid") is the exact token for this state — was tone={undefined}
+              (defaults to "facet": bg-muted + hover:bg-accent) with a className
+              override that only replaced the background/text colour, not the
               "facet" tone's hover:bg-accent. Since hover: is a different tailwind-merge
               group than the bare bg- override, that leftover hover class survived and
               would flash the badge to a mismatched light fill on pointer-over. */}
-          <Chip asChild tone={isPaused ? 'solid' : 'dark'} size={38}>
+          <Chip asChild tone={isPaused ? 'dark' : 'on-dark'} size={38}>
             {isPaused ? 'Paused' : 'Profile live'}
           </Chip>
         </div>
@@ -1210,7 +1211,7 @@ export default function TeacherDashboard() {
                     both the mint and the bone tile. Was tone="on-dark" (bg-white/10/
                     text-background, meant for dark slabs) fully overridden by className —
                     same "pick a tone only to replace it" pattern as the Sticker above. */}
-                <IconDisc tone="muted" size={26} className="bg-black/10">
+                <IconDisc tone="muted" size={32} className="bg-black/10">
                   {st.label === 'Upvotes' ? (
                     <ThumbsUp className="h-4 w-4" aria-hidden />
                   ) : (
@@ -1233,7 +1234,7 @@ export default function TeacherDashboard() {
             fabricated number. */}
         <div className="mt-8">
           <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
-            <IconDisc tone="brand-subtle" size={26} shape="square">
+            <IconDisc tone="brand-subtle" size={32} shape="square">
               <Inbox className="h-4 w-4" aria-hidden />
             </IconDisc>
             Enquiries
@@ -1248,7 +1249,7 @@ export default function TeacherDashboard() {
             both places. */}
         <div className="mt-8">
           <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
-            <IconDisc tone="brand-subtle" size={26} shape="square">
+            <IconDisc tone="brand-subtle" size={32} shape="square">
               <MessageCircle className="h-4 w-4" aria-hidden />
             </IconDisc>
             Reviews
@@ -1271,7 +1272,7 @@ export default function TeacherDashboard() {
         {/* Your profile — manage-list idiom: edit / pause / request-review as one row of cards. */}
         <div className="mt-8">
           <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
-            <IconDisc tone="brand-subtle" size={26} shape="square">
+            <IconDisc tone="brand-subtle" size={32} shape="square">
               <UserCircle2 className="h-4 w-4" aria-hidden />
             </IconDisc>
             Your profile
@@ -1336,7 +1337,7 @@ export default function TeacherDashboard() {
             always surfaced and nowhere else on the page shows them. */}
         <div className="mt-8">
           <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
-            <IconDisc tone="muted" size={26} shape="square">
+            <IconDisc tone="muted" size={32} shape="square">
               <Lock className="h-4 w-4" aria-hidden />
             </IconDisc>
             Account Information
@@ -1372,7 +1373,7 @@ export default function TeacherDashboard() {
             <div className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <h2 className="flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
-                  <IconDisc tone="brand-subtle" size={26} shape="square">
+                  <IconDisc tone="brand-subtle" size={32} shape="square">
                     <MessageSquareText className="h-4 w-4" aria-hidden />
                   </IconDisc>
                   Profile Information

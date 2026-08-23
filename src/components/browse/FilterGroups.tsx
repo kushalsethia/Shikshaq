@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  BookOpen, GraduationCap, MapPin, IndianRupee, Wifi, Landmark, Users, Clock,
+  BookOpen, GraduationCap, MapPin, IndianRupee, Wifi, Landmark, Users, Clock, X,
   type LucideIcon,
 } from 'lucide-react';
 import { Chip } from '@/components/ui/chip';
@@ -12,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { Sheet, SheetContent, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { SUBJECT_DISPLAY_ORDER } from '@/utils/subjectOrder';
 import type { FilterState } from '@/components/FilterPanel';
@@ -103,21 +104,46 @@ type ArrayFilterKey = 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas';
 
 /* core-02-filters.png heads each group with a small square icon tile and a
    sentence-case heading ("Subjects taught"), not the all-caps micro-label this
-   rendered. The comment on FilterGroupsBody below already described these as
-   "icon-labelled groups" — the icons had just never been built. They also make
-   a long sheet scannable, which an eight-group filter panel needs more than
-   most screens. */
-function groupCard(label: string, Icon: LucideIcon, children: React.ReactNode) {
+   rendered. The icons make a long sheet scannable, which an eight-group filter
+   panel needs more than most screens.
+
+   Owner mobile QA (F7): with every group's options rendered flat and always
+   visible, Subjects + Classes alone filled the sheet before a user reached
+   Areas — "make each category ... an expandable dropdown". Each group is now
+   an `AccordionItem` — collapsed by default, expanding on tap to reveal its
+   options — using the project's existing shadcn Accordion primitive (already
+   wired to the `accordion-down`/`accordion-up` keyframes in
+   tailwind.config.ts) rather than hand-rolled collapse logic. A group opens
+   by default only if it already has an active selection, so a returning user
+   sees what's applied without an extra tap. */
+function groupItem(
+  value: string,
+  label: string,
+  Icon: LucideIcon,
+  selectedCount: number,
+  children: React.ReactNode,
+) {
   return (
-    <div key={label} className="rounded-[20px] bg-card p-[18px] shadow-border">
-      <h3 className="mb-[14px] flex items-center gap-[10px] font-display text-[16px] font-extrabold text-foreground">
-        <span className="flex h-8 w-8 flex-none items-center justify-center rounded-xl bg-muted text-warm-prose">
-          <Icon className="size-4" aria-hidden="true" />
-        </span>
-        {label}
-      </h3>
-      {children}
-    </div>
+    <AccordionItem
+      key={value}
+      value={value}
+      className="overflow-hidden rounded-[20px] border-b-0 bg-card shadow-border"
+    >
+      <AccordionTrigger className="px-[18px] py-[14px] hover:no-underline">
+        <div className="flex min-w-0 flex-1 items-center gap-[10px]">
+          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-xl bg-muted text-warm-prose">
+            <Icon className="size-4" aria-hidden="true" />
+          </span>
+          <span className="truncate font-display text-[16px] font-extrabold text-foreground">{label}</span>
+          {selectedCount > 0 && (
+            <span className="ml-auto flex h-5 min-w-5 flex-none items-center justify-center rounded-full bg-brand-subtle px-1.5 text-label font-bold tabular-nums text-brand-deep">
+              {selectedCount}
+            </span>
+          )}
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="px-[18px] pb-[18px] pt-0">{children}</AccordionContent>
+    </AccordionItem>
   );
 }
 
@@ -135,8 +161,13 @@ export function FilterGroupsBody({
    * solid black instead — trusted literally per the binding-rules owner
    * override even though it diverges from the mobile treatment.
    */
-  selectedTone?: 'facet-on' | 'solid';
+  selectedTone?: 'facet-on' | 'dark';
 }) {
+  const [subjectQuery, setSubjectQuery] = useState('');
+  const filteredSubjects = subjectQuery.trim()
+    ? SUBJECTS.filter((s) => s.toLowerCase().includes(subjectQuery.trim().toLowerCase()))
+    : SUBJECTS;
+
   const [areaQuery, setAreaQuery] = useState('');
   const filteredAreaGroups = areaQuery.trim()
     ? AREA_GROUPS.map((g) => ({
@@ -153,36 +184,89 @@ export function FilterGroupsBody({
     });
   };
 
+  /* Owner mobile QA (F7) "reduce the size of the chips": visual size only —
+     the invisible `.tap-44` overlay Chip already applies to every interactive
+     chip (ui/chip.tsx) keeps the real tap target at the 44px floor regardless
+     of how small the label reads, so shrinking height/padding/type here never
+     drops below the accessible minimum. */
   const pill = (label: string, active: boolean, onClick: () => void, key?: string) => (
-    <Chip key={key ?? label} tone={active ? selectedTone : 'facet'} size={44} onClick={onClick} aria-pressed={active}>
+    <Chip
+      key={key ?? label}
+      tone={active ? selectedTone : 'facet'}
+      size={44}
+      onClick={onClick}
+      aria-pressed={active}
+      className="h-9 px-3 text-meta"
+    >
       {label}
     </Chip>
   );
 
   const feeMin = filters.minFees ?? 0;
   const feeMax = filters.maxFees ?? 20000;
+  const modeSelectedCount = MODE_OPTIONS.filter((opt) => opt.isActive(filters)).length;
+  const feeSelectedCount = filters.minFees != null || filters.maxFees != null ? 1 : 0;
+  const experienceSelectedCount = filters.minExperience != null ? 1 : 0;
+
+  // A group starts expanded only if it already carries an active selection —
+  // otherwise every group opens collapsed (the fix for F7's "everything shown
+  // at once, overwhelming" complaint).
+  const defaultOpenGroups = [
+    filters.subjects.length > 0 && 'subjects',
+    filters.classes.length > 0 && 'classes',
+    filters.areas.length > 0 && 'areas',
+    feeSelectedCount > 0 && 'fee',
+    modeSelectedCount > 0 && 'mode',
+    filters.boards.length > 0 && 'boards',
+    filters.classSize.length > 0 && 'classSize',
+    experienceSelectedCount > 0 && 'experience',
+  ].filter((v): v is string => typeof v === 'string');
 
   return (
-    <div className="flex flex-col gap-[14px]">
-      {groupCard(
+    <>
+    <Accordion type="multiple" defaultValue={defaultOpenGroups} className="flex flex-col gap-[10px]">
+      {groupItem(
+        'subjects',
         'Subjects taught',
         BookOpen,
-        <div className="flex flex-wrap gap-[8px]">
-          {SUBJECTS.map((s) => pill(s, filters.subjects.includes(s), () => toggle('subjects', s)))}
+        filters.subjects.length,
+        <div className="flex flex-col gap-3">
+          {/* Owner mobile QA (F7) "everything ... goes for search ... it's
+              becoming too long" — Subjects (33 options) is the other flat
+              list long enough to need in-list search alongside Areas. */}
+          <Input
+            type="search"
+            value={subjectQuery}
+            onChange={(e) => setSubjectQuery(e.target.value)}
+            placeholder="Search subjects…"
+            aria-label="Search subjects"
+            className="h-10 text-sm"
+          />
+          {filteredSubjects.length === 0 ? (
+            <p className="text-body-secondary text-warm-meta">No subjects match &ldquo;{subjectQuery}&rdquo;.</p>
+          ) : (
+            <div className="flex flex-wrap gap-[8px]">
+              {filteredSubjects.map((s) => pill(s, filters.subjects.includes(s), () => toggle('subjects', s)))}
+            </div>
+          )}
         </div>,
       )}
 
-      {groupCard(
+      {groupItem(
+        'classes',
         'Classes taught',
         GraduationCap,
+        filters.classes.length,
         <div className="flex flex-wrap gap-[8px]">
           {CLASSES.map((c) => pill(c === 'UG' ? 'UG' : `Class ${c}`, filters.classes.includes(c), () => toggle('classes', c), c))}
         </div>,
       )}
 
-      {groupCard(
+      {groupItem(
+        'areas',
         'Areas',
         MapPin,
+        filters.areas.length,
         <div className="flex flex-col gap-4">
           <Input
             type="search"
@@ -190,7 +274,7 @@ export function FilterGroupsBody({
             onChange={(e) => setAreaQuery(e.target.value)}
             placeholder="Search areas…"
             aria-label="Search areas"
-            className="h-11"
+            className="h-10 text-sm"
           />
           {filteredAreaGroups.length === 0 ? (
             <p className="text-body-secondary text-warm-meta">No areas match &ldquo;{areaQuery}&rdquo;.</p>
@@ -207,9 +291,11 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {groupCard(
-        'Rate per hour',
+      {groupItem(
+        'fee',
+        'Monthly fee',
         IndianRupee,
+        feeSelectedCount,
         <div className="flex flex-col gap-3">
           {/* Two-handle range: simple overlaid <input type=range> pair — no
               slider primitive exists in the codebase yet, and the values map
@@ -257,9 +343,11 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {groupCard(
+      {groupItem(
+        'mode',
         'Mode of teaching',
         Wifi,
+        modeSelectedCount,
         <div className="flex flex-wrap gap-[8px]">
           {MODE_OPTIONS.map((opt) =>
             pill(opt.label, opt.isActive(filters), () => onFilterChange(opt.toggle(filters)), opt.label),
@@ -270,17 +358,21 @@ export function FilterGroupsBody({
       {/* Kept for functionality — not one of design.md's five groups, but the
           only way to set board/class-size/experience filters, and Board feeds
           the `filter_boards` URL contract the SEO routes depend on. */}
-      {groupCard(
+      {groupItem(
+        'boards',
         'Boards',
         Landmark,
+        filters.boards.length,
         <div className="flex flex-wrap gap-[8px]">
           {BOARDS.map((b) => pill(b, filters.boards.includes(b), () => toggle('boards', b), b))}
         </div>,
       )}
 
-      {groupCard(
+      {groupItem(
+        'classSize',
         'Class size',
         Users,
+        filters.classSize.length,
         <div className="flex flex-wrap gap-[8px]">
           {CLASS_SIZE.map((s) =>
             pill(s === 'Solo' ? 'One-on-one' : s, filters.classSize.includes(s), () => toggle('classSize', s), s),
@@ -288,9 +380,11 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {groupCard(
+      {groupItem(
+        'experience',
         'Experience',
         Clock,
+        experienceSelectedCount,
         <Select
           value={filters.minExperience || 'all'}
           onValueChange={(value) => onFilterChange({ ...filters, minExperience: value === 'all' ? null : value })}
@@ -308,6 +402,7 @@ export function FilterGroupsBody({
           </SelectContent>
         </Select>,
       )}
+      </Accordion>
 
       <style>{`
         .range-thumb::-webkit-slider-thumb {
@@ -318,7 +413,7 @@ export function FilterGroupsBody({
           border-radius: 9999px;
           background: hsl(var(--brand));
           border: 3px solid hsl(var(--background));
-          box-shadow: 0 1px 4px rgba(0,0,0,.3);
+          box-shadow: 0 1px 4px hsl(var(--foreground) / 0.3);
           cursor: pointer;
         }
         .range-thumb::-moz-range-thumb {
@@ -328,13 +423,13 @@ export function FilterGroupsBody({
           border-radius: 9999px;
           background: hsl(var(--brand));
           border: 3px solid hsl(var(--background));
-          box-shadow: 0 1px 4px rgba(0,0,0,.3);
+          box-shadow: 0 1px 4px hsl(var(--foreground) / 0.3);
           cursor: pointer;
         }
         .range-thumb::-webkit-slider-runnable-track { background: transparent; }
         .range-thumb::-moz-range-track { background: transparent; }
       `}</style>
-    </div>
+    </>
   );
 }
 
@@ -366,11 +461,16 @@ const EMPTY_FILTERS: FilterState = {
   minExperience: null,
 };
 
-/** Mobile presentation — bottom Sheet. design.md §2.3: grab handle → sticky
- * header (Filters + Clear all) → scrollable body (flex:1, min-height:0,
- * overflow-y:auto) → sticky footer (N filters active + Show N teachers). No
- * Apply button — chips apply instantly (components.md §7); the footer's
- * count is feedback, and its button just closes the sheet. */
+/** Mobile presentation — genuinely full-screen popup (owner mobile QA F7:
+ * "Filter should be a full screen pop up" — the previous 85vh bottom sheet
+ * left a visible strip of the page above it). `h-[100dvh]` rather than
+ * `100vh`: the dynamic viewport unit accounts for a mobile browser's
+ * address-bar chrome so the sheet is never clipped short of the real
+ * viewport. Stack: sticky header (Filters title + close X, Clear all) →
+ * scrollable body (flex:1, min-height:0, overflow-y:auto) → sticky footer (N
+ * filters active + Show N teachers). No Apply button — chips apply instantly
+ * (components.md §7); the footer's button just closes the sheet, same as the
+ * header's X. */
 export function FilterSheet({
   open,
   onOpenChange,
@@ -384,34 +484,41 @@ export function FilterSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="flex h-[85vh] flex-col rounded-t-[28px] p-0 [&>button:last-child]:hidden"
+        className="flex h-[100dvh] max-h-[100dvh] flex-col rounded-none p-0 [&>button:last-child]:hidden"
       >
-        {/* Grab handle */}
-        <div className="flex justify-center pt-[12px]" aria-hidden>
-          <div className="h-[4px] w-[40px] rounded-full bg-warm-hairline-strong" />
-        </div>
-
-        {/* Sticky header */}
-        <div className="flex items-center justify-between gap-3 px-[16px] pb-[8px] pt-[12px]">
+        {/* Sticky header. The default Radix close X that SheetContent renders
+            (top-right, 40px, 70% opacity) is hidden via
+            `[&>button:last-child]:hidden` above in favour of this one: owner
+            mobile QA (F7) "There should be a visible X also" — at full-screen
+            size a small corner glyph wasn't prominent enough, so this is a
+            44px circular disc sitting in the header next to the title,
+            unmistakable regardless of what else is on the page. */}
+        <div className="flex items-center justify-between gap-3 px-[16px] pb-[8px] pt-[16px]">
           {/* SheetTitle, not a bare h2: Radix needs a DialogTitle inside
               DialogContent to label the dialog for assistive tech, and warns
               otherwise. It renders an h2 anyway, so nothing changes visually. */}
           <SheetTitle className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">Filters</SheetTitle>
-          {/* "a Clear all chip appears once two or more are active"
-              (micro-03-buttons-fields.png). It was rendered unconditionally, so
-              a sheet with nothing selected offered to clear nothing — the same
-              empty-affordance problem as the "0 filters active" line beneath it.
-              Two, not one: clearing a single filter is a tap on the chip
-              itself. */}
-          {count >= 2 && (
-            <button
-              type="button"
-              onClick={() => onFilterChange(EMPTY_FILTERS)}
-              className="min-h-11 rounded-lg px-2 text-[13.5px] font-semibold text-brand-blue transition-colors duration-150 hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              Clear all
-            </button>
-          )}
+          <div className="flex flex-none items-center gap-[6px]">
+            {/* "a Clear all chip appears once two or more are active"
+                (micro-03-buttons-fields.png). It was rendered unconditionally, so
+                a sheet with nothing selected offered to clear nothing — the same
+                empty-affordance problem as the "0 filters active" line beneath it.
+                Two, not one: clearing a single filter is a tap on the chip
+                itself. */}
+            {count >= 2 && (
+              <button
+                type="button"
+                onClick={() => onFilterChange(EMPTY_FILTERS)}
+                className="min-h-11 rounded-lg px-2 text-[13.5px] font-semibold text-brand-blue transition-colors duration-tap hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                Clear all
+              </button>
+            )}
+            <SheetClose className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-muted text-foreground transition-colors duration-tap hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              <X className="h-5 w-5" aria-hidden="true" />
+              <span className="sr-only">Close filters</span>
+            </SheetClose>
+          </div>
         </div>
 
         {/* Scrollable body — must stay flex:1/min-height:0 or long option sets
@@ -458,7 +565,7 @@ export function FilterRail({ filters, onFilterChange, resultCount }: FilterGroup
             h1 -> h3 skip on desktop. This supplies the level without adding a
             heading the mockup does not show. */}
         <h2 className="sr-only">Filters</h2>
-        <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} selectedTone="solid" />
+        <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} selectedTone="dark" />
       </div>
     </nav>
   );

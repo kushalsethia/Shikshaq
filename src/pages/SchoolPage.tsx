@@ -275,7 +275,7 @@ export default function SchoolPage() {
                 <div className="-mx-4 mb-2.5 px-4 sm:mx-0 sm:px-0">
                   <ScrollRail className="flex items-center gap-2" fadeFrom="from-background">
                     <Chip
-                      tone={selectedYear == null ? 'dark-on-papers' : 'facet'}
+                      tone={selectedYear == null ? 'facet-on-papers' : 'facet'}
                       size={44}
                       onClick={() => setSelectedYear(null)}
                       aria-pressed={selectedYear == null}
@@ -285,7 +285,7 @@ export default function SchoolPage() {
                     {years.map((year) => (
                       <Chip
                         key={year}
-                        tone={selectedYear === year ? 'dark-on-papers' : 'facet'}
+                        tone={selectedYear === year ? 'facet-on-papers' : 'facet'}
                         size={44}
                         onClick={() => setSelectedYear((prev) => (prev === year ? null : year))}
                         aria-pressed={selectedYear === year}

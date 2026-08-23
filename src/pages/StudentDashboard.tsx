@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ControlBlock, PageContainer, BottomNavSpacer } from '@/components/layout/PageContainer';
-import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { ControlBlock, PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { getTeachersByIds } from '@/lib/teachers';
-import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -432,9 +430,6 @@ export default function StudentDashboard() {
         <PageContainer as="main" className="flex flex-col gap-7 py-5">
           <ListLoading count={3} media={0} lines={2} />
         </PageContainer>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
-        <BottomNavSpacer />
       </div>
     );
   }
@@ -455,9 +450,6 @@ export default function StudentDashboard() {
             {user ? 'Go Home' : 'Sign In'}
           </Button>
         </main>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
-        <BottomNavSpacer />
       </div>
     );
   }
@@ -610,7 +602,7 @@ export default function StudentDashboard() {
         <section>
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 font-display text-section-head font-extrabold tracking-tight text-foreground">
-              <IconDisc tone="brand-subtle" size={26} shape="square">
+              <IconDisc tone="brand-subtle" size={32} shape="square">
                 <Heart className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
               </IconDisc>
               Teachers you saved
@@ -657,7 +649,7 @@ export default function StudentDashboard() {
             what actually happens: papers you've opened. */}
         <section>
           <h2 className="mb-3 flex items-center gap-2 font-display text-section-head font-extrabold tracking-tight text-foreground">
-            <IconDisc tone="papers-subtle" size={26} shape="square">
+            <IconDisc tone="papers-subtle" size={32} shape="square">
               <BookOpen className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
             </IconDisc>
             Recently opened papers
@@ -701,7 +693,7 @@ export default function StudentDashboard() {
         {/* Account settings list */}
         <section>
           <h2 className="mb-3 flex items-center gap-2 font-display text-section-head font-extrabold tracking-tight text-foreground">
-            <IconDisc tone="muted" size={26} shape="square">
+            <IconDisc tone="muted" size={32} shape="square">
               <Settings className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
             </IconDisc>
             Account
@@ -972,10 +964,6 @@ export default function StudentDashboard() {
           </section>
         )}
       </PageContainer>
-
-      <PreFooter variant="B4" />
-      <Footer />
-      <BottomNavSpacer />
     </div>
   );
 }

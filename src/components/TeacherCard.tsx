@@ -146,7 +146,8 @@ function TeacherCardComponent({
   const showFavourite = !hideFavourite && resolvedVariant !== 'grid-compact';
   const showUpvotes = (showUpvotesProp ?? !isFeatured) && !isSm;
   const palette = getSubjectPalette(subject);
-  const placeholderInitialSize = resolvedVariant === 'grid' || resolvedVariant === 'grid-compact' ? 64 : resolvedVariant === 'rail' ? 46 : 32;
+  // Handoff S-009: 56px on grid/rail, 32px on row.
+  const placeholderInitialSize = isRow ? 32 : 56;
 
   // Bug 5 defence-in-depth: the real fix is at the data layer (each caller should
   // resolve a teacher's actual subject before handing it to this card — see
@@ -356,43 +357,44 @@ function TeacherCardComponent({
     </p>
   );
 
-  // Bug 4 — the subject chip used to live here, in the body below the photo.
-  // It now overlays the photo's bottom-left corner instead (see
-  // `subjectBadge` below); this row is left with only the rating, and
-  // vanishes entirely when there's no rating rather than reserving empty
-  // space (design.md §0.10 — never a fabricated/empty row).
-  const chipsRow = rating !== undefined ? (
-    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-      <span className="inline-flex items-center gap-1 text-meta font-bold tabular-nums text-foreground">
-        ★ {rating.toFixed(1)}
-      </span>
-    </div>
-  ) : null;
-
-  // Bug 4 — subject chip moved onto the photo's bottom-left corner rather
-  // than sitting in the body below it. Bug 5 defence: omitted entirely when
-  // there's no real subject (see hasRealSubject above) rather than showing a
-  // fake-looking generic label as if it were real data.
-  // Colour: getSubjectPalette's `solid`/`badgeText` pair — literally
-  // documented as "badge fill" / "text colour to use on top of solid" — not
-  // `tint`/`text` (the pastel pair Chip's tone="subject" uses by default,
-  // meant for a light card background). A pastel tint chip can wash out
-  // against an arbitrary photo; the saturated solid fill is the one the
-  // design system already reserves for exactly this "badge over anything"
-  // case, so contrast holds regardless of the photo underneath.
-  const subjectBadge = hasRealSubject ? (
+  // Handoff S-003: the badge splits by variant. grid/rail keep it on the
+  // photo's bottom-left corner, but neutral now (bg-card/shadow-border, no
+  // subject colour) rather than the old subject-solid overlay — omitted
+  // entirely when there's no real subject (see hasRealSubject above) rather
+  // than showing a fake-looking generic label as if it were real data.
+  const subjectBadgeOnPhoto = hasRealSubject ? (
     <Chip
-      tone="subject"
-      subject={subject}
-      /* Handoff S-005: 34 is no longer a legal Chip size; 26 is the "badge
-         inside a card" size the new scale defines for exactly this case. */
       size={26}
       asChild
-      className="absolute bottom-1.5 left-1.5 max-w-[calc(100%-12px)] shadow-border"
-      style={{ backgroundColor: palette.solid, color: palette.badgeText }}
+      className="absolute bottom-1.5 left-1.5 h-[24px] max-w-[calc(100%-12px)] truncate bg-card text-foreground shadow-border"
     >
       {subject}
     </Chip>
+  ) : null;
+
+  // row sits in the text block instead, in the subject's own tint/text
+  // (tone="subject"'s default pastel pair — there is no arbitrary photo
+  // behind it here, so the wash-out risk the on-photo badge avoids doesn't
+  // apply).
+  const subjectBadgeInline = hasRealSubject ? (
+    <Chip tone="subject" subject={subject} size={26} asChild>
+      {subject}
+    </Chip>
+  ) : null;
+
+  // Row's chip row now carries the inline subject badge (S-003) alongside
+  // the rating, since row no longer overlays a badge on the photo. Vanishes
+  // entirely when there's neither, rather than reserving empty space
+  // (design.md §0.10 — never a fabricated/empty row).
+  const chipsRow = (isRow && hasRealSubject) || rating !== undefined ? (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      {isRow && subjectBadgeInline}
+      {rating !== undefined && (
+        <span className="inline-flex items-center gap-1 text-meta font-bold tabular-nums text-foreground">
+          ★ {rating.toFixed(1)}
+        </span>
+      )}
+    </div>
   ) : null;
 
   // Favourite heart — real 44px hit target, now living beside the name instead
@@ -440,7 +442,6 @@ function TeacherCardComponent({
         >
           <div className="relative h-[104px] w-20 shrink-0 overflow-hidden rounded-[14px] bg-muted outline outline-1 -outline-offset-1 outline-black/10">
             {photo}
-            {subjectBadge}
           </div>
           <div className="min-w-0 flex-1 py-1">
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
@@ -481,13 +482,12 @@ function TeacherCardComponent({
             as a dense scannable row instead of large portrait tiles.
             Bug 3: trimmed from aspect-[4/5] to aspect-[5/6] (shorter relative
             to its width) for a smaller overall card footprint. */}
-        <div /* Radius is card radius MINUS card padding, per code.md C1, which is
-           binding: 32-8=24 mobile, 32-10=22 desktop — recomputed from the new
-           32px outer radius above (bug 8), so this needs both breakpoints
-           again rather than the one shared value the old 26/28 pair allowed. */
-        className="relative aspect-[5/6] overflow-hidden rounded-[24px] bg-muted outline outline-1 -outline-offset-1 outline-black/10 sm:rounded-[22px]">
+        {/* Handoff S-002: one flat radius at every width, not the prior
+           concentric mobile/desktop pair. */}
+        <div
+        className="relative aspect-[5/6] overflow-hidden rounded-[24px] bg-muted outline outline-1 -outline-offset-1 outline-black/10">
           {photo}
-          {subjectBadge}
+          {subjectBadgeOnPhoto}
           {/* Upvote pill moves onto the photo per the owner's live review —
               overlaid in a corner rather than sitting in the body row next
               to the heart. Only the grid variant does this; row/rail keep

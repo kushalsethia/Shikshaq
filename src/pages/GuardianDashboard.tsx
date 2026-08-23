@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
-import { PageContainer, ControlBlock, BottomNavSpacer } from '@/components/layout/PageContainer';
+import { PageContainer, ControlBlock } from '@/components/layout/PageContainer';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { getTeachersByIds } from '@/lib/teachers';
-import { Footer } from '@/components/Footer';
 import { TeacherCard } from '@/components/TeacherCard';
 import { ListLoading, ListEmpty } from '@/components/ui/list-states';
 import { IconDisc } from '@/components/ui/icon-disc';
@@ -97,7 +95,7 @@ function SectionHeading({
   return (
     <div className="mb-3 flex items-center justify-between gap-3">
       <h2 className="flex items-center gap-2 font-display text-xl font-extrabold tracking-tight text-foreground">
-        <IconDisc tone="muted" size={26} shape="square">
+        <IconDisc tone="muted" size={32} shape="square">
           {icon}
         </IconDisc>
         {children}
@@ -415,9 +413,6 @@ export default function GuardianDashboard() {
             ))}
           </div>
         </PageContainer>
-        <BottomNavSpacer />
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
       </div>
     );
   }
@@ -438,8 +433,6 @@ export default function GuardianDashboard() {
             {user ? 'Go Home' : 'Sign In'}
           </Button>
         </main>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
       </div>
     );
   }
@@ -857,10 +850,6 @@ export default function GuardianDashboard() {
           </div>
         </section>
       </PageContainer>
-
-      <BottomNavSpacer />
-      <PreFooter variant={preFooterFor(location.pathname)} />
-      <Footer />
     </div>
   );
 }

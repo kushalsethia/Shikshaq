@@ -45,7 +45,16 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
       <div
         ref={ref}
         className={cn(
-          "group relative flex shrink-0 flex-col overflow-hidden pl-3 pr-3 pt-3 transition-transform duration-150 ease-out active:scale-[0.97] hover:-translate-y-0.5",
+          /* The hover/active transform used to live on this same element —
+             the one carrying both `overflow-hidden` and the asymmetric
+             border-radius below. A transform and an overflow/radius clip on
+             one element is a known WebKit corner-rendering bug (Safari,
+             iOS Safari): on press/hover the rounded clip mask can misalign
+             for a frame, showing a sliver of the spine's square corner past
+             the curve — the "weird clipping on the corners" from the owner's
+             mobile QA pass. The transform now lives on the Link/wrapper
+             instead, so this element only ever clips a static box. */
+          "group relative flex shrink-0 flex-col overflow-hidden pl-4 pr-3.5 pt-3.5",
           SIZE_CLASSES[size],
           className,
         )}
@@ -68,8 +77,8 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
         {locked ? (
           <IconDisc
             tone="dark"
-            size={26}
-            className="absolute right-2 top-2 z-10 bg-panel/85"
+            size={32}
+            className="absolute right-2.5 top-2.5 z-10 bg-panel/85"
             label="Sign in to read"
           >
             <Lock size={13} strokeWidth={2.25} aria-hidden="true" />
@@ -83,14 +92,18 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
           {paper.board}
         </span>
 
+        {/* mt-1.5, not mt-1: against the spine's 9-10px width plus the
+            increased pl-4 (16px) left inset above, the subject headline used
+            to sit almost flush against the eyebrow line — this is the same
+            "text getting crammed" the owner flagged, just vertically. */}
         <span
-          className="mt-1 line-clamp-3 break-words font-display text-card-title font-bold leading-tight"
+          className="mt-1.5 line-clamp-3 break-words font-display text-card-title font-bold leading-tight"
           style={{ color: palette.text }}
         >
           {paper.subject}
         </span>
 
-        <span className="mt-auto block truncate pb-3 text-meta font-medium" style={{ color: palette.meta }}>
+        <span className="mt-auto block truncate pb-3.5 pr-1 text-meta font-medium" style={{ color: palette.meta }}>
           {paper.title} · {paper.year}
         </span>
       </div>
@@ -100,14 +113,18 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
       return (
         <Link
           to={href}
-          className="inline-flex rounded-[6px_16px_16px_6px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          aria-label={`${paper.subject} — ${paper.title}${locked ? " (sign in to read)" : ""}`}
+          className="inline-flex rounded-[6px_16px_16px_6px] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          aria-label={`${paper.subject}: ${paper.title}${locked ? " (sign in to read)" : ""}`}
         >
           {content}
         </Link>
       );
     }
-    return content;
+    return (
+      <div className="inline-flex rounded-[6px_16px_16px_6px] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97]">
+        {content}
+      </div>
+    );
   },
 );
 PaperCover.displayName = "PaperCover";
@@ -128,7 +145,7 @@ const ShelfLedge = React.forwardRef<HTMLDivElement, ShelfLedgeProps>(
         aria-hidden
         className={cn(
           "h-2 rounded-full",
-          tone === "bone" ? "bg-warm-band" : "bg-white/[.14]",
+          tone === "bone" ? "bg-warm-band" : "bg-[var(--on-brand-hairline)]",
         )}
       />
     </div>

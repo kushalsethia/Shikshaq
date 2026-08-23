@@ -16,19 +16,19 @@ const chipVariants = cva(
   {
     variants: {
       tone: {
-        /* Facet / filter on a light ground — design.md §2.4 row 1 */
+        /* Handoff S-006 — the legal tones, nothing invented per page.
+           `dark` = the old `solid` (bg-panel is the same fill; renamed to
+           match the spec's table). `on-dark`/`on-brand`/`on-papers` are the
+           "a chip sitting on a saturated panel" family — `on-dark` replaces
+           the old `dark` (bg-white/10), which meant exactly that. */
         facet: "bg-muted text-foreground hover:bg-accent",
         "facet-on": "bg-brand-subtle text-brand-deep",
-        /* Papers mode uses the indigo pair rather than orange */
         "facet-on-papers": "bg-brand-blue-subtle text-brand-blue-deep",
-        /* On a near-black or saturated block — design.md §2.4 row 2 */
-        dark: "bg-white/10 text-background hover:bg-white/20",
-        "dark-on": "bg-brand text-brand-foreground",
-        "dark-on-papers": "bg-brand-blue text-brand-blue-foreground",
-        /* Solid selected state from components.md P2 ("on": bg-panel / white) */
-        solid: "bg-panel text-background",
-        /* Subject-tinted — fill comes from getSubjectPalette via `subject` */
+        dark: "bg-panel text-background",
         subject: "",
+        "on-brand": "bg-card text-foreground",
+        "on-papers": "bg-white/15 text-white",
+        "on-dark": "bg-white/10 text-warm-muted hover:bg-white/20",
       },
       size: {
         /* Handoff S-005: three legal sizes and nothing else. 34/40 removed —

@@ -197,7 +197,7 @@ export default function Contact() {
                     <Chip
                       key={r.id}
                       type="button"
-                      tone={on ? 'solid' : 'facet'}
+                      tone={on ? 'dark' : 'facet'}
                       size={44}
                       icon={<r.icon className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />}
                       aria-pressed={on}

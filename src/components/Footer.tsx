@@ -523,13 +523,13 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 papers · contact, as quick-access pills above the full column
                 groups, which stay intact for internal-linking / SEO. */}
             <div className="flex flex-wrap gap-2">
-              <Chip asChild tone="dark" size={38} className="cursor-default">
+              <Chip asChild tone="on-dark" size={38} className="cursor-default">
                 <Link to="/all-tuition-teachers-in-kolkata" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">find a teacher</Link>
               </Chip>
-              <Chip asChild tone="dark" size={38} className="cursor-default">
+              <Chip asChild tone="on-dark" size={38} className="cursor-default">
                 <Link to="/past-papers" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">past papers</Link>
               </Chip>
-              <Chip asChild tone="dark" size={38} className="cursor-default">
+              <Chip asChild tone="on-dark" size={38} className="cursor-default">
                 <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">contact</a>
               </Chip>
             </div>

@@ -82,7 +82,7 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
             Class {paper.class}
           </span>
           {locked ? (
-            <IconDisc tone="dark" size={26} className="ml-auto" label="Sign in to read">
+            <IconDisc tone="dark" size={32} className="ml-auto" label="Sign in to read">
               <Lock size={13} strokeWidth={2.25} aria-hidden="true" />
             </IconDisc>
           ) : null}

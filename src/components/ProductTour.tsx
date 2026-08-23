@@ -249,7 +249,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
       illustration: (
         <div className="flex items-center gap-2">
           {[0, 1, 2].map((i) => (
-            <Chip key={i} asChild tone="dark" size={38} icon={<FileText aria-hidden className="size-4" />}>
+            <Chip key={i} asChild tone="on-dark" size={38} icon={<FileText aria-hidden className="size-4" />}>
               {i === 0 ? "Class 10" : i === 1 ? "ICSE" : "Maths"}
             </Chip>
           ))}
