@@ -1,11 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { PageContainer, ControlBlock } from '@/components/layout/PageContainer';
-import { Sticker } from '@/components/ui/sticker';
-import { Chip } from '@/components/ui/chip';
+import { useNavigate } from 'react-router-dom';
+import { BentoStack, BentoPanel, PageContainer } from '@/components/layout/PageContainer';
 import { IconDisc } from '@/components/ui/icon-disc';
-import { Eyebrow } from '@/components/ui/eyebrow';
-import { ListEmpty } from '@/components/ui/list-states';
+import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -33,10 +30,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   Save, Lock, Upload, X, PencilLine, PauseCircle, PlayCircle, Link2,
-  ThumbsUp, MessageSquareText, Inbox, UserCircle2, ChevronRight, MessageCircle,
+  Info, Check, UserCircle2,
 } from 'lucide-react';
-import { ProgressSteps } from '@/components/join/progress-bar';
-import { ReviewCard, type ReviewCardData } from '@/components/reviews/review-card';
+import { type ReviewCardData } from '@/components/reviews/review-card';
 import { ListLoading, ListError } from '@/components/ui/list-states';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
@@ -45,6 +41,9 @@ import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 import DOMPurify from 'dompurify';
 import { invalidateTeacherCache, removeCache } from '@/utils/cache';
 import imageCompression from 'browser-image-compression';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
+import { useChromeConfig } from '@/components/layout/AppShell';
 
 const AREAS = [
   // Group 1
@@ -63,12 +62,6 @@ const AREAS = [
   // Group 7
   'Hooghly'
 ].sort();
-
-const LOCATION_V2_OPTIONS = [
-  "TEACHER'S HOME TUTORING",
-  "STUDENT'S HOME TUTORING ONLY",
-  "BOTH OPTIONS LISTED"
-];
 
 const SCHOOL_BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State', 'N/A'];
 
@@ -132,17 +125,19 @@ type ShikshaqmineUpdateWithPause = ShikshaqmineUpdate & { is_paused: boolean };
 
 // Profile form field/label/panel styling, on the token system so the long editable form below
 // matches the rest of the page instead of falling back to shadcn's bare default input styling.
+// Handoff TD-004: field height/radius and label treatment now follow JA-004's field pattern
+// (h52 rounded-2xl bg-muted, 11.5px/700/.07em uppercase label) — panel-on-panel shadow dropped
+// since these now sit inside a bg-card BentoPanel rather than directly on the page ground.
 const FIELD_CLASSNAME =
-  'h-auto min-h-12 rounded-lg border-0 bg-background text-base shadow-border focus-visible:ring-0 focus-visible:ring-offset-0';
+  'h-[52px] rounded-2xl border-0 bg-muted px-4 text-base focus-visible:ring-0 focus-visible:ring-offset-0';
 const LOCKED_FIELD_CLASSNAME = `${FIELD_CLASSNAME} cursor-not-allowed opacity-70`;
-const LABEL_CLASSNAME = 'mb-1.5 block text-sm font-semibold text-foreground';
+const LABEL_CLASSNAME = 'mb-1.5 block text-[11.5px] font-bold uppercase tracking-[.07em] text-warm-label';
 const HELP_TEXT_CLASSNAME = 'text-xs text-muted-foreground';
-const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-background shadow-border';
+const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-muted';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [teacherData, setTeacherData] = useState<TeacherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -153,8 +148,7 @@ export default function TeacherDashboard() {
   const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const [upvoteCount, setUpvoteCount] = useState<number | null>(null);
   const [reviewCount, setReviewCount] = useState<number | null>(null);
-  // Reviews list (pages.md §12: "reviews list → B4") — this teacher's own approved reviews,
-  // rendered with the same ReviewCard used on TeacherProfile.tsx / TeacherComments.tsx.
+  // Reviews list (pages.md §12: "reviews list → B4") — this teacher's own approved reviews.
   const [reviews, setReviews] = useState<ReviewCardData[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewsError, setReviewsError] = useState<string | null>(null);
@@ -165,6 +159,13 @@ export default function TeacherDashboard() {
   // instead of the old dead-end "Teacher profile not found" toast with no recovery path.
   const [lookupFailedEmail, setLookupFailedEmail] = useState<string | null>(null);
   const profileFormRef = useRef<HTMLDivElement>(null);
+
+  // Handoff TD: this route renders its own eyes panel, replacing AppShell's
+  // default pre-footer (same pattern as Account.tsx's AC-007).
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
 
   // Redirect if not authenticated or not a teacher
   useEffect(() => {
@@ -274,8 +275,8 @@ export default function TeacherDashboard() {
           Subjects: data["Subjects"] || null,
           "Mode of Teaching": data["Mode of Teaching"] || null,
           "Class Size (Group/ Solo)": data["Class Size (Group/ Solo)"] || null,
-          "Min Fees": (data as any)["Min Fees"] || null,
-          "Max Fees": (data as any)["Max Fees"] || null,
+          "Min Fees": data["Min Fees"] || null,
+          "Max Fees": data["Max Fees"] || null,
           Slug: data["Slug"] || null,
           is_paused: Boolean((data as ShikshaqmineRowWithPause)["is_paused"]),
         };
@@ -887,7 +888,7 @@ export default function TeacherDashboard() {
 
       // Prepare update data
       // Use profile email (locked field) instead of teacherData email
-      const updateData: any = {
+      const updateData: Partial<ShikshaqmineUpdateWithPause> = {
         "Email ID": profile.email, // Use locked email from profile
         Description: teacherData["Description"] || null,
         "LOCATION V2": teacherData["LOCATION V2"] || null,
@@ -971,23 +972,32 @@ export default function TeacherDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <ControlBlock mode="teacher">
-          <div className="h-8 w-56 animate-pulse rounded-full bg-white/15" />
-          <div className="mt-4 h-24 animate-pulse rounded-2xl bg-white/15" />
-        </ControlBlock>
-        <PageContainer as="main" className="pt-6 pb-16">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6" aria-busy="true" aria-live="polite">
-            <span className="sr-only">Loading your dashboard…</span>
+        <BentoStack>
+          <BentoPanel fill="dark" edge="top" className="pt-[14px] pb-[22px]">
+            <div className="flex animate-pulse items-center gap-[14px]">
+              <div className="h-16 w-16 flex-none rounded-full bg-white/10" />
+              <div className="flex-1 space-y-2">
+                <div className="h-5 w-40 rounded-full bg-white/10" />
+                <div className="h-3 w-28 rounded-full bg-white/10" />
+              </div>
+            </div>
+          </BentoPanel>
+          <div className="flex gap-seam">
             {[...Array(2)].map((_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-2xl bg-muted" />
+              <BentoPanel key={i} fill="card" className="flex-1 animate-pulse p-4">
+                <div className="h-6 w-10 rounded-full bg-muted" />
+                <div className="mt-2 h-3 w-16 rounded-full bg-muted" />
+              </BentoPanel>
             ))}
           </div>
-          <div className="mt-6 grid gap-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-16 animate-pulse rounded-2xl bg-muted" />
-            ))}
-          </div>
-        </PageContainer>
+          <BentoPanel fill="card">
+            <div className="animate-pulse space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-16 rounded-2xl bg-muted" />
+              ))}
+            </div>
+          </BentoPanel>
+        </BentoStack>
       </div>
     );
   }
@@ -1059,337 +1069,229 @@ export default function TeacherDashboard() {
     return h ? `${name}, ${h}` : name;
   })();
 
-  // Derived, read-only summary values from the already-fetched teacherData (no new fetching/logic)
-  const subjectsList = (teacherData.Subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
-  const boardsList = (teacherData["School Boards Catered"] || '').split(',').map((s) => s.trim()).filter(Boolean);
-
-  // "subjects · boards · classes · area", per spec.
-  const summaryParts = [
-    subjectsList.length ? subjectsList.slice(0, 3).join(', ') + (subjectsList.length > 3 ? ` +${subjectsList.length - 3} more` : '') : null,
-    boardsList.length ? boardsList.join(', ') : null,
-    teacherData["Classes Taught"] || null,
-    teacherData.Area || null,
-  ].filter(Boolean);
-  const summaryLine = summaryParts.length
-    ? summaryParts.join(' · ')
-    : 'Fill in your subjects, boards, classes and area to complete your profile';
-
-  // Two stat cards, both real, live counts from teacher_upvotes/teacher_comments.
-  //
-  // "Profile views" and "Enquiries" tiles were removed rather than shipped as permanent
-  // placeholders. Neither has a real data source today: WhatsApp-click tracking
-  // (src/pages/WhatsAppRedirect.tsx) only reaches GA4/Clarity, never Supabase, and profile
-  // views aren't tracked anywhere. A real "Enquiries" count would need, at minimum:
-  //   1. A Supabase table (e.g. `whatsapp_clicks(teacher_id, created_at)`, insert-only, with an
-  //      RLS policy that allows anonymous inserts scoped to a valid teacher id) written to from
-  //      WhatsAppRedirect.tsx at the point it already calls trackWhatsAppClick/trackWhatsAppClickGA.
-  //   2. A read path here (count query keyed by teachers_list.id, same join this file already
-  //      does for upvotes/reviews above) once that table exists.
-  //   3. Regenerating src/integrations/supabase/types.ts after the migration lands.
-  // That's a schema change outside this file's ownership, so the tiles are removed instead of
-  // left showing '—' forever.
-  // Squircle stat-tile treatment (learning-education-squircles reference): a different flat
-  // token fill per tile. Kept neutral/mint — no brand orange/blue — so the accent budget stays
-  // spent on the "Save Changes" CTA and the live/paused status pill.
-  const teacherStats = [
-    { label: 'Upvotes', value: upvoteCount ?? '-', meta: 'All time', fill: 'bg-mint' },
-    { label: 'Reviews', value: reviewCount ?? '-', meta: 'All time', fill: 'bg-card shadow-border' },
+  // Handoff TD-002: two real counters, both live queries — never a third,
+  // never a derived/fabricated one (see the TD-003 note below on Enquiries).
+  const teacherStats: { label: string; value: number | string }[] = [
+    { label: 'Upvotes', value: upvoteCount ?? '-' },
+    { label: 'Reviews', value: reviewCount ?? '-' },
   ];
 
-  // Profile-completeness bar — derived from already-loaded teacherData, no new fetching.
-  // Mirrors the required-field checklist isFormValid() already uses, plus the two optional
-  // fields (description, hero image) that most affect how complete a listing feels.
-  // design.md §4 (S10): "a profile-completeness bar with a next-step line" — a plain bar, not a
-  // ring; GoalRing is reserved for the weekly paper-reading goal only.
-  const completenessChecks: { ok: boolean; label: string; action: string }[] = [
-    { ok: Boolean(teacherData["Hero Image"]), label: 'photo', action: 'Add a photo' },
-    { ok: Boolean(teacherData["Description"]), label: 'introduction', action: 'Write your profile introduction' },
-    { ok: Boolean(teacherData["Phone Number"]), label: 'phone', action: 'Add your phone number' },
-    { ok: Boolean(teacherData["LOCATION V2"]), label: 'place of teaching', action: 'Set where you teach' },
-    { ok: Boolean(teacherData.Subjects), label: 'subjects', action: 'Pick the subjects you teach' },
-    { ok: Boolean(teacherData["School Boards Catered"]), label: 'boards', action: 'Pick the boards you cover' },
-    { ok: Boolean(teacherData["Classes Taught for Backend"]), label: 'classes', action: 'Pick the classes you teach' },
-    { ok: Boolean(teacherData["Mode of Teaching"]), label: 'mode', action: 'Set your mode of teaching' },
-    { ok: Boolean(teacherData["Class Size (Group/ Solo)"]), label: 'structure', action: 'Set your class structure' },
-    { ok: Boolean(teacherData["Min Fees"]), label: 'fee', action: 'Add your fee' },
-    { ok: Boolean(teacherData["Qualifications etc"]), label: 'qualification', action: 'Add one qualification' },
+  // Handoff TD-004: profile-completeness bar with a missing-fields sentence —
+  // same treatment as GD-002. Derived from already-loaded teacherData, no new
+  // fetching. Mirrors the required-field checklist isFormValid() already uses,
+  // plus the two optional fields (description, hero image) that most affect
+  // how complete a listing feels.
+  const completenessChecks: { ok: boolean; label: string }[] = [
+    { ok: Boolean(teacherData["Hero Image"]), label: 'photo' },
+    { ok: Boolean(teacherData["Description"]), label: 'introduction' },
+    { ok: Boolean(teacherData["Phone Number"]), label: 'phone' },
+    { ok: Boolean(teacherData["LOCATION V2"]), label: 'place of teaching' },
+    { ok: Boolean(teacherData.Subjects), label: 'subjects' },
+    { ok: Boolean(teacherData["School Boards Catered"]), label: 'boards' },
+    { ok: Boolean(teacherData["Classes Taught for Backend"]), label: 'classes' },
+    { ok: Boolean(teacherData["Mode of Teaching"]), label: 'mode of teaching' },
+    { ok: Boolean(teacherData["Class Size (Group/ Solo)"]), label: 'class structure' },
+    { ok: Boolean(teacherData["Min Fees"]), label: 'fee' },
+    { ok: Boolean(teacherData["Qualifications etc"]), label: 'qualifications' },
   ];
   const completenessFilled = completenessChecks.filter((c) => c.ok).length;
   const completenessTotal = completenessChecks.length;
-  // ALL currently-incomplete fields, not just the next one (pages.md §12).
-  const incompleteChecks = completenessChecks.filter((c) => !c.ok);
+  const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
+  const missingLabels = completenessChecks.filter((c) => !c.ok).map((c) => c.label);
 
-  // "Nobody has messaged you this month" (copy.md §9 Quiet listing nudge) is the honest state
-  // for the Enquiries section — there is no whatsapp_clicks/enquiries table wired up yet (see the
-  // teacherStats comment above), so this section renders the ListEmpty primitive with that
-  // verbatim nudge rather than a fabricated count.
-  const quietListingNudge =
-    'Nobody has messaged you this month. Adding a second subject usually helps.';
+  // Handoff TD-003, binding: there is no whatsapp_clicks/enquiries table, so
+  // this section states why rather than showing a fabricated count or a
+  // literal 0 — copy is the entry's own literal text.
+  const enquiriesExplanation =
+    "We don't count WhatsApp taps yet, so there is no number to show here. When we do, it will appear in this panel and nowhere else.";
+
+  // Handoff TD-001: the status pill reflects the real row state (is_paused) —
+  // never a hardcoded "Live". There is no separate verification-pending state
+  // in the data today, so only the two real states are rendered.
+  const statusLabel = isPaused ? 'Paused' : 'Live and verified';
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Control block — orange, teacher mode (design.md §1, §4 S10: "the teacher dashboard IS
-          orange"). Carries the "Live profile" sticker, the display name/summary h1 and the
-          profile-completeness bar naming one next action (a plain bar — GoalRing stays reserved
-          for the weekly paper goal only). */}
-      <ControlBlock mode="teacher" className="relative overflow-visible">
-        {!isPaused && (
-          // tone="dark" (bg-panel/text-background) reads correctly against the orange
-          // control block; was tone="brand" fully overridden by `!` classes, which just
-          // relied on !important to fight the wrong variant instead of picking the right one.
-          <Sticker tone="dark" tilt={-3} size={30}>
-            Live profile
-          </Sticker>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <Eyebrow onDark>Teacher dashboard</Eyebrow>
-            <h1 className="mt-1 font-display text-page-title font-extrabold tracking-tight">
-              {displayName}
-            </h1>
-            <p className="mt-2 text-body-secondary opacity-90">{summaryLine}</p>
-          </div>
-          {/* tone="dark" (bg-panel/text-background, handoff S-006's rename of the
-              old "solid") is the exact token for this state — was tone={undefined}
-              (defaults to "facet": bg-muted + hover:bg-accent) with a className
-              override that only replaced the background/text colour, not the
-              "facet" tone's hover:bg-accent. Since hover: is a different tailwind-merge
-              group than the bare bg- override, that leftover hover class survived and
-              would flash the badge to a mismatched light fill on pointer-over. */}
-          <Chip asChild tone={isPaused ? 'dark' : 'on-dark'} size={38}>
-            {isPaused ? 'Paused' : 'Profile live'}
-          </Chip>
-        </div>
-
-        {/* Profile health — pages.md §12: "a percentage ring is banned; use a segmented bar and
-            specific nudges ... each a 44px row with an arrow". ProgressSteps (join/progress-bar.tsx)
-            is the app's existing segmented-bar component, reused here instead of a new one. Every
-            currently-incomplete field gets its own row (not just the next one). */}
-        <div className="mt-6 rounded-2xl bg-card/95 p-4 text-foreground sm:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-semibold">Profile health</span>
-          </div>
-          <ProgressSteps
-            steps={completenessTotal}
-            current={Math.max(completenessFilled - 1, 0)}
-            label={completenessFilled >= completenessTotal ? 'Profile complete' : `${completenessFilled} of ${completenessTotal} done`}
-            hideStepPrefix
-            className="mt-2"
-          />
-          {incompleteChecks.length > 0 ? (
-            <div className="mt-3 grid gap-1.5">
-              {incompleteChecks.map((check) => (
-                <button
-                  key={check.label}
-                  type="button"
-                  onClick={scrollToProfileForm}
-                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-background/60 px-3.5 py-2.5 text-left transition-colors duration-150 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      <main>
+        <BentoStack>
+          {/* Handoff TD-001: near-black header — the other side of the product,
+              so it should not look like a parent's dashboard. */}
+          <BentoPanel fill="dark" edge="top" className="overflow-visible pt-[14px] pb-[22px]">
+            <div className="flex items-center gap-[14px]">
+              <div className="h-16 w-16 flex-none overflow-hidden rounded-full bg-muted">
+                {imagePreview ? (
+                  <img
+                    src={validateImageSrc(imagePreview)}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <StripePlaceholder name={displayName} initialSize={24} className="h-full w-full" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/50">Your listing</p>
+                <h1 className="mt-[3px] truncate font-display text-[24px] font-extrabold tracking-[-0.04em] text-background">
+                  {displayName}
+                </h1>
+                <div
+                  className={`mt-1.5 inline-flex h-7 items-center gap-[7px] rounded-full px-3 text-[12px] font-extrabold ${
+                    isPaused ? 'bg-muted text-warm-secondary' : 'bg-[#34B268] text-[#08301D]'
+                  }`}
                 >
-                  <span className="text-sm font-semibold">{check.action}</span>
-                  <ChevronRight className="h-4 w-4 flex-none text-warm-meta" aria-hidden />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-3 text-body-secondary text-warm-prose">Your profile has everything filled in.</p>
-          )}
-        </div>
-      </ControlBlock>
-
-      <PageContainer as="main" className="pt-6 pb-16">
-        {/* Stat tiles — the two real, queryable counts only (upvotes/reviews). "Profile views" and
-            "WhatsApp taps" have no backing Supabase column (verified against
-            src/integrations/supabase/types.ts) and WhatsAppRedirect only fires GA4/Clarity events,
-            never a Supabase write — those tiles are omitted rather than shown as fabricated
-            numbers (design.md §0.10, C9 StatCard spec). */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
-          {teacherStats.map((st) => (
-            <div key={st.label} className={`rounded-2xl p-4 shadow-border sm:p-6 ${st.fill}`}>
-              <div className="flex items-center gap-2">
-                {/* tone="muted" (bg-muted/text-foreground) is the base for a light tile; only
-                    the fill needs the flat black/10 dot treatment so it reads the same on
-                    both the mint and the bone tile. Was tone="on-dark" (bg-white/10/
-                    text-background, meant for dark slabs) fully overridden by className —
-                    same "pick a tone only to replace it" pattern as the Sticker above. */}
-                <IconDisc tone="muted" size={32} className="bg-black/10">
-                  {st.label === 'Upvotes' ? (
-                    <ThumbsUp className="h-4 w-4" aria-hidden />
-                  ) : (
-                    <MessageSquareText className="h-4 w-4" aria-hidden />
-                  )}
-                </IconDisc>
-                <Eyebrow>{st.label}</Eyebrow>
-              </div>
-              <div className="mt-2 text-3xl font-semibold tracking-tight tabular-nums text-foreground">
-                {st.value}
-              </div>
-              <div className="mt-1 text-meta text-warm-meta">{st.meta}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Enquiries — copy.md §9 names this as the middle stat ("Profile health · Enquiries ·
-            Reviews"), but there is no enquiries/whatsapp_clicks table to count from (see report),
-            so this ships as a real section with the honest empty/quiet state instead of a
-            fabricated number. */}
-        <div className="mt-8">
-          <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
-            <IconDisc tone="brand-subtle" size={32} shape="square">
-              <Inbox className="h-4 w-4" aria-hidden />
-            </IconDisc>
-            Enquiries
-          </h2>
-          <ListEmpty line={quietListingNudge} />
-        </div>
-
-        {/* Reviews list — pages.md §12: "reviews list → B4", the individual reviews left by
-            this teacher's students, not just the Reviews count tile above. Reuses ReviewCard
-            (src/components/reviews/review-card.tsx), the same component TeacherProfile.tsx /
-            TeacherComments.tsx render on the public profile, so a review looks identical in
-            both places. */}
-        <div className="mt-8">
-          <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
-            <IconDisc tone="brand-subtle" size={32} shape="square">
-              <MessageCircle className="h-4 w-4" aria-hidden />
-            </IconDisc>
-            Reviews
-          </h2>
-          {reviewsLoading ? (
-            <ListLoading count={3} media={0} lines={3} className="grid-flow-col auto-cols-[16rem] overflow-x-hidden" />
-          ) : reviewsError ? (
-            <ListError onRetry={() => setReviewsRetryKey((k) => k + 1)} />
-          ) : reviews.length === 0 ? (
-            <ListEmpty line="No reviews yet. They'll show up here once students start leaving them." />
-          ) : (
-            <div className="stagger-children flex gap-3 overflow-x-auto pb-4 md:flex-wrap md:overflow-visible">
-              {reviews.map((review, i) => (
-                <ReviewCard key={review.id} review={review} index={i} fan={false} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Your profile — manage-list idiom: edit / pause / request-review as one row of cards. */}
-        <div className="mt-8">
-          <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
-            <IconDisc tone="brand-subtle" size={32} shape="square">
-              <UserCircle2 className="h-4 w-4" aria-hidden />
-            </IconDisc>
-            Your profile
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-            <button
-              type="button"
-              onClick={scrollToProfileForm}
-              className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
-            >
-              <IconDisc tone="brand-subtle" size={40}>
-                <PencilLine className="h-5 w-5" aria-hidden />
-              </IconDisc>
-              <span>
-                <span className="block text-base font-semibold text-foreground">Edit your profile</span>
-                <span className="mt-1.5 block text-body-secondary text-muted-foreground">
-                  Subjects, classes, boards, areas and fee range.
-                </span>
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPauseDialogOpen(true)}
-              disabled={pausing}
-              className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60 sm:p-6"
-            >
-              <IconDisc tone="brand-subtle" size={40}>
-                {isPaused ? <PlayCircle className="h-5 w-5" aria-hidden /> : <PauseCircle className="h-5 w-5" aria-hidden />}
-              </IconDisc>
-              <span>
-                <span className="block text-base font-semibold text-foreground">
-                  {isPaused ? 'Resume your listing' : 'Pause your listing'}
-                </span>
-                <span className="mt-1.5 block text-body-secondary text-muted-foreground">
-                  {isPaused
-                    ? 'Your profile is hidden from students until you resume it.'
-                    : 'Hide your profile from results while your batches are full.'}
-                </span>
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={handleRequestReview}
-              className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-card p-4 text-left shadow-border transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-6"
-            >
-              <IconDisc tone="brand-subtle" size={40}>
-                <Link2 className="h-5 w-5" aria-hidden />
-              </IconDisc>
-              <span>
-                <span className="block text-base font-semibold text-foreground">Request a review</span>
-                <span className="mt-1.5 block text-body-secondary text-muted-foreground">
-                  Send a link to a current student asking them to review you.
-                </span>
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Account Information — locked fields, shown as a stacked list of row cards.
-            Not part of the new spec's top section; kept here, right above the editable form it
-            summarises, since Name/Honorific/Email are real locked account data this page has
-            always surfaced and nowhere else on the page shows them. */}
-        <div className="mt-8">
-          <h2 className="mb-4 flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
-            <IconDisc tone="muted" size={32} shape="square">
-              <Lock className="h-4 w-4" aria-hidden />
-            </IconDisc>
-            Account Information
-          </h2>
-          <div className="grid gap-2.5">
-            {[
-              { label: 'Name', value: userName },
-              { label: 'Honorific', value: teacherData["Sir/Ma'am?"] },
-              { label: 'Email ID', value: teacherData["Email ID"] },
-            ].map((row) => (
-              <div
-                key={row.label}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-card p-4 shadow-border sm:p-5"
-              >
-                <div>
-                  <Eyebrow>{row.label}</Eyebrow>
-                  <div className="mt-1 text-base font-semibold text-foreground">
-                    {row.value || '-'}
-                  </div>
+                  <Check className="h-[13px] w-[13px]" strokeWidth={2.5} aria-hidden="true" />
+                  {statusLabel}
                 </div>
-                <span className="flex flex-none items-center gap-1.5 text-meta font-semibold text-warm-meta">
-                  <Lock className="h-3.5 w-3.5" aria-hidden />
-                  Locked
-                </span>
               </div>
+            </div>
+          </BentoPanel>
+
+          {/* Handoff TD-002: two real counters, nothing else. */}
+          <div className="flex gap-seam">
+            {teacherStats.map((st) => (
+              <BentoPanel key={st.label} fill="card" className="flex-1 p-4">
+                <div className="font-display text-[26px] font-black tracking-[-0.04em] text-foreground tabular-nums">
+                  {st.value}
+                </div>
+                <div className="mt-0.5 text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">
+                  {st.label}
+                </div>
+              </BentoPanel>
             ))}
           </div>
-        </div>
 
-        {/* Profile Form */}
-        <div ref={profileFormRef} id="profile-form" className="mt-8 scroll-mt-24 rounded-2xl bg-card p-5 shadow-border sm:p-8">
-            {/* Editable Fields Section */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="flex items-center gap-3 text-section-head font-display font-extrabold tracking-tight text-foreground">
-                  <IconDisc tone="brand-subtle" size={32} shape="square">
-                    <MessageSquareText className="h-4 w-4" aria-hidden />
-                  </IconDisc>
-                  Profile Information
-                </h2>
-                <Button
-                  variant="primary"
-                  size={46}
-                  onClick={handleSave}
-                  busy={saving}
-                  className="gap-2"
+          {/* Handoff TD-003: Enquiries stays a panel, not a number — no
+              whatsapp_clicks table exists, so this never shows a count or a 0. */}
+          <BentoPanel fill="muted">
+            <div className="flex items-center gap-[10px]">
+              <IconDisc tone="muted" size={32} shape="square" className="bg-border">
+                <Info className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+              </IconDisc>
+              <h2 className="text-[16px] font-bold tracking-[-0.02em] text-foreground">Enquiries</h2>
+            </div>
+            <p className="mt-2.5 text-[14px] leading-[1.55] text-warm-secondary">{enquiriesExplanation}</p>
+          </BentoPanel>
+
+          {/* Your profile — manage-list idiom, kept intact from the previous version:
+              edit / pause / request-review as one row of cards. Not named in TD-001..004,
+              but real, working functionality (pause is a real is_paused write; request
+              review copies a real profile link) that stays rather than being dropped. */}
+          <BentoPanel fill="card">
+            <h2 className="mb-3.5 flex items-center gap-3 font-display text-[18px] font-extrabold tracking-tight text-foreground">
+              <IconDisc tone="muted" size={32} shape="square">
+                <UserCircle2 className="h-4 w-4" aria-hidden="true" />
+              </IconDisc>
+              Your profile
+            </h2>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={scrollToProfileForm}
+                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              >
+                <IconDisc tone="brand-subtle" size={40}>
+                  <PencilLine className="h-5 w-5" aria-hidden="true" />
+                </IconDisc>
+                <span>
+                  <span className="block text-[14.5px] font-semibold text-foreground">Edit your profile</span>
+                  <span className="mt-1 block text-[12.5px] text-warm-secondary">
+                    Subjects, classes, boards, areas and fee range.
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPauseDialogOpen(true)}
+                disabled={pausing}
+                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60"
+              >
+                <IconDisc tone="brand-subtle" size={40}>
+                  {isPaused ? <PlayCircle className="h-5 w-5" aria-hidden="true" /> : <PauseCircle className="h-5 w-5" aria-hidden="true" />}
+                </IconDisc>
+                <span>
+                  <span className="block text-[14.5px] font-semibold text-foreground">
+                    {isPaused ? 'Resume your listing' : 'Pause your listing'}
+                  </span>
+                  <span className="mt-1 block text-[12.5px] text-warm-secondary">
+                    {isPaused
+                      ? 'Your profile is hidden from students until you resume it.'
+                      : 'Hide your profile from results while your batches are full.'}
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleRequestReview}
+                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              >
+                <IconDisc tone="brand-subtle" size={40}>
+                  <Link2 className="h-5 w-5" aria-hidden="true" />
+                </IconDisc>
+                <span>
+                  <span className="block text-[14.5px] font-semibold text-foreground">Request a review</span>
+                  <span className="mt-1 block text-[12.5px] text-warm-secondary">
+                    Send a link to a current student asking them to review you.
+                  </span>
+                </span>
+              </button>
+            </div>
+          </BentoPanel>
+
+          {/* Account Information — locked fields, kept intact from the previous version. */}
+          <BentoPanel fill="card">
+            <h2 className="mb-3.5 flex items-center gap-3 font-display text-[18px] font-extrabold tracking-tight text-foreground">
+              <IconDisc tone="muted" size={32} shape="square">
+                <Lock className="h-4 w-4" aria-hidden="true" />
+              </IconDisc>
+              Account Information
+            </h2>
+            <div className="grid gap-2.5">
+              {[
+                { label: 'Name', value: userName },
+                { label: 'Honorific', value: teacherData["Sir/Ma'am?"] },
+                { label: 'Email ID', value: teacherData["Email ID"] },
+              ].map((row) => (
+                <div
+                  key={row.label}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted p-4"
                 >
-                  <Save className="h-4 w-4" aria-hidden />
-                  Save Changes
-                </Button>
-              </div>
+                  <div>
+                    <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">{row.label}</p>
+                    <div className="mt-1 text-base font-semibold text-foreground">
+                      {row.value || '-'}
+                    </div>
+                  </div>
+                  <span className="flex flex-none items-center gap-1.5 text-meta font-semibold text-warm-meta">
+                    <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                    Locked
+                  </span>
+                </div>
+              ))}
+            </div>
+          </BentoPanel>
 
+          {/* Handoff TD-004: profile-completeness treatment (same as GD-002) plus
+              the existing long form — every field, label and validation message
+              unchanged, restyled per JA-004's field pattern only. */}
+          <BentoPanel fill="card">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display text-[19px] font-extrabold tracking-[-0.03em] text-foreground">Your listing</h2>
+              <span className="text-[14px] font-extrabold tabular-nums text-brand-deep">{completenessPct}%</span>
+            </div>
+            <div className="relative mt-2.5 h-2 rounded-full bg-muted">
+              <span
+                className="absolute inset-y-0 left-0 rounded-full bg-brand transition-[width] duration-300 ease-out"
+                style={{ width: `${completenessPct}%` }}
+              />
+            </div>
+            {missingLabels.length > 0 && (
+              <p className="mt-2.5 text-[13.5px] leading-[1.5] text-muted-foreground">
+                Missing: {missingLabels.join(', ')}.
+              </p>
+            )}
+
+            <div ref={profileFormRef} id="profile-form" className="mt-5 scroll-mt-24 space-y-5">
               {/* Phone Number */}
               <div className="space-y-2">
                 <Label htmlFor="phoneNumber" className={LABEL_CLASSNAME}>
@@ -1436,7 +1338,7 @@ export default function TeacherDashboard() {
                       src={safeSrc}
                       alt="Hero preview"
                       loading="lazy"
-                      className="h-48 w-full rounded-lg object-cover shadow-border"
+                      className="h-48 w-full rounded-2xl object-cover"
                     />
                     <Button
                       type="button"
@@ -1456,7 +1358,7 @@ export default function TeacherDashboard() {
 
                 <label
                   htmlFor="heroImageUpload"
-                  className="flex w-fit cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-muted"
+                  className="flex w-fit cursor-pointer items-center gap-2 rounded-full bg-muted px-4 py-2 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-accent"
                 >
                   <Upload className="w-4 h-4" />
                   {uploadingImage ? 'Uploading...' : 'Upload Image'}
@@ -1833,9 +1735,63 @@ export default function TeacherDashboard() {
                 </div>
                 <p className={HELP_TEXT_CLASSNAME}>Optional</p>
               </div>
+
+              <Button
+                variant="primary"
+                size={52}
+                onClick={handleSave}
+                busy={saving}
+                className="w-full gap-2"
+              >
+                <Save className="h-4 w-4" aria-hidden="true" />
+                Save Changes
+              </Button>
             </div>
-        </div>
-      </PageContainer>
+          </BentoPanel>
+
+          {/* Handoff TD-004: received reviews, read-only — no edit/delete UI on
+              this page. Literal heading text from the referenced mockup. */}
+          <BentoPanel fill="brandTint">
+            <h2 className="font-display text-[19px] font-extrabold tracking-[-0.03em] text-brand-deep">
+              What students said
+            </h2>
+            <div className="mt-3.5 flex flex-col gap-2">
+              {reviewsLoading ? (
+                <ListLoading count={2} media={0} lines={2} />
+              ) : reviewsError ? (
+                <ListError onRetry={() => setReviewsRetryKey((k) => k + 1)} />
+              ) : reviews.length === 0 ? (
+                <p className="text-[14px] leading-[1.55] text-warm-prose">
+                  No reviews yet. They'll show up here once students start leaving them.
+                </p>
+              ) : (
+                reviews.map((review) => (
+                  <div key={review.id} className="rounded-[20px] bg-card p-4">
+                    <p className="text-[14px] leading-[1.55] text-warm-prose">{review.quote}</p>
+                    <p className="mt-2.5 text-[12.5px] text-warm-meta">
+                      {[review.who, review.when].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </BentoPanel>
+
+          <EyesPanel
+            mode={builderMode}
+            onModeChange={setBuilderMode}
+            heading={(
+              <>
+                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+              </>
+            )}
+            subline="Fill in the blanks and we'll take you straight there."
+            slots={builderSlots}
+            onSlotChange={handleSlotChange}
+            onSubmit={handleBuilderSubmit}
+          />
+        </BentoStack>
+      </main>
 
       <AlertDialog open={pauseDialogOpen} onOpenChange={setPauseDialogOpen}>
         <AlertDialogContent>
