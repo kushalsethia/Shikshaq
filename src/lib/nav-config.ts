@@ -13,12 +13,13 @@ export const DASHBOARD_PATHS = ['/dashboard/student', '/dashboard/guardian', '/d
 
 export type UserRole = 'student' | 'guardian' | 'teacher' | null;
 
-/** Matches any of the ~30 hardcoded subject landing routes ending in this suffix, plus `/browse`. */
-export const isBrowseActive = (p: string) => p === '/browse' || p.endsWith('-tuition-teachers-in-kolkata');
+/** Matches any of the ~30 hardcoded subject landing routes ending in this suffix, plus `/browse` and `/subjects` (handoff SB-005: the subjects index is a teacher-funnel surface). */
+export const isBrowseActive = (p: string) => p === '/browse' || p === '/subjects' || p.endsWith('-tuition-teachers-in-kolkata');
 
 export const isHomeActive = (p: string) => p === '/';
 
-export const isPapersActive = (p: string) => p.startsWith(PAST_PAPERS_PATH);
+/** Handoff SC-005: `/schools` is a papers-funnel surface, so it activates the same tab as `/past-papers`. */
+export const isPapersActive = (p: string) => p.startsWith(PAST_PAPERS_PATH) || p === '/schools';
 
 export const isAboutActive = (p: string) => p === '/about';
 

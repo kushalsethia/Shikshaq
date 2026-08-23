@@ -26,8 +26,9 @@ export interface NumberedHeadingProps extends React.HTMLAttributes<HTMLElement> 
   line2: string;
   /** One supporting sentence beneath. */
   support?: string;
-  /** Heading level — never skip levels (design.md §7). */
-  as?: "h2" | "h3";
+  /** Heading level — never skip levels (design.md §7). `h1` is for a page
+   *  whose only h1 this is (handoff SB-002/SC-002: SubjectsPage/SchoolsPage). */
+  as?: "h1" | "h2" | "h3";
   onDark?: boolean;
   /**
    * Handoff H-012: inside a BentoPanel, the fluid `text-section-head` clamp
