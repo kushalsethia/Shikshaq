@@ -1,33 +1,51 @@
-import { Footer } from '@/components/Footer';
 import { Link } from 'react-router-dom';
+import { Footer } from '@/components/Footer';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { IndianRupee, MessageCircle, Heart, ShieldCheck, Sparkles, type LucideIcon } from 'lucide-react';
-import { StarburstBadge, SpeechTag } from '@/components/devices';
+import { IndianRupee, MessageCircle, Heart, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { Button } from '@/components/ui/button';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 
-const BENEFITS: { title: string; body: string; icon: LucideIcon; tile: string }[] = [
+const BENEFITS: { title: string; body: string; icon: LucideIcon; cardBg: string; titleColor: string; iconTileBg: string }[] = [
   {
     title: 'No commission fees',
     body: 'Fees are agreed between you and the family. We never sit in the middle of a payment.',
     icon: IndianRupee,
-    tile: 'bg-brand-subtle text-brand-deep',
+    // JN-003: card fill/text/icon-tile mapping, in the array's existing order.
+    cardBg: 'bg-brand-subtle',
+    titleColor: 'text-brand-deep',
+    iconTileBg: 'bg-brand',
   },
   {
     title: 'Direct student contact',
     body: 'Enquiries reach you on WhatsApp. No lead credits, no bidding for students.',
     icon: MessageCircle,
-    tile: 'bg-brand-blue-subtle text-brand-blue-deep',
+    cardBg: 'bg-mint',
+    titleColor: 'text-[#24603D]',
+    // Mockup's mint-solid icon tile (#34B268) — no existing token backs this
+    // exact green, so it is a literal arbitrary value, not an invented one.
+    iconTileBg: 'bg-[#34B268]',
   },
   {
     title: 'Empathy',
     body: 'We were students in this city. The platform is built for how tuition actually works in Kolkata.',
     icon: Heart,
-    tile: 'bg-mint text-foreground',
+    cardBg: 'bg-brand-blue-subtle',
+    titleColor: 'text-brand-blue-deep',
+    iconTileBg: 'bg-brand-blue',
   },
   {
     title: 'Values',
     body: 'Real reviews from real students, and no paid placement in results. Ever.',
     icon: ShieldCheck,
-    tile: 'bg-muted text-foreground',
+    // JN-003's fourth card is a purple pair given as literal hex in the
+    // changelog (#F0E4F6/#4C2460) with the icon-tile solid (#9F53C6) taken
+    // from the mockup — no existing token backs this hue anywhere else in
+    // the product, so these stay arbitrary values rather than invented ones.
+    cardBg: 'bg-[#F0E4F6]',
+    titleColor: 'text-[#4C2460]',
+    iconTileBg: 'bg-[#9F53C6]',
   },
 ];
 
@@ -37,112 +55,86 @@ export default function Join() {
     'List yourself as a tuition teacher in Kolkata for free. Reach students near you directly. No commission, no middlemen, no platform fees. Apply to join Shikshaq today.'
   );
 
+  const { builderMode, setBuilderMode, slots, onSlotChange, onSubmit } = useSentenceBuilder();
+
   return (
-    <div className="min-h-screen bg-background">
-
-      {/* Gradient hero band — same device PastPapers.tsx uses (brand-tint fading to page
-          ground), applied here in orange instead of blue since this page's whole pitch is
-          "keep your fees", the brand-orange side of the token pair. Reads as one considered
-          hero moment instead of the previous flat bg-background page. */}
-      <main>
-      <div className="relative overflow-hidden bg-gradient-to-b from-brand-subtle to-background">
-        {/* Organic blob decoration behind the hero headline — mobile-vibes-event-app
-            reference. Ornamental only, tokens only, sits behind the text (-z-10). Sized up
-            and a second shape added on the right so the hero reads as a full composition,
-            not one shape parked in a corner. */}
-        <div
-          className="absolute -left-16 -top-10 -z-10 h-72 w-72 rounded-[55%_45%_65%_35%/50%_40%_60%_50%] bg-card/60 sm:h-96 sm:w-96"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute -right-12 top-10 -z-10 hidden h-56 w-56 rounded-[40%_60%_35%_65%/55%_35%_65%_45%] bg-brand-blue-subtle sm:block"
-          aria-hidden="true"
-        />
-
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16 lg:pt-20 pb-10">
-          {/* Starburst replaces the flat pill chip — same message, loud device. */}
-          <StarburstBadge
-            variant="burst"
-            color="hsl(var(--brand-blue))"
-            tilt={-6}
-            size={92}
-            className="absolute right-4 top-6 hidden sm:grid lg:right-10"
-          >
-            No fees
-          </StarburstBadge>
-
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-[.04em] text-brand-deep">
-            <Sparkles size={12} aria-hidden="true" />
-            No commission, ever
-          </span>
-
-          {/* Mixed-weight, oversized headline — scaled up from the first pass's 3xl/5xl to
-              match the clamp-based "display" scale PastPapers.tsx uses for its hero, per the
-              owner's direction that devices were "composed too lightly." Base weight 400,
-              payoff phrase carries the marker-highlight device instead of plain color weight
-              alone, per VISUAL_DIRECTION §9a's "every first fold gets a designed opening." */}
-          <h1 className="mt-5 max-w-3xl font-display text-[clamp(31px,5.2vw,58px)] font-normal leading-[.98] tracking-[-.04em] text-foreground">
+    <BentoStack>
+      {/* `contents` — <main> keeps its landmark role for a11y/skip-link
+          purposes without becoming a box in the flex layout, so BentoStack's
+          gap-[6px] seam still applies directly between every panel including
+          the ones nested inside <main> (a wrapping element that WAS a real
+          box here would swallow one seam and flatten the panels inside it). */}
+      <main className="contents">
+        {/* JN-002 — pitch panel. */}
+        <BentoPanel fill="card" edge="top" className="pt-[14px] px-5 pb-[26px] lg:px-8">
+          <h1 className="font-display text-[38px] sm:text-[46px] lg:text-[54px] font-normal leading-[.98] tracking-[-0.04em] text-foreground">
             Teach on Shikshaq.{' '}
-            <span
-              className="marker-highlight marker-highlight--tilt font-extrabold"
-              style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
-            >
-              Keep every rupee.
+            <span className="relative inline-block font-extrabold">
+              <span
+                aria-hidden
+                className="absolute -left-[8px] -right-[8px] top-[4px] bottom-[2px] rounded-[8px] bg-brand"
+                style={{ transform: 'rotate(-1.5deg)' }}
+              />
+              <span className="relative">Keep every rupee.</span>
             </span>
           </h1>
 
-          <div className="mt-5 flex flex-wrap items-start gap-3">
-            <p className="max-w-prose text-base sm:text-lg leading-relaxed text-muted-foreground">
-              We list local tuition teachers, students contact you directly on WhatsApp, and we take nothing from what you charge. There is no listing fee either.
-            </p>
-            <SpeechTag tail="top-left" dotColor="hsl(var(--brand-blue))" tilt={-2} className="hidden sm:inline-flex">
-              Reviewed in ~3 working days
-            </SpeechTag>
+          <p className="mt-4 max-w-prose text-[16px] leading-[1.6] text-warm-secondary">
+            We list local tuition teachers, students contact you directly on WhatsApp, and we take nothing from what you charge. There is no listing fee either.
+          </p>
+
+          {/* ⚠ "~3 working days" stays hedged — reported as a pill, not a
+              promise, per JN-002. */}
+          <div
+            className="mt-[14px] inline-flex h-8 items-center gap-2 rounded-full bg-card px-[13px] text-[12.5px] font-bold text-foreground shadow-border"
+            style={{ transform: 'rotate(-2deg)' }}
+          >
+            <span aria-hidden className="h-[7px] w-[7px] shrink-0 rounded-full bg-brand" />
+            Reviewed in ~3 working days
           </div>
 
-          <Link
-            to="/join/apply"
-            className="hover:opacity-90 active:scale-[0.97] transition-[opacity,transform] duration-150 inline-flex items-center min-h-11 mt-7 px-6 py-4 rounded-lg bg-foreground text-background text-sm font-semibold"
-          >
-            Apply to be listed
-          </Link>
-        </div>
-      </div>
+          <Button asChild variant="dark" size={54} className="mt-[22px] w-full text-[15px] font-extrabold">
+            <Link to="/join/apply">Apply to be listed</Link>
+          </Button>
+        </BentoPanel>
 
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16"
-               aria-labelledby="join-benefits-heading">
-        {/* The four tiles were h3 with no h2 above them, so the outline jumped
-            h1 -> h3. They are a named group, not loose cards, so the fix is the
-            missing group heading rather than demoting the cards. It is sr-only
-            because the tiles are self-evident when you can see them. */}
-        <h2 id="join-benefits-heading" className="sr-only">Why teach on Shikshaq</h2>
-        {/* Slight alternating tilt on the tile row — the "overlapping angled card stack"
-            device from the reference, applied restrained enough to still read as a clean
-            grid at a glance rather than genuine chaos. Tilt resets on hover so nothing feels
-            broken when a user actually looks closely. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {BENEFITS.map((b, i) => {
-            const Icon = b.icon;
-            const tilt = i % 2 === 0 ? '-rotate-1' : 'rotate-1';
-            return (
-              <div
-                key={b.title}
-                className={`animate-card-reveal p-6 rounded-2xl bg-card shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:rotate-0 ${tilt}`}
-                style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
-              >
-                <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${b.tile}`}>
-                  <Icon size={20} aria-hidden="true" />
+        {/* JN-003 — benefits panel: 2x2 grid, tinted r20 cards, no tilt. */}
+        <BentoPanel fill="card" className="px-5 py-5 lg:px-8 lg:py-8">
+          <h2 className="sr-only">Why teach on Shikshaq</h2>
+          <div className="grid grid-cols-2 gap-2">
+            {BENEFITS.map((b) => {
+              const Icon = b.icon;
+              return (
+                <div key={b.title} className={`rounded-[20px] p-4 ${b.cardBg}`}>
+                  <div className={`flex h-[34px] w-[34px] items-center justify-center rounded-[11px] ${b.iconTileBg}`}>
+                    <Icon size={17} className="text-white" aria-hidden="true" />
+                  </div>
+                  <p className={`mt-3 text-[17px] font-extrabold leading-tight tracking-[-0.03em] ${b.titleColor}`}>
+                    {b.title}
+                  </p>
+                  <p className="mt-1 text-[13.5px] leading-[1.5] text-warm-secondary">{b.body}</p>
                 </div>
-                <h3 className="text-base font-semibold mb-2 text-foreground">{b.title}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{b.body}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+              );
+            })}
+          </div>
+        </BentoPanel>
+
+        <EyesPanel
+          mode={builderMode}
+          onModeChange={setBuilderMode}
+          heading={
+            <>
+              Still deciding? <span className="font-extrabold">We&apos;re watching out for you.</span>
+            </>
+          }
+          subline="Fill in the blanks and we'll take you straight there."
+          slots={slots}
+          onSlotChange={onSlotChange}
+          onSubmit={onSubmit}
+        />
       </main>
 
       <Footer />
-    </div>
+    </BentoStack>
   );
 }

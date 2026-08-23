@@ -3,12 +3,13 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import { IconDisc } from '@/components/ui/icon-disc';
 import { UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
-import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 
 function isValidRedirect(path: string | null): path is string {
   return !!path && path.startsWith('/') && !path.startsWith('//');
@@ -174,8 +175,6 @@ export default function TeacherTermsAgreement() {
             <p className="text-muted-foreground text-base">Loading...</p>
           </div>
         </div>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
       </div>
     );
   }
@@ -185,71 +184,79 @@ export default function TeacherTermsAgreement() {
     return null;
   }
 
+  /* TT-001 — read then accept, as a three-panel BentoStack. The changelog's
+     assumed "before" here is a long-form legal document with h2 sections and
+     a last-updated line; the actual content this page has always shown is a
+     short, four-item consent list (there is no CMS-backed terms document, no
+     last-updated field anywhere in the schema). Rather than fabricate prose
+     or a date that doesn't exist, the panel geometry and typography are
+     applied to the real content as-is: no last-updated line, no invented h2s. */
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-
-      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16">
-        <div className="w-full max-w-[480px]">
-          <div className="text-center mb-8">
-            <Logo size="lg" className="mx-auto mb-4" />
-            <div className="flex justify-center mb-4">
-              <UserCheck className="w-11 h-11 text-brand-blue" />
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-foreground">
-              Verify your consent
-            </h1>
-            <p className="mt-2 text-base leading-relaxed text-warm-prose">
-              We've detected that you're a teacher on our platform. Please verify your consent to continue.
-            </p>
+    <BentoStack>
+      <main className="contents">
+        <BentoPanel fill="card" edge="top" className="px-5 pt-8 pb-6 text-center sm:px-6">
+          <Logo size="lg" className="mx-auto mb-4" />
+          <div className="mb-4 flex justify-center">
+            <IconDisc size={44} tone="brand-subtle" label="Teacher consent">
+              <UserCheck className="h-5 w-5" strokeWidth={2.1} />
+            </IconDisc>
           </div>
+          <h1 className="font-display text-[27px] font-extrabold leading-[1.05] tracking-[-0.04em] text-foreground">
+            Verify your consent
+          </h1>
+          <p className="mx-auto mt-2 max-w-prose text-[15px] leading-relaxed text-warm-prose">
+            We've detected that you're a teacher on our platform. Please verify your consent to continue.
+          </p>
+        </BentoPanel>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            <div className="p-4 rounded-2xl bg-muted">
-              <p className="mb-2 text-sm font-semibold text-foreground">
+        {/* `contents` — the form still owns onSubmit/its fields, but does not
+            become a box in the BentoStack flex layout (same reasoning as
+            <main className="contents"> above): otherwise it would swallow
+            the seam between the two panels it wraps. */}
+        <form onSubmit={handleSubmit} id="teacher-terms-form" className="contents">
+          <BentoPanel fill="card" className="px-5 py-5 sm:px-6">
+            <div className="mx-auto max-w-[62ch]">
+              <p className="mb-2 text-[16px] font-semibold leading-[1.7] text-foreground">
                 As a teacher on Shikshaq, you agree to:
               </p>
-              <ul className="flex flex-col gap-2 text-sm leading-relaxed text-muted-foreground pl-4 list-disc">
+              <ul className="flex flex-col gap-2 pl-4 text-[16px] leading-[1.7] text-warm-prose list-disc">
                 <li>Provide accurate information about your qualifications and teaching experience</li>
                 <li>Maintain professional conduct when interacting with students and parents</li>
                 <li>Respect student privacy and confidentiality</li>
                 <li>Follow all applicable laws and regulations</li>
               </ul>
             </div>
+          </BentoPanel>
 
-            {/* Terms and Privacy Policy Checkbox */}
-            <div className="flex items-start gap-3">
-              <Checkbox
-                id="terms"
-                checked={termsAgreed}
-                onCheckedChange={(checked) => setTermsAgreed(checked === true)}
-                className="mt-1"
-              />
-              <label htmlFor="terms" className="text-sm leading-relaxed text-warm-prose cursor-pointer">
-                I agree to the{' '}
-                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
-                  Terms of Service
-                </a>
-                {' '}and{' '}
-                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
-                  Privacy Policy
-                </a>
-                {' '}and consent to be listed as a teacher on Shikshaq.
-              </label>
+          <BentoPanel fill="card" edge="bottom" className="px-5 py-5 sm:px-6">
+            <div className="mx-auto flex max-w-[62ch] flex-col gap-5">
+              <div className="flex min-h-11 items-start gap-3">
+                <Checkbox
+                  id="terms"
+                  checked={termsAgreed}
+                  onCheckedChange={(checked) => setTermsAgreed(checked === true)}
+                  className="mt-0.5 h-5 w-5 rounded-[6px]"
+                />
+                <label htmlFor="terms" className="text-sm leading-relaxed text-warm-prose cursor-pointer">
+                  I agree to the{' '}
+                  <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
+                    Terms of Service
+                  </a>
+                  {' '}and{' '}
+                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
+                    Privacy Policy
+                  </a>
+                  {' '}and consent to be listed as a teacher on Shikshaq.
+                </label>
+              </div>
+
+              <Button type="submit" variant="primary" size={54} disabled={loading || !termsAgreed} className="w-full">
+                {loading ? 'Verifying...' : 'Verify consent & continue'}
+              </Button>
             </div>
-
-            <button
-              type="submit"
-              disabled={loading || !termsAgreed}
-              className="active:scale-[0.98] transition-transform duration-150 w-full min-h-[50px] rounded-lg bg-foreground text-background text-base font-bold disabled:opacity-50"
-            >
-              {loading ? 'Verifying...' : 'Verify consent & continue'}
-            </button>
-          </form>
-        </div>
+          </BentoPanel>
+        </form>
       </main>
-
-      <PreFooter variant={preFooterFor(location.pathname)} />
-      <Footer />
-    </div>
+    </BentoStack>
   );
 }

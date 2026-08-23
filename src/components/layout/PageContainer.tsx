@@ -111,4 +111,62 @@ function BottomNavSpacer() {
   );
 }
 
+/* Redesign 09 (00-shared-components.md "BentoStack/BentoPanel", 01-shared-
+   tokens-and-primitives.md) — the Bento layout family used by the 09a–09d
+   Join/apply/recommend/role/success entries.
+
+   BentoStack: a page's whole body is one `flex flex-col` at a 6px seam
+   (`bg-background` shows through the gap), holding BentoPanel sections.
+   BentoPanel: radius 30px on every panel, no border, no shadow — separation
+   is fill alone. `edge="top"` squares the corners that meet the nav chrome
+   above; `edge="bottom"` squares the corners that meet it below.
+
+   ⚠ Intentionally no default padding on BentoPanel. Every consumer's padding
+   in the changelog is a literal pixel value (`p-[16px_20px_26px]`,
+   `px-5 pt-1.5 pb-5`, …) that would otherwise have to fight a baked-in
+   default through `cn()` — two Tailwind padding utilities targeting the same
+   box side are NOT guaranteed to resolve in class-string order, only in
+   generated-stylesheet order, so a default here would be a real risk of
+   silently losing to (or beating) a call site's override. Explicit at every
+   call site is safer than clever. */
+export function BentoStack({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn('flex flex-col gap-[6px] bg-background', className)} {...props} />;
+}
+
+const BENTO_FILLS = {
+  card: 'bg-card',
+  muted: 'bg-muted',
+  brandTint: 'bg-brand-subtle',
+  papersTint: 'bg-brand-blue-subtle',
+  mint: 'bg-mint',
+  brand: 'bg-brand text-brand-foreground',
+  papers: 'bg-brand-blue text-brand-blue-foreground',
+  dark: 'bg-panel text-background',
+} as const;
+
+export interface BentoPanelProps extends React.HTMLAttributes<HTMLDivElement> {
+  fill?: keyof typeof BENTO_FILLS;
+  /** 'top' = square top corners (first panel, meets the nav), 'bottom' =
+      square bottom corners (panel that butts the nav reserve), undefined =
+      all four rounded. */
+  edge?: 'top' | 'bottom';
+}
+
+export const BentoPanel = React.forwardRef<HTMLDivElement, BentoPanelProps>(
+  ({ fill = 'card', edge, className, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        'rounded-[30px]',
+        edge === 'top' && 'rounded-t-none',
+        edge === 'bottom' && 'rounded-b-none',
+        BENTO_FILLS[fill],
+        className,
+      )}
+      {...props}
+    />
+  ),
+);
+BentoPanel.displayName = 'BentoPanel';
+
 export { PageContainer, Slab, ControlBlock, BottomNavSpacer, SLAB_FILLS };

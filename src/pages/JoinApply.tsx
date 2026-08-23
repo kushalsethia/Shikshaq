@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Footer } from '@/components/Footer';
+import { useState, useEffect, useRef } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -11,15 +10,16 @@ import {
 import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { ProgressSteps } from '@/components/join/progress-bar';
-import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { toast } from 'sonner';
-import { Loader2, Upload, X, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Loader2, Upload, X, CheckCircle2, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 import { getSubjectColors } from '@/utils/subjectColors';
 import { Link } from 'react-router-dom';
+import { BentoPanel } from '@/components/layout/PageContainer';
+import { cn } from '@/lib/utils';
 
 /* Redesign C-060 (changelog) — five-step teacher listing form (mockup J1–J5).
    Rewritten on top of the shared Field/FieldInput/FieldTextarea/useBlurValidation
@@ -27,7 +27,13 @@ import { Link } from 'react-router-dom';
    collected before is still collected here — the approve_teacher_application RPC
    reads ~22 columns off teacher_applications, so nothing was dropped, only
    regrouped into the J1–J5 step order. See the task report for the full field
-   inventory and the O-07 note on why no ID/degree upload was added. */
+   inventory and the O-07 note on why no ID/degree upload was added.
+
+   09b (JA-001..005) — the shell is rebuilt as a fixed three-region layout
+   (dark header / scrolling bg-card body / pinned bg-card action row) instead
+   of a scrolling page, so the action row never scrolls out of reach mid-step
+   (JA-001). None of the state machine, validation or the submit handler below
+   changed — only the JSX around them. */
 
 const SUBJECTS = [
   'Accounts', 'ACT', 'AP', 'Bengali', 'Biology', 'Business Studies', 'CA', 'CAT', 'Chemistry',
@@ -78,6 +84,11 @@ const WAITING_ON_REVIEW = {
   note: 'Nothing goes live until a human has read it. If something is missing we message you on WhatsApp instead of rejecting you.',
 };
 
+/* JA-004 multi-select chip: h44 px-4 r999, selected in the field's own tint
+   (subject rows get a per-subject dynamic tint; every other row keeps the
+   tint it already had before this pass — Boards' indigo, the areas rows'
+   orange — since JA-004 does not call for flattening that differentiation),
+   unselected bg-muted/text-warm-secondary, trailing check when selected. */
 function Pill({
   label,
   selected,
@@ -96,15 +107,47 @@ function Pill({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`inline-flex items-center min-h-11 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97] ${
-        selected ? (dynamicTint ? '' : tintClass ?? 'bg-muted text-foreground') : 'shikshaq-pill-unselected ring-1 ring-inset ring-warm-hairline text-warm-prose'
-      }`}
+      className={cn(
+        'inline-flex h-11 items-center gap-1.5 px-4 rounded-full text-sm font-semibold whitespace-nowrap transition-colors duration-150 active:scale-[0.97]',
+        selected ? (dynamicTint ? '' : tintClass ?? 'bg-brand-subtle text-brand-deep') : 'bg-muted text-warm-secondary',
+      )}
       style={selected && dynamicTint ? { background: dynamicTint.bg, color: dynamicTint.color } : undefined}
+    >
+      {label}
+      {selected && <Check className="h-[14px] w-[14px] shrink-0" aria-hidden="true" />}
+    </button>
+  );
+}
+
+/* JA-004 number grid (classes): grid-cols-6 gap-2, h-11 rounded-[14px],
+   selected bg-panel/text-background, unselected bg-muted/text-foreground,
+   15px/800 tabular-nums. */
+function NumberCell({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={cn(
+        'flex h-11 items-center justify-center rounded-[14px] text-[15px] font-extrabold tabular-nums transition-colors duration-150',
+        selected ? 'bg-panel text-background' : 'bg-muted text-foreground',
+      )}
     >
       {label}
     </button>
   );
 }
+
+/* JA-004 fields: label via Eyebrow (already 11.5px/700/.07em/uppercase/
+   text-warm-label, matches exactly). Control geometry differs from Field's
+   own default (h-14/rounded-[15px]/bg-card/shadow-border), so it is
+   overridden with `!`-prefixed utilities — the only way to guarantee the
+   override wins regardless of Tailwind's generated class order, since two
+   classes targeting the same box side are not guaranteed to resolve by
+   className string order. Inputs stay text-base (16px) either way, per the
+   iOS-zoom rule. */
+const JA_FIELD_OVERRIDE = '!h-[52px] !rounded-2xl !bg-muted !shadow-none !text-base';
+const JA_TEXTAREA_OVERRIDE = '!min-h-[96px] !max-h-none !rounded-2xl !bg-muted !shadow-none !text-base';
 
 interface FormData {
   name: string;
@@ -163,6 +206,15 @@ export default function JoinApply() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Body panel now scrolls internally (JA-001), so a step change that leaves
+  // it mid-scroll would show the next step's content part-way down instead
+  // of at its heading. Reset on every step change — instant, not smooth,
+  // matching ScrollToTop.tsx's convention for a screen change.
+  const bodyScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    bodyScrollRef.current?.scrollTo(0, 0);
+  }, [step]);
 
   const valueExistsInString = (str: string | null, value: string): boolean => {
     if (!str) return false;
@@ -502,24 +554,21 @@ export default function JoinApply() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-background">
-        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
-          <div className="p-6 sm:p-10 rounded-2xl bg-card shadow-border text-center">
-            <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="w-8 h-8 text-foreground" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mb-3">
-              {WAITING_ON_REVIEW.head}
-            </h1>
-            <p className="text-base leading-relaxed text-muted-foreground mb-2">
-              {WAITING_ON_REVIEW.lede} {WAITING_ON_REVIEW.note}
-            </p>
-            <p className="text-sm text-warm-meta">
-              You will be notified via email once your application has been reviewed.
-            </p>
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
+        <div className="w-full max-w-[420px] rounded-[30px] bg-card p-8 text-center sm:p-10">
+          <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="w-8 h-8 text-foreground" />
           </div>
-        </main>
-        <Footer />
+          <h1 className="font-display text-2xl sm:text-3xl font-black tracking-tight text-foreground mb-3">
+            {WAITING_ON_REVIEW.head}
+          </h1>
+          <p className="text-base leading-relaxed text-warm-prose mb-2">
+            {WAITING_ON_REVIEW.lede} {WAITING_ON_REVIEW.note}
+          </p>
+          <p className="text-sm text-warm-meta">
+            You will be notified via email once your application has been reviewed.
+          </p>
+        </div>
       </div>
     );
   }
@@ -619,532 +668,570 @@ export default function JoinApply() {
   const currentStep = STEPS[step];
 
   return (
-    <div className="min-h-screen bg-background">
-
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
-        <Link to="/join" className="-my-3 inline-flex min-h-11 items-center text-sm font-semibold text-warm-meta no-underline">
-          ← Why join ShikshAQ
-        </Link>
-
-        <ProgressSteps steps={STEPS.length} current={step} label={currentStep.label} className="mt-6 mb-6" />
-
-        <form
-          onSubmit={handleSubmit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !isLastStep && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
-              e.preventDefault();
-            }
-          }}
-          className="p-6 sm:p-8 rounded-2xl bg-card shadow-border"
-        >
-          {/* Step body scrolls on the longer steps (J4/J5) rather than fixing a
-              height — changelog.json C-060 note. */}
-          <div className="max-h-[70vh] overflow-y-auto sm:max-h-none sm:overflow-visible">
-            {/* J1 — who you are */}
-            {step === 0 && (
-              <div className="joinApplyRise">
-                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">
-                  {currentStep.head}
-                </h1>
-                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
-
-                <div className="grid gap-4">
-                  <Field label="Full name" required error={nameV.error}>
-                    {(p) => (
-                      <FieldInput
-                        {...p}
-                        autoComplete="name"
-                        value={formData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        onBlur={nameV.onBlur}
-                        placeholder="e.g. Ananya Ghosh"
-                        maxLength={200}
-                      />
-                    )}
-                  </Field>
-
-                  <Field label="Email" required error={emailV.error}>
-                    {(p) => (
-                      <FieldInput
-                        {...p}
-                        type="email"
-                        inputMode="email"
-                        autoComplete="email"
-                        autoCapitalize="none"
-                        spellCheck={false}
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                        onBlur={emailV.onBlur}
-                        placeholder="e.g. name@example.com"
-                        maxLength={254}
-                      />
-                    )}
-                  </Field>
-
-                  <div>
-                    <Eyebrow as="p" className="mb-2">Sir or Ma'am *</Eyebrow>
-                    <div className="flex gap-2">
-                      {SIR_MAAM.map((option) => (
-                        <Pill key={option} label={option} selected={formData.sir_maam === option} onClick={() => handleInputChange('sir_maam', option)} />
-                      ))}
-                    </div>
-                  </div>
-
-                  <Field label="WhatsApp number" required error={phoneV.error} hint="Shown only once a guardian taps WhatsApp — never on the open page, never in search results.">
-                    {(p) => (
-                      <FieldInput
-                        {...p}
-                        type="tel"
-                        inputMode="numeric"
-                        autoComplete="tel"
-                        autoCapitalize="none"
-                        spellCheck={false}
-                        value={formData.phone_number}
-                        onChange={(e) => handleInputChange('phone_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                        onBlur={phoneV.onBlur}
-                        placeholder="10-digit number"
-                        maxLength={10}
-                      />
-                    )}
-                  </Field>
-
-                  <Field label="Years of experience" hint="Optional">
-                    {(p) => (
-                      <FieldInput
-                        {...p}
-                        value={formData.years_started_teaching}
-                        onChange={(e) => handleInputChange('years_started_teaching', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                        placeholder="e.g. 12"
-                        maxLength={4}
-                        inputMode="numeric"
-                      />
-                    )}
-                  </Field>
-
-                  {/* Photo — moved up from the old final-step location to match J1
-                      ("who you are: name, WhatsApp, years, photo"). */}
-                  <div>
-                    <Eyebrow as="p" className="mb-2">Photo *</Eyebrow>
-                    <div className="grid gap-3">
-                      {imagePreview && (() => {
-                        const validatedUrl = validateImageSrc(imagePreview);
-                        if (!validatedUrl) return null;
-                        const safeSrc = DOMPurify.sanitize(validatedUrl, { ALLOWED_TAGS: [], ALLOWED_ATTR: [], KEEP_CONTENT: true });
-                        if (!safeSrc) return null;
-                        return (
-                          <div className="relative w-full max-w-[340px]">
-                            <img
-                              src={safeSrc}
-                              alt="Photo preview"
-                              className="w-full h-[190px] object-cover rounded-2xl ring-1 ring-inset ring-warm-hairline"
-                              onError={() => setImagePreview(null)}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (imagePreview && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                                setSelectedImageFile(null);
-                                setImagePreview(null);
-                                handleInputChange('hero_image_url', '');
-                              }}
-                              className="absolute top-2 right-2 flex items-center justify-center w-10 h-10 rounded-full bg-card/90 shadow-border"
-                            >
-                              <X className="w-4 h-4 text-foreground" />
-                            </button>
-                          </div>
-                        );
-                      })()}
-                      <label
-                        htmlFor="heroImageUpload"
-                        className="inline-flex items-center gap-2 w-fit min-h-11 px-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline cursor-pointer"
-                      >
-                        <Upload className="w-4 h-4" />
-                        {selectedImageFile ? 'Change photo' : 'Select photo'}
-                        <input id="heroImageUpload" type="file" accept="image/*" className="hidden" onChange={handleImageFileChange} disabled={submitting} />
-                      </label>
-                      <p className="text-meta text-warm-meta">
-                        {selectedImageFile ? 'Uploaded when you submit the form. Max 5MB.' : 'A professional photo helps. Max 5MB.'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* J2 — what you teach */}
-            {step === 1 && (
-              <div className="joinApplyRise">
-                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
-                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
-
-                <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Subjects *</Eyebrow>
-                  <div className="flex flex-wrap gap-2">
-                    {SUBJECTS.map((subject) => {
-                      const selected = valueExistsInString(formData.subjects, subject);
-                      const sc = getSubjectColors(subject);
-                      return (
-                        <Pill
-                          key={subject}
-                          label={subject}
-                          selected={selected}
-                          dynamicTint={{ bg: sc.tint, color: sc.titleText }}
-                          onClick={() => handleMultiSelectChange('subjects', subject, !selected)}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Boards catered *</Eyebrow>
-                  <div className="flex flex-wrap gap-2">
-                    {BOARDS.map((board) => {
-                      const selected = valueExistsInString(formData.school_boards_catered, board);
-                      return (
-                        <Pill
-                          key={board}
-                          label={board}
-                          selected={selected}
-                          tintClass="bg-brand-blue-subtle text-brand-blue-deep"
-                          onClick={() => handleMultiSelectChange('school_boards_catered', board, !selected)}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Classes *</Eyebrow>
-                  <div className="flex flex-wrap gap-2">
-                    {CLASSES.map((cls) => {
-                      const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
-                      return (
-                        <Pill key={cls} label={cls} selected={selected} onClick={() => handleMultiSelectChange('classes_taught_for_backend', cls, !selected)} />
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Structure of classes *</Eyebrow>
-                  <div className="flex flex-wrap gap-2">
-                    {CLASS_SIZE.map((size) => {
-                      const selected = valueExistsInString(formData.class_size, size);
-                      return (
-                        <Pill
-                          key={size}
-                          label={size === 'Solo' ? 'One-on-one' : size}
-                          selected={selected}
-                          onClick={() => handleMultiSelectChange('class_size', size, !selected)}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <Field label="Featured subject" hint="Choose one of your selected subjects to feature on your profile">
-                  {(p) => (
-                    <Select
-                      value={(() => {
-                        const selectedSubjects = (formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
-                        const current = formData.featured_subject;
-                        return current && selectedSubjects.includes(current) ? current : 'none';
-                      })()}
-                      onValueChange={(value) => handleInputChange('featured_subject', value === 'none' ? '' : value)}
-                    >
-                      <SelectTrigger id={p.id} className={p.className}>
-                        <SelectValue placeholder="Select featured subject" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {(formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean).map((subject) => (
-                          <SelectItem key={subject} value={subject}>
-                            {subject}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </Field>
-              </div>
-            )}
-
-            {/* J3 — where you teach */}
-            {step === 2 && (
-              <div className="joinApplyRise">
-                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
-                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
-
-                <Field label="Location" required className="mb-6">
-                  {(p) => (
-                    <Select value={formData.location_v2 || '__none__'} onValueChange={(value) => handleInputChange('location_v2', value === '__none__' ? '' : value)}>
-                      <SelectTrigger id={p.id} className={p.className}>
-                        <SelectValue placeholder="Select location option" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">None</SelectItem>
-                        <SelectItem value="TEACHER'S HOME TUTORING">Teacher's home tutoring only</SelectItem>
-                        <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's home tutoring only</SelectItem>
-                        <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                </Field>
-
-                {showStudentAreas && (
-                  <div className="mb-6">
-                    <Eyebrow as="p" className="mb-3">Areas you teach in (student's home) *</Eyebrow>
-                    <div className="flex flex-wrap gap-2">
-                      {AREAS.map((area) => {
-                        const selected = valueExistsInString(formData.students_home_areas, area);
-                        return (
-                          <Pill
-                            key={area}
-                            label={area}
-                            selected={selected}
-                            tintClass="bg-brand-subtle text-brand-deep"
-                            onClick={() => handleMultiSelectChange('students_home_areas', area, !selected)}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {showTutorAreas && (
-                  <div className="mb-6">
-                    <Eyebrow as="p" className="mb-3">Areas you teach in (your home) *</Eyebrow>
-                    <div className="flex flex-wrap gap-2">
-                      {AREAS.map((area) => {
-                        const selected = valueExistsInString(formData.tutors_home_areas, area);
-                        return (
-                          <Pill
-                            key={area}
-                            label={area}
-                            selected={selected}
-                            tintClass="bg-brand-subtle text-brand-deep"
-                            onClick={() => handleMultiSelectChange('tutors_home_areas', area, !selected)}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <p className="mb-2 text-meta text-warm-meta">We show your locality and radius — "Doranda, travels 5 km" — and nothing more precise than that.</p>
-
-                <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Mode of teaching *</Eyebrow>
-                  <div className="flex flex-wrap gap-2">
-                    {MODE_OF_TEACHING.map((mode) => {
-                      const selected = valueExistsInString(formData.mode_of_teaching, mode);
-                      return (
-                        <Pill key={mode} label={mode} selected={selected} onClick={() => handleMultiSelectChange('mode_of_teaching', mode, !selected)} />
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* J4 — your fee, your terms */}
-            {step === 3 && (
-              <div className="joinApplyRise">
-                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
-                <p className="mt-2 mb-4 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
-
-                {/* copy.md §8 J4 — required disclosure, verbatim. */}
-                <p className="mb-6 rounded-2xl bg-background p-4 text-sm leading-relaxed text-warm-prose ring-1 ring-inset ring-warm-hairline">
-                  Guardians and teachers settle fees between themselves. We never invoice, never hold a deposit, and never show a "platform price".
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  <Field label="Minimum fee / month" hint="Optional">
-                    {(p) => (
-                      <FieldInput
-                        {...p}
-                        type="tel"
-                        value={formData.min_fees}
-                        onChange={(e) => handleInputChange('min_fees', e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="₹3,000"
-                        maxLength={6}
-                        inputMode="numeric"
-                      />
-                    )}
-                  </Field>
-                  <Field label="Maximum fee / month" hint="Optional">
-                    {(p) => (
-                      <FieldInput
-                        {...p}
-                        type="tel"
-                        value={formData.max_fees}
-                        onChange={(e) => handleInputChange('max_fees', e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="₹5,000"
-                        maxLength={6}
-                        inputMode="numeric"
-                      />
-                    )}
-                  </Field>
-                </div>
-
-                <div className="grid gap-6">
-                  <Field label="Profile introduction, in your own words" hint={`${formData.description.length}/1000`}>
-                    {(p) => (
-                      <FieldTextarea
-                        {...p}
-                        value={formData.description}
-                        onChange={(e) => handleInputChange('description', e.target.value)}
-                        rows={5}
-                        placeholder="Tell us about yourself and your teaching approach..."
-                        maxLength={1000}
-                      />
-                    )}
-                  </Field>
-
-                  <Field label="Educational qualifications" hint={`${formData.qualifications_etc.length}/500`}>
-                    {(p) => (
-                      <FieldTextarea
-                        {...p}
-                        value={formData.qualifications_etc}
-                        onChange={(e) => handleInputChange('qualifications_etc', e.target.value)}
-                        rows={3}
-                        placeholder="Your educational qualifications, certifications, etc."
-                        maxLength={500}
-                      />
-                    )}
-                  </Field>
-                </div>
-              </div>
-            )}
-
-            {/* Verify & consent — collects the two legacy verification fields
-                (reference_name/reference_number) and MOU consent that the J1–J5
-                mockup has no slot for. This is where the real "Send" happens,
-                so its copy must not borrow J5's post-submission "With us now"
-                language (see WAITING_ON_REVIEW above, used on the submitted
-                screen instead). */}
-            {step === 4 && (
-              <div className="joinApplyRise">
-                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
-                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">
-                  {currentStep.lede}
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  <Field label="Student name (for verification)" required error={refNameV.error} hint="We will call them to verify you're a teacher">
-                    {(p) => (
-                      <FieldInput
-                        {...p}
-                        value={formData.reference_name}
-                        onChange={(e) => handleInputChange('reference_name', e.target.value)}
-                        onBlur={refNameV.onBlur}
-                        placeholder="Name of a student we can contact"
-                        maxLength={200}
-                      />
-                    )}
-                  </Field>
-
-                  <Field label="Student number (for verification)" required error={refNumberV.error}>
-                    {(p) => (
-                      <FieldInput
-                        {...p}
-                        type="tel"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        value={formData.reference_number}
-                        onChange={(e) => handleInputChange('reference_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                        onBlur={refNumberV.onBlur}
-                        placeholder="10-digit number"
-                        maxLength={10}
-                      />
-                    )}
-                  </Field>
-                </div>
-
-                <div className="rounded-2xl bg-background ring-1 ring-inset ring-warm-hairline p-4 grid gap-4">
-                  <p className="text-sm font-semibold text-foreground">Memorandum of Understanding</p>
-                  <p className="text-sm leading-relaxed text-warm-prose">
-                    This Memorandum of Understanding confirms that you grant ShikshAQ permission to display your submitted profile (name, locality, place of
-                    teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and
-                    enhancing their learning experience.
-                  </p>
-                  <div className="text-sm text-warm-prose">
-                    <p className="font-semibold mb-2">I have read and understood the above Memorandum of Understanding and consent to:</p>
-                    <ol className="list-decimal list-inside grid gap-1.5 ml-2">
-                      <li>ShikshAQ displaying my educator profile as previously submitted;</li>
-                      <li>The use of my WhatsApp link to let students land directly on my WhatsApp chat through ShikshAQ for communication;</li>
-                      <li>The use of my provided information for student outreach and internal communication;</li>
-                      <li>This digital form serving as a legally binding agreement.</li>
-                    </ol>
-                  </div>
-                  <div className="flex items-start gap-3 pt-4 border-t border-warm-hairline">
-                    <Checkbox id="mou_consent" checked={formData.mou_consent} onCheckedChange={(checked) => handleInputChange('mou_consent', checked === true)} required />
-                    <label htmlFor="mou_consent" className="text-sm leading-relaxed cursor-pointer">
-                      <span className="font-semibold text-foreground">I consent. *</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Actions — join-01-who-you-are.png puts a small square Back on the
-              LEFT and a wide solid-orange Continue filling the rest of the row.
-              This had them the other way round, with Continue rendered first, so
-              on a phone Back sat to the right of the button it undoes; and
-              Continue was `dark` where every join mockup shows it orange, which
-              made the step's primary action read as secondary. */}
-          <div className="mt-6 flex items-center gap-2">
-            {step > 0 && (
-              <Button
+    /* JA-001 — fixed three-region layout, not a scrolling BentoStack. Height
+       is a definite `h-[...]` (not `min-h`, which let the column grow to fit
+       its content instead of clipping it — the bug that first shipped here:
+       the action row rendered 100+px below the fold) bounded to the viewport
+       minus the chrome that still renders above/over this route: Navbar's
+       56px sticky bar on mobile, TopBar's 72px on desktop (this page was not
+       added to App.tsx's CHROMELESS_ROUTES, out of this pass's file scope),
+       and — mobile only — the 84px the floating BottomNav pill needs to not
+       cover the action row (same 84px BottomNavSpacer already reserves
+       elsewhere; BottomNav is lg:hidden, so desktop does not subtract it).
+       With a bounded parent, `flex-1 min-h-0` on the body panel actually
+       constrains it to scroll internally instead of growing forever. */
+    <div className="flex h-[calc(100dvh-56px-84px)] flex-col bg-background lg:h-[calc(100vh-72px)]">
+      {/* Header — JA-002 (back disc + segmented bar + "Step N of M", one
+          row) and JA-003 (eyebrow / h1 / support line, all existing copy). */}
+      <BentoPanel fill="dark" edge="top" className="flex-none px-5 pt-1.5 pb-5 lg:px-8">
+        {/* lg:max-w reading column — the panel itself stays full-bleed
+            (colour reaches both edges), but at 1280px the header text and
+            body form get an unstyled edge-to-edge line length without this.
+            Desktop-specific polish is properly 34-desktop.md's phase (this
+            pass is 09b), but a 3-region shell with no cap at all reads as
+            broken rather than "not yet polished", so a plain reading-width
+            cap is applied here rather than left for later. */}
+        <div className="lg:mx-auto lg:max-w-3xl">
+          <div className="flex h-12 items-center gap-3">
+            {step > 0 ? (
+              <button
                 type="button"
                 onClick={goBack}
-                variant="muted"
-                size={54}
                 aria-label="Back to the previous step"
-                className="flex-none"
+                className="relative flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/10 text-background before:absolute before:-inset-[2px]"
               >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            )}
-
-            {!isLastStep ? (
-              <Button type="button" onClick={goNext} variant="primary" size={54} className="flex-1">
-                Continue
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
+                <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden="true" />
+              </button>
             ) : (
-              <Button
-                type="submit"
-                disabled={submitting}
-                busy={submitting}
-                variant="primary"
-                size={54}
-                className="flex-1"
+              <Link
+                to="/join"
+                aria-label="Back to why join ShikshAQ"
+                className="relative flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/10 text-background before:absolute before:-inset-[2px]"
               >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  'Send for review'
-                )}
-              </Button>
+                <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden="true" />
+              </Link>
             )}
+            <ProgressSteps steps={STEPS.length} current={step} label={currentStep.label} className="flex-1" />
+            <span className="text-[12.5px] font-bold whitespace-nowrap" style={{ color: 'rgba(249,245,241,.6)' }}>
+              Step {step + 1} of {STEPS.length}
+            </span>
           </div>
+          <p className="mt-3 text-[11.5px] font-bold uppercase tracking-[0.04em]" style={{ color: 'rgba(249,245,241,.5)' }}>
+            {currentStep.label}
+          </p>
+          <h1 className="mt-1.5 font-display text-[30px] font-black leading-[1.02] tracking-[-0.04em] text-background">
+            {currentStep.head}
+          </h1>
+          <p className="mt-2 text-[14.5px] leading-[1.5]" style={{ color: 'rgba(249,245,241,.65)' }}>
+            {currentStep.lede}
+          </p>
+        </div>
+      </BentoPanel>
+
+      {/* Body — scrolls internally (JA-001), everything from here down is
+          styling only; the form's fields, handlers and validation are the
+          same ones defined above. */}
+      <BentoPanel
+        ref={bodyScrollRef}
+        fill="card"
+        className="flex-1 min-h-0 overflow-y-auto p-5 lg:px-8"
+      >
+        <form
+          id="join-apply-form"
+          className="lg:mx-auto lg:max-w-3xl"
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            // Enter advances on every step but the last, where the native
+            // submit should happen instead. Textareas keep their own
+            // newline behaviour.
+            if (e.key === 'Enter' && !isLastStep && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+              e.preventDefault();
+              goNext();
+            }
+          }}
+        >
+          {/* J1 — who you are */}
+          {step === 0 && (
+            <div className="animate-fade-slide-up">
+              <div className="grid gap-4">
+                <Field label="Full name" required error={nameV.error}>
+                  {(p) => (
+                    <FieldInput
+                      {...p}
+                      className={cn(p.className, JA_FIELD_OVERRIDE)}
+                      autoComplete="name"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      onBlur={nameV.onBlur}
+                      placeholder="e.g. Ananya Ghosh"
+                      maxLength={200}
+                    />
+                  )}
+                </Field>
+
+                <Field label="Email" required error={emailV.error}>
+                  {(p) => (
+                    <FieldInput
+                      {...p}
+                      className={cn(p.className, JA_FIELD_OVERRIDE)}
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      onBlur={emailV.onBlur}
+                      placeholder="e.g. name@example.com"
+                      maxLength={254}
+                    />
+                  )}
+                </Field>
+
+                <div>
+                  <Eyebrow as="p" className="mb-2">Sir or Ma'am <span className="text-facet-destructive">*</span></Eyebrow>
+                  <div className="flex gap-2">
+                    {SIR_MAAM.map((option) => (
+                      <Pill key={option} label={option} selected={formData.sir_maam === option} onClick={() => handleInputChange('sir_maam', option)} />
+                    ))}
+                  </div>
+                </div>
+
+                <Field label="WhatsApp number" required error={phoneV.error} hint="Shown only once a guardian taps WhatsApp. Never on the open page, never in search results.">
+                  {(p) => (
+                    <FieldInput
+                      {...p}
+                      className={cn(p.className, JA_FIELD_OVERRIDE)}
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      value={formData.phone_number}
+                      onChange={(e) => handleInputChange('phone_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      onBlur={phoneV.onBlur}
+                      placeholder="10-digit number"
+                      maxLength={10}
+                    />
+                  )}
+                </Field>
+
+                <Field label="Years of experience" hint="Optional">
+                  {(p) => (
+                    <FieldInput
+                      {...p}
+                      className={cn(p.className, JA_FIELD_OVERRIDE)}
+                      value={formData.years_started_teaching}
+                      onChange={(e) => handleInputChange('years_started_teaching', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      placeholder="e.g. 12"
+                      maxLength={4}
+                      inputMode="numeric"
+                    />
+                  )}
+                </Field>
+
+                {/* Photo — J1 ("who you are: name, WhatsApp, years, photo"). */}
+                <div>
+                  <Eyebrow as="p" className="mb-2">Photo <span className="text-facet-destructive">*</span></Eyebrow>
+                  <div className="grid gap-3">
+                    {imagePreview && (() => {
+                      const validatedUrl = validateImageSrc(imagePreview);
+                      if (!validatedUrl) return null;
+                      const safeSrc = DOMPurify.sanitize(validatedUrl, { ALLOWED_TAGS: [], ALLOWED_ATTR: [], KEEP_CONTENT: true });
+                      if (!safeSrc) return null;
+                      return (
+                        <div className="relative w-full max-w-[340px]">
+                          <img
+                            src={safeSrc}
+                            alt="Photo preview"
+                            className="w-full h-[190px] object-cover rounded-2xl"
+                            onError={() => setImagePreview(null)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (imagePreview && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+                              setSelectedImageFile(null);
+                              setImagePreview(null);
+                              handleInputChange('hero_image_url', '');
+                            }}
+                            className="absolute top-2 right-2 flex items-center justify-center w-10 h-10 rounded-full bg-card/90 shadow-border"
+                          >
+                            <X className="w-4 h-4 text-foreground" />
+                          </button>
+                        </div>
+                      );
+                    })()}
+                    <label
+                      htmlFor="heroImageUpload"
+                      className="inline-flex items-center gap-2 w-fit min-h-11 px-4 rounded-full bg-muted text-sm font-semibold text-foreground cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4" />
+                      {selectedImageFile ? 'Change photo' : 'Select photo'}
+                      <input id="heroImageUpload" type="file" accept="image/*" className="hidden" onChange={handleImageFileChange} disabled={submitting} />
+                    </label>
+                    <p className="text-meta text-warm-meta">
+                      {selectedImageFile ? 'Uploaded when you submit the form. Max 5MB.' : 'A professional photo helps. Max 5MB.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* J2 — what you teach */}
+          {step === 1 && (
+            <div className="animate-fade-slide-up">
+              <div className="mb-6">
+                <Eyebrow as="p" className="mb-3">Subjects <span className="text-facet-destructive">*</span></Eyebrow>
+                <div className="flex flex-wrap gap-2">
+                  {SUBJECTS.map((subject) => {
+                    const selected = valueExistsInString(formData.subjects, subject);
+                    const sc = getSubjectColors(subject);
+                    return (
+                      <Pill
+                        key={subject}
+                        label={subject}
+                        selected={selected}
+                        dynamicTint={{ bg: sc.tint, color: sc.titleText }}
+                        onClick={() => handleMultiSelectChange('subjects', subject, !selected)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <Eyebrow as="p" className="mb-3">Boards catered <span className="text-facet-destructive">*</span></Eyebrow>
+                <div className="flex flex-wrap gap-2">
+                  {BOARDS.map((board) => {
+                    const selected = valueExistsInString(formData.school_boards_catered, board);
+                    return (
+                      <Pill
+                        key={board}
+                        label={board}
+                        selected={selected}
+                        tintClass="bg-brand-blue-subtle text-brand-blue-deep"
+                        onClick={() => handleMultiSelectChange('school_boards_catered', board, !selected)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* JA-004 number grid. */}
+              <div className="mb-6">
+                <Eyebrow as="p" className="mb-3">Classes <span className="text-facet-destructive">*</span></Eyebrow>
+                <div className="grid grid-cols-6 gap-2">
+                  {CLASSES.map((cls) => {
+                    const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
+                    return (
+                      <NumberCell key={cls} label={cls} selected={selected} onClick={() => handleMultiSelectChange('classes_taught_for_backend', cls, !selected)} />
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <Eyebrow as="p" className="mb-3">Structure of classes <span className="text-facet-destructive">*</span></Eyebrow>
+                <div className="flex flex-wrap gap-2">
+                  {CLASS_SIZE.map((size) => {
+                    const selected = valueExistsInString(formData.class_size, size);
+                    return (
+                      <Pill
+                        key={size}
+                        label={size === 'Solo' ? 'One-on-one' : size}
+                        selected={selected}
+                        onClick={() => handleMultiSelectChange('class_size', size, !selected)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Field label="Featured subject" hint="Choose one of your selected subjects to feature on your profile">
+                {(p) => (
+                  <Select
+                    value={(() => {
+                      const selectedSubjects = (formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
+                      const current = formData.featured_subject;
+                      return current && selectedSubjects.includes(current) ? current : 'none';
+                    })()}
+                    onValueChange={(value) => handleInputChange('featured_subject', value === 'none' ? '' : value)}
+                  >
+                    <SelectTrigger id={p.id} className={cn(p.className, JA_FIELD_OVERRIDE)}>
+                      <SelectValue placeholder="Select featured subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {(formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean).map((subject) => (
+                        <SelectItem key={subject} value={subject}>
+                          {subject}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
+            </div>
+          )}
+
+          {/* J3 — where you teach */}
+          {step === 2 && (
+            <div className="animate-fade-slide-up">
+              <Field label="Location" required className="mb-6">
+                {(p) => (
+                  <Select value={formData.location_v2 || '__none__'} onValueChange={(value) => handleInputChange('location_v2', value === '__none__' ? '' : value)}>
+                    <SelectTrigger id={p.id} className={cn(p.className, JA_FIELD_OVERRIDE)}>
+                      <SelectValue placeholder="Select location option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None</SelectItem>
+                      <SelectItem value="TEACHER'S HOME TUTORING">Teacher's home tutoring only</SelectItem>
+                      <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's home tutoring only</SelectItem>
+                      <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </Field>
+
+              {showStudentAreas && (
+                <div className="mb-6">
+                  <Eyebrow as="p" className="mb-3">Areas you teach in (student's home) <span className="text-facet-destructive">*</span></Eyebrow>
+                  <div className="flex flex-wrap gap-2">
+                    {AREAS.map((area) => {
+                      const selected = valueExistsInString(formData.students_home_areas, area);
+                      return (
+                        <Pill
+                          key={area}
+                          label={area}
+                          selected={selected}
+                          tintClass="bg-brand-subtle text-brand-deep"
+                          onClick={() => handleMultiSelectChange('students_home_areas', area, !selected)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {showTutorAreas && (
+                <div className="mb-6">
+                  <Eyebrow as="p" className="mb-3">Areas you teach in (your home) <span className="text-facet-destructive">*</span></Eyebrow>
+                  <div className="flex flex-wrap gap-2">
+                    {AREAS.map((area) => {
+                      const selected = valueExistsInString(formData.tutors_home_areas, area);
+                      return (
+                        <Pill
+                          key={area}
+                          label={area}
+                          selected={selected}
+                          tintClass="bg-brand-subtle text-brand-deep"
+                          onClick={() => handleMultiSelectChange('tutors_home_areas', area, !selected)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <p className="mb-2 text-meta text-warm-meta">We show your locality and radius — "Doranda, travels 5 km" — and nothing more precise than that.</p>
+
+              <div className="mb-6">
+                <Eyebrow as="p" className="mb-3">Mode of teaching <span className="text-facet-destructive">*</span></Eyebrow>
+                <div className="flex flex-wrap gap-2">
+                  {MODE_OF_TEACHING.map((mode) => {
+                    const selected = valueExistsInString(formData.mode_of_teaching, mode);
+                    return (
+                      <Pill key={mode} label={mode} selected={selected} onClick={() => handleMultiSelectChange('mode_of_teaching', mode, !selected)} />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* J4 — your fee, your terms */}
+          {step === 3 && (
+            <div className="animate-fade-slide-up">
+              {/* copy.md §8 J4 — required disclosure, verbatim. */}
+              <p className="mb-6 rounded-2xl bg-muted p-4 text-sm leading-relaxed text-warm-prose">
+                Guardians and teachers settle fees between themselves. We never invoice, never hold a deposit, and never show a "platform price".
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <Field label="Minimum fee / month" hint="Optional">
+                  {(p) => (
+                    <FieldInput
+                      {...p}
+                      className={cn(p.className, JA_FIELD_OVERRIDE)}
+                      type="tel"
+                      value={formData.min_fees}
+                      onChange={(e) => handleInputChange('min_fees', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="₹3,000"
+                      maxLength={6}
+                      inputMode="numeric"
+                    />
+                  )}
+                </Field>
+                <Field label="Maximum fee / month" hint="Optional">
+                  {(p) => (
+                    <FieldInput
+                      {...p}
+                      className={cn(p.className, JA_FIELD_OVERRIDE)}
+                      type="tel"
+                      value={formData.max_fees}
+                      onChange={(e) => handleInputChange('max_fees', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="₹5,000"
+                      maxLength={6}
+                      inputMode="numeric"
+                    />
+                  )}
+                </Field>
+              </div>
+
+              <div className="grid gap-6">
+                <Field label="Profile introduction, in your own words" hint={`${formData.description.length}/1000`}>
+                  {(p) => (
+                    <FieldTextarea
+                      {...p}
+                      className={cn(p.className, JA_TEXTAREA_OVERRIDE)}
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      rows={5}
+                      placeholder="Tell us about yourself and your teaching approach..."
+                      maxLength={1000}
+                    />
+                  )}
+                </Field>
+
+                <Field label="Educational qualifications" hint={`${formData.qualifications_etc.length}/500`}>
+                  {(p) => (
+                    <FieldTextarea
+                      {...p}
+                      className={cn(p.className, JA_TEXTAREA_OVERRIDE)}
+                      value={formData.qualifications_etc}
+                      onChange={(e) => handleInputChange('qualifications_etc', e.target.value)}
+                      rows={3}
+                      placeholder="Your educational qualifications, certifications, etc."
+                      maxLength={500}
+                    />
+                  )}
+                </Field>
+              </div>
+            </div>
+          )}
+
+          {/* Verify & consent — collects the two legacy verification fields
+              (reference_name/reference_number) and MOU consent that the J1–J5
+              mockup has no slot for. This is where the real "Send" happens,
+              so its copy must not borrow J5's post-submission "With us now"
+              language (see WAITING_ON_REVIEW above, used on the submitted
+              screen instead). */}
+          {step === 4 && (
+            <div className="animate-fade-slide-up">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <Field label="Student name (for verification)" required error={refNameV.error} hint="We will call them to verify you're a teacher">
+                  {(p) => (
+                    <FieldInput
+                      {...p}
+                      className={cn(p.className, JA_FIELD_OVERRIDE)}
+                      value={formData.reference_name}
+                      onChange={(e) => handleInputChange('reference_name', e.target.value)}
+                      onBlur={refNameV.onBlur}
+                      placeholder="Name of a student we can contact"
+                      maxLength={200}
+                    />
+                  )}
+                </Field>
+
+                <Field label="Student number (for verification)" required error={refNumberV.error}>
+                  {(p) => (
+                    <FieldInput
+                      {...p}
+                      className={cn(p.className, JA_FIELD_OVERRIDE)}
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={formData.reference_number}
+                      onChange={(e) => handleInputChange('reference_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      onBlur={refNumberV.onBlur}
+                      placeholder="10-digit number"
+                      maxLength={10}
+                    />
+                  )}
+                </Field>
+              </div>
+
+              <div className="rounded-2xl bg-muted p-4 grid gap-4">
+                <p className="text-sm font-semibold text-foreground">Memorandum of Understanding</p>
+                <p className="text-sm leading-relaxed text-warm-prose">
+                  This Memorandum of Understanding confirms that you grant ShikshAQ permission to display your submitted profile (name, locality, place of
+                  teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and
+                  enhancing their learning experience.
+                </p>
+                <div className="text-sm text-warm-prose">
+                  <p className="font-semibold mb-2">I have read and understood the above Memorandum of Understanding and consent to:</p>
+                  <ol className="list-decimal list-inside grid gap-1.5 ml-2">
+                    <li>ShikshAQ displaying my educator profile as previously submitted;</li>
+                    <li>The use of my WhatsApp link to let students land directly on my WhatsApp chat through ShikshAQ for communication;</li>
+                    <li>The use of my provided information for student outreach and internal communication;</li>
+                    <li>This digital form serving as a legally binding agreement.</li>
+                  </ol>
+                </div>
+                <div className="flex items-start gap-3 pt-4 border-t border-warm-hairline">
+                  <Checkbox id="mou_consent" checked={formData.mou_consent} onCheckedChange={(checked) => handleInputChange('mou_consent', checked === true)} required />
+                  <label htmlFor="mou_consent" className="text-sm leading-relaxed cursor-pointer">
+                    <span className="font-semibold text-foreground">I consent. *</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
         </form>
-      </main>
+      </BentoPanel>
 
-      <Footer />
+      {/* Actions — JA-005. Pinned, never scrolls with the body above it. */}
+      <BentoPanel fill="card" edge="bottom" className="flex-none p-[16px_20px_26px] lg:px-8">
+        <div className="flex items-center gap-2.5 lg:mx-auto lg:max-w-3xl">
+          {step > 0 && (
+            <button
+              type="button"
+              onClick={goBack}
+              className="flex h-[54px] flex-none items-center rounded-full bg-muted px-[22px] text-[15px] font-bold text-foreground transition-transform duration-150 active:scale-[0.97]"
+            >
+              Back
+            </button>
+          )}
 
-      <style>{`
-        .joinApplyRise { animation: fade-slide-up .28s cubic-bezier(.16,1,.3,1) both; }
-        @media (hover: hover) {
-          .shikshaq-pill-unselected:hover { background-color: hsl(var(--foreground) / 0.04); }
-        }
-      `}</style>
+          {!isLastStep ? (
+            <button
+              type="button"
+              onClick={goNext}
+              className="flex h-[54px] flex-1 items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-extrabold text-brand-foreground transition-transform duration-150 active:scale-[0.97]"
+            >
+              Save and continue
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              form="join-apply-form"
+              disabled={submitting}
+              className="flex h-[54px] flex-1 items-center justify-center gap-2 rounded-full bg-brand text-[15px] font-extrabold text-brand-foreground transition-transform duration-150 active:scale-[0.97] disabled:opacity-60"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Send for review'
+              )}
+            </button>
+          )}
+        </div>
+      </BentoPanel>
     </div>
   );
 }

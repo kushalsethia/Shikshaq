@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { useRequireRole } from '@/hooks/use-require-role';
@@ -11,10 +11,22 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { logger } from '@/utils/logger';
 import { Button } from '@/components/ui/button';
 import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
-import { PageContainer, ControlBlock, BottomNavSpacer } from '@/components/layout/PageContainer';
-import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
-import { Chip } from '@/components/ui/chip';
+import { Eyebrow } from '@/components/ui/eyebrow';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { SUBJECTS } from '@/utils/searchFacets';
+import { getSubjectColors } from '@/utils/subjectColors';
+
+/* JA-004's "Fields" pattern (this changelog's shared control spec, reused
+   here since RC-001 does not restate its own): 52px h-[52px] rounded-2xl
+   bg-muted inputs, 96px textarea. Applied via `!`-prefixed overrides on
+   Field's own controlBase (h-14/rounded-[15px]/bg-card/shadow-border),
+   since two Tailwind utilities targeting the same box side are not
+   guaranteed to resolve by className string order — only `!important` does
+   that deterministically. */
+const RC_FIELD_OVERRIDE = '!h-[52px] !rounded-2xl !bg-muted !shadow-none !text-base';
+const RC_TEXTAREA_OVERRIDE = '!min-h-[96px] !max-h-none !rounded-2xl !bg-muted !shadow-none !text-base';
 
 const recommendSchema = z.object({
   teacherName: z.string().trim().min(1, "Please enter the teacher's name").max(100, "Teacher's name is too long"),
@@ -31,7 +43,6 @@ export default function RecommendTeacher() {
   );
 
   const navigate = useNavigate();
-  const location = useLocation();
   const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
     teacherName: '',
@@ -46,6 +57,8 @@ export default function RecommendTeacher() {
 
   // Ensure user has selected a role
   useRequireRole();
+
+  const { builderMode, setBuilderMode, slots, onSlotChange, onSubmit } = useSentenceBuilder();
 
   const nameValidation = useBlurValidation(formData.teacherName, (v) =>
     v.trim().length === 0 ? "Please enter the teacher's name" : undefined
@@ -106,55 +119,46 @@ export default function RecommendTeacher() {
       }
 
       setSubmitted(true);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to submit recommendation');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit recommendation');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* S11 "recommend" — the mockup shows this as step 2 of a 3-step wizard
-          shared with /join-apply. This route is a single-page form, not a
-          wizard, so the progress bar is not reproduced; header, field and
-          footer treatment match the mockup exactly. */}
-      <ControlBlock mode="dark">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="inline-flex h-11 items-center gap-2 text-body-secondary font-semibold text-background/70 transition-colors duration-150 hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
-        >
-          <ArrowLeft size={15} strokeWidth={2.3} aria-hidden="true" />
-          Back
-        </button>
-        <h1 className="mt-[14px] font-display text-page-title font-black leading-[1.05] tracking-[-0.04em] text-background">
-          Know a teacher worth listing?
-        </h1>
-        <p className="mt-2 text-body-secondary text-background/80">
-          Three fields. We verify before anything goes live.
-        </p>
-      </ControlBlock>
+    <BentoStack>
+      <main className="contents">
+        {/* RC-001 header. The mockup draws this as step 2 of a shared 3-step
+            wizard with /join/apply — this route has no such step state (it
+            is, and has always been, a single-page form; see the pre-existing
+            comment this replaces). Rendering a "Step 2 of 3" pill here would
+            fabricate wizard progress that does not exist, which the G-5
+            honesty gate rules out, so the pill is dropped and only the
+            heading/support line (existing copy, unchanged) are kept. */}
+        <BentoPanel fill="dark" edge="top" className="px-5 pt-5 pb-6 lg:px-8">
+          <h1 className="font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-background">
+            Know a teacher worth listing?
+          </h1>
+          <p className="mt-2 text-[14.5px] leading-[1.55] text-background/80">
+            Three fields. We verify before anything goes live.
+          </p>
+        </BentoPanel>
 
-      <main>
-      <PageContainer className="pt-8 sm:pt-10 pb-16">
-        <div className="mx-auto max-w-3xl rounded-2xl bg-card p-6 shadow-border sm:p-8">
+        <BentoPanel fill="card" className="px-5 py-5 lg:px-8 lg:py-8">
           {submitted ? (
-            <div className="py-2 text-center">
-              <p className="text-body font-semibold text-foreground">
+            <div className="rounded-2xl bg-brand p-6 text-center text-brand-foreground sm:p-8">
+              <p className="text-body font-semibold">
                 Thanks — we will reach out to them this week.
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
-              <Field
-                label="Teacher's name"
-                required
-                error={nameValidation.error}
-              >
-                {(controlProps) => (
+              <Field label="Teacher's name" required error={nameValidation.error}>
+                {(p) => (
                   <FieldInput
-                    {...controlProps}
+                    {...p}
+                    className={`${p.className} ${RC_FIELD_OVERRIDE}`}
                     name="teacherName"
                     placeholder="e.g. Ananya Ghosh"
                     value={formData.teacherName}
@@ -166,68 +170,66 @@ export default function RecommendTeacher() {
                 )}
               </Field>
 
-              {/* account-06-recommend-teacher.png makes Subject a row of chips,
-                  not a text box. Worth following for more than fidelity: free
-                  text meant an admin received "maths", "Mathematics", "Math" and
-                  had to reconcile each against the real subject list by hand
-                  before the recommendation could become a listing. The chips are
-                  the SAME canonical list the filters, the hero search and the
-                  footer sentence builder already use, so a recommendation now
-                  arrives already speaking the site's vocabulary.
-
-                  Tapping the selected chip again clears it — the field is
-                  optional, and without that there would be no way back to
-                  "not sure". */}
-              <div className="mb-4">
-                <span
-                  id="recommend-subject-label"
-                  className="mb-2 block text-label font-bold uppercase tracking-[0.07em] text-warm-label"
-                >
-                  Subject
-                </span>
+              {/* Real, working functionality the changelog's own "four
+                  fields" count omits (name/area/phone/why-them) — the
+                  changelog was evidently written against an earlier version
+                  of this file. This chip row replaced a free-text Subject
+                  field specifically to stop admins reconciling "maths" /
+                  "Mathematics" / "Math" by hand against the canonical list;
+                  dropping it back to prose would silently regress that fix.
+                  Kept, and restyled to this file's own JA-004 multi-select
+                  chip spec: selected in the subject's tint/text with a
+                  trailing check, unselected bg-muted/text-warm-secondary. */}
+              <div>
+                <Eyebrow as="p" className="mb-2">Subject</Eyebrow>
                 <div
                   role="group"
-                  aria-labelledby="recommend-subject-label"
+                  aria-label="Subject"
                   className="flex flex-wrap gap-2"
                 >
                   {SUBJECTS.map((subject) => {
                     const selected = formData.subject === subject;
+                    const sc = getSubjectColors(subject);
                     return (
-                      <Chip
+                      <button
                         key={subject}
-                        tone={selected ? 'facet-on' : 'facet'}
-                        size={40}
+                        type="button"
                         aria-pressed={selected}
                         onClick={() =>
                           setFormData((prev) => ({ ...prev, subject: selected ? '' : subject }))
                         }
+                        className={`inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[14px] font-semibold transition-colors duration-150 ${
+                          selected ? '' : 'bg-muted text-warm-secondary'
+                        }`}
+                        style={selected ? { background: sc.tint, color: sc.titleText } : undefined}
                       >
                         {subject}
-                      </Chip>
+                        {selected && <Check className="h-[14px] w-[14px]" aria-hidden />}
+                      </button>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Area they teach in">
-                  {(controlProps) => (
-                    <FieldInput
-                      {...controlProps}
-                      name="area"
-                      placeholder="e.g. Ballygunge"
-                      value={formData.area}
-                      onChange={handleChange}
-                      maxLength={100}
-                    />
-                  )}
-                </Field>
-              </div>
+              <Field label="Area they teach in">
+                {(p) => (
+                  <FieldInput
+                    {...p}
+                    className={`${p.className} ${RC_FIELD_OVERRIDE}`}
+                    name="area"
+                    placeholder="e.g. Ballygunge"
+                    value={formData.area}
+                    onChange={handleChange}
+                    maxLength={100}
+                  />
+                )}
+              </Field>
 
               <Field label="Their contact, if you have it" hint="Phone or WhatsApp — we verify, we never publish it.">
-                {(controlProps) => (
+                {(p) => (
                   <FieldInput
-                    {...controlProps}
+                    {...p}
+                    className={`${p.className} ${RC_FIELD_OVERRIDE}`}
                     type="tel"
                     name="contact"
                     placeholder="e.g. +91 98300 00000"
@@ -240,9 +242,10 @@ export default function RecommendTeacher() {
               </Field>
 
               <Field label="Why you would recommend them">
-                {(controlProps) => (
+                {(p) => (
                   <FieldTextarea
-                    {...controlProps}
+                    {...p}
+                    className={`${p.className} ${RC_TEXTAREA_OVERRIDE}`}
                     name="reason"
                     rows={4}
                     placeholder="A line or two is enough."
@@ -259,25 +262,36 @@ export default function RecommendTeacher() {
                 </p>
               ) : null}
 
-              <Button type="submit" variant="primary" size={52} busy={loading} className="w-full">
+              <Button type="submit" variant="primary" size={54} busy={loading} className="w-full">
                 Send recommendation
               </Button>
-
-              <p className="text-meta leading-relaxed text-warm-meta">
-                We never publish a teacher's details without their consent, and we do not tell
-                them who recommended them unless you ask us to.
-              </p>
             </form>
           )}
-        </div>
-      </PageContainer>
+        </BentoPanel>
+
+        {/* RC-001 privacy note — load-bearing copy, literal per the entry. */}
+        <BentoPanel fill="brandTint" className="px-5 py-5 lg:px-8">
+          <p className="text-[14px] leading-[1.55] text-warm-prose">
+            We contact them ourselves. Their number is never published, and nothing goes live until they agree.
+          </p>
+        </BentoPanel>
+
+        <EyesPanel
+          mode={builderMode}
+          onModeChange={setBuilderMode}
+          heading={
+            <>
+              Still deciding? <span className="font-extrabold">We&apos;re watching out for you.</span>
+            </>
+          }
+          subline="Fill in the blanks and we'll take you straight there."
+          slots={slots}
+          onSlotChange={onSlotChange}
+          onSubmit={onSubmit}
+        />
       </main>
 
-      <PageContainer className="pb-8">
-        <PreFooter variant={preFooterFor(location.pathname)} />
-      </PageContainer>
-      <BottomNavSpacer />
       <Footer />
-    </div>
+    </BentoStack>
   );
 }

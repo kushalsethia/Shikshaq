@@ -12,11 +12,9 @@ import {
 } from '@/components/ui/select';
 import { GraduationCap, Users, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
-import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
-import { useLocation } from 'react-router-dom';
+import { BentoPanel } from '@/components/layout/PageContainer';
 
 const FIELD_CLASS =
   'w-full min-h-12 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline px-4 shikshaq-role-field';
@@ -29,7 +27,6 @@ function isValidRedirect(path: string | null): path is string {
 export default function SelectRole() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect');
   const [role, setRole] = useState<'student' | 'guardian' | ''>('');
@@ -181,16 +178,12 @@ export default function SelectRole() {
   // Show loading state only while checking auth or initial role check
   if (authLoading || checkingRole) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
-            <p className="text-muted-foreground text-base">Loading...</p>
-          </div>
-        </main>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
-      </div>
+      <BentoPanel fill="card" edge="top" className="flex min-h-screen flex-col items-center justify-center px-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
+          <p className="text-muted-foreground text-base">Loading...</p>
+        </div>
+      </BentoPanel>
     );
   }
 
@@ -202,13 +195,16 @@ export default function SelectRole() {
   // If no user, show sign-in prompt
   if (!user) {
     return (
-      <div className="min-h-screen bg-background">
+      <BentoPanel fill="card" edge="top" className="flex min-h-screen flex-col">
         {/* <main>, not <div> — the signed-out branch is the one an unauthenticated
             visitor actually reaches, and it was the only branch of this page with
             no main landmark, so skip-to-content and landmark navigation had
             nothing to target exactly when the page is at its most confusing. */}
-        <main className="px-4 sm:px-6 pt-6 sm:pt-12 pb-16 text-center">
-          <h1 className="mb-4 text-page-title text-foreground">You must be signed in to continue.</h1>
+        <main className="flex flex-1 flex-col items-center justify-center px-4 py-16 text-center sm:px-6">
+          <Logo size="lg" className="mb-6" />
+          <h1 className="mb-4 font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-foreground">
+            You must be signed in to continue.
+          </h1>
           <button
             onClick={() => navigate(isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth')}
             className="active:scale-[0.98] transition-transform duration-150 min-h-12 px-6 rounded-lg bg-foreground text-background text-base font-bold"
@@ -216,176 +212,175 @@ export default function SelectRole() {
             Sign In
           </button>
         </main>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
-      </div>
+      </BentoPanel>
     );
   }
 
-  // Redesign S8 (design.md §1; changelog C-033) — rebuilt from zero. Mockup
-  // draws three generic role tiles (Student / Guardian / I teach); this app's
-  // actual role-select only collects Student vs Guardian ("I teach" already
-  // has its own /join flow), so the tile pattern is kept at two, styled per
-  // the mockup's selected/unselected tile language (solid orange vs bone card).
+  // SR-001 — one full-height card panel. Two r24 role cards (Guardian first,
+  // Student second, per the mockup and this entry's own listed order —
+  // ordering only, the submit logic below is unchanged either way);
+  // selection is communicated with an inset ring in the card's own solid
+  // colour, never a fill swap, so the card does not restyle under the
+  // finger. Role copy is unchanged except the support line, which the entry
+  // supplies verbatim ("This only changes what your account shows you. You
+  // can search either way.") — the app's existing line did not contain that
+  // sentence, so this is the one line this entry authorizes changing.
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <main className="flex flex-1 flex-col gap-[18px] px-4 pb-16 pt-[22px] sm:px-6 sm:py-16">
-        <div className="mx-auto w-full max-w-[480px]">
-          <div className="mb-2 text-center">
-            <Logo size="lg" className="mx-auto mb-4" />
-            <h1 className="font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-foreground">
-              Who's using ShikshAQ?
-            </h1>
-            <p className="mt-2 text-[14.5px] leading-relaxed text-warm-prose">
-              We use this to decide what your home screen shows. You can change it later.
-            </p>
+    <BentoPanel fill="card" edge="top" className="flex min-h-screen flex-col px-4 pb-8 pt-[22px] sm:px-6 sm:pb-16">
+      <main className="mx-auto flex w-full max-w-[480px] flex-1 flex-col">
+        <div className="mb-2 text-center">
+          <Logo size="lg" className="mx-auto mb-4" />
+          <h1 className="font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-foreground">
+            Who's using ShikshAQ?
+          </h1>
+          <p className="mt-2 text-[14.5px] leading-[1.55] text-warm-prose">
+            This only changes what your account shows you. You can search either way.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-[18px] flex flex-1 flex-col">
+          <div className="flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={() => setRole('guardian')}
+              aria-pressed={role === 'guardian'}
+              className={`flex items-center gap-[14px] rounded-[24px] bg-brand-subtle p-5 text-left transition-transform duration-150 active:scale-[0.98] ${
+                role === 'guardian' ? 'shadow-[inset_0_0_0_2px_hsl(var(--brand))]' : ''
+              }`}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-brand text-brand-foreground">
+                <Users className="h-[19px] w-[19px]" strokeWidth={2} />
+              </span>
+              <span className="flex-1">
+                <span className="mt-[14px] block font-display text-[21px] font-extrabold tracking-[-0.04em] text-brand-deep">Guardian</span>
+                <span className="mt-[3px] block text-[14px] leading-[1.5] text-warm-prose">
+                  Your relationship to the student, plus their details.
+                </span>
+              </span>
+              <ChevronRight className="h-[18px] w-[18px] shrink-0 text-warm-meta" strokeWidth={2.4} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRole('student')}
+              aria-pressed={role === 'student'}
+              className={`flex items-center gap-[14px] rounded-[24px] bg-brand-blue-subtle p-5 text-left transition-transform duration-150 active:scale-[0.98] ${
+                role === 'student' ? 'shadow-[inset_0_0_0_2px_hsl(var(--brand-blue))]' : ''
+              }`}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-brand-blue text-brand-blue-foreground">
+                <GraduationCap className="h-[19px] w-[19px]" strokeWidth={2} />
+              </span>
+              <span className="flex-1">
+                <span className="mt-[14px] block font-display text-[21px] font-extrabold tracking-[-0.04em] text-brand-blue-deep">Student</span>
+                <span className="mt-[3px] block text-[14px] leading-[1.5] text-warm-prose">
+                  School, board, class and the subjects you need help with.
+                </span>
+              </span>
+              <ChevronRight className="h-[18px] w-[18px] shrink-0 text-warm-meta" strokeWidth={2.4} />
+            </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-[18px] flex flex-col gap-[18px]">
-            <div className="flex flex-col gap-3">
-              {/* Student tile is always brand-filled per mockup S8 (the featured
-                  first option); selection is communicated with a ring, since
-                  the fill itself doesn't change state in the mockup. */}
-              <button
-                type="button"
-                onClick={() => setRole('student')}
-                aria-pressed={role === 'student'}
-                className={`flex items-center gap-[14px] rounded-[22px] bg-brand p-[18px] text-left text-brand-foreground shadow-glow-brand transition-transform duration-150 active:scale-[0.98] ${
-                  role === 'student' ? 'ring-2 ring-foreground ring-offset-2' : ''
-                }`}
-              >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
-                  <GraduationCap className="h-[22px] w-[22px]" strokeWidth={2.1} />
-                </span>
-                <span className="flex-1">
-                  <span className="font-display text-[19px] font-extrabold tracking-[-0.03em]">Student</span>
-                  <span className="mt-[3px] block text-[13px] leading-[1.5] text-brand-foreground/85">
-                    School, board, class and the subjects you need help with.
-                  </span>
-                </span>
-                <ChevronRight className="h-[18px] w-[18px] shrink-0 text-brand-foreground/85" strokeWidth={2.4} />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setRole('guardian')}
-                aria-pressed={role === 'guardian'}
-                className={`flex items-center gap-[14px] rounded-[22px] bg-card p-[18px] text-left text-foreground shadow-border transition-transform duration-150 active:scale-[0.98] ${
-                  role === 'guardian' ? 'ring-2 ring-foreground' : ''
-                }`}
-              >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted">
-                  <Users className="h-[22px] w-[22px]" strokeWidth={2.1} />
-                </span>
-                <span className="flex-1">
-                  <span className="font-display text-[19px] font-extrabold tracking-[-0.03em]">Guardian</span>
-                  <span className="mt-[3px] block text-[13px] leading-[1.5] text-warm-meta">
-                    Your relationship to the student, plus their details.
-                  </span>
-                </span>
-                <ChevronRight className="h-[18px] w-[18px] shrink-0 text-warm-meta" strokeWidth={2.4} />
-              </button>
-            </div>
-
-            {role === 'student' && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-300 flex flex-col gap-[18px]">
-                <div>
-                  <label htmlFor="school_college" className={LABEL_CLASS}>
-                    School / College <span className="text-destructive">*</span>
-                  </label>
-                  <input
-                    id="school_college"
-                    placeholder="e.g. Delhi Public School"
-                    value={schoolCollege}
-                    onChange={(e) => setSchoolCollege(e.target.value)}
-                    className={FIELD_CLASS}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="grade" className={LABEL_CLASS}>
-                    Grade <span className="text-destructive">*</span>
-                  </label>
-                  <Select value={grade} onValueChange={setGrade}>
-                    <SelectTrigger id="grade" className={FIELD_CLASS}>
-                      <SelectValue placeholder="Select grade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Class 1</SelectItem>
-                      <SelectItem value="2">Class 2</SelectItem>
-                      <SelectItem value="3">Class 3</SelectItem>
-                      <SelectItem value="4">Class 4</SelectItem>
-                      <SelectItem value="5">Class 5</SelectItem>
-                      <SelectItem value="6">Class 6</SelectItem>
-                      <SelectItem value="7">Class 7</SelectItem>
-                      <SelectItem value="8">Class 8</SelectItem>
-                      <SelectItem value="9">Class 9</SelectItem>
-                      <SelectItem value="10">Class 10</SelectItem>
-                      <SelectItem value="11">Class 11</SelectItem>
-                      <SelectItem value="12">Class 12</SelectItem>
-                      <SelectItem value="UG, First Year">UG, First Year</SelectItem>
-                      <SelectItem value="UG, Second Year">UG, Second Year</SelectItem>
-                      <SelectItem value="UG, Third Year">UG, Third Year</SelectItem>
-                      <SelectItem value="UG, Fourth Year">UG, Fourth Year</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+          {role === 'student' && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-[18px] flex flex-col gap-[18px]">
+              <div>
+                <label htmlFor="school_college" className={LABEL_CLASS}>
+                  School / College <span className="text-destructive">*</span>
+                </label>
+                <input
+                  id="school_college"
+                  placeholder="e.g. Delhi Public School"
+                  value={schoolCollege}
+                  onChange={(e) => setSchoolCollege(e.target.value)}
+                  className={FIELD_CLASS}
+                />
               </div>
-            )}
-
-            {/* Terms and Privacy Policy Checkbox */}
-            <div className="flex items-start gap-3">
-              <Checkbox
-                id="terms"
-                checked={termsAgreed}
-                onCheckedChange={(checked) => setTermsAgreed(checked === true)}
-                className="mt-1"
-              />
-              <label htmlFor="terms" className="text-sm leading-relaxed text-warm-prose cursor-pointer">
-                I agree to the{' '}
-                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
-                  Terms of Service
-                </a>
-                {' '}and{' '}
-                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
-                  Privacy Policy
-                </a>
-                {' '}to connect with teachers.
-              </label>
+              <div>
+                <label htmlFor="grade" className={LABEL_CLASS}>
+                  Grade <span className="text-destructive">*</span>
+                </label>
+                <Select value={grade} onValueChange={setGrade}>
+                  <SelectTrigger id="grade" className={FIELD_CLASS}>
+                    <SelectValue placeholder="Select grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Class 1</SelectItem>
+                    <SelectItem value="2">Class 2</SelectItem>
+                    <SelectItem value="3">Class 3</SelectItem>
+                    <SelectItem value="4">Class 4</SelectItem>
+                    <SelectItem value="5">Class 5</SelectItem>
+                    <SelectItem value="6">Class 6</SelectItem>
+                    <SelectItem value="7">Class 7</SelectItem>
+                    <SelectItem value="8">Class 8</SelectItem>
+                    <SelectItem value="9">Class 9</SelectItem>
+                    <SelectItem value="10">Class 10</SelectItem>
+                    <SelectItem value="11">Class 11</SelectItem>
+                    <SelectItem value="12">Class 12</SelectItem>
+                    <SelectItem value="UG, First Year">UG, First Year</SelectItem>
+                    <SelectItem value="UG, Second Year">UG, Second Year</SelectItem>
+                    <SelectItem value="UG, Third Year">UG, Third Year</SelectItem>
+                    <SelectItem value="UG, Fourth Year">UG, Fourth Year</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+          )}
 
+          {/* Terms and Privacy Policy Checkbox */}
+          <div className="mt-[18px] flex items-start gap-3">
+            <Checkbox
+              id="terms"
+              checked={termsAgreed}
+              onCheckedChange={(checked) => setTermsAgreed(checked === true)}
+              className="mt-1"
+            />
+            <label htmlFor="terms" className="text-sm leading-relaxed text-warm-prose cursor-pointer">
+              I agree to the{' '}
+              <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
+                Terms of Service
+              </a>
+              {' '}and{' '}
+              <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
+                Privacy Policy
+              </a>
+              {' '}to connect with teachers.
+            </label>
+          </div>
+
+          {/* SR-001: a pinned h54 rounded-full bg-brand Continue. `mt-auto`
+              inside this flex-1 form pushes it to the panel's bottom edge on
+              a tall viewport without a second scroll region — this route is
+              chromeless (no bottom nav to clear). */}
+          <div className="mt-auto pt-6">
             <button
               type="submit"
               disabled={loading || !role || !termsAgreed || (role === 'student' && (!schoolCollege.trim() || !grade))}
-              className="min-h-[50px] w-full rounded-lg bg-foreground text-base font-bold text-background transition-transform duration-150 active:scale-[0.98] disabled:opacity-50"
+              className="flex h-[54px] w-full items-center justify-center rounded-full bg-brand text-[15px] font-extrabold text-brand-foreground transition-transform duration-150 active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? 'Creating profile...' : 'Continue'}
             </button>
-          </form>
+          </div>
+        </form>
 
-          {/* account-03-pick-role.png / pages.md §10: a fourth ghost row lets
-              a visitor move on without choosing. design.md's own rule for this
-              screen — "the answer sets home emphasis... it never gates
-              content" — means role is a personalization hint, not a
-              requirement, so skipping has to be possible. This page had no
-              way out short of picking a role and agreeing to terms. */}
-          <button
-            type="button"
-            onClick={() => navigate(isValidRedirect(redirectTo) ? redirectTo : '/')}
-            className="mx-auto mt-4 block min-h-11 px-2 text-center text-sm font-semibold text-warm-meta"
-          >
-            Skip for now
-          </button>
-        </div>
+        {/* account-03-pick-role.png / pages.md §10: a fourth ghost row lets
+            a visitor move on without choosing. design.md's own rule for this
+            screen — "the answer sets home emphasis... it never gates
+            content" — means role is a personalization hint, not a
+            requirement, so skipping has to be possible. */}
+        <button
+          type="button"
+          onClick={() => navigate(isValidRedirect(redirectTo) ? redirectTo : '/')}
+          className="mx-auto mt-4 block min-h-11 px-2 text-center text-sm font-semibold text-warm-meta"
+        >
+          Skip for now
+        </button>
       </main>
-
-      <PreFooter variant={preFooterFor(location.pathname)} />
-      <Footer />
 
       <style>{`
         .shikshaq-role-field:focus,
         .shikshaq-role-field:focus-within { box-shadow: 0 0 0 2px hsl(var(--foreground)); outline: none; }
       `}</style>
-    </div>
+    </BentoPanel>
   );
 }
