@@ -140,7 +140,12 @@ export function TopBar({ className }: { className?: string }) {
                   to={to}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "text-[14.5px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel",
+                    // C-013: this is a plain-text link with no padding of its
+                    // own, only ~18px tall — tap-44 gives it an invisible hit
+                    // area at the pointer-input floor (40px at lg, per the
+                    // utility's own responsive rule) without changing its
+                    // visible size.
+                    "tap-44 inline-flex items-center text-[14.5px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel",
                     active ? "text-background" : "text-background/70 hover:text-background",
                   )}
                 >
