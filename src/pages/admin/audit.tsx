@@ -4,17 +4,18 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast as sonnerToast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
-import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
-import { AdminTable, type AdminTableColumn, type AdminTableRow, type AdminPillTone } from '@/pages/admin/AdminTable';
+import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow, type AdminStatus } from '@/pages/admin/AdminTable';
+import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { Search } from 'lucide-react';
 
-/* Redesign S7/A5 (pages.md §15) — "Audit log". No legacy page to port from
-   (grepped the repo — nothing else reads admin_audit_log). Read-only,
-   append-only, no delete: RLS on admin_audit_log grants `authenticated`
-   only SELECT + INSERT (see supabase/migrations/20260818000000_admin_audit_log.sql
-   and src/lib/audit.ts's own doc comment). AdminTable's new `readOnly` prop
-   hides the action column entirely so this page can't offer one. */
+/* Handoff 09i AD-008 — "Audit". No legacy page to port from (grepped the
+   repo — nothing else reads admin_audit_log). Read-only, append-only, no
+   delete: RLS on admin_audit_log grants `authenticated` only SELECT +
+   INSERT (see supabase/migrations/20260818000000_admin_audit_log.sql and
+   src/lib/audit.ts's own doc comment). AdminTable's `readOnly` prop hides
+   the action column entirely so this page can't offer one. */
 
 interface AuditRow {
   id: string;
@@ -26,18 +27,36 @@ interface AuditRow {
   created_at: string;
 }
 
-const ACTION_TONE: Record<string, AdminPillTone> = {
-  approve: 'ok',
-  publish: 'ok',
-  reject: 'bad',
-  delete: 'bad',
-  takedown: 'bad',
-  unpublish: 'idle',
-  hold: 'wait',
-  sent_back: 'wait',
-  edit: 'info',
-  resolve: 'info',
+/* AD-008: When · Who · Action · Target · Result, with Action a plain bold
+   verb phrase and Result the AD-004 status pill. The audit_log table has
+   no separate "resulting status" column (it's an append-only record of the
+   action taken, not a live snapshot of the target's current state) — both
+   are derived here from the same `action`/`target_type` the row already
+   carries, keyed on the exact action/targetType strings every
+   recordAdminAction() call site in this codebase actually uses. Anything
+   not in the map falls back to an honest, unstyled phrase rather than a
+   guessed one. */
+const ACTION_META: Record<string, { verb: string; result: string; status: AdminStatus }> = {
+  'approve:teacher_application': { verb: 'Approved teacher', result: 'Live', status: 'live' },
+  'reject:teacher_application': { verb: 'Rejected application', result: 'Rejected', status: 'hidden' },
+  'edit:teacher': { verb: 'Edited teacher', result: 'Updated', status: 'paused' },
+  'unlist:teacher': { verb: 'Paused teacher', result: 'Paused', status: 'paused' },
+  'relist:teacher': { verb: 'Unpaused teacher', result: 'Live', status: 'live' },
+  'publish:paper': { verb: 'Published paper', result: 'Live', status: 'live' },
+  'takedown:paper': { verb: 'Took down paper', result: 'Hidden', status: 'hidden' },
+  'approve:comment': { verb: 'Published review', result: 'Live', status: 'live' },
+  'delete:comment': { verb: 'Removed review', result: 'Removed', status: 'hidden' },
+  'edit:recommendation': { verb: 'Updated recommendation', result: 'Updated', status: 'paused' },
+  'reject:recommendation': { verb: 'Dismissed recommendation', result: 'Dismissed', status: 'hidden' },
+  'delete:upvotes': { verb: 'Cleared upvotes', result: 'Cleared', status: 'paused' },
 };
+
+function describeAction(row: AuditRow): { verb: string; result: string; status: AdminStatus } {
+  const known = ACTION_META[`${row.action}:${row.target_type}`];
+  if (known) return known;
+  const verb = `${row.action.charAt(0).toUpperCase()}${row.action.slice(1)} ${row.target_type.replace(/_/g, ' ')}`.trim();
+  return { verb, result: 'Recorded', status: 'paused' };
+}
 
 export default function AdminAuditLog() {
   const { user, profile } = useAuth();
@@ -79,29 +98,21 @@ export default function AdminAuditLog() {
     }
   }
 
-  const nav: AdminNavItem[] = [
-    { key: 'approvals', label: 'Approvals', path: '/admin/approvals', count: sectionCounts.approvals, active: false },
-    { key: 'teachers', label: 'Live teachers', path: '/admin/teachers', count: sectionCounts.teachers, active: false },
-    { key: 'papers', label: 'Papers', path: '/admin/papers', count: sectionCounts.papers, active: false },
-    { key: 'reviews', label: 'Reviews & recs', path: '/admin/reviews', count: sectionCounts.reviews, active: false },
-    { key: 'audit', label: 'Audit log', path: '/admin/audit', active: true },
-  ];
+  const nav = buildAdminNav('audit', { approvals: sectionCounts.approvals, reviews: sectionCounts.reviews });
 
   if (checkingAdmin || loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <AdminRail nav={nav} signedInName={signedInName} />
-        <div className="flex min-h-screen flex-col lg:pl-[244px]">
-          <AdminToolbar title="Audit log" />
-          <main className="flex-1 p-7">
-            <div className="animate-pulse space-y-3">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="h-16 rounded-2xl bg-muted" />
-              ))}
-            </div>
-          </main>
-        </div>
-      </div>
+      <BentoStack className="min-h-screen bg-muted">
+        <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+        <BentoPanel fill="card" className="px-[18px] py-[18px]">
+          <div className="animate-pulse space-y-3">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="h-14 rounded-2xl bg-muted" />
+            ))}
+          </div>
+        </BentoPanel>
+        <AdminAuditNote />
+      </BentoStack>
     );
   }
 
@@ -121,29 +132,31 @@ export default function AdminAuditLog() {
       )
     : rows;
 
+  // AD-008 columns: When · Who · Action · Target · Result — read-only, no actions column.
   const columns: AdminTableColumn[] = [
-    { key: 'when', label: 'When', width: '1.2fr' },
-    { key: 'admin', label: 'Admin', width: '1.4fr' },
-    { key: 'action', label: 'Action', width: '1fr' },
-    { key: 'entity', label: 'Entity', width: '1.6fr' },
-    { key: 'reason', label: 'Reason', width: '2fr' },
+    { key: 'when', label: 'When', width: '1.1fr' },
+    { key: 'who', label: 'Who', width: '1.4fr' },
+    { key: 'action', label: 'Action', width: '1.3fr' },
+    { key: 'target', label: 'Target', width: '1.6fr' },
+    { key: 'result', label: 'Result', width: '1fr' },
   ];
 
-  const tableRows: AdminTableRow[] = filteredRows.map((r) => ({
-    id: r.id,
-    title: formatDistanceToNow(new Date(r.created_at), { addSuffix: true }),
-    subtitle: new Date(r.created_at).toLocaleString(),
-    cells: [
-      r.actor_name,
-      r.action,
-      `${r.target_type} · ${r.target_label}`,
-      r.reason || '-',
-    ],
-    tone: ACTION_TONE[r.action] ?? 'idle',
-    tag: r.action,
-    actionLabel: '',
-    onAction: () => {},
-  }));
+  const tableRows: AdminTableRow[] = filteredRows.map((r) => {
+    const { verb, result, status } = describeAction(r);
+    return {
+      id: r.id,
+      cells: [
+        // AD-008: "When" is relative time in the muted meta colour, NOT bold — overrides
+        // AdminTable's default bold-first-column treatment (right for every other section,
+        // where column 1 is the record's name; wrong here, where "Action" carries the weight).
+        <span key="when" className="font-normal text-warm-meta">{formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</span>,
+        r.actor_name,
+        <span key="action" className="font-bold text-foreground">{verb}</span>,
+        r.target_label || r.target_type,
+        <AdminStatusPill key="result" status={status} label={result} />,
+      ],
+    };
+  });
 
   const searchSlot = (
     <div className="relative">
@@ -160,52 +173,43 @@ export default function AdminAuditLog() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <AdminRail nav={nav} signedInName={signedInName} />
+    <BentoStack className="min-h-screen bg-muted">
+      <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
 
-      <div className="flex min-h-screen flex-col lg:pl-[244px]">
-        <AdminToolbar title="Audit log" search={searchSlot} />
+      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+        {/* AD-008's mockup meta reads "last 30 days · {n} entries" — the real query has no
+            30-day window (it's `order by created_at desc limit 500`), so the honest framing
+            here is "most recent · {n} entries" rather than a date-range claim the query
+            doesn't actually enforce. */}
+        <AdminPanelHeader title="Audit log" meta={`most recent · ${rows.length} entries`} />
 
-        <main className="flex-1 p-5 lg:p-7">
-          <div className="mb-4 lg:hidden">
-            <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-foreground">Audit log</h1>
-            <p className="mt-1 text-sm text-warm-label">Every approve, reject, edit and takedown, in order. Read-only.</p>
-            <div className="relative mt-4">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search the log..."
-                className="h-11 w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none"
-              />
-            </div>
+        <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">{searchSlot}</div>
+
+        {filteredRows.length === 0 ? (
+          <div className="rounded-2xl bg-muted p-12 text-center">
+            <p className="text-sm text-warm-label">
+              {query ? `No log entries match "${searchQuery.trim()}".` : 'No actions recorded yet.'}
+            </p>
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="mt-3 text-sm font-semibold text-brand underline-offset-2 hover:underline"
+              >
+                Clear search
+              </button>
+            ) : null}
           </div>
+        ) : (
+          <AdminTable columns={columns} rows={tableRows} readOnly />
+        )}
 
-          {filteredRows.length === 0 ? (
-            <div className="rounded-[20px] bg-card p-12 text-center shadow-border">
-              <p className="text-sm text-warm-label">
-                {query ? `No log entries match "${searchQuery.trim()}".` : 'No actions recorded yet.'}
-              </p>
-              {query ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="mt-3 text-sm font-semibold text-brand underline-offset-2 hover:underline"
-                >
-                  Clear search
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            <AdminTable columns={columns} rows={tableRows} readOnly />
-          )}
+        <p className="mt-4 px-[18px] text-[13px] leading-[1.5] text-warm-label">
+          This log is append-only. Nobody, including admins, can edit or delete an entry. Nothing on this screen mutates anything.
+        </p>
+      </BentoPanel>
 
-          <p className="mt-5 max-w-prose text-[13px] leading-[1.5] text-warm-label">
-            This log is append-only. Nobody, including admins, can edit or delete an entry.
-          </p>
-        </main>
-      </div>
-    </div>
+      <AdminAuditNote />
+    </BentoStack>
   );
 }

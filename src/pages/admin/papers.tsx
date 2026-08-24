@@ -11,10 +11,10 @@ import {
   adminSecondaryBtnStyle,
   adminDestructiveBtnStyle,
   AdminStatTiles,
-  AdminAuditFootnote,
 } from '@/components/AdminConsole';
-import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
-import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -322,31 +322,40 @@ export default function AdminPapersPage() {
     }
   }
 
-  const nav: AdminNavItem[] = [
-    { key: 'approvals', label: 'Approvals', path: '/admin/approvals', count: pendingCount, active: false },
-    { key: 'teachers', label: 'Live teachers', path: '/admin/teachers', active: false },
-    { key: 'papers', label: 'Papers', path: '/admin/papers', active: true },
-    { key: 'reviews', label: 'Reviews', path: '/admin/reviews', active: false },
-    { key: 'audit', label: 'Audit log', path: '/admin/audit', active: false },
-  ];
+  const nav = buildAdminNav('papers', { approvals: pendingCount });
 
+  // AD-006 columns: Title · School · Board · Class · Year · Status. The real `papers` schema
+  // has only an `is_published` boolean — no separate "pending upload review" queue distinct
+  // from published/unpublished, so AD-006's Pending→Review/Reject half of the action spec has
+  // no backing state to render; Live rows get the spec's Open + Unpublish (destructive, tinted,
+  // last), and taken-down rows get the one real action the schema supports: Restore (mint).
   const columns: AdminTableColumn[] = [
-    { key: 'paper', label: 'Paper', width: '2.2fr' },
-    { key: 'school', label: 'School', width: '1.2fr' },
-    { key: 'board', label: 'Board', width: '0.9fr' },
-    { key: 'uploaded', label: 'Uploaded', width: '1fr' },
-    { key: 'reports', label: 'Reports', width: '0.8fr' },
+    { key: 'title', label: 'Title', width: '2fr' },
+    { key: 'school', label: 'School', width: '1.4fr' },
+    { key: 'board', label: 'Board', width: '0.8fr' },
+    { key: 'class', label: 'Class', width: '0.6fr' },
+    { key: 'year', label: 'Year', width: '0.6fr' },
+    { key: 'status', label: 'Status', width: '0.9fr' },
   ];
 
   const rows: AdminTableRow[] = filteredPapers.map((p) => ({
     id: p.id,
-    title: p.title,
-    subtitle: `${p.subject} · Class ${p.class} · ${p.exam_type} · ${p.year}`,
-    cells: [p.school, p.board, new Date(p.created_at).toLocaleDateString(), '-'],
-    tone: p.is_published ? 'ok' : 'bad',
-    tag: p.is_published ? 'Live' : 'Taken down',
-    actionLabel: p.is_published ? 'Take down' : 'Restore',
-    onAction: () => (p.is_published ? openTakedown(p) : handleRestore(p)),
+    cells: [
+      p.title,
+      p.school,
+      p.board,
+      p.class,
+      String(p.year),
+      <AdminStatusPill key="status" status={p.is_published ? 'live' : 'hidden'} label={p.is_published ? 'Live' : 'Taken down'} />,
+    ],
+    actions: p.is_published
+      ? [
+          { label: 'Open', tone: 'primary', onClick: () => window.open(`/past-papers/${p.id}`, '_blank', 'noopener') },
+          { label: 'Unpublish', tone: 'destructive', onClick: () => openTakedown(p) },
+        ]
+      : [
+          { label: restoreBusyId === p.id ? '…' : 'Restore', tone: 'mint', onClick: () => handleRestore(p), disabled: restoreBusyId === p.id },
+        ],
   }));
 
   const searchSlot = (
@@ -380,19 +389,17 @@ export default function AdminPapersPage() {
 
   if (checkingAdmin || (loading && !adminGuardError)) {
     return (
-      <div className="min-h-screen bg-background">
-        <AdminRail nav={nav} signedInName={actorName} />
-        <div className="lg:pl-[244px]">
-          <AdminToolbar title="Papers" />
-          <main className="px-4 py-8 lg:px-7">
-            <div className="animate-pulse space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 rounded-2xl bg-warm-card shadow-border" />
-              ))}
-            </div>
-          </main>
-        </div>
-      </div>
+      <BentoStack className="min-h-screen bg-muted">
+        <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+        <BentoPanel fill="card" className="px-[18px] py-[18px]">
+          <div className="animate-pulse space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-14 rounded-2xl bg-muted" />
+            ))}
+          </div>
+        </BentoPanel>
+        <AdminAuditNote />
+      </BentoStack>
     );
   }
 
@@ -400,7 +407,7 @@ export default function AdminPapersPage() {
 
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="flex min-h-screen items-center justify-center bg-muted px-4">
         <div className={cn(adminPanelStyle, 'max-w-[380px] p-8 text-center')}>
           <h1 className="mb-2 text-xl font-bold text-foreground">Access denied</h1>
           <p className="text-sm text-warm-secondary">You need to be an admin to access this page.</p>
@@ -410,27 +417,19 @@ export default function AdminPapersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AdminRail nav={nav} signedInName={actorName} />
-      <div className="lg:pl-[244px]">
-        <AdminToolbar title="Papers" badge={`${papers.length} in library`} search={searchSlot} sort={sortSlot} />
+    <BentoStack className="min-h-screen bg-muted">
+      <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
 
-        <main className="px-4 py-8 lg:px-7">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="text-[clamp(19px,2.4vw,24px)] font-bold text-foreground">
-                Papers &amp; takedowns
-              </h1>
-              <p className="mt-1.5 text-[14.5px] text-warm-secondary">
-                Take down is reversible with Restore, but always requires a reason.
-              </p>
-            </div>
-            <button onClick={openUpload} className={adminPrimaryBtnStyle}>
-              <Plus className="w-4 h-4" />
-              Upload paper
-            </button>
-          </div>
+      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-[18px]">
+          <AdminPanelHeader title="Uploaded papers" meta={`${papers.filter((p) => p.is_published).length} published · ${papers.filter((p) => !p.is_published).length} taken down`} />
+          <button onClick={openUpload} className={adminPrimaryBtnStyle}>
+            <Plus className="w-4 h-4" />
+            Upload paper
+          </button>
+        </div>
 
+        <div className="mb-4 px-[18px]">
           <AdminStatTiles
             stats={[
               { label: 'In the library', value: papers.length },
@@ -438,38 +437,31 @@ export default function AdminPapersPage() {
               { label: 'Taken down', value: papers.filter((p) => !p.is_published).length },
             ]}
           />
+        </div>
 
-          <div className="relative mb-4 lg:hidden">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-meta" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search papers..."
-              className={cn(adminFieldStyle, 'w-full pl-9 pr-3 text-foreground outline-none')}
-            />
+        <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">{searchSlot}{sortSlot}</div>
+
+        {filteredPapers.length === 0 ? (
+          <div className="rounded-2xl bg-muted p-12 text-center">
+            <p className="text-[14.5px] text-warm-meta">
+              {searchQuery.trim() ? `No papers match "${searchQuery.trim()}".` : 'No papers yet.'}
+            </p>
+            {searchQuery.trim() ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="mt-3 text-[14.5px] font-semibold text-brand underline-offset-2 hover:underline"
+              >
+                Clear search
+              </button>
+            ) : null}
           </div>
+        ) : (
+          <AdminTable columns={columns} rows={rows} />
+        )}
+      </BentoPanel>
 
-          {filteredPapers.length === 0 ? (
-            <div className={cn(adminPanelStyle, 'p-12 text-center')}>
-              <p className="text-[14.5px] text-warm-meta">
-                {searchQuery.trim() ? `No papers match "${searchQuery.trim()}".` : 'No papers yet.'}
-              </p>
-              {searchQuery.trim() ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="mt-3 text-[14.5px] font-semibold text-brand underline-offset-2 hover:underline"
-                >
-                  Clear search
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            <AdminTable columns={columns} rows={rows} />
-          )}
-          <AdminAuditFootnote />
-        </main>
-      </div>
+      <AdminAuditNote />
 
       {/* Take-down dialog — reason is required (hard requirement, unlike the
           legacy silent overflow-disc toggle). */}
@@ -654,6 +646,6 @@ export default function AdminPapersPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </BentoStack>
   );
 }

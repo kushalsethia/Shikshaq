@@ -13,24 +13,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Loader2, Upload, X, Star, EyeOff, Eye } from 'lucide-react';
+import { Search, Loader2, Upload, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
+import { useAdminGuard, AdminGuardErrorState, adminToast } from '@/components/AdminConsole';
 import { recordAdminAction } from '@/lib/audit';
-import { useConfirm } from '@/components/ui/use-confirm';
 import { toast as sonnerToast } from 'sonner';
 import DOMPurify from 'dompurify';
 import imageCompression from 'browser-image-compression';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { invalidateTeacherCache, removeCache } from '@/utils/cache';
 import { convertClassesToRoman } from '@/utils/romanNumerals';
-import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
-import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 
-/* A2 "Live teachers" — one of the 5 sections of the admin console redesign.
-   Renders AdminRail + AdminToolbar directly (not via the old AdminConsole
-   wrapper) plus its own body. Queries/mutations are ported from the legacy
-   src/pages/AdminTeachers.tsx (Shikshaqmine table) rather than rewritten. */
+/* Handoff 09i AD-005 "Teachers" — one of the 5 sections of the admin
+   console redesign. Renders AdminHeader (pill tab row) directly, not the
+   superseded AdminRail/AdminToolbar sidebar, plus its own BentoPanel body.
+   Queries/mutations are ported from the legacy src/pages/AdminTeachers.tsx
+   (Shikshaqmine table) rather than rewritten. */
 
 // Constants matching FilterPanel / legacy AdminTeachers.tsx
 const SUBJECTS = [
@@ -102,7 +103,6 @@ interface TeacherData {
 }
 
 export default function AdminTeachersPage() {
-  const { confirm, confirmDialog } = useConfirm();
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
 
@@ -456,20 +456,14 @@ export default function AdminTeachersPage() {
     }
   };
 
-  // Unlist / Relist — toggles the same self-service `is_paused` flag TeacherDashboard's own
+  // Pause / Unpause — toggles the same self-service `is_paused` flag TeacherDashboard's own
   // "Pause listing" control flips. No reason is collected (spec: only Approvals-reject and
   // Papers-takedown require a reason).
-  const handleToggleUnlisted = async (teacher: TeacherData) => {
-    const nextPaused = !teacher.is_paused;
-    const confirmed = await confirm({
-      title: nextPaused ? `Unlist ${teacher.Title}?` : `Relist ${teacher.Title}?`,
-      description: nextPaused
-        ? 'Their profile is hidden from Browse and search results until relisted.'
-        : 'Their profile becomes visible in Browse and search results again.',
-      confirmLabel: nextPaused ? 'Unlist' : 'Relist',
-    });
-    if (!confirmed) return;
-
+  //
+  // AD-005 ⚠: pause is reversible, so it gets no confirmation dialog — it applies immediately
+  // and offers a toast with Undo instead. The Supabase mutation itself is unchanged from the
+  // legacy confirm()-gated version; only how consent is gathered beforehand has changed.
+  const commitPauseToggle = async (teacher: TeacherData, nextPaused: boolean) => {
     setRowBusyId(String(teacher.id));
     try {
       const { error } = await supabase
@@ -479,11 +473,9 @@ export default function AdminTeachersPage() {
 
       if (error) {
         if (import.meta.env.DEV) console.error('Error toggling is_paused:', error);
-        sonnerToast.error(nextPaused ? 'Failed to unlist teacher' : 'Failed to relist teacher');
+        sonnerToast.error(nextPaused ? 'Failed to pause teacher' : 'Failed to unpause teacher');
         return;
       }
-
-      sonnerToast.success(nextPaused ? `"${teacher.Title}" unlisted` : `"${teacher.Title}" relisted`);
 
       if (user) {
         void recordAdminAction({
@@ -498,6 +490,11 @@ export default function AdminTeachersPage() {
 
       invalidateCachesFor(teacher);
       applyUpdatedTeacher({ ...teacher, is_paused: nextPaused });
+
+      adminToast(nextPaused ? `"${teacher.Title}" paused` : `"${teacher.Title}" unpaused`, {
+        description: nextPaused ? 'Hidden from Browse and search results.' : 'Visible in Browse and search results again.',
+        undo: () => commitPauseToggle(teacher, !nextPaused),
+      });
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error:', error);
       sonnerToast.error('Failed to update listing status');
@@ -506,46 +503,7 @@ export default function AdminTeachersPage() {
     }
   };
 
-  // Feature / Unfeature — toggles the `Featured` boolean column (the same field the legacy
-  // edit form's "Featured" checkbox writes, ported as a standalone one-field mutation).
-  const handleToggleFeatured = async (teacher: TeacherData) => {
-    const nextFeatured = !teacher.Featured;
-
-    setRowBusyId(String(teacher.id));
-    try {
-      const { error } = await supabase
-        .from('Shikshaqmine')
-        .update({ Featured: nextFeatured })
-        .eq('id', teacher.id);
-
-      if (error) {
-        if (import.meta.env.DEV) console.error('Error toggling Featured:', error);
-        sonnerToast.error(nextFeatured ? 'Failed to feature teacher' : 'Failed to unfeature teacher');
-        return;
-      }
-
-      sonnerToast.success(nextFeatured ? `"${teacher.Title}" featured` : `"${teacher.Title}" unfeatured`);
-
-      if (user) {
-        void recordAdminAction({
-          actorId: user.id,
-          actorName,
-          action: nextFeatured ? 'feature' : 'unfeature',
-          targetType: 'teacher',
-          targetId: String(teacher.id),
-          targetLabel: teacher.Title || 'teacher',
-        });
-      }
-
-      invalidateCachesFor(teacher);
-      applyUpdatedTeacher({ ...teacher, Featured: nextFeatured });
-    } catch (error) {
-      if (import.meta.env.DEV) console.error('Error:', error);
-      sonnerToast.error('Failed to update featured status');
-    } finally {
-      setRowBusyId(null);
-    }
-  };
+  const handleToggleUnlisted = (teacher: TeacherData) => commitPauseToggle(teacher, !teacher.is_paused);
 
   const openEditor = (teacher: TeacherData) => {
     setSelectedTeacher(teacher);
@@ -560,19 +518,18 @@ export default function AdminTeachersPage() {
   const fieldClassName = 'h-auto border border-warm-hairline bg-card focus-visible:ring-1 focus-visible:ring-ring';
   const optionLabelStyle = 'text-[13px] text-warm-prose';
 
-  const nav: AdminNavItem[] = [
-    { key: 'approvals', label: 'Approvals', path: '/admin/approvals', active: false, count: pendingApplicationsCount },
-    { key: 'teachers', label: 'Live teachers', path: '/admin/teachers', active: true, count: teachers.length || undefined },
-    { key: 'papers', label: 'Papers', path: '/admin/papers', active: false },
-    { key: 'reviews', label: 'Reviews', path: '/admin/reviews', active: false },
-    { key: 'audit', label: 'Audit log', path: '/admin/audit', active: false },
-  ];
+  const nav = buildAdminNav('teachers', { approvals: pendingApplicationsCount });
 
+  // AD-005 columns: Name · Area · Subjects · Fee · Status · Updated. The real Shikshaqmine
+  // schema has no `updated_at` (only the `created_at` join timestamp already used elsewhere
+  // in this file) — labelled "Joined" here rather than the spec's "Updated" so the column
+  // never implies data this table doesn't track.
   const teacherColumns: AdminTableColumn[] = [
-    { key: 'name', label: 'Name', width: '2fr' },
+    { key: 'name', label: 'Name', width: '1.8fr' },
+    { key: 'area', label: 'Area', width: '1fr' },
     { key: 'subjects', label: 'Subjects', width: '1.6fr' },
-    { key: 'verified', label: 'Verified', width: '0.8fr' },
-    { key: 'enquiries', label: 'Enquiries', width: '0.8fr' },
+    { key: 'fee', label: 'Fee', width: '1fr' },
+    { key: 'status', label: 'Status', width: '0.9fr' },
     { key: 'joined', label: 'Joined', width: '1fr' },
   ];
 
@@ -580,41 +537,50 @@ export default function AdminTeachersPage() {
     const joined = teacher.created_at
       ? new Date(teacher.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
       : '-';
+    const fee = teacher['Min Fees'] || teacher['Max Fees']
+      ? `₹${teacher['Min Fees'] ?? '-'}–${teacher['Max Fees'] ?? '-'}`
+      : '-';
     const busy = rowBusyId === String(teacher.id);
 
     return {
       id: String(teacher.id),
-      initial: (teacher.Title || '?').trim().charAt(0).toUpperCase(),
-      title: teacher.Title || 'Untitled',
-      subtitle: teacher.Slug || undefined,
-      // "Verified" has no real per-teacher column on Shikshaqmine (the `is_verified` flag
-      // belongs to a separate, unrelated `teachers` table used on Index.tsx) — shown as an
-      // honest "—" rather than a fabricated badge, per this codebase's existing convention
-      // for stats with no backing column (see TeacherDashboard.tsx's Enquiries section).
-      cells: [teacher.Subjects || '-', '-', '-', joined],
-      tone: teacher.is_paused ? 'idle' : teacher.Featured ? 'ok' : 'info',
-      tag: teacher.is_paused ? 'Unlisted' : teacher.Featured ? 'Featured' : 'Live',
-      actionLabel: busy ? '…' : 'Edit',
-      onAction: () => openEditor(teacher),
-      onOverflow: () => setRowBusyId((current) => (current === String(teacher.id) ? null : String(teacher.id))),
+      cells: [
+        teacher.Title || 'Untitled',
+        teacher.Area || '-',
+        teacher.Subjects || '-',
+        fee,
+        <AdminStatusPill
+          key="status"
+          status={teacher.is_paused ? 'paused' : 'live'}
+          label={teacher.is_paused ? 'Paused' : teacher.Featured ? 'Featured' : 'Live'}
+        />,
+        joined,
+      ],
+      actions: [
+        { label: busy ? '…' : 'Edit', tone: 'primary', onClick: () => openEditor(teacher), disabled: busy },
+        {
+          label: busy ? '…' : teacher.is_paused ? 'Unpause' : 'Pause',
+          tone: teacher.is_paused ? 'mint' : 'muted',
+          onClick: () => commitPauseToggle(teacher, !teacher.is_paused),
+          disabled: busy,
+        },
+      ],
     };
   });
 
   if (checkingAdmin || loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <AdminRail nav={nav} signedInName={actorName} />
-        <div className="lg:pl-[244px]">
-          <AdminToolbar title="Live teachers" />
-          <div className="px-7 py-8">
-            <div className="animate-pulse space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 rounded-[20px] bg-muted" />
-              ))}
-            </div>
+      <BentoStack className="min-h-screen bg-muted">
+        <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
+        <BentoPanel fill="card" className="px-[18px] py-[18px]">
+          <div className="animate-pulse space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-14 rounded-2xl bg-muted" />
+            ))}
           </div>
-        </div>
-      </div>
+        </BentoPanel>
+        <AdminAuditNote />
+      </BentoStack>
     );
   }
 
@@ -651,95 +617,39 @@ export default function AdminTeachersPage() {
     </Select>
   );
 
-  const activeRowTeacher = rowBusyId ? teachers.find((t) => String(t.id) === rowBusyId) : null;
-
   return (
-    <div className="min-h-screen bg-background">
-      <AdminRail nav={nav} signedInName={actorName} />
-      <div className="lg:pl-[244px]">
-        <AdminToolbar
-          title="Live teachers"
-          badge={`${teachers.length} listed`}
-          search={searchSlot}
-          sort={sortSlot}
-        />
+    <BentoStack className="min-h-screen bg-muted">
+      <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
 
-        <div className="px-4 py-6 lg:px-7 lg:py-8">
-          <div className="mb-4 max-w-sm lg:hidden">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" />
-              <Input
-                type="text"
-                placeholder="Search teachers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
+      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+        <AdminPanelHeader title="All teachers" meta={`${teachers.length} listed · ${teachers.filter((t) => t.is_paused).length} paused`} />
 
-          {filteredTeachers.length === 0 ? (
-            <div className="rounded-[20px] bg-card py-8 text-center shadow-border">
-              <p className="text-sm text-warm-prose">
-                {searchQuery.trim() ? `No teachers match "${searchQuery.trim()}".` : 'No teachers listed yet.'}
-              </p>
-              {searchQuery.trim() ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="mt-3 text-sm font-semibold text-brand underline-offset-2 hover:underline"
-                >
-                  Clear search
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            <AdminTable columns={teacherColumns} rows={teacherRows} />
-          )}
+        <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">
+          {searchSlot}
+          {sortSlot}
         </div>
-      </div>
 
-      {/* Row action popover: Unlist/Relist and Feature/Unfeature. Kept as a small inline panel
-          rather than a floating menu since AdminTable's onOverflow carries no anchor position —
-          it toggles this fixed action strip for the row whose overflow disc was last clicked. */}
-      {activeRowTeacher ? (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 p-4 lg:items-center" onClick={() => setRowBusyId(null)}>
-          <div
-            className="w-full max-w-sm rounded-[20px] bg-card p-5 shadow-border"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4">
-              <div className="text-[15px] font-bold text-foreground">{activeRowTeacher.Title}</div>
-              <div className="text-[12.5px] text-warm-label">Choose an action</div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Button
-                variant="outline"
-                className="justify-start gap-2"
-                onClick={async () => {
-                  await handleToggleUnlisted(activeRowTeacher);
-                }}
+        {filteredTeachers.length === 0 ? (
+          <div className="rounded-2xl bg-muted py-8 text-center">
+            <p className="text-sm text-warm-prose">
+              {searchQuery.trim() ? `No teachers match "${searchQuery.trim()}".` : 'No teachers listed yet.'}
+            </p>
+            {searchQuery.trim() ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="mt-3 text-sm font-semibold text-brand underline-offset-2 hover:underline"
               >
-                {activeRowTeacher.is_paused ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                {activeRowTeacher.is_paused ? 'Relist' : 'Unlist'}
-              </Button>
-              <Button
-                variant="outline"
-                className="justify-start gap-2"
-                onClick={async () => {
-                  await handleToggleFeatured(activeRowTeacher);
-                }}
-              >
-                <Star className="h-4 w-4" />
-                {activeRowTeacher.Featured ? 'Unfeature' : 'Feature'}
-              </Button>
-              <Button variant="ghost" onClick={() => setRowBusyId(null)}>
-                Cancel
-              </Button>
-            </div>
+                Clear search
+              </button>
+            ) : null}
           </div>
-        </div>
-      ) : null}
+        ) : (
+          <AdminTable columns={teacherColumns} rows={teacherRows} />
+        )}
+      </BentoPanel>
+
+      <AdminAuditNote />
 
       {/* Edit dialog — the full teacher profile form, ported from legacy AdminTeachers.tsx. */}
       <Dialog open={editorOpen} onOpenChange={(open) => (open ? setEditorOpen(true) : closeEditor())}>
@@ -1206,8 +1116,6 @@ export default function AdminTeachersPage() {
           ) : null}
         </DialogContent>
       </Dialog>
-
-      {confirmDialog}
-    </div>
+    </BentoStack>
   );
 }
