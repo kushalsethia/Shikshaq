@@ -13,6 +13,7 @@ import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { getTeacherBySlug, getTeachersByIds } from '@/lib/teachers';
+import { excerptDescription } from '@/lib/excerpt-description';
 import { TeacherCard } from '@/components/TeacherCard';
 import DOMPurify from 'dompurify';
 import { validateImageSrc } from '@/utils/imageSanitizer';
@@ -320,7 +321,11 @@ export default function TeacherProfile() {
 
     const teacherUrl = `https://www.shikshaq.in/tuition-teachers/${teacher.slug}`;
     const teacherName = teacher.name || '';
-    const teacherDescription = teacher.description || teacher.bio || '';
+    const rawTeacherDescription = teacher.description || teacher.bio || '';
+    // SEO audit finding: ~45% of stored bios have a keyword-stuffed SEO block
+    // appended after the real opening — see excerpt-description.ts. Capped at
+    // 500 chars, generous enough for a real intro but short of the spam tail.
+    const teacherDescription = rawTeacherDescription ? excerptDescription(rawTeacherDescription, 500) : '';
     const phoneNumber = teacher.whatsapp_number || null;
     const area = teacher.area || null;
     const subjects = teacher.subjects_from_shikshaq ? toArray(teacher.subjects_from_shikshaq) : [];
@@ -594,13 +599,22 @@ export default function TeacherProfile() {
   const firstName = teacher.name.trim().split(/\s+/)[0] || teacher.name;
   const honorific = getHonorific(teacher.sir_maam);
 
-  const descriptionHtml = teacher.description
-    ? /<[a-z][\s\S]*>/i.test(teacher.description)
-      ? DOMPurify.sanitize(teacher.description, {
+  // SEO/UX audit finding: ~45% of stored bios have a keyword-stuffed SEO
+  // block appended after the real opening (see excerpt-description.ts) —
+  // rendered here, that's what a real visitor read as "About {firstName}".
+  // Excerpting is skipped for the (unconfirmed but possible) HTML-tagged
+  // case, since it can't cleanly re-wrap arbitrary markup into a shorter
+  // plain-text excerpt without risking broken tags.
+  const isHtmlDescription = teacher.description ? /<[a-z][\s\S]*>/i.test(teacher.description) : false;
+  const excerptedDescription =
+    teacher.description && !isHtmlDescription ? excerptDescription(teacher.description, 600) : teacher.description;
+  const descriptionHtml = excerptedDescription
+    ? isHtmlDescription
+      ? DOMPurify.sanitize(excerptedDescription, {
           ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
           ALLOWED_ATTR: ['href', 'target', 'rel'],
         })
-      : DOMPurify.sanitize(teacher.description.replace(/\n/g, '<br />'), { ALLOWED_TAGS: ['br'] })
+      : DOMPurify.sanitize(excerptedDescription.replace(/\n/g, '<br />'), { ALLOWED_TAGS: ['br'] })
     : null;
 
   const areaLabel = teacher.area || 'Kolkata';
