@@ -77,7 +77,7 @@ export default function Join() {
               We list local tuition teachers, students contact you directly on WhatsApp, and we take nothing from what you charge. There is no listing fee either.
             </p>
             {/* Handoff D-007 (JN-002): flatten at lg. */}
-            <div className="mt-3.5 inline-flex h-8 -rotate-2 items-center gap-2 rounded-full bg-card px-[13px] text-[12.5px] font-bold text-foreground shadow-border lg:rotate-0">
+            <div className="mt-3.5 inline-flex h-8 -rotate-2 items-center gap-2 rounded-full bg-card px-[13px] text-[12.5px] font-bold text-foreground shadow-border motion-reduce:rotate-0 lg:rotate-0">
               <span className="h-[7px] w-[7px] flex-none rounded-full bg-brand" />
               Reviewed in ~3 working days
             </div>

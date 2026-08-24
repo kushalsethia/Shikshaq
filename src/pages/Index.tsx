@@ -94,11 +94,11 @@ const BOARD_FILLS: Record<string, string> = {
    snaps flat at `lg` and up. Literal classes (not built from a template
    string) so Tailwind's content scanner can see them. */
 const BOARD_TILT_CLASSES = [
-  'rotate-[-1deg] lg:rotate-0',
-  'rotate-[0.8deg] lg:rotate-0',
-  'rotate-[-0.6deg] lg:rotate-0',
-  'rotate-[1deg] lg:rotate-0',
-  'rotate-[-0.5deg] lg:rotate-0',
+  'rotate-[-1deg] motion-reduce:rotate-0 lg:rotate-0',
+  'rotate-[0.8deg] motion-reduce:rotate-0 lg:rotate-0',
+  'rotate-[-0.6deg] motion-reduce:rotate-0 lg:rotate-0',
+  'rotate-[1deg] motion-reduce:rotate-0 lg:rotate-0',
+  'rotate-[-0.5deg] motion-reduce:rotate-0 lg:rotate-0',
 ];
 
 // "9-12" / "9,10,11,12" / "Class 9 to 12" -> [9,10,11,12]. Real teacher data,
@@ -799,7 +799,7 @@ export default function Index() {
                 broken. Implemented as lg:rotate-0, mobile tilt untouched. */}
             <span
               aria-hidden
-              className="absolute right-[22px] top-[-12px] -rotate-[6deg] rounded-full bg-panel px-3 py-1.5 text-[11px] font-bold text-background lg:rotate-0"
+              className="absolute right-[22px] top-[-12px] -rotate-[6deg] rounded-full bg-panel px-3 py-1.5 text-[11px] font-bold text-background motion-reduce:rotate-0 lg:rotate-0"
             >
               Takes 3 minutes
             </span>

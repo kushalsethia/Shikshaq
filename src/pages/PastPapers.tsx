@@ -508,7 +508,7 @@ export default function PastPapers() {
                 utility can't reliably out-specificity/out-order it — swapped
                 for the equivalent Tailwind rotate utilities (same 5deg tilt)
                 so the `lg:` variant actually wins at the breakpoint. */}
-            <span className="sticker rotate-[5deg] lg:rotate-0 animate-card-reveal absolute -top-3 right-6 rounded-full bg-brand-blue px-4 py-1 text-label font-bold uppercase text-white motion-reduce:animate-none">
+            <span className="sticker rotate-[5deg] motion-reduce:rotate-0 lg:rotate-0 animate-card-reveal absolute -top-3 right-6 rounded-full bg-brand-blue px-4 py-1 text-label font-bold uppercase text-white motion-reduce:animate-none">
               Day one
             </span>
             <EmptyResults

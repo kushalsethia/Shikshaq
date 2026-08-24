@@ -1027,6 +1027,15 @@ input[type="date"].date-input-left,
   }
 }
 
+/* M-007: every rotate() flattens under reduced motion, at every width — the
+   same "inline style always wins" reasoning as the lg: block above applies
+   here too. */
+@media (prefers-reduced-motion: reduce) {
+  .annotated-highlight-tilt {
+    transform: none;
+  }
+}
+
 /* Outlined variant — highlight plus the structural black line, for a
    first-fold headline that needs maximum presence on the light ground. */
 .marker-highlight--outlined {

@@ -56,7 +56,7 @@ export function ReviewCard({ review, index, fan = false, fullWidth = false, clas
     <div
       className={[
         fan
-          ? `relative w-[224px] shrink-0 ${drop} ${index === 0 ? "ml-0" : "-ml-[22px]"} ${tilt} transition-transform duration-150 hover:z-10 hover:rotate-0 hover:-translate-y-1`
+          ? `relative w-[224px] shrink-0 ${drop} ${index === 0 ? "ml-0" : "-ml-[22px]"} ${tilt} motion-reduce:rotate-0 transition-transform duration-150 hover:z-10 hover:rotate-0 hover:-translate-y-1`
           : fullWidth
           ? "relative w-full"
           : "relative w-[262px] shrink-0",

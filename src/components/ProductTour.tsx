@@ -332,7 +332,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
                 the animation replays; the outer well itself (this whole
                 bg-white/[0.04] block) does not move. */}
             <div key={step} className="relative flex h-full items-center justify-center p-6 animate-tour-step-in">
-              <div className="w-full max-w-xs rotate-[-2deg] drop-shadow-[0_18px_30px_rgba(0,0,0,.35)]">{card.illustration}</div>
+              <div className="w-full max-w-xs rotate-[-2deg] drop-shadow-[0_18px_30px_rgba(0,0,0,.35)] motion-reduce:rotate-0">{card.illustration}</div>
             </div>
           </div>
 

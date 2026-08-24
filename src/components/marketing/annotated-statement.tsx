@@ -194,7 +194,7 @@ const AnnotatedStatement = React.forwardRef<HTMLDivElement, AnnotatedStatementPr
               <span
                 key={i}
                 className={cn(
-                  "pointer-events-auto inline-flex h-[34px] items-center gap-[6px] whitespace-nowrap rounded-full px-[14px] text-[12.5px] font-extrabold lg:rotate-0",
+                  "pointer-events-auto inline-flex h-[34px] items-center gap-[6px] whitespace-nowrap rounded-full px-[14px] text-[12.5px] font-extrabold motion-reduce:rotate-0 lg:rotate-0",
                   PILL_TONE_CLASS[tone],
                   ANCHOR_CELL[pill.anchor],
                   TILT_CLASS[tilt] ?? "",

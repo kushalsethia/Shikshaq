@@ -485,7 +485,7 @@ export default function Auth() {
               <div className="relative mt-5 h-[86px]" aria-hidden="true">
                 {mathsCount != null && mathsCount > 0 && (
                   <span
-                    className="absolute left-0 top-0 inline-flex h-9 -rotate-6 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-extrabold shadow-[0_6px_18px_rgba(0,0,0,.10)] lg:rotate-0"
+                    className="absolute left-0 top-0 inline-flex h-9 -rotate-6 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-extrabold shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0"
                     style={{ backgroundColor: mathsPalette.tint, color: mathsPalette.text }}
                   >
                     Maths · {mathsCount}
@@ -493,18 +493,18 @@ export default function Auth() {
                 )}
                 {scienceCount != null && scienceCount > 0 && (
                   <span
-                    className="absolute right-0 top-[10px] inline-flex h-9 rotate-[4deg] items-center whitespace-nowrap rounded-full px-4 text-[14px] font-extrabold shadow-[0_6px_18px_rgba(0,0,0,.10)] lg:rotate-0"
+                    className="absolute right-0 top-[10px] inline-flex h-9 rotate-[4deg] items-center whitespace-nowrap rounded-full px-4 text-[14px] font-extrabold shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0"
                     style={{ backgroundColor: sciencePalette.tint, color: sciencePalette.text }}
                   >
                     Science · {scienceCount}
                   </span>
                 )}
                 {(paperCount ?? 0) > 0 && (
-                  <span className="absolute bottom-[10px] left-[6%] inline-flex h-9 rotate-[7deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-4 text-[14px] font-extrabold text-brand-blue-deep shadow-[0_6px_18px_rgba(0,0,0,.10)] lg:rotate-0">
+                  <span className="absolute bottom-[10px] left-[6%] inline-flex h-9 rotate-[7deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-4 text-[14px] font-extrabold text-brand-blue-deep shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0">
                     {paperCount} papers
                   </span>
                 )}
-                <span className="absolute bottom-0 right-[8%] flex h-8 w-8 -rotate-[10deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text shadow-[0_6px_18px_rgba(0,0,0,.10)] lg:rotate-0">
+                <span className="absolute bottom-0 right-[8%] flex h-8 w-8 -rotate-[10deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0">
                   <MessageCircle size={16} fill="currentColor" strokeWidth={0} />
                 </span>
               </div>
