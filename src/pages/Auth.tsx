@@ -434,8 +434,11 @@ export default function Auth() {
   // The mockup draws a magic-link ("Send me a link") flow; that machinery does
   // not exist in this app (Supabase email/password + Google only), so the
   // dark field row is reused for the real password form instead — reported.
+  // Handoff AU-006: rounded-[18px] (was rounded-xl/12px, not even the
+  // entry's own "Before" of 14px), and text-[16px] -- 15px is below the
+  // "inputs stay >=16px or iOS zooms on focus" floor the entry warns about.
   const DARK_FIELD =
-    'w-full box-border min-h-[54px] h-[54px] px-4 rounded-xl bg-white/[0.08] text-[15px] text-background placeholder:text-background/40 outline-none shikshaq-auth-field';
+    'w-full box-border min-h-[54px] h-[54px] px-4 rounded-[18px] bg-white/[0.08] text-[16px] text-background placeholder:text-background/40 outline-none shikshaq-auth-field';
   const DARK_FIELD_ERROR = 'ring-2 ring-destructive';
   const mathsPalette = getSubjectPalette('Maths');
   const sciencePalette = getSubjectPalette('Science');
