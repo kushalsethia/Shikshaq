@@ -431,6 +431,7 @@ export default function Account() {
                             imageUrl={teacher.image_url || undefined}
                             sirMaam={teacher.sirMaam}
                             variant="row"
+                            hideFavourite
                           />
                         </SwipeToRemove>
                       </div>

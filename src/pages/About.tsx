@@ -107,7 +107,7 @@ export default function About() {
             <AnnotatedStatement
               statement={statement}
               align="left"
-              statementClassName="text-[38px] leading-[1.04] tracking-[-0.05em]"
+              statementClassName="text-[38px] leading-[1.04] tracking-[-0.05em] lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]"
               className="mt-5"
               pills={[
                 { label: 'No commission, ever', anchor: 'top-right', tone: 'dark', tilt: 4, dot: false },
