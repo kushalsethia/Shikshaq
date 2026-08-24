@@ -77,7 +77,13 @@ function SlotChip({
               ? "bg-white/[0.16] text-background ring-1 ring-inset ring-white/30 hover:bg-white/[0.22]"
               : "bg-white/[0.08] text-background ring-1 ring-inset ring-white/20 hover:bg-white/[0.12]",
             tilt,
-            "motion-reduce:rotate-0",
+            /* D-007: tilt flattens at `lg` (34-desktop.md, explicitly calls
+               out the sentence-builder slot chips, H-023) — a ±1.5deg
+               "handwritten" tilt on a 340px pill reads as charm, the same
+               tilt on a desktop-width row reads as a broken line. Reduced
+               motion (separate, pre-existing rule) still flattens at every
+               width via motion-reduce:rotate-0 below. */
+            "motion-reduce:rotate-0 lg:rotate-0",
           )}
           aria-label={filled ? `${slot.placeholder}: ${slot.value}` : `Choose ${slot.placeholder}`}
         >

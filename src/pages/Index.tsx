@@ -529,12 +529,19 @@ export default function Index() {
     <div className="min-h-screen bg-background">
       <main id="main-content">
         <BentoStack>
+          {/* --------------------------------------------- 1-4 · Hero grid (D-005)
+              Mobile: greeting, then search, then the two fork panels — a plain
+              flex-col stack (gap-seam) reproduces the exact prior order/spacing.
+              `lg`: grid-cols-[1.15fr_1fr] — greeting+search left, forks stacked
+              right — per the 34-desktop.md D-005 "Home hero" row. */}
+          <div className="flex flex-col gap-seam lg:grid lg:grid-cols-[1.15fr_1fr] lg:items-start lg:gap-2">
+            <div className="flex flex-col gap-seam lg:gap-2">
           {/* -------------------------------------------------------- 1 · Greeting */}
           <BentoPanel fill="card" edge="top" className="relative overflow-hidden">
             <p className="mt-[14px] text-[12.5px] font-medium text-warm-tertiary">{heroCopy.eyebrow}</p>
             <h1
               key={heroCopy.before + heroCopy.bold}
-              className="animate-hero-swap mt-[6px] font-display text-[34px] font-normal leading-[1.14] tracking-[-0.045em] text-foreground"
+              className="animate-hero-swap mt-[6px] font-display text-[34px] font-normal leading-[1.14] tracking-[-0.045em] text-foreground lg:text-[58px] lg:leading-[1.02] lg:tracking-[-0.05em]"
             >
               {heroAvatarChip}
               {heroAvatarChip ? ' ' : null}
@@ -596,7 +603,9 @@ export default function Index() {
 
           {/* ---------------------------------------------------------- 2 · Search */}
           <SearchDesk onModeChange={setHeroMode} />
+            </div>
 
+            <div className="flex flex-col gap-seam lg:gap-2">
           {/* --------------------------------------------------- 3 · Teachers fork */}
           <BentoPanel fill="brandTint" className="!py-[18px]">
             <div className="flex items-center justify-between">
@@ -656,6 +665,8 @@ export default function Index() {
               </span>
             </Link>
           </BentoPanel>
+            </div>
+          </div>
 
           {/* --------------------------------------------- 5 · 01 Featured teachers */}
           <BentoPanel fill="card" className="!px-0 !py-[22px]">
@@ -675,10 +686,14 @@ export default function Index() {
                 ))}
               </div>
             ) : leadTeacher ? (
-              <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] pt-3 scrollbar-hide">
-                <ul className="flex w-max snap-x snap-mandatory gap-3">
+              /* D-005 "Home featured rail": a scroller below `lg`, a
+                 grid-cols-4 gap-3.5 grid (no scroller) at `lg` and up — a
+                 1152px column hiding cards behind a drag gesture nobody
+                 performs is the exact anti-pattern the spec calls out. */
+              <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] pt-3 scrollbar-hide lg:overflow-visible">
+                <ul className="flex w-max snap-x snap-mandatory gap-3 lg:grid lg:w-full lg:grid-cols-4 lg:gap-3.5 lg:snap-none">
                   {featuredTeachers.map((t) => (
-                    <li key={t.id} className="w-[168px] flex-none snap-start">
+                    <li key={t.id} className="w-[168px] flex-none snap-start lg:w-auto">
                       <TeacherCard
                         id={t.id}
                         name={t.name}
@@ -756,7 +771,7 @@ export default function Index() {
           {/* ---------------------------------------------------- 7 · Your board */}
           {Object.keys(boardCounts).length > 0 && (
             <BentoPanel fill="card">
-              <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+              <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">
                 Your board
               </h2>
               <div className="stagger-children mt-[14px] space-y-2">
@@ -778,9 +793,12 @@ export default function Index() {
 
           {/* ------------------------------------------------------ How it works */}
           <BentoPanel fill="brand" className="relative mt-seam overflow-visible">
+            {/* D-007: tilt flattens at `lg` — a 6deg tilt on a 340px badge
+                reads as charm, the same tilt on a 1100px-wide row reads as
+                broken. Implemented as lg:rotate-0, mobile tilt untouched. */}
             <span
               aria-hidden
-              className="absolute right-[22px] top-[-12px] -rotate-[6deg] rounded-full bg-panel px-3 py-1.5 text-[11px] font-bold text-background"
+              className="absolute right-[22px] top-[-12px] -rotate-[6deg] rounded-full bg-panel px-3 py-1.5 text-[11px] font-bold text-background lg:rotate-0"
             >
               Takes 3 minutes
             </span>
@@ -792,13 +810,17 @@ export default function Index() {
               Then talk to them yourself
             </h2>
 
-            <ol className="mt-[22px] flex flex-col gap-[18px] sm:grid sm:grid-cols-3 sm:gap-6">
+            {/* D-005 "Home how-it-works": 3 steps stacked below `lg`, 3
+                columns with the existing border-l divider at `lg`. Was
+                `sm:grid` (640px) — moved to the spec'd `lg` (1024px)
+                breakpoint. */}
+            <ol className="mt-[22px] flex flex-col gap-[18px] lg:grid lg:grid-cols-3 lg:gap-6">
               {[
                 { icon: <Search />, title: 'Tell us the subject', body: 'Subject, class and your area. Three taps, no account needed.' },
                 { icon: <Users />, title: 'Compare real profiles', body: 'Rates, boards, reviews and travel radius, all on one card.' },
                 { icon: <MessageCircle />, title: 'Message on WhatsApp', body: 'Talk to the teacher directly. ShikshAQ never sits in the middle.' },
               ].map((step, i) => (
-                <li key={step.title} className={`flex flex-col ${i > 0 ? 'sm:border-l sm:border-background/25 sm:pl-6' : ''}`}>
+                <li key={step.title} className={`flex flex-col ${i > 0 ? 'lg:border-l lg:border-background/25 lg:pl-6' : ''}`}>
                   <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-background/15 text-white [&_svg]:size-5">
                     {step.icon}
                   </span>
@@ -843,7 +865,7 @@ export default function Index() {
             <span aria-hidden className="pointer-events-none absolute -right-10 top-10 h-[190px] w-[190px] rounded-full bg-white/[.06]" />
 
             <p className="relative text-[11.5px] font-bold uppercase tracking-[.04em] text-white/70">04</p>
-            <h2 className="relative font-display text-[23px] font-extrabold text-white">the boards set</h2>
+            <h2 className="relative font-display text-[23px] font-extrabold text-white lg:text-[30px]">the boards set</h2>
 
             {recentPapers.length > 0 ? (
               <div className="relative mx-auto mt-5 max-w-[420px] rounded-t-[24px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pb-3 pt-4">
@@ -888,7 +910,7 @@ export default function Index() {
           <BentoPanel fill="brandTint">
             <div className="flex items-center gap-3">
               <IconDisc tone="brand" size={38} shape="square"><ShieldCheck className="h-[19px] w-[19px]" /></IconDisc>
-              <h2 className="font-display text-[22px] font-extrabold tracking-[-0.04em] text-brand-deep">Why guardians use ShikshAQ</h2>
+              <h2 className="font-display text-[22px] font-extrabold tracking-[-0.04em] text-brand-deep lg:text-[28px]">Why guardians use ShikshAQ</h2>
             </div>
             <ul className="mt-[18px] flex flex-col gap-4">
               {[
@@ -912,7 +934,7 @@ export default function Index() {
             <BentoPanel fill="card" className="!px-0 !py-[22px]">
               <div className="flex items-center gap-3 px-[22px]">
                 <IconDisc tone="muted" size={32} shape="square" className="!rounded-xl"><MessageCircle /></IconDisc>
-                <h2 className="font-display text-[22px] font-extrabold">From students</h2>
+                <h2 className="font-display text-[22px] font-extrabold lg:text-[28px]">From students</h2>
               </div>
 
               <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] scrollbar-hide">

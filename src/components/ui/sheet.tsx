@@ -20,9 +20,13 @@ const SheetOverlay = React.forwardRef<
   <SheetPrimitive.Overlay
     /* Handoff O-001/rule 2: the one overlay spec for every sheet and dialog
        in the product — bg-panel/45, no blur. A blur costs a repaint on every
-       scroll frame behind it and hides the context the sheet is about. */
+       scroll frame behind it and hides the context the sheet is about.
+       Handoff M-011: fades 0->1 over 500ms — explicit duration-500/ease-snap,
+       not tailwindcss-animate's shorter default, so the overlay finishes
+       fading in step with the panel it's behind rather than snapping to
+       full opacity first. */
     className={cn(
-      "fixed inset-0 z-50 bg-panel/45 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-panel/45 transition-opacity duration-500 ease-snap data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -32,10 +36,12 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  /* Handoff O-001 rule 6: enter/exit is translateY + opacity over 500ms
-     ease-snap, nothing springs or scales — duration-500 alone (no
-     asymmetric close-faster duration-300) matches that on both directions. */
-  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-500 data-[state=open]:duration-500",
+  /* Handoff O-001 rule 6 / M-011: enter/exit is translateY + opacity over
+     500ms ease-snap, nothing springs or scales — duration-500 alone (no
+     asymmetric close-faster duration-300) matches that on both directions.
+     ease-snap, not Tailwind's ease-in-out — "anything a person waits on"
+     (sheet entry) uses the one settle curve (M-001). */
+  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-snap data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-500 data-[state=open]:duration-500",
   {
     variants: {
       side: {
