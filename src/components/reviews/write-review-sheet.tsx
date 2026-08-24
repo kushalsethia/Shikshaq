@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetGrabHandle, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Star } from "lucide-react";
@@ -7,17 +7,30 @@ import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/* R3 — Redesign Reviews.dc.html "Leaving one": bottom sheet, literal px per
-   the owner's pixel-exact override (see BRIEF.md). Wraps the same submit
-   logic TeacherComments already has (teacher_comments insert, anonymous →
-   pending approval). copy.md §12's privacy line is reproduced verbatim.
+/* R3 — Redesign Reviews.dc.html "Leaving one", restyled to Handoff O-006.
+   Wraps the same submit logic TeacherComments already has (teacher_comments
+   insert, anonymous → pending approval). copy.md §12's privacy line is
+   reproduced verbatim.
 
-   The star row is now real: teacher_comments.rating exists and this writes to
-   it. It stays OPTIONAL — a review with words and no stars is a complete
-   review, and forcing a number to get a sentence would fill the table with
-   scores nobody meant. The "what changed" gain-chip row from the mockup is
-   still not built: there is no column for it, and unlike a rating it has no
-   single obvious value, so it is omitted rather than faked. */
+   O-006 says "no star rating, no numeric score — teacher_comments has no
+   rating column." That premise is out of date: teacher_comments.rating is a
+   real column this sheet already writes to (confirmed with the owner in an
+   earlier phase of this same redesign, when the identical claim surfaced
+   for TeacherComments.tsx's display side — "Keep ratings, apply the rest").
+   The star row stays; everything else in O-006 (chrome, textarea sizing,
+   the new confirmation row, button) is applied.
+
+   O-006 also describes an optional free-text "name" field defaulting to
+   Anonymous. This app's reviews are tied to the signed-in account — there
+   is no free-text name column, `is_anonymous` is a boolean that toggles
+   whether the account's real name displays, and the submit handler (not
+   touched here) only ever inserts that boolean. The existing "Post as
+   anonymous" checkbox is the real equivalent and stays as-is instead.
+
+   The confirmation row IS new: "I actually took classes with this teacher"
+   gates the submit button client-side only — it writes nothing new, so it
+   doesn't touch the protected submit handler, just adds an honesty
+   precondition before calling it. */
 
 const RATING_WORDS: Record<number, string> = {
   1: "Poor",
@@ -43,26 +56,31 @@ export function WriteReviewSheet({ open, onOpenChange, submitting, error, onSubm
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
+  const [confirmed, setConfirmed] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!comment.trim()) return;
+    if (!comment.trim() || !confirmed) return;
     await onSubmit(comment.trim(), isAnonymous, rating || null);
     setComment("");
     setIsAnonymous(false);
     setRating(0);
     setHovered(0);
+    setConfirmed(false);
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-[28px] border-0 pb-[22px] pt-[20px] px-[18px]">
-        <span className="mx-auto mb-[18px] block h-[4px] w-[44px] rounded-full bg-border" aria-hidden="true" />
-        <SheetHeader className="px-0">
-          <SheetTitle className="font-display text-[21px] font-black tracking-[-0.035em] text-foreground">
-            Write a review
-          </SheetTitle>
-        </SheetHeader>
+      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto border-0 px-5 pb-[26px]">
+        <SheetGrabHandle />
+        {/* SheetTitle labels the dialog for assistive tech (Radix requires
+            one); visually it IS the heading O-006 specifies. */}
+        <SheetTitle className="font-display text-[21px] font-black tracking-[-0.035em] text-foreground">
+          How were the classes?
+        </SheetTitle>
+        <p className="mt-1.5 text-[14px] leading-[1.55] text-warm-prose">
+          Only students who have actually taken classes with this teacher may review.
+        </p>
 
         <form onSubmit={handleSubmit} className="mt-[18px] flex flex-col gap-[14px]">
           {/* R3's rating row. Optional by design, so it carries no required
@@ -110,36 +128,65 @@ export function WriteReviewSheet({ open, onOpenChange, submitting, error, onSubm
             </div>
           </fieldset>
 
-          <Textarea
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="Share your thoughts about this teacher..."
-            className="min-h-[96px] resize-none rounded-[18px] px-[16px] py-[14px] text-[15px] leading-[1.6]"
-            disabled={submitting}
-          />
-
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="write-review-anonymous"
-              checked={isAnonymous}
-              onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+          <div>
+            <label htmlFor="write-review-comment" className="mb-1 block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">
+              Review
+            </label>
+            <Textarea
+              id="write-review-comment"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Share your thoughts about this teacher..."
+              className="min-h-[132px] resize-none rounded-2xl bg-muted px-4 py-[14px] text-base leading-[1.6]"
               disabled={submitting}
             />
-            <label htmlFor="write-review-anonymous" className="cursor-pointer text-sm font-medium text-foreground">
-              Post as anonymous
+          </div>
+
+          <div>
+            {/* "Your name — optional" per O-006 is a free-text field this
+                app's account-tied review model doesn't have (see file header
+                comment) — the real equivalent is this anonymous toggle. */}
+            <label htmlFor="write-review-anonymous" className="mb-1 block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">
+              Your name <span className="font-medium normal-case tracking-normal text-warm-tertiary">— optional</span>
             </label>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="write-review-anonymous"
+                checked={isAnonymous}
+                onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+                disabled={submitting}
+              />
+              <label htmlFor="write-review-anonymous" className="cursor-pointer text-sm font-medium text-foreground">
+                Post as anonymous
+              </label>
+            </div>
           </div>
 
           <p className="rounded-2xl bg-muted p-4 text-[12px] leading-[1.5] text-warm-meta">{PRIVACY_LINE}</p>
+
+          {/* Handoff O-006: confirmation row — client-side gate only, writes
+              nothing new, the submit handler stays untouched. */}
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="write-review-confirm"
+              checked={confirmed}
+              onCheckedChange={(checked) => setConfirmed(checked === true)}
+              disabled={submitting}
+              className="mt-0.5 h-5 w-5 rounded-[7px]"
+            />
+            <label htmlFor="write-review-confirm" className="cursor-pointer text-sm leading-relaxed text-foreground">
+              I actually took classes with this teacher
+            </label>
+          </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <Button
             type="submit"
             variant="primary"
-            size={52}
-            className="h-[52px] rounded-[14px] text-[15.5px] font-extrabold"
-            disabled={!comment.trim() || submitting}
+            size={54}
+            className="rounded-full text-[15.5px] font-extrabold"
+            disabled={!comment.trim() || !confirmed || submitting}
             busy={submitting}
           >
             Post review
