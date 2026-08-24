@@ -403,14 +403,22 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 papers · contact, as quick-access pills above the full column
                 groups, which stay intact for internal-linking / SEO. */}
             <div className="flex flex-wrap gap-2">
+              {/* Handoff C-014: Chip's own focus ring (focus-visible:ring-2
+                  focus-visible:ring-ring...) doesn't survive asChild here --
+                  the rendered element only carries this className, not
+                  Chip's, so focus-visible:outline-none alone left these
+                  three links with literally no visible focus state at all.
+                  Adding the ring directly, using the same dark-panel-safe
+                  tokens (ring-background/ring-offset-panel) TopBar's own
+                  links use, since this footer is the same near-black fill. */}
               <Chip asChild tone="on-dark" size={38} className="cursor-default">
-                <Link to="/all-tuition-teachers-in-kolkata" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">find a teacher</Link>
+                <Link to="/all-tuition-teachers-in-kolkata" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel">find a teacher</Link>
               </Chip>
               <Chip asChild tone="on-dark" size={38} className="cursor-default">
-                <Link to="/past-papers" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">past papers</Link>
+                <Link to="/past-papers" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel">past papers</Link>
               </Chip>
               <Chip asChild tone="on-dark" size={38} className="cursor-default">
-                <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none">contact</a>
+                <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel">contact</a>
               </Chip>
             </div>
 
