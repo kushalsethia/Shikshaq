@@ -5,8 +5,10 @@ import { getWhatsAppLinkBySlug } from '@/lib/teachers';
 import { resolveTeacherWhatsAppUrl, isWhatsAppUrl } from '@/utils/whatsapp';
 import { trackWhatsAppClick } from '@/utils/clarityEvents';
 import { trackWhatsAppClickGA } from '@/utils/gaEvents';
+import { recordContact } from '@/lib/contact-record';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { Button } from '@/components/ui/button';
+import { BentoPanel } from '@/components/layout/PageContainer';
 
 /**
  * Interstitial at /tuition-teachers/:slug/whatsapp-click.
@@ -103,6 +105,11 @@ export default function WhatsAppRedirect() {
         return;
       }
 
+      // R7 write-review gate (pages.md §"Reviews") — only a real WhatsApp
+      // hand-off counts as a "recorded contact", not just landing on this
+      // interstitial, so this fires after the isWhatsAppUrl check above.
+      if (slug) recordContact(slug);
+
       setStatus('redirecting');
 
       // Brief pause before leaving so the analytics beacons can flush. GA4 uses
@@ -128,69 +135,66 @@ export default function WhatsAppRedirect() {
 
   if (status === 'notfound') {
     return (
-      <Shell>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center">
         <h1 className="text-lg font-semibold text-foreground">Teacher not found</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           We couldn't find this teacher. They may no longer be listed.
         </p>
-        <Button asChild className="mt-6 rounded-lg bg-primary text-primary-foreground">
+        <Button asChild variant="primary" size={44} className="mt-6">
           <Link to="/all-tuition-teachers-in-kolkata">Browse all teachers</Link>
         </Button>
-      </Shell>
+      </div>
     );
   }
 
+  /* Handoff O-012: full-height bg-mint panel, chromeless (registered in
+     AppShell's WHATSAPP_REDIRECT_PATTERN — this route had no chromeless
+     entry at all before, so it was rendering with the full nav/footer
+     chrome the entry explicitly rules out). Structure and copy match the
+     entry's own list: disc, h1, one line naming the teacher and stating
+     fees/timings are between the two parties, a required manual-open
+     fallback, a back row. Click recording and resolveTeacherWhatsAppUrl
+     above are untouched. */
   return (
-    <Shell>
-      <span className="inline-flex items-center justify-center w-16 h-16 rounded-full mx-auto bg-mint">
-        <WhatsAppIcon className="w-8 h-8 text-foreground" />
-      </span>
-      <h1 className="mt-4 text-lg font-semibold text-foreground">
-        {status === 'manual' ? 'Ready to message' : 'Opening WhatsApp…'}
-      </h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {name ? `Connecting you with ${name}.` : 'Connecting you with your teacher.'}
-      </p>
-      {/* secondary-05-success-handoff.png puts a line of coaching on this
-          screen: "Say which class and subject you need — teachers reply faster
-          to a specific first message." It was missing, and it is the only text
-          here that does any work. "Connecting you with Uresh Rai" confirms what
-          the user just tapped; this changes what they type next, on the one
-          action the whole product exists to produce — and it matters because
-          the prefilled message is deliberately generic, so editing it is the
-          difference between a fast reply and a slow one. */}
-      <p className="mx-auto mt-2 max-w-[34ch] text-sm text-muted-foreground">
-        Say which class and subject you need — teachers reply faster to a specific first
-        message.
-      </p>
-
-      {/* On mobile, wa.me hands off to the app and this tab stays parked here,
-          so the page needs a real way onward rather than a bare spinner. */}
-      {url && (
-        <Button
-          asChild
-          className="mt-6 gap-2 rounded-lg font-bold bg-mint text-foreground hover:bg-mint/80"
+    <div className="min-h-screen bg-background">
+      <BentoPanel fill="mint" edge="top" className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
+        {/* --whatsapp disc, not bg-mint's own green — mint is the unrelated
+            Science-subject tint and design.md's hard rule is that WhatsApp
+            green appears nowhere else, so the disc needs the real brand
+            token even while it sits on a mint panel. */}
+        <span
+          className="inline-flex h-[76px] w-[76px] items-center justify-center rounded-full bg-whatsapp"
+          style={{ boxShadow: '0 14px 34px rgba(37,211,102,.32)' }}
         >
-          <a href={url} rel="noopener noreferrer">
-            <WhatsAppIcon className="w-5 h-5" />
-            {status === 'manual' ? 'Open WhatsApp' : "Tap here if it didn't open"}
-          </a>
-        </Button>
-      )}
+          <WhatsAppIcon className="h-[38px] w-[38px] text-whatsapp-text" />
+        </span>
+        <h1 className="mt-6 font-display text-[30px] font-black leading-[1.05] tracking-[-0.045em] text-[#24603D]">
+          {/* 'manual' means the resolved target isn't actually a wa.me link
+             (a real, pre-existing fallback path) — "Opening WhatsApp…" would
+             be wrong there, so that one branch keeps its own accurate copy;
+             every other status uses the entry's literal heading. */}
+          {status === 'manual' ? 'Ready to message' : 'Opening WhatsApp…'}
+        </h1>
+        <p className="mx-auto mt-2 max-w-[34ch] text-[15px] leading-[1.6] text-[#3E6F53]">
+          {name
+            ? `Connecting you with ${name}. Fees and timings are settled directly between you two — Shikshaq takes no commission.`
+            : 'Fees and timings are settled directly between you and the teacher — Shikshaq takes no commission.'}
+        </p>
 
-      <div className="mt-4">
-        <Link to={profilePath} className="text-xs font-semibold text-warm-meta">
-          {name ? `← Back to ${name}` : '← Back to profile'}
+        {/* Required, not optional: app handoff to WhatsApp fails often enough
+            that a screen with no escape is a dead end. */}
+        {url && (
+          <Button asChild variant="muted" size={48} className="mt-6 w-full max-w-[280px] !bg-card !text-foreground">
+            <a href={url} rel="noopener noreferrer">
+              {status === 'manual' ? 'Open WhatsApp' : 'Nothing happened? Open it manually'}
+            </a>
+          </Button>
+        )}
+
+        <Link to={profilePath} className="tap-44 mt-2 text-[14px] font-semibold text-[#3E6F53]">
+          {name ? `Back to ${name}'s profile` : 'Back to profile'}
         </Link>
-      </div>
-    </Shell>
-  );
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="text-center max-w-sm">{children}</div>
+      </BentoPanel>
     </div>
   );
 }
