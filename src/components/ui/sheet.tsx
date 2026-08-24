@@ -18,7 +18,9 @@ const SheetOverlay = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
-    /* Handoff S-012: the one bottom-sheet overlay spec, bg-panel/45, no blur. */
+    /* Handoff O-001/rule 2: the one overlay spec for every sheet and dialog
+       in the product — bg-panel/45, no blur. A blur costs a repaint on every
+       scroll frame behind it and hides the context the sheet is about. */
     className={cn(
       "fixed inset-0 z-50 bg-panel/45 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
@@ -30,13 +32,23 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+  /* Handoff O-001 rule 6: enter/exit is translateY + opacity over 500ms
+     ease-snap, nothing springs or scales — duration-500 alone (no
+     asymmetric close-faster duration-300) matches that on both directions. */
+  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-500 data-[state=open]:duration-500",
   {
     variants: {
       side: {
         top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        /* Handoff O-001 rule 1: every bottom sheet is rounded-t-[30px]
+           bg-card, no border — the filter sheet (O-002) is the one
+           exception, and opts out via its own className override. Content
+           padding and the grab handle are NOT baked in here: several
+           callers (gate-sheet.tsx, etc.) already draw their own per S-012
+           and would double up — see SheetGrabHandle below for new callers,
+           and each existing caller's own comment for why it self-draws. */
         bottom:
-          "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "inset-x-0 bottom-0 rounded-t-[30px] bg-card data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
         left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
           "inset-y-0 right-0 h-full w-3/4  border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
@@ -50,15 +62,28 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  /**
+   * Hides the Radix close `X` visually while keeping it focusable and
+   * labelled (O-001) — for sheets that draw their own close control (e.g.
+   * the filter sheet's 44px disc), so there's never a second, competing
+   * close affordance.
+   */
+  hideCloseButton?: boolean;
+}
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
-  ({ side = "right", className, children, ...props }, ref) => (
+  ({ side = "right", className, children, hideCloseButton, ...props }, ref) => (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
         {children}
-        <SheetPrimitive.Close className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-md opacity-70 ring-offset-background transition-opacity before:absolute before:-inset-0.5 before:content-[''] data-[state=open]:bg-secondary hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none">
+        <SheetPrimitive.Close
+          className={cn(
+            "absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-md opacity-70 ring-offset-background transition-opacity before:absolute before:-inset-0.5 before:content-[''] data-[state=open]:bg-secondary hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none",
+            hideCloseButton && "sr-only",
+          )}
+        >
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>
@@ -67,6 +92,15 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
   ),
 );
 SheetContent.displayName = SheetPrimitive.Content.displayName;
+
+/** Handoff O-001 rule 1: the 36x4 rounded-full bg-muted grab handle every
+ *  bottom sheet gets, centred at pt-3. Not auto-rendered by SheetContent —
+ *  several existing callers already draw their own inline per S-012, and
+ *  auto-injecting one here would double them up — so new sheets render
+ *  this explicitly as their first child instead. */
+function SheetGrabHandle() {
+  return <div aria-hidden className="mx-auto mb-4 h-1 w-9 flex-none rounded-full bg-muted" />;
+}
 
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn("flex flex-col space-y-2 text-center sm:text-left", className)} {...props} />
@@ -100,6 +134,7 @@ export {
   SheetContent,
   SheetDescription,
   SheetFooter,
+  SheetGrabHandle,
   SheetHeader,
   SheetOverlay,
   SheetPortal,
