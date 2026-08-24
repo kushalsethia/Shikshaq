@@ -395,12 +395,12 @@ function TeacherCardComponent({
   // fixed order, each optional. Replaces the old chipsRow/factsRow pairing
   // for this variant only.
   const experienceBadge = isRow && experienceYears != null ? (
-    <span className="inline-flex h-[26px] items-center rounded-full bg-card px-[10px] text-[11.5px] font-semibold text-warm-secondary">
+    <span className="inline-flex h-[26px] items-center rounded-full bg-card px-[10px] text-[11.5px] font-semibold tabular-nums text-warm-secondary">
       {experienceYears} yrs
     </span>
   ) : null;
   const feeBadgeText = isRow && feeLabel ? (
-    <span className="text-[13px] font-bold text-foreground">{feeLabel}</span>
+    <span className="text-[13px] font-bold tabular-nums text-foreground">{feeLabel}</span>
   ) : null;
   const rowBadgeRow = isRow && (subjectBadgeInline || experienceBadge || feeBadgeText || rating !== undefined) ? (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">

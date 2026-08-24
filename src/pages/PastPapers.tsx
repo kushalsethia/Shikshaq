@@ -643,7 +643,7 @@ export default function PastPapers() {
                     role="tab"
                     aria-selected={groupMode === mode}
                     onClick={() => setGroupMode(mode)}
-                    className={`flex h-9 items-center rounded-full px-[14px] text-[13.5px] font-bold capitalize transition-colors duration-tap ease-tap ${FOCUS} ${
+                    className={`tap-44 flex h-9 items-center rounded-full px-[14px] text-[13.5px] font-bold capitalize transition-colors duration-tap ease-tap ${FOCUS} ${
                       groupMode === mode ? 'bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >

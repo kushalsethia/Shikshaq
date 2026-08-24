@@ -328,7 +328,7 @@ export function TeacherComments({ teacherId, subject, teacherSlug }: TeacherComm
         </div>
         <Button
           size={44}
-          className="h-10 rounded-full bg-brand text-[14px] font-bold text-brand-foreground hover:bg-brand-hover"
+          className="rounded-full bg-brand text-[14px] font-bold text-brand-foreground hover:bg-brand-hover"
           onClick={handleWriteReviewClick}
           disabled={Boolean(user) && !contacted}
           title={user && !contacted ? 'Message the teacher on WhatsApp first to unlock this' : undefined}

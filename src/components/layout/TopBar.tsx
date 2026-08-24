@@ -50,7 +50,7 @@ function LogoOrTourTrigger() {
   if (isHome) {
     return (
       <Logo
-        className="h-8 w-auto"
+        className="tap-44 h-8 w-auto"
         onDark
         ariaLabel="How ShikshAQ works"
         onClick={(e) => {

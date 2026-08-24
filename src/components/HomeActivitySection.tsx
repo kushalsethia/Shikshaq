@@ -203,7 +203,7 @@ export function HomeActivitySection() {
               </p>
               <Link
                 to="/auth"
-                className="inline-flex h-10 items-center rounded-lg bg-brand px-4 text-sm font-medium text-brand-foreground transition-colors duration-150 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                className="inline-flex h-11 items-center rounded-lg bg-brand px-4 text-sm font-medium text-brand-foreground transition-colors duration-150 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               >
                 Sign in
               </Link>

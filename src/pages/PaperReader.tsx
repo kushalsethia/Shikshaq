@@ -441,7 +441,7 @@ export default function PaperReader() {
                     <button
                       type="button"
                       onClick={openFullScreen}
-                      className={`flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-white transition-colors duration-tap ease-tap hover:bg-white/10 active:scale-[0.97] ${FOCUS_DARK}`}
+                      className={`tap-44 flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-semibold text-white transition-colors duration-tap ease-tap hover:bg-white/10 active:scale-[0.97] ${FOCUS_DARK}`}
                     >
                       <Maximize2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
                       Full screen
@@ -450,7 +450,7 @@ export default function PaperReader() {
                       href={paper.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`flex h-9 items-center gap-2 rounded-full bg-brand-blue px-4 text-[13px] font-bold text-white transition-colors duration-tap ease-tap hover:bg-brand-blue-hover active:scale-[0.97] ${FOCUS_DARK}`}
+                      className={`tap-44 flex h-9 items-center gap-2 rounded-full bg-brand-blue px-4 text-[13px] font-bold text-white transition-colors duration-tap ease-tap hover:bg-brand-blue-hover active:scale-[0.97] ${FOCUS_DARK}`}
                     >
                       <ExternalLink className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
                       Open full PDF
