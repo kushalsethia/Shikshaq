@@ -1006,6 +1006,27 @@ input[type="date"].date-input-left,
   transform: rotate(-1.5deg);
 }
 
+/* ---- Annotated highlight tilt (D-007, desktop phase) -----------------------
+   Backs AnnotatedHighlight's `tilt` prop (src/components/marketing/annotated-
+   statement.tsx) — the one bold word/phrase inside About/Contact/Join's
+   headline statement, e.g. Join's "Keep every rupee." block. The rotation
+   degree is caller-supplied and arbitrary (not one of a fixed set), so it is
+   set via the `--annotated-tilt` custom property in an inline style rather
+   than a Tailwind arbitrary-value class (which requires a static value at
+   build time). Putting the actual `transform` here, instead of on the inline
+   style directly, is what lets the `lg` media query below win — an inline
+   `style` attribute cannot be overridden by any stylesheet rule, tilt-flattening
+   or otherwise. Mirrors the pill overlay's `lg:rotate-0` in the same file. */
+.annotated-highlight-tilt {
+  transform: rotate(var(--annotated-tilt, 0deg));
+}
+
+@media (min-width: 1024px) {
+  .annotated-highlight-tilt {
+    transform: none;
+  }
+}
+
 /* Outlined variant — highlight plus the structural black line, for a
    first-fold headline that needs maximum presence on the light ground. */
 .marker-highlight--outlined {

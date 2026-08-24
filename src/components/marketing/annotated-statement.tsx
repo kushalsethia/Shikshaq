@@ -76,7 +76,15 @@ const HIGHLIGHT_TEXT_CLASS: Record<AnnotatedHighlightTone, string> = {
  *  pill highlight (About's "line"), a dark block (Contact's "We reply."), or
  *  a tilted solid-brand block (Join's "Keep every rupee.").
  *  `weight` defaults to 900 (About/Contact); Join's spec calls for 800.
- *  `tilt` rotates just the background layer, not the text. */
+ *  `tilt` rotates just the background layer, not the text.
+ *
+ *  Handoff D-007: the tilt is set via the `--annotated-tilt` custom property
+ *  (inline style, since `tilt` is an arbitrary caller-supplied number, not
+ *  one of a fixed set Tailwind can see at build time) and applied by the
+ *  `.annotated-highlight-tilt` utility in index.css, which zeroes the
+ *  rotation at `lg` — a class-based override can beat this because the
+ *  rotation itself is no longer set via the `style` attribute, which no
+ *  stylesheet class could otherwise outrank. */
 function AnnotatedHighlight({
   tone,
   weight = 900,
@@ -92,8 +100,8 @@ function AnnotatedHighlight({
     <span className={cn("relative inline-block", weight === 800 ? "font-extrabold" : "font-black")}>
       <span
         aria-hidden
-        className={cn("absolute top-[2px] bottom-[2px]", HIGHLIGHT_BG_CLASS[tone])}
-        style={tilt ? { transform: `rotate(${tilt}deg)` } : undefined}
+        className={cn("absolute top-[2px] bottom-[2px]", HIGHLIGHT_BG_CLASS[tone], tilt ? "annotated-highlight-tilt" : undefined)}
+        style={tilt ? ({ "--annotated-tilt": `${tilt}deg` } as React.CSSProperties) : undefined}
       />
       <span className={cn("relative", HIGHLIGHT_TEXT_CLASS[tone])}>{children}</span>
     </span>

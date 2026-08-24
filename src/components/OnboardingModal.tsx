@@ -91,7 +91,7 @@ export function OnboardingModal() {
         <div aria-hidden className="pointer-events-none absolute inset-0">
           {c?.maths != null && c.maths > 0 && (
             <span
-              className="absolute left-[6%] top-[18%] h-[34px] rotate-[7deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0"
+              className="absolute left-[6%] top-[18%] h-[34px] rotate-[7deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0"
               style={{ backgroundColor: maths.tint, color: maths.text, display: "inline-flex" }}
             >
               Maths · {c.maths}
@@ -99,7 +99,7 @@ export function OnboardingModal() {
           )}
           {c?.icse != null && c.icse > 0 && (
             <span
-              className="absolute right-[8%] top-[30%] h-[34px] rotate-[-6deg] items-center whitespace-nowrap rounded-full bg-panel px-[15px] text-[13.5px] font-extrabold text-background shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0"
+              className="absolute right-[8%] top-[30%] h-[34px] rotate-[-6deg] items-center whitespace-nowrap rounded-full bg-panel px-[15px] text-[13.5px] font-extrabold text-background shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0"
               style={{ display: "inline-flex" }}
             >
               ICSE · {c.icse}
@@ -107,7 +107,7 @@ export function OnboardingModal() {
           )}
           {c?.ballygunge != null && c.ballygunge > 0 && (
             <span
-              className="absolute left-[10%] bottom-[26%] h-[34px] rotate-[5deg] items-center whitespace-nowrap rounded-full bg-card px-[15px] text-[13.5px] font-extrabold text-foreground shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0"
+              className="absolute left-[10%] bottom-[26%] h-[34px] rotate-[5deg] items-center whitespace-nowrap rounded-full bg-card px-[15px] text-[13.5px] font-extrabold text-foreground shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0"
               style={{ display: "inline-flex" }}
             >
               Ballygunge · {c.ballygunge}
@@ -115,7 +115,7 @@ export function OnboardingModal() {
           )}
           {c?.class10 != null && c.class10 > 0 && (
             <span
-              className="absolute right-[6%] bottom-[12%] h-[34px] rotate-[-4deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0"
+              className="absolute right-[6%] bottom-[12%] h-[34px] rotate-[-4deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0"
               style={{ backgroundColor: science.tint, color: science.text, display: "inline-flex" }}
             >
               Class 10 · {c.class10}
@@ -123,14 +123,14 @@ export function OnboardingModal() {
           )}
           {c?.papers != null && c.papers > 0 && (
             <span
-              className="absolute left-[22%] top-[46%] h-[34px] rotate-[6deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-[15px] text-[13.5px] font-extrabold text-brand-blue-deep shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0"
+              className="absolute left-[22%] top-[46%] h-[34px] rotate-[6deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-[15px] text-[13.5px] font-extrabold text-brand-blue-deep shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0"
               style={{ display: "inline-flex" }}
             >
               {c.papers} free papers
             </span>
           )}
           <span
-            className="absolute right-[14%] top-[58%] flex h-8 w-8 rotate-[6deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text motion-reduce:rotate-0"
+            className="absolute right-[14%] top-[58%] flex h-8 w-8 rotate-[6deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text motion-reduce:rotate-0 lg:rotate-0"
           >
             <WhatsAppIcon className="h-4 w-4" />
           </span>
