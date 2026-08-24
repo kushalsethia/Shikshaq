@@ -1,33 +1,50 @@
-import { Footer } from '@/components/Footer';
 import { Link } from 'react-router-dom';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { IndianRupee, MessageCircle, Heart, ShieldCheck, Sparkles, type LucideIcon } from 'lucide-react';
-import { StarburstBadge, SpeechTag } from '@/components/devices';
+import { IndianRupee, MessageCircle, Heart, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { AnnotatedHighlight } from '@/components/marketing/annotated-statement';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
+import { useChromeConfig } from '@/components/layout/AppShell';
 
-const BENEFITS: { title: string; body: string; icon: LucideIcon; tile: string }[] = [
+// Handoff JN-003: titles/bodies below are unchanged from the pre-redesign
+// array — only card tint, icon-tile fill and type scale changed.
+const BENEFITS: { title: string; body: string; icon: LucideIcon; cardTint: string; titleInk: string; bodyInk: string; iconTile: string }[] = [
   {
     title: 'No commission fees',
     body: 'Fees are agreed between you and the family. We never sit in the middle of a payment.',
     icon: IndianRupee,
-    tile: 'bg-brand-subtle text-brand-deep',
+    cardTint: 'bg-brand-subtle',
+    titleInk: 'text-brand-deep',
+    bodyInk: 'text-warm-prose',
+    iconTile: 'bg-brand',
   },
   {
     title: 'Direct student contact',
     body: 'Enquiries reach you on WhatsApp. No lead credits, no bidding for students.',
     icon: MessageCircle,
-    tile: 'bg-brand-blue-subtle text-brand-blue-deep',
+    cardTint: 'bg-mint',
+    titleInk: 'text-[#24603D]',
+    bodyInk: 'text-[#3E6F53]',
+    iconTile: 'bg-[#34B268]',
   },
   {
     title: 'Empathy',
     body: 'We were students in this city. The platform is built for how tuition actually works in Kolkata.',
     icon: Heart,
-    tile: 'bg-mint text-foreground',
+    cardTint: 'bg-brand-blue-subtle',
+    titleInk: 'text-brand-blue-deep',
+    bodyInk: 'text-warm-prose',
+    iconTile: 'bg-brand-blue',
   },
   {
     title: 'Values',
     body: 'Real reviews from real students, and no paid placement in results. Ever.',
     icon: ShieldCheck,
-    tile: 'bg-muted text-foreground',
+    cardTint: 'bg-[#F0E4F6]',
+    titleInk: 'text-[#4C2460]',
+    bodyInk: 'text-[#5F3E6F]',
+    iconTile: 'bg-[#9F53C6]',
   },
 ];
 
@@ -37,112 +54,75 @@ export default function Join() {
     'List yourself as a tuition teacher in Kolkata for free. Reach students near you directly. No commission, no middlemen, no platform fees. Apply to join Shikshaq today.'
   );
 
+  // Handoff JN-001: this route renders its own eyes panel, replacing
+  // AppShell's default pre-footer.
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
+
   return (
     <div className="min-h-screen bg-background">
-
-      {/* Gradient hero band — same device PastPapers.tsx uses (brand-tint fading to page
-          ground), applied here in orange instead of blue since this page's whole pitch is
-          "keep your fees", the brand-orange side of the token pair. Reads as one considered
-          hero moment instead of the previous flat bg-background page. */}
       <main>
-      <div className="relative overflow-hidden bg-gradient-to-b from-brand-subtle to-background">
-        {/* Organic blob decoration behind the hero headline — mobile-vibes-event-app
-            reference. Ornamental only, tokens only, sits behind the text (-z-10). Sized up
-            and a second shape added on the right so the hero reads as a full composition,
-            not one shape parked in a corner. */}
-        <div
-          className="absolute -left-16 -top-10 -z-10 h-72 w-72 rounded-[55%_45%_65%_35%/50%_40%_60%_50%] bg-card/60 sm:h-96 sm:w-96"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute -right-12 top-10 -z-10 hidden h-56 w-56 rounded-[40%_60%_35%_65%/55%_35%_65%_45%] bg-brand-blue-subtle sm:block"
-          aria-hidden="true"
-        />
-
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16 lg:pt-20 pb-10">
-          {/* Starburst replaces the flat pill chip — same message, loud device. */}
-          <StarburstBadge
-            variant="burst"
-            color="hsl(var(--brand-blue))"
-            tilt={-6}
-            size={92}
-            className="absolute right-4 top-6 hidden sm:grid lg:right-10"
-          >
-            No fees
-          </StarburstBadge>
-
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3.5 py-1.5 text-[11.5px] font-bold uppercase tracking-[.04em] text-brand-deep">
-            <Sparkles size={12} aria-hidden="true" />
-            No commission, ever
-          </span>
-
-          {/* Mixed-weight, oversized headline — scaled up from the first pass's 3xl/5xl to
-              match the clamp-based "display" scale PastPapers.tsx uses for its hero, per the
-              owner's direction that devices were "composed too lightly." Base weight 400,
-              payoff phrase carries the marker-highlight device instead of plain color weight
-              alone, per VISUAL_DIRECTION §9a's "every first fold gets a designed opening." */}
-          <h1 className="mt-5 max-w-3xl font-display text-[clamp(31px,5.2vw,58px)] font-normal leading-[.98] tracking-[-.04em] text-foreground">
-            Teach on Shikshaq.{' '}
-            <span
-              className="marker-highlight marker-highlight--tilt font-extrabold"
-              style={{ '--marker-color': 'hsl(var(--brand))' } as React.CSSProperties}
-            >
-              Keep every rupee.
-            </span>
-          </h1>
-
-          <div className="mt-5 flex flex-wrap items-start gap-3">
-            <p className="max-w-prose text-base sm:text-lg leading-relaxed text-muted-foreground">
+        <BentoStack>
+          {/* Handoff JN-002: pitch panel. */}
+          <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[26px]">
+            <h1 className="mt-5 font-display text-[38px] font-normal leading-[.98] tracking-[-0.04em] text-foreground">
+              Teach on Shikshaq.{' '}
+              <AnnotatedHighlight tone="block-brand" weight={800} tilt={-1.5}>
+                Keep every rupee.
+              </AnnotatedHighlight>
+            </h1>
+            <p className="mt-4 text-[16px] leading-[1.6] text-warm-secondary">
               We list local tuition teachers, students contact you directly on WhatsApp, and we take nothing from what you charge. There is no listing fee either.
             </p>
-            <SpeechTag tail="top-left" dotColor="hsl(var(--brand-blue))" tilt={-2} className="hidden sm:inline-flex">
+            <div className="mt-3.5 inline-flex h-8 -rotate-2 items-center gap-2 rounded-full bg-card px-[13px] text-[12.5px] font-bold text-foreground shadow-border">
+              <span className="h-[7px] w-[7px] flex-none rounded-full bg-brand" />
               Reviewed in ~3 working days
-            </SpeechTag>
-          </div>
+            </div>
+            <Link
+              to="/join/apply"
+              className="mt-[22px] flex h-[54px] items-center justify-center rounded-full bg-panel text-[15px] font-extrabold text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Apply to be listed
+            </Link>
+          </BentoPanel>
 
-          <Link
-            to="/join/apply"
-            className="hover:opacity-90 active:scale-[0.97] transition-[opacity,transform] duration-150 inline-flex items-center min-h-11 mt-7 px-6 py-4 rounded-lg bg-foreground text-background text-sm font-semibold"
-          >
-            Apply to be listed
-          </Link>
-        </div>
-      </div>
+          {/* Handoff JN-003: benefits panel. */}
+          <BentoPanel fill="card">
+            <h2 className="sr-only">Why teach on Shikshaq</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {BENEFITS.map((b) => {
+                const Icon = b.icon;
+                return (
+                  <div key={b.title} className={`rounded-[20px] p-4 ${b.cardTint}`}>
+                    <div className={`flex h-[34px] w-[34px] items-center justify-center rounded-[11px] ${b.iconTile}`}>
+                      <Icon className="h-[17px] w-[17px] text-white" strokeWidth={2} aria-hidden="true" />
+                    </div>
+                    <div className={`mt-3 text-[17px] font-extrabold tracking-[-0.03em] ${b.titleInk}`}>{b.title}</div>
+                    <p className={`mt-1 text-[13.5px] leading-[1.5] ${b.bodyInk}`}>{b.body}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </BentoPanel>
 
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16"
-               aria-labelledby="join-benefits-heading">
-        {/* The four tiles were h3 with no h2 above them, so the outline jumped
-            h1 -> h3. They are a named group, not loose cards, so the fix is the
-            missing group heading rather than demoting the cards. It is sr-only
-            because the tiles are self-evident when you can see them. */}
-        <h2 id="join-benefits-heading" className="sr-only">Why teach on Shikshaq</h2>
-        {/* Slight alternating tilt on the tile row — the "overlapping angled card stack"
-            device from the reference, applied restrained enough to still read as a clean
-            grid at a glance rather than genuine chaos. Tilt resets on hover so nothing feels
-            broken when a user actually looks closely. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {BENEFITS.map((b, i) => {
-            const Icon = b.icon;
-            const tilt = i % 2 === 0 ? '-rotate-1' : 'rotate-1';
-            return (
-              <div
-                key={b.title}
-                className={`animate-card-reveal p-6 rounded-2xl bg-card shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:rotate-0 ${tilt}`}
-                style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
-              >
-                <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${b.tile}`}>
-                  <Icon size={20} aria-hidden="true" />
-                </div>
-                <h3 className="text-base font-semibold mb-2 text-foreground">{b.title}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{b.body}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+          {/* Shared tail. */}
+          <EyesPanel
+            mode={builderMode}
+            onModeChange={setBuilderMode}
+            heading={(
+              <>
+                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+              </>
+            )}
+            subline="Fill in the blanks and we'll take you straight there."
+            slots={builderSlots}
+            onSlotChange={handleSlotChange}
+            onSubmit={handleBuilderSubmit}
+          />
+        </BentoStack>
       </main>
-
-      <Footer />
     </div>
   );
 }

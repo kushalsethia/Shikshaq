@@ -58,24 +58,43 @@ const ANCHOR_CELL: Record<AnnotatedPillAnchor, string> = {
   "bottom-right": "col-start-2 row-start-3 justify-self-end self-end",
 };
 
-export type AnnotatedHighlightTone = "pill-brand" | "block-dark";
+export type AnnotatedHighlightTone = "pill-brand" | "block-dark" | "block-brand";
 
 const HIGHLIGHT_BG_CLASS: Record<AnnotatedHighlightTone, string> = {
   "pill-brand": "-inset-x-2 rounded-full bg-brand-subtle",
   "block-dark": "-inset-x-1.5 rounded-[10px] bg-panel",
+  "block-brand": "-inset-x-2 rounded-lg bg-brand",
 };
 
 const HIGHLIGHT_TEXT_CLASS: Record<AnnotatedHighlightTone, string> = {
   "pill-brand": "",
   "block-dark": "text-background",
+  "block-brand": "text-brand-foreground",
 };
 
-/** The one weight-900 word/phrase inside an otherwise regular-weight statement
- *  — a pill highlight (About's "line") or a dark block (Contact's "We reply."). */
-function AnnotatedHighlight({ tone, children }: { tone: AnnotatedHighlightTone; children: React.ReactNode }) {
+/** The one bold word/phrase inside an otherwise regular-weight statement — a
+ *  pill highlight (About's "line"), a dark block (Contact's "We reply."), or
+ *  a tilted solid-brand block (Join's "Keep every rupee.").
+ *  `weight` defaults to 900 (About/Contact); Join's spec calls for 800.
+ *  `tilt` rotates just the background layer, not the text. */
+function AnnotatedHighlight({
+  tone,
+  weight = 900,
+  tilt,
+  children,
+}: {
+  tone: AnnotatedHighlightTone;
+  weight?: 800 | 900;
+  tilt?: number;
+  children: React.ReactNode;
+}) {
   return (
-    <span className="relative inline-block font-black">
-      <span aria-hidden className={cn("absolute top-[2px] bottom-[2px]", HIGHLIGHT_BG_CLASS[tone])} />
+    <span className={cn("relative inline-block", weight === 800 ? "font-extrabold" : "font-black")}>
+      <span
+        aria-hidden
+        className={cn("absolute top-[2px] bottom-[2px]", HIGHLIGHT_BG_CLASS[tone])}
+        style={tilt ? { transform: `rotate(${tilt}deg)` } : undefined}
+      />
       <span className={cn("relative", HIGHLIGHT_TEXT_CLASS[tone])}>{children}</span>
     </span>
   );

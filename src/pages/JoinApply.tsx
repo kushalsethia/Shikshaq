@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Footer } from '@/components/Footer';
+import { useState, useEffect, useRef } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -15,11 +15,12 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { toast } from 'sonner';
-import { Loader2, Upload, X, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Loader2, Upload, X, CheckCircle2, Check, ArrowRight, ArrowLeft } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
 import { getSubjectColors } from '@/utils/subjectColors';
 import { Link } from 'react-router-dom';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 
 /* Redesign C-060 (changelog) — five-step teacher listing form (mockup J1–J5).
    Rewritten on top of the shared Field/FieldInput/FieldTextarea/useBlurValidation
@@ -78,6 +79,8 @@ const WAITING_ON_REVIEW = {
   note: 'Nothing goes live until a human has read it. If something is missing we message you on WhatsApp instead of rejecting you.',
 };
 
+// Handoff JA-004: multi-select chips — h44 px-4 r999, selected in the
+// subject tint/text with a trailing check, unselected bg-muted/text-warm-secondary.
 function Pill({
   label,
   selected,
@@ -96,10 +99,29 @@ function Pill({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`inline-flex items-center min-h-11 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97] ${
-        selected ? (dynamicTint ? '' : tintClass ?? 'bg-muted text-foreground') : 'shikshaq-pill-unselected ring-1 ring-inset ring-warm-hairline text-warm-prose'
+      className={`inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[14.5px] transition-[background-color,color,transform] duration-150 active:scale-[0.97] ${
+        selected ? (dynamicTint ? 'font-bold' : `font-bold ${tintClass ?? 'bg-panel text-background'}`) : 'bg-muted font-semibold text-warm-secondary'
       }`}
       style={selected && dynamicTint ? { background: dynamicTint.bg, color: dynamicTint.color } : undefined}
+    >
+      {label}
+      {selected ? <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" /> : null}
+    </button>
+  );
+}
+
+// Handoff JA-004: number grid (classes) — grid-cols-6 gap-2, h-11 rounded-[14px],
+// selected bg-panel/#FCFAF7, unselected bg-muted/text-foreground, numeral
+// 15px/800 tabular-nums.
+function NumberGridOption({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`flex h-11 items-center justify-center rounded-[14px] text-[15px] font-extrabold tabular-nums transition-colors duration-150 active:scale-[0.97] ${
+        selected ? 'bg-panel text-background' : 'bg-muted text-foreground'
+      }`}
     >
       {label}
     </button>
@@ -128,6 +150,7 @@ interface FormData {
   reference_number: string;
   min_fees: string;
   max_fees: string;
+  free_first_class: boolean;
   mou_consent: boolean;
 }
 
@@ -155,6 +178,7 @@ export default function JoinApply() {
     reference_number: '',
     min_fees: '',
     max_fees: '',
+    free_first_class: false,
     mou_consent: false,
   });
 
@@ -163,6 +187,20 @@ export default function JoinApply() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Step content otherwise keeps whatever scroll offset the previous step left
+  // behind — a user who reads to the bottom of a long step (J4/J5) and taps
+  // "Save and continue" would land mid-way down the next, shorter step instead
+  // of at its heading. Reset both possible scroll owners: the window (desktop,
+  // where the step body scrolls with the page) and the internal container
+  // (mobile, where the step body is its own overflow-y-auto region). Instant,
+  // not smooth — matches ScrollToTop.tsx's convention for a screen change
+  // rather than a user-initiated scroll.
+  const stepScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    stepScrollRef.current?.scrollTo(0, 0);
+    window.scrollTo(0, 0);
+  }, [step]);
 
   const valueExistsInString = (str: string | null, value: string): boolean => {
     if (!str) return false;
@@ -403,8 +441,9 @@ export default function JoinApply() {
       toast.error('Student number must be exactly 10 digits');
       return false;
     }
-    if (!selectedImageFile) {
-      toast.error('Please upload a photo');
+    const monthlyFee = parseInt(formData.min_fees.replace(/\D/g, ''), 10);
+    if (!formData.min_fees.trim() || Number.isNaN(monthlyFee) || monthlyFee <= 0) {
+      toast.error('Please enter a monthly fee greater than ₹0');
       return false;
     }
     if (formData.description.length > 1000) {
@@ -504,7 +543,7 @@ export default function JoinApply() {
     return (
       <div className="min-h-screen bg-background">
         <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
-          <div className="p-6 sm:p-10 rounded-2xl bg-card shadow-border text-center">
+          <div className="rounded-bento bg-card p-6 text-center sm:p-10">
             <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center mx-auto mb-6">
               <CheckCircle2 className="w-8 h-8 text-foreground" />
             </div>
@@ -519,7 +558,6 @@ export default function JoinApply() {
             </p>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -544,10 +582,9 @@ export default function JoinApply() {
         toast.error('WhatsApp number must be exactly 10 digits');
         return false;
       }
-      if (!selectedImageFile) {
-        toast.error('Please upload a photo');
-        return false;
-      }
+      // Photo is encouraged (copy: "doubles replies"), not required — pages.md
+      // §13 J1 lists it as a field but the spec's validation column only
+      // requires name + phone. It used to hard-block here; it no longer does.
       return true;
     }
     if (stepIndex === 1) {
@@ -599,6 +636,11 @@ export default function JoinApply() {
       return true;
     }
     if (stepIndex === 3) {
+      const monthlyFee = parseInt(formData.min_fees.replace(/\D/g, ''), 10);
+      if (!formData.min_fees.trim() || Number.isNaN(monthlyFee) || monthlyFee <= 0) {
+        toast.error('Please enter a monthly fee greater than ₹0');
+        return false;
+      }
       if (!formData.mou_consent) {
         // MOU lives on the final step, but fee/terms is where we ask them to read it isn't blocking here.
       }
@@ -619,35 +661,59 @@ export default function JoinApply() {
   const currentStep = STEPS[step];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex h-[100dvh] flex-col gap-seam bg-background">
+      {/* Handoff JA-001/002/003: fixed three-region shell — this route is
+          chromeless (App.tsx), so h-[100dvh] is the true viewport, not a
+          page that also has to fit a floating bottom nav underneath. */}
+      <BentoPanel fill="dark" edge="top" className="flex-none px-5 pt-1.5 pb-5">
+        <div className="flex h-12 items-center gap-3">
+          {step > 0 ? (
+            <button
+              type="button"
+              onClick={goBack}
+              aria-label="Back to the previous step"
+              className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/12 text-background transition-colors hover:bg-white/20"
+            >
+              <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden="true" />
+            </button>
+          ) : (
+            <Link
+              to="/join"
+              aria-label="Back to why join ShikshAQ"
+              className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/12 text-background transition-colors hover:bg-white/20"
+            >
+              <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden="true" />
+            </Link>
+          )}
+          <ProgressSteps steps={STEPS.length} current={step} label={currentStep.label} tone="dark" hideCaption className="flex-1" />
+          <span className="flex-none whitespace-nowrap text-[12.5px] font-bold text-background/60">
+            Step {step + 1} of {STEPS.length}
+          </span>
+        </div>
+        <div className="mt-3 text-[11.5px] font-bold uppercase tracking-[0.04em] text-background/50">{currentStep.label}</div>
+        <h1 className="mt-1.5 font-display text-[30px] font-black leading-[1.02] tracking-[-0.04em] text-background">{currentStep.head}</h1>
+        <p className="mt-2 text-[14.5px] leading-[1.5] text-background/65">{currentStep.lede}</p>
+      </BentoPanel>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
-        <Link to="/join" className="-my-3 inline-flex min-h-11 items-center text-sm font-semibold text-warm-meta no-underline">
-          ← Why join ShikshAQ
-        </Link>
-
-        <ProgressSteps steps={STEPS.length} current={step} label={currentStep.label} className="mt-6 mb-6" />
-
+      <BentoPanel fill="card" className="min-h-0 flex-1 overflow-y-auto p-5">
         <form
+          id="join-apply-form"
           onSubmit={handleSubmit}
           onKeyDown={(e) => {
+            // pages.md §13: "`Enter` advances." On every step but the last,
+            // Enter in a text field should move to the next step rather than
+            // submit the (incomplete) form. On the last step, let the native
+            // submit happen. Textareas keep their own newline behaviour.
             if (e.key === 'Enter' && !isLastStep && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
               e.preventDefault();
+              goNext();
             }
           }}
-          className="p-6 sm:p-8 rounded-2xl bg-card shadow-border"
         >
-          {/* Step body scrolls on the longer steps (J4/J5) rather than fixing a
-              height — changelog.json C-060 note. */}
-          <div className="max-h-[70vh] overflow-y-auto sm:max-h-none sm:overflow-visible">
+          <div ref={stepScrollRef}>
             {/* J1 — who you are */}
             {step === 0 && (
-              <div className="joinApplyRise">
-                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">
-                  {currentStep.head}
-                </h1>
-                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
-
+              <div className="animate-fade-slide-up">
                 <div className="grid gap-4">
                   <Field label="Full name" required error={nameV.error}>
                     {(p) => (
@@ -682,7 +748,7 @@ export default function JoinApply() {
                   </Field>
 
                   <div>
-                    <Eyebrow as="p" className="mb-2">Sir or Ma'am *</Eyebrow>
+                    <Eyebrow as="p" className="mb-2">Sir or Ma'am <span className="text-facet-destructive">*</span></Eyebrow>
                     <div className="flex gap-2">
                       {SIR_MAAM.map((option) => (
                         <Pill key={option} label={option} selected={formData.sir_maam === option} onClick={() => handleInputChange('sir_maam', option)} />
@@ -690,7 +756,7 @@ export default function JoinApply() {
                     </div>
                   </div>
 
-                  <Field label="WhatsApp number" required error={phoneV.error} hint="Shown only once a guardian taps WhatsApp — never on the open page, never in search results.">
+                  <Field label="WhatsApp number" required error={phoneV.error} hint="Shown only once a guardian taps WhatsApp. Never on the open page, never in search results.">
                     {(p) => (
                       <FieldInput
                         {...p}
@@ -724,7 +790,7 @@ export default function JoinApply() {
                   {/* Photo — moved up from the old final-step location to match J1
                       ("who you are: name, WhatsApp, years, photo"). */}
                   <div>
-                    <Eyebrow as="p" className="mb-2">Photo *</Eyebrow>
+                    <Eyebrow as="p" className="mb-2">Photo</Eyebrow>
                     <div className="grid gap-3">
                       {imagePreview && (() => {
                         const validatedUrl = validateImageSrc(imagePreview);
@@ -763,7 +829,7 @@ export default function JoinApply() {
                         <input id="heroImageUpload" type="file" accept="image/*" className="hidden" onChange={handleImageFileChange} disabled={submitting} />
                       </label>
                       <p className="text-meta text-warm-meta">
-                        {selectedImageFile ? 'Uploaded when you submit the form. Max 5MB.' : 'A professional photo helps. Max 5MB.'}
+                        {selectedImageFile ? 'Uploaded when you submit the form. Max 5MB.' : 'Optional, but a photo doubles replies. Max 5MB.'}
                       </p>
                     </div>
                   </div>
@@ -773,12 +839,10 @@ export default function JoinApply() {
 
             {/* J2 — what you teach */}
             {step === 1 && (
-              <div className="joinApplyRise">
-                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
-                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
+              <div className="animate-fade-slide-up">
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Subjects *</Eyebrow>
+                  <Eyebrow as="p" className="mb-3">Subjects <span className="text-facet-destructive">*</span></Eyebrow>
                   <div className="flex flex-wrap gap-2">
                     {SUBJECTS.map((subject) => {
                       const selected = valueExistsInString(formData.subjects, subject);
@@ -797,7 +861,7 @@ export default function JoinApply() {
                 </div>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Boards catered *</Eyebrow>
+                  <Eyebrow as="p" className="mb-3">Boards catered <span className="text-facet-destructive">*</span></Eyebrow>
                   <div className="flex flex-wrap gap-2">
                     {BOARDS.map((board) => {
                       const selected = valueExistsInString(formData.school_boards_catered, board);
@@ -815,19 +879,19 @@ export default function JoinApply() {
                 </div>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Classes *</Eyebrow>
-                  <div className="flex flex-wrap gap-2">
+                  <Eyebrow as="p" className="mb-3">Classes <span className="text-facet-destructive">*</span></Eyebrow>
+                  <div className="grid grid-cols-6 gap-2">
                     {CLASSES.map((cls) => {
                       const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
                       return (
-                        <Pill key={cls} label={cls} selected={selected} onClick={() => handleMultiSelectChange('classes_taught_for_backend', cls, !selected)} />
+                        <NumberGridOption key={cls} label={cls} selected={selected} onClick={() => handleMultiSelectChange('classes_taught_for_backend', cls, !selected)} />
                       );
                     })}
                   </div>
                 </div>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Structure of classes *</Eyebrow>
+                  <Eyebrow as="p" className="mb-3">Structure of classes <span className="text-facet-destructive">*</span></Eyebrow>
                   <div className="flex flex-wrap gap-2">
                     {CLASS_SIZE.map((size) => {
                       const selected = valueExistsInString(formData.class_size, size);
@@ -872,9 +936,7 @@ export default function JoinApply() {
 
             {/* J3 — where you teach */}
             {step === 2 && (
-              <div className="joinApplyRise">
-                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
-                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
+              <div className="animate-fade-slide-up">
 
                 <Field label="Location" required className="mb-6">
                   {(p) => (
@@ -894,7 +956,7 @@ export default function JoinApply() {
 
                 {showStudentAreas && (
                   <div className="mb-6">
-                    <Eyebrow as="p" className="mb-3">Areas you teach in (student's home) *</Eyebrow>
+                    <Eyebrow as="p" className="mb-3">Areas you teach in (student's home) <span className="text-facet-destructive">*</span></Eyebrow>
                     <div className="flex flex-wrap gap-2">
                       {AREAS.map((area) => {
                         const selected = valueExistsInString(formData.students_home_areas, area);
@@ -914,7 +976,7 @@ export default function JoinApply() {
 
                 {showTutorAreas && (
                   <div className="mb-6">
-                    <Eyebrow as="p" className="mb-3">Areas you teach in (your home) *</Eyebrow>
+                    <Eyebrow as="p" className="mb-3">Areas you teach in (your home) <span className="text-facet-destructive">*</span></Eyebrow>
                     <div className="flex flex-wrap gap-2">
                       {AREAS.map((area) => {
                         const selected = valueExistsInString(formData.tutors_home_areas, area);
@@ -932,10 +994,10 @@ export default function JoinApply() {
                   </div>
                 )}
 
-                <p className="mb-2 text-meta text-warm-meta">We show your locality and radius — "Doranda, travels 5 km" — and nothing more precise than that.</p>
+                <p className="mb-2 text-meta text-warm-meta">We show your locality and radius, like "Doranda, travels 5 km", and nothing more precise than that.</p>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Mode of teaching *</Eyebrow>
+                  <Eyebrow as="p" className="mb-3">Mode of teaching <span className="text-facet-destructive">*</span></Eyebrow>
                   <div className="flex flex-wrap gap-2">
                     {MODE_OF_TEACHING.map((mode) => {
                       const selected = valueExistsInString(formData.mode_of_teaching, mode);
@@ -950,17 +1012,15 @@ export default function JoinApply() {
 
             {/* J4 — your fee, your terms */}
             {step === 3 && (
-              <div className="joinApplyRise">
-                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
-                <p className="mt-2 mb-4 max-w-prose text-base leading-relaxed text-muted-foreground">{currentStep.lede}</p>
+              <div className="animate-fade-slide-up">
 
-                {/* copy.md §8 J4 — required disclosure, verbatim. */}
+                {/* pages.md §13 — required disclosure, verbatim. */}
                 <p className="mb-6 rounded-2xl bg-background p-4 text-sm leading-relaxed text-warm-prose ring-1 ring-inset ring-warm-hairline">
-                  Guardians and teachers settle fees between themselves. We never invoice, never hold a deposit, and never show a "platform price".
+                  Listing is free. We take no commission, ever. Guardians and teachers settle fees between themselves. We never invoice, never hold a deposit, and never show a "platform price".
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  <Field label="Minimum fee / month" hint="Optional">
+                  <Field label="Monthly fee ₹" required>
                     {(p) => (
                       <FieldInput
                         {...p}
@@ -986,6 +1046,22 @@ export default function JoinApply() {
                       />
                     )}
                   </Field>
+                </div>
+
+                {/* Free-first-class toggle — pages.md §13 J4 field list. No
+                    backend column exists yet for it (O-07 covers verification
+                    docs, not this), so it stays local UI state and is not part
+                    of the teacher_applications insert below. */}
+                <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl bg-background p-4 ring-1 ring-inset ring-warm-hairline">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Offer a free first class</p>
+                    <p className="mt-0.5 text-meta text-warm-meta">Shown on your profile. Helps guardians decide.</p>
+                  </div>
+                  <Switch
+                    checked={formData.free_first_class}
+                    onCheckedChange={(checked) => handleInputChange('free_first_class', checked)}
+                    aria-label="Offer a free first class"
+                  />
                 </div>
 
                 <div className="grid gap-6">
@@ -1025,11 +1101,7 @@ export default function JoinApply() {
                 language (see WAITING_ON_REVIEW above, used on the submitted
                 screen instead). */}
             {step === 4 && (
-              <div className="joinApplyRise">
-                <h1 className="font-display text-3xl font-black leading-[1.02] tracking-tight text-foreground sm:text-4xl">{currentStep.head}</h1>
-                <p className="mt-2 mb-6 max-w-prose text-base leading-relaxed text-muted-foreground">
-                  {currentStep.lede}
-                </p>
+              <div className="animate-fade-slide-up">
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                   <Field label="Student name (for verification)" required error={refNameV.error} hint="We will call them to verify you're a teacher">
@@ -1088,63 +1160,52 @@ export default function JoinApply() {
               </div>
             )}
           </div>
-
-          {/* Actions — join-01-who-you-are.png puts a small square Back on the
-              LEFT and a wide solid-orange Continue filling the rest of the row.
-              This had them the other way round, with Continue rendered first, so
-              on a phone Back sat to the right of the button it undoes; and
-              Continue was `dark` where every join mockup shows it orange, which
-              made the step's primary action read as secondary. */}
-          <div className="mt-6 flex items-center gap-2">
-            {step > 0 && (
-              <Button
-                type="button"
-                onClick={goBack}
-                variant="muted"
-                size={54}
-                aria-label="Back to the previous step"
-                className="flex-none"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            )}
-
-            {!isLastStep ? (
-              <Button type="button" onClick={goNext} variant="primary" size={54} className="flex-1">
-                Continue
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            ) : (
-              <Button
-                type="submit"
-                disabled={submitting}
-                busy={submitting}
-                variant="primary"
-                size={54}
-                className="flex-1"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  'Send for review'
-                )}
-              </Button>
-            )}
-          </div>
         </form>
-      </main>
+      </BentoPanel>
 
-      <Footer />
-
-      <style>{`
-        .joinApplyRise { animation: fade-slide-up .28s cubic-bezier(.16,1,.3,1) both; }
-        @media (hover: hover) {
-          .shikshaq-pill-unselected:hover { background-color: hsl(var(--foreground) / 0.04); }
-        }
-      `}</style>
+      {/* Handoff JA-005: pinned action row — Back (omitted on step 1) then
+          Save and continue / Send for review, both h54. The primary button
+          targets the form by `id` so it submits correctly despite sitting
+          outside the <form> (JoinApply's action panel is a sibling of the
+          body panel, not a descendant). */}
+      <BentoPanel fill="card" edge="bottom" className="flex-none p-[16px_20px_26px]">
+        <div className="flex gap-2.5">
+          {step > 0 && (
+            <button
+              type="button"
+              onClick={goBack}
+              className="flex h-[54px] flex-none items-center rounded-full bg-muted px-[22px] text-[15px] font-bold text-foreground transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Back
+            </button>
+          )}
+          {!isLastStep ? (
+            <Button type="button" onClick={goNext} variant="primary" size={54} className="flex-1">
+              Save and continue
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              form="join-apply-form"
+              disabled={submitting}
+              busy={submitting}
+              variant="primary"
+              size={54}
+              className="flex-1"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Send for review'
+              )}
+            </Button>
+          )}
+        </div>
+      </BentoPanel>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { useRequireRole } from '@/hooks/use-require-role';
@@ -10,9 +9,12 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { logger } from '@/utils/logger';
 import { Button } from '@/components/ui/button';
 import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
-import { PageContainer, ControlBlock, Slab } from '@/components/layout/PageContainer';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { Chip } from '@/components/ui/chip';
 import { SUBJECTS } from '@/utils/searchFacets';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
+import { useChromeConfig } from '@/components/layout/AppShell';
 
 const recommendSchema = z.object({
   teacherName: z.string().trim().min(1, "Please enter the teacher's name").max(100, "Teacher's name is too long"),
@@ -43,6 +45,13 @@ export default function RecommendTeacher() {
 
   // Ensure user has selected a role
   useRequireRole();
+
+  // Handoff RC-001: this route renders its own eyes panel, replacing
+  // AppShell's default pre-footer.
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
 
   const nameValidation = useBlurValidation(formData.teacherName, (v) =>
     v.trim().length === 0 ? "Please enter the teacher's name" : undefined
@@ -112,40 +121,31 @@ export default function RecommendTeacher() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* S11 "recommend" — the mockup shows this as step 2 of a 3-step wizard
-          shared with /join-apply. This route is a single-page form, not a
-          wizard, so the progress bar is not reproduced; header, field and
-          footer treatment match the mockup exactly. */}
-      <ControlBlock mode="dark">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="inline-flex h-11 items-center gap-2 text-body-secondary font-semibold text-background/70 transition-colors duration-150 hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
-        >
-          <ArrowLeft size={15} strokeWidth={2.3} aria-hidden="true" />
-          Back
-        </button>
-        <h1 className="mt-[14px] font-display text-page-title font-black leading-[1.05] tracking-[-0.04em] text-background">
-          Know a teacher worth listing?
-        </h1>
-        <p className="mt-2 text-body-secondary text-background/80">
-          Three fields. We verify before anything goes live.
-        </p>
-      </ControlBlock>
-
       <main>
-      <PageContainer className="pt-8 sm:pt-10 pb-16">
-        <div className="mx-auto max-w-3xl rounded-2xl bg-card p-6 shadow-border sm:p-8">
+        <BentoStack>
+          {/* Handoff RC-001: dark header. The mockup's "Step 2 of 3" pill
+              assumes this route is part of a wizard shared with /join/apply
+              — it isn't (it's always been a standalone single-page form), so
+              rendering a step count here would fabricate progress that
+              doesn't exist. Copy is otherwise unchanged. */}
+          <BentoPanel fill="dark" edge="top" className="px-5 pt-1.5 pb-5">
+            <h1 className="mt-3.5 font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-background">
+              Know a teacher worth listing?
+            </h1>
+            <p className="mt-2.5 text-[14.5px] leading-[1.55] text-background/70">
+              Three fields. We verify before anything goes live.
+            </p>
+          </BentoPanel>
+
+          <BentoPanel fill="card">
           {submitted ? (
-            // pages.md §14: "Success: orange slab + 'Thanks — we'll reach out
-            // to them.'" — was plain centered text with no slab at all.
-            <Slab fill="brand" className="animate-fade-slide-up rounded-2xl p-6 text-center sm:p-8">
-              <p className="text-body font-semibold">
+            <div className="animate-fade-slide-up rounded-bento bg-brand p-6 text-center sm:p-8">
+              <p className="text-body font-semibold text-brand-foreground">
                 Thanks — we will reach out to them this week.
               </p>
-            </Slab>
+            </div>
           ) : (
-            <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
+            <form onSubmit={handleSubmit} className="grid gap-3" noValidate>
               <Field
                 label="Teacher's name"
                 required
@@ -257,18 +257,38 @@ export default function RecommendTeacher() {
                 </p>
               ) : null}
 
-              <Button type="submit" variant="primary" size={52} busy={loading} className="w-full">
+              <Button type="submit" variant="primary" size={54} busy={loading} className="mt-1 w-full">
                 Send recommendation
               </Button>
-
-              <p className="text-meta leading-relaxed text-warm-meta">
-                We never publish a teacher's details without their consent, and we do not tell
-                them who recommended them unless you ask us to.
-              </p>
             </form>
           )}
-        </div>
-      </PageContainer>
+          </BentoPanel>
+
+          {/* Handoff RC-001: the privacy note is load-bearing copy, not
+              decoration — it must render on the same screen as the phone
+              field, which the form panel above already satisfies. */}
+          <BentoPanel fill="brandTint">
+            <p className="text-[14px] leading-[1.55] text-warm-prose">
+              We never publish a teacher&rsquo;s details without their consent, and we do not tell
+              them who recommended them unless you ask us to.
+            </p>
+          </BentoPanel>
+
+          {/* Shared tail. */}
+          <EyesPanel
+            mode={builderMode}
+            onModeChange={setBuilderMode}
+            heading={(
+              <>
+                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+              </>
+            )}
+            subline="Fill in the blanks and we'll take you straight there."
+            slots={builderSlots}
+            onSlotChange={handleSlotChange}
+            onSubmit={handleBuilderSubmit}
+          />
+        </BentoStack>
       </main>
     </div>
   );

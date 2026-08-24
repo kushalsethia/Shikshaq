@@ -10,17 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { GraduationCap, Users, ChevronRight } from 'lucide-react';
+import { GraduationCap, User, BookOpen, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
-import { PreFooter, preFooterFor } from '@/components/layout/PreFooter';
-import { useLocation } from 'react-router-dom';
+import { BentoPanel } from '@/components/layout/PageContainer';
 
-const FIELD_CLASS =
-  'w-full min-h-12 rounded-lg bg-background text-base text-foreground outline-none ring-1 ring-inset ring-warm-hairline px-4 shikshaq-role-field';
-const LABEL_CLASS = 'block text-sm font-semibold text-foreground mb-2';
+const FIELD_CLASS = 'flex h-[52px] w-full items-center rounded-2xl bg-muted px-4 text-base text-foreground outline-none shikshaq-role-field';
+const LABEL_CLASS = 'mb-1 block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label';
 
 function isValidRedirect(path: string | null): path is string {
   return !!path && path.startsWith('/') && !path.startsWith('//');
@@ -29,7 +26,6 @@ function isValidRedirect(path: string | null): path is string {
 export default function SelectRole() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect');
   const [role, setRole] = useState<'student' | 'guardian' | ''>('');
@@ -111,22 +107,9 @@ export default function SelectRole() {
       return;
     }
 
-    if (role === 'student') {
-      if (!schoolCollege.trim()) {
-        toast.error('Please enter your school or college name');
-        return;
-      }
-      if (!grade) {
-        toast.error('Please select your grade');
-        return;
-      }
-    }
-
-    if (!termsAgreed) {
-      toast.error('Please agree to the Terms and Privacy Policy to continue');
-      return;
-    }
-
+    // Redesign S8 (design.md §1) — the role answer only sets home emphasis;
+    // it never gates content. School/Grade and Terms are optional/secondary
+    // here, not requirements for continuing.
     if (!user) {
       toast.error('You must be signed in to continue');
       const to = isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth';
@@ -140,8 +123,9 @@ export default function SelectRole() {
       const upsertData = {
         id: user.id,
         role: role,
-        terms_agreement: termsAgreed,
-        ...(role === 'student' ? { school_college: schoolCollege.trim(), grade } : {}),
+        ...(termsAgreed ? { terms_agreement: termsAgreed } : {}),
+        ...(role === 'student' && schoolCollege.trim() ? { school_college: schoolCollege.trim() } : {}),
+        ...(role === 'student' && grade ? { grade } : {}),
       };
 
       const { error } = await supabase
@@ -188,8 +172,6 @@ export default function SelectRole() {
             <p className="text-muted-foreground text-base">Loading...</p>
           </div>
         </main>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
       </div>
     );
   }
@@ -202,85 +184,102 @@ export default function SelectRole() {
   // If no user, show sign-in prompt
   if (!user) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="flex min-h-screen flex-col bg-background">
         {/* <main>, not <div> — the signed-out branch is the one an unauthenticated
             visitor actually reaches, and it was the only branch of this page with
             no main landmark, so skip-to-content and landmark navigation had
-            nothing to target exactly when the page is at its most confusing. */}
-        <main className="px-4 sm:px-6 pt-6 sm:pt-12 pb-16 text-center">
+            nothing to target exactly when the page is at its most confusing.
+            Centered vertically (not pinned under pt-6/pt-12) and given the Logo
+            every other chromeless screen in this flow carries — this is a
+            chromeless route with no navbar, so it was the one bare edge case
+            with no brand mark at all. */}
+        <main className="flex flex-1 flex-col items-center justify-center px-4 py-16 text-center sm:px-6">
+          <Logo size="lg" className="mb-6" />
           <h1 className="mb-4 text-page-title text-foreground">You must be signed in to continue.</h1>
           <button
             onClick={() => navigate(isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth')}
-            className="active:scale-[0.98] transition-transform duration-150 min-h-12 px-6 rounded-lg bg-foreground text-background text-base font-bold"
+            className="min-h-12 rounded-lg bg-foreground px-6 text-base font-bold text-background transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98]"
           >
             Sign In
           </button>
         </main>
-        <PreFooter variant={preFooterFor(location.pathname)} />
-        <Footer />
       </div>
     );
   }
 
-  // Redesign S8 (design.md §1; changelog C-033) — rebuilt from zero. Mockup
-  // draws three generic role tiles (Student / Guardian / I teach); this app's
-  // actual role-select only collects Student vs Guardian ("I teach" already
-  // has its own /join flow), so the tile pattern is kept at two, styled per
-  // the mockup's selected/unselected tile language (solid orange vs bone card).
+  // Redesign S8 (design.md §1; changelog C-033) — rebuilt from zero. Three
+  // tiles per the mockup: Student / Guardian set this profile's role (and,
+  // per design.md §1, only ever set home emphasis — never gate content).
+  // The Teacher tile is visual-parity only: teaching accounts are onboarded
+  // through /join (qualifications, verification, etc.), not this role
+  // picker, so it navigates there directly instead of calling setRole.
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <main className="flex flex-1 flex-col gap-[18px] px-4 pb-16 pt-[22px] sm:px-6 sm:py-16">
-        <div className="mx-auto w-full max-w-[480px]">
-          <div className="mb-2 text-center">
-            <Logo size="lg" className="mx-auto mb-4" />
-            <h1 className="font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-foreground">
-              Who's using ShikshAQ?
-            </h1>
-            <p className="mt-2 text-[14.5px] leading-relaxed text-warm-prose">
-              We use this to decide what your home screen shows. You can change it later.
-            </p>
-          </div>
+      {/* Handoff SR-001: one full-height panel. */}
+      <BentoPanel fill="card" edge="top" className="flex flex-1 flex-col px-5 pb-6 pt-1.5">
+        <div className="mx-auto flex w-full max-w-[480px] flex-1 flex-col">
+          <Logo size="lg" className="mb-5" />
+          <h1 className="font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-foreground">
+            Who's using ShikshAQ?
+          </h1>
+          <p className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-secondary">
+            This only changes what your account shows you. You can search either way.
+          </p>
 
-          <form onSubmit={handleSubmit} className="mt-[18px] flex flex-col gap-[18px]">
-            <div className="flex flex-col gap-3">
-              {/* Student tile is always brand-filled per mockup S8 (the featured
-                  first option); selection is communicated with a ring, since
-                  the fill itself doesn't change state in the mockup. */}
-              <button
-                type="button"
-                onClick={() => setRole('student')}
-                aria-pressed={role === 'student'}
-                className={`flex items-center gap-[14px] rounded-[22px] bg-brand p-[18px] text-left text-brand-foreground shadow-glow-brand transition-transform duration-150 active:scale-[0.98] ${
-                  role === 'student' ? 'ring-2 ring-foreground ring-offset-2' : ''
-                }`}
-              >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
-                  <GraduationCap className="h-[22px] w-[22px]" strokeWidth={2.1} />
-                </span>
-                <span className="flex-1">
-                  <span className="font-display text-[19px] font-extrabold tracking-[-0.03em]">Student</span>
-                  <span className="mt-[3px] block text-[13px] leading-[1.5] text-brand-foreground/85">
-                    School, board, class and the subjects you need help with.
-                  </span>
-                </span>
-                <ChevronRight className="h-[18px] w-[18px] shrink-0 text-brand-foreground/85" strokeWidth={2.4} />
-              </button>
-
+          <form onSubmit={handleSubmit} className="mt-[22px] flex flex-1 flex-col gap-[18px]">
+            <div className="flex flex-col gap-2.5">
+              {/* Handoff SR-001: selection is a ring, never a fill swap — the
+                  card must not restyle under the finger. */}
               <button
                 type="button"
                 onClick={() => setRole('guardian')}
                 aria-pressed={role === 'guardian'}
-                className={`flex items-center gap-[14px] rounded-[22px] bg-card p-[18px] text-left text-foreground shadow-border transition-transform duration-150 active:scale-[0.98] ${
-                  role === 'guardian' ? 'ring-2 ring-foreground' : ''
+                className={`rounded-[24px] bg-brand-subtle p-5 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.98] ${
+                  role === 'guardian' ? 'shadow-[inset_0_0_0_2px_hsl(var(--brand))]' : ''
                 }`}
               >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted">
-                  <Users className="h-[22px] w-[22px]" strokeWidth={2.1} />
+                <span className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-brand">
+                  <User className="h-[19px] w-[19px] text-foreground" strokeWidth={2} aria-hidden="true" />
+                </span>
+                <span className="mt-3.5 block font-display text-[21px] font-extrabold tracking-[-0.04em] text-brand-deep">Guardian</span>
+                <span className="mt-1 block text-[14px] leading-[1.5] text-warm-prose">
+                  Your relationship to the student, plus their details.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRole('student')}
+                aria-pressed={role === 'student'}
+                className={`rounded-[24px] bg-brand-blue-subtle p-5 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.98] ${
+                  role === 'student' ? 'shadow-[inset_0_0_0_2px_hsl(var(--brand-blue))]' : ''
+                }`}
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-brand-blue">
+                  <GraduationCap className="h-[19px] w-[19px] text-white" strokeWidth={2} aria-hidden="true" />
+                </span>
+                <span className="mt-3.5 block font-display text-[21px] font-extrabold tracking-[-0.04em] text-brand-blue-deep">Student</span>
+                <span className="mt-1 block text-[14px] leading-[1.5] text-warm-prose">
+                  School, board, class and the subjects you need help with.
+                </span>
+              </button>
+
+              {/* Retained: real navigation, not in SR-001's two-card spec —
+                  teaching accounts onboard through /join, a separate
+                  application, not this role toggle, so it stays as its own
+                  visually distinct exit rather than being dropped. */}
+              <button
+                type="button"
+                onClick={() => navigate('/join')}
+                className="flex min-h-[64px] items-center gap-[14px] rounded-[24px] bg-muted p-[18px] text-left text-foreground transition-[transform,background-color] duration-hover ease-settle hover:-translate-y-0.5 hover:bg-accent active:scale-[0.98]"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background">
+                  <BookOpen className="h-[18px] w-[18px]" strokeWidth={2.1} />
                 </span>
                 <span className="flex-1">
-                  <span className="font-display text-[19px] font-extrabold tracking-[-0.03em]">Guardian</span>
+                  <span className="font-display text-[17px] font-bold tracking-[-0.03em]">Teacher</span>
                   <span className="mt-[3px] block text-[13px] leading-[1.5] text-warm-meta">
-                    Your relationship to the student, plus their details.
+                    Apply to teach, a separate application, not a role toggle.
                   </span>
                 </span>
                 <ChevronRight className="h-[18px] w-[18px] shrink-0 text-warm-meta" strokeWidth={2.4} />
@@ -291,7 +290,7 @@ export default function SelectRole() {
               <div className="animate-in fade-in slide-in-from-top-2 duration-300 flex flex-col gap-[18px]">
                 <div>
                   <label htmlFor="school_college" className={LABEL_CLASS}>
-                    School / College <span className="text-destructive">*</span>
+                    School / College <span className="text-warm-meta font-normal">(optional)</span>
                   </label>
                   <input
                     id="school_college"
@@ -303,7 +302,7 @@ export default function SelectRole() {
                 </div>
                 <div>
                   <label htmlFor="grade" className={LABEL_CLASS}>
-                    Grade <span className="text-destructive">*</span>
+                    Grade <span className="text-warm-meta font-normal">(optional)</span>
                   </label>
                   <Select value={grade} onValueChange={setGrade}>
                     <SelectTrigger id="grade" className={FIELD_CLASS}>
@@ -354,33 +353,32 @@ export default function SelectRole() {
               </label>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading || !role || !termsAgreed || (role === 'student' && (!schoolCollege.trim() || !grade))}
-              className="min-h-[50px] w-full rounded-lg bg-foreground text-base font-bold text-background transition-transform duration-150 active:scale-[0.98] disabled:opacity-50"
-            >
-              {loading ? 'Creating profile...' : 'Continue'}
-            </button>
+            <div className="mt-auto pt-2">
+              <button
+                type="submit"
+                disabled={loading || !role}
+                className="flex h-[54px] w-full items-center justify-center rounded-full bg-brand text-[15px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-50 disabled:hover:translate-y-0"
+              >
+                {loading ? 'Creating profile...' : 'Continue'}
+              </button>
+
+              {/* account-03-pick-role.png / pages.md §10: a fourth ghost row lets
+                  a visitor move on without choosing. design.md's own rule for this
+                  screen — "the answer sets home emphasis... it never gates
+                  content" — means role is a personalization hint, not a
+                  requirement, so skipping has to be possible. This page had no
+                  way out short of picking a role and agreeing to terms. */}
+              <button
+                type="button"
+                onClick={() => navigate(isValidRedirect(redirectTo) ? redirectTo : '/')}
+                className="mx-auto mt-3 block min-h-11 px-2 text-center text-sm font-semibold text-warm-meta"
+              >
+                Skip for now
+              </button>
+            </div>
           </form>
-
-          {/* account-03-pick-role.png / pages.md §10: a fourth ghost row lets
-              a visitor move on without choosing. design.md's own rule for this
-              screen — "the answer sets home emphasis... it never gates
-              content" — means role is a personalization hint, not a
-              requirement, so skipping has to be possible. This page had no
-              way out short of picking a role and agreeing to terms. */}
-          <button
-            type="button"
-            onClick={() => navigate(isValidRedirect(redirectTo) ? redirectTo : '/')}
-            className="mx-auto mt-4 block min-h-11 px-2 text-center text-sm font-semibold text-warm-meta"
-          >
-            Skip for now
-          </button>
         </div>
-      </main>
-
-      <PreFooter variant={preFooterFor(location.pathname)} />
-      <Footer />
+      </BentoPanel>
 
       <style>{`
         .shikshaq-role-field:focus,
