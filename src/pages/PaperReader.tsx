@@ -595,6 +595,8 @@ export default function PaperReader() {
         onOpenChange={setGateOpen}
         redirectTo={`/past-papers/${id}`}
         flavor="papers"
+        paperTitle={paper?.title ?? null}
+        paperSubject={paper?.subject ?? null}
       />
 
       <style>{`

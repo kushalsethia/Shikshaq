@@ -1007,7 +1007,15 @@ export default function TeacherProfile() {
         </div>
       )}
 
-      <ContactGateSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent={signInIntent} teacherName={teacher?.name ?? null} />
+      <ContactGateSheet
+        open={signInSheetOpen}
+        onOpenChange={setSignInSheetOpen}
+        intent={signInIntent}
+        teacherName={teacher?.name ?? null}
+        teacherImageUrl={teacher?.image_url ?? null}
+        teacherSubject={teacher?.subjects?.name ?? null}
+        teacherArea={teacher?.area ?? null}
+      />
     </div>
   );
 }

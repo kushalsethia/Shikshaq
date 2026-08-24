@@ -1,16 +1,22 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock } from "lucide-react";
+import { FileText } from "lucide-react";
 
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { IconDisc } from "@/components/ui/icon-disc";
+import { Sheet, SheetContent, SheetGrabHandle, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth-context";
 import { saveAuthRedirect } from "@/utils/authRedirect";
+import { getSubjectPalette } from "@/lib/subject-palette";
 
-/* Redesign F3 (components.md §4, design.md §6.5).
+/* Redesign F3 (components.md §4, design.md §6.5), restyled to Handoff O-005.
 
-   Papers flavour: indigo, lock tile, three reasons, rights disclaimer.
+   Papers flavour of the sign-in gate — the same shape as
+   src/components/ContactGateSheet.tsx (the canonical teacher-gate
+   implementation), with the object being unlocked drawn as a 52x40 paper
+   cover instead of an avatar. The two intentionally share the same
+   structure: handle -> object -> heading -> support line -> Google button
+   -> "Other ways to sign in" -> footnote. This sheet only ever offers
+   sign-in actions (rule 5) — no "not now" escape beyond the sheet's own
+   close X / swipe-to-dismiss.
 
    Remembers the intent (via saveAuthRedirect — the same mechanism
    PaperReader / TeacherProfile already use) and replays it after sign-in:
@@ -18,33 +24,23 @@ import { saveAuthRedirect } from "@/utils/authRedirect";
    before handing off to /auth, and Auth.tsx's existing
    getAuthRedirect()/clearAuthRedirect() flow lands the user back on the
    exact paper they asked for. Never fetches anything gated before auth
-   completes — this sheet only ever offers sign-in actions.
-
-   Copy is verbatim from copy.md §6 "Gate".
-
-   The WhatsApp contact gate is a separate pattern — see
-   src/components/ContactGateSheet.tsx, the canonical implementation wired
-   to the real Message-on-WhatsApp flow (TeacherProfile.tsx / TeacherCard.tsx).
-   A `flavor: "whatsapp"` variant used to live here too, but it was never
-   imported for that flow and has been removed as a duplicate. */
+   completes. */
 export interface GateSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Where to land the user after a successful sign-in. */
   redirectTo: string;
   flavor: "papers";
+  /** Handoff O-005 rule 4: names the specific paper, not a generic prompt. */
+  paperTitle?: string | null;
+  paperSubject?: string | null;
 }
 
-const PAPER_REASONS = [
-  "Pick up where you left off, on any device",
-  "Keep a shelf of the papers you are working through",
-  "No payment, ever. Papers stay free",
-];
-
-function GateSheet({ open, onOpenChange, redirectTo }: GateSheetProps) {
+function GateSheet({ open, onOpenChange, redirectTo, paperTitle, paperSubject }: GateSheetProps) {
   const navigate = useNavigate();
   const { signInWithGoogle } = useAuth();
   const [busy, setBusy] = React.useState(false);
+  const palette = paperSubject ? getSubjectPalette(paperSubject) : null;
 
   const goAuth = () => {
     saveAuthRedirect(redirectTo);
@@ -65,56 +61,50 @@ function GateSheet({ open, onOpenChange, redirectTo }: GateSheetProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        /* Handoff S-012: one bottom-sheet spec — 30px top radius, bg-card,
-           no border, content px-5 pb-8, capped at 85vh. */
-        className="max-h-[85vh] overflow-y-auto rounded-t-[30px] border-0 bg-card px-5 pb-8 pt-3"
-      >
-        {/* Grab handle: 36×4, centred, bg-muted. */}
-        <div aria-hidden className="mx-auto mb-4 h-1 w-9 rounded-full bg-muted" />
+      <SheetContent side="bottom" className="border-0 px-5 pb-[26px]">
+        <SheetGrabHandle />
 
-        <IconDisc tone="papers" size={44} shape="square" className="mb-4">
-          <Lock size={20} strokeWidth={2.25} aria-hidden="true" />
-        </IconDisc>
+        {paperTitle ? (
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-10 w-[52px] flex-none items-center justify-center rounded-[7px]"
+              style={{ backgroundColor: palette?.tint ?? "hsl(var(--muted))" }}
+            >
+              <FileText className="h-4 w-4" style={{ color: palette?.text }} aria-hidden="true" />
+            </div>
+            <div className="min-w-0 text-[14px] font-bold leading-[1.3] text-foreground">{paperTitle}</div>
+          </div>
+        ) : null}
 
-        <SheetTitle className="text-page-title font-display font-bold text-foreground">
-          Sign in to read this paper
+        <SheetTitle className={`${paperTitle ? 'mt-[18px]' : ''} font-display text-[26px] font-normal leading-[1.1] tracking-[-0.045em] text-foreground`}>
+          Sign in to <b className="font-extrabold">open {paperTitle || 'this paper'}</b>.
         </SheetTitle>
-        <p className="mt-2 max-w-prose text-body-secondary text-warm-prose">
-          Free, and it takes one tap. Schools let us host their papers on the condition that
-          readers are accounted for.
+        <p className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-prose">
+          One tap with Google. Free, and it takes one tap to keep reading.
         </p>
 
-        <ul className="mt-6 grid gap-2">
-          {PAPER_REASONS.map((reason) => (
-            <li
-              key={reason}
-              className="flex items-start gap-3 rounded-lg bg-muted px-4 py-3 text-body-secondary text-foreground"
-            >
-              <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-brand-blue" aria-hidden="true" />
-              <span className="break-words">{reason}</span>
-            </li>
-          ))}
-        </ul>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={handleGoogle}
+          className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-panel text-[15.5px] font-extrabold text-background transition-transform duration-tap active:scale-[0.98] disabled:opacity-70"
+        >
+          {busy ? 'Signing in…' : 'Continue with Google'}
+        </button>
+        {/* copy.md's second option is "Use a phone number" — the app has no
+            phone-auth flow implemented (Auth.tsx offers Google and
+            email/password only), so this routes to the real /auth entry
+            point rather than promising a flow that does not exist. */}
+        <button
+          type="button"
+          onClick={goAuth}
+          className="mt-2 flex h-11 w-full items-center justify-center text-[14px] font-semibold text-warm-prose"
+        >
+          Other ways to sign in
+        </button>
 
-        <div className="mt-6 flex flex-col gap-3">
-          <Button variant="indigo" size={54} busy={busy} onClick={handleGoogle} className="w-full">
-            Continue with Google
-          </Button>
-          {/* copy.md's second option is "Use a phone number" — the app has
-              no phone-auth flow implemented (Auth.tsx offers Google and
-              email/password only), so this routes to the real /auth entry
-              point rather than promising a flow that does not exist. The
-              redirect intent is preserved the same way. */}
-          <Button variant="muted" size={54} onClick={goAuth} className="w-full">
-            More ways to sign in
-          </Button>
-        </div>
-
-        <p className="mt-6 text-meta text-warm-meta">
-          Papers belong to the schools that set them. ShikshAQ hosts them for reading only,
-          with no downloads and no reposting. We remove anything a school asks us to.
+        <p className="mt-1.5 text-center text-[12px] text-warm-label">
+          Papers belong to the schools that set them. Reading only, no downloads.
         </p>
       </SheetContent>
     </Sheet>

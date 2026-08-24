@@ -1,10 +1,8 @@
 import * as React from "react";
-import { Lock } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { IconDisc } from "@/components/ui/icon-disc";
-import { WhatsAppIcon } from "@/components/BrandIcons";
+import { Sheet, SheetContent, SheetGrabHandle, SheetTitle } from "@/components/ui/sheet";
+import { StripePlaceholder } from "@/components/ui/stripe-placeholder";
+import { validateImageSrc } from "@/utils/imageSanitizer";
 import { useAuth } from "@/lib/auth-context";
 import { saveAuthRedirect } from "@/utils/authRedirect";
 
@@ -23,7 +21,7 @@ interface ContactGateSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** What the visitor was trying to do — shapes the copy only. */
-  intent?: "message" | "save";
+  intent?: "message" | "save" | "review";
   /**
    * Who they were trying to reach. account-02-whatsapp-gate.png titles this
    * sheet "Message Anirban Ghosh", and micro-02's copy rule says the same in
@@ -37,6 +35,37 @@ interface ContactGateSheetProps {
    * today) fall back to the generic wording rather than inventing a name.
    */
   teacherName?: string | null;
+  /** Handoff O-005: the object being unlocked gets a real photo (or the
+   *  StripePlaceholder ground when there isn't one) — never an icon glyph. */
+  teacherImageUrl?: string | null;
+  teacherSubject?: string | null;
+  teacherArea?: string | null;
+}
+
+/* Handoff O-005's copy table, first-person pronoun swapped in from
+   teacherPronoun (defaults to a gender-neutral "them" — none of this
+   codebase's teacher data carries a pronoun field, so "her/him" from the
+   table's own literal example is not something this can know to pick). */
+function gateHeading(intent: "message" | "save" | "review", firstName: string | null) {
+  if (intent === "message") {
+    return firstName ? (
+      <>Sign in to <b className="font-extrabold">message {firstName}</b> on WhatsApp.</>
+    ) : (
+      <>Sign in to <b className="font-extrabold">message on WhatsApp</b>.</>
+    );
+  }
+  if (intent === "review") {
+    return firstName ? (
+      <>Sign in to <b className="font-extrabold">review {firstName}</b>.</>
+    ) : (
+      <>Sign in to <b className="font-extrabold">leave a review</b>.</>
+    );
+  }
+  return firstName ? (
+    <>Sign in to <b className="font-extrabold">save {firstName}</b> to your shortlist.</>
+  ) : (
+    <>Sign in to <b className="font-extrabold">save this teacher</b>.</>
+  );
 }
 
 /* Google's four brand colours, monochrome "G" from account-02's mockup swapped
@@ -57,13 +86,18 @@ export function ContactGateSheet({
   onOpenChange,
   intent = "message",
   teacherName,
+  teacherImageUrl,
+  teacherSubject,
+  teacherArea,
 }: ContactGateSheetProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { signInWithGoogle } = useAuth();
   const [googleBusy, setGoogleBusy] = React.useState(false);
 
-  const isMessage = intent === "message";
+  const firstName = teacherName ? teacherName.trim().split(/\s+/)[0] : null;
+  const safeImage = teacherImageUrl ? validateImageSrc(teacherImageUrl) : null;
+  const metaLine = [teacherSubject, teacherArea].filter(Boolean).join(" · ");
 
   const handleSignIn = () => {
     saveAuthRedirect(location.pathname);
@@ -84,69 +118,53 @@ export function ContactGateSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-[28px] border-0 pb-8 pt-6">
-        <SheetHeader className="items-center text-center">
-          {/* account-02-whatsapp-gate.png: a green WhatsApp disc names the
-              channel for a message gate; the save/heart gate keeps the
-              original lock-in-blue treatment, which the mockup doesn't cover. */}
-          {isMessage ? (
-            <IconDisc tone="whatsapp" size={44} shape="circle">
-              <WhatsAppIcon className="h-5 w-5" />
-            </IconDisc>
-          ) : (
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue-subtle text-brand-blue-deep">
-              <Lock size={20} strokeWidth={2.2} aria-hidden="true" />
-            </span>
-          )}
-          <SheetTitle className="mt-3 font-display text-xl font-bold tracking-tight text-foreground">
-            {teacherName
-              ? intent === "message"
-                ? `Message ${teacherName} on WhatsApp`
-                : `Save ${teacherName}`
-              : `Sign in to ${intent === "message" ? "message teachers" : "save this teacher"}`}
-          </SheetTitle>
-          <p className="mt-1 max-w-[36ch] text-sm text-warm-prose">
-            {teacherName && intent === "message"
-              ? "Sign in first so she knows who's asking."
-              : "Browsing is open to everyone. Messaging and saving need an account, so teachers know every enquiry is real."}
-          </p>
-        </SheetHeader>
-        <div className="mt-6 flex flex-col gap-3">
-          {isMessage ? (
-            <>
-              {/* Bone Google button, per account-02-whatsapp-gate.png: white
-                  fill with a hairline ring, not the indigo (papers-mode)
-                  colour — this sheet is a contact/WhatsApp gate, and
-                  design.md §0.6 reserves indigo for papers. */}
-              <Button
-                variant="muted"
-                size={54}
-                busy={googleBusy}
-                onClick={handleGoogle}
-                className="w-full bg-card text-foreground shadow-border hover:bg-card"
-              >
-                <GoogleIcon />
-                Continue with Google
-              </Button>
-              <Button variant="whatsapp" size={52} onClick={handleSignIn} className="w-full">
-                <WhatsAppIcon className="h-4 w-4" />
-                Continue
-              </Button>
-              <Button variant="ghost" size={44} onClick={() => onOpenChange(false)}>
-                Not now
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="primary" size={52} onClick={handleSignIn}>
-                Continue to sign in
-              </Button>
-              <Button variant="ghost" size={44} onClick={() => onOpenChange(false)}>
-                Not now
-              </Button>
-            </>
-          )}
-        </div>
+      {/* Handoff O-005: this sheet only ever offers sign-in actions — no
+          "Not now" CTA. The sheet's own close X (rendered by SheetContent)
+          and swipe-to-dismiss are the one escape rule 5 requires. */}
+      <SheetContent side="bottom" className="border-0 px-5 pb-[26px]">
+        <SheetGrabHandle />
+        {teacherName ? (
+          <div className="flex items-center gap-3">
+            <div className="h-[52px] w-[52px] flex-none overflow-hidden rounded-full">
+              {safeImage ? (
+                <img src={safeImage} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <StripePlaceholder name={teacherName} initialSize={20} />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-[16px] font-bold tracking-[-0.02em] text-foreground">{teacherName}</div>
+              {metaLine ? <div className="truncate text-[13px] text-warm-tertiary">{metaLine}</div> : null}
+            </div>
+          </div>
+        ) : null}
+
+        {/* SheetTitle labels the dialog for assistive tech (Radix requires
+            one); visually it IS the heading O-005 specifies. */}
+        <SheetTitle className={`${teacherName ? 'mt-[18px]' : ''} font-display text-[26px] font-normal leading-[1.1] tracking-[-0.045em] text-foreground`}>
+          {gateHeading(intent, firstName)}
+        </SheetTitle>
+        <p className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-prose">
+          One tap with Google. We&rsquo;ll take you straight to {intent === 'review' ? 'the review form' : intent === 'save' ? 'your shortlist' : 'the chat'}.
+        </p>
+
+        <button
+          type="button"
+          disabled={googleBusy}
+          onClick={handleGoogle}
+          className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-panel text-[15.5px] font-extrabold text-background transition-transform duration-tap active:scale-[0.98] disabled:opacity-70"
+        >
+          <GoogleIcon size={20} />
+          {googleBusy ? 'Signing in…' : 'Continue with Google'}
+        </button>
+        <button
+          type="button"
+          onClick={handleSignIn}
+          className="mt-2 flex h-11 w-full items-center justify-center text-[14px] font-semibold text-warm-prose"
+        >
+          Other ways to sign in
+        </button>
+        <p className="mt-1.5 text-center text-[12px] text-warm-label">Free. We never take a commission.</p>
       </SheetContent>
     </Sheet>
   );

@@ -482,7 +482,15 @@ function TeacherCardComponent({
           </div>
         </Link>
         {whatsappLink !== undefined && (
-          <ContactGateSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" teacherName={name} />
+          <ContactGateSheet
+            open={signInSheetOpen}
+            onOpenChange={setSignInSheetOpen}
+            intent="message"
+            teacherName={name}
+            teacherImageUrl={imageUrl}
+            teacherSubject={subject}
+            teacherArea={area}
+          />
         )}
       </>
     );
@@ -539,7 +547,15 @@ function TeacherCardComponent({
         </div>
       </Link>
       {whatsappLink !== undefined && (
-        <ContactGateSheet open={signInSheetOpen} onOpenChange={setSignInSheetOpen} intent="message" teacherName={name} />
+        <ContactGateSheet
+          open={signInSheetOpen}
+          onOpenChange={setSignInSheetOpen}
+          intent="message"
+          teacherName={name}
+          teacherImageUrl={imageUrl}
+          teacherSubject={subject}
+          teacherArea={area}
+        />
       )}
     </>
   );
