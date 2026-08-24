@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,14 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
   const [guestEmail, setGuestEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+
+  // "Auto-dismisses after 2.5s" (pages.md §20). Only while the sheet is open
+  // and showing the thanks panel — closing manually or reopening clears it.
+  useEffect(() => {
+    if (!open || !sent) return;
+    const timer = setTimeout(() => onOpenChange(false), 2500);
+    return () => clearTimeout(timer);
+  }, [open, sent, onOpenChange]);
 
   const reset = () => {
     // null, not 3. Closing and reopening previously re-armed a preselected 3/5

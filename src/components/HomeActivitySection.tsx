@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, FileText, Heart, GraduationCap } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { useLikes } from '@/lib/likes-context';
 import { TeacherCard } from '@/components/TeacherCard';
 import { getRecentlyVisited, type RecentVisit } from '@/lib/recently-visited';
+import { getTeachersByIds, type TeacherCardLite } from '@/lib/teachers';
 
 // Small relative-time label for a Recently Visited row's `ts` field.
 // No new dependency — just enough granularity to be useful ("2h ago",
@@ -24,13 +24,15 @@ function formatRelativeTime(ts: number): string {
   return new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
-interface FavouriteTeacher {
-  id: string;
-  name: string;
-  slug: string;
-  image_url: string | null;
-  subjects: { name: string; slug: string } | null;
-}
+// Bug 5 fix: this used to be its own supabase query selecting only the
+// teachers_list `subjects` FK relation, with no fallback for the (common)
+// case where that relation is null but the teacher has real subject data in
+// Shikshaqmine — every such favourite fell straight to TeacherCard's generic
+// "Tuition Teacher" fallback below. `getTeachersByIds` (used by LikedTeachers/
+// MyTeachers/StudentDashboard/GuardianDashboard already) resolves that
+// fallback correctly, so this section now reuses it instead of duplicating a
+// half-working version of the same query.
+type FavouriteTeacher = TeacherCardLite;
 
 const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
 // Sits directly under the hero/greeting and right above the featured-teachers
@@ -149,12 +151,18 @@ export function HomeActivitySection() {
     let cancelled = false;
     async function fetchFavourites() {
       const ids = Array.from(likedTeacherIds).slice(0, 6);
-      const { data } = await supabase
-        .from('teachers_list')
-        .select('id, name, slug, image_url, subjects(name, slug)')
-        .in('id', ids);
+      // getTeachersByIds throws on a query error (the old inline supabase call
+      // here just read `data` and ignored `error`) — caught so a transient
+      // failure degrades to an empty favourites section instead of an
+      // unhandled rejection on the home page.
+      let data: FavouriteTeacher[] = [];
+      try {
+        data = await getTeachersByIds(ids);
+      } catch {
+        /* leave data empty — favourites section shows its empty state */
+      }
       if (!cancelled) {
-        setFavourites((data as FavouriteTeacher[] | null) ?? []);
+        setFavourites(data);
         setFavouritesLoading(false);
       }
     }

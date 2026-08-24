@@ -1,5 +1,155 @@
 // Vercel serverless function for Gemini AI chatbot
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createClient } from '@supabase/supabase-js';
+
+// --- Real-teacher lookup -----------------------------------------------------
+// Pragmatic keyword match: rather than trusting the LLM to invent or correctly
+// recall real teacher records, we independently detect "find me a teacher"
+// intent + a subject/keyword from the user's own message, then query the real
+// Shikshaq data directly. Any teachers found are returned as structured data
+// (`teachers`) alongside the prose so the frontend can render real TeacherCard
+// components instead of the model listing names in text.
+
+const FIND_TEACHER_INTENT = [
+  'teacher', 'tutor', 'tuition', 'find', 'recommend', 'suggest', 'looking for',
+  'need a', 'anyone teach', 'who teaches', 'help me find', 'contact',
+];
+
+const SUBJECT_KEYWORDS = [
+  'maths', 'mathematics', 'math', 'physics', 'chemistry', 'biology', 'science',
+  'english', 'hindi', 'bengali', 'history', 'geography', 'economics',
+  'accountancy', 'accounts', 'commerce', 'computer science', 'computer',
+  'coding', 'python', 'social studies', 'political science', 'business studies',
+  'statistics', 'french', 'sanskrit',
+];
+
+interface TeacherCardResult {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl: string | null;
+  subject: string;
+  sirMaam: string | null;
+  whatsappLink: string | null;
+  experienceYears: number | null;
+  minFees: number | null;
+  maxFees: number | null;
+  area: string | null;
+}
+
+function deriveExperienceYears(raw: string | number | null | undefined): number | null {
+  if (raw == null) return null;
+  const yearStarted = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+  if (!yearStarted || isNaN(yearStarted)) return null;
+  const years = new Date().getFullYear() - yearStarted;
+  return years > 0 && years < 80 ? years : null;
+}
+
+/** Extracts a subject keyword mentioned in the user's message, if any. */
+function detectSubject(message: string): string | null {
+  const lower = message.toLowerCase();
+  for (const keyword of SUBJECT_KEYWORDS) {
+    if (lower.includes(keyword)) return keyword;
+  }
+  return null;
+}
+
+function hasFindTeacherIntent(message: string): boolean {
+  const lower = message.toLowerCase();
+  return FIND_TEACHER_INTENT.some((kw) => lower.includes(kw));
+}
+
+/**
+ * Looks up up to 3 real teachers matching the subject mentioned in the user's
+ * message. Returns [] when the message doesn't look like a "find a teacher"
+ * question, or when nothing matches — the frontend simply renders no cards.
+ */
+async function findMatchingTeachers(message: string): Promise<TeacherCardResult[]> {
+  if (!hasFindTeacherIntent(message)) return [];
+  const subjectKeyword = detectSubject(message);
+  if (!subjectKeyword) return [];
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !supabaseKey) return [];
+
+  try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // 'maths' should also match a subject named 'Mathematics', etc.
+    const normalized = subjectKeyword === 'maths' || subjectKeyword === 'math' ? 'mathemat' : subjectKeyword;
+
+    const { data: matchingSubjects } = await supabase
+      .from('subjects')
+      .select('name, slug')
+      .ilike('name', `%${normalized}%`);
+
+    if (!matchingSubjects || matchingSubjects.length === 0) return [];
+    const subjectIds = matchingSubjects.map((s: { name: string }) => s.name);
+
+    interface MatchedTeacherRow {
+      id: string;
+      name: string;
+      slug: string;
+      image_url: string | null;
+      subjects: { name: string; slug: string } | null;
+    }
+
+    const { data: teacherRows, error } = await supabase
+      .from('teachers_list')
+      .select('id, name, slug, image_url, is_featured, subjects!inner(name, slug)')
+      .in('subjects.name', subjectIds)
+      .order('is_featured', { ascending: false })
+      .limit(3)
+      .returns<MatchedTeacherRow[]>();
+
+    if (error || !teacherRows || teacherRows.length === 0) return [];
+
+    const slugs = teacherRows.map((t) => t.slug).filter(Boolean);
+
+    interface ShikshaqmineBasicRow {
+      Slug: string;
+      "Sir/Ma'am?": string | null;
+      Link: string | null;
+      'Years they started teaching': string | number | null;
+      'Min Fees': number | null;
+      'Max Fees': number | null;
+      Area: string | null;
+      'LOCATION V2': string | null;
+    }
+
+    const { data: shikshaqRows } = await supabase
+      .from('Shikshaqmine')
+      .select('"Slug","Sir/Ma\'am?","Link","Years they started teaching","Min Fees","Max Fees","Area","LOCATION V2"')
+      .in('Slug', slugs)
+      .returns<ShikshaqmineBasicRow[]>();
+
+    const basicMap = new Map<string, ShikshaqmineBasicRow>();
+    for (const row of shikshaqRows ?? []) {
+      basicMap.set(row.Slug, row);
+    }
+
+    return teacherRows.map((t) => {
+      const basic: Partial<ShikshaqmineBasicRow> = basicMap.get(t.slug) ?? {};
+      return {
+        id: t.id,
+        name: t.name,
+        slug: t.slug,
+        imageUrl: t.image_url ?? null,
+        subject: t.subjects?.name ?? subjectKeyword,
+        sirMaam: basic["Sir/Ma'am?"] ?? null,
+        whatsappLink: basic['Link'] ?? null,
+        experienceYears: deriveExperienceYears(basic['Years they started teaching']),
+        minFees: basic['Min Fees'] != null ? Number(basic['Min Fees']) : null,
+        maxFees: basic['Max Fees'] != null ? Number(basic['Max Fees']) : null,
+        area: basic['Area'] ?? basic['LOCATION V2'] ?? null,
+      } as TeacherCardResult;
+    });
+  } catch (err) {
+    console.warn('findMatchingTeachers failed:', err);
+    return [];
+  }
+}
 
 // Exhaustive Shikshaq FAQ for the chatbot - answer from this first; only suggest WhatsApp when question is not covered or user asks how to contact
 const SHIKSHAQ_FAQ = `
@@ -456,6 +606,7 @@ IMPORTANT RULES:
 2. NEVER include HTML tags or links in your response - plain text only.
 3. Only suggest contacting Shikshaq (WhatsApp +91 8240980312 or email join.shikshaq@gmail.com) when: (a) the user explicitly asks "how do I contact you" or "what is your WhatsApp" or similar, OR (b) the question is clearly not covered anywhere in the FAQ. Do NOT suggest WhatsApp for normal FAQ questions that are already answered below.
 4. For questions outside Shikshaq (e.g. general knowledge, other topics), politely say you only answer questions about Shikshaq and they can contact the team for other help.
+5. NEVER invent or name specific teachers, their experience, fees, or availability — you have no access to the live teacher database. If the user is looking for a teacher, tell them briefly you're pulling up real matching profiles (a system separate from you appends real teacher cards below your reply when a match exists) and keep your own text generic and short.
 
 OFFICIAL SHIKSHAQ FAQ (use this to answer):
 ${SHIKSHAQ_FAQ}`;
@@ -542,7 +693,11 @@ ${SHIKSHAQ_FAQ}`;
     const response = result.response;
     const text = response.text();
 
-    return res.status(200).json({ response: text });
+    // Independent of what the model said, look up real teachers matching the
+    // user's own message so the frontend can append real TeacherCards.
+    const teachers = await findMatchingTeachers(message);
+
+    return res.status(200).json({ response: text, teachers });
   } catch (error: unknown) {
     const err = error as Error & { status?: number };
     console.error('Chat handler error:', {

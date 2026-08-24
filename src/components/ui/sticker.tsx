@@ -26,7 +26,7 @@ const stickerVariants = cva(
   /* No `uppercase`: the handoff sets these in sentence case ("312 tutors",
      "no commission", "Takes 3 minutes"). Forcing caps also broke the drawn
      width, which is what pushed some stickers past their container edge. */
-  "pointer-events-none absolute z-10 inline-flex items-center whitespace-nowrap rounded-full px-3 text-[11px] font-extrabold tracking-[0.01em] shadow-border",
+  "pointer-events-none absolute z-10 inline-flex items-center whitespace-nowrap rounded-full px-3 text-[11px] font-extrabold tracking-[0.01em] shadow-border animate-pop motion-reduce:animate-none",
   {
     variants: {
       tone: {

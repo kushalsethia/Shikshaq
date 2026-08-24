@@ -59,8 +59,9 @@ function WordmarkBleed({ stickers = [], className }: WordmarkBleedProps) {
             fontStretch: "125%",
             fontSize: "clamp(5.125rem, 22vw, 14rem)",
             /* Clipped by the container's bottom edge: the descender sits below
-               the box on purpose. */
-            marginBottom: "-0.18em",
+               the box on purpose. Kept shallow (not the full glyph depth) so
+               the page's true end doesn't read as an abrupt cut-off. */
+            marginBottom: "-0.08em",
           }}
         >
           shikshaq
@@ -70,17 +71,26 @@ function WordmarkBleed({ stickers = [], className }: WordmarkBleedProps) {
       {stickers.length > 0 ? (
         <div className="pointer-events-none absolute inset-x-0 top-1/2 flex flex-wrap items-center justify-center gap-4">
           {stickers.slice(0, 3).map((label, i) => (
-            <span key={label} className="relative">
-              {/* Sticker positions itself absolutely against this span. */}
-              {/* One tone per sticker, per the handoff: orange for the tutor
-                  count, WhatsApp green for "no commission" (the promise the
-                  green is doing the work of), indigo for the paper count —
-                  papers are the indigo half of the brand pair. Two of the three
-                  were rendering as undifferentiated bone. */}
-              <Sticker tone={STICKER_TONES[i]} tilt={tilts[i]} size={26}>
-                {label}
-              </Sticker>
-            </span>
+            /* Sticker's own classes (`absolute -top-[11px] right-4`) are
+               meant for overhanging a card corner. Here there's no card to
+               overhang — the stickers are meant to flow in this flex row —
+               so `absolute` positions every one of them at the same spot
+               relative to its own zero-size wrapper span, collapsing all
+               three on top of each other regardless of gap-4 on the parent.
+               Overriding to `static` (via cn/tailwind-merge, so it actually
+               replaces "absolute" rather than just adding a class) makes
+               each Sticker a normal flex child again, so gap-4 spaces them
+               for real. top/right no longer apply once position is static,
+               but reset them too so nothing lingers as dead weight. */
+            <Sticker
+              key={label}
+              tone={STICKER_TONES[i]}
+              tilt={tilts[i]}
+              size={26}
+              className="static top-auto right-auto"
+            >
+              {label}
+            </Sticker>
           ))}
         </div>
       ) : null}

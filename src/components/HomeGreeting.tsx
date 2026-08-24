@@ -33,7 +33,7 @@ export function HomeGreeting() {
         <p className="mt-1 text-body-secondary text-brand-foreground/80">
           {likedCount > 0 || recent.length > 0
             ? 'Here is where you left off.'
-            : 'Welcome back — start by favouriting a teacher or browsing past papers.'}
+            : 'Welcome back. Start by favouriting a teacher or browsing past papers.'}
         </p>
 
         {(likedCount > 0 || recent.length > 0) && (
