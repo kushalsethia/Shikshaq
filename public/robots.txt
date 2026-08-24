@@ -10,21 +10,28 @@ Disallow: /auth
 Disallow: /auth/*
 Disallow: /admin
 Disallow: /admin/*
+# /dashboard/teacher is the real auth-gated dashboard and stays blocked, but
+# /dashboard/student and /dashboard/guardian are live redirects to /account —
+# same reasoning as /teacher/ below: a disallowed URL is never fetched, so
+# blocking a redirect stops Google from ever following it and consolidating
+# rankings onto the current URL.
 Disallow: /dashboard
 Disallow: /dashboard/*
+Allow: /dashboard/student
+Allow: /dashboard/guardian
 Disallow: /select-role
 Disallow: /teacher-terms-agreement
 Disallow: /signup-success
-Disallow: /liked-teachers
-Disallow: /my-teachers
 
 # Block the application form itself (no unique searchable content, thin/duplicate
 # risk vs. /join which already ranks for "join as tuition teacher" intent) —
 # still reachable and crawlable via /join's link, just not indexed standalone.
 Disallow: /join/apply
 
-# Block deprecated routes
-Disallow: /help
+# /help, /liked-teachers and /my-teachers are NOT blocked, for the same
+# reason as /teacher/ and the two /dashboard/* redirects above: each is a
+# live redirect (to /more and /account?tab=... respectively), not a dead or
+# deprecated page, so blocking it would stop Google from ever following it.
 
 # /teacher/ is NOT blocked. It is a live redirect to /tuition-teachers/*, and a
 # disallowed URL is never fetched — so Googlebot would never see the redirect
