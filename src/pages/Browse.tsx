@@ -1589,7 +1589,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           </div>
         )}
 
-        <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-foreground">
+        <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-foreground lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]">
           {/* Board routes take the labelled heading too. They used to fall
               through to the generic count branch, so /icse-…, /cbse-ncert-…,
               /igcse-…, /international-board-… and /state-board-… all rendered
@@ -1851,7 +1851,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             <h2 className="font-display text-section-head font-extrabold text-brand-deep">
               {pageContext!.label} papers too
             </h2>
-            <p className="mt-2 max-w-prose text-body-secondary text-warm-prose">
+            <p className="mt-2 max-w-prose text-body-secondary text-warm-prose lg:text-[16px] lg:leading-[1.65]">
               {subjectPapers.count} past {pageContext!.label.toLowerCase()} paper{subjectPapers.count === 1 ? '' : 's'} from{' '}
               {subjectPapers.schools} Kolkata school{subjectPapers.schools === 1 ? '' : 's'}, free to read.
             </p>

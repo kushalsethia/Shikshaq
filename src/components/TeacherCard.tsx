@@ -311,7 +311,14 @@ function TeacherCardComponent({
            the product tour (which uses BadgeCheck) — two glyphs for one
            meaning would be a bug. text-brand-deep, no fill, on this light
            card surface; the word "Verified" is never rendered, only the
-           aria-label. */
+           aria-label.
+           Phase 34 D-007 note: the changelog calls for flattening a tilted
+           "Verified" sticker on this card at `lg` (S-003), but per the Bug 1
+           comment below (release checklist: "No teacher card has a
+           sticker"), that sticker treatment was already removed in an
+           earlier phase — this is a plain inline ShieldCheck glyph with no
+           `rotate()` at any width. Nothing to flatten; D-007 is a no-op
+           here. */
         <ShieldCheck
           strokeWidth={2.25}
           className={`mt-0.5 shrink-0 text-brand-deep ${isRow ? 'h-[15px] w-[15px]' : 'h-4 w-4'}`}
