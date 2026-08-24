@@ -1807,7 +1807,12 @@ export default function TeacherDashboard() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
+            {/* Not the shared destructive tint (O-013): pausing/resuming a
+                listing is fully reversible either direction — described as
+                such right above — not the "cannot be undone" class of
+                action this dialog's red/pink styling exists to flag. */}
             <AlertDialogAction
+              className="!bg-brand !text-brand-foreground"
               onClick={() => {
                 setPauseDialogOpen(false);
                 handlePauseToggle();
