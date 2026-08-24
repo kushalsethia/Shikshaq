@@ -128,16 +128,16 @@ function groupItem(
     <AccordionItem
       key={value}
       value={value}
-      className="overflow-hidden rounded-[20px] border-b-0 bg-card shadow-border"
+      className="overflow-hidden rounded-bento border-b-0 bg-card"
     >
       <AccordionTrigger className="px-[18px] py-[14px] hover:no-underline">
         <div className="flex min-w-0 flex-1 items-center gap-[10px]">
-          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-xl bg-muted text-warm-prose">
+          <span className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] bg-muted text-warm-secondary">
             <Icon className="size-4" aria-hidden="true" />
           </span>
-          <span className="truncate font-display text-[16px] font-extrabold text-foreground">{label}</span>
+          <span className="truncate font-display text-[16px] font-bold tracking-[-0.02em] text-foreground">{label}</span>
           {selectedCount > 0 && (
-            <span className="ml-auto flex h-5 min-w-5 flex-none items-center justify-center rounded-full bg-brand-subtle px-1.5 text-label font-bold tabular-nums text-brand-deep">
+            <span className="ml-auto flex-none text-[12.5px] font-bold tabular-nums text-brand-deep">
               {selectedCount}
             </span>
           )}
@@ -225,7 +225,7 @@ export function FilterGroupsBody({
 
   return (
     <>
-    <Accordion type="multiple" defaultValue={defaultOpenGroups} className="flex flex-col gap-[10px]">
+    <Accordion type="multiple" defaultValue={defaultOpenGroups} className="flex flex-col gap-seam">
       {groupItem(
         'subjects',
         'Subjects taught',
@@ -258,8 +258,26 @@ export function FilterGroupsBody({
         'Classes taught',
         GraduationCap,
         filters.classes.length,
-        <div className="flex flex-wrap gap-[8px]">
-          {CLASSES.map((c) => pill(c === 'UG' ? 'UG' : `Class ${c}`, filters.classes.includes(c), () => toggle('classes', c), c))}
+        // Handoff O-003: number grid, not chips — grid-cols-6 gap-2, h-11
+        // rounded-[14px], selected bg-brand-subtle/text-brand-deep.
+        <div className="grid grid-cols-6 gap-2">
+          {CLASSES.map((c) => {
+            const selected = filters.classes.includes(c);
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => toggle('classes', c)}
+                aria-pressed={selected}
+                aria-label={c === 'UG' ? 'UG' : `Class ${c}`}
+                className={`flex h-11 items-center justify-center rounded-[14px] text-[14px] font-extrabold tabular-nums transition-colors duration-tap ${
+                  selected ? 'bg-brand-subtle text-brand-deep' : 'bg-muted text-foreground'
+                }`}
+              >
+                {c}
+              </button>
+            );
+          })}
         </div>,
       )}
 
@@ -485,7 +503,8 @@ export function FilterSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="flex h-[100dvh] max-h-[100dvh] flex-col rounded-none p-0 [&>button:last-child]:hidden"
+        hideCloseButton
+        className="flex h-[100dvh] max-h-[100dvh] flex-col rounded-none p-0"
       >
         {/* Sticky header. The default Radix close X that SheetContent renders
             (top-right, 40px, 70% opacity) is hidden via
@@ -494,7 +513,8 @@ export function FilterSheet({
             size a small corner glyph wasn't prominent enough, so this is a
             44px circular disc sitting in the header next to the title,
             unmistakable regardless of what else is on the page. */}
-        <div className="flex items-center justify-between gap-3 px-[16px] pb-[8px] pt-[16px]">
+        {/* Handoff O-002: header — bg-card rounded-b-bento, sticky. */}
+        <div className="sticky top-0 z-10 flex flex-none items-center justify-between gap-3 rounded-b-bento bg-card px-5 pb-4 pt-[14px]">
           {/* SheetTitle, not a bare h2: Radix needs a DialogTitle inside
               DialogContent to label the dialog for assistive tech, and warns
               otherwise. It renders an h2 anyway, so nothing changes visually. */}
@@ -510,7 +530,7 @@ export function FilterSheet({
               <button
                 type="button"
                 onClick={() => onFilterChange(EMPTY_FILTERS)}
-                className="min-h-11 rounded-lg px-2 text-[13.5px] font-semibold text-brand-blue transition-colors duration-tap hover:text-brand-blue-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex h-11 flex-none items-center rounded-full bg-muted px-[14px] text-[13.5px] font-semibold text-warm-secondary transition-colors duration-tap hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Clear all
               </button>
@@ -524,12 +544,12 @@ export function FilterSheet({
 
         {/* Scrollable body — must stay flex:1/min-height:0 or long option sets
             clip (design.md §2.3). */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-[16px] pb-[16px] pt-[4px]">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-background px-[16px] pb-[16px] pt-[4px]">
           <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} />
         </div>
 
-        {/* Sticky footer */}
-        <div className="flex items-center justify-between gap-[10px] border-t border-border bg-card px-[16px] py-[14px]">
+        {/* Handoff O-002: footer — bg-card rounded-t-bento, pinned. */}
+        <div className="flex flex-none items-center justify-between gap-[10px] rounded-t-bento bg-card px-5 pb-[26px] pt-4">
           {/* core-02-filters.png shows "2 filters active" alongside two chosen
               chips. With nothing chosen this read "0 filters active", which is
               the same advertise-a-zero pattern found on About, sign-in and the
@@ -541,8 +561,8 @@ export function FilterSheet({
           </span>
           <Button
             variant="primary"
-            size={52}
-            className="rounded-[14px] px-[22px] text-[15px] font-bold"
+            size={54}
+            className="rounded-full px-[22px] text-[15px] font-bold"
             onClick={() => onOpenChange(false)}
           >
             Show {resultCount} teachers
