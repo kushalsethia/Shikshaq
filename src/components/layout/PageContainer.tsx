@@ -132,13 +132,14 @@ function BottomNavSpacer() {
 
    Two breakpoint-specific divs, not one responsive height, because the two
    bars are different heights: Navbar's mobile pill is h-14 (56px), TopBar's
-   desktop pill is h-[72px]. Both sit top-3 (12px) off the viewport edge;
-   the spacer adds a further 12px gap before page content starts. */
+   desktop pill is h-[60px] (Handoff D-004, was 72px). Both sit top-3 (12px)
+   off the viewport edge; the spacer adds a further 12px gap before page
+   content starts. */
 function TopNavSpacer() {
   return (
     <>
       <div aria-hidden className="lg:hidden h-[calc(56px+12px+12px)]" />
-      <div aria-hidden className="hidden lg:block h-[calc(72px+12px+12px)]" />
+      <div aria-hidden className="hidden lg:block h-[calc(60px+12px+12px)]" />
     </>
   );
 }
@@ -146,7 +147,9 @@ function TopNavSpacer() {
 /* Handoff T-004 — one owner for the 6px seam between stacked panels and the
    page ground (`bg-background`) that shows through it. */
 export function BentoStack({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex flex-col gap-seam bg-background', className)} {...props} />;
+  /* Handoff D-002: 6px seam on mobile, 8px from `lg` — 6px reads as a
+     hairline crack at desktop density against much larger panels. */
+  return <div className={cn('flex flex-col gap-seam lg:gap-2 bg-background', className)} {...props} />;
 }
 
 /* Handoff T-005 — every section on every redesigned screen is one of these.

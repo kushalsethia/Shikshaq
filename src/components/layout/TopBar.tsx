@@ -2,14 +2,13 @@ import * as React from "react";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  Search, FileText, Info, Heart, Shield, GraduationCap, Users,
-  MessageSquare, ThumbsUp, ClipboardList, BookMarked, BookOpen, School, type LucideIcon,
+  FileText, Heart, Shield, GraduationCap, Users,
+  MessageSquare, ThumbsUp, ClipboardList, BookMarked, type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
-import { PageContainer } from "@/components/layout/PageContainer";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { openProductTour } from "@/components/ProductTour";
@@ -24,26 +23,24 @@ import {
   type UserRole,
 } from "@/lib/nav-config";
 
-/* Redesign S2 (components.md §3, design.md §5).
+/* Redesign S2 (components.md §3, design.md §5), restyled per Handoff D-004.
 
-   The desktop counterpart to the bottom nav: a 72px near-black bar carrying the
-   logo, four nav links with icons, Sign in, and the orange "List yourself" CTA.
-   `hidden lg:flex` — below lg the floating pill (S1) is the navigation, and the
-   two must never both be visible.
-
-   On papers routes the orange CTA is replaced by the indigo Papers-mode tag,
-   so the accent in view always matches the mode (design.md §0.6). */
+   The desktop counterpart to the bottom nav: a 60px near-black pill carrying
+   the logo, five plain-text nav links (both halves of the product — Teachers
+   then Past papers — plus Subjects/Schools/About), and two right-aligned
+   actions. `hidden lg:block` — below lg the floating pill (S1) is the
+   navigation, and the two must never both be visible. */
 
 const isAboutActive = (p: string) => p === "/about";
 const isSubjectsActive = (p: string) => p === "/subjects";
 const isSchoolsActive = (p: string) => p === "/schools";
 
 const NAV_LINKS = [
-  { to: BROWSE_PATH, label: "Find teachers", icon: Search, match: isBrowseActive },
-  { to: PAST_PAPERS_PATH, label: "Past papers", icon: FileText, match: isPapersActive },
-  { to: "/subjects", label: "Subjects", icon: BookOpen, match: isSubjectsActive },
-  { to: "/schools", label: "Schools", icon: School, match: isSchoolsActive },
-  { to: "/about", label: "About", icon: Info, match: isAboutActive },
+  { to: BROWSE_PATH, label: "Teachers", match: isBrowseActive },
+  { to: PAST_PAPERS_PATH, label: "Past papers", match: isPapersActive },
+  { to: "/subjects", label: "Subjects", match: isSubjectsActive },
+  { to: "/schools", label: "Schools", match: isSchoolsActive },
+  { to: "/about", label: "About", match: isAboutActive },
 ] as const;
 
 function LogoOrTourTrigger() {
@@ -71,7 +68,6 @@ export function TopBar({ className }: { className?: string }) {
   const location = useLocation();
   const { user, profile, signOut } = useAuth();
   const role = (profile?.role as UserRole) || null;
-  const papersMode = isPapersActive(location.pathname);
   const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuPresence = useExitPresence(menuOpen);
@@ -112,7 +108,7 @@ export function TopBar({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "fixed inset-x-3 top-3 z-40 hidden rounded-full bg-panel text-background shadow-pill ring-1 ring-white/10 lg:block",
+        "fixed inset-x-3 top-3 z-40 hidden h-[60px] rounded-full bg-panel text-background shadow-pill ring-1 ring-white/10 lg:block",
         className,
       )}
       /* One <nav> per bar; the links inside are the primary desktop navigation.
@@ -125,37 +121,37 @@ export function TopBar({ className }: { className?: string }) {
          page needs an explicit offset underneath it: see TopNavSpacer in
          PageContainer.tsx, rendered once by AppShell right after this bar. */
     >
-      <PageContainer>
-        <nav aria-label="Primary" className="flex h-[72px] items-center gap-8">
-          <LogoOrTourTrigger />
+      {/* Handoff D-004: pl-6 pr-2.5 directly on the bar, not PageContainer's
+          centred max-w-6xl column — this pill spans (near) the full width
+          the outer inset-x-3 gives it, matching the bottom nav's own pill
+          being the whole of its navigation rather than page content. */}
+      <nav aria-label="Primary" className="flex h-[60px] items-center gap-6 pl-6 pr-2.5">
+        <LogoOrTourTrigger />
 
-          <ul className="flex items-center gap-2">
-            {NAV_LINKS.map(({ to, label, icon: Icon, match }) => {
-              const active = match(location.pathname);
-              // All five NAV_LINKS entries now point at distinct routes, so
-              // key={to} is safe here; kept as key={label} anyway since
-              // label is what's user-facing and unique in this list too.
-              return (
-                <li key={label}>
-                  <Link
-                    to={to}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "inline-flex h-10 items-center gap-2 rounded-full px-4 text-body-secondary font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel",
-                      active
-                        ? "bg-white/15 text-background"
-                        : "text-background/70 hover:bg-white/10 hover:text-background",
-                    )}
-                  >
-                    <Icon aria-hidden className="size-4 shrink-0" />
-                    {label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        <ul className="flex items-center gap-6">
+          {NAV_LINKS.map(({ to, label, match }) => {
+            const active = match(location.pathname);
+            // All five NAV_LINKS entries now point at distinct routes, so
+            // key={to} is safe here; kept as key={label} anyway since
+            // label is what's user-facing and unique in this list too.
+            return (
+              <li key={label}>
+                <Link
+                  to={to}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "text-[14.5px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel",
+                    active ? "text-background" : "text-background/70 hover:text-background",
+                  )}
+                >
+                  {label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
 
-          <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-3">
 
             {user ? (
               <div className="relative">
@@ -221,22 +217,25 @@ export function TopBar({ className }: { className?: string }) {
                 )}
               </div>
             ) : (
-              <Link
-                to="/auth"
-                className="inline-flex h-10 items-center rounded-full px-4 text-body-secondary font-medium text-background/80 transition-colors duration-150 hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
-              >
-                Sign in
-              </Link>
-            )}
-
-            {papersMode ? null : (
+              /* Handoff D-004: a real h44 rounded-full bg-brand button, not
+                 a plain text link — "Sign in" is one of the two actions this
+                 bar names explicitly. */
               <Button asChild variant="primary" size={44}>
-                <Link to="/join">List yourself</Link>
+                <Link to="/auth">Sign in</Link>
               </Button>
             )}
+
+            {/* Handoff D-004: bg-muted, not the orange primary fill "List
+                yourself" used before — a neutral second action reads
+                correctly on every page now, including papers-mode ones,
+                where the old orange CTA would have broken the "exactly one
+                accent per page" rule (C-007); this one no longer carries
+                that accent, so it no longer needs to hide there. */}
+            <Button asChild variant="muted" size={44}>
+              <Link to="/join">Join as a teacher</Link>
+            </Button>
           </div>
-        </nav>
-      </PageContainer>
+      </nav>
     </header>
   );
 }
