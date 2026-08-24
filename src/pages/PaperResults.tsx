@@ -272,7 +272,7 @@ export default function PaperResults() {
             Past Papers
           </Link>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-white">
+            <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-white lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]">
               {heading}
             </h1>
             <span className="inline-flex h-8 flex-none items-center whitespace-nowrap rounded-full bg-white/15 px-[14px] text-[13px] font-bold text-white">
@@ -365,8 +365,8 @@ export default function PaperResults() {
 
         {/* Handoff PR-005: ownership panel, BentoPanel fill="dark". */}
         <BentoPanel fill="dark">
-          <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em]">Who owns these papers</h2>
-          <p className="mt-3 max-w-prose text-[14px] leading-[1.55] text-white/75">
+          <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] lg:text-[26px]">Who owns these papers</h2>
+          <p className="mt-3 max-w-prose text-[14px] leading-[1.55] text-white/75 lg:text-[16px] lg:leading-[1.65]">
             Every paper here is the property of the school that set it. Shikshaq claims no
             ownership, derives no revenue from any paper, and hosts these materials solely as a
             free revision resource. If you represent a school and want a paper removed, tell us

@@ -503,7 +503,12 @@ export default function PastPapers() {
           <BentoPanel fill="papersTint" className="halftone-overlay relative">
             {/* Indigo, not the orange brand token — papers mode carries no
                 orange (devices.md §5 sticker, tone=papers). */}
-            <span className="sticker sticker-rotate-md animate-card-reveal absolute -top-3 right-6 rounded-full bg-brand-blue px-4 py-1 text-label font-bold uppercase text-white motion-reduce:animate-none">
+            {/* D-007: flatten at lg. `.sticker-rotate-md` (index.css) is a plain
+                CSS class outside Tailwind's cascade order, so a `lg:rotate-0`
+                utility can't reliably out-specificity/out-order it — swapped
+                for the equivalent Tailwind rotate utilities (same 5deg tilt)
+                so the `lg:` variant actually wins at the breakpoint. */}
+            <span className="sticker rotate-[5deg] lg:rotate-0 animate-card-reveal absolute -top-3 right-6 rounded-full bg-brand-blue px-4 py-1 text-label font-bold uppercase text-white motion-reduce:animate-none">
               Day one
             </span>
             <EmptyResults
@@ -530,10 +535,15 @@ export default function PastPapers() {
             expressed as an inset shadow instead of divide-y. */}
         {mostRead.length > 0 && (
           <BentoPanel fill="muted" className="!p-[18px]">
-            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">
               Most read
             </h2>
-            <ol className="stagger-children">
+            {/* D-005: one-column stack becomes a 2-up grid at lg (spec: "Papers
+                by-school / most-read -> grid-cols-2"), mirroring the By-school
+                grid below. Row divider (inset shadow on all but the last item)
+                is unchanged — with at most 3 rows in mostRead this reads as a
+                clean 2+1 grid, not a broken divider. */}
+            <ol className="stagger-children grid grid-cols-1 lg:grid-cols-2 lg:gap-x-6">
               {mostRead.map((paper, i) => (
                 <li
                   key={paper.paper_id}
@@ -571,7 +581,7 @@ export default function PastPapers() {
             shadow-border removed (bone on bone). */}
         {!loading && !loadError && schoolStats.length > 0 && (
           <BentoPanel fill="card">
-            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">By school</h2>
+            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">By school</h2>
             <div className="stagger-children grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]">
               {schoolStats.map(({ school, board, count, otherBoardCount }) => (
                 /* A real link to the school's own page (S16), not a button that
@@ -747,7 +757,7 @@ export default function PastPapers() {
                 inconsistent style (owner mobile QA: "keep class there, remove
                 board from there"). Board stays as its own tabs section; this
                 row now carries Class only. */}
-            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">By class</h2>
+            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">By class</h2>
 
             {/* Classes are 9-12 only: those are the classes the handoff draws,
                 and the ones papers actually exist for. */}
@@ -781,7 +791,7 @@ export default function PastPapers() {
                     {step.title}
                   </h3>
                 </div>
-                <p className="max-w-prose text-body-secondary text-muted-foreground">{step.body}</p>
+                <p className="max-w-prose text-body-secondary text-muted-foreground lg:text-[16px] lg:leading-[1.65]">{step.body}</p>
               </div>
             ))}
           </div>
