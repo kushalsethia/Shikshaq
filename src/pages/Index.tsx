@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { EmptyResults } from '@/components/EmptyResults';
 import { supabase } from '@/integrations/supabase/client';
+import { validateImageSrc } from '@/utils/imageSanitizer';
 import { logger } from '@/utils/logger';
 import { TeacherCard } from '@/components/TeacherCard';
 import { SubjectCard } from '@/components/SubjectCard';
@@ -516,7 +517,7 @@ export default function Index() {
       className="relative inline-block h-[28px] w-[28px] shrink-0 overflow-hidden rounded-full align-[-6px] ring-1 ring-warm-hairline"
     >
       {featuredTeachers[0]?.image_url ? (
-        <img src={featuredTeachers[0].image_url} alt="" className="h-full w-full object-cover" />
+        <img src={validateImageSrc(featuredTeachers[0].image_url)} alt="" className="h-full w-full object-cover" />
       ) : (
         <StripePlaceholder name={featuredTeachers[0]?.name} initialSize={14} className="h-full w-full" />
       )}
@@ -583,7 +584,7 @@ export default function Index() {
                   {featuredWithPhotos.slice(0, 5).map((t) => (
                     <img
                       key={t.id}
-                      src={t.image_url as string}
+                      src={validateImageSrc(t.image_url)}
                       alt=""
                       aria-hidden="true"
                       loading="lazy"
@@ -618,7 +619,7 @@ export default function Index() {
                     {featuredWithPhotos.slice(0, 3).map((t) => (
                       <img
                         key={t.id}
-                        src={t.image_url as string}
+                        src={validateImageSrc(t.image_url)}
                         alt=""
                         aria-hidden
                         loading="lazy"
