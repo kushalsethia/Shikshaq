@@ -515,15 +515,15 @@ export default function Auth() {
         {/* 6px seam of page ground between the two blocks (stacked only). */}
         <div aria-hidden className="h-seam bg-background lg:hidden" />
 
-      {/* pb-40 on mobile: /auth is a chromeless route with no bottom tab bar,
-          but the global help FAB (Chatbot.tsx) still parks at bottom-[88px]
-          right-6 on routes without one — sized to clear a tab bar this page
-          doesn't have. Extra bottom padding here keeps the disclaimer text
-          from sitting under the 56px circle (88px-144px from viewport
-          bottom) instead of trying to make the shared FAB route-aware.
+      {/* Handoff O-011 made the help FAB route-aware: on a chromeless route
+          like this one it now parks at bottom-24px (not the bottom-nav
+          bottom-88px it used to use everywhere), so it only occupies the
+          52px circle 24px-76px from the viewport bottom, right-aligned.
+          pb-20 keeps the disclaimer's last line clear of that corner
+          without the much larger reserve the old route-unaware FAB needed.
           Handoff AU-003 point 2: near-black sign-in block, bg-panel
           rounded-bento p-[22px_20px] flex-1. */}
-      <main className="flex-1 rounded-bento bg-panel p-[22px_20px] pb-40 lg:flex-1 lg:pb-[22px]">
+      <main className="flex-1 rounded-bento bg-panel p-[22px_20px] pb-20 lg:flex-1 lg:pb-[22px]">
         <div className="mx-auto w-full max-w-[470px] lg:mx-0">
           <div className="flex flex-col gap-[18px]">
             <div>

@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { HelpCircle, X, Send, Loader2 } from 'lucide-react';
+import { HelpCircle, MessageSquare, X, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { TeacherCard } from '@/components/TeacherCard';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { useExitPresence } from '@/hooks/useExitPresence';
+import { useIsChromelessRoute } from '@/components/layout/AppShell';
 import DOMPurify from 'dompurify';
 
 interface ChatTeacher {
@@ -153,12 +154,15 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
 ];
 
 export function Chatbot() {
-  // Two fixed elements can sit below the launcher, so its offset is layered:
-  //   - BottomNav (h-16, mobile only) clears at lg:, hence the `lg:` overrides.
-  //   - Teacher profile pages add their own full-width WhatsApp contact bar
-  //     (~81px) — sit above it so the launcher never covers that primary CTA.
+  // Handoff O-011: the launcher yields entirely to the teacher profile's
+  // floating WhatsApp contact bar rather than repositioning around it — two
+  // stacked bottom-right FABs read as clutter, and the WhatsApp bar is the
+  // page's one primary CTA.
   const location = useLocation();
-  const hasBottomBar = location.pathname.startsWith('/tuition-teachers/') && !location.pathname.endsWith('/whatsapp-click');
+  const hasFloatingCta = location.pathname.startsWith('/tuition-teachers/') && !location.pathname.endsWith('/whatsapp-click');
+  // Same route-aware split as the toast (O-010): bottom nav vs chromeless
+  // (auth, reader, wizard, admin).
+  const chromeless = useIsChromelessRoute();
   const [isOpen, setIsOpen] = useState(false);
   // The launcher is fixed to the bottom-right on every page. On Home, the
   // overhanging SearchDesk's submit button lives in that same corner near
@@ -191,7 +195,7 @@ export function Chatbot() {
       clearTimeout(idleTimer);
     };
   }, []);
-  const launcherVisible = scrolledPastFold || isOpen;
+  const launcherVisible = (scrolledPastFold || isOpen) && !hasFloatingCta;
   // Keep the panel mounted briefly on close so it can play a subtle exit
   // instead of vanishing the instant the close button is tapped.
   const panelPresence = useExitPresence(isOpen, 180);
@@ -375,10 +379,12 @@ export function Chatbot() {
 
   return (
     <>
-      {/* Floating Button with ? icon */}
+      {/* Handoff O-011: 52x52 bg-card disc (not the old solid-brand fill),
+          right-4, route-aware bottom offset — desktop never has a bottom
+          nav to clear, so it always gets the smaller offset there. */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed ${hasBottomBar ? 'bottom-[168px] lg:bottom-[104px]' : 'bottom-[88px] lg:bottom-6'} right-6 z-40 flex items-center justify-center w-14 h-14 bg-brand text-brand-foreground rounded-full shadow-lg hover:-translate-y-0.5 active:scale-[0.97] transition-[transform,box-shadow,opacity] duration-200 ${
+        className={`fixed ${chromeless ? 'bottom-[calc(24px_+_env(safe-area-inset-bottom))]' : 'bottom-[calc(88px_+_env(safe-area-inset-bottom))]'} lg:bottom-[calc(24px_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-card text-foreground shadow-[0_0_0_1px_#E7DFD5,0_10px_26px_rgba(0,0,0,.20)] hover:-translate-y-0.5 active:scale-[0.97] transition-[transform,box-shadow,opacity] duration-200 ${
           launcherVisible
             ? isScrolling && !isOpen
               ? 'opacity-30 scale-90 pointer-events-none'
@@ -389,7 +395,7 @@ export function Chatbot() {
         aria-hidden={!launcherVisible}
         tabIndex={launcherVisible ? 0 : -1}
       >
-        <HelpCircle className="w-6 h-6" />
+        <MessageSquare className="h-[22px] w-[22px]" />
       </button>
 
       {/* Chat Window - Uses part of screen, smaller on mobile.
@@ -398,7 +404,7 @@ export function Chatbot() {
           so it used to pop in and vanish instantly despite the transition class. */}
       {panelPresence.mounted && (
         <div
-          className={`fixed ${hasBottomBar ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card rounded-2xl shadow-border-hover flex flex-col origin-bottom-right ${
+          className={`fixed ${hasFloatingCta ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card rounded-2xl shadow-border-hover flex flex-col origin-bottom-right ${
             panelPresence.closing ? 'animate-accordion-up' : 'animate-fade-slide-up'
           }`}
         >
