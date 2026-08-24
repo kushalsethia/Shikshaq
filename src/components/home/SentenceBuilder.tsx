@@ -72,9 +72,10 @@ function SlotChip({
           type="button"
           className={cn(
             "inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-xl px-3 align-middle transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel active:scale-[0.97]",
+            "backdrop-blur-md backdrop-saturate-150 shadow-[0_1px_0_0_rgba(255,255,255,0.25)_inset,0_8px_20px_-8px_rgba(0,0,0,0.5)]",
             filled
-              ? "bg-card text-foreground"
-              : "bg-white/[0.14] text-background ring-[1.5px] ring-inset ring-white/45",
+              ? "bg-white/[0.16] text-background ring-1 ring-inset ring-white/30 hover:bg-white/[0.22]"
+              : "bg-white/[0.08] text-background ring-1 ring-inset ring-white/20 hover:bg-white/[0.12]",
             tilt,
             "motion-reduce:rotate-0",
           )}
@@ -90,16 +91,30 @@ function SlotChip({
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="max-h-72 w-56 overflow-y-auto p-2">
-        <ul className="flex flex-col gap-1">
+      {/* Handoff O-009: same popover shell as O-008 (rounded-[24px] bg-card,
+          own shadow), but plain rows, not the field-picker's larger row —
+          this opens over the dome, so it must carry its own bg-card/shadow
+          rather than inheriting the dome's fill. */}
+      <PopoverContent align="start" sideOffset={8} className="max-h-72 w-56 overflow-y-auto p-2">
+        <ul
+          className="flex flex-col gap-0.5"
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+            e.preventDefault();
+            const items = Array.from(e.currentTarget.querySelectorAll('button'));
+            const i = items.indexOf(document.activeElement as HTMLButtonElement);
+            const next = e.key === 'ArrowDown' ? Math.min(i + 1, items.length - 1) : Math.max(i - 1, 0);
+            items[next === -1 ? 0 : next]?.focus();
+          }}
+        >
           {slot.options.map((opt) => (
             <li key={opt}>
               <button
                 type="button"
                 onClick={() => onPick(opt)}
                 className={cn(
-                  "flex h-11 w-full items-center rounded-lg px-3 text-left text-body-secondary transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  slot.value === opt && "bg-muted font-semibold",
+                  "flex min-h-[48px] w-full items-center rounded-[12px] px-3 text-left text-[15px] font-semibold text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  slot.value === opt && "bg-brand-subtle text-brand-deep",
                 )}
               >
                 {opt}

@@ -88,8 +88,21 @@ function Field({
             <ChevronDown className="size-4 flex-none text-warm-label" aria-hidden />
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="max-h-72 w-64 overflow-y-auto p-2">
-          <ul className="flex flex-col gap-1">
+        <PopoverContent align="start" sideOffset={8} className="max-h-[320px] w-[--radix-popover-trigger-width] overflow-y-auto p-2">
+          {/* Handoff O-008: Up/Down roves focus between rows (Escape-closes/
+              Enter-selects already come for free from Radix + native
+              <button> semantics). */}
+          <ul
+            className="flex flex-col gap-0.5"
+            onKeyDown={(e) => {
+              if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+              e.preventDefault();
+              const items = Array.from(e.currentTarget.querySelectorAll('button'));
+              const i = items.indexOf(document.activeElement as HTMLButtonElement);
+              const next = e.key === 'ArrowDown' ? Math.min(i + 1, items.length - 1) : Math.max(i - 1, 0);
+              items[next === -1 ? 0 : next]?.focus();
+            }}
+          >
             {/* An explicit "any" row — without it there is no way back to the
                 empty state once a value is chosen, which strands anyone who
                 picks the wrong subject. */}
@@ -102,7 +115,7 @@ function Field({
                     setOpen(false);
                   }}
                   className={cn(
-                    'flex h-11 w-full items-center rounded-lg px-3 text-left text-body-secondary transition-colors duration-150 hover:bg-muted',
+                    'flex min-h-[52px] w-full items-center gap-3 rounded-[14px] px-3 text-left text-[15px] text-foreground transition-colors duration-150 hover:bg-muted',
                     FOCUS,
                     value === opt && 'bg-muted font-semibold',
                   )}
