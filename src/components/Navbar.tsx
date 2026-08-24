@@ -326,7 +326,7 @@ export function Navbar() {
                   here from the old per-item list — it's real functionality,
                   reachable one tap further via the account row above rather
                   than a separate destructive item in this menu. */}
-              <div className="mt-3 flex min-h-11 flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[13px] text-warm-tertiary">
+              <div className="mt-3 flex min-h-11 flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[13px] text-warm-meta">
                 <SheetClose asChild>
                   <Link to="/about" className={`rounded ${FOCUS_RING}`}>About</Link>
                 </SheetClose>

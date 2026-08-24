@@ -315,7 +315,7 @@ export function TeacherComments({ teacherId, subject, teacherSlug }: TeacherComm
           <h2 className="font-display text-[18px] font-extrabold tracking-[-0.03em] text-brand-deep">
             Reviews
           </h2>
-          <span className="tabular-nums text-warm-tertiary">({comments.length})</span>
+          <span className="tabular-nums text-warm-meta">({comments.length})</span>
           {average !== null && (
             <span className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-[13px] font-bold text-brand-deep">
               <Star className="h-[13px] w-[13px] fill-current" aria-hidden="true" />

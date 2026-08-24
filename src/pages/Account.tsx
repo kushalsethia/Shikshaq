@@ -364,7 +364,7 @@ export default function Account() {
             <h1 className="truncate font-display text-[22px] font-extrabold tracking-[-0.04em] text-foreground">
               {userName || 'Your account'}
             </h1>
-            <p className="mt-0.5 truncate text-[14px] text-warm-tertiary">{subLineParts.join(' · ')}</p>
+            <p className="mt-0.5 truncate text-[14px] text-warm-meta">{subLineParts.join(' · ')}</p>
           </div>
           <button
             type="button"

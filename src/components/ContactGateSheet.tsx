@@ -134,7 +134,7 @@ export function ContactGateSheet({
             </div>
             <div className="min-w-0">
               <div className="truncate text-[16px] font-bold tracking-[-0.02em] text-foreground">{teacherName}</div>
-              {metaLine ? <div className="truncate text-[13px] text-warm-tertiary">{metaLine}</div> : null}
+              {metaLine ? <div className="truncate text-[13px] text-warm-meta">{metaLine}</div> : null}
             </div>
           </div>
         ) : null}

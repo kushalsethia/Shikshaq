@@ -461,7 +461,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
             }
           >
             <Search
-              className={heroDesk ? 'h-[19px] w-[19px] flex-none text-warm-tertiary' : `h-5 w-5 flex-none ${onDark ? 'text-white/45' : 'text-muted-foreground'}`}
+              className={heroDesk ? 'h-[19px] w-[19px] flex-none text-warm-meta' : `h-5 w-5 flex-none ${onDark ? 'text-white/45' : 'text-muted-foreground'}`}
               strokeWidth={2.25}
               aria-hidden="true"
             />
@@ -479,7 +479,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               placeholder={mode === 'teachers' ? 'Subject, class or area' : 'Board, class, subject or school'}
               className={
                 heroDesk
-                  ? 'min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-warm-tertiary'
+                  ? 'min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-warm-meta'
                   : `min-w-0 flex-1 border-0 bg-transparent text-base outline-none ${
                       onDark ? 'text-white placeholder:text-white/45' : 'text-foreground placeholder:text-muted-foreground'
                     }`

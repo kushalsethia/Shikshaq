@@ -107,7 +107,7 @@ export function ReviewCard({ review, index, fan = false, fullWidth = false, clas
             <p className="truncate text-[12.5px] font-semibold text-foreground">
               {review.who}
             </p>
-            <p className="text-[12.5px] text-warm-tertiary">{review.when}</p>
+            <p className="text-[12.5px] text-warm-meta">{review.when}</p>
           </div>
         </div>
       </div>

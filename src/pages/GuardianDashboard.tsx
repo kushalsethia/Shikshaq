@@ -472,7 +472,7 @@ export default function GuardianDashboard() {
                 <h1 className="truncate font-display text-[24px] font-extrabold tracking-[-0.04em] text-foreground">
                   Hi, {firstName}
                 </h1>
-                <p className="mt-0.5 truncate text-[13px] text-warm-tertiary">
+                <p className="mt-0.5 truncate text-[13px] text-warm-meta">
                   {subLineParts.join(' · ')}
                 </p>
               </div>

@@ -539,7 +539,7 @@ export default function Index() {
             <div className="flex flex-col gap-seam lg:gap-2">
           {/* -------------------------------------------------------- 1 · Greeting */}
           <BentoPanel fill="card" edge="top" className="relative overflow-hidden">
-            <p className="mt-[14px] text-[12.5px] font-medium text-warm-tertiary">{heroCopy.eyebrow}</p>
+            <p className="mt-[14px] text-[12.5px] font-medium text-warm-meta">{heroCopy.eyebrow}</p>
             <h1
               key={heroCopy.before + heroCopy.bold}
               className="animate-hero-swap mt-[6px] font-display text-[34px] font-normal leading-[1.14] tracking-[-0.045em] text-foreground lg:text-[58px] lg:leading-[1.02] lg:tracking-[-0.05em]"
@@ -947,7 +947,7 @@ export default function Index() {
                         <StripePlaceholder name={q.authorName} initialSize={14} className="h-[26px] w-[26px] flex-none rounded-full" />
                         <div className="min-w-0">
                           <p className="truncate text-[12.5px] font-semibold text-foreground">{q.authorName}</p>
-                          {q.authorMeta && <p className="truncate text-[12.5px] text-warm-tertiary">{q.authorMeta}</p>}
+                          {q.authorMeta && <p className="truncate text-[12.5px] text-warm-meta">{q.authorMeta}</p>}
                         </div>
                       </div>
                     </li>

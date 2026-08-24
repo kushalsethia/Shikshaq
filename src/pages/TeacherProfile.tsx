@@ -143,7 +143,7 @@ function SpeechChip({ children, accent = false }: { children: React.ReactNode; a
 function StatTile({ icon: Icon, label, value }: { icon: typeof Clock; label: string; value: string }) {
   return (
     <BentoPanel fill="card" className="animate-card-reveal flex-1 px-[14px] py-4">
-      <Icon size={18} className="text-warm-tertiary" strokeWidth={2} aria-hidden="true" />
+      <Icon size={18} className="text-warm-meta" strokeWidth={2} aria-hidden="true" />
       <div className="mt-[10px] text-[11.5px] font-bold uppercase tracking-[0.04em] text-warm-label">
         {label}
       </div>

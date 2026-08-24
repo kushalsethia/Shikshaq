@@ -1613,12 +1613,12 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           )}
         </h1>
         {pageContext ? (
-          <p className="mt-1 text-[14.5px] text-warm-tertiary">
+          <p className="mt-1 text-[14.5px] text-warm-meta">
             {loading ? 'Loading teachers…' : `${resultCountLabel} teacher${teachers.length === 1 ? '' : 's'} in Kolkata`}
           </p>
         ) : subLineParts.length > 0 && (
           <p
-            className="mt-1 text-[14.5px] text-warm-tertiary"
+            className="mt-1 text-[14.5px] text-warm-meta"
             style={headerAccent ? { color: headerAccent } : undefined}
           >
             {subLineParts.join(' · ')}
@@ -1626,7 +1626,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         )}
 
         {!loading && resultsTruncated && (
-          <p className="mt-2 text-xs font-medium text-warm-tertiary">
+          <p className="mt-2 text-xs font-medium text-warm-meta">
             Showing the first {teachers.length} results. Narrow your search to see more.
           </p>
         )}
