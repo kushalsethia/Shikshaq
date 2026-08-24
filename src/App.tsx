@@ -83,12 +83,16 @@ const TeacherRedirect = () => {
   return <Navigate to={`/tuition-teachers/${slug}`} replace />;
 };
 
-// Short, subtle crossfade on route change. Keyed on pathname only (not query
-// params) so filter/search changes within a page never re-trigger it.
+// Handoff M-014: "no route-level fade, slide or crossfade anywhere" — the
+// crossfade this used to play on every route change (`route-fade`, now
+// removed from index.css) is exactly what that rule prohibits. The
+// pathname key is kept: it still remounts page-level state on navigation,
+// which is a separate concern from the animation that used to ride along
+// with it.
 const RouteTransition = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   return (
-    <div key={location.pathname} className="route-fade pb-20 lg:pb-0">
+    <div key={location.pathname} className="pb-20 lg:pb-0">
       {children}
     </div>
   );

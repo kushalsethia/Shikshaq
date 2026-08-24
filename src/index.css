@@ -59,6 +59,7 @@
     --warm-hairline: #E7DFD5;      /* == --border */
     --warm-hairline-raised: #E4DCD2;
     --warm-hairline-strong: #D8CFC4;
+    --on-brand-hairline: rgba(255,255,255,0.14); /* decorative hairline/overlay on saturated brand fills — not text */
     --panel-dark: #1B1A18;         /* footer / near-black slab */
 
     /* ---- Warm text scale (VISUAL_LANGUAGE.md §2.1) ------------------------
@@ -137,8 +138,11 @@
     /* ---- Colored glow shadows (VISUAL_LANGUAGE.md §2.2, §8) -------------- */
     --shadow-glow-brand: 0 14px 34px rgba(255, 128, 0, 0.28);
     --shadow-glow-brand-blue: 0 14px 34px rgba(67, 81, 255, 0.28);
+    --shadow-glow-brand-tight: 0 0 20px -2px rgba(255, 128, 0, 0.55);
+    --shadow-glow-brand-blue-tight: 0 0 20px -2px rgba(67, 81, 255, 0.55);
     --shadow-card-bone: 0 0 0 1px #E7DFD5, 0 10px 26px rgba(0, 0, 0, 0.07);
     --shadow-card-mint: 0 10px 26px rgba(0, 0, 0, 0.06);
+    --shadow-pill: 0 8px 28px -6px rgba(0, 0, 0, 0.45);
 
     /* ---- Facet/status accent tokens ---------------------------------------
        Promoted from src/utils/searchFacets.ts's old ACCENT_TOKENS/SURFACE_TOKENS
@@ -159,6 +163,18 @@
          footer slab already exposed as the `panel` Tailwind color). These are
          two unrelated colors that happened to share a short name. Kept both:
          --panel-dark is unchanged, the light one is now --surface-panel-light. */
+    /* ---- Auth proof-mosaic subject tints (Auth.tsx, changelog C-032) ------
+       The mosaic stands in for many subjects, not a single mode, so it is the
+       one facet allowed to escape the orange/indigo mode-accent budget. These
+       are the literal spec hues from "Redesign Account screens.dc.html",
+       promoted from inline style={{...}} literals into tokens. */
+    --mosaic-blue-bg: 210 62% 93%;
+    --mosaic-blue-text: 210 45% 26%;
+    --mosaic-mint-bg: 168 45% 93%;
+    --mosaic-mint-text: 168 45% 26%;
+    --mosaic-purple-bg: 262 52% 93%;
+    --mosaic-purple-text: 262 45% 26%;
+
     --success: #228B22;
     --success-subtle-bg: #E6F4E6;   /* "settled" badge background */
     --success-subtle-text: #1B5E20; /* "settled" badge text */
@@ -245,6 +261,22 @@
        browser's own refresh/navigation gesture from triggering while leaving
        normal scrolling everywhere else untouched. */
     overscroll-behavior-y: contain;
+    /* This app ships one warm-light theme only — darkMode:["class"] in
+       tailwind.config.ts is wired but nothing ever toggles a `.dark` class,
+       and :root never defines a dark palette. Without `color-scheme: light`,
+       a phone set to system dark mode still gets the UA's own dark default
+       for chrome the app's own CSS doesn't paint: iOS Safari's rubber-band
+       overscroll fill (exactly what a pull past scrollY 0 now exposes, since
+       PullToRefresh relies on that gesture) and Chrome's own overscroll glow
+       both default to near-black there instead of inheriting `background`
+       below. That produced the "black strip behind the navbar, regardless of
+       the page's real background" mobile QA report — it was never app
+       markup painting black, it was the browser's own dark-mode default
+       showing through the gap the fixed nav pill leaves. Pinning both
+       properties makes that gap (and any other UA-painted sliver) always
+       resolve to the same warm cream every real page uses. */
+    color-scheme: light;
+    background: hsl(var(--background));
   }
 
   /* `body` intentionally does NOT also get overflow-x:hidden: setting overflow
@@ -430,28 +462,6 @@
   /* The hero stat cluster's three-element structure, and the desktop-only
      guard for the ambient loops, live at the BOTTOM of this file — outside
      @layer, so the guard is never purged along with unused utilities. */
-
-  @keyframes routeFadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .route-fade {
-    /* fill-mode intentionally omitted (not `both`): the animation's `to` state
-       (opacity:1, transform:none) already matches the element's resting style,
-       so nothing visually changes once it finishes — but ending the animation
-       cleanly (rather than freezing a `transform` via fill-mode) drops the
-       stacking context it would otherwise pin under, which was trapping every
-       in-page z-index (search dropdown, nav menu, etc.) below page-level fixed
-       elements like the chatbot launcher. See Chatbot.tsx's fixed z-40 button. */
-    animation: routeFadeIn .28s cubic-bezier(.2,.9,.2,1);
-  }
 
   @keyframes whatsapp-pulse {
     0%   { box-shadow: 0 0 0 0    rgba(37, 211, 102, 0.3); }

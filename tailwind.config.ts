@@ -307,6 +307,13 @@ export default {
         entrance: "500ms",
       },
       transitionTimingFunction: {
+        /* Handoff M-001: the same curve as `settle` above, under the name
+           the motion-and-animation spec uses ("ease-snap"). Added rather
+           than renaming `settle` — that name is already load-bearing on
+           fade-slide-up/card-reveal/hero-swap/fan-in and other consumers
+           across the app; `ease-out` (Tailwind's built-in) is the spec's
+           other curve and needs no addition. */
+        snap: "cubic-bezier(0.16, 1, 0.3, 1)",
         settle: "cubic-bezier(0.16, 1, 0.3, 1)",
         tap: "ease-out",
         pop: "cubic-bezier(0.34, 1.56, 0.64, 1)",
