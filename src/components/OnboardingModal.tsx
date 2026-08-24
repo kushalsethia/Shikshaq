@@ -79,7 +79,13 @@ export function OnboardingModal() {
       </div>
 
       <div className="relative flex flex-1 flex-col items-center justify-center px-5">
-        <h1 className="font-display text-[58px] font-black leading-[0.9] tracking-[-0.06em] text-[#FCFAF7]">
+        {/* Handoff C-009: text-brand-foreground (#1F1F1F), not white --
+            index.css's own token comment records why: #FF8000 cannot carry
+            white text at any size this site uses (measured 2.52:1 against
+            AA's 4.5:1 floor). Every other brand-orange surface in the app
+            already uses the dark ink; this full-screen headline was the one
+            surface still on the pre-fix white. */}
+        <h1 className="font-display text-[58px] font-black leading-[0.9] tracking-[-0.06em] text-brand-foreground">
           Search,<br />
           shortlist,<br />
           <span className="inline-block -mx-2 rounded-[6px] bg-[#FCFAF7] px-2 text-[#1F1F1F]">message.</span><br />

@@ -444,12 +444,16 @@ export function Chatbot() {
                 key={index}
                 className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
               >
-                {/* pages.md §19: user bubbles bg-brand text-white right-aligned max 82%,
-                    assistant bubbles bg-card shadow-border left. */}
+                {/* pages.md §19: user bubbles bg-brand right-aligned max 82%,
+                    assistant bubbles bg-card shadow-border left.
+                    Handoff C-009: text-brand-foreground, not text-white --
+                    #FF8000 fails contrast with white at this text-sm size
+                    (measured 2.52:1 against AA's 4.5:1 floor); every other
+                    brand-orange surface in the app uses the dark ink. */}
                 <div
                   className={`max-w-[82%] rounded-2xl px-3 py-2 md:px-4 md:py-2.5 ${
                     message.role === 'user'
-                      ? 'bg-brand text-white'
+                      ? 'bg-brand text-brand-foreground'
                       : 'bg-card shadow-border text-foreground'
                   }`}
                 >
