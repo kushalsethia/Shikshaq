@@ -31,7 +31,13 @@ const PUPIL_MAX_X = 20;
 const PUPIL_MAX_Y = 16;
 const PUPIL_DISTANCE_NORM = 260;
 const IDLE_BLINK_MS = 5200;
-const BLINK_DURATION_MS = 90;
+// Handoff M-005: the lid drops for 150ms (how long it stays visually
+// closed before reopening) on a 90ms ease-out transition curve (the Eye
+// component's own duration-[90ms] class) — two different numbers. This one
+// used to reuse the transition's 90ms for the hold too, which meant the
+// close-transition and the reopen-transition were racing rather than the
+// lid ever settling shut.
+const BLINK_HOLD_MS = 150;
 
 type OrientationPermissionState = 'unknown' | 'granted' | 'denied' | 'unsupported';
 
@@ -101,7 +107,7 @@ function EyesPanel({
   const runBlink = React.useCallback(() => {
     if (reduced) return;
     setBlinking(true);
-    window.setTimeout(() => setBlinking(false), BLINK_DURATION_MS);
+    window.setTimeout(() => setBlinking(false), BLINK_HOLD_MS);
   }, [reduced]);
 
   // Idle blink loop.
@@ -153,8 +159,11 @@ function EyesPanel({
     function onOrientation(e: DeviceOrientationEvent) {
       if (e.gamma == null || e.beta == null) return;
       setTiltActive(true);
-      const x = Math.max(-1, Math.min(1, e.gamma / 45)) * PUPIL_MAX_X;
-      const y = Math.max(-1, Math.min(1, (e.beta - 45) / 45)) * PUPIL_MAX_Y;
+      // Handoff M-004: gamma maps to x over +/-30 degrees, beta maps to y as
+      // (beta - 45) / 30 -- both clamped to +/-1. Was dividing by 45, which
+      // needed a steeper tilt than specified to reach full pupil deflection.
+      const x = Math.max(-1, Math.min(1, e.gamma / 30)) * PUPIL_MAX_X;
+      const y = Math.max(-1, Math.min(1, (e.beta - 45) / 30)) * PUPIL_MAX_Y;
       setLeftOffset({ x, y });
       setRightOffset({ x, y });
     }
