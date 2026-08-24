@@ -326,16 +326,26 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
               aria-hidden
               className={cn("pointer-events-none absolute -bottom-20 -right-14 h-[280px] w-[280px] rounded-[40px] opacity-[0.16]", CARD_SHAPES[card.mode])}
             />
-            <div className="relative flex h-full items-center justify-center p-6">
+            {/* Handoff M-012: stepping animates only the art well's contents
+                and the text block, opacity 0->1 + translateY(10px->0) over
+                500ms ease-snap — key={step} remounts this div each step so
+                the animation replays; the outer well itself (this whole
+                bg-white/[0.04] block) does not move. */}
+            <div key={step} className="relative flex h-full items-center justify-center p-6 animate-tour-step-in">
               <div className="w-full max-w-xs rotate-[-2deg] drop-shadow-[0_18px_30px_rgba(0,0,0,.35)]">{card.illustration}</div>
             </div>
           </div>
 
           <div className="p-[22px_22px_26px]">
-            <h2 className="font-display text-[30px] font-bold leading-[1.06] tracking-[-0.045em] text-background">
-              {card.headline}
-            </h2>
-            <p className="mt-[10px] text-[14.5px] leading-[1.55] text-background/65">{card.body}</p>
+            {/* Same M-012 step animation, isolated to the headline+body only
+                — the dot row, CTA and Skip link below (the "CTA row") stay
+                still, per the entry's own instruction. */}
+            <div key={step} className="animate-tour-step-in">
+              <h2 className="font-display text-[30px] font-bold leading-[1.06] tracking-[-0.045em] text-background">
+                {card.headline}
+              </h2>
+              <p className="mt-[10px] text-[14.5px] leading-[1.55] text-background/65">{card.body}</p>
+            </div>
 
             <div className="mt-5 flex items-center justify-between gap-3">
               {/* Dots, not a segmented fill bar. dc.html draws four 6px-tall
@@ -347,7 +357,10 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
                   <span
                     key={i}
                     className={cn(
-                      "h-[6px] rounded-full transition-[width,background-color] duration-300 ease-settle",
+                      /* Handoff M-012: 500ms ease-snap, not the old 300ms —
+                         same curve as the step content above so the dot and
+                         the art/text it's tracking read as one movement. */
+                      "h-[6px] rounded-full transition-[width,background-color] duration-500 ease-snap",
                       i === step ? "w-5 bg-background" : "w-[6px] bg-background/28",
                     )}
                   />

@@ -362,6 +362,13 @@ export default {
           from: { opacity: "0", transform: "translateY(24px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        /* Handoff M-012: the product tour's step change — its own 10px
+           travel distance, distinct from fadeSlideUp's 24px, so kept as a
+           separate keyframe rather than overloading that one's value. */
+        tourStepIn: {
+          from: { opacity: "0", transform: "translateY(10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
         cardReveal: {
           from: { opacity: "0", transform: "translateY(20px) scale(0.97)" },
           to: { opacity: "1", transform: "translateY(0) scale(1)" },
@@ -423,6 +430,7 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-slide-up": "fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "tour-step-in": "tourStepIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
         "card-reveal": "cardReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both",
         shimmer: "shimmer 1.5s ease-in-out infinite",
 
