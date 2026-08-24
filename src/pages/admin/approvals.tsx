@@ -19,21 +19,25 @@ import {
 import { Button } from '@/components/ui/button';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { useAdminGuard, useReviewerNames, AdminGuardErrorState } from '@/components/AdminConsole';
-import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
+import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
 import {
   AdminTable,
+  AdminPanelHeader,
+  AdminStatusPill,
   type AdminTableColumn,
   type AdminTableRow,
-  type AdminPillTone,
+  type AdminStatus,
 } from '@/pages/admin/AdminTable';
+import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 
-/* Redesign S7/A1 (pages.md §15) — "Approvals". Ported from the legacy
+/* Handoff 09i AD-001..004 — "Approvals". Ported from the legacy
    src/pages/AdminApplications.tsx (614 lines): same teacher_applications
    queries, the same approve_teacher_application RPC, and the same reject
-   mutation + recordAdminAction calls. The old AdminConsole tab shell is
-   gone — this page renders AdminRail + AdminToolbar directly and owns its
-   own body, per the new 5-section shell. */
+   mutation + recordAdminAction calls. The old AdminRail/AdminToolbar
+   sidebar shell is gone — this page renders the AdminHeader pill-tab row
+   and its own BentoPanel content, per the actual handoff spec (not the
+   superseded S7 rail). */
 
 interface TeacherApplication {
   id: string;
@@ -232,14 +236,14 @@ export default function AdminApprovals() {
     }
   };
 
-  const applicationStateTone = (status: TeacherApplication['status']): AdminPillTone => {
+  const applicationStatus = (status: TeacherApplication['status']): AdminStatus => {
     switch (status) {
       case 'approved':
-        return 'ok';
+        return 'live';
       case 'rejected':
-        return 'bad';
+        return 'hidden';
       default:
-        return 'wait';
+        return 'pending';
     }
   };
 
@@ -253,29 +257,21 @@ export default function AdminApprovals() {
 
   const pendingCount = applications.filter((a) => a.status === 'pending').length;
 
-  const nav: AdminNavItem[] = [
-    { key: 'approvals', label: 'Approvals', path: '/admin/approvals', count: sectionCounts.approvals ?? pendingCount, active: true },
-    { key: 'teachers', label: 'Live teachers', path: '/admin/teachers', count: sectionCounts.teachers, active: false },
-    { key: 'papers', label: 'Papers', path: '/admin/papers', count: sectionCounts.papers, active: false },
-    { key: 'reviews', label: 'Reviews & recs', path: '/admin/reviews', count: sectionCounts.reviews, active: false },
-    { key: 'audit', label: 'Audit log', path: '/admin/audit', active: false },
-  ];
+  const nav = buildAdminNav('approvals', { approvals: sectionCounts.approvals ?? pendingCount, reviews: sectionCounts.reviews });
 
   if (checkingAdmin || loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <AdminRail nav={nav} signedInName={signedInName} />
-        <div className="flex min-h-screen flex-col lg:pl-[244px]">
-          <AdminToolbar title="Approvals" />
-          <main className="flex-1 p-7">
-            <div className="animate-pulse space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 rounded-2xl bg-muted" />
-              ))}
-            </div>
-          </main>
-        </div>
-      </div>
+      <BentoStack className="min-h-screen bg-muted">
+        <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+        <BentoPanel fill="card" className="px-[18px] py-[18px]">
+          <div className="animate-pulse space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-14 rounded-2xl bg-muted" />
+            ))}
+          </div>
+        </BentoPanel>
+        <AdminAuditNote />
+      </BentoStack>
     );
   }
 
@@ -284,35 +280,42 @@ export default function AdminApprovals() {
   if (!isAdmin) return null;
 
   const applicationColumns: AdminTableColumn[] = [
-    { key: 'applicant', label: 'Applicant', width: '2.2fr' },
+    { key: 'applicant', label: 'Applicant', width: '1.8fr' },
+    { key: 'contact', label: 'Contact', width: '1.4fr' },
     { key: 'subjects', label: 'Subjects', width: '1.6fr' },
     { key: 'area', label: 'Area', width: '1fr' },
     { key: 'submitted', label: 'Submitted', width: '1fr' },
     { key: 'docs', label: 'Docs', width: '1fr' },
+    { key: 'status', label: 'Status', width: '1fr' },
   ];
 
   const applicationRows: AdminTableRow[] = filteredApplications.map((application) => {
-    const initials = application.name?.trim().charAt(0).toUpperCase() || '?';
     const subjects = [application.subjects, application.classes_taught_for_backend]
       .filter(Boolean)
       .join(' · ') || 'N/A';
     const docsLabel = application.hero_image_url ? 'Photo + refs' : application.reference_name ? 'Refs only' : 'None';
     return {
       id: application.id,
-      initial: initials,
-      title: application.name,
-      subtitle: `+91 ${application.phone_number} · ${getTextedStatusLabel(application.texted_status)}`,
       cells: [
+        application.name,
+        `+91 ${application.phone_number} · ${getTextedStatusLabel(application.texted_status)}`,
         subjects,
         application.location_v2 || 'N/A',
         formatDistanceToNow(new Date(application.created_at), { addSuffix: true }),
         docsLabel,
+        <AdminStatusPill
+          key="status"
+          status={applicationStatus(application.status)}
+          label={application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+        />,
       ],
-      tone: applicationStateTone(application.status),
-      tag: application.status.charAt(0).toUpperCase() + application.status.slice(1),
-      actionLabel: application.status === 'pending' ? 'Review' : 'View docs',
-      onAction: () => setSelectedApplication(application),
-      onOverflow: () => setSelectedApplication(application),
+      actions: [
+        {
+          label: application.status === 'pending' ? 'Review' : 'View docs',
+          tone: 'primary',
+          onClick: () => setSelectedApplication(application),
+        },
+      ],
     };
   });
 
@@ -343,60 +346,40 @@ export default function AdminApprovals() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <AdminRail nav={nav} signedInName={signedInName} />
+    <BentoStack className="min-h-screen bg-muted">
+      <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
 
-      <div className="flex min-h-screen flex-col lg:pl-[244px]">
-        <AdminToolbar
-          title="Approvals"
-          badge={`${pendingCount} waiting`}
-          search={searchSlot}
-          sort={sortSlot}
-        />
+      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+        <AdminPanelHeader title="Applications" meta={`${pendingCount} waiting`} />
 
-        <main className="flex-1 p-5 lg:p-7">
-          <div className="mb-4 lg:hidden">
-            <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-foreground">Approvals</h1>
-            <p className="mt-1 text-sm text-warm-label">Verify qualifications and references before a profile goes live.</p>
-            <div className="relative mt-4">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-warm-label" aria-hidden />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search applicants..."
-                className="h-11 w-full rounded-full bg-muted pl-9 pr-4 text-sm text-foreground placeholder:text-warm-label outline-none"
-              />
-            </div>
+        <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">
+          {searchSlot}
+          {sortSlot}
+        </div>
+
+        {filteredApplications.length === 0 ? (
+          <div className="rounded-2xl bg-muted p-12 text-center">
+            <p className="text-sm text-warm-label">
+              {searchQuery.trim()
+                ? `No applications match "${searchQuery.trim()}".`
+                : 'No applications waiting on review.'}
+            </p>
+            {searchQuery.trim() ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="mt-3 text-sm font-semibold text-brand underline-offset-2 hover:underline"
+              >
+                Clear search
+              </button>
+            ) : null}
           </div>
+        ) : (
+          <AdminTable columns={applicationColumns} rows={applicationRows} />
+        )}
+      </BentoPanel>
 
-          {filteredApplications.length === 0 ? (
-            <div className="rounded-[20px] bg-card p-12 text-center shadow-border">
-              <p className="text-sm text-warm-label">
-                {searchQuery.trim()
-                  ? `No applications match "${searchQuery.trim()}".`
-                  : 'No applications waiting on review.'}
-              </p>
-              {searchQuery.trim() ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="mt-3 text-sm font-semibold text-brand underline-offset-2 hover:underline"
-                >
-                  Clear search
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            <AdminTable columns={applicationColumns} rows={applicationRows} />
-          )}
-
-          <p className="mt-5 max-w-prose text-[13px] leading-[1.5] text-warm-label">
-            Approvals, rejections and takedowns are written to the audit log with your name and the exact time.
-            Rejections always carry a reason the teacher can read.
-          </p>
-        </main>
-      </div>
+      <AdminAuditNote />
 
       <Dialog
         open={!!selectedApplication}
@@ -537,6 +520,6 @@ export default function AdminApprovals() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </BentoStack>
   );
 }

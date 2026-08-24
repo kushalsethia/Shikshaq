@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,19 +23,77 @@ import {
   useReviewerNames,
   AdminGuardErrorState,
 } from '@/components/AdminConsole';
-import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
-import { AdminTable, type AdminTableColumn, type AdminTableRow, type AdminPillTone } from '@/pages/admin/AdminTable';
+import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminStatusPill, AdminRowActions, type AdminStatus, type AdminRowAction } from '@/pages/admin/AdminTable';
+import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { ThumbsUp } from 'lucide-react';
 
-/* Redesign A4 "Reviews & recs" — the single-page merge of the three legacy
+/* Handoff 09i AD-007 "Reviews" — the single-page merge of the three legacy
    review-adjacent admin routes (AdminComments, AdminRecommendations,
-   AdminUpvotes) into one AdminTable, switched by a segmented source control.
-   AdminFeedback.tsx (site NPS/star-rating feedback, unrelated to teacher
-   reviews — no teacher column, no publish/convert action) is deliberately
-   left out; see the report for the reasoning. */
+   AdminUpvotes), switched by a segmented source control. AdminFeedback.tsx
+   (site NPS/star-rating feedback, unrelated to teacher reviews — no teacher
+   column, no publish/convert action) is deliberately left out; see the
+   report for the reasoning.
+
+   AD-007 ⚠: this screen is "not a table — a queue of cards" and "reported
+   reviews only" (a moderator clears a queue, they do not browse all
+   reviews). The real `teacher_comments` schema has no reported/flagged
+   column distinct from the pre-publish `approved` moderation flag this page
+   already used — there is no separate "reported after publish" concept to
+   query, so the Reviews source's existing pending-moderation queue is what
+   renders as the AD-007 card queue (queries/mutations unchanged). The
+   Approved/All tabs are real, working admin features this task must not
+   remove, so they stay, demoted to a small secondary control rather than
+   the primary view AD-007 warns against building. AD-007 also says "hide,
+   never delete" — the real mutation here is `teacher_comments.delete()` (no
+   `hidden` flag exists on the table to soft-hide with), so the destructive
+   action keeps its honest "Remove" label and permanent-delete confirm
+   dialog rather than being mislabelled "Hide". See the redesign commit
+   message for the full adaptation notes. */
 
 type Source = 'reviews' | 'recommendations' | 'upvotes';
+
+/** AD-007's card shape, shared by all three sources on this page (not just
+ *  the literal "reported reviews" one the spec text describes — this whole
+ *  screen is the Reviews section, so every source it merges renders as the
+ *  same card queue rather than reverting to a table for two of the three). */
+interface QueueCardData {
+  id: string;
+  quote: ReactNode;
+  attribution: string;
+  badge: ReactNode;
+  actions: AdminRowAction[];
+}
+
+/** AD-007: `rounded-[20px] bg-muted p-[16px_18px]`, quote at 14.5px/1.55,
+ *  attribution at 12.5px muted, badge + actions right-aligned. */
+function AdminQueueCard({ card }: { card: QueueCardData }) {
+  return (
+    <div className="rounded-2xl bg-muted px-[18px] py-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-[14.5px] leading-[1.55] text-warm-prose">{card.quote}</p>
+          <div className="mt-2 text-[12.5px] text-warm-meta">{card.attribution}</div>
+          <div className="mt-2.5">{card.badge}</div>
+        </div>
+        <div className="shrink-0">
+          <AdminRowActions actions={card.actions} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminQueueList({ cards }: { cards: QueueCardData[] }) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      {cards.map((card) => (
+        <AdminQueueCard key={card.id} card={card} />
+      ))}
+    </div>
+  );
+}
 
 interface Comment {
   id: string;
@@ -462,16 +520,16 @@ export default function AdminReviews() {
     }
   };
 
-  const pillTone = (status: Recommendation['status']): AdminPillTone => {
+  const recStatus = (status: Recommendation['status']): AdminStatus => {
     switch (status) {
       case 'onboarded':
-        return 'ok';
+        return 'live';
       case 'rejected':
-        return 'bad';
+        return 'hidden';
       case 'contacted':
-        return 'info';
+        return 'paused';
       default:
-        return 'wait';
+        return 'pending';
     }
   };
 
@@ -573,19 +631,7 @@ export default function AdminReviews() {
   const pendingReviewsCount = useMemo(() => comments.filter((c) => !c.approved).length, [comments]);
   const pendingRecsCount = useMemo(() => recommendations.filter((r) => r.status === 'pending').length, [recommendations]);
 
-  const nav: AdminNavItem[] = [
-    { key: 'approvals', label: 'Approvals', path: '/admin/approvals', active: false },
-    { key: 'teachers', label: 'Live teachers', path: '/admin/teachers', active: false },
-    { key: 'papers', label: 'Papers', path: '/admin/papers', active: false },
-    {
-      key: 'reviews',
-      label: 'Reviews',
-      path: '/admin/reviews',
-      active: true,
-      count: pendingReviewsCount + pendingRecsCount || undefined,
-    },
-    { key: 'audit', label: 'Audit log', path: '/admin/audit', active: false },
-  ];
+  const nav = buildAdminNav('reviews', { reviews: pendingReviewsCount + pendingRecsCount || undefined });
 
   const sourceTabs: { key: Source; label: string; count: number }[] = [
     { key: 'reviews', label: 'Reviews', count: pendingReviewsCount },
@@ -605,76 +651,61 @@ export default function AdminReviews() {
     </Select>
   );
 
-  // --- Row shape (A4 spec): Body excerpt / teacher / author / flagged -----
-  const columns: AdminTableColumn[] = [
-    { key: 'body', label: 'Body excerpt', width: '2.2fr' },
-    { key: 'teacher', label: 'Teacher', width: '1.4fr' },
-    { key: 'author', label: 'Author', width: '1.4fr' },
-    { key: 'flagged', label: 'Flagged', width: '0.9fr' },
-    { key: 'actions', label: '', width: '1.2fr' },
-  ];
-
-  const reviewRows: AdminTableRow[] = comments.map((comment): AdminTableRow => {
+  // AD-007 card shape: quote/body, an "{author} · on {teacher} · {when}" attribution line, a
+  // badge (the status pill — the real record state, per AD-004), and right-aligned actions.
+  const reviewCards: QueueCardData[] = comments.map((comment) => {
     const authorName = getCommentAuthorName(comment);
     const authorInfo = getCommentAuthorInfo(comment);
     const teacherName = comment.teachers_list?.name || `Teacher ${comment.teacher_id}`;
-    const publishedMeta = comment.approved
-      ? `Published ${comment.approved_at ? formatDistanceToNow(new Date(comment.approved_at), { addSuffix: true }) : 'recently'}${comment.approver_name ? ` by ${comment.approver_name}` : ''}`
-      : [authorInfo, formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })].filter(Boolean).join(' · ');
+    const attribution = comment.approved
+      ? `${authorName} · on ${teacherName} · published ${comment.approved_at ? formatDistanceToNow(new Date(comment.approved_at), { addSuffix: true }) : 'recently'}${comment.approver_name ? ` by ${comment.approver_name}` : ''}`
+      : [authorName, `on ${teacherName}`, authorInfo, formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })].filter(Boolean).join(' · ');
 
     return {
       id: comment.id,
-      initial: getCommentInitials(comment),
-      title: `"${comment.comment}"`,
-      cells: [teacherName, authorName, comment.is_anonymous ? 'Anonymous' : '-'],
-      subtitle: publishedMeta,
-      tone: comment.approved ? 'ok' : 'wait',
-      tag: comment.approved ? 'Published' : 'Pending',
-      actionLabel: comment.approved ? 'Remove' : 'Publish',
-      onAction: () => (comment.approved ? handleDeleteComment(comment.id) : handleApproveComment(comment.id)),
+      quote: `"${comment.comment}"`,
+      attribution,
+      badge: <AdminStatusPill status={comment.approved ? 'live' : 'pending'} label={comment.approved ? 'Published' : 'Pending'} />,
+      actions: comment.approved
+        ? [{ label: 'Remove', tone: 'destructive', onClick: () => handleDeleteComment(comment.id) }]
+        : [{ label: 'Publish', tone: 'mint', onClick: () => handleApproveComment(comment.id) }],
     };
   });
 
-  const recommendationRows: AdminTableRow[] = recommendations.map((rec): AdminTableRow => {
+  const recommendationCards: QueueCardData[] = recommendations.map((rec) => {
     const reviewedMeta = rec.approved_at
-      ? `Reviewed by ${rec.approved_by ? reviewerNames[rec.approved_by] || 'an admin' : 'an admin'}, ${formatDistanceToNow(new Date(rec.approved_at), { addSuffix: true })}`
-      : undefined;
+      ? `reviewed by ${rec.approved_by ? reviewerNames[rec.approved_by] || 'an admin' : 'an admin'}, ${formatDistanceToNow(new Date(rec.approved_at), { addSuffix: true })}`
+      : formatDistanceToNow(new Date(rec.created_at), { addSuffix: true });
 
     return {
       id: rec.id,
-      initial: rec.teacher_name?.trim().charAt(0).toUpperCase() || '?',
-      title: rec.notes || `Recommended: ${rec.teacher_name}`,
-      subtitle: reviewedMeta,
-      cells: [rec.teacher_name, rec.recommender_name, rec.status === 'rejected' ? 'Flagged' : '-'],
-      tone: pillTone(rec.status),
-      tag: rec.status.charAt(0).toUpperCase() + rec.status.slice(1),
-      actionLabel: 'Convert rec → application',
-      onAction: () => handleConvertToApplication(rec),
-      onOverflow: () => handleEditRecommendation(rec),
+      quote: rec.notes || `Recommended: ${rec.teacher_name}`,
+      attribution: `${rec.recommender_name} · on ${rec.teacher_name} · ${reviewedMeta}`,
+      badge: <AdminStatusPill status={recStatus(rec.status)} label={rec.status.charAt(0).toUpperCase() + rec.status.slice(1)} />,
+      actions: [
+        { label: 'Edit', tone: 'muted', onClick: () => handleEditRecommendation(rec) },
+        { label: 'Convert to application', tone: 'mint', onClick: () => handleConvertToApplication(rec) },
+      ],
     };
   });
 
-  const upvoteRows: AdminTableRow[] = upvoteStats.map((stat, index): AdminTableRow => ({
+  const upvoteCards: QueueCardData[] = upvoteStats.map((stat, index) => ({
     id: stat.teacher_id,
-    initial: stat.teacher_name?.trim().charAt(0).toUpperCase() || '?',
-    title: stat.teacher_name,
-    subtitle: `#${index + 1} by upvote count`,
-    cells: [
-      stat.teacher_name,
-      '-',
-      <span key="count" className="inline-flex items-center gap-1 tabular-nums">
+    quote: stat.teacher_name,
+    attribution: `#${index + 1} by upvote count`,
+    badge: (
+      <span className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full bg-mint px-[10px] text-[11.5px] font-bold text-[#24603D] tabular-nums">
         <ThumbsUp className="h-3 w-3" aria-hidden="true" />
         {stat.upvote_count}
-      </span>,
+      </span>
+    ),
+    actions: [
+      { label: 'View profile', tone: 'primary', onClick: () => window.open(`/tuition-teachers/${stat.teacher_slug}`, '_blank', 'noopener') },
+      { label: 'Clear upvotes', tone: 'destructive', onClick: () => handleClearUpvotes(stat) },
     ],
-    tone: index === 0 ? 'ok' : 'info',
-    tag: `${stat.upvote_count} upvote${stat.upvote_count === 1 ? '' : 's'}`,
-    actionLabel: 'Clear upvotes',
-    onAction: () => handleClearUpvotes(stat),
-    onOverflow: () => window.open(`/tuition-teachers/${stat.teacher_slug}`, '_blank', 'noopener'),
   }));
 
-  const activeRows = source === 'reviews' ? reviewRows : source === 'recommendations' ? recommendationRows : upvoteRows;
+  const activeCards = source === 'reviews' ? reviewCards : source === 'recommendations' ? recommendationCards : upvoteCards;
   const activeLoading =
     source === 'reviews' ? commentsLoading : source === 'recommendations' ? recsLoading : upvotesLoading;
 
@@ -691,7 +722,7 @@ export default function AdminReviews() {
 
   if (checkingAdmin) {
     return (
-      <div className="min-h-screen bg-warm-page">
+      <div className="min-h-screen bg-muted">
         <div className="container pt-16 pb-16 text-center">
           <div className="animate-pulse text-sm text-warm-label">Checking admin access…</div>
         </div>
@@ -706,18 +737,23 @@ export default function AdminReviews() {
   const editingRec = editingId ? recommendations.find((r) => r.id === editingId) : null;
 
   return (
-    <div className="min-h-screen bg-background">
-      <AdminRail nav={nav} signedInName={signedInName} />
-      <div className="lg:pl-[244px]">
-        <AdminToolbar
-          title="Reviews & recs"
-          badge={pendingReviewsCount + pendingRecsCount > 0 ? `${pendingReviewsCount + pendingRecsCount} waiting` : undefined}
-          sort={sortSlot}
-        />
+    <BentoStack className="min-h-screen bg-muted">
+      <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
 
-        <main className="px-5 py-6 lg:px-7 lg:py-8">
-          {/* Segmented control: which underlying dataset populates the table */}
-          <div className="mb-5 flex flex-wrap gap-2">
+      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-[18px]">
+          <h2 className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">Reported reviews</h2>
+          <span className="text-[12.5px] tabular-nums text-warm-meta">
+            {pendingReviewsCount + pendingRecsCount > 0 ? `${pendingReviewsCount + pendingRecsCount} waiting` : 'Nothing waiting'}
+          </span>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-[18px]">
+          {/* Segmented control: which underlying dataset populates the queue. AD-007 is
+              specifically about the Reviews source; Recommendations/Upvotes are real,
+              pre-existing sections of this merged page kept alongside it (not a browsing
+              view of "all reviews" — each is still its own bounded working queue/list). */}
+          <div className="flex flex-wrap gap-2">
             {sourceTabs.map((tab) => (
               <button
                 key={tab.key}
@@ -725,14 +761,14 @@ export default function AdminReviews() {
                 onClick={() => setSource(tab.key)}
                 className={cn(
                   'inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-bold transition-colors',
-                  source === tab.key ? 'bg-foreground text-background' : 'bg-muted text-warm-prose hover:bg-muted/70'
+                  source === tab.key ? 'bg-panel text-background' : 'bg-muted text-warm-prose hover:bg-warm-hairline'
                 )}
               >
                 {tab.label}
                 <span
                   className={cn(
-                    'inline-flex h-[20px] min-w-[20px] items-center justify-center rounded-full px-[6px] text-[11px] font-bold tabular-nums',
-                    source === tab.key ? 'bg-background/20 text-background' : 'bg-background text-warm-label'
+                    'inline-flex h-[19px] min-w-[19px] items-center justify-center rounded-full px-[5px] text-[11px] font-bold tabular-nums',
+                    source === tab.key ? 'bg-brand text-foreground' : 'bg-card text-warm-secondary'
                   )}
                 >
                   {tab.count}
@@ -740,92 +776,100 @@ export default function AdminReviews() {
               </button>
             ))}
           </div>
+          {sortSlot}
+        </div>
 
-          {source === 'reviews' && (
-            <div className="mb-4 flex flex-wrap gap-2">
-              {(['pending', 'approved', 'all'] as const).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setCommentFilter(key)}
-                  className={commentFilter === key ? adminPrimaryBtnStyle : adminSecondaryBtnStyle}
-                >
-                  {key === 'pending' ? 'Pending' : key === 'approved' ? 'Approved' : 'All'} (
-                  {key === 'pending' ? pendingReviewsCount : key === 'approved' ? comments.filter((c) => c.approved).length : comments.length}
-                  )
-                </button>
-              ))}
-            </div>
-          )}
-
-          {activeLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-20 rounded-2xl bg-muted/60 animate-pulse" />
-              ))}
-            </div>
-          ) : activeRows.length === 0 ? (
-            <div className="rounded-[20px] bg-card py-16 text-center shadow-border">
-              <p className="text-sm text-warm-label">{emptyCopy}</p>
-            </div>
-          ) : (
-            <AdminTable columns={columns} rows={activeRows} />
-          )}
-
-          {source === 'reviews' && commentsHasMore && (
-            <div className="mt-6 flex justify-center">
+        {/* AD-007 ⚠: reported (pending) is the primary queue a moderator clears — Approved/All
+            are real existing filters kept for working admins, demoted to a small secondary
+            control rather than the page's main view. */}
+        {source === 'reviews' && (
+          <div className="mb-4 flex flex-wrap gap-2 px-[18px]">
+            {(['pending', 'approved', 'all'] as const).map((key) => (
               <button
-                onClick={() => fetchComments(true)}
-                disabled={commentsLoadingMore}
-                className={`min-w-[140px] disabled:opacity-60 ${adminSecondaryBtnStyle}`}
+                key={key}
+                type="button"
+                onClick={() => setCommentFilter(key)}
+                className={commentFilter === key ? adminPrimaryBtnStyle : adminSecondaryBtnStyle}
               >
-                {commentsLoadingMore ? 'Loading…' : 'Load more'}
+                {key === 'pending' ? 'Pending' : key === 'approved' ? 'Approved' : 'All'} (
+                {key === 'pending' ? pendingReviewsCount : key === 'approved' ? comments.filter((c) => c.approved).length : comments.length}
+                )
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeLoading ? (
+          <div className="space-y-2.5 px-[18px]">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-20 rounded-2xl bg-muted/60 animate-pulse" />
+            ))}
+          </div>
+        ) : activeCards.length === 0 ? (
+          <div className="mx-[18px] rounded-2xl bg-muted py-16 text-center">
+            <p className="text-sm text-warm-label">{emptyCopy}</p>
+          </div>
+        ) : (
+          <div className="px-[18px]">
+            <AdminQueueList cards={activeCards} />
+          </div>
+        )}
+
+        {source === 'reviews' && commentsHasMore && (
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => fetchComments(true)}
+              disabled={commentsLoadingMore}
+              className={`min-w-[140px] disabled:opacity-60 ${adminSecondaryBtnStyle}`}
+            >
+              {commentsLoadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
+        )}
+
+        {source === 'recommendations' && editingRec && (
+          <div className={cn(adminPanelStyle, 'mx-[18px] mt-4 max-w-[560px] space-y-4 p-5')}>
+            <div className="text-sm font-bold text-foreground">Editing recommendation: {editingRec.teacher_name}</div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-warm-label">Status</label>
+                <Select value={editStatus} onValueChange={setEditStatus}>
+                  <SelectTrigger className={`h-auto border-0 ${adminFieldStyle}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="contacted">Contacted</SelectItem>
+                    <SelectItem value="onboarded">Onboarded</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-warm-label">Notes</label>
+                <Textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Add notes..."
+                  rows={3}
+                  className={`border-0 ${adminFieldStyle}`}
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => handleSaveRecommendation(editingRec.id)} className={adminPrimaryBtnStyle}>
+                Save
+              </button>
+              <button onClick={() => setEditingId(null)} className={adminSecondaryBtnStyle}>
+                Cancel
               </button>
             </div>
-          )}
+          </div>
+        )}
+      </BentoPanel>
 
-          {source === 'recommendations' && editingRec && (
-            <div className={cn(adminPanelStyle, 'mt-4 max-w-[560px] space-y-4 p-5')}>
-              <div className="text-sm font-bold text-foreground">Editing recommendation: {editingRec.teacher_name}</div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-warm-label">Status</label>
-                  <Select value={editStatus} onValueChange={setEditStatus}>
-                    <SelectTrigger className={`h-auto border-0 ${adminFieldStyle}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="contacted">Contacted</SelectItem>
-                      <SelectItem value="onboarded">Onboarded</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-warm-label">Notes</label>
-                  <Textarea
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="Add notes..."
-                    rows={3}
-                    className={`border-0 ${adminFieldStyle}`}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={() => handleSaveRecommendation(editingRec.id)} className={adminPrimaryBtnStyle}>
-                  Save
-                </button>
-                <button onClick={() => setEditingId(null)} className={adminSecondaryBtnStyle}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
+      <AdminAuditNote />
       {confirmDialog}
-    </div>
+    </BentoStack>
   );
 }

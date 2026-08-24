@@ -1,38 +1,84 @@
 import type { ReactNode } from 'react';
-import { MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/* Redesign C13 (components.md §2) — the one AdminTable column template shared by
-   all five admin sections (approvals, live teachers, papers, reviews, audit log).
+/* Handoff 09i AD-003/AD-004 — the one AdminTable column template shared by
+   every admin section (approvals, teachers, papers, reviews-as-table
+   sources, audit log). Pixel values transcribed from "Admin Screens
+   Redesign.dc.html": card radius 30 (BentoPanel), header row 10px 14px
+   with an inset hairline rule, body row 12px 14px with a lighter inset
+   hairline, first column bold, status is a dot pill (AD-004), row actions
+   right-aligned h36 r999 12.5px/700 with destructive tinted and always
+   last (never first) in reading order. */
 
-   Pixel values below are transcribed literally from "Redesign Admin.dc.html"
-   (A1–A5) per the owner's pixel-exact override (BRIEF.md), not rounded to the
-   site-wide spacing scale: card radius 20px, header row padding 14px 20px,
-   row padding 15px 20px, row gap 16px, primary action 38px/radius 11px,
-   overflow disc 38px/radius 11px. Admin carries no fun layer (rule 10) — bone
-   card, bg-muted header, hairline separators, a state pill, one primary
-   action and an overflow disc per row. Nothing tilts, nothing stickers. */
+export type AdminStatus = 'live' | 'pending' | 'paused' | 'hidden';
 
-export type AdminPillTone = 'wait' | 'ok' | 'bad' | 'idle' | 'info';
-
-const PILL_TONE_CLASS: Record<AdminPillTone, string> = {
-  wait: 'bg-brand-subtle text-brand-deep',
-  ok: 'bg-mint text-foreground',
-  bad: 'bg-destructive/10 text-destructive',
-  idle: 'bg-muted text-warm-prose',
-  info: 'bg-brand-blue-subtle text-brand-blue-deep',
+const STATUS_CONFIG: Record<AdminStatus, { label: string; fillClass: string; inkClass: string; dotClass: string }> = {
+  live: { label: 'Live', fillClass: 'bg-mint', inkClass: 'text-[#24603D]', dotClass: 'bg-[#24603D]' },
+  pending: { label: 'Pending', fillClass: 'bg-brand-subtle', inkClass: 'text-brand-deep', dotClass: 'bg-brand-deep' },
+  paused: { label: 'Paused', fillClass: 'bg-muted', inkClass: 'text-warm-secondary', dotClass: 'bg-warm-secondary' },
+  hidden: { label: 'Hidden', fillClass: 'bg-[#F9E2E2]', inkClass: 'text-[#8C2A2A]', dotClass: 'bg-[#8C2A2A]' },
 };
 
-export function AdminStatePill({ tone, children }: { tone: AdminPillTone; children: ReactNode }) {
+/** AD-004: every status cell is one pill, dot + label, coloured from a
+ *  fixed 4-tone palette. `label` overrides the default tone label (e.g.
+ *  Approvals' "Approved"/"Rejected" instead of the generic "Live"/"Hidden")
+ *  — the record's real state always decides the *label*, never a hardcoded
+ *  string; the *tone* just picks which of the 4 colours it reads with. */
+export function AdminStatusPill({ status, label, className }: { status: AdminStatus; label?: string; className?: string }) {
+  const cfg = STATUS_CONFIG[status];
   return (
     <span
       className={cn(
-        'inline-flex w-fit items-center whitespace-nowrap rounded-full text-[11.5px] font-bold h-[26px] px-[11px]',
-        PILL_TONE_CLASS[tone],
+        'inline-flex h-[26px] w-fit shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-[10px] text-[11.5px] font-bold',
+        cfg.fillClass,
+        cfg.inkClass,
+        className,
       )}
     >
-      {children}
+      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', cfg.dotClass)} aria-hidden />
+      {label ?? cfg.label}
     </span>
+  );
+}
+
+export type AdminActionTone = 'primary' | 'muted' | 'mint' | 'destructive';
+
+const ACTION_TONE_CLASS: Record<AdminActionTone, string> = {
+  primary: 'bg-muted text-foreground hover:bg-warm-hairline',
+  muted: 'bg-muted text-warm-secondary hover:bg-warm-hairline',
+  mint: 'bg-mint text-[#24603D] hover:brightness-95',
+  destructive: 'bg-[#F9E2E2] text-[#8C2A2A] hover:brightness-95',
+};
+
+export interface AdminRowAction {
+  label: string;
+  onClick: () => void;
+  tone: AdminActionTone;
+  disabled?: boolean;
+}
+
+/** AD-003: h36 px-3.5 r999 12.5px/700 admin action pill. Rendered in the
+ *  order given — callers are responsible for putting destructive actions
+ *  last, never first (⚠ AD-003). Exported so AD-007's review-card queue
+ *  (which isn't a table) can render the identical action-pill treatment. */
+export function AdminRowActions({ actions }: { actions: AdminRowAction[] }) {
+  return (
+    <div className="flex shrink-0 items-center justify-end gap-1.5">
+      {actions.map((action) => (
+        <button
+          key={action.label}
+          type="button"
+          onClick={action.onClick}
+          disabled={action.disabled}
+          className={cn(
+            'inline-flex h-9 items-center justify-center whitespace-nowrap rounded-full px-[14px] text-[12.5px] font-bold transition-colors duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            ACTION_TONE_CLASS[action.tone],
+          )}
+        >
+          {action.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -45,173 +91,88 @@ export interface AdminTableColumn {
 
 export interface AdminTableRow {
   id: string;
-  /** First column: initial disc (StripePlaceholder-style) + title + subtitle. */
-  initial?: string;
-  title: string;
-  subtitle?: string;
-  /** Remaining plain-text cells, in column order after the first. */
+  /** One ReactNode per column, in column order — first cell renders bold.
+   *  A status column is just a regular cell holding an `<AdminStatusPill>`
+   *  — its position varies per section (AD-005's Teachers puts "Updated"
+   *  after "Status"; AD-006/AD-008 put Status/Result last), so AdminTable
+   *  doesn't special-case it: the caller places it wherever its own
+   *  `columns` array says it goes. */
   cells: ReactNode[];
-  tone: AdminPillTone;
-  tag: string;
-  actionLabel: string;
-  onAction: () => void;
-  onOverflow?: () => void;
+  /** Row actions, left-to-right reading order. Empty/omitted for a row
+   *  with nothing to do (readOnly tables never pass this at all). */
+  actions?: AdminRowAction[];
 }
 
 export interface AdminTableProps {
   columns: AdminTableColumn[];
   rows: AdminTableRow[];
   className?: string;
-  /** A5 audit log: hides the action column entirely, both grid and mobile list. */
+  /** AD-008 audit log: hides the action column entirely, both grid and
+   *  mobile list — nothing on that screen mutates anything. */
   readOnly?: boolean;
 }
 
-/** One shared column template — every section passes its own columns/rows. */
+/** One shared column template — every section passes its own columns/rows.
+ *  Rendered inside a `<BentoPanel fill="card">` by the caller (the panel
+ *  also carries the section's own title/meta row above the table). */
 export function AdminTable({ columns, rows, className, readOnly }: AdminTableProps) {
-  /* Every row renders a trailing action cell (primary button + optional
-     overflow disc) unconditionally below — it isn't one of the caller's
-     declared `columns`. Some callers compensate by adding their own matching
-     `{ key: 'actions', width: ... }` entry (AdminApplications, AdminFeedback,
-     AdminUpvotes, AdminComments, AdminRecommendations, AdminPapers); two
-     forgot to (AdminTeachers, AdminAuditLog), which leaves the actions cell
-     to fall into an unbounded implicit grid track sized to its own content —
-     widening the row past the card, which then silently clips it via
-     `overflow-hidden`, hiding the Edit/Open button entirely on narrower
-     screens. Owning the track here, once, means every section lines up the
-     same way regardless of what its own column list says, and a caller-
-     supplied `actions` entry (kept for backward compat) is ignored for
-     sizing rather than doubled up. `auto` (not a guessed fixed px value)
-     sizes the track to what the buttons actually need — AdminPapers already
-     used `auto` for this same column, which is the value adopted here.
-
-     The first column is documented above as always being the initial disc +
-     title + subtitle block, and that block's title wrapper carries `min-w-0`
-     so its text can truncate instead of forcing the column wide. A bare
-     `Nfr` track has no minimum of its own beyond that, so on a narrow
-     viewport the grid is free to squeeze it to 0px — while the 38px avatar
-     disc inside is `shrink-0` and refuses to shrink with it, so it renders
-     floating on top of the next column's text instead of sizing its column.
-     `minmax(…, Nfr)` gives that first track a floor (disc + gap + a few
-     characters of name) it can never be squeezed under. */
-  const dataColumns = columns.filter((c) => c.key !== 'actions');
   const gridTemplate = [
-    ...dataColumns.map((c, i) => (i === 0 ? `minmax(160px, ${c.width})` : c.width)),
+    ...columns.map((c, i) => (i === 0 ? `minmax(140px, ${c.width})` : c.width)),
     ...(readOnly ? [] : ['auto']),
   ].join(' ');
 
-  const actions = (row: AdminTableRow) => (
-    <div className="flex gap-2">
-      {/* Mockup draws these controls at 38px. Rule 4 (BRIEF.md) forbids
-          regressing the tap target, so the visible pill stays 38px while
-          the button element itself is the full 44px hit area. */}
-      <button
-        type="button"
-        onClick={row.onAction}
-        className="inline-flex h-11 items-center justify-center whitespace-nowrap rounded-[11px] px-[3px] text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      >
-        <span className="inline-flex h-[38px] items-center whitespace-nowrap rounded-[11px] bg-foreground px-[15px]">
-          {row.actionLabel}
-        </span>
-      </button>
-      {row.onOverflow ? (
-        <button
-          type="button"
-          onClick={row.onOverflow}
-          aria-label="More actions"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-[11px] text-warm-prose transition-transform duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <span className="inline-flex h-[38px] w-[38px] items-center justify-center rounded-[11px] bg-muted">
-            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-          </span>
-        </button>
-      ) : null}
-    </div>
-  );
-
   return (
-    <div className={cn('rounded-[20px] bg-card shadow-border', className)}>
-      {/* Desktop / tablet: the original grid, lg: and up. Horizontal scroll only
-          ever applied here — never as the mobile fallback. */}
-      <div className="hidden overflow-x-auto overflow-y-hidden rounded-[20px] lg:block">
+    <div className={cn('overflow-hidden', className)}>
+      {/* Desktop / tablet: the grid, lg: and up. */}
+      <div className="hidden overflow-x-auto lg:block">
         <div
-          className="grid gap-4 bg-muted px-5 py-[14px]"
+          className="grid gap-3.5 px-[14px] py-[10px] shadow-[inset_0_-1px_0_#E7DFD5]"
           style={{ gridTemplateColumns: gridTemplate }}
         >
-          {dataColumns.map((c) => (
-            <span key={c.key} className="text-[11.5px] font-bold uppercase tracking-[.07em] text-warm-label">
+          {columns.map((c) => (
+            <span key={c.key} className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
               {c.label}
             </span>
           ))}
+          {readOnly ? null : <span aria-hidden />}
         </div>
 
         {rows.map((row) => (
           <div
             key={row.id}
-            className="grid items-center gap-4 border-t border-warm-hairline px-5 py-[15px] transition-colors duration-150 hover:bg-muted/50"
+            className="grid items-center gap-3.5 px-[14px] py-[12px] shadow-[inset_0_-1px_0_#F0EAE2] transition-colors duration-150 hover:bg-muted/40"
             style={{ gridTemplateColumns: gridTemplate }}
           >
-            <div className="flex min-w-0 items-center gap-3">
-              {row.initial ? (
-                <span className="stripe-placeholder flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] text-[15px] font-semibold text-foreground/40">
-                  {row.initial}
-                </span>
-              ) : null}
-              <div className="min-w-0">
-                <div className="truncate text-[14.5px] font-bold text-foreground">{row.title}</div>
-                {row.subtitle ? <div className="mt-px truncate text-[12.5px] text-warm-label">{row.subtitle}</div> : null}
-              </div>
-            </div>
-
             {row.cells.map((cell, i) => (
-              // min-w-0 lets a grid item shrink below its content's intrinsic
-              // width (the grid default is min-width:auto, which otherwise
-              // refuses to shrink and pushes the row wider than the fr track
-              // it was given — the same class of bug documented above for the
-              // first column). truncate then keeps a long cell (a joined
-              // subjects/boards string, a long paper title) from silently
-              // widening its column and knocking every row out of alignment
-              // with the header.
-              <span key={i} className="min-w-0 truncate text-[13.5px] leading-[1.45] text-warm-prose">
+              <span
+                key={i}
+                className={cn(
+                  'min-w-0 truncate text-[13.5px] leading-[1.45]',
+                  i === 0 ? 'font-bold text-foreground' : 'text-warm-prose',
+                )}
+              >
                 {cell}
               </span>
             ))}
 
-            <AdminStatePill tone={row.tone}>{row.tag}</AdminStatePill>
-
-            {readOnly ? null : actions(row)}
+            {readOnly ? null : <AdminRowActions actions={row.actions ?? []} />}
           </div>
         ))}
       </div>
 
-      {/* Mobile / tablet: a genuine single-column list of row cards — not a
-          horizontal scroll of the desktop grid. Each card stacks the title
-          block, every labeled cell, the state pill, and the action row. Auto
-          height (72px+) so wrapped content never clips. */}
+      {/* Mobile / tablet: a single-column list of row cards. */}
       <div className="divide-y divide-warm-hairline lg:hidden">
         {rows.map((row) => (
-          <div key={row.id} className="flex min-h-[72px] flex-col gap-3 px-5 py-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                {row.initial ? (
-                  <span className="stripe-placeholder flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[11px] text-[15px] font-semibold text-foreground/40">
-                    {row.initial}
-                  </span>
-                ) : null}
-                <div className="min-w-0">
-                  <div className="truncate text-[14.5px] font-bold text-foreground">{row.title}</div>
-                  {row.subtitle ? <div className="mt-px truncate text-[12.5px] text-warm-label">{row.subtitle}</div> : null}
-                </div>
-              </div>
-              <AdminStatePill tone={row.tone}>{row.tag}</AdminStatePill>
-            </div>
+          <div key={row.id} className="flex flex-col gap-3 px-[14px] py-4">
+            <div className="min-w-0 text-[14.5px] font-bold leading-[1.35] text-foreground">{row.cells[0]}</div>
 
-            {row.cells.length ? (
+            {row.cells.length > 1 ? (
               <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
-                {row.cells.map((cell, i) => (
+                {row.cells.slice(1).map((cell, i) => (
                   <div key={i} className="min-w-0">
-                    {dataColumns[i + 1] ? (
+                    {columns[i + 1] ? (
                       <dt className="text-[10.5px] font-bold uppercase tracking-[.06em] text-warm-label">
-                        {dataColumns[i + 1].label}
+                        {columns[i + 1].label}
                       </dt>
                     ) : null}
                     <dd className="truncate text-[13.5px] leading-[1.45] text-warm-prose">{cell}</dd>
@@ -220,10 +181,21 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
               </dl>
             ) : null}
 
-            {readOnly ? null : actions(row)}
+            {readOnly ? null : row.actions?.length ? <AdminRowActions actions={row.actions} /> : null}
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** AD-003: the title + meta row every table-bearing section renders above
+ *  its `AdminTable`, inside the same content `BentoPanel`. */
+export function AdminPanelHeader({ title, meta }: { title: string; meta?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 px-[18px] pb-3">
+      <h2 className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">{title}</h2>
+      {meta ? <span className="text-[12.5px] tabular-nums text-warm-meta">{meta}</span> : null}
     </div>
   );
 }

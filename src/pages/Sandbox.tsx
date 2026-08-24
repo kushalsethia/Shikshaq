@@ -3,16 +3,17 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ReviewCard, type ReviewCardData } from '@/components/reviews/review-card';
 import { WriteReviewSheet } from '@/components/reviews/write-review-sheet';
-import { AdminRail, AdminToolbar, type AdminNavItem } from '@/pages/admin/shell';
-import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 
 /* DEV-ONLY design sandbox.
  *
  * The admin console and dashboards sit behind an admin login, so their layout,
- * contrast and spacing could not be checked against admin-01..05 without a
- * session. This renders the SHELL COMPONENTS those screens are built from —
- * rail, toolbar, stat cards, table — against fixed mock props, so the design
- * can be reviewed and edited without one.
+ * contrast and spacing could not be checked against the handoff spec (09i)
+ * without a session. This renders the SHELL COMPONENTS those screens are
+ * built from — the pill-tab header, stat cards, table — against fixed mock
+ * props, so the design can be reviewed and edited without one.
  *
  * What this deliberately does NOT do:
  *   - touch Supabase, or read any real row
@@ -28,59 +29,30 @@ import { AdminTable, type AdminTableColumn, type AdminTableRow } from '@/pages/a
  * screenshot of this can never be mistaken for the real console.
  */
 
-const NAV: AdminNavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', path: '#', count: undefined, active: false },
-  { key: 'approvals', label: 'Teacher approvals', path: '#', count: 12, active: true },
-  { key: 'teachers', label: 'Live teachers', path: '#', count: 147, active: false },
-  { key: 'papers', label: 'Papers', path: '#', count: 9, active: false },
-  { key: 'reviews', label: 'Reviews', path: '#', count: 4, active: false },
-  { key: 'recommendations', label: 'Recommendations', path: '#', count: 6, active: false },
-  { key: 'audit', label: 'Audit log', path: '#', count: undefined, active: false },
-];
+const NAV = buildAdminNav('approvals', { approvals: 12, reviews: 4 });
 
 const COLUMNS: AdminTableColumn[] = [
-  { key: 'applicant', label: 'Applicant', width: '2.2fr' },
+  { key: 'applicant', label: 'Applicant', width: '2fr' },
   { key: 'teaches', label: 'Teaches', width: '1.4fr' },
   { key: 'area', label: 'Area', width: '1fr' },
-  { key: 'state', label: 'State', width: '1fr' },
+  { key: 'status', label: 'Status', width: '1fr' },
 ];
 
 const ROWS: AdminTableRow[] = [
   {
     id: 'a',
-    initial: 'A',
-    title: 'Sandbox Row A',
-    subtitle: '+91 00000 00001',
-    cells: ['Maths, Physics · 9–10', 'Ballygunge'],
-    tone: 'wait',
-    tag: 'Docs in',
-    actionLabel: 'Review',
-    onAction: () => {},
-    onOverflow: () => {},
+    cells: ['Sandbox Row A', 'Maths, Physics · 9–10', 'Ballygunge', <AdminStatusPill key="s" status="pending" label="Docs in" />],
+    actions: [{ label: 'Review', tone: 'primary', onClick: () => {} }],
   },
   {
     id: 'b',
-    initial: 'B',
-    title: 'Sandbox Row B',
-    subtitle: '+91 00000 00002',
-    cells: ['English · 6–10', 'Salt Lake'],
-    tone: 'bad',
-    tag: 'No degree',
-    actionLabel: 'Review',
-    onAction: () => {},
-    onOverflow: () => {},
+    cells: ['Sandbox Row B', 'English · 6–10', 'Salt Lake', <AdminStatusPill key="s" status="hidden" label="No degree" />],
+    actions: [{ label: 'Review', tone: 'primary', onClick: () => {} }],
   },
   {
     id: 'c',
-    initial: 'C',
-    title: 'Sandbox Row C',
-    subtitle: '+91 00000 00003',
-    cells: ['Accounts · 11–12', 'Behala'],
-    tone: 'ok',
-    tag: 'Approved',
-    actionLabel: 'Review',
-    onAction: () => {},
-    onOverflow: () => {},
+    cells: ['Sandbox Row C', 'Accounts · 11–12', 'Behala', <AdminStatusPill key="s" status="live" label="Approved" />],
+    actions: [{ label: 'Review', tone: 'primary', onClick: () => {} }],
   },
 ];
 
@@ -120,56 +92,53 @@ export default function Sandbox() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
-      <AdminRail nav={NAV} signedInName="Sandbox viewer" />
+    <BentoStack className="min-h-screen bg-muted">
+      <AdminHeader nav={NAV} signedInEmail="sandbox@shikshaq.com" />
 
-      <div className="flex min-h-screen flex-col lg:pl-[244px]">
-        <AdminToolbar title="Teacher approvals" badge="12 waiting" />
+      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+        <p className="mb-5 mx-[18px] rounded-xl bg-brand-subtle px-4 py-3 text-body-secondary text-brand-deep">
+          <strong className="font-bold">Design sandbox, development only.</strong> Mock props, no
+          database access, not the real console. Registered only when <code>import.meta.env.DEV</code>{' '}
+          is true.
+        </p>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <p className="mb-5 rounded-xl bg-brand-subtle px-4 py-3 text-body-secondary text-brand-deep">
-            <strong className="font-bold">Design sandbox, development only.</strong> Mock props, no
-            database access, not the real console. Registered only when <code>import.meta.env.DEV</code>{' '}
-            is true.
-          </p>
+        <div className="mb-5 grid gap-3 px-[18px] sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Waiting" value="12" caption="oldest is 2 days old" />
+          <StatCard label="Approved this week" value="18" caption="all live within a day" />
+          <StatCard label="Sent back" value="5" caption="missing a document" />
+          <StatCard label="Rejected" value="2" caption="both unverifiable" />
+        </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Waiting" value="12" caption="oldest is 2 days old" />
-            <StatCard label="Approved this week" value="18" caption="all live within a day" />
-            <StatCard label="Sent back" value="5" caption="missing a document" />
-            <StatCard label="Rejected" value="2" caption="both unverifiable" />
+        <AdminPanelHeader title="Applications" meta="12 waiting" />
+        <AdminTable columns={COLUMNS} rows={ROWS} />
+
+        {/* Ratings. Every real teacher's reviews predate the rating column,
+            so the rated card and the star input cannot be seen anywhere on
+            the live site yet, and the alternative to this was writing fake
+            ratings onto real named teachers' reviews. Mock props only. */}
+        <h2 className="mb-3 mt-8 px-[18px] font-display text-[20px] font-black text-foreground">Review ratings</h2>
+        <div className="flex flex-wrap items-start gap-4 px-[18px]">
+          <ReviewCard index={0} review={RATED_REVIEW} />
+          <ReviewCard index={1} review={UNRATED_REVIEW} />
+          <div className="rounded-2xl bg-card p-4 shadow-border">
+            <Button variant="primary" size={44} onClick={() => setSheetOpen(true)}>
+              Open the review sheet
+            </Button>
+            <WriteReviewSheet
+              open={sheetOpen}
+              onOpenChange={setSheetOpen}
+              submitting={false}
+              error={null}
+              /* Logs instead of inserting — the sandbox never touches the database. */
+              onSubmit={(comment, isAnonymous, rating) =>
+                console.info('sandbox review (not saved):', { comment, isAnonymous, rating })
+              }
+            />
           </div>
+        </div>
+      </BentoPanel>
 
-          <div className="mt-5">
-            <AdminTable columns={COLUMNS} rows={ROWS} />
-          </div>
-
-          {/* Ratings. Every real teacher's reviews predate the rating column,
-              so the rated card and the star input cannot be seen anywhere on
-              the live site yet, and the alternative to this was writing fake
-              ratings onto real named teachers' reviews. Mock props only. */}
-          <h2 className="mb-3 mt-8 font-display text-[20px] font-black text-foreground">Review ratings</h2>
-          <div className="flex flex-wrap items-start gap-4">
-            <ReviewCard index={0} review={RATED_REVIEW} />
-            <ReviewCard index={1} review={UNRATED_REVIEW} />
-            <div className="rounded-2xl bg-card p-4 shadow-border">
-              <Button variant="primary" size={44} onClick={() => setSheetOpen(true)}>
-                Open the review sheet
-              </Button>
-              <WriteReviewSheet
-                open={sheetOpen}
-                onOpenChange={setSheetOpen}
-                submitting={false}
-                error={null}
-                /* Logs instead of inserting — the sandbox never touches the database. */
-                onSubmit={(comment, isAnonymous, rating) =>
-                  console.info('sandbox review (not saved):', { comment, isAnonymous, rating })
-                }
-              />
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
+      <AdminAuditNote />
+    </BentoStack>
   );
 }

@@ -107,7 +107,7 @@ export function useAdminGuard(
  */
 export function AdminGuardErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-warm-page">
+    <div className="flex min-h-screen items-center justify-center bg-muted">
       <div className={`mx-auto w-full max-w-sm p-8 text-center ${adminPanelStyle}`}>
         <p className="text-[15.5px] font-semibold text-foreground">Couldn't verify your access</p>
         <p className="mt-2 text-[13.5px] text-warm-prose">
@@ -209,13 +209,19 @@ export function AdminPill({ tone, children }: { tone: AdminPillTone; children: R
   );
 }
 
+/* Handoff 09i AD-001/AD-003 — dialog/panel buttons adopt the same "admin
+   action pill" geometry as AdminTable's row actions (h36 r999 12.5px/700),
+   just with a min-h-11 (44px) tap target per Rule 4, and the same 4-tone
+   palette as AD-004's status pills so a "destructive" button always reads
+   as the tinted rose, never solid red. */
 export const adminPrimaryBtnStyle =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border-0 bg-panel px-[17px] text-[13px] font-semibold text-white';
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-0 bg-panel px-5 text-[12.5px] font-bold text-background transition-transform duration-150 active:scale-[0.97]';
 
 export const adminSecondaryBtnStyle =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-warm-card px-[17px] text-[13px] font-semibold text-foreground shadow-border';
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-muted px-5 text-[12.5px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.97]';
 
-export const adminDestructiveBtnStyle = `${adminSecondaryBtnStyle} text-facet-destructive`;
+export const adminDestructiveBtnStyle =
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#F9E2E2] px-5 text-[12.5px] font-bold text-[#8C2A2A] transition-transform duration-150 active:scale-[0.97]';
 
 /**
  * Single toast system for the admin console (see _rules.md #19 and
@@ -242,7 +248,7 @@ export function adminToast(message: string, opts?: { description?: string; undo?
   });
 }
 
-export const adminFieldStyle = 'min-h-[48px] rounded-xl bg-warm-page shadow-border';
+export const adminFieldStyle = 'min-h-[48px] rounded-xl bg-muted';
 
 /**
  * Squircle stat-tile row for admin console headers — the same device the dashboards use
@@ -252,14 +258,14 @@ export const adminFieldStyle = 'min-h-[48px] rounded-xl bg-warm-page shadow-bord
  * a free device to reuse since it only ever renders numbers each page has already fetched.
  */
 export function AdminStatTiles({ stats }: { stats: { label: string; value: number | string }[] }) {
-  const fills = ['bg-warm-card', 'bg-brand-blue-subtle', 'bg-warm-muted', 'bg-success-subtle-bg'];
+  const fills = ['bg-card', 'bg-brand-blue-subtle', 'bg-muted', 'bg-mint'];
   return (
     <div
       className="mb-[18px] grid gap-2.5"
       style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 4)}, minmax(0,1fr))` }}
     >
       {stats.map((st, i) => (
-        <div key={st.label} className={`rounded-[18px] px-4 py-3.5 shadow-border ${fills[i % fills.length]}`}>
+        <div key={st.label} className={`rounded-2xl px-4 py-3.5 ${fills[i % fills.length]}`}>
           <div className="text-[11px] font-semibold uppercase tracking-[.02em] text-warm-label">{st.label}</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-foreground">{st.value}</div>
         </div>
@@ -268,18 +274,4 @@ export function AdminStatTiles({ stats }: { stats: { label: string; value: numbe
   );
 }
 
-/**
- * Verbatim footnote shown under the table on every admin section page (applications, teachers,
- * papers, comments, recommendations) — NOT the audit log page, which has its own copy. The audit
- * log and its recordAdminAction instrumentation now exist, so this is factual, not aspirational.
- */
-export function AdminAuditFootnote() {
-  return (
-    <p className="mt-5 max-w-prose text-[13px] leading-[1.5] text-warm-label">
-      Approvals, rejections and takedowns are written to the audit log with your name and the exact time. Rejections
-      always carry a reason the teacher can read.
-    </p>
-  );
-}
-
-export const adminPanelStyle = 'rounded-[20px] bg-warm-card shadow-border';
+export const adminPanelStyle = 'rounded-bento bg-card';
