@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { validateImageSrc } from '@/utils/imageSanitizer';
-import { useAdminGuard, useReviewerNames, AdminGuardErrorState } from '@/components/AdminConsole';
+import { useAdminGuard, useReviewerNames, AdminGuardErrorState, adminDestructiveBtnStyle } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
 import {
   AdminTable,
@@ -485,14 +485,15 @@ export default function AdminApprovals() {
                           className="min-h-[80px]"
                         />
                         <div className="flex gap-2">
-                          <Button
-                            variant="destructive"
+                          <button
+                            type="button"
                             disabled={!rejectReason.trim() || processingId === selectedApplication.id}
                             onClick={() => handleReject(selectedApplication.id, rejectReason.trim())}
+                            className={`disabled:opacity-60 ${adminDestructiveBtnStyle}`}
                           >
                             {processingId === selectedApplication.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
                             Confirm rejection
-                          </Button>
+                          </button>
                           <Button variant="outline" onClick={() => { setShowReject(false); setRejectReason(''); }}>
                             Cancel
                           </Button>
