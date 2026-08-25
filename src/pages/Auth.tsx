@@ -3,10 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, MessageCircle, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
 import { Logo } from '@/components/Logo';
+import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getSubjectPalette } from '@/lib/subject-palette';
 
 /* C-032 / handoff AU-003a — proof counts above the fold. Counts are real
@@ -508,7 +509,7 @@ export default function Auth() {
                   </span>
                 )}
                 <span className="absolute bottom-0 right-[8%] flex h-8 w-8 -rotate-[10deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0">
-                  <MessageCircle size={16} fill="currentColor" strokeWidth={0} />
+                  <WhatsAppIcon className="h-4 w-4" />
                 </span>
               </div>
             </>
