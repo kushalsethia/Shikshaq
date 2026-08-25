@@ -514,7 +514,9 @@ export default function Index() {
   const heroAvatarChip = heroCopy.chip === null ? null : (
     <span
       aria-hidden
-      className="relative inline-block h-[28px] w-[28px] shrink-0 overflow-hidden rounded-full align-[-6px] ring-1 ring-warm-hairline"
+      className={`relative inline-block h-[28px] w-[28px] shrink-0 overflow-hidden rounded-full align-[-6px] ${
+        featuredTeachers[0]?.image_url ? '' : 'ring-1 ring-warm-hairline'
+      }`}
     >
       {featuredTeachers[0]?.image_url ? (
         <img src={validateImageSrc(featuredTeachers[0].image_url)} alt="" className="h-full w-full object-cover" />

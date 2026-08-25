@@ -827,7 +827,7 @@ export default function PastPapers() {
             </p>
             <Link
               to={BROWSE_PATH}
-              className="inline-flex h-12 items-center rounded-full bg-brand px-5 text-[14.5px] font-bold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+              className="inline-flex h-12 items-center rounded-full bg-brand px-5 text-[14.5px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
             >
               Find a teacher
             </Link>

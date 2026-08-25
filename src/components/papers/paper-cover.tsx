@@ -138,7 +138,7 @@ export interface ShelfLedgeProps extends React.HTMLAttributes<HTMLDivElement> {
 const ShelfLedge = React.forwardRef<HTMLDivElement, ShelfLedgeProps>(
   ({ className, tone = "bone", children, ...props }, ref) => (
     <div ref={ref} className={cn("relative", className)} {...props}>
-      <div className="flex items-end gap-3 overflow-x-auto pb-4 pl-1 pr-1 pt-2 scrollbar-hide sm:gap-4">
+      <div className="flex items-end gap-3 overflow-x-auto overflow-y-visible pb-4 pl-1 pr-1 pt-2 scrollbar-hide sm:gap-4">
         {children}
       </div>
       <div

@@ -387,7 +387,9 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
       <motion.span
         aria-hidden="true"
         layout
-        className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-panel shadow-border backdrop-blur-sm motion-reduce:transition-none"
+        className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full shadow-border backdrop-blur-sm motion-reduce:transition-none ${
+          mode === 'papers' ? 'bg-brand-blue' : 'bg-panel'
+        }`}
         animate={{ x: mode === 'papers' ? '100%' : '0%' }}
         transition={{ type: 'spring', stiffness: 460, damping: 36 }}
       />

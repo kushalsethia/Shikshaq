@@ -821,7 +821,7 @@ export default function TeacherProfile() {
               <BentoPanel fill="card">
                 <SectionHeading>About {firstName}</SectionHeading>
                 <div
-                  className="max-w-prose text-[15px] leading-[1.6] text-warm-prose [&_p+p]:mt-3 lg:text-[16px] lg:leading-[1.65]"
+                  className="max-w-prose text-[15px] leading-[1.65] text-warm-prose [&_p+p]:mt-3 lg:text-[16px] lg:leading-[1.6]"
                   dangerouslySetInnerHTML={{ __html: descriptionHtml }}
                 />
               </BentoPanel>
@@ -858,7 +858,7 @@ export default function TeacherProfile() {
             {qualificationsText && (
               <BentoPanel fill="card">
                 <SectionHeading>Qualifications</SectionHeading>
-                <p className="max-w-prose text-[15px] leading-[1.6] text-warm-prose lg:text-[16px] lg:leading-[1.65]">{qualificationsText}</p>
+                <p className="max-w-prose text-[15px] leading-[1.65] text-warm-prose lg:text-[16px] lg:leading-[1.6]">{qualificationsText}</p>
               </BentoPanel>
             )}
 
