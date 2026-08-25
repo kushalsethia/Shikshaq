@@ -46,6 +46,18 @@ const GUIDE_TINTS = [
   { tint: 'bg-muted', ink: 'text-foreground' },
 ] as const;
 
+/** HP-004 names a tint for four specific topics by title, not by position —
+ *  keying on the index alone breaks the moment the live topic count isn't a
+ *  multiple of four (it wraps "Joining as a teacher" onto "Contacting a
+ *  teacher"'s mint). Match by title first; anything the entry doesn't name
+ *  (an admin-added topic) falls back to cycling through the same four. */
+const GUIDE_TINT_BY_TITLE: Record<string, (typeof GUIDE_TINTS)[number]> = {
+  'Finding a teacher': GUIDE_TINTS[0],
+  'Contacting a teacher': GUIDE_TINTS[1],
+  'Reading past papers': GUIDE_TINTS[2],
+  'Joining as a teacher': GUIDE_TINTS[3],
+};
+
 export interface HelpFaqGuide {
   title: string;
   body: string;
@@ -132,7 +144,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
         <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">Guides</h2>
         <div className="mt-3.5 flex flex-col gap-2">
           {guides.map((g, i) => {
-            const { tint, ink } = GUIDE_TINTS[i % GUIDE_TINTS.length];
+            const { tint, ink } = GUIDE_TINT_BY_TITLE[g.title] ?? GUIDE_TINTS[i % GUIDE_TINTS.length];
             return (
               <div key={g.title} className={`rounded-[18px] p-[16px_18px] ${tint}`}>
                 <div className={`text-[15.5px] font-bold tracking-[-0.02em] ${ink}`}>{g.title}</div>

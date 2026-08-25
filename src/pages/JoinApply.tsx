@@ -1180,7 +1180,7 @@ export default function JoinApply() {
             </button>
           )}
           {!isLastStep ? (
-            <Button type="button" onClick={goNext} variant="primary" size={54} className="flex-1">
+            <Button type="button" onClick={goNext} variant="primary" size={54} className="flex-1 text-[15px] font-extrabold">
               Save and continue
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Button>
@@ -1192,7 +1192,7 @@ export default function JoinApply() {
               busy={submitting}
               variant="primary"
               size={54}
-              className="flex-1"
+              className="flex-1 text-[15px] font-extrabold"
             >
               {submitting ? (
                 <>

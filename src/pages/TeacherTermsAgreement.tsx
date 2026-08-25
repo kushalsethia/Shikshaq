@@ -217,7 +217,7 @@ export default function TeacherTermsAgreement() {
           </BentoPanel>
 
           {/* Handoff TT-001: accept panel. */}
-          <BentoPanel fill="card" className="flex flex-col gap-5">
+          <BentoPanel fill="card" edge="bottom" className="flex flex-col gap-5">
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div className="flex min-h-11 items-start gap-3">
                 <Checkbox

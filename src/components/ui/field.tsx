@@ -17,7 +17,7 @@ import { Eyebrow } from "@/components/ui/eyebrow";
    you give it, so <input>, <textarea> and <select> all share one appearance. */
 
 const controlBase =
-  "w-full rounded-[15px] bg-card px-4 text-[15.5px] text-foreground shadow-border outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full rounded-[15px] bg-card px-4 text-[16px] text-foreground shadow-border outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-50";
 
 export interface FieldProps {
   label: string;

@@ -145,6 +145,7 @@ export default function Contact() {
               line1="Send us a note"
               ordinal="01"
               line2="four fields, no login"
+              size="compact"
             />
 
             <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-[14px]">
