@@ -118,7 +118,10 @@ export default function Contact() {
             <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-warm-label">
               What is it about
             </span>
-            <div className="mt-3 flex flex-col gap-2">
+            {/* Same "flex-col stack never got a desktop treatment" gap as
+                Index.tsx's board pills: at 1280px each button stretched to
+                the full ~680px panel width with nothing to constrain it. */}
+            <div className="mt-3 flex flex-col gap-2 lg:grid lg:grid-cols-2">
               {REASONS.map((r) => {
                 const on = reason === r.id;
                 return (
