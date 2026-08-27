@@ -371,6 +371,18 @@ export default {
           from: { opacity: "0", transform: "translateY(10px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        /* Handoff M-013: the welcome screen's five sticker pills. Its own 6px
+           travel, distinct from tourStepIn's 10px and fadeSlideUp's 24px —
+           kept separate for the same reason tourStepIn is. */
+        stickerIn: {
+          from: { opacity: "0", transform: "translateY(6px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        /* M-013: the panel itself only fades — it does not travel. */
+        panelFade: {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
         cardReveal: {
           from: { opacity: "0", transform: "translateY(20px) scale(0.97)" },
           to: { opacity: "1", transform: "translateY(0) scale(1)" },
@@ -433,6 +445,8 @@ export default {
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-slide-up": "fadeSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
         "tour-step-in": "tourStepIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "sticker-in": "stickerIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "panel-fade": "panelFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
         "card-reveal": "cardReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both",
         shimmer: "shimmer 1.5s ease-in-out infinite",
 

@@ -42,6 +42,7 @@ function useOnboardingCounts(enabled: boolean) {
 
 export function OnboardingModal() {
   const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const counts = useOnboardingCounts(open);
 
   useEffect(() => {
@@ -50,9 +51,14 @@ export function OnboardingModal() {
     }
   }, []);
 
+  /* Handoff M-013: dismissing fades out over 500ms with no stagger, so the
+     panel has to outlive the click. `markOnboardingSeen()` still runs
+     immediately — the record that it was seen must not depend on an
+     animation finishing (or on the tab surviving it). */
   const dismiss = () => {
     markOnboardingSeen();
-    setOpen(false);
+    setClosing(true);
+    window.setTimeout(() => setOpen(false), 500);
   };
 
   if (!open) return null;
@@ -62,7 +68,16 @@ export function OnboardingModal() {
   const c = counts.data;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-brand" role="dialog" aria-modal="true" aria-label="Welcome to ShikshAQ">
+    /* M-013: the panel fades in over 500ms ease-snap and back out over the
+       same, no travel and no stagger on the way out. */
+    <div
+      className={`fixed inset-0 z-[100] flex flex-col overflow-hidden bg-brand transition-opacity duration-500 ease-snap ${
+        closing ? "opacity-0" : "animate-panel-fade"
+      }`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Welcome to ShikshAQ"
+    >
       <div className="flex h-14 items-center justify-between px-5">
         {/* filter:brightness(0) — fully monochrome black, distinct from
             Logo's own onDark (white-invert) or default (dark ink + orange
@@ -93,53 +108,65 @@ export function OnboardingModal() {
           in between.
         </h1>
 
-        {/* Handoff OB-001 point 3: five tilted stickers around the headline. */}
+        {/* Handoff OB-001 point 3: five tilted stickers around the headline.
+
+            Handoff M-013: they stagger in at 60ms intervals, each
+            opacity 0->1 + translateY(6px->0) over 500ms ease-snap. Built from
+            an array rather than five hand-written blocks so the delay index
+            counts only the stickers that actually rendered — every one is
+            gated on a real count, and indexing over the source order would
+            leave a 60ms hole in the rhythm whenever a count is zero.
+
+            The WhatsApp disc rides the same sequence: the spec names five
+            pills, but leaving the sixth element of one cluster un-animated
+            while the others fade in reads as a bug, not restraint. */}
         <div aria-hidden className="pointer-events-none absolute inset-0">
-          {c?.maths != null && c.maths > 0 && (
+          {([
+            c?.maths != null && c.maths > 0 && {
+              key: 'maths',
+              cls: 'absolute left-[6%] top-[18%] h-[34px] rotate-[7deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
+              style: { backgroundColor: maths.tint, color: maths.text, display: 'inline-flex' } as React.CSSProperties,
+              body: `Maths · ${c.maths}`,
+            },
+            c?.icse != null && c.icse > 0 && {
+              key: 'icse',
+              cls: 'absolute right-[8%] top-[30%] h-[34px] rotate-[-6deg] items-center whitespace-nowrap rounded-full bg-panel px-[15px] text-[13.5px] font-extrabold text-background shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
+              style: { display: 'inline-flex' } as React.CSSProperties,
+              body: `ICSE · ${c.icse}`,
+            },
+            c?.ballygunge != null && c.ballygunge > 0 && {
+              key: 'ballygunge',
+              cls: 'absolute left-[10%] bottom-[26%] h-[34px] rotate-[5deg] items-center whitespace-nowrap rounded-full bg-card px-[15px] text-[13.5px] font-extrabold text-foreground shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
+              style: { display: 'inline-flex' } as React.CSSProperties,
+              body: `Ballygunge · ${c.ballygunge}`,
+            },
+            c?.class10 != null && c.class10 > 0 && {
+              key: 'class10',
+              cls: 'absolute right-[6%] bottom-[12%] h-[34px] rotate-[-4deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
+              style: { backgroundColor: science.tint, color: science.text, display: 'inline-flex' } as React.CSSProperties,
+              body: `Class 10 · ${c.class10}`,
+            },
+            c?.papers != null && c.papers > 0 && {
+              key: 'papers',
+              cls: 'absolute left-[22%] top-[46%] h-[34px] rotate-[6deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-[15px] text-[13.5px] font-extrabold text-brand-blue-deep shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
+              style: { display: 'inline-flex' } as React.CSSProperties,
+              body: `${c.papers} free papers`,
+            },
+            {
+              key: 'whatsapp',
+              cls: 'absolute right-[14%] top-[58%] flex h-8 w-8 rotate-[6deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text motion-reduce:rotate-0 lg:rotate-0',
+              style: {} as React.CSSProperties,
+              body: <WhatsAppIcon className="h-4 w-4" />,
+            },
+          ].filter(Boolean) as Array<{ key: string; cls: string; style: React.CSSProperties; body: React.ReactNode }>).map((st, i) => (
             <span
-              className="absolute left-[6%] top-[18%] h-[34px] rotate-[7deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0"
-              style={{ backgroundColor: maths.tint, color: maths.text, display: "inline-flex" }}
+              key={st.key}
+              className={`animate-sticker-in ${st.cls}`}
+              style={{ ...st.style, animationDelay: `${i * 60}ms` }}
             >
-              Maths · {c.maths}
+              {st.body}
             </span>
-          )}
-          {c?.icse != null && c.icse > 0 && (
-            <span
-              className="absolute right-[8%] top-[30%] h-[34px] rotate-[-6deg] items-center whitespace-nowrap rounded-full bg-panel px-[15px] text-[13.5px] font-extrabold text-background shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0"
-              style={{ display: "inline-flex" }}
-            >
-              ICSE · {c.icse}
-            </span>
-          )}
-          {c?.ballygunge != null && c.ballygunge > 0 && (
-            <span
-              className="absolute left-[10%] bottom-[26%] h-[34px] rotate-[5deg] items-center whitespace-nowrap rounded-full bg-card px-[15px] text-[13.5px] font-extrabold text-foreground shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0"
-              style={{ display: "inline-flex" }}
-            >
-              Ballygunge · {c.ballygunge}
-            </span>
-          )}
-          {c?.class10 != null && c.class10 > 0 && (
-            <span
-              className="absolute right-[6%] bottom-[12%] h-[34px] rotate-[-4deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0"
-              style={{ backgroundColor: science.tint, color: science.text, display: "inline-flex" }}
-            >
-              Class 10 · {c.class10}
-            </span>
-          )}
-          {c?.papers != null && c.papers > 0 && (
-            <span
-              className="absolute left-[22%] top-[46%] h-[34px] rotate-[6deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-[15px] text-[13.5px] font-extrabold text-brand-blue-deep shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0"
-              style={{ display: "inline-flex" }}
-            >
-              {c.papers} free papers
-            </span>
-          )}
-          <span
-            className="absolute right-[14%] top-[58%] flex h-8 w-8 rotate-[6deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text motion-reduce:rotate-0 lg:rotate-0"
-          >
-            <WhatsAppIcon className="h-4 w-4" />
-          </span>
+          ))}
         </div>
       </div>
 
