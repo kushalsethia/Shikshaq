@@ -1038,17 +1038,37 @@ export default function TeacherProfile() {
           is mobile-only. Sits above the fixed bottom nav bar.
           Handoff P-013: bottom clears the nav pill (was bottom-20, a fixed
           80px); z-50 to match the two floating pills it sits between. */}
-      {!primaryCtaVisible && (
-        <div
-          className="animate-pop fixed inset-x-4 z-50 lg:hidden"
-          style={{ bottom: 'calc(84px + env(safe-area-inset-bottom))' }}
+      {/* Handoff M-010: opacity + translateY(8px -> 0) over 500ms ease-snap,
+          reversing on the way out. It used to carry `animate-pop`, which does
+          not exist — DESIGN_SYSTEM §6 removed that keyframe (see the note in
+          tailwind.config.ts), so the class was inert and the pill simply
+          appeared. Rendering it always and animating opacity/transform gives
+          the exit the entry already implied; `pointer-events-none` keeps the
+          hidden state from swallowing taps meant for the page. */}
+      <div
+        aria-hidden={primaryCtaVisible}
+        className={`fixed inset-x-4 z-50 transition-[opacity,transform] duration-500 ease-snap lg:hidden motion-reduce:transition-none ${
+          primaryCtaVisible ? 'pointer-events-none translate-y-2 opacity-0' : 'translate-y-0 opacity-100'
+        }`}
+        style={{ bottom: 'calc(84px + env(safe-area-inset-bottom))' }}
+      >
+        {/* P-013: radius 999 "to match the two floating pills it sits between",
+            and S-007's ⚠ "no shadow on any button". It had `.sticker
+            .outline-offset-shadow` — the character-layer treatment, a 4px white
+            + 7px black double ring plus a hard 4px offset shadow — which is
+            the wrong register for a floating action pill. `shadow-pill` is
+            what the nav pill and the bottom nav already use. */}
+        <Button
+          variant="whatsapp"
+          size={54}
+          onClick={handleWhatsAppClick}
+          tabIndex={primaryCtaVisible ? -1 : undefined}
+          className="w-full rounded-full shadow-pill"
         >
-          <Button variant="whatsapp" size={54} onClick={handleWhatsAppClick} className="sticker outline-offset-shadow w-full">
-            <WhatsAppIcon className="h-5 w-5" />
-            {feesValue ? `${feesValue} · Message` : 'Message on WhatsApp'}
-          </Button>
-        </div>
-      )}
+          <WhatsAppIcon className="h-5 w-5" />
+          {feesValue ? `${feesValue} · Message` : 'Message on WhatsApp'}
+        </Button>
+      </div>
 
       <ContactGateSheet
         open={signInSheetOpen}
