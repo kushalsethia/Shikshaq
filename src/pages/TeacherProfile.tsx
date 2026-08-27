@@ -125,13 +125,17 @@ function SubjectPill({ label }: { label: string }) {
 // shrinking. Truncating with an ellipsis keeps the chip inside the card at
 // every width instead of spilling over it.
 // Handoff P-005: the first chip (boards) becomes the page's single accent
-// above the CTA; the rest stay bone. Geometry (h26/px-10/11.5px/700) is
-// unchanged from source — the changelog's own "h32/px-14/13.5px" before-
-// value doesn't match what's actually here, so nothing to restyle there.
+// above the CTA; the rest stay bone.
+// Geometry is h32 / px-[14px] / 13.5px / 700. An earlier pass kept the
+// source's h26/px-10/11.5px on the grounds that P-005's "Before" line did not
+// describe what was actually in the file — but P-005's After says "unchanged
+// geometry", i.e. that same h32 row, and 04's geometry appendix states it a
+// second time independently. Two statements agreeing outweigh one stale
+// before-value.
 function SpeechChip({ children, accent = false }: { children: React.ReactNode; accent?: boolean }) {
   return (
     <span
-      className={`animate-card-reveal motion-reduce:animate-none inline-flex h-[26px] max-w-full min-w-0 items-center truncate whitespace-nowrap rounded-full px-[10px] text-[11.5px] font-bold backdrop-blur-sm ${
+      className={`animate-card-reveal motion-reduce:animate-none inline-flex h-[32px] max-w-full min-w-0 items-center truncate whitespace-nowrap rounded-full px-[14px] text-[13.5px] font-bold backdrop-blur-sm ${
         accent ? 'bg-brand text-brand-foreground' : 'bg-card/90 text-foreground shadow-border'
       }`}
     >
@@ -825,7 +829,7 @@ export default function TeacherProfile() {
               <p className="mb-[12px] text-[13.5px] leading-[1.55] text-[#3E6F53]">
                 Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
               </p>
-              <Button variant="whatsapp" size={52} onClick={handleWhatsAppClick} className="whatsapp-pulse-once">
+              <Button variant="whatsapp" size={52} onClick={handleWhatsAppClick} className="whatsapp-pulse-once rounded-[16px]">
                 <WhatsAppIcon className="h-[19px] w-[19px]" />
                 Message on WhatsApp
               </Button>
