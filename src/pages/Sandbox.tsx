@@ -27,7 +27,28 @@ import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
  *
  * The mock rows are obviously synthetic on purpose ("Sandbox Row A"), so a
  * screenshot of this can never be mistaken for the real console.
+ *
+ * GATED_PANELS below serves the same purpose for /account and
+ * /dashboard/teacher: both sit behind a login, so their panels cannot be
+ * measured in a browser without a session. Rather than fake one, this renders
+ * BentoPanels carrying those pages' exact className strings, so their padding
+ * can be resolved at every width. That is not a substitute for seeing the real
+ * screens — it checks one specific thing, and it checks it for a reason: a
+ * base-variant padding class silently loses to BentoPanel's own
+ * `lg:px-8 lg:py-8` from lg up, which is exactly how the admin console's
+ * panels ended up at 32px instead of the 6px AD-003 asks for. Keep these
+ * strings identical to the pages they name.
  */
+const GATED_PANELS: Array<{ page: string; note: string; cls: string }> = [
+  { page: 'Account', note: 'greeting 14/22/20', cls: 'px-[22px] pt-[14px] pb-5' },
+  { page: 'Account', note: 'sticky tabs 12/0/12/16', cls: 'sticky top-[80px] z-20 isolate !px-0 !pl-4 py-3 lg:py-3' },
+  { page: 'Account', note: 'list 18/16', cls: 'px-4 py-[18px]' },
+  { page: 'Account', note: 'empty/CTA 22', cls: 'p-[22px]' },
+  { page: 'TeacherDashboard', note: 'dark header 14/22/22', cls: 'px-[22px] pt-[14px] pb-[22px]' },
+  { page: 'TeacherDashboard', note: 'counter tile 16/14, lg:24', cls: 'flex-1 px-[14px] py-4 lg:p-6' },
+  { page: 'TeacherDashboard', note: 'enquiries 20/22', cls: 'px-[22px] py-5' },
+  { page: 'TeacherDashboard', note: 'listing / reviews 22', cls: 'p-[22px]' },
+];
 
 const NAV = buildAdminNav('approvals', { approvals: 12, reviews: 4 });
 
@@ -135,6 +156,29 @@ export default function Sandbox() {
               }
             />
           </div>
+        </div>
+      </BentoPanel>
+
+      {/* Panel-padding resolution for the two logged-in screens. See
+          GATED_PANELS above for why this exists and what it does not claim. */}
+      <BentoPanel fill="card" className="p-[22px]">
+        <h2 className="mb-3 font-display text-[20px] font-black text-foreground">
+          Gated-page panel padding
+        </h2>
+        <div data-sandbox-gated className="flex flex-col gap-2">
+          {GATED_PANELS.map((g) => (
+            <BentoPanel
+              key={g.page + g.note}
+              fill="muted"
+              className={g.cls}
+              data-gated-page={g.page}
+              data-gated-note={g.note}
+            >
+              <span className="text-[12.5px] font-semibold text-warm-secondary">
+                {g.page} · {g.note}
+              </span>
+            </BentoPanel>
+          ))}
         </div>
       </BentoPanel>
 

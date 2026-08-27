@@ -285,7 +285,14 @@ export default function PaperResults() {
             no hairline, no blur, isolate kept (same compositing reason as
             Browse B-007). FilterChips.tsx's own S-006-matched tint and the
             handoff pill styling apply automatically. */}
-        <BentoPanel fill="card" className="sticky top-[80px] z-20 isolate !px-0 !pl-4 py-3">
+        {/* lg:py-3 restates the mobile value on purpose. Without it BentoPanel's
+            `lg:py-8` applies and this sticky bar becomes 108px tall at 1280 —
+            64px of padding around a 44px control row, sitting under a 60px nav.
+            D-003 excepts counter tiles for exactly this reason ("they stay
+            compact; py-8 would make them tall boxes"); a sticky control bar has
+            the same reason and simply is not in its table. Desktop Layouts.dc.html
+            does not draw this screen, so this follows the spec's own logic. */}
+        <BentoPanel fill="card" className="sticky top-[80px] z-20 isolate !px-0 !pl-4 py-3 lg:py-3">
           <FilterChips
             mode="papers"
             chips={filterChips}

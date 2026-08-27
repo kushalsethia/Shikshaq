@@ -534,7 +534,14 @@ export default function Account() {
       {/* Handoff AC-003: sticky pill row — border-b-2 underline removed, the
           active state is now the fill. role="tablist"/"tab"/aria-selected
           and setTab are unchanged. */}
-      <BentoPanel fill="card" className="sticky top-[80px] z-20 isolate !px-0 !pl-4 py-3">
+      {/* lg:py-3 restates the mobile value on purpose. Without it BentoPanel's
+          `lg:py-8` applies and this sticky bar becomes 108px tall at 1280 —
+          64px of padding around a 44px control row, sitting under a 60px nav.
+          D-003 excepts counter tiles for exactly this reason ("they stay
+          compact; py-8 would make them tall boxes"); a sticky control bar has
+          the same reason and simply is not in its table. Desktop Layouts.dc.html
+          does not draw this screen, so this follows the spec's own logic. */}
+      <BentoPanel fill="card" className="sticky top-[80px] z-20 isolate !px-0 !pl-4 py-3 lg:py-3">
         <div role="tablist" aria-label="Account sections" className="flex gap-2 overflow-x-auto pr-4 scrollbar-hide">
           {TABS.map((tab) => {
             const selected = activeTab === tab.key;
