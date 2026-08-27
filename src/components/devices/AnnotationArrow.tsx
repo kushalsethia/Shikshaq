@@ -26,7 +26,7 @@ export interface AnnotationArrowProps {
   strokeWidth?: number;
   /** Flip horizontally (useful for pointing the same shape the other way). */
   flip?: boolean;
-  /** Fade/scale in once on mount (`animate-pop`) instead of appearing instantly. Finite — respects prefers-reduced-motion via the global kill-switch. */
+  /** Fade/scale in once on mount (no entrance animation) instead of appearing instantly. Finite — respects prefers-reduced-motion via the global kill-switch. */
   animated?: boolean;
   className?: string;
 }
@@ -71,7 +71,6 @@ export function AnnotationArrow({
         // `pop` is the whitelisted finite entrance animation (VISUAL_LANGUAGE.md
         // §7) — a one-shot fade/scale-in, not a loop, and already covered by the
         // universal `prefers-reduced-motion` kill-switch in src/index.css.
-        animated && 'animate-pop',
         className
       )}
     >

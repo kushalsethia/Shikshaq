@@ -65,7 +65,7 @@ export function PaperCard({ paper, variant = 'result', sticker }: PaperCardProps
       style={{ backgroundColor: colors.tint }}
     >
       {isRecent && sticker && (
-        <span className="animate-pop absolute -top-2 right-4 rounded-full bg-foreground px-3 py-1 text-label font-bold uppercase text-background">
+        <span className="absolute -top-2 right-4 rounded-full bg-foreground px-3 py-1 text-label font-bold uppercase text-background">
           {sticker}
         </span>
       )}

@@ -367,7 +367,7 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
       {justSubmitted && (
         <div
           role="status"
-          className="sticker sticker-rotate-sm outline-offset-shadow animate-pop relative mb-8 flex items-start gap-3 rounded-2xl bg-brand-subtle p-6"
+          className="sticker sticker-rotate-sm outline-offset-shadow relative mb-8 flex items-start gap-3 rounded-2xl bg-brand-subtle p-6"
         >
           <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground">
             {justSubmitted === 'approved' ? (
@@ -424,7 +424,7 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
         // "No reviews yet" is one of VISUAL_DIRECTION §4's named LOUD moments —
         // the single highest-leverage empty state on this page, since a new
         // teacher profile will sit at zero reviews for a while.
-        <div className="sticker sticker-rotate-sm outline-offset-shadow animate-pop mx-auto max-w-sm rounded-2xl bg-card px-6 py-8 text-center">
+        <div className="sticker sticker-rotate-sm outline-offset-shadow mx-auto max-w-sm rounded-2xl bg-card px-6 py-8 text-center">
           <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-subtle">
             <Sparkles className="h-6 w-6 text-brand-deep" aria-hidden="true" />
           </span>

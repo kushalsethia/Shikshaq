@@ -61,7 +61,7 @@ export function EmptyResults({ heading, message, options, action, icon, classNam
       {/* Die-cut sticker badge — the "wrong turn" marker. Pops in with a
           slight overshoot rather than fading, per VISUAL_DIRECTION §7. */}
       <span
-        className={`sticker sticker-rotate-sm outline-offset-shadow relative z-10 mb-5 flex h-16 w-16 shrink-0 animate-pop items-center justify-center rounded-full ${stickerTone}`}
+        className={`sticker sticker-rotate-sm outline-offset-shadow relative z-10 mb-5 flex h-16 w-16 shrink-0 items-center justify-center rounded-full ${stickerTone}`}
       >
         {icon ?? <SearchX className="h-7 w-7" strokeWidth={2} aria-hidden="true" />}
       </span>
