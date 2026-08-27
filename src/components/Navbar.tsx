@@ -251,7 +251,11 @@ export function Navbar() {
               <Menu className="h-5 w-5" aria-hidden />
             </SheetTrigger>
 
-            <SheetContent side="bottom" className="border-0 bg-card px-4 pb-[calc(env(safe-area-inset-bottom)+1.625rem)]">
+            <SheetContent
+              side="bottom"
+              aria-describedby={undefined}
+              className="border-0 bg-card px-4 pb-[calc(env(safe-area-inset-bottom)+1.625rem)]"
+            >
               <SheetGrabHandle />
               <SheetTitle className="sr-only">Menu</SheetTitle>
 

@@ -89,13 +89,20 @@ const TeacherRedirect = () => {
 // pathname key is kept: it still remounts page-level state on navigation,
 // which is a separate concern from the animation that used to ride along
 // with it.
+//
+// This div used to carry `pb-20 lg:pb-0` — a second, global instance of
+// exactly the double-reservation commit 71a27d4 ("Halve the dead space
+// above the footer") diagnosed and removed from Index/About/Contact/
+// NotFound's own <main> tags: AppShell's BottomNavSpacer already reserves
+// the real 84px the floating nav needs, as a sibling of whatever this
+// wraps, so any padding here is pure dead space stacked on top of it. That
+// fix only checked the four pages it happened to test; every other route
+// (confirmed live on /join, gap = 164px = 84px spacer + this 80px) still
+// had it via this wrapper. Removed outright, not just at `lg`, since
+// BottomNavSpacer already handles every breakpoint that needs clearance.
 const RouteTransition = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
-  return (
-    <div key={location.pathname} className="pb-20 lg:pb-0">
-      {children}
-    </div>
-  );
+  return <div key={location.pathname}>{children}</div>;
 };
 
 const App = () => (

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Sheet, SheetContent, SheetGrabHandle, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetGrabHandle, SheetTitle } from "@/components/ui/sheet";
 import { StripePlaceholder } from "@/components/ui/stripe-placeholder";
 import { validateImageSrc } from "@/utils/imageSanitizer";
 import { useAuth } from "@/lib/auth-context";
@@ -144,9 +144,9 @@ export function ContactGateSheet({
         <SheetTitle className={`${teacherName ? 'mt-[18px]' : ''} font-display text-[26px] font-normal leading-[1.1] tracking-[-0.045em] text-foreground`}>
           {gateHeading(intent, firstName)}
         </SheetTitle>
-        <p className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-prose">
+        <SheetDescription className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-prose">
           One tap with Google. We&rsquo;ll take you straight to {intent === 'review' ? 'the review form' : intent === 'save' ? 'your shortlist' : 'the chat'}.
-        </p>
+        </SheetDescription>
 
         <button
           type="button"

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sheet, SheetContent, SheetGrabHandle, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetGrabHandle, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Star } from "lucide-react";
@@ -78,9 +78,9 @@ export function WriteReviewSheet({ open, onOpenChange, submitting, error, onSubm
         <SheetTitle className="font-display text-[21px] font-black tracking-[-0.035em] text-foreground">
           How were the classes?
         </SheetTitle>
-        <p className="mt-1.5 text-[14px] leading-[1.55] text-warm-prose">
+        <SheetDescription className="mt-1.5 text-[14px] leading-[1.55] text-warm-prose">
           Only students who have actually taken classes with this teacher may review.
-        </p>
+        </SheetDescription>
 
         <form onSubmit={handleSubmit} className="mt-[18px] flex flex-col gap-[14px]">
           {/* R3's rating row. Optional by design, so it carries no required

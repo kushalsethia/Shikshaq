@@ -504,6 +504,7 @@ export function FilterSheet({
       <SheetContent
         side="bottom"
         hideCloseButton
+        aria-describedby={undefined}
         className="flex h-[100dvh] max-h-[100dvh] flex-col rounded-none p-0"
       >
         {/* Sticky header. The default Radix close X that SheetContent renders

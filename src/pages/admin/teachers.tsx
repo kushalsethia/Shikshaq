@@ -653,7 +653,7 @@ export default function AdminTeachersPage() {
 
       {/* Edit dialog — the full teacher profile form, ported from legacy AdminTeachers.tsx. */}
       <Dialog open={editorOpen} onOpenChange={(open) => (open ? setEditorOpen(true) : closeEditor())}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogContent aria-describedby={undefined} className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedTeacher?.Title || 'Edit teacher'}</DialogTitle>
           </DialogHeader>

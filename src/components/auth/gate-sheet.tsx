@@ -2,7 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText } from "lucide-react";
 
-import { Sheet, SheetContent, SheetGrabHandle, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetGrabHandle, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth-context";
 import { saveAuthRedirect } from "@/utils/authRedirect";
 import { getSubjectPalette } from "@/lib/subject-palette";
@@ -79,9 +79,9 @@ function GateSheet({ open, onOpenChange, redirectTo, paperTitle, paperSubject }:
         <SheetTitle className={`${paperTitle ? 'mt-[18px]' : ''} font-display text-[26px] font-normal leading-[1.1] tracking-[-0.045em] text-foreground`}>
           Sign in to <b className="font-extrabold">open {paperTitle || 'this paper'}</b>.
         </SheetTitle>
-        <p className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-prose">
+        <SheetDescription className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-prose">
           One tap with Google. Free, and it takes one tap to keep reading.
-        </p>
+        </SheetDescription>
 
         <button
           type="button"

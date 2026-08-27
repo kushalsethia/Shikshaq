@@ -20,6 +20,7 @@ import { ListLoading, ListError, ListEnd } from '@/components/ui/list-states';
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
@@ -711,7 +712,7 @@ export default function Account() {
       {/* Settings sheet — sign-out, account links, and (students only) the
           profile-editing entry point below. */}
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <SheetContent side="bottom" className="rounded-t-[28px] border-0 pb-8 pt-6">
+        <SheetContent side="bottom" aria-describedby={undefined} className="rounded-t-[28px] border-0 pb-8 pt-6">
           <SheetHeader className="items-start text-left">
             <SheetTitle className="font-display text-xl font-bold tracking-tight text-foreground">
               Settings
@@ -763,6 +764,9 @@ export default function Account() {
             <SheetTitle className="font-display text-xl font-bold tracking-tight text-foreground">
               Edit profile
             </SheetTitle>
+            <SheetDescription className="sr-only">
+              Update your phone, date of birth, school, grade, board, guardian email, address, and subjects.
+            </SheetDescription>
           </SheetHeader>
 
           {profileLoading ? (
