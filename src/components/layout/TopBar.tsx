@@ -158,6 +158,21 @@ export function TopBar({ className }: { className?: string }) {
 
         <div className="ml-auto flex items-center gap-3">
 
+            {/* Handoff D-004: bg-muted, not the orange primary fill "List
+                yourself" used before — a neutral second action reads
+                correctly on every page now, including papers-mode ones,
+                where the old orange CTA would have broken the "exactly one
+                accent per page" rule (C-007); this one no longer carries
+                that accent, so it no longer needs to hide there.
+
+                Order matters and this one comes first: D-004 lists the
+                right-aligned pair as "`Join as a teacher` … and `Sign in`",
+                which puts the orange primary outermost. It used to render
+                second, leaving the accent pinned between two neutrals. */}
+            <Button asChild variant="muted" size={44}>
+              <Link to="/join">Join as a teacher</Link>
+            </Button>
+
             {user ? (
               <div className="relative">
                 <button
@@ -229,16 +244,6 @@ export function TopBar({ className }: { className?: string }) {
                 <Link to="/auth">Sign in</Link>
               </Button>
             )}
-
-            {/* Handoff D-004: bg-muted, not the orange primary fill "List
-                yourself" used before — a neutral second action reads
-                correctly on every page now, including papers-mode ones,
-                where the old orange CTA would have broken the "exactly one
-                accent per page" rule (C-007); this one no longer carries
-                that accent, so it no longer needs to hide there. */}
-            <Button asChild variant="muted" size={44}>
-              <Link to="/join">Join as a teacher</Link>
-            </Button>
           </div>
       </nav>
     </header>

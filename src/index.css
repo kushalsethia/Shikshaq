@@ -409,9 +409,20 @@
      WhatsApp disc, a 40px overflow button. Resizing those to 44px would break
      the drawn design; growing the target instead satisfies both.
 
-     The pseudo-element is centred on the control and sits behind its content,
-     so it never intercepts a click meant for something stacked above. Above
-     `lg` the floor drops to 40px for pointer input, so the overlay is removed.
+     The pseudo is centred on the control. It used to carry `z-index: -1`, on
+     the reasoning that sitting behind the content meant it "never intercepts a
+     click meant for something stacked above" — but a negative z-index puts it
+     behind the *parent's* box as well, and hit-testing follows paint order.
+     The parent therefore won every probe and the overlay intercepted nothing
+     at all: measured live, a 20px footer link with a 44px overlay still
+     resolved to its parent <span> 8px above the text, so C-013's floor was
+     satisfied on paper and nowhere else. `z-index: 0` keeps the pseudo in the
+     positioned-descendants layer — above the parent's background, still below
+     anything with a real stacking order (the bottom nav at z-40, sheets,
+     modals), so the original concern is preserved. It paints nothing, so
+     there is no visual change either way.
+
+     Above `lg` the floor drops to 40px for pointer input.
 
      The control must be `relative` (all our primitives are). */
   .tap-44 {
@@ -425,7 +436,7 @@
     transform: translate(-50%, -50%);
     width: max(100%, 44px);
     height: max(100%, 44px);
-    z-index: -1;
+    z-index: 0;
   }
   /* Above lg the floor drops to 40px for pointer input (components.md §6) —
      it does NOT disappear. This previously removed the overlay entirely, which

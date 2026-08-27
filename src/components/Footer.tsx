@@ -4,7 +4,7 @@ import { Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { Button } from '@/components/ui/button';
-import { Chip } from '@/components/ui/chip';
+import { chipVariants } from '@/components/ui/chip';
 import { iconDiscVariants } from '@/components/ui/icon-disc';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { WordmarkBleed } from '@/components/layout/WordmarkBleed';
@@ -403,23 +403,68 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 papers · contact, as quick-access pills above the full column
                 groups, which stay intact for internal-linking / SEO. */}
             <div className="flex flex-wrap gap-2">
-              {/* Handoff C-014: Chip's own focus ring (focus-visible:ring-2
-                  focus-visible:ring-ring...) doesn't survive asChild here --
-                  the rendered element only carries this className, not
-                  Chip's, so focus-visible:outline-none alone left these
-                  three links with literally no visible focus state at all.
-                  Adding the ring directly, using the same dark-panel-safe
-                  tokens (ring-background/ring-offset-panel) TopBar's own
-                  links use, since this footer is the same near-black fill. */}
-              <Chip asChild tone="on-dark" size={38} className="cursor-default">
-                <Link to="/all-tuition-teachers-in-kolkata" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel">find a teacher</Link>
-              </Chip>
-              <Chip asChild tone="on-dark" size={38} className="cursor-default">
-                <Link to="/past-papers" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel">past papers</Link>
-              </Chip>
-              <Chip asChild tone="on-dark" size={38} className="cursor-default">
-                <a href={getWhatsAppLink('8240980312')} target="_blank" rel="noopener noreferrer" className="tap-44 flex h-full w-full items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel">contact</a>
-              </Chip>
+              {/* These three carry the chip's classes directly instead of
+                  nesting inside `<Chip asChild>`. Chip's `asChild` is not a
+                  Radix Slot — it renders a static <span> wrapper and drops the
+                  child into its inner `<span class="truncate">`, so the link
+                  was never the chip: it measured 87×20 inside a 38px pill, and
+                  `truncate`'s `overflow:hidden` clipped the `tap-44` overlay
+                  dead (verified with elementFromPoint, not by reading the
+                  computed size — a clipped overlay still computes 44px).
+
+                  Size is 44, not 38. The geometry appendix draws these at h40,
+                  and S-005 removed 40 with the rule "every former 40px
+                  interactive chip is now 44" — these are real links, so 44 is
+                  the sanctioned size and it clears C-013 natively, with no
+                  overlay to clip.
+
+                  Handoff C-014: the ring tokens are spelled out here because
+                  the dark panel needs ring-background/ring-offset-panel, the
+                  same pair TopBar's on-panel links use. */}
+              {[
+                { to: '/all-tuition-teachers-in-kolkata', label: 'find a teacher' },
+                { to: '/past-papers', label: 'past papers' },
+              ].map(({ to, label }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className={cn(
+                    chipVariants({ tone: 'on-dark', size: 44 }),
+                    /* 02a's own numbers for this row: 13.5px/600 and an inset
+                       hairline at rgba(255,255,255,.16). Size 44 otherwise
+                       brings text-body-secondary (15px), which the appendix
+                       does not draw. */
+                    /* shadow-inset, not ring-inset: the chip's focus ring is
+                       `ring-2`, and a base `ring-inset` would turn that focus
+                       ring inward where it reads as a tint, not a focus state
+                       (C-014). Same technique HelpFaqStack uses. */
+                    'text-[13.5px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.16)]',
+                    'focus-visible:ring-background focus-visible:ring-offset-panel',
+                  )}
+                >
+                  {label}
+                </Link>
+              ))}
+              <a
+                href={getWhatsAppLink('8240980312')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                    chipVariants({ tone: 'on-dark', size: 44 }),
+                    /* 02a's own numbers for this row: 13.5px/600 and an inset
+                       hairline at rgba(255,255,255,.16). Size 44 otherwise
+                       brings text-body-secondary (15px), which the appendix
+                       does not draw. */
+                    /* shadow-inset, not ring-inset: the chip's focus ring is
+                       `ring-2`, and a base `ring-inset` would turn that focus
+                       ring inward where it reads as a tint, not a focus state
+                       (C-014). Same technique HelpFaqStack uses. */
+                    'text-[13.5px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.16)]',
+                    'focus-visible:ring-background focus-visible:ring-offset-panel',
+                  )}
+              >
+                contact
+              </a>
             </div>
 
             {/* Mobile: collapsible groups, so the footer never becomes a wall of

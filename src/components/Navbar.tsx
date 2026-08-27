@@ -332,13 +332,13 @@ export function Navbar() {
                   than a separate destructive item in this menu. */}
               <div className="mt-3 flex min-h-11 flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[13px] text-warm-meta">
                 <SheetClose asChild>
-                  <Link to="/about" className={`rounded ${FOCUS_RING}`}>About</Link>
+                  <Link to="/about" className={`tap-44 rounded ${FOCUS_RING}`}>About</Link>
                 </SheetClose>
                 <SheetClose asChild>
-                  <Link to="/contact" className={`rounded ${FOCUS_RING}`}>Contact</Link>
+                  <Link to="/contact" className={`tap-44 rounded ${FOCUS_RING}`}>Contact</Link>
                 </SheetClose>
                 <SheetClose asChild>
-                  <Link to="/join" className={`rounded ${FOCUS_RING}`}>Join as a teacher</Link>
+                  <Link to="/join" className={`tap-44 rounded ${FOCUS_RING}`}>Join as a teacher</Link>
                 </SheetClose>
                 {user && (
                   <button
@@ -350,7 +350,7 @@ export function Navbar() {
                         window.location.href = '/';
                       }
                     }}
-                    className={`rounded text-destructive ${FOCUS_RING}`}
+                    className={`tap-44 rounded text-destructive ${FOCUS_RING}`}
                   >
                     Sign out
                   </button>
