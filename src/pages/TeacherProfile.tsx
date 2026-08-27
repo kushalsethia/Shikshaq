@@ -627,8 +627,16 @@ export default function TeacherProfile() {
           AppShell already reserves it once via BottomNavSpacer, rendered
           after this page's PreFooter/Footer. Stacked on top of each other,
           the two reservations left a dead gap between the last section here
-          (the "similar teachers" link) and the B2 strip that follows. */}
-      <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-10 sm:px-6 sm:py-8 lg:pb-16 lg:px-8">
+          (the "similar teachers" link) and the B2 strip that follows.
+
+          T-006: `px-0` below sm, not `px-4`. This main still carried the
+          pre-redesign gutter, so every panel on this page sat 16px in and
+          24px down — measured 358px wide at a 390px viewport, with a 16px
+          left edge. D-001's accept line is "at 375px a panel's left edge is
+          at x = 0", and P-002's is that the profile card is square-topped
+          because "it meets the nav", which it cannot do inset and pushed
+          down. The sm:/lg: gutters are unchanged. */}
+      <main className="mx-auto w-full max-w-6xl px-0 pb-10 sm:px-6 sm:py-8 lg:pb-16 lg:px-8">
         {/* Desktop: 1fr / 384px grid. Left = photo/name card + prose sections. Right = sticky contact card. */}
         <div className="lg:grid lg:grid-cols-[1fr_384px] lg:gap-[40px]">
           <BentoStack className="min-w-0">
@@ -818,7 +826,7 @@ export default function TeacherProfile() {
 
             {/* Handoff P-009: each of these three becomes its own BentoPanel. */}
             {descriptionHtml && (
-              <BentoPanel fill="card">
+              <BentoPanel fill="card" className="p-[22px]">
                 <SectionHeading>About {firstName}</SectionHeading>
                 <div
                   className="max-w-prose text-[15px] leading-[1.65] text-warm-prose [&_p+p]:mt-3 lg:text-[16px] lg:leading-[1.6]"
@@ -840,7 +848,7 @@ export default function TeacherProfile() {
                 empty, and the whole section disappears if nothing survives.
                 Handoff P-009: grid-cols-2 at every width now (was 1 col mobile). */}
             {teachingDetails.length > 0 && (
-              <BentoPanel fill="card">
+              <BentoPanel fill="card" className="p-[22px]">
                 <SectionHeading>Teaching details</SectionHeading>
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
                   {teachingDetails.map(({ label, value }) => (
@@ -856,7 +864,7 @@ export default function TeacherProfile() {
             )}
 
             {qualificationsText && (
-              <BentoPanel fill="card">
+              <BentoPanel fill="card" className="p-[22px]">
                 <SectionHeading>Qualifications</SectionHeading>
                 <p className="max-w-prose text-[15px] leading-[1.65] text-warm-prose lg:text-[16px] lg:leading-[1.6]">{qualificationsText}</p>
               </BentoPanel>
@@ -865,7 +873,7 @@ export default function TeacherProfile() {
             {/* Handoff P-010: wrapped in one orange-tinted panel — see
                 TeacherComments.tsx for the heading/write-review pill/card
                 treatment. */}
-            <BentoPanel fill="brandTint">
+            <BentoPanel fill="brandTint" className="p-[22px]">
               <TeacherComments teacherId={teacher.id} subject={primarySubject} teacherSlug={teacher.slug} />
             </BentoPanel>
 

@@ -419,7 +419,7 @@ export default function PastPapers() {
             toggle below) — never a placeholder.
             Handoff PP-006: BentoPanel, single horizontal scroller, no border-b. */}
         {!loading && !loadError && featuredBoards.length > 0 && (
-          <BentoPanel fill="card" className="!px-0 py-4 pl-4">
+          <BentoPanel fill="card" className="!px-0 !pl-4 py-4">
             <div className="flex gap-[18px] overflow-x-auto pr-4 scrollbar-hide">
               {featuredBoards.map((b) => (
                 <button
@@ -445,7 +445,7 @@ export default function PastPapers() {
             Handoff PP-007: BentoPanel wrap, H-009 field metrics via heroDesk
             (submit disc is bg-brand-blue automatically — SearchControl's
             accent already switches on mode, and this control's mode is papers). */}
-        <BentoPanel fill="card">
+        <BentoPanel fill="card" className="p-4">
           <SearchControl align="flex-start" stackedToggle heroDesk initialMode="papers" onModeChange={handleSearchModeChange} />
         </BentoPanel>
 
@@ -580,7 +580,7 @@ export default function PastPapers() {
             Handoff PP-010: wrapped in a BentoPanel; rows bg-card -> bg-muted,
             shadow-border removed (bone on bone). */}
         {!loading && !loadError && schoolStats.length > 0 && (
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">By school</h2>
             <div className="stagger-children grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]">
               {schoolStats.map(({ school, board, count, otherBoardCount }) => (
@@ -629,7 +629,7 @@ export default function PastPapers() {
             on the active segment; subject rows become horizontal signposts
             at base (a tile grid returns from sm:). */}
         {!loading && !loadError && (featuredSubjects.length > 0 || featuredBoards.length > 0) && (
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-4">
               <h2 className="text-section-head font-display font-bold">
                 By {groupMode === 'subject' ? 'subject' : 'board'}
@@ -749,7 +749,7 @@ export default function PastPapers() {
             bg-brand-blue-subtle, grid-cols-4 at base (was a flex-wrap flat
             pill wall). */}
         {!loadError && (
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             {/* Was "By class & board" with a Board pill row underneath Class —
                 Board tabs already run WBBSE/CBSE/ICSE/ISC counts near the top
                 of this page (pages.md §4 row 3), so this second Board facet
@@ -777,7 +777,9 @@ export default function PastPapers() {
         )}
 
         {/* ------------------------------------------------------------ 3 steps */}
-        <BentoPanel fill="card">
+        {/* p-[22px]: the mockup never draws this panel, so it follows its
+            neighbours on this page rather than BentoPanel's 20px default. */}
+        <BentoPanel fill="card" className="p-[22px]">
           <h2 className="mb-8 text-center text-section-head font-display font-bold">
             Three steps, no cost,{' '}<br />no catch.
           </h2>
