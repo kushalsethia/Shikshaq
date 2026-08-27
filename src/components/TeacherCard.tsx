@@ -4,16 +4,12 @@ import { toast } from 'sonner';
 import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
-import { memo, useEffect, useState } from 'react';
+import { memo, useState } from 'react';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { getSubjectPalette } from '@/lib/subject-palette';
-import { setAuthIntent } from '@/lib/auth-intent';
 import { Chip } from '@/components/ui/chip';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { Button } from '@/components/ui/button';
-import { WhatsAppIcon } from '@/components/BrandIcons';
-import { ContactGateSheet } from '@/components/ContactGateSheet';
-import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
 
 /**
  * C1 — components.md §2 / design.md §2.1 + §2.5 (CONCENTRIC PHOTO, binding).
@@ -29,9 +25,9 @@ import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
  * includes the favourite heart, which lives in the body row next to the name.
  */
 
-/* 'grid-compact' is the home-rail card only (Index.tsx): no WhatsApp button,
+/* 'grid-compact' is the home-rail card only (Index.tsx):
    no experience/area, fee only, upvote pill overlaid on the photo. Plain
-   'grid' (Browse.tsx) keeps its own, opposite shape: WhatsApp button stays,
+   'grid' (Browse.tsx) keeps its own, opposite shape:
    location/years stay, fee is dropped from the meta line, upvote pill stays
    in the body. They used to be the same variant; the owner's live review
    asked for opposite treatment on each, so they split. */
@@ -81,7 +77,10 @@ interface TeacherCardProps {
    * Real data only (design.md §0.10) — each is entirely optional and the card
    * degrades cleanly (no line/pill, never a "₹0" or blank) when absent.
    */
-  whatsappLink?: string | null; // Shikshaqmine."Link" — routed through /whatsapp-click for tracking
+  /** Accepted but unused since the card's WhatsApp CTA was removed — callers
+   *  still pass it and TeacherProfile still needs it, so the prop stays rather
+   *  than churning every call site. */
+  whatsappLink?: string | null;
   experienceYears?: number | null; // derived from Shikshaqmine."Years they started teaching"
   minFees?: number | null; // Shikshaqmine."Min Fees"
   maxFees?: number | null; // Shikshaqmine."Max Fees"
@@ -160,59 +159,13 @@ function TeacherCardComponent({
   // so this card never shows it as if it were an actual subject chip.
   const hasRealSubject = !!subject && !/^tuition teachers?$/i.test(subject.trim());
 
-  // WhatsApp — design.md §3 / micro-interactions: signed-out tap opens the soft
-  // sign-in sheet (never a route change), and continues straight to the click-
-  // tracking redirect for THIS teacher once auth completes. Mirrors the
-  // handleWhatsAppClick pattern on TeacherProfile, scoped per-card since a page
-  // can render many of these.
-  const [signInSheetOpen, setSignInSheetOpen] = useState(false);
-  const pendingWhatsAppKey = `shikshaq_pending_whatsapp_card`;
+  /* The WhatsApp gate machinery that lived here — the pending-continue effect,
+     handleWhatsAppClick, and the ContactGateSheet it opened — went with the
+     CTAs above. Nothing on a card can start a message any more, so keeping a
+     sheet nothing opens (and a sessionStorage handshake nothing writes) would
+     be dead weight. TeacherProfile still owns the full flow, gate and
+     auto-continue included; this is only the card. */
 
-  useEffect(() => {
-    if (!user) return;
-    let pending: string | null = null;
-    try {
-      pending = sessionStorage.getItem(pendingWhatsAppKey);
-    } catch {
-      return;
-    }
-    if (pending && pending === slug) {
-      try {
-        sessionStorage.removeItem(pendingWhatsAppKey);
-      } catch {
-        /* ok */
-      }
-      const url = resolveTeacherWhatsAppUrl(whatsappLink);
-      navigate(`/tuition-teachers/${slug}/whatsapp-click`, { state: { url, name } });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, slug]);
-
-  const handleWhatsAppClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const url = resolveTeacherWhatsAppUrl(whatsappLink);
-    if (!user) {
-      try {
-        sessionStorage.setItem(pendingWhatsAppKey, slug);
-      } catch {
-        /* storage unavailable — sign-in still works, just without auto-continue */
-      }
-      /* Handoff O-005 / AU-004a: the gate writes the intent before it opens,
-         so /auth shows variant B naming this teacher. TeacherProfile does the
-         same in its own openSignInSheet; this is the card-level gate that
-         Browse and the rails open. */
-      setAuthIntent({
-        kind: 'whatsapp',
-        teacherName: displayName,
-        subject: subject ?? '',
-        area: area ?? '',
-      });
-      setSignInSheetOpen(true);
-      return;
-    }
-    navigate(`/tuition-teachers/${slug}/whatsapp-click`, { state: { url, name } });
-  };
 
   const feeLabel = formatFeeLabel(minFees, maxFees);
   // `grid-compact` (home rail, Index.tsx) and plain `grid` (Browse.tsx) now
@@ -233,30 +186,6 @@ function TeacherCardComponent({
   ].filter(Boolean) as string[];
   const factsLine = factsParts.length > 0 ? factsParts.join(' · ') : null;
 
-  // Neither grid density (`grid` nor `grid-compact`) keeps a WhatsApp button
-  // on the card body anymore (owner's live review, both rounds). Row gets
-  // its own disc (whatsappDisc, B-012) instead of this labelled button.
-  const whatsappButton = !isCompact && !isPlainGrid && !isRow && whatsappLink !== undefined && (
-    <Button
-      variant="whatsapp"
-      /* Handoff S-007: 40 is no longer a legal Button size; 44 is the floor.
-         P-008/P-012 may retune this WhatsApp CTA further when the profile
-         page's own entries land. */
-      size={44}
-      onClick={handleWhatsAppClick}
-      /* micro-04-cards-lists-pages.png: "The whole card is one target... the
-         WhatsApp button inside does not grow its own hover — only one thing may
-         respond at a time." The card lifts on hover and so did this button, so
-         pointing at Chat lifted the button inside a card that was already
-         lifting. hover:translate-y-0 lands in the same tailwind-merge class
-         group as the variant's hover:-translate-y-0.5 and replaces it, leaving
-         the card as the only thing that moves. */
-      className="hover:translate-y-0 mt-2 w-full"
-    >
-      <WhatsAppIcon className="h-4 w-4" />
-      WhatsApp
-    </Button>
-  );
 
   const handleHeartClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -426,19 +355,13 @@ function TeacherCardComponent({
     </div>
   ) : null;
 
-  // Handoff B-012: row gets a 44x44 WhatsApp DISC (not the labelled button
-  // grid/rail use), trailing and top-aligned with the name — restored after
-  // an earlier pass had dropped it specifically for Browse's row cards.
-  const whatsappDisc = isRow && whatsappLink !== undefined && (
-    <button
-      type="button"
-      onClick={handleWhatsAppClick}
-      aria-label={`Message ${name} on WhatsApp`}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-whatsapp text-whatsapp-text transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
-    >
-      <WhatsAppIcon className="h-[19px] w-[19px]" />
-    </button>
-  );
+  /* OWNER DECISION, overriding B-012 point 4 and the Browse mockup, both of
+     which draw a trailing 44x44 #25D366 disc on the row card: "remove the
+     WhatsApp button from the teacher card on the browse page ... the similar
+     teacher and the home featured teachers". Contacting now happens from the
+     teacher's own profile, so the card is a link and nothing else. Flagged
+     because the design export does show the disc — this is a product call
+     that supersedes it, the same way the contact email did. */
 
   // Favourite heart — real 44px hit target, now living beside the name instead
   // of overlapping the photo (design.md §2.5 binding rule).
@@ -496,20 +419,8 @@ function TeacherCardComponent({
           </div>
           <div className="flex flex-none flex-col items-end gap-1">
             {heartButton}
-            {whatsappDisc}
           </div>
         </Link>
-        {whatsappLink !== undefined && (
-          <ContactGateSheet
-            open={signInSheetOpen}
-            onOpenChange={setSignInSheetOpen}
-            intent="message"
-            teacherName={name}
-            teacherImageUrl={imageUrl}
-            teacherSubject={subject}
-            teacherArea={area}
-          />
-        )}
       </>
     );
   }
@@ -561,20 +472,8 @@ function TeacherCardComponent({
           {metaRow}
           {chipsRow}
           {factsRow}
-          {whatsappButton}
         </div>
       </Link>
-      {whatsappLink !== undefined && (
-        <ContactGateSheet
-          open={signInSheetOpen}
-          onOpenChange={setSignInSheetOpen}
-          intent="message"
-          teacherName={name}
-          teacherImageUrl={imageUrl}
-          teacherSubject={subject}
-          teacherArea={area}
-        />
-      )}
     </>
   );
 }
