@@ -47,8 +47,11 @@ const AdminTeachersPage = lazy(() => import("./pages/admin/teachers"));
 const AdminPapersPage = lazy(() => import("./pages/admin/papers"));
 const AdminReviews = lazy(() => import("./pages/admin/reviews"));
 const AdminAuditLog = lazy(() => import("./pages/admin/audit"));
-const LikedTeachers = lazy(() => import("./pages/LikedTeachers"));
-const MyTeachers = lazy(() => import("./pages/MyTeachers"));
+/* LikedTeachers / MyTeachers are NOT lazy-imported here any more. Their two
+   routes redirect into /account (see the O-05 note below) and neither
+   component was rendered, but the `lazy()` calls still made Vite emit a chunk
+   for each — two dead bundles shipped for code nothing can reach. The page
+   files themselves stay, unrouted, for the same reason the dashboards do. */
 const SelectRole = lazy(() => import("./pages/SelectRole"));
 const TeacherTermsAgreement = lazy(() => import("./pages/TeacherTermsAgreement"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
