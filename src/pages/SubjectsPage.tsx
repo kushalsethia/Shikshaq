@@ -96,7 +96,7 @@ export default function SubjectsPage() {
       <main>
         <BentoStack>
           {/* Handoff SB-002: bone header panel, replacing the dark ControlBlock. */}
-          <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[22px]">
+          <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[22px]">
             <NumberedHeading
               as="h1"
               line1="Every subject,"
@@ -107,7 +107,7 @@ export default function SubjectsPage() {
           </BentoPanel>
 
           {/* Handoff SB-003: grid wrapped in its own panel. */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             {query.isLoading ? (
               /* Not the generic ListLoading/SkeletonCard shape (bg-card +
                  shadow-border + text lines) — SubjectCard tiles are borderless

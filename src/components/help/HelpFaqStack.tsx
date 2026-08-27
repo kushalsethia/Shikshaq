@@ -115,7 +115,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
   return (
     <BentoStack>
       {/* Handoff HP-002: header + category chips. */}
-      <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[22px]">
+      <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[22px]">
         <NumberedHeading as="h1" line1={heading.line1} ordinal={heading.ordinal} line2={heading.line2} />
         <div className="-mx-5 mt-4 overflow-x-auto px-5 scrollbar-hide lg:-mx-8 lg:px-8">
           <div className="flex w-max gap-2">
@@ -144,7 +144,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
           not custom state. Every question stays in the DOM regardless of the
           active chip (HP-002's crawler requirement) — filtering only toggles
           a `hidden` class. */}
-      <BentoPanel ref={questionsRef} fill="card">
+      <BentoPanel ref={questionsRef} fill="card" className="p-[22px]">
         <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">{questionsHeading}</h2>
         <div className="mt-3.5 flex flex-col gap-2">
           {questions.map((q) => (
@@ -171,7 +171,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
           real link/button now (GUIDE_LINK_BY_TITLE) — see that map's
           comment for why "link targets unchanged" couldn't be satisfied
           literally. */}
-      <BentoPanel fill="card">
+      <BentoPanel fill="card" className="p-[22px]">
         <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">Guides</h2>
         {/* D-005: the stack becomes a grid at lg. Left as a flex-col these
             83px cards each ran the full 1201px panel — the exact shape D-005
@@ -202,7 +202,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
       </BentoPanel>
 
       {/* Handoff HP-005: contact CTA. */}
-      <BentoPanel fill="dark">
+      <BentoPanel fill="dark" className="p-[22px]">
         <h2 className="text-[19px] font-extrabold tracking-[-0.03em]">{contactHeading}</h2>
         <p className="mt-2 text-[14px] leading-[1.55] text-background/70">{contactBody}</p>
         <Link

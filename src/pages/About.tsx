@@ -103,7 +103,7 @@ export default function About() {
       <main>
         <BentoStack>
           {/* Handoff AB-002: the annotated statement, now inside a bone header panel. */}
-          <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[26px]">
+          <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[26px]">
             <AnnotatedStatement
               statement={statement}
               align="left"
@@ -117,7 +117,7 @@ export default function About() {
           </BentoPanel>
 
           {/* Handoff AB-003: lede + stats grid. */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <p className="text-[15px] leading-[1.6] text-warm-prose">
               ShikshAQ started because finding a tutor in Kolkata still meant asking three
               neighbours and trusting a photocopied leaflet. We list teachers, verify who they
@@ -140,7 +140,7 @@ export default function About() {
           </BentoPanel>
 
           {/* Handoff AB-004: founders panel. */}
-          <BentoPanel fill="dark">
+          <BentoPanel fill="dark" className="p-[22px]">
             <div className="mb-3 flex items-center gap-3">
               <div className="flex flex-none -space-x-3">
                 <div className="h-14 w-14 overflow-hidden rounded-full ring-2 ring-panel">
@@ -173,7 +173,7 @@ export default function About() {
               mockup, but it's real functionality (a live route + form the app
               depends on), so it stays — styled in the mockup's own language
               rather than dropped. */}
-          <BentoPanel fill="card" className="!py-[18px]">
+          <BentoPanel fill="card" className="px-[22px] !py-[18px] lg:!py-8">
             <Link
               to="/recommend-teacher"
               className="flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

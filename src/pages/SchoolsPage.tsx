@@ -95,7 +95,7 @@ export default function SchoolsPage() {
       <main>
         <BentoStack>
           {/* Handoff SC-002: bone header panel, replacing the dark ControlBlock. */}
-          <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[22px]">
+          <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[22px]">
             <NumberedHeading
               as="h1"
               line1="Papers from"
@@ -108,7 +108,7 @@ export default function SchoolsPage() {
           {/* Handoff SC-003/SC-004: row list wrapped in its own panel; rows
               match PastPapers' By-school row exactly (PP-010) — bg-muted, no
               shadow-border. */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             {query.isLoading ? (
               <ListLoading count={6} media={0} lines={2} className="grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]" />
             ) : query.isError ? (

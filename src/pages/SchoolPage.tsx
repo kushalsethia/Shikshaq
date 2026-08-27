@@ -327,7 +327,7 @@ export default function SchoolPage() {
               {/* SP-003: subject chips, h40, subject tints, linking into the
                   existing results query. */}
               {subjects.length > 1 && (
-                <BentoPanel fill="card" className="!px-0 !py-[22px]">
+                <BentoPanel fill="card" className="!px-0 !py-[22px] lg:!py-8">
                   <h2 className="px-[22px] font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
                     Subjects here
                   </h2>

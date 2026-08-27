@@ -458,7 +458,7 @@ export default function PastPapers() {
             open, opening is not.
             Handoff PP-008: BentoPanel, heading+rail get px-[22px]. */}
         {!loading && !loadError && recentPapers.length > 0 && (
-          <BentoPanel fill="card" className="!px-0 !py-[22px]">
+          <BentoPanel fill="card" className="!px-0 !py-[22px] lg:!py-8">
             {/* The "Sign in to read" pill that used to sit beside this
                 heading was a second extraneous sign-in CTA (owner mobile
                 QA) — the actual gate lives on each locked cover's 28px

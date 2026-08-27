@@ -389,7 +389,11 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           slab floating on page ground — no mx-3 inset, radius is top-only
           (it butts the bottom-nav reserve). */}
       <div className="overflow-hidden rounded-t-bento bg-panel text-white">
-        <PageContainer className="px-5 py-8 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
+        {/* pb-[34px], not py-8. H-021 writes this container as `py-8`, but
+            S-016 gives `px-5 pt-8 pb-[34px]` and the rendered mockup measures
+            32px top / 34px bottom — two sources against one, so the bottom
+            step wins. The sm:/lg: rows still override both. */}
+        <PageContainer className="px-5 pt-8 pb-[34px] sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <div className="space-y-8">
             {/* Identity */}
             <div className="space-y-3">

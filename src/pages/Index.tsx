@@ -610,7 +610,7 @@ export default function Index() {
 
             <div className="flex flex-col gap-seam lg:gap-2">
           {/* --------------------------------------------------- 3 · Teachers fork */}
-          <BentoPanel fill="brandTint" className="!px-[22px] !pt-[18px] !pb-5">
+          <BentoPanel fill="brandTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
             <div className="flex items-center justify-between">
               <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand text-[#1F1F1F]">
                 <Users className="h-[19px] w-[19px]" strokeWidth={2.25} aria-hidden />
@@ -651,7 +651,7 @@ export default function Index() {
           </BentoPanel>
 
           {/* ----------------------------------------------------- 4 · Papers fork */}
-          <BentoPanel fill="papersTint" className="!px-[22px] !pt-[18px] !pb-5">
+          <BentoPanel fill="papersTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
             <Link to="/past-papers" className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[12.5px] font-medium text-warm-secondary">Past papers</p>
@@ -672,7 +672,7 @@ export default function Index() {
           </div>
 
           {/* --------------------------------------------- 5 · 01 Featured teachers */}
-          <BentoPanel fill="card" className="!px-0 !py-[22px]">
+          <BentoPanel fill="card" className="!px-0 !py-[22px] lg:!py-8">
             <div className="px-[22px]">
               <NumberedHeading
                 size="compact"
@@ -947,7 +947,7 @@ export default function Index() {
 
           {/* ------------------------------------------------------ 12 · From students */}
           {studentQuotes.length > 0 && (
-            <BentoPanel fill="card" className="!px-0 !py-[22px]">
+            <BentoPanel fill="card" className="!px-0 !py-[22px] lg:!py-8">
               <div className="flex items-center gap-3 px-[22px]">
                 <IconDisc tone="muted" size={32} shape="square" className="!rounded-xl"><MessageCircle /></IconDisc>
                 <h2 className="font-display text-[22px] font-extrabold lg:text-[28px]">From students</h2>
@@ -979,7 +979,7 @@ export default function Index() {
           )}
 
           {/* ------------------------------------------------------- 13 · Recommend */}
-          <BentoPanel fill="card" className="!px-[22px] !py-[18px]">
+          <BentoPanel fill="card" className="!px-[22px] !py-[18px] lg:!px-8 lg:!py-8">
             <Link
               to="/recommend-teacher"
               className="flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -998,8 +998,11 @@ export default function Index() {
           {/* HomeGreeting / HomeActivitySection (Favourites, Recently visited) are
               real, existing localStorage/likes-backed features with no home in
               the mockup's own section order. Kept, moved below the mockup's own
-              sections, just above the eyes panel, rather than deleted. */}
-          <BentoPanel fill="card">
+              sections, just above the eyes panel, rather than deleted.
+              p-[22px] like every other card panel on this page — the mockup
+              never draws this one, and BentoPanel's 20px default left it the
+              single odd inset in the stack. */}
+          <BentoPanel fill="card" className="p-[22px]">
             <HomeGreeting />
             <HomeActivitySection />
           </BentoPanel>

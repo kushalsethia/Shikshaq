@@ -1560,7 +1560,12 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       {/* Handoff B-002: the near-black control block becomes the stack's
           bone header panel — one dark surface on this page (the footer), not
           two fighting the tinted result cards. */}
-      <BentoPanel fill="card" edge="top" className="pt-[14px] pb-5">
+      {/* px-[22px]: B-002 writes this panel as `pt-[14px] pb-5` and says
+          nothing about the sides, so it had been sitting on BentoPanel's 20px
+          default — but Browse Redesign.dc.html measures 14/22/20, and every
+          other header panel in the family (Home, About, Contact, Help,
+          Subjects, Schools) is 22px in its own geometry appendix. */}
+      <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-5">
         {/* Handoff B-003: its own 44px row, lucide ArrowLeft (not the literal
             glyph), warm-secondary ink. */}
         <Link

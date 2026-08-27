@@ -98,7 +98,7 @@ export default function Contact() {
       <main>
         <BentoStack>
           {/* Handoff CT-002: the annotated statement, now inside a bone header panel. */}
-          <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[26px]">
+          <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[26px]">
             <AnnotatedStatement
               statement={statement}
               align="left"
@@ -114,7 +114,7 @@ export default function Contact() {
           {/* Handoff CT-003: topic picker — the reason a message arrives now
               travels with it (as the mailto subject line), so a takedown
               request and a tutoring question no longer look identical. */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-warm-label">
               What is it about
             </span>
@@ -143,7 +143,7 @@ export default function Contact() {
           </BentoPanel>
 
           {/* Handoff CT-004: the form itself — same four fields, same handler. */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <NumberedHeading
               line1="Send us a note"
               ordinal="01"
@@ -206,7 +206,7 @@ export default function Contact() {
           </BentoPanel>
 
           {/* Handoff CT-005: the real published WhatsApp number, or nothing. */}
-          <BentoPanel fill="mint" className="py-[18px]">
+          <BentoPanel fill="mint" className="px-[22px] py-[18px]">
             <a
               href={getWhatsAppLink('8240980312')}
               target="_blank"
