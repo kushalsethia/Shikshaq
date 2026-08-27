@@ -556,7 +556,7 @@ export default function AdminPapersPage() {
                 value={formData.title || ''}
                 onChange={(e) => handleChange('title', e.target.value)}
                 placeholder="e.g. Prelims 2025"
-                className={cn(adminFieldStyle, 'w-full px-3 text-foreground outline-none')}
+                className={cn(adminFieldStyle, 'w-full px-3 text-foreground outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand')}
               />
             </div>
             <div>
@@ -566,7 +566,7 @@ export default function AdminPapersPage() {
                 value={formData.school || ''}
                 onChange={(e) => handleChange('school', e.target.value)}
                 placeholder="e.g. La Martiniere for Boys"
-                className={cn(adminFieldStyle, 'w-full px-3 text-foreground outline-none')}
+                className={cn(adminFieldStyle, 'w-full px-3 text-foreground outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand')}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -614,7 +614,7 @@ export default function AdminPapersPage() {
                 type="number"
                 value={formData.year ?? ''}
                 onChange={(e) => handleChange('year', e.target.value === '' ? undefined : Number(e.target.value))}
-                className={cn(adminFieldStyle, 'w-full px-3 text-foreground outline-none')}
+                className={cn(adminFieldStyle, 'w-full px-3 text-foreground outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand')}
               />
             </div>
             <div className="flex items-center gap-2">

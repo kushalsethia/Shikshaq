@@ -187,7 +187,7 @@ export default function About() {
                   Recommend them &mdash; we&rsquo;ll reach out and get them listed, free.
                 </p>
               </div>
-              <ArrowRight className="h-4 w-4 flex-none text-warm-label" aria-hidden="true" />
+              <ArrowRight className="h-5 w-5 flex-none text-warm-label" aria-hidden="true" />
             </Link>
           </BentoPanel>
 

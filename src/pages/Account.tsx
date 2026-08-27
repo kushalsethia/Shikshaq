@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Settings, LogOut, ShieldCheck, X, Heart } from 'lucide-react';
+import { Settings, LogOut, ShieldCheck, X, Heart, UserRound, ChevronRight, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { useAuth } from '@/lib/auth-context';
 import { useLikes } from '@/lib/likes-context';
@@ -11,6 +12,10 @@ import { TeacherCard } from '@/components/TeacherCard';
 import { PaperCard, type PaperCardPaper } from '@/components/PaperCard';
 import { GoalRing } from '@/components/papers/goal-ring';
 import { Button } from '@/components/ui/button';
+import { Chip } from '@/components/ui/chip';
+import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
+import { Eyebrow } from '@/components/ui/eyebrow';
+import { formatDateForDisplay, formatDateForDatabase, isValidDateFormat, formatDateInput } from '@/lib/date-helpers';
 import { ListLoading, ListError, ListEnd } from '@/components/ui/list-states';
 import {
   Sheet,
@@ -29,6 +34,13 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'contacted', label: 'Contacted' },
   { key: 'papers', label: 'Papers' },
 ];
+
+// Same lists StudentDashboard.tsx used for these two fields.
+const GRADE_OPTIONS = [
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
+  'UG, First Year', 'UG, Second Year', 'UG, Third Year', 'UG, Fourth Year', 'Other',
+];
+const SCHOOL_BOARDS = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'];
 
 interface RowTeacher {
   id: string;
@@ -331,6 +343,142 @@ export default function Account() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // ------------------------------------------------------------ Edit profile
+  // StudentDashboard.tsx (the pre-redesign profile-editing screen) is
+  // unrouted — /dashboard/student redirects here — but its fields (phone,
+  // DOB, school, grade, board, guardian email, subjects) had no live
+  // replacement anywhere in the app. Ported the same fetch/validate/save
+  // logic onto the new Field/Chip components rather than the old shadcn
+  // defaults StudentDashboard used.
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    phone: '',
+    date_of_birth: '',
+    school_college: '',
+    grade: '',
+    school_board: '',
+    guardian_email: '',
+    address: '',
+  });
+  const [allSubjects, setAllSubjects] = useState<{ id: string; name: string }[]>([]);
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!profileSheetOpen || profileLoaded || !user) return;
+    let cancelled = false;
+    (async () => {
+      setProfileLoading(true);
+      try {
+        const [{ data: profileData, error }, { data: subjectsData }, { data: studentSubjectsData }] = await Promise.all([
+          supabase.from('profiles').select('phone, date_of_birth, school_college, grade, school_board, guardian_email, address').eq('id', user.id).maybeSingle(),
+          supabase.from('subjects').select('id, name').order('name'),
+          supabase.from('student_subjects').select('subject_id').eq('student_id', user.id),
+        ]);
+        if (cancelled) return;
+        if (error) throw error;
+        if (profileData) {
+          setProfileForm({
+            phone: profileData.phone || '',
+            date_of_birth: formatDateForDisplay(profileData.date_of_birth),
+            school_college: profileData.school_college || '',
+            grade: profileData.grade || '',
+            school_board: profileData.school_board || '',
+            guardian_email: profileData.guardian_email || '',
+            address: profileData.address || '',
+          });
+        }
+        if (subjectsData) setAllSubjects(subjectsData);
+        if (studentSubjectsData) setSelectedSubjectIds(studentSubjectsData.map((s) => s.subject_id));
+        setProfileLoaded(true);
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('Error loading profile for editing:', err);
+        toast.error('Could not load your profile');
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profileSheetOpen, profileLoaded, user]);
+
+  const phoneField = useBlurValidation(profileForm.phone, (v) => {
+    if (!v.trim()) return 'Enter your phone number';
+    if (v.trim().length !== 10) return 'Phone number must be exactly 10 digits';
+    return undefined;
+  });
+  const dobField = useBlurValidation(profileForm.date_of_birth, (v) => {
+    if (!v.trim()) return 'Enter your date of birth';
+    if (!isValidDateFormat(v.trim())) return 'Use DD-MM-YYYY, e.g. 15-03-2010';
+    return undefined;
+  });
+  const schoolField = useBlurValidation(profileForm.school_college, (v) =>
+    v.trim() ? undefined : 'Enter your school or college name',
+  );
+  const gradeField = useBlurValidation(profileForm.grade, (v) => (v.trim() ? undefined : 'Select your grade'));
+
+  const toggleSubject = (id: string) => {
+    setSelectedSubjectIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    // Blur-only errors (Field's own rule) don't fire on submit automatically,
+    // so touch every field here to surface any that were never blurred.
+    phoneField.onBlur();
+    dobField.onBlur();
+    schoolField.onBlur();
+    gradeField.onBlur();
+    if (!phoneField.isValid || !dobField.isValid || !schoolField.isValid || !gradeField.isValid) {
+      toast.error('Please fix the highlighted fields');
+      return;
+    }
+
+    setProfileSaving(true);
+    try {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          phone: profileForm.phone || null,
+          school_college: profileForm.school_college || null,
+          grade: profileForm.grade || null,
+          school_board: profileForm.school_board || null,
+          address: profileForm.address || null,
+          guardian_email: profileForm.guardian_email || null,
+          date_of_birth: formatDateForDatabase(profileForm.date_of_birth),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
+      if (profileError) throw profileError;
+
+      // Same delete-then-insert as StudentDashboard: stop on a failed delete
+      // rather than inserting on top of whatever rows are already there.
+      const { error: deleteError } = await supabase.from('student_subjects').delete().eq('student_id', user.id);
+      if (deleteError) throw deleteError;
+      if (selectedSubjectIds.length > 0) {
+        const { error: insertError } = await supabase
+          .from('student_subjects')
+          .insert(selectedSubjectIds.map((subject_id) => ({ student_id: user.id, subject_id })));
+        if (insertError) throw insertError;
+      }
+
+      toast.success('Profile updated');
+      setProfileSheetOpen(false);
+      // The header's "Class {grade}" sub-line reads from the lean `profile`
+      // state fetched on mount — refresh it so a changed grade shows
+      // immediately instead of only after the next page load.
+      setProfile((prev) => (prev ? { ...prev, grade: profileForm.grade || null } : prev));
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Error saving profile:', err);
+      toast.error('Failed to save your profile');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
@@ -560,9 +708,8 @@ export default function Account() {
       </BentoStack>
       </main>
 
-      {/* Settings sheet — sign-out and account links. Full profile-field
-          editing (subjects, address, etc.) stays on the ported dashboards for
-          now rather than being rebuilt inline here. */}
+      {/* Settings sheet — sign-out, account links, and (students only) the
+          profile-editing entry point below. */}
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
         <SheetContent side="bottom" className="rounded-t-[28px] border-0 pb-8 pt-6">
           <SheetHeader className="items-start text-left">
@@ -571,6 +718,20 @@ export default function Account() {
             </SheetTitle>
           </SheetHeader>
           <div className="mt-4 flex flex-col gap-1">
+            {profile?.role === 'student' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSettingsOpen(false);
+                  setProfileSheetOpen(true);
+                }}
+                className="flex min-h-[52px] w-full items-center gap-3 rounded-xl px-2 text-left transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <UserRound className="h-4 w-4 text-warm-label" strokeWidth={2} aria-hidden="true" />
+                <span className="flex-1 text-body-secondary font-semibold text-foreground">Edit profile</span>
+                <ChevronRight className="h-4 w-4 text-warm-label" strokeWidth={2} aria-hidden="true" />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => navigate('/privacy-policy')}
@@ -588,6 +749,167 @@ export default function Account() {
               <span className="flex-1 text-body-secondary font-semibold text-destructive">Sign out</span>
             </button>
           </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Edit-profile sheet (students only) — phone/DOB/school/grade/board/
+          guardian email/address/subjects, the fields StudentDashboard.tsx
+          (unrouted since /dashboard/student -> /account) used to own with
+          no live replacement. Ported onto Field/Chip instead of that page's
+          shadcn defaults. */}
+      <Sheet open={profileSheetOpen} onOpenChange={setProfileSheetOpen}>
+        <SheetContent side="bottom" className="flex max-h-[85vh] flex-col rounded-t-[28px] border-0 pb-6 pt-6">
+          <SheetHeader className="items-start text-left">
+            <SheetTitle className="font-display text-xl font-bold tracking-tight text-foreground">
+              Edit profile
+            </SheetTitle>
+          </SheetHeader>
+
+          {profileLoading ? (
+            <div className="flex flex-1 items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-warm-label" aria-hidden="true" />
+            </div>
+          ) : (
+            <div className="mt-4 flex-1 overflow-y-auto">
+              <div className="flex flex-col gap-[14px] pb-2">
+                <div className="grid gap-[14px] sm:grid-cols-2">
+                  <Field label="Phone number" error={phoneField.error} required>
+                    {(cp) => (
+                      <FieldInput
+                        {...cp}
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        maxLength={10}
+                        placeholder="10-digit phone number"
+                        value={profileForm.phone}
+                        onChange={(e) => setProfileForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, '') }))}
+                        onBlur={phoneField.onBlur}
+                      />
+                    )}
+                  </Field>
+                  <Field label="Date of birth" error={dobField.error} required>
+                    {(cp) => (
+                      <FieldInput
+                        {...cp}
+                        type="text"
+                        maxLength={10}
+                        placeholder="DD-MM-YYYY"
+                        value={profileForm.date_of_birth}
+                        onChange={(e) => setProfileForm((f) => ({ ...f, date_of_birth: formatDateInput(e.target.value) }))}
+                        onBlur={dobField.onBlur}
+                      />
+                    )}
+                  </Field>
+                </div>
+
+                <Field label="School or college" error={schoolField.error} required>
+                  {(cp) => (
+                    <FieldInput
+                      {...cp}
+                      placeholder="Enter school or college name"
+                      value={profileForm.school_college}
+                      onChange={(e) => setProfileForm((f) => ({ ...f, school_college: e.target.value }))}
+                      onBlur={schoolField.onBlur}
+                    />
+                  )}
+                </Field>
+
+                <Field label="Grade" error={gradeField.error} required>
+                  {(cp) => (
+                    <select
+                      {...cp}
+                      value={profileForm.grade}
+                      onChange={(e) => setProfileForm((f) => ({ ...f, grade: e.target.value }))}
+                      onBlur={gradeField.onBlur}
+                    >
+                      <option value="">Select grade</option>
+                      {GRADE_OPTIONS.map((g) => (
+                        <option key={g} value={g}>
+                          {/^\d+$/.test(g) ? `Class ${g}` : g}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Field>
+
+                <div className="flex flex-col gap-2">
+                  <Eyebrow>School board (optional)</Eyebrow>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="School board">
+                    {SCHOOL_BOARDS.map((board) => (
+                      <Chip
+                        key={board}
+                        tone={profileForm.school_board === board ? 'facet-on' : 'facet'}
+                        size={44}
+                        aria-pressed={profileForm.school_board === board}
+                        onClick={() =>
+                          setProfileForm((f) => ({ ...f, school_board: f.school_board === board ? '' : board }))
+                        }
+                      >
+                        {board}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+
+                <Field label="Guardian's email (optional)">
+                  {(cp) => (
+                    <FieldInput
+                      {...cp}
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      placeholder="guardian@example.com"
+                      value={profileForm.guardian_email}
+                      onChange={(e) => setProfileForm((f) => ({ ...f, guardian_email: e.target.value }))}
+                    />
+                  )}
+                </Field>
+
+                <Field label="Address (optional)">
+                  {(cp) => (
+                    <FieldTextarea
+                      {...cp}
+                      placeholder="Enter your address"
+                      value={profileForm.address}
+                      onChange={(e) => setProfileForm((f) => ({ ...f, address: e.target.value }))}
+                    />
+                  )}
+                </Field>
+
+                <div className="flex flex-col gap-2">
+                  <Eyebrow className="whitespace-normal">Subjects interested in (optional)</Eyebrow>
+                  <div className="flex flex-wrap gap-2">
+                    {allSubjects.map((s) => (
+                      <Chip
+                        key={s.id}
+                        tone={selectedSubjectIds.includes(s.id) ? 'facet-on' : 'facet'}
+                        size={44}
+                        aria-pressed={selectedSubjectIds.includes(s.id)}
+                        onClick={() => toggleSubject(s.id)}
+                      >
+                        {s.name}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!profileLoading && (
+            <Button
+              variant="primary"
+              size={52}
+              className="mt-4 w-full flex-none"
+              onClick={handleSaveProfile}
+              disabled={profileSaving}
+            >
+              {profileSaving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : 'Save profile'}
+            </Button>
+          )}
         </SheetContent>
       </Sheet>
     </div>
