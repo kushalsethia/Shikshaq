@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { useIsChromelessRoute } from "@/lib/chromeless-routes";
 
 /* Redesign S3 + S4 (components.md §3, design.md §1).
 
@@ -174,20 +175,50 @@ export interface BentoPanelProps extends React.HTMLAttributes<HTMLDivElement> {
   edge?: 'top' | 'bottom';
 }
 
+/* The floating nav pill sits at `top-3` and is 56px tall on mobile, 60px at
+   lg — so it occupies 12..68 / 12..72. `edge="top"` means "first panel, meets
+   the nav", and it can only *meet* the nav if the panel's fill starts at y=0
+   and runs underneath it.
+
+   That used to be prevented by AppShell rendering a TopNavSpacer above the
+   content, which pushed the first panel down to y=80 and left a band of bare
+   page ground framing the pill. On a bone page it merely looked like dead
+   space; on Past papers, whose pill is styled to sit ON the indigo hero, it
+   left a translucent-white pill floating on bone with an inverted white logo
+   — invisible.
+
+   The reserve now lives inside the panel instead, so the fill reaches the top
+   of the viewport and the pill overlays it. Chromeless routes render no nav,
+   so they get no reserve. */
+function NavReserve() {
+  return (
+    <>
+      <div aria-hidden className="lg:hidden h-[68px]" />
+      <div aria-hidden className="hidden lg:block h-[72px]" />
+    </>
+  );
+}
+
 export const BentoPanel = React.forwardRef<HTMLDivElement, BentoPanelProps>(
-  ({ fill = 'card', edge, className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn(
-        'rounded-bento px-5 py-5 lg:px-8 lg:py-8',
-        edge === 'top' && 'rounded-t-none',
-        edge === 'bottom' && 'rounded-b-none',
-        PANEL_FILLS[fill],
-        className,
-      )}
-      {...props}
-    />
-  ),
+  ({ fill = 'card', edge, className, children, ...props }, ref) => {
+    const chromeless = useIsChromelessRoute();
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'rounded-bento px-5 py-5 lg:px-8 lg:py-8',
+          edge === 'top' && 'rounded-t-none',
+          edge === 'bottom' && 'rounded-b-none',
+          PANEL_FILLS[fill],
+          className,
+        )}
+        {...props}
+      >
+        {edge === 'top' && !chromeless ? <NavReserve /> : null}
+        {children}
+      </div>
+    );
+  },
 );
 BentoPanel.displayName = 'BentoPanel';
 

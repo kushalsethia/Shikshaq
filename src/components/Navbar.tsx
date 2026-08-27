@@ -95,6 +95,20 @@ function LogoOrTourTrigger({ onDark = false }: { onDark?: boolean }) {
   return <Logo size="nav" className="tap-44 flex-none" onDark={onDark} priority />;
 }
 
+/* Which fill family the first (`edge="top"`) panel of a route uses. The pill
+   floats on that panel, so this decides whether it needs a light or an
+   on-dark treatment. Kept as an explicit map rather than read from the DOM:
+   the pill paints on the first frame, before any page effect could report it,
+   and a flash of the wrong fill is worse than a list to maintain. */
+type TopFill = 'light' | 'dark' | 'indigo';
+function topPanelFill(pathname: string): TopFill {
+  if (/^\/tuition-teachers\/[^/]+\/?$/.test(pathname)) return 'dark';
+  if (pathname === '/recommend-teacher' || pathname === '/dashboard/teacher') return 'dark';
+  if (pathname === '/past-papers' || pathname === '/past-papers/results') return 'indigo';
+  if (/^\/school\/[^/]+\/?$/.test(pathname)) return 'indigo';
+  return 'light';
+}
+
 export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -150,22 +164,18 @@ export function Navbar() {
   // makes the transition instant via the global guard in index.css, so no
   // separate branch is needed here.
   const [scrolled, setScrolled] = useState(false);
-  /* Only the home hero is a dark (near-black) slab; every other route puts
-     bone under this bar, where a white logo would vanish. */
-  const onDarkBlock = location.pathname === '/' && !scrolled;
-  /* /past-papers has its own saturated slab at the top — the indigo hero
-     (bg-brand-blue), not the near-black panel home uses. Owner mobile QA:
-     "past papers has a blue background at top, but the top [pill] has a
-     white BG ... that should not happen" — onDarkBlock being home-only left
-     this pill falling through to the default translucent-cream treatment
-     (`bg-background/70`) while floating directly over the indigo band, an
-     opaque-looking white square nothing else on the page does. Papers routes
-     get their own dark-slab-adjacent branch below, styled as translucent
-     white-on-indigo — the same "on-tint" convention Browse's bg-white/10
-     search field already uses — rather than reusing home's solid bg-panel,
-     which is the wrong color for this slab. */
-  const onIndigoBlock = location.pathname === '/past-papers' && !scrolled;
-  const onTintBlock = onDarkBlock || onIndigoBlock;
+  /* T-010: "logo inversion follows the panel, not the route." Now that
+     `edge="top"` panels actually run underneath this pill (the nav reserve
+     moved inside BentoPanel), what sits behind the pill is that panel's fill —
+     so the treatment is keyed on the fill family, not on a hand-listed route.
+
+     Previously only `/` and `/past-papers` were special-cased, which left the
+     teacher profile — whose first panel is the near-black identity card — with
+     the default bone pill: a light grey slab sitting on black. */
+  const topFill = topPanelFill(location.pathname);
+  /* T-009: home's first panel is bone after the redesign, so the pill is
+     bone too and the logo is NOT inverted. */
+  const onTintBlock = topFill !== 'light' && !scrolled;
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();
@@ -185,23 +195,15 @@ export function Navbar() {
       className={`fixed inset-x-3 top-3 rounded-full shadow-pill transition-colors duration-tap lg:hidden ${
         scrolled
           ? 'ring-1 ring-border bg-background/95 backdrop-blur'
-          : onDarkBlock
-            /* Solid, not transparent: this bar floats above the hero's dark
-               ControlBlock, not inside it — so a transparent background here
-               would reveal the page's cream bg-background, not the dark
-               block, leaving the inverted white logo with no contrast
-               (near-invisible on first paint at mobile widths). Matching
-               bg-panel (the same fill ControlBlock uses) makes this pill
-               read as lifted off the dark block instead. */
-            ? 'ring-1 ring-white/10 bg-panel'
-            : onIndigoBlock
-              /* Translucent white-on-indigo, not bg-panel: the papers hero is
-                 bg-brand-blue, a different fill than home's near-black panel,
-                 so borrowing panel's solid dark treatment here would be its
-                 own color mismatch. Translucent white reads as "lifted off a
-                 saturated block" the same way bg-panel does for home. */
+          : topFill === 'dark'
+            /* Translucent white over the near-black panel now genuinely
+               beneath it — the same "lifted off a saturated block" reading
+               Browse's bg-white/10 search field uses. */
+            ? 'ring-1 ring-white/15 bg-white/10 backdrop-blur'
+            : topFill === 'indigo'
               ? 'ring-1 ring-white/15 bg-white/10 backdrop-blur'
-              : 'ring-1 ring-border bg-background/70 backdrop-blur'
+              /* T-009: bone on the bone hero, dark logo. */
+              : 'ring-1 ring-border bg-card'
       } ${
         /* pointer-events-none, not just a lower z-index: with SearchControl's
            mobile-pinned scroll lock (`document.body.style.position = 'fixed'`

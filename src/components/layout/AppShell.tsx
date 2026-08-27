@@ -7,7 +7,8 @@ import { Navbar } from '@/components/Navbar';
 import { BottomNav } from '@/components/BottomNav';
 import { Footer } from '@/components/Footer';
 import { PreFooter, preFooterFor, type PreFooterVariant, type B2Counts } from '@/components/layout/PreFooter';
-import { BottomNavSpacer, TopNavSpacer } from '@/components/layout/PageContainer';
+import { BottomNavSpacer } from '@/components/layout/PageContainer';
+import { isChromelessPath } from '@/lib/chromeless-routes';
 
 /* AppShell — the single place shell config for every route is decided.
 
@@ -31,29 +32,7 @@ import { BottomNavSpacer, TopNavSpacer } from '@/components/layout/PageContainer
    their own header. Admin additionally gets its own rail/toolbar shell
    (pages.md §15, not built yet) rather than this consumer AppShell. */
 
-const CHROMELESS_ROUTES = ['/auth', '/select-role', '/join/apply', '/teacher-terms-agreement', '/signup-success'];
-const CHROMELESS_PREFIXES = ['/admin', '/__sandbox'];
-
-/** `/past-papers/:id` (the reader) — not `/past-papers` or `/past-papers/results`. */
-const READER_PATTERN = /^\/past-papers\/(?!results$)[^/]+\/?$/;
-
-/** `/tuition-teachers/:slug/whatsapp-click` — the WhatsApp handoff interstitial (O-012). */
-const WHATSAPP_REDIRECT_PATTERN = /^\/tuition-teachers\/[^/]+\/whatsapp-click\/?$/;
-
-function isChromelessPath(pathname: string): boolean {
-  return (
-    CHROMELESS_ROUTES.includes(pathname) ||
-    CHROMELESS_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)) ||
-    READER_PATTERN.test(pathname) ||
-    WHATSAPP_REDIRECT_PATTERN.test(pathname)
-  );
-}
-
-/** Exported so any remaining call site (there is none left in src/pages) can ask the same question AppShell answers internally. */
-export function useIsChromelessRoute() {
-  const { pathname } = useLocation();
-  return isChromelessPath(pathname);
-}
+export { useIsChromelessRoute } from '@/lib/chromeless-routes';
 
 export interface ChromeConfig {
   /** Override the pre-footer variant this route would otherwise get from `preFooterFor(pathname)`. Pass `'none'` to render no pre-footer at all (e.g. the reader). */
@@ -112,7 +91,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         <>
           <TopBar />
           <Navbar />
-          <TopNavSpacer />
         </>
       )}
 
