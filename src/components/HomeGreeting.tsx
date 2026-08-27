@@ -25,7 +25,9 @@ export function HomeGreeting() {
   const papersViewed = recent.filter((r) => r.type === 'paper').length;
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6 sm:pt-8 lg:px-8">
+    /* Same as HomeActivitySection: rendered only inside Index.tsx's
+       BentoPanel, which owns the column and the padding. */
+    <section className="w-full">
       <div className="outline-thick outline-offset-shadow animate-pop rounded-4xl bg-brand p-6 text-brand-foreground sm:p-8">
         <h2 className="text-page-title font-display font-bold">
           Hello, {firstName} 👋

@@ -30,7 +30,7 @@ export function SEOContentBlock({
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="mx-auto mt-10 w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+    <section className="mx-auto mt-10 w-full max-w-6xl px-5 sm:px-6 lg:px-8">
       <div className="grid gap-8 lg:grid-cols-[1.3fr_1fr]">
         {/* Intro + covers */}
         <div>

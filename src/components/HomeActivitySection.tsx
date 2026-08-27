@@ -34,7 +34,12 @@ function formatRelativeTime(ts: number): string {
 // half-working version of the same query.
 type FavouriteTeacher = TeacherCardLite;
 
-const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
+/* No container padding: this section is rendered only from Index.tsx, inside
+   a <BentoPanel className="p-[22px]">, which already supplies the max-width
+   column and the inset. Keeping `px-4 sm:px-6 lg:px-8` here stacked a second
+   16px on top of the panel's 22px, so this block's content started at x=38
+   while every other panel on the page started at x=22. */
+const CONTAINER = 'w-full';
 // Sits directly under the hero/greeting and right above the featured-teachers
 // grid — a hero-scale gap here reads as dead air between two content blocks
 // rather than a deliberate section break. One step down the §4 scale.
@@ -42,7 +47,7 @@ const CONTAINER = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
    is py-8 sm:py-12; this one was py-12 sm:py-16 lg:py-20, so it sat in a
    visibly deeper well than its neighbours — measured 48/48 against everyone
    else's 32/32. */
-const SECTION = 'py-8 sm:py-12';
+const SECTION = '';
 
 // Cap how many favourites the card-stack cycles through — matches the "peek a couple
 // cards behind" device from the monday.com reference (04-monday-recently-visited-

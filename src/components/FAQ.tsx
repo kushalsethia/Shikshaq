@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 export interface FAQEntry {
   question: string;
   answer: string;
@@ -36,76 +34,11 @@ export const FAQ_ITEMS: FAQEntry[] = [
   },
 ];
 
-interface FAQProps {
-  /** Which entries to render. Defaults to the first four (the Index teaser block). */
-  items?: FAQEntry[];
-  /** Question button font size — 17px on Index, 16.5px on /faq. */
-  questionSize?: number;
-  /** Renders the "Common queries answered" heading + section chrome (Index use). */
-  heading?: boolean;
-}
-
-export function FAQ({ items = FAQ_ITEMS.slice(0, 4), questionSize = 17, heading = true }: FAQProps) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
-  const accordion = (
-    <div style={{ display: 'grid', gap: 8 }}>
-      {items.map((faq, index) => {
-        const isOpen = openIndex === index;
-        return (
-          <div
-            key={faq.question}
-            className="rounded-2xl bg-card shadow-border"
-          >
-            <button
-              type="button"
-              onClick={() => setOpenIndex(isOpen ? null : index)}
-              aria-expanded={isOpen}
-              className="flex min-h-11 w-full items-center justify-between gap-4 rounded-2xl border-0 bg-transparent px-[22px] py-[18px] text-left font-semibold text-foreground cursor-pointer"
-              style={{ fontSize: questionSize }}
-            >
-              <span>{faq.question}</span>
-              <span
-                aria-hidden="true"
-                className="flex-shrink-0 text-warm-meta transition-transform duration-200"
-                style={{ fontSize: 19, lineHeight: 1, transform: isOpen ? 'rotate(45deg)' : 'none' }}
-              >
-                +
-              </span>
-            </button>
-            {isOpen && (
-              <p className="m-0 px-[22px] pb-5 text-[15px] leading-relaxed text-warm-secondary animate-[shikshaq-faq-rise_.22s_ease-out]">
-                {faq.answer}
-              </p>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-
-  return (
-    <>
-      {heading ? (
-        <section id="faq" className="scroll-mt-20 mx-auto w-full max-w-6xl px-4 py-[60px] sm:px-6 lg:px-8">
-          <h2 className="mb-[26px] text-center font-display text-display-hero leading-none text-foreground">
-            Common queries answered
-          </h2>
-          {/* Accordion itself stays reading-width even though the section now
-              shares the page's standard container (was its own narrower
-              max-w-[820px] section, which floated visibly misaligned against
-              every sibling section's max-w-6xl edges). */}
-          <div className="mx-auto max-w-[820px]">{accordion}</div>
-        </section>
-      ) : (
-        accordion
-      )}
-      <style>{`
-        @keyframes shikshaq-faq-rise {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: none; }
-        }
-      `}</style>
-    </>
-  );
-}
+/* The `FAQ` accordion component that used to live here was deleted.
+ * It was never rendered: App.tsx's `<FAQ />` resolves to `pages/FAQ`, and
+ * the only import from this module anywhere is `FAQ_ITEMS` (pages/FAQ.tsx).
+ * It still carried pre-redesign chrome — `rounded-2xl bg-card shadow-border`
+ * cards, a rotating `+` glyph and an inline <style> keyframe block — none of
+ * which match the redesign's accordion (see HelpFaqStack, which is the real
+ * one). Dead code that can only drift further from the design. FAQ_ITEMS
+ * above is live and stays. */
