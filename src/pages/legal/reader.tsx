@@ -167,7 +167,7 @@ export function LegalReader({
       {/* LG-001 header: pill + h1 + lede + updated line. h1 drops the old
           38/60px display clamp for the 27px/800/-0.04em size every other
           migrated page's header uses (SchoolsPage, TeacherTermsAgreement). */}
-      <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[22px]">
+      <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[22px]">
         <span
           className={`inline-flex h-[32px] items-center gap-2 whitespace-nowrap rounded-full px-[14px] text-[12px] font-bold ${pillClass}`}
         >
@@ -182,7 +182,7 @@ export function LegalReader({
 
       {/* Four-card summary strip — real authored content, kept from the
           previous build. 2-col at base, 4-col from lg:. */}
-      <BentoPanel fill="card">
+      <BentoPanel fill="card" className="p-[22px]">
         <div className="grid grid-cols-2 gap-[10px] lg:grid-cols-4">
           {summary.map((s) => (
             <div
@@ -279,7 +279,7 @@ export function LegalReader({
             const idx = sections.findIndex((sec) => sec.n === copyrightSection.n);
             sectionRefs.current[idx] = el;
           }}
-          className="scroll-mt-24"
+          className="scroll-mt-24 p-[22px]"
         >
           <div className="flex items-center gap-3">
             <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-xl bg-brand-blue">
@@ -325,7 +325,7 @@ export function LegalReader({
           appendix doesn't itemise it but LG-001..003 never ask to remove it,
           and dropping a real contact channel would be exactly the kind of
           silent functionality loss the migration rules warn against. */}
-      <BentoPanel fill="dark">
+      <BentoPanel fill="dark" className="p-[22px]">
         <span className="mb-3 inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-warm-card px-[11px] text-[11.5px] font-bold text-foreground">
           questions
         </span>

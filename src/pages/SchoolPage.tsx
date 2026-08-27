@@ -257,7 +257,7 @@ export default function SchoolPage() {
               rationale), so only the back link survives from the mockup's
               two-row nav. splitNameForHeading and the summary line's data
               are unchanged — restyled only. */}
-          <BentoPanel fill="papers" edge="top" className="relative overflow-hidden px-4 pt-[14px] pb-5 sm:px-6 lg:px-8">
+          <BentoPanel fill="papers" edge="top" className="relative overflow-hidden px-[22px] pt-[14px] pb-[24px] sm:px-6 lg:px-8">
             <span aria-hidden className="pointer-events-none absolute -right-[50px] top-10 h-[200px] w-[200px] rounded-full bg-white/[.06]" />
             <div className="relative mx-auto w-full max-w-6xl">
               <Link
@@ -407,7 +407,7 @@ export default function SchoolPage() {
                   at all and supplies the real (not fabricated) count on the
                   pill; it never renders a fallback when the count is zero. */}
               {railTeachers.length > 0 && (
-                <BentoPanel fill="brandTint">
+                <BentoPanel fill="brandTint" className="p-[22px]">
                   <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-brand-deep">
                     Teachers who know this syllabus
                   </h2>

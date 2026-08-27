@@ -263,7 +263,7 @@ export default function PaperResults() {
             substring is bold, and `heading` has no fixed trailing phrase to
             split on (unlike Browse's "in Kolkata") — rendered at the base
             weight rather than guessing a split point. */}
-        <BentoPanel fill="papers" edge="top">
+        <BentoPanel fill="papers" edge="top" className="px-[22px] pt-[14px] pb-[22px]">
           <Link
             to="/past-papers"
             className={`-m-1 mb-3 flex h-11 w-fit items-center gap-1.5 p-1 text-[13px] font-semibold text-white/75 transition-colors duration-tap ease-tap hover:text-white ${FOCUS}`}
@@ -285,7 +285,7 @@ export default function PaperResults() {
             no hairline, no blur, isolate kept (same compositing reason as
             Browse B-007). FilterChips.tsx's own S-006-matched tint and the
             handoff pill styling apply automatically. */}
-        <BentoPanel fill="card" className="sticky top-[80px] z-20 isolate !px-0 py-3 pl-4">
+        <BentoPanel fill="card" className="sticky top-[80px] z-20 isolate !px-0 !pl-4 py-3">
           <FilterChips
             mode="papers"
             chips={filterChips}
@@ -364,7 +364,7 @@ export default function PaperResults() {
         </BentoPanel>
 
         {/* Handoff PR-005: ownership panel, BentoPanel fill="dark". */}
-        <BentoPanel fill="dark">
+        <BentoPanel fill="dark" className="p-[22px]">
           <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] lg:text-[26px]">Who owns these papers</h2>
           <p className="mt-3 max-w-prose text-[14px] leading-[1.55] text-white/75 lg:text-[16px] lg:leading-[1.65]">
             Every paper here is the property of the school that set it. Shikshaq claims no
