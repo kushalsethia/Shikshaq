@@ -503,8 +503,14 @@ export default function Auth() {
                     Science · {scienceCount}
                   </span>
                 )}
+                {/* AUDIT_2026-08-21 #1: this sticker was bg-brand-blue-subtle
+                    (indigo) — the one papers-mode accent inside a block whose
+                    own comment above calls itself "the page's whole accent
+                    budget" (orange). Swapped for the "chip sitting on a
+                    saturated panel" bone tone (chip.tsx's on-brand family),
+                    same as every other non-subject badge on a brand surface. */}
                 {(paperCount ?? 0) > 0 && (
-                  <span className="absolute bottom-[10px] left-[6%] inline-flex h-9 rotate-[7deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-4 text-[14px] font-extrabold text-brand-blue-deep shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0">
+                  <span className="absolute bottom-[10px] left-[6%] inline-flex h-9 rotate-[7deg] items-center whitespace-nowrap rounded-full bg-card px-4 text-[14px] font-extrabold text-foreground shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0">
                     {paperCount} papers
                   </span>
                 )}
