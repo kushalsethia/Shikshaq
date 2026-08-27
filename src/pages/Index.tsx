@@ -808,7 +808,11 @@ export default function Index() {
           )}
 
           {/* ------------------------------------------------------ How it works */}
-          <BentoPanel fill="brand" className="relative mt-seam overflow-visible px-[22px] pb-6 pt-[26px]">
+          {/* No mt-seam. BentoStack already owns the 6px seam between every pair
+              of panels (T-004/D-002); adding one here stacked on top of it and
+              made this the only 12px gap on the page — the "extra padding
+              between the rounded sections" report. */}
+          <BentoPanel fill="brand" className="relative overflow-visible px-[22px] pb-6 pt-[26px]">
             {/* D-007: tilt flattens at `lg` — a 6deg tilt on a 340px badge
                 reads as charm, the same tilt on a 1100px-wide row reads as
                 broken. Implemented as lg:rotate-0, mobile tilt untouched. */}
