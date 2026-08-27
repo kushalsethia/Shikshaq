@@ -42,6 +42,12 @@ function GateSheet({ open, onOpenChange, redirectTo, paperTitle, paperSubject }:
   const [busy, setBusy] = React.useState(false);
   const palette = paperSubject ? getSubjectPalette(paperSubject) : null;
 
+  /* O-005 says "the sheet writes the auth intent before it navigates". It is
+     written by PaperReader instead, at the point it opens this sheet, and
+     deliberately not duplicated here: the paper intent needs title, board,
+     school and subject slug (AU-004a), and this sheet is only given title and
+     subject. A partial write here would fail auth-intent.ts's validation and
+     knock the hero back to the default — worse than not writing at all. */
   const goAuth = () => {
     saveAuthRedirect(redirectTo);
     navigate("/auth");

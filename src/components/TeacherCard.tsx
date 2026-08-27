@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { memo, useEffect, useState } from 'react';
 import { validateImageSrc } from '@/utils/imageSanitizer';
 import { getSubjectPalette } from '@/lib/subject-palette';
+import { setAuthIntent } from '@/lib/auth-intent';
 import { Chip } from '@/components/ui/chip';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { Button } from '@/components/ui/button';
@@ -197,6 +198,16 @@ function TeacherCardComponent({
       } catch {
         /* storage unavailable — sign-in still works, just without auto-continue */
       }
+      /* Handoff O-005 / AU-004a: the gate writes the intent before it opens,
+         so /auth shows variant B naming this teacher. TeacherProfile does the
+         same in its own openSignInSheet; this is the card-level gate that
+         Browse and the rails open. */
+      setAuthIntent({
+        kind: 'whatsapp',
+        teacherName: displayName,
+        subject: subject ?? '',
+        area: area ?? '',
+      });
       setSignInSheetOpen(true);
       return;
     }

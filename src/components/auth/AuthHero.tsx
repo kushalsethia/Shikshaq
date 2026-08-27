@@ -96,8 +96,12 @@ export interface AuthHero {
   noteTint: 'brand' | 'whatsapp' | 'papers';
 }
 
+/* `break-words` matters here: variant D interpolates a real paper title, and a
+   long one ("Mathematics Prelim Paper …") made this inline-block wider than
+   the hero's content column. With the `-mx-[6px]` bleed on top, that pushed
+   the whole document past the viewport at 320px. */
 const Mark = ({ ink, children }: { ink: Ink; children: ReactNode }) => (
-  <span className={`inline-block -mx-[6px] rounded-[10px] px-[6px] font-black ${ink.markBg} ${ink.markText}`}>
+  <span className={`inline-block -mx-[6px] max-w-full break-words rounded-[10px] px-[6px] font-black ${ink.markBg} ${ink.markText}`}>
     {children}
   </span>
 );
@@ -117,7 +121,7 @@ const LIFT = 'shadow-[0_6px_18px_rgba(0,0,0,.10)]';
 function TeacherFragment({ name, subject, area }: { name: string; subject: string; area: string }) {
   const palette = getSubjectPalette(subject);
   return (
-    <span className={`absolute left-0 top-0 flex max-w-[300px] items-center gap-3 rounded-[18px] bg-card p-3 -rotate-3 ${TILT} ${LIFT}`}>
+    <span className={`absolute left-0 top-0 flex max-w-full items-center gap-3 rounded-[18px] bg-card p-3 -rotate-3 ${TILT} ${LIFT}`}>
       <span
         className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] font-display text-[17px] font-extrabold"
         style={{ backgroundColor: palette.tint, color: palette.text }}
@@ -213,7 +217,7 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
             >
               <span className="text-[10px] font-bold uppercase tracking-[0.04em]">{intent.board}</span>
             </span>
-            <span className="absolute left-[96px] top-[14px] max-w-[210px]">
+            <span className="absolute left-[96px] top-[14px] max-w-[calc(100%-96px)]">
               <Pill className="truncate bg-card text-foreground">{intent.school}</Pill>
             </span>
             <span className="absolute bottom-[6px] left-[96px]">
