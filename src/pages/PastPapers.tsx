@@ -397,15 +397,35 @@ export default function PastPapers() {
                   tray's top edge, so a clipping scroller would slice their
                   tops off. ScrollRail hides the native bar and fades the edge
                   instead. */}
-              <div className="scrollbar-hide flex items-end justify-center gap-3 overflow-x-auto overflow-y-visible pb-0 sm:gap-[18px] sm:overflow-visible">
-                {recentPapers.slice(0, 5).map((p) => (
+              {/* Reported as covers "scrolling in a weird box". Measured against
+                  Past Papers Redesign.dc.html at 390: the drawing puts THREE
+                  covers at 152x200 in the tray, the third deliberately cut by
+                  the right edge so the shelf reads as continuing. This was
+                  rendering five at 128x176 — PP-005's literal mobile values —
+                  which at 357px of usable width shows about two and a half
+                  cramped covers and reads as clipped content rather than a
+                  shelf. Following the drawing on mobile: three covers at the
+                  size the mockup actually draws. `sm:` keeps PP-005's 150x210
+                  and the five-cover slice, which is what D-005's desktop row
+                  ("5 covers at 150x210, 1000px tray") asks for. */}
+              {/* justify-start on mobile, not justify-center: a centred flex row whose
+                  content overflows is clipped equally at BOTH ends, and the
+                  overflow past the start edge cannot be scrolled back to — the
+                  first cover was cut in half with no way to reach it. The
+                  mockup starts the shelf flush with the tray's padding and lets
+                  only the far end run off. From sm: the covers fit, so centring
+                  is correct again. */}
+              <div className="scrollbar-hide flex items-end justify-start gap-3 overflow-x-auto overflow-y-visible pb-0 sm:justify-center sm:gap-[18px] sm:overflow-visible">
+                {recentPapers.slice(0, 5).map((p, i) => (
                   <PaperCover
                     key={p.id}
                     paper={p}
                     href={`/past-papers/${p.id}`}
                     locked={!user}
                     size="desktop"
-                    className="!h-[176px] !w-[128px] flex-none sm:!h-[210px] sm:!w-[150px]"
+                    className={`!h-[200px] !w-[152px] flex-none sm:!h-[210px] sm:!w-[150px] ${
+                      i >= 3 ? 'hidden sm:block' : ''
+                    }`}
                   />
                 ))}
               </div>
