@@ -377,13 +377,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
   const sectionLabel = 'text-xs font-medium uppercase tracking-wide text-muted-foreground';
 
+  /* grid-cols-2, not flex + flex-1. `flex-1` is `flex: 1 1 0%`, but a flex
+     item will not shrink below its own min-content, and with
+     `whitespace-nowrap` that floor is the label width — so "Past papers" held
+     94px while "Teachers" took the 76px left over. The two segments were never
+     equal, and the indicator (a fixed `calc(50% - 0.25rem)`) sat under neither
+     of them properly. Grid cells are exactly half each, which is what the
+     indicator has always assumed. */
   const segmentedToggle = (
-    <div className="relative flex flex-none rounded-full bg-muted p-1">
-      {/* flex-1 on both buttons (not just the indicator's calc(50%)) so the
-         two segments are always exactly equal width — "Past papers" is
-         longer text than "Teachers", so without flex-1 the buttons sized to
-         their own content and the 50%-split indicator drifted out from under
-         whichever button was narrower. */}
+    <div className="relative grid grid-cols-2 flex-none rounded-full bg-muted p-1">
       <motion.span
         aria-hidden="true"
         layout
@@ -405,7 +407,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
              narrow phones and blowing out the pill's height. Tightened
              tracking buys back a few px before padding needs to shrink
              further, rather than truncating the label. */
-          className={`relative z-10 flex min-h-11 flex-1 items-center justify-center whitespace-nowrap rounded-full text-sm font-medium tracking-tight transition-colors duration-150 ${FOCUS} focus-visible:ring-ring ${
+          className={`relative z-10 flex min-h-11 min-w-0 items-center justify-center whitespace-nowrap rounded-full text-sm font-medium tracking-tight transition-colors duration-150 ${FOCUS} focus-visible:ring-ring ${
             narrow ? 'px-2.5' : 'px-3.5'
           } ${mode === m ? 'font-bold text-background' : 'text-muted-foreground'}`}
         >

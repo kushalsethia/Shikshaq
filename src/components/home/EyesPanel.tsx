@@ -58,12 +58,27 @@ function Eye({
   return (
     <div
       aria-hidden
-      className="relative h-[74px] w-[104px] shrink-0 overflow-hidden rounded-[50%] bg-card"
+      className="relative h-[74px] w-[104px] shrink-0 overflow-hidden rounded-[50%] bg-card shadow-[inset_0_3px_6px_rgba(31,31,31,.13)]"
     >
+      {/* The pupil carries two catchlights. A flat black disc reads as a dot;
+          a highlight is what makes an eye read as wet, lit and alive, and it
+          is the cheapest possible way to make this face friendly rather than
+          blank. Both sit INSIDE the pupil so they travel with it — a
+          highlight fixed to the eye white would slide off as the pupil
+          moves. */}
       <div
         className="absolute left-1/2 top-1/2 h-[34px] w-[34px] rounded-full bg-panel transition-transform duration-[120ms] ease-out"
         style={{ transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))` }}
-      />
+      >
+        <span
+          aria-hidden
+          className="absolute left-[6px] top-[5px] h-[11px] w-[11px] rounded-full bg-white/90"
+        />
+        <span
+          aria-hidden
+          className="absolute bottom-[7px] right-[6px] h-[5px] w-[5px] rounded-full bg-white/45"
+        />
+      </div>
       {/* Lid: full-bleed div in the dome's own fill, resting off-panel and
           dropping down to blink, sharing the dome's .85s colour curve. */}
       <div
@@ -143,15 +158,24 @@ function EyesPanel({
     }
   }, []);
 
-  // Pointer tracking — non-touch only.
+  /* Pointer tracking. This used to be `if (reduced || isTouch) return`, which
+     meant the eyes never moved at all on a phone: `pointer: coarse` is true,
+     so nothing was bound, and M-004's tilt only takes over AFTER the reader
+     taps to grant orientation permission. Most visitors therefore saw a
+     completely static face and, reasonably, read it as broken.
+
+     `pointermove` fires for touch drags too, so binding it unless the gyro is
+     genuinely driving gives: desktop -> pointer, phone before permission ->
+     finger drag, phone with tilt granted -> tilt. M-003 and M-004 both still
+     hold; this only fills the gap between them. */
   React.useEffect(() => {
-    if (reduced || isTouch) return;
+    if (reduced || tiltActive) return;
     function onPointerMove(e: PointerEvent) {
       applyPointer(e.clientX, e.clientY);
     }
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     return () => window.removeEventListener('pointermove', onPointerMove);
-  }, [reduced, isTouch, applyPointer]);
+  }, [reduced, tiltActive, applyPointer]);
 
   // Device orientation tracking — touch only, after permission is granted.
   React.useEffect(() => {
@@ -236,7 +260,10 @@ function EyesPanel({
           <div
             role="tablist"
             aria-label="Search mode"
-            className="flex h-11 items-center gap-1 rounded-full p-1"
+            /* grid-cols-2: same fix as the hero toggle — flex sized each
+               segment to its own label, so "Teachers" (92px) and "Past
+               papers" (111px) were visibly different pills. */
+            className="grid h-11 grid-cols-2 items-center gap-1 rounded-full p-1"
             style={{ backgroundColor: 'rgba(31,31,31,.14)' }}
           >
             {(['teachers', 'papers'] as const).map((m) => (
@@ -247,7 +274,7 @@ function EyesPanel({
                 aria-selected={mode === m}
                 onClick={() => onModeChange(m)}
                 className={cn(
-                  'tap-44 flex h-9 items-center rounded-full px-4 text-[13.5px] font-bold transition-colors duration-500',
+                  'tap-44 flex h-9 items-center justify-center rounded-full px-4 text-[13.5px] font-bold transition-colors duration-500',
                   mode === m ? 'bg-panel text-background' : mode === 'papers' ? 'text-white/85' : 'text-[rgba(31,31,31,.7)]',
                 )}
               >
