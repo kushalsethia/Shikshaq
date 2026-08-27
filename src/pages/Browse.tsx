@@ -1853,7 +1853,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           showing a zero or fabricated stat. */}
       {isSubjectPage && subjectPapers && subjectPapers.count > 0 && (
         <BentoPanel fill="brandTint" className="p-[22px]">
-            <h2 className="font-display text-section-head font-extrabold text-brand-deep">
+            <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] lg:text-[26px] text-brand-deep">
               {pageContext!.label} papers too
             </h2>
             <p className="mt-2 max-w-prose text-body-secondary text-warm-prose lg:text-[16px] lg:leading-[1.65]">
@@ -1881,7 +1881,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           untouched. */}
       {isSubjectPage && (
         <BentoPanel fill="card" className="p-[22px]">
-          <h2 className="font-display text-section-head font-extrabold text-foreground">
+          <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] lg:text-[26px] text-foreground">
             {pageContext!.label} tuition, by area
           </h2>
           <div className="mt-4 flex flex-wrap gap-2">

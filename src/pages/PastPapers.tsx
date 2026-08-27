@@ -631,7 +631,7 @@ export default function PastPapers() {
         {!loading && !loadError && (featuredSubjects.length > 0 || featuredBoards.length > 0) && (
           <BentoPanel fill="card" className="p-[22px]">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-4">
-              <h2 className="text-section-head font-display font-bold">
+              <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] lg:text-[26px] text-foreground">
                 By {groupMode === 'subject' ? 'subject' : 'board'}
               </h2>
               {/* Segmented toggle mapped to the two real groupings this page
@@ -780,7 +780,7 @@ export default function PastPapers() {
         {/* p-[22px]: the mockup never draws this panel, so it follows its
             neighbours on this page rather than BentoPanel's 20px default. */}
         <BentoPanel fill="card" className="p-[22px]">
-          <h2 className="mb-8 text-center text-section-head font-display font-bold">
+          <h2 className="mb-8 text-center font-display text-[21px] font-extrabold tracking-[-0.03em] lg:text-[26px] text-foreground">
             Three steps, no cost,{' '}<br />no catch.
           </h2>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
