@@ -66,7 +66,7 @@ export default function Join() {
       <main>
         <BentoStack>
           {/* Handoff JN-002: pitch panel. */}
-          <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[26px]">
+          <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[26px]">
             <h1 className="mt-5 font-display text-[38px] font-normal leading-[.98] tracking-[-0.04em] text-foreground lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]">
               Teach on Shikshaq.{' '}
               <AnnotatedHighlight tone="block-brand" weight={800} tilt={-1.5}>
@@ -90,7 +90,7 @@ export default function Join() {
           </BentoPanel>
 
           {/* Handoff JN-003: benefits panel. */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <h2 className="sr-only">Why teach on Shikshaq</h2>
             <div className="grid grid-cols-2 gap-2">
               {BENEFITS.map((b) => {

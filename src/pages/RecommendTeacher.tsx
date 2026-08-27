@@ -127,8 +127,14 @@ export default function RecommendTeacher() {
               assumes this route is part of a wizard shared with /join/apply
               — it isn't (it's always been a standalone single-page form), so
               rendering a step count here would fabricate progress that
-              doesn't exist. Copy is otherwise unchanged. */}
-          <BentoPanel fill="dark" edge="top" className="px-5 pt-1.5 pb-5">
+              doesn't exist. Copy is otherwise unchanged.
+
+              The mockup measures this header 14px 22px 24px. The sides and
+              the bottom are taken; the top is not, because the 14px there is
+              clearance for the step pill this route deliberately omits — with
+              no pill, `pt-1.5` plus the h1's own `mt-3.5` gives the same 20px
+              above the headline. */}
+          <BentoPanel fill="dark" edge="top" className="px-[22px] pt-1.5 pb-[24px]">
             <h1 className="mt-3.5 font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-background">
               Know a teacher worth listing?
             </h1>
@@ -137,7 +143,7 @@ export default function RecommendTeacher() {
             </p>
           </BentoPanel>
 
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
           {submitted ? (
             <div className="animate-fade-slide-up rounded-bento bg-brand p-6 text-center sm:p-8">
               <p className="text-body font-semibold text-brand-foreground">
@@ -267,7 +273,7 @@ export default function RecommendTeacher() {
           {/* Handoff RC-001: the privacy note is load-bearing copy, not
               decoration — it must render on the same screen as the phone
               field, which the form panel above already satisfies. */}
-          <BentoPanel fill="brandTint">
+          <BentoPanel fill="brandTint" className="px-[22px] py-5">
             <p className="text-[14px] leading-[1.55] text-warm-prose">
               We never publish a teacher&rsquo;s details without their consent, and we do not tell
               them who recommended them unless you ask us to.
