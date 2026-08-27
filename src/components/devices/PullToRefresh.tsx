@@ -17,9 +17,9 @@ import { usePullToRefresh, type PullToRefreshState } from '@/hooks/use-pull-to-r
    site's existing motion-reduce convention elsewhere. */
 
 const STATE_STYLES: Record<Exclude<PullToRefreshState, 'idle'>, { bg: string; filter: string }> = {
-  pulling: { bg: '#F0EAE2', filter: 'none' },
-  released: { bg: '#FF8000', filter: 'brightness(0) invert(1)' },
-  refreshing: { bg: '#1B1A18', filter: 'brightness(0) invert(1)' },
+  pulling: { bg: 'var(--warm-muted)', filter: 'none' },
+  released: { bg: 'hsl(var(--brand))', filter: 'brightness(0) invert(1)' },
+  refreshing: { bg: 'var(--panel-dark)', filter: 'brightness(0) invert(1)' },
 };
 
 export interface PullToRefreshProps {

@@ -243,7 +243,7 @@ here because it lives in this barrel and depends on devices this library owns.
   title={<>Find your <span className="marker-highlight marker-highlight--pill">exam paper</span></>}
   lede="ICSE, CBSE and IGCSE past papers, organised by class and subject."
   tags={[{ label: '1,200+ papers' }, { label: 'All boards' }]}
-  badge={{ label: 'Free', color: 'hsl(var(--brand-blue))' }}
+  badge={{ label: 'Free' }}
   accent="hsl(var(--brand))"
   ground="graph"
 >

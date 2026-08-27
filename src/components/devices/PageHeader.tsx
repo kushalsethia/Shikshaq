@@ -112,7 +112,7 @@ export function PageHeader({
         <div className="pointer-events-none absolute right-3 top-3 hidden sm:block">
           <StarburstBadge
             variant={badge.variant ?? 'burst'}
-            color={badge.color ?? 'hsl(var(--brand-blue))'}
+            color={badge.color ?? accent}
             size={76}
           >
             {badge.label}
