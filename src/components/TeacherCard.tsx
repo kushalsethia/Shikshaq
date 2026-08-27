@@ -173,6 +173,7 @@ function TeacherCardComponent({
   //   grid-compact: fee only (no years, no location) — home rail decluttered.
   //   grid:         years + location only (no fee) — Browse dropped the price.
   const isCompact = resolvedVariant === 'grid-compact';
+  const isRail = resolvedVariant === 'rail';
   const isPlainGrid = resolvedVariant === 'grid';
   // Handoff B-012: row no longer uses this joined text line at all — its
   // experience/fee facts moved into rowBadgeRow as separate pills/text
@@ -280,7 +281,11 @@ function TeacherCardComponent({
   // whichever field happens to sit at the cutoff mid-word (a location like
   // "Bh…" or a fee like "₹5,…"). line-clamp-2 lets it wrap at a word/space
   // boundary onto a second line first, and only ellipsizes past that.
-  const metaRow = meta && (
+  /* Owner call: the similar-teachers rail keeps the name and the heart and
+     nothing else — no years, no area. That also settles the uneven heights
+     reported alongside it: the cards differed by exactly one line because
+     "29 yrs · Garia, Jadavpur" wrapped where "18 yrs · Salt Lake" did not. */
+  const metaRow = meta && !isRail && (
     <p className={`mt-1 line-clamp-2 break-words text-muted-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>{meta}</p>
   );
 
@@ -289,7 +294,7 @@ function TeacherCardComponent({
   // absent rather than rendering empty punctuation. Same line-clamp-2 fix as
   // metaRow above — the joined string was clipping mid-word inside whichever
   // part (area, fee) landed on the truncation boundary.
-  const factsRow = factsLine && (
+  const factsRow = factsLine && !isRail && (
     <p className={`mt-1 line-clamp-2 break-words font-semibold tabular-nums text-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>
       {factsLine}
     </p>
@@ -453,6 +458,13 @@ function TeacherCardComponent({
               overlaid in a corner rather than sitting in the body row next
               to the heart. Only the grid variant does this; row/rail keep
               the pill in the body next to the name. */}
+          {/* Owner call: on the rail the heart sits in a corner of the image
+              rather than beside the name, so the body is just the name. */}
+          {isRail && heartButton && (
+            <span className="absolute right-1 top-1 rounded-full bg-card/85 shadow-border backdrop-blur-sm">
+              {heartButton}
+            </span>
+          )}
           {isCompact && upvotePill && (
             <span className="absolute right-1.5 top-1.5 rounded-full bg-card/90 shadow-border backdrop-blur-sm [&>span]:bg-transparent">
               {upvotePill}
@@ -466,7 +478,7 @@ function TeacherCardComponent({
             <div className="min-w-[132px] flex-1">{nameHeading}</div>
             <div className="flex flex-none items-center gap-1">
               {!isCompact && upvotePill}
-              {heartButton}
+              {!isRail && heartButton}
             </div>
           </div>
           {metaRow}

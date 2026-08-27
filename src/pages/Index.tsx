@@ -51,6 +51,7 @@ interface Teacher {
   featuredSubjectLabel?: string | null;
   whatsappLink?: string | null;
   experienceYears?: number | null;
+  sirMaam?: string | null;
   minFees?: number | null;
   maxFees?: number | null;
   area?: string | null;
@@ -274,6 +275,10 @@ export default function Index() {
               minFees: basic?.minFees ?? null,
               maxFees: basic?.maxFees ?? null,
               area: basic?.area ?? null,
+              /* Owner: the featured rail showed bare names while Browse and
+                 the profile both render the honorific. basicMap is already
+                 fetched above for the fee/area fields, so this costs nothing. */
+              sirMaam: basic?.sirMaam ?? null,
             };
           });
           featured = processed;
@@ -706,6 +711,7 @@ export default function Index() {
                         imageUrl={t.image_url ?? undefined}
                         verified={t.is_verified ?? undefined}
                         variant="grid-compact"
+                        sirMaam={t.sirMaam ?? null}
                         minFees={t.minFees}
                         maxFees={t.maxFees}
                       />
