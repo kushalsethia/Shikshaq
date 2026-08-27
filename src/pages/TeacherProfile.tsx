@@ -976,7 +976,10 @@ export default function TeacherProfile() {
                 </p>
                 <Link
                   to={BROWSE_PATH}
-                  className="mt-[4px] inline-block text-[14px] font-semibold text-brand-deep underline underline-offset-2 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  /* Standalone CTA, not prose — a 21px underline is under the
+                     floor, so it takes the same `tap-44` overlay the footer
+                     links use (C-013). Painted size is unchanged. */
+                  className="tap-44 mt-[4px] inline-block text-[14px] font-semibold text-brand-deep underline underline-offset-2 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   See them all →
                 </Link>

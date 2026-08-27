@@ -361,7 +361,12 @@ export default function SchoolPage() {
                 {filteredPapers.length === 0 ? (
                   <ListEmpty line={`No papers from ${selectedYear}.`} />
                 ) : (
-                  <div className="flex flex-col gap-2">
+                  /* D-005: a one-column stack of paper rows becomes a grid at
+                     lg — otherwise each 70px row spans the full 945px panel.
+                     D-005's table doesn't name this page, but it gives the
+                     identical content ("Papers by-school / most-read: stacked
+                     → grid-cols-2") that treatment, so these rows follow it. */
+                  <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2">
                     {filteredPapers.map((paper) => {
                       const palette = getSubjectPalette(paper.subject);
                       return (

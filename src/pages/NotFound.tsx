@@ -48,6 +48,14 @@ const NotFound = () => {
       <main className="flex flex-1 flex-col">
         <BentoStack className="flex-1">
           <BentoPanel fill="card" edge="top" className="flex flex-1 flex-col justify-center pt-1 pb-[26px]">
+            {/* `Desktop Layouts.dc.html` renders Home, Browse, Teacher profile
+                and Past papers only — 404 is never drawn above 1024, so this
+                measure is designed to the system rather than copied. It caps
+                the column instead of adding a rule: D-001 says a page needing
+                an eighth desktop rule has a defect in its own layout, and
+                unconstrained this stack put a 52px pill across 1152px.
+                NF-002's ranked stack and the left alignment are untouched. */}
+            <div className="lg:max-w-[520px]">
             {/* Decorative numeral graphic — aria-hidden so the h1 is the
                 first thing announced, not "404" (NF-001's accept line). */}
             <div aria-hidden="true" className="font-display text-[132px] font-black leading-[0.8] tracking-[-0.06em] text-[#E7DFD5]">
@@ -79,6 +87,7 @@ const NotFound = () => {
               >
                 Go home
               </Link>
+            </div>
             </div>
           </BentoPanel>
         </BentoStack>

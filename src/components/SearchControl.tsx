@@ -479,10 +479,16 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                  spec's version says what the field accepts rather than showing
                  one example, which matters because the field takes all three. */
               placeholder={mode === 'teachers' ? 'Subject, class or area' : 'Board, class, subject or school'}
+              /* h-full, not the intrinsic 24px line box: the field reads as a
+                 60px (or 56px) row, so the whole row has to be focusable —
+                 otherwise the 18px above and below the text is a dead zone and
+                 the real tap target is well under the 44px floor (C-011). An
+                 input centres its own value vertically, so this is a no-op
+                 visually. */
               className={
                 heroDesk
-                  ? 'min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-warm-meta'
-                  : `min-w-0 flex-1 border-0 bg-transparent text-base outline-none ${
+                  ? 'h-full min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-warm-meta'
+                  : `h-full min-w-0 flex-1 border-0 bg-transparent text-base outline-none ${
                       onDark ? 'text-white placeholder:text-white/45' : 'text-foreground placeholder:text-muted-foreground'
                     }`
               }

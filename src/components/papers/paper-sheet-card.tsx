@@ -120,7 +120,11 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
           <Link
             to={href}
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex min-h-8 items-center rounded-full px-4 text-label font-bold uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            /* 32px painted, 44px hit box. C-013 spells out this exact remedy —
+               keep the painted disc/pill size, widen the target with
+               `before:-inset-*` — rather than growing the pill and breaking
+               the card's action row. 32 + 2×6 = 44. */
+            className="relative inline-flex min-h-8 items-center rounded-full px-4 text-label font-bold uppercase before:absolute before:-inset-[6px] before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             style={{ backgroundColor: palette.solid, color: palette.badgeText }}
           >
             {locked ? "Sign in to read" : "Read"}
@@ -132,7 +136,8 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               aria-label="Download"
-              className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-full"
+              /* Same C-013 treatment: 36px painted disc, 36 + 2×4 = 44 hit box. */
+              className="relative shrink-0 rounded-full before:absolute before:-inset-[4px] before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <IconDisc as="span" tone="muted" size={36} shape="circle">
                 <Download size={16} strokeWidth={2} aria-hidden="true" />

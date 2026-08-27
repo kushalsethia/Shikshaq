@@ -672,7 +672,9 @@ export default function JoinApply() {
               type="button"
               onClick={goBack}
               aria-label="Back to the previous step"
-              className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/12 text-background transition-colors hover:bg-white/20"
+              /* C-013: a 40px painted disc carries `before:-inset-[2px]` so the
+                 hit box is 44×44 — the changelog names these discs explicitly. */
+              className="relative flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/12 text-background transition-colors before:absolute before:-inset-[2px] before:content-[''] hover:bg-white/20"
             >
               <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden="true" />
             </button>
@@ -680,7 +682,9 @@ export default function JoinApply() {
             <Link
               to="/join"
               aria-label="Back to why join ShikshAQ"
-              className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/12 text-background transition-colors hover:bg-white/20"
+              /* C-013: a 40px painted disc carries `before:-inset-[2px]` so the
+                 hit box is 44×44 — the changelog names these discs explicitly. */
+              className="relative flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/12 text-background transition-colors before:absolute before:-inset-[2px] before:content-[''] hover:bg-white/20"
             >
               <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden="true" />
             </Link>

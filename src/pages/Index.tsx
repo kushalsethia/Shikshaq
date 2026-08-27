@@ -855,7 +855,13 @@ export default function Index() {
               support="Classes 1 through 12."
             />
 
-            <ul className="mt-4 grid grid-cols-6 gap-2 sm:grid-cols-8 lg:grid-cols-12">
+            {/* 02a §9 specifies `grid-cols-6 gap-2 sm:grid-cols-8
+                lg:grid-cols-12`, and that is exactly what runs from 360px up.
+                Below 360 the six columns work out to 39px each, under the
+                C-013 44px floor — a width the handoff never draws, so the
+                sub-360 sliver falls back to four columns of the same chip at
+                the same gap. Nothing at or above 360 changes. */}
+            <ul className="mt-4 grid grid-cols-4 gap-2 min-[360px]:grid-cols-6 sm:grid-cols-8 lg:grid-cols-12">
               {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
                 <li key={n}>
                   <Link

@@ -173,7 +173,11 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
           literally. */}
       <BentoPanel fill="card">
         <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">Guides</h2>
-        <div className="mt-3.5 flex flex-col gap-2">
+        {/* D-005: the stack becomes a grid at lg. Left as a flex-col these
+            83px cards each ran the full 1201px panel — the exact shape D-005
+            calls out ("one-column stacks become grids"). gap-2 is HP-004's
+            own spacing and carries over to both axes. */}
+        <div className="mt-3.5 flex flex-col gap-2 lg:grid lg:grid-cols-2">
           {guides.map((g, i) => {
             const { tint, ink } = GUIDE_TINT_BY_TITLE[g.title] ?? GUIDE_TINTS[i % GUIDE_TINTS.length];
             const link = GUIDE_LINK_BY_TITLE[g.title] ?? GUIDE_LINK_FALLBACK;
