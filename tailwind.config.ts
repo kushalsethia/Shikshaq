@@ -100,6 +100,7 @@ export default {
         panel: "var(--panel-dark)",                       // #1B1A18
         /* Mint stat-card fill — VISUAL_LANGUAGE.md §8. */
         mint: "var(--mint)",                              // #E3F7EC
+        "peach-tint": "var(--peach-tint)",                // #FCECDE
 
         /* Facet/status accents promoted from searchFacets.ts — see index.css
            for the collision notes on facet-destructive vs destructive, and

@@ -94,28 +94,40 @@ const CARD_ACCENT: Record<CardMode, string> = {
   dark: "text-brand",
   brand: "text-brand",
   whatsapp: "text-whatsapp",
-  papers: "text-brand-blue",
+  /* dc.html's card-4 italic ink is #8B93FF, not the raw #4351FF brand-blue —
+     the existing --indigo-link-on-dark token (already used by Auth.tsx and
+     disclaimer-strip.tsx for this exact "indigo text on a dark surface"
+     legibility case) is the correct match, not a new value. */
+  papers: "text-indigo-link-on-dark",
 };
 
-/* The two flat background shapes behind each step's illustration, in that
-   step's mode colour, bleeding off the art well's edges. */
-const CARD_SHAPES: Record<CardMode, string> = {
-  dark: "bg-brand",
-  brand: "bg-brand",
-  whatsapp: "bg-whatsapp",
-  papers: "bg-brand-blue",
+/* The two decorative background shapes behind each step's illustration.
+   dc.html gives each card its own pair — one near-opaque shape in that
+   card's mode colour, one paler tint in a different hue — each with its own
+   size, corner, and asymmetric border-radius. Literal per dc.html, not a
+   single reusable shape at a shared low opacity. */
+const CARD_SHAPES: Record<CardMode, [string, string]> = {
+  dark: [
+    "-left-[60px] -top-[40px] h-[280px] w-[280px] rounded-full bg-brand opacity-90",
+    "-right-[70px] -bottom-[60px] h-[240px] w-[240px] rounded-[999px_999px_40px_999px] bg-peach-tint",
+  ],
+  brand: [
+    "-right-[80px] -top-[50px] h-[260px] w-[260px] rounded-[40px_999px_999px_999px] bg-brand",
+    "-left-[50px] -bottom-[50px] h-[200px] w-[200px] rounded-full bg-mint opacity-85",
+  ],
+  whatsapp: [
+    "-left-[70px] -bottom-[70px] h-[280px] w-[280px] rounded-full bg-whatsapp opacity-90",
+    "-right-[60px] -top-[40px] h-[200px] w-[200px] rounded-[999px_40px_999px_999px] bg-mint opacity-60",
+  ],
+  papers: [
+    "-right-[70px] -bottom-[60px] h-[280px] w-[280px] rounded-full bg-brand-blue opacity-90",
+    "-left-[50px] -top-[40px] h-[200px] w-[200px] rounded-[999px_999px_999px_40px] bg-brand-blue-subtle opacity-65",
+  ],
 };
 
-/* Card 4's CTA only. The spec pairs ctaBg #FCFAF7 with ctaFg #2E3AD6, and the
-   `muted` variant renders bone-on-warm-grey instead — the indigo ink is what
-   ties the button to the indigo card behind it. The other three cards are
-   served correctly by their variants, so they are left alone rather than
-   re-specified here: overriding a variant's background by appending a class
-   depends on tailwind-merge resolving the two, which it does not do reliably
-   for a variant applied inside the component. */
-/* Tokens, not literals: --card is #FCFAF7 and --brand-blue-deep is #2E3AD6,
-   so these were re-typing values the theme already owns and would not follow
-   a token change. */
+/* dc.html's card-4 CTA is solid #4351FF with white text — exactly the
+   `indigo` button variant (bg-brand-blue / text-brand-blue-foreground),
+   already an exact match, not a card needing its own override. */
 /* Handoff OB-002: every step shares one fill now (bg-panel), so this
    per-mode fill map is gone — kept only as the CTA variant map below. */
 const CARD_CTA_VARIANT: Record<CardMode, "primary" | "whatsapp" | "indigo"> = {
@@ -315,24 +327,29 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
             </DialogPrimitive.Close>
           </div>
 
-          {/* Art well: the step's existing illustration plus two flat mode-
-              coloured shapes bleeding off the edges, clipped by the well. */}
+          {/* Art well: the step's existing illustration plus its two
+              decorative shapes (CARD_SHAPES) bleeding off the edges,
+              clipped by the well. */}
           <div className="relative m-[10px_16px_0] flex-1 overflow-hidden rounded-[34px] bg-white/[0.04]">
-            <span
-              aria-hidden
-              className={cn("pointer-events-none absolute -left-16 -top-16 h-[240px] w-[240px] rounded-full opacity-[0.16]", CARD_SHAPES[card.mode])}
-            />
-            <span
-              aria-hidden
-              className={cn("pointer-events-none absolute -bottom-20 -right-14 h-[280px] w-[280px] rounded-[40px] opacity-[0.16]", CARD_SHAPES[card.mode])}
-            />
+            <span aria-hidden className={cn("pointer-events-none absolute", CARD_SHAPES[card.mode][0])} />
+            <span aria-hidden className={cn("pointer-events-none absolute", CARD_SHAPES[card.mode][1])} />
             {/* Handoff M-012: stepping animates only the art well's contents
                 and the text block, opacity 0->1 + translateY(10px->0) over
                 500ms ease-snap — key={step} remounts this div each step so
                 the animation replays; the outer well itself (this whole
                 bg-white/[0.04] block) does not move. */}
             <div key={step} className="relative flex h-full items-center justify-center p-6 animate-tour-step-in">
-              <div className="w-full max-w-xs rotate-[-2deg] drop-shadow-[0_18px_30px_rgba(0,0,0,.35)] motion-reduce:rotate-0">{card.illustration}</div>
+              {/* dc.html only tilts card 2's teacher-card fragment -2deg
+                  (its own transform, baked into that card's white panel);
+                  cards 1/3/4 sit flat (translateY only, no rotate). */}
+              <div
+                className={cn(
+                  "w-full max-w-xs drop-shadow-[0_18px_30px_rgba(0,0,0,.35)]",
+                  card.mode === "brand" && "rotate-[-2deg] motion-reduce:rotate-0",
+                )}
+              >
+                {card.illustration}
+              </div>
             </div>
           </div>
 
@@ -373,7 +390,7 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
             </div>
 
             {!isLast && (
-              <DialogPrimitive.Close className="mt-1 flex h-11 w-full items-center justify-center text-[13.5px] font-semibold text-background/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel">
+              <DialogPrimitive.Close className="mt-1.5 flex h-11 w-full items-center text-[13.5px] font-semibold text-background/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel">
                 Skip
               </DialogPrimitive.Close>
             )}
