@@ -388,8 +388,12 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     return list;
   }, [ctaTotals.teachers, ctaTotals.papers]);
 
+  /* pt-seam: H-021's accept line is "6px of #F9F5F1 shows above" the footer's
+     top corners. That gap used to come from BottomNavSpacer sitting above the
+     footer at 84px; with the reserve moved below where it belongs, the seam is
+     stated here. */
   return (
-    <footer className="bg-background">
+    <footer className="bg-background pt-seam">
       {/* Handoff H-021: the footer is the stack's final panel, not an inset
           slab floating on page ground — no mx-3 inset, radius is top-only
           (it butts the bottom-nav reserve). */}

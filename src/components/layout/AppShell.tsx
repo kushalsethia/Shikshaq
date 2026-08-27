@@ -114,8 +114,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       {!chromeless && (
         <>
           {variant !== 'none' && <PreFooter variant={variant} counts={activeChrome?.preFooterCounts} />}
-          <BottomNavSpacer />
           <Footer expandedContent={activeChrome?.footerExpandedContent} />
+          {/* The nav reserve goes AFTER the footer. It used to sit above it,
+              which got both ends wrong: it opened an 84px hole between the last
+              panel and the footer where H-021's accept line calls for 6px of
+              page ground, and it reserved nothing at the bottom — so the
+              floating bottom nav sat on top of the footer's own last 74px, over
+              the wordmark and the three stat pills. */}
+          <BottomNavSpacer />
           <BottomNav />
         </>
       )}
