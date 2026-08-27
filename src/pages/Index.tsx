@@ -777,7 +777,14 @@ export default function Index() {
               <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">
                 Your board
               </h2>
-              <div className="stagger-children mt-[14px] space-y-2">
+              {/* D-005's table doesn't itemize this panel, but its own
+                  governing principle ("one-column stacks become grids") and
+                  D-007 ("tilts flatten at lg") both apply here regardless —
+                  left as a flex-col stack, each pill stretches to the full
+                  ~1150px panel width at 1280px, turning "141 tutors" into
+                  text pushed off past the visible edge by justify-between.
+                  2-up grid keeps every pill a sane, readable width. */}
+              <div className="stagger-children mt-[14px] space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
                 {BOARD_ORDER.filter((b) => boardCounts[b]).map((b, i) => (
                   <Link
                     key={b}
@@ -940,10 +947,16 @@ export default function Index() {
                 <h2 className="font-display text-[22px] font-extrabold lg:text-[28px]">From students</h2>
               </div>
 
-              <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] scrollbar-hide">
-                <ul className="flex w-max gap-3">
+              {/* D-005 doesn't itemize this rail by name, but its own
+                  "rails become grids, they do not become wider rails"
+                  warning applies here exactly as it does to the featured
+                  rail it does name — at 1280px this stayed a flex-nowrap
+                  scroller (scrollWidth > clientWidth), hiding quotes past
+                  the third behind an edge nobody drags. */}
+              <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] scrollbar-hide lg:overflow-x-visible">
+                <ul className="flex w-max gap-3 lg:grid lg:w-auto lg:grid-cols-3">
                   {studentQuotes.map((q) => (
-                    <li key={q.id} className="flex w-[250px] flex-none flex-col gap-[14px] rounded-[20px] bg-muted p-4">
+                    <li key={q.id} className="flex w-[250px] flex-none flex-col gap-[14px] rounded-[20px] bg-muted p-4 lg:w-auto">
                       <p className="line-clamp-5 text-[14px] leading-[1.55] text-[#4A443E]">&ldquo;{q.comment}&rdquo;</p>
                       <div className="mt-auto flex items-center gap-2">
                         <StripePlaceholder name={q.authorName} initialSize={14} className="h-[26px] w-[26px] flex-none rounded-full" />
