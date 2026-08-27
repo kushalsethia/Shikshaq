@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { setAuthIntent } from '@/lib/auth-intent';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,11 @@ interface TeacherCommentsProps {
       WhatsApp contact with them (pages.md §"Reviews": the write-review
       button is gated on a recorded contact). */
   teacherSlug?: string | null;
+  /** Handoff AU-004a: the review hero (variant E) names the teacher and their
+      subject/area. Optional — auth-intent.ts falls back to the default hero
+      rather than render one with a blank in it. */
+  teacherName?: string | null;
+  area?: string | null;
 }
 
 function getCommentAuthorName(comment: Comment): string {
@@ -80,7 +86,7 @@ function getCommentInitials(comment: Comment): string {
   return 'U';
 }
 
-export function TeacherComments({ teacherId, subject, teacherSlug }: TeacherCommentsProps) {
+export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, area }: TeacherCommentsProps) {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -267,6 +273,13 @@ export function TeacherComments({ teacherId, subject, teacherSlug }: TeacherComm
 
   const handleWriteReviewClick = () => {
     if (!user) {
+      // Handoff AU-004a: variant E's hero.
+      setAuthIntent({
+        kind: 'review',
+        teacherName: teacherName ?? '',
+        subject: subject ?? '',
+        area: area ?? '',
+      });
       saveAuthRedirect(location.pathname);
       navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
       return;

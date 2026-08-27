@@ -9,6 +9,8 @@ import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/au
 import { Logo } from '@/components/Logo';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getSubjectPalette } from '@/lib/subject-palette';
+import { readAuthIntent, clearAuthIntent } from '@/lib/auth-intent';
+import { resolveAuthHero } from '@/components/auth/AuthHero';
 
 /* C-032 / handoff AU-003a — proof counts above the fold. Counts are real
    (Supabase), never hardcoded; the sticker that needs one simply doesn't
@@ -104,6 +106,12 @@ export default function Auth() {
   const navigate = useNavigate();
   const { paperCount, mathsCount, scienceCount } = useAuthProofCounts();
 
+  /* Handoff AU-004a: the hero follows the intent that opened the gate. Read
+     once, on mount — the intent is cleared when the post-sign-in redirect
+     resolves, and re-reading would swap the hero out from under a visitor
+     who is still looking at it. */
+  const [authIntent] = useState(readAuthIntent);
+
   // Save redirect on mount (backup — primary save happens at the click source)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -172,6 +180,8 @@ export default function Auth() {
             navigate(to, { replace: true });
           } else {
             clearAuthRedirect();
+            // AU-004a: the intent has done its job once the redirect resolves.
+            clearAuthIntent();
             navigate(redirectTo || '/', { replace: true });
           }
         } catch (error) {
@@ -441,8 +451,9 @@ export default function Auth() {
   const DARK_FIELD =
     'w-full box-border min-h-[54px] h-[54px] px-4 rounded-[18px] bg-white/[0.08] text-[16px] text-background placeholder:text-background/40 outline-none shikshaq-auth-field';
   const DARK_FIELD_ERROR = 'ring-2 ring-destructive';
-  const mathsPalette = getSubjectPalette('Maths');
-  const sciencePalette = getSubjectPalette('Science');
+  /* AU-004a variant A takes the real published paper count for its third
+     pill. Variant F's counts are deliberately not passed — see AuthHero. */
+  const hero = resolveAuthHero(authIntent, { papers: paperCount });
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -453,71 +464,52 @@ export default function Auth() {
           desktop analogue). */}
       <div className="lg:mx-auto lg:flex lg:w-full lg:max-w-[1160px] lg:flex-1 lg:items-center lg:justify-center lg:gap-8 lg:px-10 lg:py-10">
 
-        {/* Orange hero block (AU-003 point 1) — nav row, eyebrow, h1, sticker
-            cluster. This block is the page's whole accent budget. */}
-        <div className="rounded-b-bento bg-brand px-5 pb-[26px] lg:flex-1 lg:rounded-bento lg:self-stretch">
+        {/* Hero block (AU-003 point 1) — nav row, eyebrow, h1, sticker
+            cluster. This block is the page's whole accent budget.
+
+            Handoff AU-004a: its fill, ink, eyebrow, sentence and stickers all
+            come from the intent that opened the gate (variants A–H). The
+            near-black sign-in block below never changes shape — only its
+            sub-line and value-note copy follow, per the same entry. */}
+        <div className={`rounded-b-bento px-5 pb-[26px] lg:flex-1 lg:rounded-bento lg:self-stretch ${hero.ink.fill}`}>
           <header className="flex items-center justify-between gap-3 pt-5">
-            <Logo size="md" ariaLabel="Back to home" />
+            <Logo size="md" ariaLabel="Back to home" onDark={hero.ink.onDark} />
             <Link
               to="/"
-              className="inline-flex min-h-11 items-center px-2 py-1 text-[13px] font-semibold text-[rgba(31,31,31,.6)]"
+              className={`inline-flex min-h-11 items-center px-2 py-1 text-[13px] font-semibold ${hero.ink.quiet}`}
             >
               Skip
             </Link>
           </header>
 
           {showResetPassword ? (
-            <h1 className="mt-6 font-display text-[34px] font-black leading-[1.02] tracking-[-0.04em] text-[#1F1F1F]">
+            <h1 className={`mt-6 font-display text-[34px] font-black leading-[1.02] tracking-[-0.04em] ${hero.ink.text}`}>
               Reset your password
             </h1>
           ) : (
             <>
-              {/* Handoff AU-004: eyebrow on the orange block. */}
-              <p className="mt-6 text-[11.5px] font-bold uppercase tracking-[0.08em] text-[rgba(31,31,31,.6)]">
-                Free, always
+              {/* Handoff AU-004: eyebrow on the hero block. */}
+              <p className={`mt-6 text-[11.5px] font-bold uppercase tracking-[0.08em] ${hero.ink.quiet}`}>
+                {hero.eyebrow}
               </p>
-              {/* h1 46px/.92/-0.055em/400, "then talk" highlighted at 900 on
-                  a bg-panel block. Line breaks are fixed. */}
-              <h1 className="mt-1 font-display text-[46px] font-normal leading-[.92] tracking-[-0.055em] text-[#1F1F1F]">
-                One tap,<br />
-                <span className="inline-block -mx-[6px] rounded-[10px] bg-panel px-[6px] font-black text-[#FCFAF7]">then talk</span><br />
-                to the teacher.
+              {/* h1 46px/.92/-0.055em/400 with the highlighted span at 900 on
+                  a block of the inverse value. Line breaks are fixed.
+                  Variant H is a single 36px line and carries no highlight. */}
+              {/* The weight classes are branched, not layered: leaving
+                  `font-normal` on the element and adding `font-black` after it
+                  leaves both in the class list at equal specificity, and the
+                  stylesheet's own order decides — which resolved to 400. */}
+              <h1
+                className={`mt-1 font-display leading-[.92] tracking-[-0.055em] ${
+                  hero.compact ? 'text-[36px] font-black' : 'text-[46px] font-normal'
+                } ${hero.ink.text}`}
+              >
+                {hero.sentence}
               </h1>
 
-              {/* Handoff AU-003a: sticker cluster replaces the mosaic — an
-                  86px well under the h1, four stickers at fixed rotations. */}
-              <div className="relative mt-5 h-[86px]" aria-hidden="true">
-                {mathsCount != null && mathsCount > 0 && (
-                  <span
-                    className="absolute left-0 top-0 inline-flex h-9 -rotate-6 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-extrabold shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0"
-                    style={{ backgroundColor: mathsPalette.tint, color: mathsPalette.text }}
-                  >
-                    Maths · {mathsCount}
-                  </span>
-                )}
-                {scienceCount != null && scienceCount > 0 && (
-                  <span
-                    className="absolute right-0 top-[10px] inline-flex h-9 rotate-[4deg] items-center whitespace-nowrap rounded-full px-4 text-[14px] font-extrabold shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0"
-                    style={{ backgroundColor: sciencePalette.tint, color: sciencePalette.text }}
-                  >
-                    Science · {scienceCount}
-                  </span>
-                )}
-                {/* AUDIT_2026-08-21 #1: this sticker was bg-brand-blue-subtle
-                    (indigo) — the one papers-mode accent inside a block whose
-                    own comment above calls itself "the page's whole accent
-                    budget" (orange). Swapped for the "chip sitting on a
-                    saturated panel" bone tone (chip.tsx's on-brand family),
-                    same as every other non-subject badge on a brand surface. */}
-                {(paperCount ?? 0) > 0 && (
-                  <span className="absolute bottom-[10px] left-[6%] inline-flex h-9 rotate-[7deg] items-center whitespace-nowrap rounded-full bg-card px-4 text-[14px] font-extrabold text-foreground shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0">
-                    {paperCount} papers
-                  </span>
-                )}
-                <span className="absolute bottom-0 right-[8%] flex h-8 w-8 -rotate-[10deg] items-center justify-center rounded-full bg-whatsapp text-whatsapp-text shadow-[0_6px_18px_rgba(0,0,0,.10)] motion-reduce:rotate-0 lg:rotate-0">
-                  <WhatsAppIcon className="h-4 w-4" />
-                </span>
-              </div>
+              {/* Handoff AU-003a / AU-004a: the sticker cluster under the h1,
+                  its contents chosen by intent. */}
+              {hero.stickers}
             </>
           )}
         </div>
@@ -539,11 +531,15 @@ export default function Auth() {
             <div>
               {/* Handoff AU-004: sub-line moves here, first element of the
                   dark block. */}
+              {/* AU-004a: the sub-line follows the intent too. The
+                  create-account and reset-password wordings still win when
+                  the visitor has switched into one of those modes — the
+                  intent describes why they arrived, not which form is open. */}
               <p className="text-[14.5px] leading-[1.6] text-[rgba(249,245,241,.7)]">
                 {showResetPassword
                   ? 'Enter your new password below'
                   : isLogin
-                  ? 'Sign in to continue to Shikshaq'
+                  ? hero.subline
                   : 'Join Shikshaq to find the best tutors'}
               </p>
             </div>
@@ -831,12 +827,24 @@ export default function Auth() {
             {/* Handoff AU-007 (new): names what signing in actually unlocks —
                 the gate sheets elsewhere say this, this page never did. */}
             {!showResetPassword && !showForgotPassword && (
-              <div className="rounded-[20px] bg-white/[0.06] p-4">
+              /* AU-004a: the value note's copy and its tile colour follow the
+                 intent — WhatsApp green, brand orange or indigo. The tint is
+                 a left rule rather than a fill, so the dark block keeps one
+                 surface and the accent stays a marker, not a second panel. */
+              <div
+                className={`rounded-[20px] bg-white/[0.06] p-4 border-l-[3px] ${
+                  hero.noteTint === 'whatsapp'
+                    ? 'border-whatsapp'
+                    : hero.noteTint === 'papers'
+                    ? 'border-brand-blue'
+                    : 'border-brand'
+                }`}
+              >
                 <p className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-[rgba(249,245,241,.5)]">
-                  Why sign in
+                  {hero.noteTitle}
                 </p>
                 <p className="mt-1.5 text-[14px] leading-[1.55] text-[rgba(249,245,241,.75)]">
-                  Message teachers on WhatsApp, save a shortlist, and open past papers. No fees, ever.
+                  {hero.noteBody}
                 </p>
               </div>
             )}

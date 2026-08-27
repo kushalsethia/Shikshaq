@@ -10,6 +10,7 @@ import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { recordVisit } from '@/lib/recently-visited';
 import { GateSheet } from '@/components/auth/gate-sheet';
+import { setAuthIntent } from '@/lib/auth-intent';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
 import { generateBreadcrumbSchema, injectSchemas } from '@/utils/structuredDataGenerators';
 
@@ -250,8 +251,19 @@ export default function PaperReader() {
   // "never fetch the paper before auth". file_url only ever reaches the DOM
   // in the `signedIn` branch below.
   useEffect(() => {
-    if (!loading && !authLoading && paper && !signedIn) setGateOpen(true);
-    else setGateOpen(false);
+    if (!loading && !authLoading && paper && !signedIn) {
+      /* Handoff AU-004a: variant D's hero, so /auth names the paper the
+         visitor was actually trying to open. Set alongside the gate, not
+         instead of it — the gate's own behaviour is unchanged. */
+      setAuthIntent({
+        kind: 'paper',
+        title: paper.title ?? '',
+        board: paper.board ?? '',
+        school: paper.school ?? '',
+        subjectSlug: paper.subject ?? '',
+      });
+      setGateOpen(true);
+    } else setGateOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, authLoading, !!paper, signedIn]);
 

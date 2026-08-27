@@ -87,6 +87,9 @@
     --text-tertiary: #8B837A;      /* card meta */
     --text-quaternary: #A39A90;    /* uppercase labels */
     --mint: #E3F7EC;               /* subject-Science tint, reused by §8 */
+    --mint-solid: #34B268;         /* AU-004a variant E's hero fill — the
+                                      saturated partner to --mint, which is a
+                                      tint and cannot carry a whole panel */
     --peach-tint: #FCECDE;         /* ProductTour card-1 art-well decorative blob */
 
     --radius: 0.75rem;

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { setAuthIntent } from '@/lib/auth-intent';
 import { IndianRupee, MessageCircle, Heart, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { AnnotatedHighlight } from '@/components/marketing/annotated-statement';
@@ -83,6 +84,10 @@ export default function Join() {
             </div>
             <Link
               to="/join/apply"
+              /* Handoff AU-004a: variant G. /join/apply gates on sign-in, so
+                 record the intent as the visitor sets off rather than after
+                 the redirect has already lost the reason. */
+              onClick={() => setAuthIntent({ kind: 'teacher' })}
               className="mt-[22px] flex h-[54px] items-center justify-center rounded-full bg-panel text-[15px] font-extrabold text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Apply to be listed

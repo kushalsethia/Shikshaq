@@ -28,6 +28,7 @@ import { readAllContacts } from '@/lib/contact-record';
 import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
+import { setAuthIntent } from '@/lib/auth-intent';
 
 type TabKey = 'saved' | 'contacted' | 'papers';
 const TABS: { key: TabKey; label: string }[] = [
@@ -189,7 +190,11 @@ export default function Account() {
   };
 
   useEffect(() => {
-    if (!user) navigate('/auth');
+    if (!user) {
+      // Handoff AU-004a: variant F — "Your shelf".
+      setAuthIntent({ kind: 'dashboard' });
+      navigate('/auth');
+    }
   }, [user, navigate]);
 
   // ---------------------------------------------------------------- Saved

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { saveAuthRedirect } from '@/utils/authRedirect';
+import { setAuthIntent } from '@/lib/auth-intent';
 import { toast as sonnerToast } from 'sonner';
 import { SURFACE_TOKENS } from '@/utils/searchFacets';
 import type { User } from '@supabase/supabase-js';
@@ -40,6 +41,9 @@ export function useAdminGuard(
           setCheckingAdmin(false);
           setIsAdmin(false);
           if (opts?.redirectOnDenied) {
+            // Handoff AU-004a: variant H. Nothing about that hero may look
+            // promotional — it is a staff redirect, not a signup.
+            setAuthIntent({ kind: 'admin' });
             saveAuthRedirect(window.location.pathname);
             navigate(`/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
           }

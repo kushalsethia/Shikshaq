@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { ContactGateSheet } from '@/components/ContactGateSheet';
 import { toast } from 'sonner';
 import { BROWSE_PATH } from '@/lib/nav-config';
+import { setAuthIntent } from '@/lib/auth-intent';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
@@ -507,6 +508,23 @@ export default function TeacherProfile() {
   }
 
   const openSignInSheet = (intent: 'message' | 'save') => {
+    /* Handoff AU-004a: record why the gate is opening, so /auth can show the
+       matching hero (variant B for a message, C for a save). Written here
+       rather than passed as a query so a teacher's name never lands in the
+       URL, history or a referrer. Every field must be real — when the
+       subject or area is missing, auth-intent.ts drops back to the default
+       hero rather than render one with a blank in it. */
+    setAuthIntent(
+      intent === 'message'
+        ? {
+            kind: 'whatsapp',
+            teacherName: teacher.name,
+            subject: primarySubject ?? '',
+            area: areaLabel,
+            ...(feesValue ? { fee: feesValue } : null),
+          }
+        : { kind: 'save', teacherName: teacher.name, subject: primarySubject ?? '', area: areaLabel },
+    );
     setSignInIntent(intent);
     setSignInSheetOpen(true);
   };
@@ -874,7 +892,7 @@ export default function TeacherProfile() {
                 TeacherComments.tsx for the heading/write-review pill/card
                 treatment. */}
             <BentoPanel fill="brandTint" className="p-[22px]">
-              <TeacherComments teacherId={teacher.id} subject={primarySubject} teacherSlug={teacher.slug} />
+              <TeacherComments teacherId={teacher.id} subject={primarySubject} teacherSlug={teacher.slug} teacherName={teacher.name} area={areaLabel} />
             </BentoPanel>
 
             {/* Handoff P-011: the similar-teachers rail and the closing
