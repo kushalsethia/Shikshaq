@@ -464,7 +464,7 @@ export default function PastPapers() {
                 QA) — the actual gate lives on each locked cover's 28px
                 lock disc below, which already opens PaperGate naming the
                 paper. Nothing else needs to ask twice. */}
-            <h2 className="mb-3 px-[22px] text-section-head font-display font-bold">Recently added</h2>
+            <h2 className="mb-3 px-[22px] font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">Recently added</h2>
             <div className="px-[22px]">
               <ShelfLedge>
                 {recentPapers.map((p) => (
@@ -814,7 +814,7 @@ export default function PastPapers() {
             tile, "Find a teacher" — the entry names the treatment but not
             exact copy, so this reuses the site's existing wording for the
             identical action rather than inventing new copy). */}
-        <BentoPanel fill="dark" className="lg:grid lg:grid-cols-[1fr_1.4fr] lg:items-center lg:gap-10 lg:px-8 lg:py-7">
+        <BentoPanel fill="dark" className="p-[18px] lg:grid lg:grid-cols-[1fr_1.4fr] lg:items-center lg:gap-10 lg:px-8 lg:py-7">
           <h2 className="mb-1.5 font-display text-[19px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white lg:mb-0 lg:text-[26px]">
             Who owns these papers
           </h2>

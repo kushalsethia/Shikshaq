@@ -540,8 +540,8 @@ export default function Index() {
           <div className="flex flex-col gap-seam lg:grid lg:grid-cols-[1.15fr_1fr] lg:items-start lg:gap-2">
             <div className="flex flex-col gap-seam lg:gap-2">
           {/* -------------------------------------------------------- 1 · Greeting */}
-          <BentoPanel fill="card" edge="top" className="relative overflow-hidden">
-            <p className="mt-[14px] text-[12.5px] font-medium text-warm-meta">{heroCopy.eyebrow}</p>
+          <BentoPanel fill="card" edge="top" className="relative overflow-hidden pt-[14px] px-[22px]">
+            <p className="text-[12.5px] font-medium text-warm-meta">{heroCopy.eyebrow}</p>
             <h1
               key={heroCopy.before + heroCopy.bold}
               className="animate-hero-swap mt-[6px] font-display text-[34px] font-normal leading-[1.14] tracking-[-0.045em] text-foreground lg:text-[58px] lg:leading-[1.02] lg:tracking-[-0.05em]"
@@ -610,7 +610,7 @@ export default function Index() {
 
             <div className="flex flex-col gap-seam lg:gap-2">
           {/* --------------------------------------------------- 3 · Teachers fork */}
-          <BentoPanel fill="brandTint" className="!py-[18px]">
+          <BentoPanel fill="brandTint" className="!px-[22px] !pt-[18px] !pb-5">
             <div className="flex items-center justify-between">
               <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand text-[#1F1F1F]">
                 <Users className="h-[19px] w-[19px]" strokeWidth={2.25} aria-hidden />
@@ -651,7 +651,7 @@ export default function Index() {
           </BentoPanel>
 
           {/* ----------------------------------------------------- 4 · Papers fork */}
-          <BentoPanel fill="papersTint" className="!py-[18px]">
+          <BentoPanel fill="papersTint" className="!px-[22px] !pt-[18px] !pb-5">
             <Link to="/past-papers" className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[12.5px] font-medium text-warm-secondary">Past papers</p>
@@ -738,7 +738,7 @@ export default function Index() {
           </BentoPanel>
 
           {/* --------------------------------------------------------- 6 · Subjects */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <NumberedHeading
               size="compact"
               line1="Or go straight"
@@ -773,7 +773,7 @@ export default function Index() {
 
           {/* ---------------------------------------------------- 7 · Your board */}
           {Object.keys(boardCounts).length > 0 && (
-            <BentoPanel fill="card">
+            <BentoPanel fill="card" className="p-[22px]">
               <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">
                 Your board
               </h2>
@@ -784,8 +784,8 @@ export default function Index() {
                     to={`/all-tuition-teachers-in-kolkata?filter_boards=${encodeURIComponent(b)}`}
                     className={`flex h-[52px] min-h-[44px] items-center justify-between rounded-full px-[18px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-card-reveal ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'} ${BOARD_TILT_CLASSES[i % BOARD_TILT_CLASSES.length]}`}
                   >
-                    <span className="font-display text-card-title-lg font-bold">{b}</span>
-                    <span className="text-body-secondary tabular-nums opacity-80">
+                    <span className="font-display text-[17px] font-bold">{b}</span>
+                    <span className="text-[14px] tabular-nums opacity-80">
                       {boardCounts[b]} {boardCounts[b] === 1 ? 'tutor' : 'tutors'}
                     </span>
                   </Link>
@@ -795,7 +795,7 @@ export default function Index() {
           )}
 
           {/* ------------------------------------------------------ How it works */}
-          <BentoPanel fill="brand" className="relative mt-seam overflow-visible">
+          <BentoPanel fill="brand" className="relative mt-seam overflow-visible px-[22px] pb-6 pt-[26px]">
             {/* D-007: tilt flattens at `lg` — a 6deg tilt on a 340px badge
                 reads as charm, the same tilt on a 1100px-wide row reads as
                 broken. Implemented as lg:rotate-0, mobile tilt untouched. */}
@@ -839,7 +839,7 @@ export default function Index() {
           </BentoPanel>
 
           {/* --------------------------------------------------------- 9 · By class */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <NumberedHeading
               size="compact"
               line1="Or by the class"
@@ -863,7 +863,7 @@ export default function Index() {
           </BentoPanel>
 
           {/* ------------------------------------------------------- 10 · New papers */}
-          <BentoPanel fill="papers" className="relative overflow-hidden">
+          <BentoPanel fill="papers" className="relative overflow-hidden px-[22px] pb-[26px] pt-[22px]">
             <span aria-hidden className="pointer-events-none absolute -left-10 top-0 h-[160px] w-[160px] rounded-full bg-white/[.06]" />
             <span aria-hidden className="pointer-events-none absolute -right-10 top-10 h-[190px] w-[190px] rounded-full bg-white/[.06]" />
 
@@ -910,7 +910,7 @@ export default function Index() {
           </BentoPanel>
 
           {/* --------------------------------------------------- 11 · Guardian trust */}
-          <BentoPanel fill="brandTint">
+          <BentoPanel fill="brandTint" className="p-[22px]">
             <div className="flex items-center gap-3">
               <IconDisc tone="brand" size={38} shape="square"><ShieldCheck className="h-[19px] w-[19px]" /></IconDisc>
               <h2 className="font-display text-[22px] font-extrabold tracking-[-0.04em] text-brand-deep lg:text-[28px]">Why guardians use ShikshAQ</h2>
@@ -960,7 +960,7 @@ export default function Index() {
           )}
 
           {/* ------------------------------------------------------- 13 · Recommend */}
-          <BentoPanel fill="card" className="!py-[18px]">
+          <BentoPanel fill="card" className="!px-[22px] !py-[18px]">
             <Link
               to="/recommend-teacher"
               className="flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

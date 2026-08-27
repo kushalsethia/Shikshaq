@@ -117,7 +117,7 @@ export function FilterChips({
             <button
               type="button"
               onClick={handoff.onClick}
-              className={`${pillBase} bg-muted text-foreground`}
+              className={`${pillBase} bg-panel font-bold text-background`}
             >
               {handoff.label}
             </button>

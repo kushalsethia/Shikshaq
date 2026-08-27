@@ -84,7 +84,7 @@ interface FooterProps {
   expandedContent?: string | null; // EXPANDED content from Shikshaqmine for teacher profiles
 }
 
-const COL_LABEL = 'text-xs font-medium uppercase tracking-wide text-white/70';
+const COL_LABEL = 'text-xs font-medium uppercase tracking-[0.04em] text-white/70';
 // Safari still paints a disclosure triangle even with `list-none`.
 const SUMMARY_RESET = '[&::-webkit-details-marker]:hidden';
 const FOOTER_LINK = 'flex min-h-[44px] items-center text-sm text-white/85 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 rounded-lg';

@@ -1847,7 +1847,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           is skipped if the subject has no published papers rather than
           showing a zero or fabricated stat. */}
       {isSubjectPage && subjectPapers && subjectPapers.count > 0 && (
-        <BentoPanel fill="brandTint">
+        <BentoPanel fill="brandTint" className="p-[22px]">
             <h2 className="font-display text-section-head font-extrabold text-brand-deep">
               {pageContext!.label} papers too
             </h2>
@@ -1875,7 +1875,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           the existing filter_areas query param so the URL contract is
           untouched. */}
       {isSubjectPage && (
-        <BentoPanel fill="card">
+        <BentoPanel fill="card" className="p-[22px]">
           <h2 className="font-display text-section-head font-extrabold text-foreground">
             {pageContext!.label} tuition, by area
           </h2>
