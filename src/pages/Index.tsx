@@ -613,7 +613,14 @@ export default function Index() {
           <SearchDesk onModeChange={setHeroMode} />
             </div>
 
-            <div className="flex flex-col gap-seam lg:gap-2">
+            {/* lg:pt-[72px] matches the nav reserve the greeting panel gets from
+                `edge="top"`. At lg this column is the RIGHT half of D-005's
+                `grid-cols-[1.15fr_1fr]` hero, so it starts at y=0 like the
+                left one — but it holds no `edge="top"` panel, so nothing was
+                clearing the floating top bar and the first fork's heading sat
+                underneath it. The left column's reserve only offsets its own
+                cell. */}
+            <div className="flex flex-col gap-seam lg:gap-2 lg:pt-[72px]">
           {/* --------------------------------------------------- 3 · Teachers fork */}
           <BentoPanel fill="brandTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
             <div className="flex items-center justify-between">
