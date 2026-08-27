@@ -404,7 +404,7 @@ export function Chatbot() {
           so it used to pop in and vanish instantly despite the transition class. */}
       {panelPresence.mounted && (
         <div
-          className={`fixed ${hasFloatingCta ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card rounded-2xl shadow-border-hover flex flex-col origin-bottom-right ${
+          className={`fixed ${hasFloatingCta ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card rounded-bento shadow-pill flex flex-col origin-bottom-right ${
             panelPresence.closing ? 'animate-accordion-up' : 'animate-fade-slide-up'
           }`}
         >
@@ -451,10 +451,14 @@ export function Chatbot() {
                     (measured 2.52:1 against AA's 4.5:1 floor); every other
                     brand-orange surface in the app uses the dark ink. */}
                 <div
-                  className={`max-w-[82%] rounded-2xl px-3 py-2 md:px-4 md:py-2.5 ${
+                  /* bg-muted, not bg-card + shadow-border: the bubble sits ON
+                     a bg-card panel, so a ring was the only thing separating
+                     two identical fills. Same rule S-001 applies to the row
+                     card — inside a card panel you separate by fill. */
+                  className={`max-w-[82%] rounded-[18px] px-3 py-2 md:px-4 md:py-2.5 ${
                     message.role === 'user'
                       ? 'bg-brand text-brand-foreground'
-                      : 'bg-card shadow-border text-foreground'
+                      : 'bg-muted text-foreground'
                   }`}
                 >
                   <div
@@ -531,7 +535,7 @@ export function Chatbot() {
               <div className="flex justify-start">
                 {/* Typing indicator: three warm dots, 8px, 150ms stagger (pages.md §19).
                     A one-shot fade-slide-up per dot, not an infinite loop. */}
-                <div className="bg-card shadow-border rounded-2xl px-4 py-3 flex items-center gap-1.5">
+                <div className="bg-muted rounded-[18px] px-4 py-3 flex items-center gap-1.5">
                   <span className="chat-typing-dot animate-fade-slide-up" style={{ animationDelay: '0ms' }} />
                   <span className="chat-typing-dot animate-fade-slide-up" style={{ animationDelay: '150ms' }} />
                   <span className="chat-typing-dot animate-fade-slide-up" style={{ animationDelay: '300ms' }} />
@@ -563,7 +567,7 @@ export function Chatbot() {
           )}
 
           {/* Input - Composer 56px + 44px send disc (pages.md §19). */}
-          <div className="p-3 md:p-4 border-t border-border flex-shrink-0 bg-card safe-area-pb">
+          <div className="p-3 md:p-4 flex-shrink-0 bg-card safe-area-pb">
             <div className="flex gap-2 items-center h-14">
               <input
                 ref={inputRef}
@@ -572,7 +576,7 @@ export function Chatbot() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask anything about tuition"
-                className="flex-1 h-14 px-3 md:px-4 bg-background border border-border rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-brand text-base md:text-sm"
+                className="flex-1 h-14 min-w-0 px-4 bg-muted rounded-full outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card text-base"
                 style={{ fontSize: '16px' }}
                 disabled={loading}
               />
