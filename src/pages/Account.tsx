@@ -509,7 +509,7 @@ export default function Account() {
       <BentoStack>
       {/* Handoff AC-002: bone greeting panel — the !rounded-b-[32px] override
           is gone, the panel owns its own radius now. */}
-      <BentoPanel fill="card" edge="top" className="pt-[14px] pb-5">
+      <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-5">
         <div className="flex items-center gap-4">
           <span className="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-brand font-display text-[19px] font-black text-brand-foreground">
             {initial}
@@ -534,7 +534,7 @@ export default function Account() {
       {/* Handoff AC-003: sticky pill row — border-b-2 underline removed, the
           active state is now the fill. role="tablist"/"tab"/aria-selected
           and setTab are unchanged. */}
-      <BentoPanel fill="card" className="sticky top-[80px] z-20 isolate !px-0 py-3 pl-4">
+      <BentoPanel fill="card" className="sticky top-[80px] z-20 isolate !px-0 !pl-4 py-3">
         <div role="tablist" aria-label="Account sections" className="flex gap-2 overflow-x-auto pr-4 scrollbar-hide">
           {TABS.map((tab) => {
             const selected = activeTab === tab.key;
@@ -607,7 +607,7 @@ export default function Account() {
             ) : (
               /* Handoff AC-005: empty states are their own tinted panel —
                  heading naming the exact empty thing, one line, one action. */
-              <BentoPanel fill="brandTint">
+              <BentoPanel fill="brandTint" className="p-[22px]">
                 <p className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-brand-deep">Nothing saved yet</p>
                 <p className="mt-1.5 text-[14px] leading-[1.55] text-warm-prose">Save a teacher's profile and it shows up here.</p>
                 <Button asChild variant="primary" size={52} className="mt-4">
@@ -651,7 +651,7 @@ export default function Account() {
                 ))}
               </ul>
             ) : (
-              <BentoPanel fill="brandTint">
+              <BentoPanel fill="brandTint" className="p-[22px]">
                 <p className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-brand-deep">You haven't messaged anyone yet</p>
                 <p className="mt-1.5 text-[14px] leading-[1.55] text-warm-prose">Message a teacher on WhatsApp and they'll show up here.</p>
                 <Button asChild variant="primary" size={52} className="mt-4">
@@ -686,7 +686,7 @@ export default function Account() {
                 ))}
               </div>
             ) : (
-              <BentoPanel fill="brandTint">
+              <BentoPanel fill="brandTint" className="p-[22px]">
                 <p className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-brand-deep">No papers read yet</p>
                 <p className="mt-1.5 text-[14px] leading-[1.55] text-warm-prose">Open a past paper and it shows up here.</p>
                 <Button asChild variant="primary" size={52} className="mt-4">

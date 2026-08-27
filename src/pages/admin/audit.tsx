@@ -104,7 +104,7 @@ export default function AdminAuditLog() {
     return (
       <BentoStack className="min-h-screen bg-muted">
         <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
-        <BentoPanel fill="card" className="px-[18px] py-[18px]">
+        <BentoPanel fill="card" className="px-1.5 py-[18px]">
           <div className="animate-pulse space-y-3">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="h-14 rounded-2xl bg-muted" />
@@ -176,7 +176,7 @@ export default function AdminAuditLog() {
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
 
-      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+      <BentoPanel fill="card" className="px-1.5 py-[18px]">
         {/* AD-008's mockup meta reads "last 30 days · {n} entries" — the real query has no
             30-day window (it's `order by created_at desc limit 500`), so the honest framing
             here is "most recent · {n} entries" rather than a date-range claim the query

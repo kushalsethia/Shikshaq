@@ -391,7 +391,7 @@ export default function AdminPapersPage() {
     return (
       <BentoStack className="min-h-screen bg-muted">
         <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
-        <BentoPanel fill="card" className="px-[18px] py-[18px]">
+        <BentoPanel fill="card" className="px-1.5 py-[18px]">
           <div className="animate-pulse space-y-4">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="h-14 rounded-2xl bg-muted" />
@@ -420,7 +420,7 @@ export default function AdminPapersPage() {
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
 
-      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+      <BentoPanel fill="card" className="px-1.5 py-[18px]">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-[18px]">
           <AdminPanelHeader title="Uploaded papers" meta={`${papers.filter((p) => p.is_published).length} published · ${papers.filter((p) => !p.is_published).length} taken down`} />
           <button onClick={openUpload} className={adminPrimaryBtnStyle}>

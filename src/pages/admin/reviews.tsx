@@ -740,7 +740,7 @@ export default function AdminReviews() {
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
 
-      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+      <BentoPanel fill="card" className="px-5 py-[18px]">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-[18px]">
           <h2 className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">Reported reviews</h2>
           <span className="text-[12.5px] tabular-nums text-warm-meta">

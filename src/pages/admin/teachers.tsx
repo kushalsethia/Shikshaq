@@ -572,7 +572,7 @@ export default function AdminTeachersPage() {
     return (
       <BentoStack className="min-h-screen bg-muted">
         <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
-        <BentoPanel fill="card" className="px-[18px] py-[18px]">
+        <BentoPanel fill="card" className="px-1.5 py-[18px]">
           <div className="animate-pulse space-y-4">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="h-14 rounded-2xl bg-muted" />
@@ -621,7 +621,11 @@ export default function AdminTeachersPage() {
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
 
-      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+      {/* AD-003 gives this panel literally: `px-1.5 py-[18px]`. It had been
+          px-[18px], which pushed the table 18px off the panel edge and the
+          header to 36px (6+18 inner). Measured against the mockup: table at
+          6px, heading at 24px. The inner `px-[18px]` rows are unchanged. */}
+      <BentoPanel fill="card" className="px-1.5 py-[18px]">
         <AdminPanelHeader title="All teachers" meta={`${teachers.length} listed · ${teachers.filter((t) => t.is_paused).length} paused`} />
 
         <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">

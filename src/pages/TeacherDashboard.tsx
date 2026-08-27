@@ -973,7 +973,7 @@ export default function TeacherDashboard() {
     return (
       <div className="min-h-screen bg-background">
         <BentoStack>
-          <BentoPanel fill="dark" edge="top" className="pt-[14px] pb-[22px]">
+          <BentoPanel fill="dark" edge="top" className="px-[22px] pt-[14px] pb-[22px]">
             <div className="flex animate-pulse items-center gap-[14px]">
               <div className="h-16 w-16 flex-none rounded-full bg-white/10" />
               <div className="flex-1 space-y-2">
@@ -984,13 +984,13 @@ export default function TeacherDashboard() {
           </BentoPanel>
           <div className="flex gap-seam">
             {[...Array(2)].map((_, i) => (
-              <BentoPanel key={i} fill="card" className="flex-1 animate-pulse p-4">
+              <BentoPanel key={i} fill="card" className="flex-1 animate-pulse px-[14px] py-4 lg:p-6">
                 <div className="h-6 w-10 rounded-full bg-muted" />
                 <div className="mt-2 h-3 w-16 rounded-full bg-muted" />
               </BentoPanel>
             ))}
           </div>
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <div className="animate-pulse space-y-4">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="h-16 rounded-2xl bg-muted" />
@@ -1116,7 +1116,7 @@ export default function TeacherDashboard() {
         <BentoStack>
           {/* Handoff TD-001: near-black header — the other side of the product,
               so it should not look like a parent's dashboard. */}
-          <BentoPanel fill="dark" edge="top" className="overflow-visible pt-[14px] pb-[22px]">
+          <BentoPanel fill="dark" edge="top" className="overflow-visible px-[22px] pt-[14px] pb-[22px]">
             <div className="flex items-center gap-[14px]">
               <div className="h-16 w-16 flex-none overflow-hidden rounded-full bg-muted">
                 {imagePreview ? (
@@ -1150,7 +1150,7 @@ export default function TeacherDashboard() {
           {/* Handoff TD-002: two real counters, nothing else. */}
           <div className="flex gap-seam">
             {teacherStats.map((st) => (
-              <BentoPanel key={st.label} fill="card" className="flex-1 p-4">
+              <BentoPanel key={st.label} fill="card" className="flex-1 px-[14px] py-4 lg:p-6">
                 <div className="font-display text-[26px] font-black tracking-[-0.04em] text-foreground tabular-nums">
                   {st.value}
                 </div>
@@ -1163,7 +1163,7 @@ export default function TeacherDashboard() {
 
           {/* Handoff TD-003: Enquiries stays a panel, not a number — no
               whatsapp_clicks table exists, so this never shows a count or a 0. */}
-          <BentoPanel fill="muted">
+          <BentoPanel fill="muted" className="px-[22px] py-5">
             <div className="flex items-center gap-[10px]">
               <IconDisc tone="muted" size={32} shape="square" className="bg-border">
                 <Info className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -1177,7 +1177,7 @@ export default function TeacherDashboard() {
               edit / pause / request-review as one row of cards. Not named in TD-001..004,
               but real, working functionality (pause is a real is_paused write; request
               review copies a real profile link) that stays rather than being dropped. */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <h2 className="mb-3.5 flex items-center gap-3 font-display text-[18px] font-extrabold tracking-tight text-foreground">
               <IconDisc tone="muted" size={32} shape="square">
                 <UserCircle2 className="h-4 w-4" aria-hidden="true" />
@@ -1239,7 +1239,7 @@ export default function TeacherDashboard() {
           </BentoPanel>
 
           {/* Account Information — locked fields, kept intact from the previous version. */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <h2 className="mb-3.5 flex items-center gap-3 font-display text-[18px] font-extrabold tracking-tight text-foreground">
               <IconDisc tone="muted" size={32} shape="square">
                 <Lock className="h-4 w-4" aria-hidden="true" />
@@ -1274,7 +1274,7 @@ export default function TeacherDashboard() {
           {/* Handoff TD-004: profile-completeness treatment (same as GD-002) plus
               the existing long form — every field, label and validation message
               unchanged, restyled per JA-004's field pattern only. */}
-          <BentoPanel fill="card">
+          <BentoPanel fill="card" className="p-[22px]">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-display text-[19px] font-extrabold tracking-[-0.03em] text-foreground">Your listing</h2>
               <span className="text-[14px] font-extrabold tabular-nums text-brand-deep">{completenessPct}%</span>
@@ -1751,7 +1751,7 @@ export default function TeacherDashboard() {
 
           {/* Handoff TD-004: received reviews, read-only — no edit/delete UI on
               this page. Literal heading text from the referenced mockup. */}
-          <BentoPanel fill="brandTint">
+          <BentoPanel fill="brandTint" className="p-[22px]">
             <h2 className="font-display text-[19px] font-extrabold tracking-[-0.03em] text-brand-deep">
               What students said
             </h2>

@@ -263,7 +263,7 @@ export default function AdminApprovals() {
     return (
       <BentoStack className="min-h-screen bg-muted">
         <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
-        <BentoPanel fill="card" className="px-[18px] py-[18px]">
+        <BentoPanel fill="card" className="px-1.5 py-[18px]">
           <div className="animate-pulse space-y-3">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="h-14 rounded-2xl bg-muted" />
@@ -349,7 +349,7 @@ export default function AdminApprovals() {
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
 
-      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+      <BentoPanel fill="card" className="px-1.5 py-[18px]">
         <AdminPanelHeader title="Applications" meta={`${pendingCount} waiting`} />
 
         <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">
