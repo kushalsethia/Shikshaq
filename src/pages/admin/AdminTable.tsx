@@ -123,28 +123,40 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
 
   return (
     <div className={cn('overflow-hidden', className)}>
-      {/* Desktop / tablet: the grid, lg: and up. */}
-      <div className="hidden overflow-x-auto lg:block">
+      {/* Desktop / tablet: the grid, lg: and up.
+
+          AD-003 specifies a `border-collapse` <table>; this is a CSS grid so
+          the same rows can restack as cards below lg (see below). The visual
+          spec is met either way, but a bare grid of <div>s announces as a flat
+          run of text with no column association — C-015 asks that the
+          semantics survive the restyle, so the ARIA table roles carry what the
+          <table> element would have. */}
+      <div className="hidden overflow-x-auto lg:block" role="table">
         <div
+          role="row"
           className="grid gap-3.5 px-[14px] py-[10px] shadow-[inset_0_-1px_0_#E7DFD5]"
           style={{ gridTemplateColumns: gridTemplate }}
         >
           {columns.map((c) => (
-            <span key={c.key} className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
+            <span role="columnheader" key={c.key} className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
               {c.label}
             </span>
           ))}
-          {readOnly ? null : <span aria-hidden />}
+          {/* The actions column is unlabelled by design, but a header cell
+              with no accessible name leaves the column count wrong for AT. */}
+          {readOnly ? null : <span role="columnheader"><span className="sr-only">Actions</span></span>}
         </div>
 
         {rows.map((row) => (
           <div
             key={row.id}
+            role="row"
             className="grid items-center gap-3.5 px-[14px] py-[12px] shadow-[inset_0_-1px_0_#F0EAE2] transition-colors duration-150 hover:bg-muted/40"
             style={{ gridTemplateColumns: gridTemplate }}
           >
             {row.cells.map((cell, i) => (
               <span
+                role="cell"
                 key={i}
                 className={cn(
                   'min-w-0 truncate text-[13.5px] leading-[1.45]',
@@ -155,7 +167,11 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
               </span>
             ))}
 
-            {readOnly ? null : <AdminRowActions actions={row.actions ?? []} />}
+            {readOnly ? null : (
+              <span role="cell">
+                <AdminRowActions actions={row.actions ?? []} />
+              </span>
+            )}
           </div>
         ))}
       </div>

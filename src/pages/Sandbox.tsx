@@ -95,7 +95,7 @@ export default function Sandbox() {
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={NAV} signedInEmail="sandbox@shikshaq.com" />
 
-      <BentoPanel fill="card" className="px-[18px] py-[18px]">
+      <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
         <p className="mb-5 mx-[18px] rounded-xl bg-brand-subtle px-4 py-3 text-body-secondary text-brand-deep">
           <strong className="font-bold">Design sandbox, development only.</strong> Mock props, no
           database access, not the real console. Registered only when <code>import.meta.env.DEV</code>{' '}

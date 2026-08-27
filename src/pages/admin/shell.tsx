@@ -110,7 +110,7 @@ export function AdminAuditNote({ className }: { className?: string }) {
     <BentoPanel
       fill="muted"
       edge="bottom"
-      className={cn('flex flex-wrap items-center justify-between gap-2 px-6 py-4', className)}
+      className={cn('flex flex-wrap items-center justify-between gap-2 px-6 py-4 lg:px-6 lg:py-4', className)}
     >
       <span className="text-[12.5px] text-warm-secondary">
         Every action is written to the audit log with your account and a timestamp.
