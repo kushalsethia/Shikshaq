@@ -432,9 +432,17 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
       />
       <div
         ref={rootRef}
-        className={`w-full ${align === 'center' ? 'mx-auto' : ''} ${
+        /* The base width is conditional, not `w-full` plus a `w-auto` override.
+           This is a plain template string — no tailwind-merge — so when pinned
+           BOTH classes were emitted and `w-full` won on stylesheet order. With
+           `inset-x-3` pinning the left edge at 12px, a 100%-of-viewport width
+           put the right edge at 402px on a 390px screen: the results panel,
+           the submit disc and the mode toggle were all sliced by 12px, which
+           is the "things are overflowing / touching the corners" report. When
+           pinned the two insets define the width, so it must not be set. */
+        className={`${mobilePinned ? '' : 'w-full'} ${align === 'center' ? 'mx-auto' : ''} ${
           mobilePinned
-            ? 'fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] w-auto max-w-none'
+            ? 'fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] max-w-none'
             : `relative z-[45] ${expanded ? 'max-w-3xl' : 'max-w-2xl'}`
         } ${className}`}
       >
@@ -456,7 +464,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           <div
             className={
               heroDesk
-                ? 'flex h-[60px] items-center gap-[10px] rounded-[22px] bg-muted pl-[18px] pr-2 transition-shadow duration-150'
+                ? 'flex h-[60px] items-center gap-[10px] rounded-[22px] bg-muted pl-[18px] pr-2 transition-shadow duration-150 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background'
                 : `flex h-14 items-center gap-2 rounded-2xl pl-4 pr-2 transition-shadow duration-150 ${
                     onDark
                       ? 'bg-white/10 focus-within:bg-white/[0.14]'
@@ -487,10 +495,19 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                  the real tap target is well under the 44px floor (C-011). An
                  input centres its own value vertically, so this is a no-op
                  visually. */
+              /* `focus-visible:outline-none`, not just `outline-none`. The
+                 global focus rule in index.css is scoped with
+                 `:not([class*="focus-visible:outline-"])`, so a plain
+                 `outline-none` does not exclude an element — the field was
+                 getting the global 2px outline plus its 4px white halo, drawn
+                 as a hard RECTANGLE inside a rounded-[22px] pill. The
+                 indicator now lives on the pill itself as a focus-within
+                 ring, so focus is still clearly shown, in the field's own
+                 shape. */
               className={
                 heroDesk
-                  ? 'h-full min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-warm-meta'
-                  : `h-full min-w-0 flex-1 border-0 bg-transparent text-base outline-none ${
+                  ? 'h-full min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none focus-visible:outline-none placeholder:text-warm-meta'
+                  : `h-full min-w-0 flex-1 border-0 bg-transparent text-base outline-none focus-visible:outline-none ${
                       onDark ? 'text-white placeholder:text-white/45' : 'text-foreground placeholder:text-muted-foreground'
                     }`
               }
