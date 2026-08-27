@@ -111,9 +111,14 @@ function LinkList({ links }: { links: FooterLink[] }) {
 
 /** Collapsible group — the mobile-compact form of a footer column. */
 function FooterAccordion({ label, links }: { label: string; links: FooterLink[] }) {
+  /* 02a puts the hairline on the SUMMARY as `inset 0 -1px 0
+     rgba(255,255,255,.10)`, not on the <details> as a border-b. The difference
+     shows when a group is open: the spec's line stays under the header,
+     separating it from its own links, while a border on the details drops to
+     the bottom of the expanded list and the header runs into its content. */
   return (
-    <details className="border-b border-white/10">
-      <summary className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 ${COL_LABEL} ${SUMMARY_RESET}`}>
+    <details>
+      <summary className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 shadow-[inset_0_-1px_0_rgba(255,255,255,.10)] ${COL_LABEL} ${SUMMARY_RESET}`}>
         {label}
         <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
       </summary>
@@ -397,8 +402,10 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           <div className="space-y-8">
             {/* Identity */}
             <div className="space-y-3">
-              <Logo size="nav" onDark className="tap-44" />
-              <p className="max-w-prose text-sm text-white/70">
+              {/* 02a's footer spec: "Logo `h-[26px]`, inverted." `size="nav"` is h-10
+                  (40px) — the nav pill's size, not the footer's. */}
+              <Logo size="nav" onDark className="tap-44 [&_img]:h-[26px]" />
+              <p className="max-w-prose text-[14px] leading-[1.55] text-white/70">
                 Quality tuition teachers in Kolkata, and past papers from Kolkata schools. Free on both counts.
               </p>
             </div>

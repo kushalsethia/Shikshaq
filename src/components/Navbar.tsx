@@ -236,7 +236,15 @@ export function Navbar() {
          items have no desktop equivalent elsewhere except TopBar's own
          account dropdown, so this component must not disappear on mobile. */
     >
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+      {/* pr-1.5, not a symmetric px-4. The pill is 56px tall and the menu
+          trigger is a 44px circle, so it sits 6px off the top and bottom — but
+          16px of right padding pushed it 10px further in than that, and a
+          circle inset unevenly inside a rounded corner reads as off-centre.
+          6px on the right makes the trigger concentric with the pill's own
+          corner arc. The logo keeps the larger left inset because it is a
+          wordmark, not a circle — the same asymmetry D-004 specifies for the
+          desktop bar (`pl-6 pr-2.5`). */}
+      <div className="mx-auto w-full max-w-6xl pl-4 pr-1.5 sm:px-6 lg:px-8">
         {/* Mobile: short bar — logo + a single action. The bottom tab bar carries navigation. */}
         <div className="flex h-14 items-center justify-between gap-4">
           <LogoOrTourTrigger onDark={onTintBlock} />
