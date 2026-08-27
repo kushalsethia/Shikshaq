@@ -72,7 +72,13 @@ const buttonVariants = cva(
     },
     defaultVariants: {
       variant: "default",
-      size: "default",
+      /* Handoff S-007: the size scale is a closed set of heights and "the old
+         40 step is removed; every former 40px button is now 44 (the floor)".
+         The legacy shadcn sizes below are still reachable by name for the
+         primitives that were never redesigned, but the DEFAULT must not be one
+         of them — `default` is h-10, so every <Button> written without a size
+         rendered at 40px, under C-013's floor and outside S-007's set. */
+      size: 44,
     },
   },
 );

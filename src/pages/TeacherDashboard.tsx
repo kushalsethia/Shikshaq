@@ -1344,7 +1344,7 @@ export default function TeacherDashboard() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute top-2 right-2"
+                      className="before:absolute before:-inset-[4px] before:content-[''] absolute top-2 right-2"
                       onClick={() => {
                         handleInputChange("Hero Image", null);
                         setImagePreview(null);

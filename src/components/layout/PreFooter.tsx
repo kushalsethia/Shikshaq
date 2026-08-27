@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { BadgeCheck, MessageCircle, FileText, ChevronRight, IndianRupee, Users, Eye } from "lucide-react";
+import { ShieldCheck, MessageCircle, FileText, ChevronRight, IndianRupee, Users, Eye } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,12 @@ function B1() {
       <ul className="mt-6 grid gap-4 sm:grid-cols-3">
         {[
           {
-            icon: <BadgeCheck />,
+            /* S-004: ShieldCheck, not BadgeCheck. BadgeCheck belongs to the
+               product tour (OB-002) and nowhere else — this is a verification
+               claim ("Verified before listing"), so it takes the same mark the
+               teacher cards and the profile use. Two verification glyphs in
+               one product is a bug, in that entry's own words. */
+            icon: <ShieldCheck />,
             tone: "brand" as const,
             head: "Verified before listing",
             text: "Identity and teaching history checked by hand.",

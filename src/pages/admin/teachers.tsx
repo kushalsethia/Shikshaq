@@ -866,7 +866,7 @@ export default function AdminTeachersPage() {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="absolute right-2 top-2 border-0 bg-white/90"
+                            className="before:absolute before:-inset-[4px] before:content-[''] absolute right-2 top-2 border-0 bg-white/90"
                             onClick={() => {
                               handleInputChange("Hero Image", null);
                               setImagePreview(null);
