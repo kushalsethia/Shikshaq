@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { TopBar } from '@/components/layout/TopBar';
@@ -72,18 +72,33 @@ export function useChromeConfig(config: ChromeConfig | null) {
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const chromeless = isChromelessPath(location.pathname);
-  const [chrome, setChrome] = useState<ChromeConfig | null>(null);
+  /* The page's config is stored WITH the path it was set for, and staleness
+     is derived rather than reset in an effect.
 
-  // Reset any page-supplied override the moment the route changes, so a
-  // stale `preFooter: 'none'` from the previous page can't leak onto the
-  // next one before that page's own effect has a chance to run.
-  useEffect(() => {
-    setChrome(null);
-  }, [location.pathname]);
+     The effect version raced the pages it was meant to serve: React runs
+     child effects before parent effects, so on a route whose component mounts
+     in the same commit as AppShell, the page called setChrome({preFooter:
+     'none'}) and this reset immediately wiped it — permanently, since neither
+     effect re-runs until the next navigation. Every route survived it by
+     accident of being `lazy` (mounting a commit later, after the reset), and
+     `/` — the one eager import in App.tsx — did not. That is why Home alone
+     rendered the B1 pre-footer it had explicitly opted out of.
 
-  const ctxValue = useMemo<ChromeContextValue>(() => ({ setChrome }), []);
+     Keying by path keeps the leak protection the reset was written for
+     without the ordering dependency. */
+  const [chrome, setChromeState] = useState<{ path: string; config: ChromeConfig | null } | null>(null);
+  const pathRef = useRef(location.pathname);
+  pathRef.current = location.pathname;
 
-  const variant: PreFooterVariant | 'none' = chrome?.preFooter ?? preFooterFor(location.pathname);
+  const setChrome = useCallback((config: ChromeConfig | null) => {
+    setChromeState({ path: pathRef.current, config });
+  }, []);
+
+  const activeChrome = chrome && chrome.path === location.pathname ? chrome.config : null;
+
+  const ctxValue = useMemo<ChromeContextValue>(() => ({ setChrome }), [setChrome]);
+
+  const variant: PreFooterVariant | 'none' = activeChrome?.preFooter ?? preFooterFor(location.pathname);
 
   return (
     <ChromeContext.Provider value={ctxValue}>
@@ -98,9 +113,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {!chromeless && (
         <>
-          {variant !== 'none' && <PreFooter variant={variant} counts={chrome?.preFooterCounts} />}
+          {variant !== 'none' && <PreFooter variant={variant} counts={activeChrome?.preFooterCounts} />}
           <BottomNavSpacer />
-          <Footer expandedContent={chrome?.footerExpandedContent} />
+          <Footer expandedContent={activeChrome?.footerExpandedContent} />
           <BottomNav />
         </>
       )}
