@@ -19,16 +19,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   Save, Lock, Upload, X, PencilLine, PauseCircle, PlayCircle, Link2,
   Info, Check, UserCircle2,
 } from 'lucide-react';
@@ -145,7 +135,6 @@ export default function TeacherDashboard() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [pausing, setPausing] = useState(false);
-  const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const [upvoteCount, setUpvoteCount] = useState<number | null>(null);
   const [reviewCount, setReviewCount] = useState<number | null>(null);
   // Reviews list (pages.md §12: "reviews list → B4") — this teacher's own approved reviews.
@@ -412,7 +401,13 @@ export default function TeacherDashboard() {
   // "Pause your listing" — flips the self-service is_paused flag (see the TeacherData interface
   // note above), reverting on failure. Browse/search now filter on is_paused too (see Browse.tsx),
   // so pausing here does hide the profile from public results, not just this dashboard's pill.
-  // Confirmation is handled by the AlertDialog below (pauseDialogOpen); this just performs the toggle.
+  // O-013 ⚠ "used only for irreversible actions": this used to be gated behind an
+  // AlertDialog, but pausing is reversible in one tap — the dialog's own copy said so —
+  // so it applies immediately and offers a toast with Undo instead. That is the same
+  // resolution AD-005 already spells out for the admin roster's identical control, and
+  // the same pattern admin/teachers.tsx implements. The mutation itself is unchanged;
+  // only how consent is gathered has. Undo just calls this again — the toggle is
+  // idempotent in both directions.
   const handlePauseToggle = async () => {
     if (!user || !teacherData) return;
 
@@ -440,7 +435,12 @@ export default function TeacherDashboard() {
       if (error) throw error;
 
       setTeacherData((prev) => (prev ? { ...prev, is_paused: nextPaused } : prev));
-      toast.success(nextPaused ? 'Listing paused.' : 'Listing resumed.');
+      toast.success(nextPaused ? 'Listing paused.' : 'Listing resumed.', {
+        description: nextPaused
+          ? 'Hidden from Browse and search results.'
+          : 'Visible in Browse and search results again.',
+        action: { label: 'Undo', onClick: () => { void handlePauseToggle(); } },
+      });
     } catch (error) {
       setIsPaused(previousPaused);
       if (import.meta.env.DEV) {
@@ -1202,7 +1202,7 @@ export default function TeacherDashboard() {
               </button>
               <button
                 type="button"
-                onClick={() => setPauseDialogOpen(true)}
+                onClick={handlePauseToggle}
                 disabled={pausing}
                 className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60"
               >
@@ -1793,36 +1793,6 @@ export default function TeacherDashboard() {
         </BentoStack>
       </main>
 
-      <AlertDialog open={pauseDialogOpen} onOpenChange={setPauseDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {isPaused ? 'Resume your listing?' : 'Pause your listing?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {isPaused
-                ? 'Your profile will show as live and reappear in Browse and search results.'
-                : 'Your profile will be hidden from Browse and search results until you resume it.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            {/* Not the shared destructive tint (O-013): pausing/resuming a
-                listing is fully reversible either direction — described as
-                such right above — not the "cannot be undone" class of
-                action this dialog's red/pink styling exists to flag. */}
-            <AlertDialogAction
-              className="!bg-brand !text-brand-foreground"
-              onClick={() => {
-                setPauseDialogOpen(false);
-                handlePauseToggle();
-              }}
-            >
-              {isPaused ? 'Resume' : 'Pause'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

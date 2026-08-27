@@ -12,7 +12,7 @@ function StatusTile({ tone }: { tone: "success" | "error" }) {
   return (
     <span
       className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px]"
-      style={{ backgroundColor: tone === "success" ? "#34B268" : "#F9E2E2" }}
+      style={{ backgroundColor: tone === "success" ? "var(--mint-solid)" : "#F9E2E2" }}
     >
       {tone === "success" ? (
         <Check className="h-4 w-4" style={{ color: "#08301D" }} strokeWidth={2.5} aria-hidden="true" />
