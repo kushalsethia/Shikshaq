@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 
@@ -7,6 +7,7 @@ import { NumberedHeading } from '@/components/ui/numbered-heading';
 import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
+import { BROWSE_PATH, PAST_PAPERS_PATH } from '@/lib/nav-config';
 
 /* Handoff HP-001..HP-005 (About Contact Help 404 Redesign.dc.html).
 
@@ -58,6 +59,27 @@ const GUIDE_TINT_BY_TITLE: Record<string, (typeof GUIDE_TINTS)[number]> = {
   'Joining as a teacher': GUIDE_TINTS[3],
 };
 
+/* HP-004's Accept line requires "all four link targets unchanged" but,
+   traced through git history, neither this component nor its pre-redesign
+   predecessor (the old LegalReader-based Help.tsx) ever had real link
+   targets on these — there is nothing to restore. Each of the four named
+   guides gets the closest real in-app destination for what it describes;
+   "Contacting a teacher" has no standalone page of its own (contacting
+   happens per-teacher, from that teacher's own profile) so it filters this
+   same page's question list to the closest matching category instead. An
+   admin-added fifth topic (not in this map) falls back to the same
+   in-page behaviour, keeping every card real and clickable rather than
+   guessing a destination for content that doesn't exist yet. */
+type GuideLink = { kind: 'route'; href: string } | { kind: 'category'; category: HelpFaqCategory };
+
+const GUIDE_LINK_BY_TITLE: Record<string, GuideLink> = {
+  'Finding a teacher': { kind: 'route', href: BROWSE_PATH },
+  'Contacting a teacher': { kind: 'category', category: 'teachers' },
+  'Reading past papers': { kind: 'route', href: PAST_PAPERS_PATH },
+  'Joining as a teacher': { kind: 'route', href: '/join' },
+};
+const GUIDE_LINK_FALLBACK: GuideLink = { kind: 'category', category: 'all' };
+
 export interface HelpFaqGuide {
   title: string;
   body: string;
@@ -83,6 +105,12 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
   } = useSentenceBuilder();
 
   const [activeCategory, setActiveCategory] = useState<HelpFaqCategory | 'all'>('all');
+  const questionsRef = useRef<HTMLDivElement>(null);
+
+  const goToCategory = (category: HelpFaqCategory | 'all') => {
+    setActiveCategory(category);
+    questionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <BentoStack>
@@ -116,7 +144,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
           not custom state. Every question stays in the DOM regardless of the
           active chip (HP-002's crawler requirement) — filtering only toggles
           a `hidden` class. */}
-      <BentoPanel fill="card">
+      <BentoPanel ref={questionsRef} fill="card">
         <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">{questionsHeading}</h2>
         <div className="mt-3.5 flex flex-col gap-2">
           {questions.map((q) => (
@@ -139,17 +167,31 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
 
       {/* Handoff HP-004: guides. Copy unchanged — sourced from the live,
           admin-editable page_content table (see useHelpTopics()), not
-          hardcoded, so an owner edit still shows up here. */}
+          hardcoded, so an owner edit still shows up here. Each card is a
+          real link/button now (GUIDE_LINK_BY_TITLE) — see that map's
+          comment for why "link targets unchanged" couldn't be satisfied
+          literally. */}
       <BentoPanel fill="card">
         <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">Guides</h2>
         <div className="mt-3.5 flex flex-col gap-2">
           {guides.map((g, i) => {
             const { tint, ink } = GUIDE_TINT_BY_TITLE[g.title] ?? GUIDE_TINTS[i % GUIDE_TINTS.length];
-            return (
-              <div key={g.title} className={`rounded-[18px] p-[16px_18px] ${tint}`}>
+            const link = GUIDE_LINK_BY_TITLE[g.title] ?? GUIDE_LINK_FALLBACK;
+            const cardClassName = `block w-full rounded-[18px] p-[16px_18px] text-left transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${tint}`;
+            const content = (
+              <>
                 <div className={`text-[15.5px] font-bold tracking-[-0.02em] ${ink}`}>{g.title}</div>
                 <p className="mt-1.5 text-[14px] leading-[1.55] text-warm-prose">{g.body}</p>
-              </div>
+              </>
+            );
+            return link.kind === 'route' ? (
+              <Link key={g.title} to={link.href} className={cardClassName}>
+                {content}
+              </Link>
+            ) : (
+              <button key={g.title} type="button" onClick={() => goToCategory(link.category)} className={cardClassName}>
+                {content}
+              </button>
             );
           })}
         </div>
