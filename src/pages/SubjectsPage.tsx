@@ -36,7 +36,7 @@ export default function SubjectsPage() {
   const navigate = useNavigate();
 
   usePageMeta(
-    'All Subjects | Shikshaq',
+    'All Tuition Subjects in Kolkata | Shikshaq',
     'Browse every subject taught by verified tuition teachers in Kolkata, Maths, Science, English, Commerce, and more. Free to contact, no commission.',
   );
 

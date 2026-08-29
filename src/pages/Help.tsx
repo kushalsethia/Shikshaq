@@ -45,7 +45,7 @@ const HELP_FAQS_SCHEMA: FAQItem[] = HELP_FAQS.map(({ question, answer }) => ({ q
 
 export default function Help() {
   usePageMeta(
-    'Help and Contact | Shikshaq',
+    'Help, Contact and Common Questions | Shikshaq',
     'Need help finding a tuition teacher in Kolkata? Contact the Shikshaq team on WhatsApp or email, and learn how our free tutor matching works.'
   );
 

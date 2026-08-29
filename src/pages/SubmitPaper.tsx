@@ -38,7 +38,7 @@ type Stage = 'form' | 'sending' | 'done' | 'fallback';
 
 export default function SubmitPaper() {
   usePageMeta(
-    'Submit a Past Paper | Shikshaq',
+    'Submit a Past Paper from Your School | Shikshaq',
     'Upload a question paper from your school so the next batch can revise from it. We check it, credit your school, and take it down on request.',
   );
 

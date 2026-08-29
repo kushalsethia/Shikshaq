@@ -291,15 +291,56 @@ export default function SchoolPage() {
   const resolvedName = query.data?.name ?? bankSchool?.name ?? null;
   const unknownSchool = !resolvedName && !loading && !failed;
   const name = resolvedName ?? (unknownSchool ? 'School not found' : 'School');
+  /* The description was "N past papers from X, free to read on Shikshaq." at
+     63-77 characters, on 66 indexable pages, while the three facts a searcher
+     actually types -- board, class, year -- sat computed and unused a few
+     lines above. Each clause drops rather than guesses when its data is
+     missing, the same rule the on-page summary follows. */
+  const metaDescription = useMemo(() => {
+    if (!papers.length) {
+      return 'Past papers from schools across India, free to read on Shikshaq.';
+    }
+    const clauses: string[] = [];
+    // Same list join as the on-page summary: "ISC and ICSE and Board" was a
+    // chain of conjunctions where a list was meant.
+    if (boards.length) {
+      clauses.push(
+        boards.length === 1
+          ? boards[0]
+          : `${boards.slice(0, -1).join(', ')} and ${boards[boards.length - 1]}`,
+      );
+    }
+    if (classes.length) {
+      clauses.push(
+        classes.length === 1
+          ? `class ${classes[0]}`
+          : `classes ${classes[0]} to ${classes[classes.length - 1]}`,
+      );
+    }
+    if (years.length) {
+      const asc = [...years].sort((a, b) => a - b);
+      clauses.push(asc.length === 1 ? String(asc[0]) : `${asc[0]} to ${asc[asc.length - 1]}`);
+    }
+    const detail = clauses.length ? `: ${clauses.join(', ')}` : '';
+    return `${papers.length} past paper${papers.length === 1 ? '' : 's'} from ${name}${detail}. `
+      + 'Read every question online for free, with marks and chapters.';
+  }, [papers.length, name, boards, classes, years]);
+
+  /* "Free to Read" earns its place in a result snippet, but not at the cost of
+     the school's own name being cut off: a long name plus the full suffix ran
+     to 68 characters, past where Google truncates. Long names keep the name. */
+  const metaTitle = useMemo(() => {
+    const base = `${name} Past Papers`;
+    return base.length <= 34 ? `${base}, Free to Read | Shikshaq` : `${base} | Shikshaq`;
+  }, [name]);
+
   usePageMeta(
     papers.length
-      ? `${name} past papers | Shikshaq`
+      ? metaTitle
       : unknownSchool
         ? 'School not found | Shikshaq'
         : 'School past papers | Shikshaq',
-    papers.length
-      ? `${papers.length} past papers from ${name}, free to read on Shikshaq.`
-      : 'Past papers from schools across India, free to read on Shikshaq.',
+    metaDescription,
   );
 
   // This route (S16, "new" per a-to-z.md) shipped with no structured data at
