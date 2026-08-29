@@ -209,23 +209,17 @@ export function FilterGroupsBody({
   const feeSelectedCount = filters.minFees != null || filters.maxFees != null ? 1 : 0;
   const experienceSelectedCount = filters.minExperience != null ? 1 : 0;
 
-  // A group starts expanded only if it already carries an active selection —
-  // otherwise every group opens collapsed (the fix for F7's "everything shown
-  // at once, overwhelming" complaint).
-  const defaultOpenGroups = [
-    filters.subjects.length > 0 && 'subjects',
-    filters.classes.length > 0 && 'classes',
-    filters.areas.length > 0 && 'areas',
-    feeSelectedCount > 0 && 'fee',
-    modeSelectedCount > 0 && 'mode',
-    filters.boards.length > 0 && 'boards',
-    filters.classSize.length > 0 && 'classSize',
-    experienceSelectedCount > 0 && 'experience',
-  ].filter((v): v is string => typeof v === 'string');
+  /* Every group starts collapsed, including ones that already carry a
+     selection. Auto-opening on an active filter sounded helpful, but arriving
+     from a "Maths teachers" chip means subjects is pre-filled, so the rail
+     opened onto thirty-odd subject options and pushed every other group off
+     the screen — on the exact journey where the reader has already told us
+     what they want. The count badge on each header says what is applied, so
+     nothing is hidden by keeping them shut. */
 
   return (
     <>
-    <Accordion type="multiple" defaultValue={defaultOpenGroups} className="flex flex-col gap-seam">
+    <Accordion type="multiple" className="flex flex-col gap-seam">
       {groupItem(
         'subjects',
         'Subjects taught',
@@ -357,7 +351,7 @@ export function FilterGroupsBody({
             />
           </div>
           <p className="text-body-secondary text-warm-meta tabular-nums">
-            ₹{feeMin.toLocaleString('en-IN')} – ₹{feeMax.toLocaleString('en-IN')}/mo
+            ₹{feeMin.toLocaleString('en-IN')} - ₹{feeMax.toLocaleString('en-IN')}/mo
           </p>
         </div>,
       )}
@@ -496,7 +490,15 @@ export function FilterSheet({
   filters,
   onFilterChange,
   resultCount,
-}: FilterGroupsProps & { open: boolean; onOpenChange: (open: boolean) => void }) {
+  onClear,
+}: FilterGroupsProps & {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Clears every filter at once. The sheet applies chips instantly and has no
+   *  Apply button, so without this the only way back from a nine-filter dead
+   *  end was to un-tap nine chips one at a time. */
+  onClear?: () => void;
+}) {
   const count = activeFilterCount(filters);
 
   return (
@@ -557,9 +559,21 @@ export function FilterSheet({
               trust strip — and here it is also just noise, since the sheet you
               have not touched yet obviously has no filters on. Empty until
               there is something to report. */}
-          <span className="text-[13px] text-warm-secondary">
-            {count > 0 ? `${count} filter${count === 1 ? '' : 's'} active` : ''}
-          </span>
+          {/* The count doubles as the way out once anything is on: undoing a
+              filter set one chip at a time was the only route back. */}
+          {count > 0 && onClear ? (
+            <button
+              type="button"
+              onClick={onClear}
+              className="-mx-1 flex min-h-11 items-center px-1 text-[13px] font-semibold text-warm-secondary underline underline-offset-2 transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Clear {count} filter{count === 1 ? '' : 's'}
+            </button>
+          ) : (
+            <span className="text-[13px] text-warm-secondary">
+              {count > 0 ? `${count} filter${count === 1 ? '' : 's'} active` : ''}
+            </span>
+          )}
           <Button
             variant="primary"
             size={54}

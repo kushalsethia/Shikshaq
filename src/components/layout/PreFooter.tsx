@@ -47,7 +47,7 @@ function B1() {
   return (
     <div className="relative rounded-3xl bg-card p-6 shadow-border sm:p-8">
       <Sticker tone="brand" tilt={-3} size={30}>
-        What is ShikshAQ?
+        What is Shikshaq?
       </Sticker>
       {/* Rebuilt against prefooter-01-full-explainer.png. Four things were off:
           the headline did not name what this is or where ("A list of real
@@ -142,31 +142,41 @@ function B2({ counts }: { counts?: B2Counts }) {
   ].filter(Boolean) as { value: string; label: string }[];
 
   return (
-    <div className="rounded-3xl bg-brand p-6 text-brand-foreground shadow-glow-brand sm:p-8">
-      <Eyebrow onDark>Why this list is trustworthy</Eyebrow>
+    /* Tint, not full saturation. B3 (papers) sits on bg-brand-blue-subtle with
+       deep ink; this one was the only panel in the row painted in the raw
+       accent, with a glow shadow the flat pass (S-002/H-021) removed
+       everywhere else — so the teachers half shouted while the papers half
+       spoke. Same fill logic as B3, in orange. */
+    <div className="rounded-bento bg-brand-subtle p-6 sm:p-8">
+      <Eyebrow className="text-brand-deep/70">Why this list is trustworthy</Eyebrow>
       {/* prefooter-02-three-count-strip.png carries a headline between the
           eyebrow and the tiles — "Verified teachers, real reviews, zero
           commission." It was missing, which left an all-caps label sitting
           straight on top of three bare numbers with nothing saying what the
           panel claims. */}
-      <h2 className="mt-3 max-w-[22ch] font-display text-section-head font-extrabold leading-[1.05]">
+      <h2 className="mt-3 max-w-[22ch] font-display text-section-head font-extrabold leading-[1.05] tracking-[-0.03em] text-brand-deep">
         Verified teachers, real reviews, zero commission.
       </h2>
-      <dl className="mt-5 grid gap-6 sm:grid-cols-3">
+      {/* Counts become tiles, the shape stats already take on About and the
+          teacher profile — three bare numbers with gap-6 stacked full-width on
+          a phone, which is what made this panel read as a loose column rather
+          than a stat block. flex-col-reverse, so the DOM keeps <dt> before its
+          <dd> (a screen reader still hears "verified teachers, 147") while the
+          number sits on top the way the mockup draws it. */}
+      <dl className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         {items.map((it) => (
-          <div key={it.label}>
-            {/* The label was rendered twice — once sr-only as the <dt>, once
-                visibly inside the <dd> — so a screen reader read "verified
-                teachers, 147, verified teachers". The visible label IS the
-                term, so it becomes the <dt> and the number the <dd>. */}
-            <dd className="order-first block font-display text-page-title font-extrabold tabular-nums">
+          <div
+            key={it.label}
+            className="flex h-[104px] flex-col-reverse justify-center rounded-[18px] bg-card p-[14px]"
+          >
+            <dt className="mt-0.5 text-[12.5px] leading-[1.4] text-warm-label">{it.label}</dt>
+            <dd className="font-display text-[24px] font-black tabular-nums tracking-[-0.04em] text-foreground">
               {it.value}
             </dd>
-            <dt className="text-body-secondary opacity-90">{it.label}</dt>
           </div>
         ))}
       </dl>
-      <p className="mt-6 max-w-prose text-body-secondary opacity-90">
+      <p className="mt-4 max-w-prose text-[13.5px] leading-[1.6] text-brand-deep/80">
         Teachers keep every rupee of their fee. We never take a cut, and we never sell your
         number.
       </p>

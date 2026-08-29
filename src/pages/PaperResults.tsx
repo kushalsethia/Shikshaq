@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUp, FileText } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { PaperSheetCard } from '@/components/papers/paper-sheet-card';
+import { loadPaperIndex, hasYear, schoolLabel } from '@/lib/question-bank';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -64,6 +66,47 @@ export default function PaperResults() {
 
   const [papers, setPapers] = useState<Paper[]>([]);
   const [total, setTotal] = useState(0);
+
+  /* The 193 question-bank papers are papers on this surface too, so a filter
+     for "ICSE Class X Maths" has to find them. They cannot ride the Supabase
+     query — they are a static file — so they are filtered here with the same
+     params and merged in ahead of the database rows, which is also the right
+     order: they read as questions rather than as a scan. 193 rows filter in
+     well under a frame. */
+  const bankQuery = useQuery({
+    queryKey: ['paper-results', 'bank'],
+    staleTime: Infinity,
+    gcTime: Infinity,
+    queryFn: async (): Promise<Paper[]> =>
+      (await loadPaperIndex()).map((b) => ({
+        id: b.id,
+        title: `Class ${b.cls} Mathematics`,
+        school: schoolLabel(b.school),
+        subject: 'Maths',
+        class: b.cls,
+        board: b.board,
+        exam_type: b.exam,
+        year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+        file_url: null,
+      })) as Paper[],
+  });
+
+  const bankMatches = useMemo(() => {
+    const rows = bankQuery.data ?? [];
+    const needle = q.trim().toLowerCase();
+    const eq = (want: string[], value: string) =>
+      want.length === 0 || want.some((w) => w.toLowerCase() === value.toLowerCase());
+    return rows.filter((p) =>
+      eq(subjectFilters, p.subject) &&
+      eq(classFilters, p.class) &&
+      eq(boardFilters, p.board) &&
+      eq(schoolFilters, p.school) &&
+      (!needle ||
+        p.title.toLowerCase().includes(needle) ||
+        p.school.toLowerCase().includes(needle) ||
+        p.subject.toLowerCase().includes(needle)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankQuery.data, q, subjectFilters.join(','), classFilters.join(','), boardFilters.join(','), schoolFilters.join(',')]);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -240,6 +283,11 @@ export default function PaperResults() {
     })),
   ];
 
+  /* Bank matches lead, then the database page. Only on the first page — they
+     are not part of the server's pagination. */
+  const shownPapers = page === 0 ? [...bankMatches, ...papers] : papers;
+  const shownTotal = total + bankMatches.length;
+
   const hasMore = papers.length < total;
   const remaining = Math.max(0, total - papers.length);
 
@@ -276,7 +324,7 @@ export default function PaperResults() {
               {heading}
             </h1>
             <span className="inline-flex h-8 flex-none items-center whitespace-nowrap rounded-full bg-white/15 px-[14px] text-[13px] font-bold text-white">
-              {loading ? 'Counting…' : `${total.toLocaleString('en-IN')} paper${total === 1 ? '' : 's'} found`}
+              {loading ? 'Counting…' : `${shownTotal.toLocaleString('en-IN')} paper${shownTotal === 1 ? '' : 's'} found`}
             </span>
           </div>
         </BentoPanel>
@@ -321,7 +369,7 @@ export default function PaperResults() {
           ) : papers.length > 0 ? (
             <>
               <div className="stagger-children grid grid-cols-1 gap-[10px] sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-                {papers.map((p) => (
+                {shownPapers.map((p) => (
                   <div key={p.id} className="animate-card-reveal motion-reduce:animate-none">
                     <PaperSheetCard paper={p} locked={!user} />
                   </div>
@@ -335,7 +383,7 @@ export default function PaperResults() {
                   Handoff PR-004: bg-card -> bg-muted (sits on a bone panel now), shadow-border removed. */}
               <div className="mt-8 flex flex-col items-center gap-3">
                 <p className="text-meta tabular-nums text-muted-foreground">
-                  Showing {papers.length.toLocaleString('en-IN')} of {total.toLocaleString('en-IN')}
+                  Showing {shownPapers.length.toLocaleString('en-IN')} of {shownTotal.toLocaleString('en-IN')}
                 </p>
                 {hasMore ? (
                   <button

@@ -31,3 +31,16 @@ docs/GOOGLE_AUTH_CUSTOM_DOMAIN.md
 
 # Claude Code agent worktree scratch space
 .claude/worktrees/
+
+# Design handoff drops: the zips the redesign arrived in and their extracted
+# copies. Source material, not source code -- the work from them lives in src/.
+/Shikshok mobile design overhaul*
+/maths_question_bank_deploy-*
+/.handoff-ref/
+
+# Local audit + working notes
+/.audit-reports/
+/AUDIT_*.md
+
+# Supabase CLI scratch
+supabase/.temp/

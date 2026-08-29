@@ -7,11 +7,11 @@ import { BOARD_CONTENT } from '@/content/subject-seo';
 const BOARD_SEO: Record<string, { title: string; description: string }> = {
   '/cbse-ncert-tuition-teachers-in-kolkata': {
     title: 'CBSE Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find verified CBSE/NCERT tuition teachers in Kolkata for Classes 1–12. Maths, Science, English, Social Studies, and more. Connect directly for free on Shikshaq.',
+    description: 'Find verified CBSE/NCERT tuition teachers in Kolkata for Classes 1-12. Maths, Science, English, Social Studies, and more. Connect directly for free on Shikshaq.',
   },
   '/icse-tuition-teachers-in-kolkata': {
     title: 'ICSE Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find verified ICSE and ISC tuition teachers in Kolkata for Classes 1–12. Connect directly with local tutors for free on Shikshaq, no commission.',
+    description: 'Find verified ICSE and ISC tuition teachers in Kolkata for Classes 1-12. Connect directly with local tutors for free on Shikshaq, no commission.',
   },
   '/igcse-tuition-teachers-in-kolkata': {
     title: 'IGCSE Tuition Teachers in Kolkata | Shikshaq',

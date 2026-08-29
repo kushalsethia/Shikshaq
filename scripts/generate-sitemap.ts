@@ -25,6 +25,7 @@ import { config } from 'dotenv';
    the sitemap under a slug SchoolPage.tsx cannot resolve — a submitted URL
    that 404s, which is the exact bug already fixed once for /cbse-ncert-. */
 import { schoolSlug } from '../src/lib/school-slug';
+import { schoolsOf, papersOf } from '../src/lib/question-bank';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,6 +67,15 @@ const STATIC_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
   { loc: '/about', changefreq: 'monthly', priority: 0.6 },
   { loc: '/more', changefreq: 'monthly', priority: 0.4 },
   { loc: '/contact', changefreq: 'monthly', priority: 0.5 },
+  /* Both added with their routes and linked from the footer / papers page, so
+     they must be listed here too — an internally linked page absent from the
+     sitemap is discoverable but slow to be recrawled. */
+  { loc: '/submit-a-paper', changefreq: 'monthly', priority: 0.5 },
+  /* The one paper rendered as real questions rather than a PDF embed: 41
+     indexable questions of ICSE Class X Maths, which is the only page on this
+     site carrying exam-question text. Weekly is wrong (it never changes) but
+     0.7 reflects that it is the strongest long-tail asset here. */
+  { loc: '/past-papers/icse-2025-maths', changefreq: 'yearly', priority: 0.7 },
 ];
 
 /**
@@ -237,6 +247,54 @@ ${urlElements}
 }
 
 /**
+ * The question bank's own URLs.
+ *
+ * The bank is a static asset rather than a table, so this script never saw
+ * it: 193 paper pages and the ~79 schools that exist only in the bank were
+ * absent from the sitemap even though every one of them is a real, linked,
+ * indexable page. Read from disk here for the same reason schoolSlug is
+ * imported rather than copied — one derivation, no second implementation to
+ * drift out of step with what the app actually routes.
+ */
+function readBankURLs(currentDate: string): { schools: SitemapURL[]; papers: SitemapURL[] } {
+  const bankPath = path.join(__dirname, '..', 'public', 'question-bank.json');
+  if (!fs.existsSync(bankPath)) {
+    console.warn('   Question bank not found, skipping its URLs');
+    return { schools: [], papers: [] };
+  }
+
+  try {
+    const bank = JSON.parse(fs.readFileSync(bankPath, 'utf-8'));
+    const schools: SitemapURL[] = schoolsOf(bank).map((school) => ({
+      loc: `/school/${school.slug}`,
+      changefreq: 'weekly',
+      priority: 0.5,
+      lastmod: currentDate,
+    }));
+    const papers: SitemapURL[] = papersOf(bank).map((paper) => ({
+      loc: `/past-papers/${paper.id}`,
+      changefreq: 'yearly',
+      priority: 0.6,
+      lastmod: currentDate,
+    }));
+    return { schools, papers };
+  } catch (err) {
+    console.error('   Failed to read question bank:', err);
+    return { schools: [], papers: [] };
+  }
+}
+
+/** First occurrence wins, so a school in both sources is one URL, not two. */
+function dedupeByLoc(urls: SitemapURL[]): SitemapURL[] {
+  const seen = new Set<string>();
+  return urls.filter((url) => {
+    if (seen.has(url.loc)) return false;
+    seen.add(url.loc);
+    return true;
+  });
+}
+
+/**
  * Main execution
  */
 async function main() {
@@ -247,22 +305,27 @@ async function main() {
   // Fetch dynamic teacher pages
   const teacherPages = await fetchTeacherSlugs();
   const schoolPages = await fetchSchoolSlugs();
+  const bankURLs = readBankURLs(currentDate);
 
-  // Combine all URLs
-  const allURLs: SitemapURL[] = [
+  // Combine all URLs. Deduped because a school with papers in both the table
+  // and the bank is one page and must be listed once.
+  const allURLs: SitemapURL[] = dedupeByLoc([
     ...STATIC_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
     ...SUBJECT_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
     ...BOARD_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
     ...teacherPages,
     ...schoolPages,
-  ];
+    ...bankURLs.schools,
+    ...bankURLs.papers,
+  ]);
 
   console.log('\n📊 Sitemap Statistics:');
   console.log(`   Static pages:       ${STATIC_PAGES.length}`);
   console.log(`   Subject pages:      ${SUBJECT_PAGES.length}`);
   console.log(`   Board pages:        ${BOARD_PAGES.length}`);
   console.log(`   Teacher profiles:   ${teacherPages.length}`);
-  console.log(`   School pages:       ${schoolPages.length}`);
+  console.log(`   School pages:       ${schoolPages.length} (table) + ${bankURLs.schools.length} (bank)`);
+  console.log(`   Bank paper pages:   ${bankURLs.papers.length}`);
   console.log(`   ─────────────────────────────────`);
   console.log(`   Total URLs:         ${allURLs.length}`);
 

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import Fuse from 'fuse.js';
 import { supabase } from '@/integrations/supabase/client';
+import { loadPaperIndex, hasYear, schoolLabel } from '@/lib/question-bank';
 
 export interface TeacherHit {
   id: string;
@@ -45,7 +46,7 @@ const TEACHER_INDEX_LIMIT = 2000;
 const PAPER_INDEX_LIMIT = 500;
 
 async function loadIndex(): Promise<void> {
-  const [teachersRes, papersRes] = await Promise.all([
+  const [teachersRes, papersRes, bankRes] = await Promise.all([
     supabase
       .from('teachers_list')
       .select('id,name,slug,subjects,location,honorific,is_featured')
@@ -59,6 +60,11 @@ async function loadIndex(): Promise<void> {
       .order('year', { ascending: false })
       .order('id', { ascending: true })
       .limit(PAPER_INDEX_LIMIT),
+    /* The question bank was invisible to search: 193 papers you could reach
+       from /past-papers but could not find by typing their school's name.
+       It is the light 31KB index, not the 2.5MB bank, and it is caught on its
+       own so a bank failure costs the bank rows and never the whole index. */
+    loadPaperIndex().catch(() => []),
   ]);
 
   let teachersData = teachersRes.data ?? [];
@@ -79,7 +85,7 @@ async function loadIndex(): Promise<void> {
       .eq('is_paused', true)
       .returns<{ Slug: string | null }[]>();
     if (pausedError && import.meta.env.DEV) {
-      console.warn('Search index: pause filter skipped —', pausedError.message);
+      console.warn('Search index: pause filter skipped:', pausedError.message);
     }
     const pausedSlugs = new Set((pausedRows ?? []).map((r) => r.Slug));
     if (pausedSlugs.size > 0) {
@@ -88,7 +94,21 @@ async function loadIndex(): Promise<void> {
   }
 
   teachersCache = teachersData;
-  papersCache = papersRes.data ?? [];
+
+  /* Mapped exactly as PastPapers maps them, so a paper found by search and the
+     same paper found by browsing read identically. */
+  const bankHits: PaperHit[] = (bankRes ?? []).map((b) => ({
+    id: b.id,
+    title: `Class ${b.cls} Mathematics`,
+    school: schoolLabel(b.school),
+    subject: 'Maths',
+    class: b.cls,
+    board: b.board,
+    exam_type: b.exam,
+    year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+    file_url: null,
+  }));
+  papersCache = [...(papersRes.data ?? []), ...bankHits];
 }
 
 export function invalidateSearchIndexCache() {
@@ -109,17 +129,44 @@ export function useSearchIndex() {
   const papersFuse = useRef<Fuse<PaperHit> | null>(null);
 
   const buildFuseIndexes = useCallback(() => {
+    /* ignoreLocation is the important one. Fuse defaults to location 0 with a
+       distance of 100, meaning it scores a match by how near the START of the
+       field it is -- so "Computer" sitting 40 characters into a teacher's
+       "Physics, Chemistry, Biology, Mathematics, Computer Science" was scored
+       almost out of existence. These are lists and titles, not prose: where a
+       word sits in them carries no meaning, so position should not be scored.
+
+       Weights then decide what a match is worth once found. A name match is
+       what someone typing "Rekha" wants; an area match for the same letters is
+       a weaker signal, and without weights Fuse treated them as equal. */
     teachersFuse.current = new Fuse(teachersCache ?? [], {
       includeScore: true,
       threshold: 0.35,
       minMatchCharLength: 2,
-      keys: ['name', 'subjects', 'location'],
+      ignoreLocation: true,
+      keys: [
+        { name: 'name', weight: 3 },
+        { name: 'subjects', weight: 2 },
+        { name: 'location', weight: 1 },
+      ],
     });
+    /* board/exam_type/year were not searchable at all, so "ICSE 2024" and
+       "prelim" matched nothing however many such papers existed. */
     papersFuse.current = new Fuse(papersCache ?? [], {
       includeScore: true,
       threshold: 0.35,
       minMatchCharLength: 2,
-      keys: ['title', 'school', 'subject'],
+      ignoreLocation: true,
+      keys: [
+        { name: 'school', weight: 3 },
+        { name: 'title', weight: 2 },
+        { name: 'subject', weight: 2 },
+        { name: 'board', weight: 1 },
+        { name: 'exam_type', weight: 1 },
+        /* Fuse only matches strings; a numeric year would be read as no
+           value at all, so this key would have matched nothing at all. */
+        { name: 'year', weight: 1, getFn: (p: PaperHit) => (p.year ? String(p.year) : '') },
+      ],
     });
   }, []);
 
@@ -161,8 +208,17 @@ export function useSearchIndex() {
   // teachers" shelf reads (real, human-curated, not derived from search
   // activity), and papersCache is already ordered newest-year-first, so its
   // head is "recently relevant" papers with no extra sorting needed.
+  /* Curated first, but never an empty shelf while real teachers exist. No row
+     in this database has `is_featured` set, so the strict filter returned
+     nothing and the resting control showed papers with no teachers beside
+     them — telling you less than typing one letter did. The fallback is still
+     real data off the same cache, just uncurated, so nothing is fabricated. */
   const featuredTeachers = useMemo(
-    () => (teachersCache ?? []).filter((t) => t.is_featured).slice(0, SUGGEST_LIMIT),
+    () => {
+      const all = teachersCache ?? [];
+      const curated = all.filter((t) => t.is_featured);
+      return (curated.length > 0 ? curated : all).slice(0, SUGGEST_LIMIT);
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ready]
   );

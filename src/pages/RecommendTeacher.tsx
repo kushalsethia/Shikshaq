@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { logger } from '@/utils/logger';
 import { Button } from '@/components/ui/button';
-import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
+import { Field, FieldInput, FieldSelect, FieldTextarea, useBlurValidation } from '@/components/ui/field';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { Chip } from '@/components/ui/chip';
 import { SUBJECTS } from '@/utils/searchFacets';
@@ -147,7 +147,7 @@ export default function RecommendTeacher() {
           {submitted ? (
             <div className="animate-fade-slide-up rounded-bento bg-brand p-6 text-center sm:p-8">
               <p className="text-body font-semibold text-brand-foreground">
-                Thanks — we will reach out to them this week.
+                Thanks. We will reach out to them this week.
               </p>
             </div>
           ) : (
@@ -171,49 +171,32 @@ export default function RecommendTeacher() {
                 )}
               </Field>
 
-              {/* account-06-recommend-teacher.png makes Subject a row of chips,
-                  not a text box. Worth following for more than fidelity: free
-                  text meant an admin received "maths", "Mathematics", "Math" and
-                  had to reconcile each against the real subject list by hand
-                  before the recommendation could become a listing. The chips are
-                  the SAME canonical list the filters, the hero search and the
-                  footer sentence builder already use, so a recommendation now
-                  arrives already speaking the site's vocabulary.
-
-                  Tapping the selected chip again clears it — the field is
-                  optional, and without that there would be no way back to
-                  "not sure". */}
-              <div>
-                <span
-                  id="recommend-subject-label"
-                  className="mb-2 block text-label font-bold uppercase tracking-[0.07em] text-warm-label"
-                >
-                  Subject
-                </span>
-                <div
-                  role="group"
-                  aria-labelledby="recommend-subject-label"
-                  className="flex flex-wrap gap-2"
-                >
-                  {SUBJECTS.map((subject) => {
-                    const selected = formData.subject === subject;
-                    return (
-                      <Chip
-                        key={subject}
-                        tone={selected ? 'facet-on' : 'facet'}
-                        size={44}
-                        aria-pressed={selected}
-                        aria-label={subject}
-                        onClick={() =>
-                          setFormData((prev) => ({ ...prev, subject: selected ? '' : subject }))
-                        }
-                      >
+              {/* A select, not the chip row. The chips were the right call on
+                  the vocabulary question — free text had admins reconciling
+                  "maths"/"Mathematics"/"Math" by hand — and this keeps that
+                  exactly: the options ARE the canonical SUBJECTS list the
+                  filters and hero search use. What changes is the shape. Thirty
+                  44px chips wrapped to a wall of colour that dominated a form
+                  whose required fields are two short text boxes, and the field
+                  is optional. One 56px control, same as the fields around it.
+                  Empty option kept so "not sure" stays reachable. */}
+              <Field label="Subject">
+                {(controlProps) => (
+                  <FieldSelect
+                    {...controlProps}
+                    name="subject"
+                    value={formData.subject}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))}
+                  >
+                    <option value="">Not sure / any subject</option>
+                    {SUBJECTS.map((subject) => (
+                      <option key={subject} value={subject}>
                         {subject}
-                      </Chip>
-                    );
-                  })}
-                </div>
-              </div>
+                      </option>
+                    ))}
+                  </FieldSelect>
+                )}
+              </Field>
 
               <Field label="Area they teach in">
                 {(controlProps) => (

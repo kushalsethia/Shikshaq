@@ -243,7 +243,12 @@ function TeacherCardComponent({
          matched grid (bug 7). Grid already had this; row/rail did not, so a
          mobile results list could visibly step in height card to card —
          added here too rather than only on grid. */
-      className={`flex items-start gap-1 font-display font-extrabold tracking-[-0.03em] text-foreground ${isSm || isRow ? 'min-w-0 min-h-[2.4em] text-body-secondary leading-[1.3]' : 'min-w-0 min-h-[2.6em] text-body-secondary leading-[1.3] sm:text-card-title sm:leading-[1.35]'}`}
+      /* items-center, not items-start: the two-line reservation keeps every
+         card's name block the same height, but a one-line name pinned to the
+         top of it left 20px of dead gap before the class and area line.
+         Centred, the reservation still lines the cards up and now reads as
+         deliberate rather than as a missing second line. */
+      className={`flex items-center gap-1 font-display font-extrabold tracking-[-0.03em] text-foreground ${isSm || isRow ? 'min-w-0 min-h-[2.4em] text-body-secondary leading-[1.3]' : 'min-w-0 min-h-[2.6em] text-body-secondary leading-[1.3] sm:text-card-title sm:leading-[1.35]'}`}
       title={displayName}
     >
       <span className="min-w-0 line-clamp-2 break-words">{displayName}</span>
@@ -441,7 +446,7 @@ function TeacherCardComponent({
          thing that still varies (8px mobile / 10px desktop). */}
       <Link
         to={`/tuition-teachers/${slug}`}
-        className="group block overflow-hidden rounded-[32px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:p-2.5"
+        className="group flex h-full flex-col overflow-hidden rounded-[32px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:p-2.5"
       >
         {/* §2.5 compact grid card (mockup "01 Start with the teachers parents pick"):
             shorter photo than the old 4/5 portrait, tighter body, so four cards read
@@ -451,7 +456,11 @@ function TeacherCardComponent({
         {/* Handoff S-002: one flat radius at every width, not the prior
            concentric mobile/desktop pair. */}
         <div
-        className="relative aspect-[5/6] overflow-hidden rounded-[24px] bg-muted outline outline-1 -outline-offset-1 outline-black/10">
+        /* Concentric with the card: radius 32 minus the card's padding, which
+           is 8px at base and 10px from sm. It was a flat 24px, so from sm the
+           photo's corner was 2px tighter than the curve around it and the two
+           arcs visibly disagreed. */
+        className="relative aspect-[5/6] overflow-hidden rounded-[24px] bg-muted outline outline-1 -outline-offset-1 outline-black/10 sm:rounded-[22px]">
           {photo}
           {subjectBadgeOnPhoto}
           {/* Upvote pill moves onto the photo per the owner's live review —
@@ -460,7 +469,12 @@ function TeacherCardComponent({
               the pill in the body next to the name. */}
           {/* Owner call: on the rail the heart sits in a corner of the image
               rather than beside the name, so the body is just the name. */}
-          {isRail && heartButton && (
+          {/* The heart lives on the photo for every variant now, not just the
+              rail. In the body it sat in a wrap-enabled row beside the name,
+              and at grid-card widths it wrapped onto a line of its own — a
+              whole 40px band of dead space under every name, which is most of
+              what made these cards feel empty. */}
+          {heartButton && (
             <span className="absolute right-1 top-1 rounded-full bg-card/85 shadow-border backdrop-blur-sm">
               {heartButton}
             </span>
@@ -474,12 +488,9 @@ function TeacherCardComponent({
 
         {/* Body — everything the photo used to carry now lives here. */}
         <div className="px-1 pb-0.5 pt-2">
-          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-            <div className="min-w-[132px] flex-1">{nameHeading}</div>
-            <div className="flex flex-none items-center gap-1">
-              {!isCompact && upvotePill}
-              {!isRail && heartButton}
-            </div>
+          <div className="flex items-start justify-between gap-x-2">
+            <div className="min-w-0 flex-1">{nameHeading}</div>
+            {!isCompact && upvotePill}
           </div>
           {metaRow}
           {chipsRow}

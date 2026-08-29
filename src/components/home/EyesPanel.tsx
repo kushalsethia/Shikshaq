@@ -47,11 +47,11 @@ function usesReducedMotion(): boolean {
 }
 
 function Eye({
-  offset,
+  pupilRef,
   blinking,
   lidFill,
 }: {
-  offset: { x: number; y: number };
+  pupilRef: React.Ref<HTMLDivElement>;
   blinking: boolean;
   lidFill: string;
 }) {
@@ -66,9 +66,16 @@ function Eye({
           blank. Both sit INSIDE the pupil so they travel with it — a
           highlight fixed to the eye white would slide off as the pupil
           moves. */}
+      {/* No CSS transition on the pupil. A `duration-[120ms]` transition was
+          being restarted by every single pointermove, so the pupil never
+          finished an ease — it just trailed the cursor by a fixed lag and
+          read as mushy. The rAF loop below does the smoothing instead, and
+          because it writes transform straight to this node the component
+          does not re-render while the eyes track. */}
       <div
-        className="absolute left-1/2 top-1/2 h-[34px] w-[34px] rounded-full bg-panel transition-transform duration-[120ms] ease-out"
-        style={{ transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))` }}
+        ref={pupilRef}
+        className="absolute left-1/2 top-1/2 h-[34px] w-[34px] rounded-full bg-panel will-change-transform"
+        style={{ transform: 'translate(-50%, -50%)' }}
       >
         <span
           aria-hidden
@@ -107,8 +114,22 @@ function EyesPanel({
   const domeRef = React.useRef<HTMLDivElement>(null);
   const leftEyeRef = React.useRef<HTMLDivElement>(null);
   const rightEyeRef = React.useRef<HTMLDivElement>(null);
-  const [leftOffset, setLeftOffset] = React.useState({ x: 0, y: 0 });
-  const [rightOffset, setRightOffset] = React.useState({ x: 0, y: 0 });
+  const leftPupilRef = React.useRef<HTMLDivElement>(null);
+  const rightPupilRef = React.useRef<HTMLDivElement>(null);
+  /* Where the pupils are headed, where they actually are, and the last pointer
+     sample — all refs, so a 120Hz mouse costs zero React renders. */
+  const targetRef = React.useRef({ lx: 0, ly: 0, rx: 0, ry: 0 });
+  const currentRef = React.useRef({ lx: 0, ly: 0, rx: 0, ry: 0 });
+  const pointerRef = React.useRef<{ x: number; y: number } | null>(null);
+  const centresRef = React.useRef<{ lx: number; ly: number; rx: number; ry: number } | null>(null);
+  const centresDirtyRef = React.useRef(true);
+  const rafRef = React.useRef<number>();
+  const lastFrameRef = React.useRef(0);
+  /* Low-pass state for the gyro. deviceorientation is a noisy sensor — beta and
+     gamma jitter by a degree or two while a phone is held perfectly still — and
+     easing the pupils toward a jittering target still tracks the jitter. This
+     smooths the READING before it becomes a target. */
+  const tiltRef = React.useRef<{ gamma: number; beta: number } | null>(null);
   const [blinking, setBlinking] = React.useState(false);
   const [orientationPermission, setOrientationPermission] = React.useState<OrientationPermissionState>('unknown');
   const [tiltActive, setTiltActive] = React.useState(false);
@@ -138,25 +159,103 @@ function EyesPanel({
     return () => clearTimeout(blinkTimerRef.current);
   }, [reduced, runBlink]);
 
-  const applyPointer = React.useCallback((clientX: number, clientY: number) => {
-    for (const [ref, setOffset] of [
-      [leftEyeRef, setLeftOffset],
-      [rightEyeRef, setRightOffset],
-    ] as const) {
-      const el = ref.current;
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dx = clientX - cx;
-      const dy = clientY - cy;
-      const dist = Math.hypot(dx, dy);
-      const scale = Math.min(1, dist / PUPIL_DISTANCE_NORM);
-      const ux = dist === 0 ? 0 : dx / dist;
-      const uy = dist === 0 ? 0 : dy / dist;
-      setOffset({ x: ux * scale * PUPIL_MAX_X, y: uy * scale * PUPIL_MAX_Y });
-    }
+  /* One rAF loop eases the pupils toward their target and writes the transform
+     directly. Two things made the old version feel janky: it called
+     setState twice per pointermove (re-rendering this panel, SentenceBuilder
+     and all, up to 120x a second), and it measured both eyes with
+     getBoundingClientRect on every one of those events — a forced layout per
+     sample. Now the moves only record a coordinate; the frame loop does the
+     rest, and it stops itself once the pupils have settled. */
+  const EASE_PER_FRAME = 0.14;
+
+  const settle = React.useCallback(() => {
+    if (rafRef.current !== undefined) return;
+    lastFrameRef.current = 0;
+    const tick = (now: number) => {
+      /* Frame-rate independent: the same visual speed on a 60Hz laptop and a
+         120Hz phone. Without this the eases run twice as fast on 120Hz. */
+      const dt = lastFrameRef.current === 0 ? 16.67 : Math.min(64, now - lastFrameRef.current);
+      lastFrameRef.current = now;
+      const k = 1 - Math.pow(1 - EASE_PER_FRAME, dt / 16.67);
+
+      if (centresDirtyRef.current) {
+        const l = leftEyeRef.current?.getBoundingClientRect();
+        const r = rightEyeRef.current?.getBoundingClientRect();
+        if (l && r) {
+          centresRef.current = {
+            lx: l.left + l.width / 2,
+            ly: l.top + l.height / 2,
+            rx: r.left + r.width / 2,
+            ry: r.top + r.height / 2,
+          };
+          centresDirtyRef.current = false;
+        }
+      }
+
+      const p = pointerRef.current;
+      const c = centresRef.current;
+      if (p && c) {
+        const t = targetRef.current;
+        for (const [cx, cy, kx, ky] of [
+          [c.lx, c.ly, 'lx', 'ly'],
+          [c.rx, c.ry, 'rx', 'ry'],
+        ] as const) {
+          const dx = p.x - cx;
+          const dy = p.y - cy;
+          const dist = Math.hypot(dx, dy);
+          const scale = Math.min(1, dist / PUPIL_DISTANCE_NORM);
+          t[kx] = dist === 0 ? 0 : (dx / dist) * scale * PUPIL_MAX_X;
+          t[ky] = dist === 0 ? 0 : (dy / dist) * scale * PUPIL_MAX_Y;
+        }
+      }
+
+      const cur = currentRef.current;
+      const tgt = targetRef.current;
+      let moving = false;
+      for (const key of ['lx', 'ly', 'rx', 'ry'] as const) {
+        const d = tgt[key] - cur[key];
+        if (Math.abs(d) > 0.03) {
+          cur[key] += d * k;
+          moving = true;
+        } else {
+          cur[key] = tgt[key];
+        }
+      }
+      if (leftPupilRef.current) {
+        leftPupilRef.current.style.transform = `translate(calc(-50% + ${cur.lx.toFixed(2)}px), calc(-50% + ${cur.ly.toFixed(2)}px))`;
+      }
+      if (rightPupilRef.current) {
+        rightPupilRef.current.style.transform = `translate(calc(-50% + ${cur.rx.toFixed(2)}px), calc(-50% + ${cur.ry.toFixed(2)}px))`;
+      }
+
+      if (moving) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = undefined;
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
   }, []);
+
+  React.useEffect(() => () => {
+    if (rafRef.current !== undefined) cancelAnimationFrame(rafRef.current);
+  }, []);
+
+  /* The eyes move under the cursor when the page scrolls or resizes, so the
+     cached centres are invalidated rather than re-measured per pointer event. */
+  React.useEffect(() => {
+    if (reduced) return;
+    const invalidate = () => {
+      centresDirtyRef.current = true;
+      if (pointerRef.current) settle();
+    };
+    window.addEventListener('scroll', invalidate, { passive: true });
+    window.addEventListener('resize', invalidate);
+    return () => {
+      window.removeEventListener('scroll', invalidate);
+      window.removeEventListener('resize', invalidate);
+    };
+  }, [reduced, settle]);
 
   /* Pointer tracking. This used to be `if (reduced || isTouch) return`, which
      meant the eyes never moved at all on a phone: `pointer: coarse` is true,
@@ -171,13 +270,31 @@ function EyesPanel({
   React.useEffect(() => {
     if (reduced || tiltActive) return;
     function onPointerMove(e: PointerEvent) {
-      applyPointer(e.clientX, e.clientY);
+      pointerRef.current = { x: e.clientX, y: e.clientY };
+      settle();
     }
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     return () => window.removeEventListener('pointermove', onPointerMove);
-  }, [reduced, tiltActive, applyPointer]);
+  }, [reduced, tiltActive, settle]);
 
-  // Device orientation tracking — touch only, after permission is granted.
+  /* Only iOS 13+ gates deviceorientation behind a gesture-initiated
+     requestPermission(). Every other mobile browser just emits the events —
+     but this component waited for a tap on all of them alike, so on Android
+     (and on iOS below 13) the gyro never drove the eyes at all unless someone
+     happened to tap the dome. Where there is no gate to pass, don't wait. */
+  React.useEffect(() => {
+    if (reduced || !isTouch || orientationPermission !== 'unknown') return;
+    if (typeof window.DeviceOrientationEvent === 'undefined') {
+      setOrientationPermission('unsupported');
+      return;
+    }
+    const DOE = window.DeviceOrientationEvent as unknown as {
+      requestPermission?: () => Promise<'granted' | 'denied'>;
+    };
+    if (typeof DOE.requestPermission !== 'function') setOrientationPermission('granted');
+  }, [reduced, isTouch, orientationPermission]);
+
+  // Device orientation tracking — touch only, once permission is settled.
   React.useEffect(() => {
     if (reduced || !isTouch || orientationPermission !== 'granted') return;
     function onOrientation(e: DeviceOrientationEvent) {
@@ -186,14 +303,24 @@ function EyesPanel({
       // Handoff M-004: gamma maps to x over +/-30 degrees, beta maps to y as
       // (beta - 45) / 30 -- both clamped to +/-1. Was dividing by 45, which
       // needed a steeper tilt than specified to reach full pupil deflection.
-      const x = Math.max(-1, Math.min(1, e.gamma / 30)) * PUPIL_MAX_X;
-      const y = Math.max(-1, Math.min(1, (e.beta - 45) / 30)) * PUPIL_MAX_Y;
-      setLeftOffset({ x, y });
-      setRightOffset({ x, y });
+      // Exponential smoothing on the raw reading, then M-004's mapping.
+      const prev = tiltRef.current;
+      const gamma = prev ? prev.gamma + (e.gamma - prev.gamma) * 0.2 : e.gamma;
+      const beta = prev ? prev.beta + (e.beta - prev.beta) * 0.2 : e.beta;
+      tiltRef.current = { gamma, beta };
+      const x = Math.max(-1, Math.min(1, gamma / 30)) * PUPIL_MAX_X;
+      const y = Math.max(-1, Math.min(1, (beta - 45) / 30)) * PUPIL_MAX_Y;
+      // Tilt drives the same eased target the pointer does, so the gyro gets
+      // the identical smoothing — raw orientation samples are noisy and would
+      // otherwise jitter the pupils.
+      pointerRef.current = null;
+      const t = targetRef.current;
+      t.lx = x; t.ly = y; t.rx = x; t.ry = y;
+      settle();
     }
     window.addEventListener('deviceorientation', onOrientation);
     return () => window.removeEventListener('deviceorientation', onOrientation);
-  }, [reduced, isTouch, orientationPermission]);
+  }, [reduced, isTouch, orientationPermission, settle]);
 
   const handleTap = React.useCallback(() => {
     runBlink();
@@ -249,10 +376,10 @@ function EyesPanel({
       >
         <div className="flex items-center justify-center gap-[22px]">
           <div ref={leftEyeRef}>
-            <Eye offset={reduced ? { x: 0, y: 0 } : leftOffset} blinking={blinking} lidFill={domeFill} />
+            <Eye pupilRef={leftPupilRef} blinking={blinking} lidFill={domeFill} />
           </div>
           <div ref={rightEyeRef}>
-            <Eye offset={reduced ? { x: 0, y: 0 } : rightOffset} blinking={blinking} lidFill={domeFill} />
+            <Eye pupilRef={rightPupilRef} blinking={blinking} lidFill={domeFill} />
           </div>
         </div>
 

@@ -106,19 +106,30 @@ function ListEmpty({ line, className }: { line: string; className?: string }) {
 
 /* ---------- 3. Empty after filters ---------- */
 
+/* `count` because the line used to say "all five filters" whatever the real
+   number was — it read as a stock sentence the moment you had one filter on,
+   which is exactly when someone is deciding whether to trust the result. */
 function ListOverFiltered({
   onClear,
+  count,
   className,
 }: {
   onClear: () => void;
+  count?: number;
   className?: string;
 }) {
+  const headline =
+    count === 1
+      ? "Nothing matched that filter."
+      : count && count > 1
+        ? `Nothing matched all ${count} filters.`
+        : "Nothing matched those filters.";
   return (
     <StatePanel tone="brand-subtle" className={className}>
       <Blob mood="meh" size={56} />
       <p className="text-body text-foreground">
-        <strong className="font-semibold">Nothing matched all five filters.</strong>{" "}
-        Loosen the rate or widen the area — most people find someone within 5 km.
+        <strong className="font-semibold">{headline}</strong>{" "}
+        Loosen the rate or widen the area. Most people find someone within 5 km.
       </p>
       <Button variant="primary" size={44} onClick={onClear}>
         Clear filters

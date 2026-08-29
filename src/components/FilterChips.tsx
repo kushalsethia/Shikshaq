@@ -1,7 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { X } from 'lucide-react';
 import type { SearchMode } from '@/utils/searchFacets';
-import { getSubjectPalette } from '@/lib/subject-palette';
 
 /**
  * The applied-filter row shared by Browse (teachers) and PastPapers (papers).
@@ -54,13 +53,6 @@ const SELECTED_TINT: Record<SearchMode, string> = {
   papers: 'bg-brand-blue-subtle text-brand-blue-deep',
 };
 
-/** Subject-filter chips ("subjects:Maths" on Browse, the bare "filter_subjects"
- * key on PaperResults) get the subject's own tint instead of the mode accent —
- * VISUAL_LANGUAGE §3: "Subject is the one facet that escapes the orange/indigo
- * mode color," applied "everywhere ... filter pills, and selected-facet states." */
-function isSubjectChipKey(key: string): boolean {
-  return key.startsWith('subjects:') || key.startsWith('filter_subjects:') || key === 'filter_subjects';
-}
 
 export function FilterChips({
   mode,
@@ -80,21 +72,22 @@ export function FilterChips({
   return (
     <div className={className} style={style}>
       <div className="flex snap-x items-center gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
+        {/* Every applied chip wears the MODE's selected tint, orange on the
+            teachers surface and indigo on papers. Subject chips used to paint
+            themselves in the subject palette's saturated `solid` instead, so
+            filtering by English produced a fully saturated teal pill sitting
+            where the reader expects the site's own "this is on" colour, and
+            a second accent on a page whose accent is orange. Subject colour
+            still belongs on cards and covers; it does not belong on a control
+            whose whole job is to say "selected". */}
         {chips.map((chip) => {
-          const isSubject = isSubjectChipKey(chip.key);
-          const subjectPalette = isSubject ? getSubjectPalette(chip.label) : null;
           return (
             <button
               key={chip.key}
               type="button"
               onClick={chip.onRemove}
               aria-label={`Remove filter ${chip.label}`}
-              className={`${pillBase} gap-2 ${subjectPalette ? '' : SELECTED_TINT[mode]}`}
-              style={
-                subjectPalette
-                  ? { backgroundColor: subjectPalette.solid, color: subjectPalette.badgeText }
-                  : undefined
-              }
+              className={`${pillBase} gap-2 ${SELECTED_TINT[mode]}`}
             >
               <span className="max-w-[12rem] truncate">{chip.label}</span>
               <X className="h-[13px] w-[13px] flex-none opacity-70" aria-hidden="true" />

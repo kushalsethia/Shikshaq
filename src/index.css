@@ -478,6 +478,17 @@
      guard for the ambient loops, live at the BOTTOM of this file — outside
      @layer, so the guard is never purged along with unused utilities. */
 
+  @keyframes disclosureReveal {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   @keyframes whatsapp-pulse {
     0%   { box-shadow: 0 0 0 0    rgba(37, 211, 102, 0.3); }
     12%  { box-shadow: 0 0 0 14px rgba(37, 211, 102, 0); }
@@ -495,6 +506,53 @@
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* For short scrollers inside a rounded panel — the facet dropdowns — where
+     hiding the bar entirely would remove the only cue that there is more
+     below, but the platform's full-width bar (with its stepper arrows) eats
+     into the chips and reads as a desktop control dropped into a sheet. */
+  /* Native <details> snaps open: the chevron rotates over 200ms while the
+     panel itself appears instantly, so the accordion reads as broken motion.
+     This gives the revealed content a fade-and-slide instead.
+
+     It deliberately does NOT animate the panel's height. That was built and
+     then removed: CSS.supports('selector(::details-content)') reports true in
+     current Chrome, yet the [open] rule did not override the closed rule's
+     `block-size: 0` — verified against a bare control, which grew 24px -> 64px
+     while identical markup carrying this class stayed at 24px. The panel
+     stayed clamped shut and every FAQ answer became unreachable. A disclosure
+     that will not disclose is far worse than one that opens without easing. */
+  .disclosure > *:not(summary) {
+    transform-origin: top;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .disclosure[open] > *:not(summary) {
+      animation: disclosureReveal 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+  }
+
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+
+  .scrollbar-slim::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.45);
   }
 
   /* Tap-feedback for raw inline-style buttons/links where :active can't be

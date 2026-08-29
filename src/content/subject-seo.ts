@@ -58,7 +58,7 @@ export const SUBJECT_CONTENT: Record<string, SubjectContent> = {
       },
       {
         question: 'Can I find a maths tutor near Ballygunge or Salt Lake specifically?',
-        answer: 'Yes. Use the area filter on this page to narrow results to a locality, or search for home tuition near a specific neighbourhood — teachers list the areas they travel to.',
+        answer: 'Yes. Use the area filter on this page to narrow results to a locality, or search for home tuition near a specific neighbourhood. Teachers list the areas they travel to.',
       },
     ],
     internalLinks: [
@@ -82,7 +82,7 @@ export const SUBJECT_CONTENT: Record<string, SubjectContent> = {
     faqs: [
       {
         question: 'Do English tutors in Kolkata teach spoken English too?',
-        answer: 'Many do, alongside academic English. If you specifically need conversational or spoken-English coaching rather than board exam prep, mention that when you contact a teacher — most tutors adjust their approach for it.',
+        answer: 'Many do, alongside academic English. If you specifically need conversational or spoken-English coaching rather than board exam prep, mention that when you contact a teacher, and most tutors adjust their approach for it.',
       },
       {
         question: 'How is ICSE English different from CBSE English for tuition purposes?',
@@ -113,7 +113,7 @@ export const SUBJECT_CONTENT: Record<string, SubjectContent> = {
     faqs: [
       {
         question: 'Should I look for a Science tutor or a Physics/Chemistry/Biology tutor?',
-        answer: 'For Classes 6-8, where the three subjects are taught together, a Science tutor is usually right. From Class 9 onward, when boards examine physics, chemistry and biology separately, most families switch to subject specialists — see the Physics, Chemistry and Biology tuition pages.',
+        answer: 'For Classes 6-8, where the three subjects are taught together, a Science tutor is usually right. From Class 9 onward, when boards examine physics, chemistry and biology separately, most families switch to subject specialists. See the Physics, Chemistry and Biology tuition pages.',
       },
       {
         question: 'Does this page include Physics, Chemistry and Biology tutors?',

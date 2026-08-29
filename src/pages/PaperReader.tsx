@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { recordPaperSubject } from '@/lib/activity-trail';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ExternalLink, Lock, Maximize2, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -170,6 +171,15 @@ export default function PaperReader() {
     fetchSiblings();
     return () => { cancelled = true; };
   }, [paper, user]);
+
+  /* Feeds H-005 branch 5 ("Two papers open in ICSE Physics. Want a tutor for
+     it?"). Separate from recordVisit below: that one is the Recently-visited
+     rail's per-item history, this is the one board+subject pair the hero
+     greets you with. */
+  useEffect(() => {
+    if (!paper) return;
+    recordPaperSubject({ board: paper.board, subject: paper.subject });
+  }, [paper]);
 
   // Record this visit for the home page's "Recently visited" section
   // (device-local only, see src/lib/recently-visited.ts).

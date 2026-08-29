@@ -52,7 +52,7 @@ function LogoOrTourTrigger() {
       <Logo
         className="tap-44 h-8 w-auto"
         onDark
-        ariaLabel="How ShikshAQ works"
+        ariaLabel="How Shikshaq works"
         onClick={(e) => {
           e.preventDefault();
           openProductTour();

@@ -18,6 +18,8 @@ import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 import { cn } from '@/lib/utils';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { ListLoading, ListEmpty, ListOverFiltered, ListError, ListEnd } from '@/components/ui/list-states';
+import { useUpvotes } from '@/lib/upvotes-context';
+import { RegionNotice } from '@/components/RegionNotice';
 import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKeywordExtractor';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
@@ -423,6 +425,15 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   };
 
   // Initialize filters from URL params
+  /* Upvote counts come from UpvotesProvider, which already fetches the whole
+     teacher_upvote_stats view once and caches it. This page used to refetch the
+     same view on every mount with `.in('teacher_id', [147 ids])` — a ~7KB URL
+     that tripped a CORS preflight, so a warm navigation back to Browse paid an
+     OPTIONS plus a GET for data the app was already holding. */
+  const { upvoteCounts } = useUpvotes();
+  const upvoteCountsRef = useRef(upvoteCounts);
+  upvoteCountsRef.current = upvoteCounts;
+
   const [filters, setFilters] = useState<FilterState>(() => {
     const minFeesParam = searchParams.get('filter_minFees');
     const maxFeesParam = searchParams.get('filter_maxFees');
@@ -1154,18 +1165,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           };
         });
 
-        // Upvote counts are fetched unconditionally (not just when sortParam === 'upvotes')
-        // so switching the sort control later can re-order from cache without a refetch.
-        let upvoteMap = new Map<string, number>();
-        if (enrichedTeachers.length > 0) {
-          const teacherIds = enrichedTeachers.map((t) => t.id);
-          const { data: upvoteRows } = await supabase
-            .from('teacher_upvote_stats')
-            .select('teacher_id, upvote_count')
-            .in('teacher_id', teacherIds);
-          if (isStale()) return;
-          upvoteMap = new Map((upvoteRows || []).map((r: any) => [r.teacher_id, r.upvote_count || 0]));
-        }
+        // Read, do not fetch — see the note on upvoteCountsRef above.
+        const upvoteMap = upvoteCountsRef.current;
 
         // A newer fetch (from a filter/query change that happened while this one was in
         // flight) has already superseded this response — discard it instead of clobbering
@@ -1342,7 +1343,20 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   // context where a "Featured teachers" shelf makes sense (mixing it into an already-
   // filtered/searched result set would be confusing, and would mean re-deriving which
   // featured teachers also match the active filters for no real benefit).
-  const isDefaultView = !searchParams.get('q') && !selectedSubject && !selectedClass && filterChips.length === 0;
+  /* activeFilterCount(filters) is what the Filters badge itself counts, and it
+     has to be in here too. Without it a filter that produces no removable chip
+     (a rate ceiling, a mode, a board) left isDefaultView true, so a search that
+     genuinely matched nobody rendered the "Kolkata's verified tutors, across
+     every subject and board" line — an advert, under a heading reading "0
+     tuition teachers", with no way to clear the filter that emptied the page.
+     The over-filtered state and its Clear filters button now show whenever any
+     filter is actually on. */
+  const isDefaultView =
+    !searchParams.get('q') &&
+    !selectedSubject &&
+    !selectedClass &&
+    filterChips.length === 0 &&
+    activeFilterCount(filters) === 0;
 
   /* sortedSubjectsForDisplay was removed with the subject quick-pick pills —
      it had no other reader, so keeping it would have meant sorting the subject
@@ -1640,7 +1654,20 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           {/* Handoff B-005: drop onDark — the panel is bone now, so the field
               inherits Home's H-009 metrics (60px, rounded-[22px], bg-muted,
               46px submit disc) via heroDesk instead. */}
-          <SearchControl align="flex-start" stackedToggle heroDesk initialMode="teachers" onModeChange={handleSearchModeChange} />
+          {/* alwaysShowModeToggle: the Teachers/Past papers switch belongs here
+              as much as on the home desk, and without it this page was the one
+              search on the site that could not change what it searched.
+              hideFacets: the Subject/Class/Area row duplicated the filter rail
+              sitting directly beneath it. */}
+          <SearchControl
+            align="flex-start"
+            stackedToggle
+            alwaysShowModeToggle
+            hideFacets
+            heroDesk
+            initialMode="teachers"
+            onModeChange={handleSearchModeChange}
+          />
         </div>
 
         {/* Handoff B-006: class quick-picks move inside the header panel,
@@ -1681,7 +1708,17 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           its own stacking context this bar can paint above the results grid
           during scroll compositing (observed at 1440px), even though z-30 vs
           the grid's implicit z-0 "should" already resolve it. */}
-      <BentoPanel fill="card" className="sticky top-[80px] z-30 isolate px-0 py-3 pl-4">
+      {/* lg:hidden when there is nothing to show. The only thing in this bar
+          below lg is the Filters button, which is itself lg:hidden — so with no
+          chips applied the desktop rendered an empty ~68px white band between
+          the search panel and the results. py-2, not py-3: it holds one 44px
+          control, and the extra padding made a slim bar chunky. */}
+      <BentoPanel
+        fill="card"
+        className={`sticky top-[80px] z-30 isolate px-0 py-2 pl-4 ${
+          filterChips.length === 0 ? 'lg:hidden' : ''
+        }`}
+      >
           <div className="flex items-center gap-[8px] pr-4">
             <button
               type="button"
@@ -1739,6 +1776,9 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                   the count visibly, so this level is supplied to assistive tech
                   only rather than drawing a title the mockup does not show. */}
               <h2 className="sr-only">Teachers</h2>
+              {/* Every teacher here travels to a Kolkata address, so a reader in
+                  another state is filtering a list that cannot reach them. */}
+              <RegionNotice className="mb-3" />
               {/* Mobile: result rows. Desktop: three-column card grid
                   (design.md Section 5 / C-048). Same data, two TeacherCard variants. */}
               <div className="flex flex-col gap-[10px] lg:hidden">
@@ -1772,7 +1812,11 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                 })}
               </div>
 
-              <div className="hidden grid-cols-3 gap-[18px] stagger-children lg:grid">
+              {/* 4 columns from xl. At 1900px three columns gave each card a
+                  ~450px photo, which is a portrait gallery rather than a list
+                  you scan — the whole point of this page is comparing many
+                  teachers at once. gap tightened with it. */}
+              <div className="hidden grid-cols-3 gap-[14px] stagger-children lg:grid xl:grid-cols-4">
                 {displayedTeachers.map((teacher, cardIndex) => {
                   const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
                   const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -1790,7 +1834,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                        same time: invisible motion, on the page that renders the
                        most cards, on the phones least able to afford it. Only
                        the first row of three can be on screen at load. */
-                    <div key={teacher.id} className={cardIndex < 3 ? 'animate-card-reveal' : undefined}>
+                    <div key={teacher.id} className={cardIndex < 3 ? 'h-full animate-card-reveal' : 'h-full'}>
                       <TeacherCard
                         id={teacher.id}
                         name={teacher.name}
@@ -1840,7 +1884,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             // Empty, no data yet -- never advertise emptiness (design.md Section 3.2).
             <ListEmpty line="Kolkata's verified tutors, across every subject and board." />
           ) : (
-            <ListOverFiltered onClear={clearFilters} />
+            <ListOverFiltered onClear={clearFilters} count={filterCount} />
           )}
         </BentoPanel>
       </div>
@@ -1919,6 +1963,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         filters={filters}
         onFilterChange={setFilters}
         resultCount={teachers.length}
+        onClear={clearFilters}
       />
     </div>
   );

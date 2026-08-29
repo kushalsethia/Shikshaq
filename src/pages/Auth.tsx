@@ -11,6 +11,7 @@ import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { readAuthIntent, clearAuthIntent } from '@/lib/auth-intent';
 import { resolveAuthHero } from '@/components/auth/AuthHero';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 /* C-032 / handoff AU-003a — proof counts above the fold. Counts are real
    (Supabase), never hardcoded; the sticker that needs one simply doesn't
@@ -73,6 +74,15 @@ const signinSchema = z.object({
 });
 
 export default function Auth() {
+  /* robots.txt disallows this route, so this is not about ranking: without it
+     the tab, the history entry and any shared link all read "Find Tuition
+     Teachers in Kolkata" while the reader is looking at a sign-in form,
+     because index.html's defaults are what a page without its own meta gets. */
+  usePageMeta(
+    'Sign in | Shikshaq',
+    'Sign in to Shikshaq to save teachers you like, keep track of who you have contacted, and pick up where you left off.',
+  );
+
   const [isLogin, setIsLogin] = useState(true);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
@@ -462,7 +472,15 @@ export default function Auth() {
           two blocks side by side rather than stacked (06's own geometry
           appendix only specifies the 375px stack; this is the least-surprise
           desktop analogue). */}
-      <div className="lg:mx-auto lg:flex lg:w-full lg:max-w-[1160px] lg:flex-1 lg:items-center lg:justify-center lg:gap-8 lg:px-10 lg:py-10">
+      {/* lg:items-stretch, not items-center. Centred, the dark sign-in block
+          floated at a different height from the orange one and the pair read as
+          two unrelated cards dropped on the page. Stretched, they are one
+          split panel — which is what AU-003 describes. */}
+      {/* No lg:flex-1 on the row. Stretching it to the viewport made both
+          panels ~500px tall for ~200px of content, so the split read as two
+          empty slabs. Sized to content and centred with my-auto, the panels
+          are as tall as the taller of the two and no taller. */}
+      <div className="lg:mx-auto lg:my-auto lg:flex lg:w-full lg:max-w-[1000px] lg:items-stretch lg:justify-center lg:gap-6 lg:px-10 lg:py-12">
 
         {/* Hero block (AU-003 point 1) — nav row, eyebrow, h1, sticker
             cluster. This block is the page's whole accent budget.
@@ -471,7 +489,11 @@ export default function Auth() {
             come from the intent that opened the gate (variants A–H). The
             near-black sign-in block below never changes shape — only its
             sub-line and value-note copy follow, per the same entry. */}
-        <div className={`rounded-b-bento px-5 pb-[26px] lg:flex-1 lg:rounded-bento lg:self-stretch ${hero.ink.fill}`}>
+        {/* lg:flex-col + the nav pinned by mb-auto's absence: at desktop this
+            column is as tall as the sign-in block beside it, and top-aligned
+            content left a third of the panel as empty fill. The headline group
+            now centres in the space below the nav row. */}
+        <div className={`rounded-b-bento px-5 pb-[26px] lg:flex lg:flex-1 lg:flex-col lg:rounded-bento lg:px-8 lg:pb-8 ${hero.ink.fill}`}>
           <header className="flex items-center justify-between gap-3 pt-5">
             <Logo size="md" ariaLabel="Back to home" onDark={hero.ink.onDark} />
             <Link
@@ -827,24 +849,20 @@ export default function Auth() {
             {/* Handoff AU-007 (new): names what signing in actually unlocks —
                 the gate sheets elsewhere say this, this page never did. */}
             {!showResetPassword && !showForgotPassword && (
-              /* AU-004a: the value note's copy and its tile colour follow the
-                 intent — WhatsApp green, brand orange or indigo. The tint is
-                 a left rule rather than a fill, so the dark block keeps one
-                 surface and the accent stays a marker, not a second panel. */
-              <div
-                className={`rounded-[20px] bg-white/[0.06] p-4 border-l-[3px] ${
-                  hero.noteTint === 'whatsapp'
-                    ? 'border-whatsapp'
-                    : hero.noteTint === 'papers'
-                    ? 'border-brand-blue'
-                    : 'border-brand'
-                }`}
-              >
+              /* One note, one string. This had been rebuilt as eight per-intent
+                 bodies with a tinted left rule, which broke AU-004a twice over
+                 — that entry says the dark block "never changes: same Google
+                 button, same email link, SAME VALUE NOTE" — and AU-007 calls
+                 its body "the only new copy on this page". The eight invented
+                 bodies were also the weakest writing here: eight restatements
+                 of the same reassurance under one repeated label. This names
+                 the three things an account actually does and stops. */
+              <div className="rounded-[20px] bg-white/[0.06] p-4">
                 <p className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-[rgba(249,245,241,.5)]">
-                  {hero.noteTitle}
+                  Why sign in
                 </p>
                 <p className="mt-1.5 text-[14px] leading-[1.55] text-[rgba(249,245,241,.75)]">
-                  {hero.noteBody}
+                  Message teachers on WhatsApp, save a shortlist, and open past papers. No fees, ever.
                 </p>
               </div>
             )}

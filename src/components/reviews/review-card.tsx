@@ -58,7 +58,7 @@ export function ReviewCard({ review, index, fan = false, fullWidth = false, clas
         fan
           ? `relative w-[224px] shrink-0 ${drop} ${index === 0 ? "ml-0" : "-ml-[22px]"} ${tilt} motion-reduce:rotate-0 transition-transform duration-150 hover:z-10 hover:rotate-0 hover:-translate-y-1`
           : fullWidth
-          ? "relative w-full"
+          ? "relative h-full w-full"
           : "relative w-[262px] shrink-0",
         className,
       ]
@@ -71,7 +71,9 @@ export function ReviewCard({ review, index, fan = false, fullWidth = false, clas
           are always null in practice, so nothing real is lost); the subject
           title and rating stars stay, since they carry real data the entry
           doesn't say to remove. */}
-      <div className="relative rounded-[20px] bg-card p-4">
+      {/* h-full so cards in a grid row share a height — without it the row was
+          as ragged as the longest quote made it. */}
+      <div className="relative flex h-full flex-col rounded-[20px] bg-card p-4">
         <p
           className={fan ? "font-display text-[19px] font-bold leading-[1.15] tracking-[-0.03em]" : "font-display text-[18px] font-bold tracking-[-0.03em]"}
           style={{ color: palette.text }}
@@ -101,7 +103,10 @@ export function ReviewCard({ review, index, fan = false, fullWidth = false, clas
           &ldquo;{review.quote}&rdquo;
         </p>
 
-        <div className="mt-[12px] flex items-center gap-[9px]">
+        {/* mt-auto pins the author to the bottom, so in a grid of equal-height
+            cards every attribution lines up instead of floating wherever its
+            quote happened to end. */}
+        <div className="mt-auto flex items-center gap-[9px] pt-[12px]">
           <StripePlaceholder name={authorName} initialSize={13} className="h-[26px] w-[26px] flex-none rounded-full" />
           <div className="min-w-0">
             <p className="truncate text-[12.5px] font-semibold text-foreground">

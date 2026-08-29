@@ -76,7 +76,7 @@ export function OnboardingModal() {
       }`}
       role="dialog"
       aria-modal="true"
-      aria-label="Welcome to ShikshAQ"
+      aria-label="Welcome to Shikshaq"
     >
       <div className="flex h-14 items-center justify-between px-5">
         {/* filter:brightness(0) — fully monochrome black, distinct from
@@ -100,13 +100,18 @@ export function OnboardingModal() {
             AA's 4.5:1 floor). Every other brand-orange surface in the app
             already uses the dark ink; this full-screen headline was the one
             surface still on the pre-fix white. */}
-        <h1 className="font-display text-[58px] font-black leading-[0.9] tracking-[-0.06em] text-brand-foreground">
+        {/* h2, not h1: this splash sits on top of a page that has its own
+            h1, and it renders on a first visit — which is exactly what a
+            crawler is. Two h1s, with the overlay's coming first in the DOM,
+            meant the homepage's headline of record was an onboarding screen
+            the reader dismisses. Styling is unchanged; only the level is. */}
+        <h2 className="font-display text-[58px] font-black leading-[0.9] tracking-[-0.06em] text-brand-foreground">
           Search,<br />
           shortlist,<br />
           <span className="inline-block -mx-2 rounded-[6px] bg-[#FCFAF7] px-2 text-[#1F1F1F]">message.</span><br />
           No agent<br />
           in between.
-        </h1>
+        </h2>
 
         {/* Handoff OB-001 point 3: five tilted stickers around the headline.
 

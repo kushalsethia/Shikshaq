@@ -7,7 +7,6 @@ import { Navbar } from '@/components/Navbar';
 import { BottomNav } from '@/components/BottomNav';
 import { Footer } from '@/components/Footer';
 import { PreFooter, preFooterFor, type PreFooterVariant, type B2Counts } from '@/components/layout/PreFooter';
-import { BottomNavSpacer } from '@/components/layout/PageContainer';
 import { isChromelessPath } from '@/lib/chromeless-routes';
 
 /* AppShell — the single place shell config for every route is decided.
@@ -114,14 +113,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       {!chromeless && (
         <>
           {variant !== 'none' && <PreFooter variant={variant} counts={activeChrome?.preFooterCounts} />}
+          {/* No BottomNavSpacer here. WordmarkBleed already reserves the same
+              84px + safe-area INSIDE the footer's dark panel, so a second
+              reserve after </footer> only added a band of page ground below
+              the panel — the nav pill then floated on bone instead of on the
+              footer, which is the white strip under the footer on mobile.
+              Reserving it inside is the correct one of the two: it keeps the
+              dark fill running to the bottom edge of the page. */}
           <Footer expandedContent={activeChrome?.footerExpandedContent} />
-          {/* The nav reserve goes AFTER the footer. It used to sit above it,
-              which got both ends wrong: it opened an 84px hole between the last
-              panel and the footer where H-021's accept line calls for 6px of
-              page ground, and it reserved nothing at the bottom — so the
-              floating bottom nav sat on top of the footer's own last 74px, over
-              the wordmark and the three stat pills. */}
-          <BottomNavSpacer />
           <BottomNav />
         </>
       )}

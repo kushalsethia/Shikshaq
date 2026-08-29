@@ -21,7 +21,7 @@ const SECTIONS: LegalSection[] = [
   {
     n: '01',
     title: 'Introduction and acceptance',
-    short: 'By using ShikshAQ you accept these Terms — read them like a contract, because they are one.',
+    short: 'By using Shikshaq you accept these Terms. Read them like a contract, because they are one.',
     body: (
       <>
         <p className={pClass}>
@@ -74,7 +74,7 @@ const SECTIONS: LegalSection[] = [
   },
   {
     n: '03',
-    title: 'Who can use ShikshAQ',
+    title: 'Who can use Shikshaq',
     short: 'Anyone 18 or over, and students under 18 with a guardian’s knowledge.',
     body: (
       <>
@@ -96,7 +96,7 @@ const SECTIONS: LegalSection[] = [
     body: 'Everything on your profile must be true: your name, your qualifications, your years of experience, the subjects and boards you actually teach. We read every application and may ask for another document before publishing. We can unpublish a listing that turns out to be inaccurate.',
     bullets: [
       'Do not list someone else, or use a photo that is not you.',
-      'Keep your rate and availability current — stale listings get quiet, then hidden.',
+      'Keep your rate and availability current. Stale listings get quiet, then hidden.',
       'You are responsible for your own tax and legal obligations.',
     ],
   },
@@ -167,7 +167,7 @@ const SECTIONS: LegalSection[] = [
   {
     n: '07',
     title: 'User conduct and safety',
-    short: 'Keep it civil — we can remove you, and disputes between users are yours to resolve.',
+    short: 'Keep it civil. We can remove you, and disputes between users are yours to resolve.',
     body: (
       <>
         <h3 className={h3Class}>7.1 Prohibited content</h3>
@@ -193,8 +193,8 @@ const SECTIONS: LegalSection[] = [
       <>
         <p className={pClass}>
           Teachers set their own rate and keep all of it. We never process payments, so please do not send
-          money through ShikshAQ or to anyone claiming to collect on our behalf. If someone asks you to pay
-          ShikshAQ, that is a scam — tell us.
+          money through Shikshaq or to anyone claiming to collect on our behalf. If someone asks you to pay
+          Shikshaq, that is a scam. Tell us.
         </p>
         <h3 className={h3Class}>8.1 Direct tuition payments</h3>
         <p className={pClass}>
@@ -242,7 +242,7 @@ const SECTIONS: LegalSection[] = [
     n: '10',
     title: 'Reviews',
     short: 'Only people who actually contacted a teacher can review them, and teachers cannot edit reviews.',
-    body: 'A review can only be left after a contact is recorded. We remove reviews that contain abuse, personal contact details, or an attempt to pull business off the platform — but we do not remove an honest bad review because a teacher asked.',
+    body: 'A review can only be left after a contact is recorded. We remove reviews that contain abuse, personal contact details, or an attempt to pull business off the platform. We do not remove an honest bad review because a teacher asked.',
   },
   {
     n: '11',
@@ -314,7 +314,7 @@ export default function TermsOfService() {
       pill="plain English, then the clauses"
       pillTone="brand"
       h1="What you agree to"
-      lede="ShikshAQ is a place to find a teacher and read past papers. We introduce people; we are not a tuition agency, an employer, or a party to the classes you arrange. Each section below opens with the plain-English version, followed by the exact clause it summarizes."
+      lede="Shikshaq is a place to find a teacher and read past papers. We introduce people; we are not a tuition agency, an employer, or a party to the classes you arrange. Each section below opens with the plain-English version, followed by the exact clause it summarizes."
       updated="Last updated 12 August 2026 · we tell you on WhatsApp when this changes"
       accent="brand"
       summary={[

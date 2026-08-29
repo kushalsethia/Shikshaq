@@ -220,7 +220,7 @@ export default function SelectRole() {
         <div className="mx-auto flex w-full max-w-[480px] flex-1 flex-col">
           <Logo size="lg" className="mb-5" />
           <h1 className="font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-foreground">
-            Who's using ShikshAQ?
+            Who's using Shikshaq?
           </h1>
           <p className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-secondary">
             This only changes what your account shows you. You can search either way.

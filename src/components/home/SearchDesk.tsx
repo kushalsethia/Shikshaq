@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchControl } from '@/components/SearchControl';
 import { HeroFieldSearch } from '@/components/home/HeroFieldSearch';
@@ -15,12 +16,25 @@ import type { SearchMode } from '@/utils/searchFacets';
    suggestions) rather than re-implementing search, and adds the popular
    chip row underneath it per design.md §2.8. */
 
-const POPULAR_CHIPS: { label: string; href: string }[] = [
-  { label: 'Class 10', href: '/all-tuition-teachers-in-kolkata?filter_classes=10' },
-  { label: 'Maths', href: '/maths-tuition-teachers-in-kolkata' },
-  { label: 'Under ₹800', href: '/all-tuition-teachers-in-kolkata?filter_maxFees=800' },
-  { label: 'Home tuition', href: `/all-tuition-teachers-in-kolkata?filter_placeOfTeaching=${encodeURIComponent("Student's Home")}` },
-];
+/* One chip row per mode. The row used to be teacher-only at both settings, so
+   flipping to Past papers left "Under ₹800" and "Home tuition" — fee and
+   travel filters that no paper has — sitting under a papers field. Each papers
+   chip lands on /past-papers/results, which is the route that actually reads
+   these filter params (/past-papers ignores them). */
+const POPULAR_CHIPS: Record<SearchMode, { label: string; href: string }[]> = {
+  teachers: [
+    { label: 'Class 10', href: '/all-tuition-teachers-in-kolkata?filter_classes=10' },
+    { label: 'Maths', href: '/maths-tuition-teachers-in-kolkata' },
+    { label: 'Under ₹800', href: '/all-tuition-teachers-in-kolkata?filter_maxFees=800' },
+    { label: 'Home tuition', href: `/all-tuition-teachers-in-kolkata?filter_placeOfTeaching=${encodeURIComponent("Student's Home")}` },
+  ],
+  papers: [
+    { label: 'Class 10', href: '/past-papers/results?filter_classes=10' },
+    { label: 'ICSE', href: '/past-papers/results?filter_boards=ICSE' },
+    { label: 'CBSE', href: '/past-papers/results?filter_boards=CBSE' },
+    { label: 'Maths', href: '/past-papers/results?filter_subjects=Maths' },
+  ],
+};
 
 export interface SearchDeskProps {
   onModeChange?: (mode: SearchMode) => void;
@@ -29,6 +43,13 @@ export interface SearchDeskProps {
 
 export function SearchDesk({ onModeChange, className = '' }: SearchDeskProps) {
   const navigate = useNavigate();
+  const [mode, setMode] = useState<SearchMode>('teachers');
+  // Mirrors the control's mode locally so this card can dress itself, while
+  // still forwarding it to the page (which swaps the hero copy off it).
+  const handleModeChange = useCallback((next: SearchMode) => {
+    setMode(next);
+    onModeChange?.(next);
+  }, [onModeChange]);
 
   return (
     /* Handoff H-008: SearchDesk becomes a plain BentoPanel-radius'd panel —
@@ -42,7 +63,7 @@ export function SearchDesk({ onModeChange, className = '' }: SearchDeskProps) {
           departure from the handoff. Both write the same query string to the
           same route, so a URL from one width still works at the other. */}
       <div className="lg:hidden">
-        <SearchControl align="flex-start" stackedToggle alwaysShowModeToggle onModeChange={onModeChange} heroDesk />
+        <SearchControl align="flex-start" stackedToggle alwaysShowModeToggle onModeChange={handleModeChange} heroDesk />
       </div>
       <HeroFieldSearch className="hidden lg:block" />
 
@@ -51,13 +72,15 @@ export function SearchDesk({ onModeChange, className = '' }: SearchDeskProps) {
           and the label was costing a chip's width of scroll on a 390px screen.
           Handoff H-010: 44px chips (was 40, below the floor), -mx-4 px-4 scroller. */}
       <div className="-mx-4 mt-2.5 overflow-x-auto px-4 pb-0.5 scrollbar-hide sm:mx-0 sm:px-0">
-        <div className="flex w-max items-center gap-2 sm:w-full sm:flex-wrap">
-          {POPULAR_CHIPS.map((c) => (
+        <div key={mode} className="flex w-max animate-blur-swap items-center gap-2 motion-reduce:animate-none sm:w-full sm:flex-wrap">
+          {POPULAR_CHIPS[mode].map((c) => (
             <Chip
               key={c.label}
               tone="facet"
               size={44}
-              className="flex-none whitespace-nowrap px-[18px] text-[14.5px] font-semibold"
+              className={`flex-none whitespace-nowrap px-[18px] text-[14.5px] font-semibold ${
+                mode === 'papers' ? '!bg-brand-blue-subtle !text-brand-blue' : ''
+              }`}
               onClick={() => navigate(c.href)}
             >
               {c.label}

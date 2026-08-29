@@ -51,9 +51,14 @@ function DisclaimerStrip({ school, reportHref, tone = "bone" }: DisclaimerStripP
           target="_blank"
           rel="noopener noreferrer"
           className={cn(
-            /* Mockup draws this inline at 11.5px; the 44px floor is met with a
-               padded inline-flex hit area rather than by growing the type. */
-            "inline-flex min-h-11 items-center gap-1.5 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            /* `tap-44`, not `inline-flex min-h-11`. A 44px min-height on an
+               inline box inside 11.5px/1.5 copy forces the whole line box to
+               44px, so the link fell to its own line with ~27px of dead air
+               above it — the strip read as three loose lines instead of a
+               tight note. tap-44 expands the hit area with a ::before overlay
+               and leaves the painted line box alone, which is the same remedy
+               C-013 prescribes everywhere else. */
+            "tap-44 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             dark
               ? "text-indigo-link-on-dark focus-visible:ring-offset-panel"
               : "text-brand-blue-deep underline focus-visible:ring-offset-background",

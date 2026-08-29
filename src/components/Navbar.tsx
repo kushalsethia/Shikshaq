@@ -82,7 +82,7 @@ function LogoOrTourTrigger({ onDark = false }: { onDark?: boolean }) {
         size="nav"
         className="tap-44 flex-none"
         onDark={onDark}
-        ariaLabel="How ShikshAQ works"
+        ariaLabel="How Shikshaq works"
         priority
         onClick={(e) => {
           e.preventDefault();

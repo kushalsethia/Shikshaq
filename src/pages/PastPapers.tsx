@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck } from 'lucide-react';
 import { SearchControl } from '@/components/SearchControl';
+import { loadPaperIndex, hasYear, schoolLabel } from '@/lib/question-bank';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +22,13 @@ import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { BROWSE_PATH } from '@/lib/nav-config';
+
+/* Section switches. `bySchool` is off by request: with the question bank in,
+   "by school" is 100 entries of which most hold a single paper, so the grid
+   read as a directory rather than a way in. Subject, board and class are the
+   cuts that actually narrow things. The query and markup are untouched, so
+   this is one boolean to bring it back. */
+const FEATURES = { bySchool: false };
 
 interface Paper {
   id: string;
@@ -109,6 +117,16 @@ function ShelfSkeleton() {
 }
 
 export default function PastPapers() {
+  /* Drives the cover rail's leading edge fade. Cheap: one boolean, flipped
+     only when the rail crosses the 8px threshold, so scrolling does not
+     re-render on every frame. */
+  const coverRailRef = useRef<HTMLDivElement>(null);
+  const [coverRailScrolled, setCoverRailScrolled] = useState(false);
+  const onCoverRailScroll = useCallback(() => {
+    const next = (coverRailRef.current?.scrollLeft ?? 0) > 8;
+    setCoverRailScrolled((prev) => (prev === next ? prev : next));
+  }, []);
+
   usePageMeta(
     // 58 chars. Was 74, so ~14 characters were truncated out of the SERP.
     'Free Past Year Question Papers - CBSE, ICSE, ISC | Shikshaq',
@@ -256,12 +274,127 @@ export default function PastPapers() {
   const readThisWeek = personal.data?.readThisWeek ?? 0;
   const newPaperCount = personal.data?.newCount ?? null;
 
-  const schoolStats = landing.data?.schoolStats ?? [];
+  /* The 193 question-bank papers are papers on this surface too, not a
+     separate collection behind their own page. Loaded once, cached forever
+     (a static asset never goes stale), and mapped into the same shape the
+     database rows use so everything below treats them identically. */
+  const bankQuery = useQuery({
+    queryKey: ['past-papers', 'bank'],
+    staleTime: Infinity,
+    gcTime: Infinity,
+    queryFn: async (): Promise<Paper[]> =>
+      /* Kept TRUTHFUL — board is the board, subject is the subject, year is a
+         year — because these rows feed the board/subject/school facets and the
+         results filter, not just the shelf. The cover's own display mapping is
+         built at the call site (coverPaper below), so presentation never
+         corrupts the data it is drawn from. */
+      (await loadPaperIndex()).map((b) => ({
+        id: b.id,
+        title: `Class ${b.cls} Mathematics`,
+        school: schoolLabel(b.school),
+        subject: 'Maths',
+        class: b.cls,
+        board: b.board,
+        exam_type: b.exam,
+        year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+        file_url: null,
+        created_at: '',
+        _bankYear: b.year,
+        _questions: b.questionCount,
+      })),
+  });
+  /* Memoised on the query data, not written as `?? []` inline: a fresh []
+     every render is a new identity, which invalidated all three useMemos
+     below on every single render and re-derived the facets each time. */
+  const bankPapers = useMemo(() => bankQuery.data ?? [], [bankQuery.data]);
+
+  /* Everything a cover can say that its three built-in slots do not already:
+     the class always, and the school whenever the headline is showing the year
+     instead (the board-published papers). No duplicates — a cover repeating
+     "ICSE" three times tells the reader nothing. */
+  /* How a bank paper is drawn on a cover. Three built-in slots, so: eyebrow
+     carries board (+ year when the school is not the board), headline carries
+     whatever distinguishes this paper from its shelf-mates — the school, or
+     the year when the papers ARE the board's own — and the footer carries the
+     exam and the question count. */
+  const coverPaper = (p: Paper) => {
+    const bank = p as Paper & { _bankYear?: string; _questions?: number };
+    if (p.file_url !== null || bank._questions === undefined) return p;
+    const year = bank._bankYear ?? '';
+    /* "ICSE 2026" with no school IS the board's own paper — schoolLabel marks
+       those "ICSE board paper", and the year becomes the headline because it
+       is the only thing separating one board paper from the next. */
+    const schoolIsBoard = /board paper$/i.test(p.school);
+    return {
+      ...p,
+      subject: schoolIsBoard && hasYear(year) ? year : p.school,
+      board: schoolIsBoard ? p.board : [p.board, hasYear(year) ? year : null].filter(Boolean).join(' · '),
+      title: p.exam_type.replace(/ Examination$/, '').replace(/^Pre-board.*/, 'Pre-board'),
+      year: `${bank._questions} questions` as unknown as number,
+    };
+  };
+
+  const coverMeta = (p: Paper): string[] => {
+    const out: string[] = [];
+    const shown = coverPaper(p);
+    /* Subject first and always. Once the headline became the school (so a
+       shelf of Maths papers is distinguishable at all), nothing on the cover
+       said what subject it was — the one fact a student filters on hardest. */
+    const subject = String(p.subject ?? '').trim();
+    if (subject && subject !== String(shown.subject ?? '')) out.push(subject);
+    if (p.class) out.push(`Class ${p.class}`);
+    const headline = String(shown.subject ?? '');
+    const school = String(p.school ?? '');
+    if (school && school !== headline && !String(shown.board ?? '').includes(school)) out.push(school);
+    return out;
+  };
+
+  /* Facets count the bank papers too. Without this the board row, the subject
+     row and the "By school" grid all described only the 18 database papers
+     while the page's own heading claimed 211 — the counts and the total
+     disagreed on the same screen. */
+  const schoolStats = useMemo<SchoolStat[]>(() => {
+    const base = new Map<string, SchoolStat>();
+    (landing.data?.schoolStats ?? []).forEach((st) => base.set(st.school, { ...st }));
+    const bySchool = new Map<string, Map<string, number>>();
+    bankPapers.forEach((p) => {
+      const boards = bySchool.get(p.school) ?? new Map<string, number>();
+      boards.set(p.board, (boards.get(p.board) ?? 0) + 1);
+      bySchool.set(p.school, boards);
+    });
+    bySchool.forEach((boards, school) => {
+      let dominantBoard = '';
+      let dominantCount = 0;
+      let total = 0;
+      boards.forEach((count, board) => {
+        total += count;
+        if (count > dominantCount) { dominantCount = count; dominantBoard = board; }
+      });
+      const existing = base.get(school);
+      if (existing) {
+        existing.count += dominantCount;
+        existing.otherBoardCount += total - dominantCount;
+      } else {
+        base.set(school, { school, board: dominantBoard, count: dominantCount, otherBoardCount: total - dominantCount });
+      }
+    });
+    return [...base.values()].sort((a, b) => a.school.localeCompare(b.school));
+  }, [landing.data, bankPapers]);
   const mostRead = landing.data?.mostRead ?? [];
-  const recentPapers = landing.data?.recentPapers ?? [];
-  const subjectCounts = landing.data?.subjectCounts ?? {};
-  const boardCounts = landing.data?.boardCounts ?? {};
-  const totalPapers = landing.data?.totalPapers ?? null;
+  /* Bank papers lead: they read as questions rather than as a scan, which is
+     the better thing to land on. */
+  const recentPapers = [...bankPapers, ...(landing.data?.recentPapers ?? [])];
+  const subjectCounts = useMemo(() => {
+    const out: Record<string, number> = { ...(landing.data?.subjectCounts ?? {}) };
+    bankPapers.forEach((p) => { out[p.subject] = (out[p.subject] ?? 0) + 1; });
+    return out;
+  }, [landing.data, bankPapers]);
+  const boardCounts = useMemo(() => {
+    const out: Record<string, number> = { ...(landing.data?.boardCounts ?? {}) };
+    bankPapers.forEach((p) => { out[p.board] = (out[p.board] ?? 0) + 1; });
+    return out;
+  }, [landing.data, bankPapers]);
+  const totalPapers = (landing.data?.totalPapers ?? 0) + bankPapers.length || null;
   const loading = !hasFilters && landing.isPending;
   const loadError = landing.isError;
 
@@ -365,7 +498,12 @@ export default function PastPapers() {
                 pre-footer's "Real school papers, shared by students, free to
                 read." headline just below on this same page. */}
             <p className="mt-3 max-w-[62ch] text-[15px] leading-[1.55] text-white/[.82] sm:mt-4 sm:text-[17.5px]">
-              Past papers from Kolkata schools, shared by students. Free to read, with marking schemes where the boards publish them.
+              {/* Not "from Kolkata schools" any more: the question bank added
+                  193 ICSE and CBSE papers, and while some are Kolkata ones
+                  (La Martiniere, Bhavan's, DPS Joka, Don Bosco Park Circus)
+                  most are from schools elsewhere in India. Saying Kolkata
+                  would be plainly untrue on the same screen that lists them. */}
+              Real ICSE and CBSE papers, shared by students. Free to read, with marking schemes where the boards publish them.
             </p>
             {/* Owner mobile QA: "Sign in free to read" here was a second,
                 premature sign-in CTA above the fold — the gate a reader
@@ -395,8 +533,27 @@ export default function PastPapers() {
             <div className="relative -mx-4 mt-[26px] rounded-t-[28px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pt-[18px] sm:mx-auto sm:max-w-[1000px] sm:px-[26px] sm:pt-[26px]">
               {/* items-end + overflow-y-visible: the covers stand OUT of the
                   tray's top edge, so a clipping scroller would slice their
-                  tops off. ScrollRail hides the native bar and fades the edge
-                  instead. */}
+                  tops off — which is why this is a plain scrollbar-hide row and
+                  not ScrollRail (that one clips on both axes). The edge fade
+                  ScrollRail would have given us is rendered explicitly below;
+                  without it the third cover ended at a hard vertical slice
+                  right where the dashed tray corner curves, which reads as a
+                  rendering fault rather than as a shelf that continues. */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-[1.5px] right-[1.5px] z-10 w-12 rounded-tr-[28px] bg-gradient-to-l from-brand-blue via-brand-blue/70 to-transparent sm:hidden"
+              />
+              {/* Matching fade at the start, but only once there IS something
+                  scrolled past. Drawn unconditionally it would dim the first
+                  cover's spine at rest; absent entirely, scrolling left cut the
+                  first cover off with a hard square edge against the tray's
+                  rounded corner. */}
+              <div
+                aria-hidden="true"
+                className={`pointer-events-none absolute inset-y-[1.5px] left-[1.5px] z-10 w-12 rounded-tl-[28px] bg-gradient-to-r from-brand-blue via-brand-blue/70 to-transparent transition-opacity duration-200 sm:hidden ${
+                  coverRailScrolled ? 'opacity-100' : 'opacity-0'
+                }`}
+              />
               {/* Reported as covers "scrolling in a weird box". Measured against
                   Past Papers Redesign.dc.html at 390: the drawing puts THREE
                   covers at 152x200 in the tray, the third deliberately cut by
@@ -415,15 +572,23 @@ export default function PastPapers() {
                   mockup starts the shelf flush with the tray's padding and lets
                   only the far end run off. From sm: the covers fit, so centring
                   is correct again. */}
-              <div className="scrollbar-hide flex items-end justify-start gap-3 overflow-x-auto overflow-y-visible pb-0 sm:justify-center sm:gap-[18px] sm:overflow-visible">
+              <div
+                ref={coverRailRef}
+                onScroll={onCoverRailScroll}
+                className="scrollbar-hide flex items-end justify-start gap-3 overflow-x-auto overflow-y-visible pb-0 sm:justify-center sm:gap-[18px] sm:overflow-visible"
+              >
                 {recentPapers.slice(0, 5).map((p, i) => (
                   <PaperCover
                     key={p.id}
-                    paper={p}
+                    paper={coverPaper(p)}
+                    meta={coverMeta(p)}
+                    tintKey={p.file_url === null ? `${p.school}-${p.id}` : undefined}
                     href={`/past-papers/${p.id}`}
-                    locked={!user}
+                    /* Not auth-locked for now: reading is the point, and a
+                       gate on a free library only stops people seeing it. */
+                    locked={false}
                     size="desktop"
-                    className={`!h-[200px] !w-[152px] flex-none sm:!h-[210px] sm:!w-[150px] ${
+                    className={`!h-[228px] !w-[152px] flex-none sm:!h-[236px] sm:!w-[150px] ${
                       i >= 3 ? 'hidden sm:block' : ''
                     }`}
                   />
@@ -490,10 +655,15 @@ export default function PastPapers() {
                 {recentPapers.map((p) => (
                   <PaperCover
                     key={p.id}
-                    paper={p}
+                    paper={coverPaper(p)}
+                    meta={coverMeta(p)}
+                    tintKey={p.file_url === null ? `${p.school}-${p.id}` : undefined}
                     href={`/past-papers/${p.id}`}
-                    locked={!user}
-                    className="animate-card-reveal motion-reduce:animate-none"
+                    /* Not auth-locked for now: reading is the point, and a
+                       gate on a free library only stops people seeing it. */
+                    locked={false}
+                    size="desktop"
+                    className="animate-card-reveal motion-reduce:animate-none !h-[228px] !w-[150px]"
                   />
                 ))}
               </ShelfLedge>
@@ -599,7 +769,12 @@ export default function PastPapers() {
             name + count + chevron.
             Handoff PP-010: wrapped in a BentoPanel; rows bg-card -> bg-muted,
             shadow-border removed (bone on bone). */}
-        {!loading && !loadError && schoolStats.length > 0 && (
+        {/* Hidden for now, by request. With the question bank in, "by school"
+            is 100 entries of which most hold a single paper, so the grid reads
+            as a directory rather than a way in. Subject, board and class are
+            the cuts that actually narrow things, and they stay. The query and
+            the markup are left intact so this is one flag to bring back. */}
+        {FEATURES.bySchool && !loading && !loadError && schoolStats.length > 0 && (
           <BentoPanel fill="card" className="p-[22px]">
             <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">By school</h2>
             <div className="stagger-children grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]">

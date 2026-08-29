@@ -301,4 +301,26 @@ export function getSubjectPalette(subject: string | null | undefined): SubjectPa
   return family ? paletteFromSeed(SUBJECT_SEEDS[family]) : FALLBACK_SUBJECT_PALETTE;
 }
 
+/**
+ * A stable palette for something that has no subject of its own.
+ *
+ * The past-paper shelf needed this: every paper in the question bank is
+ * Mathematics, so colouring by subject gave 193 identical orange covers, and
+ * colouring by school name fell through to the neutral fallback and gave 193
+ * identical beige ones. Hashing a key across the same eight seeds keeps the
+ * shelf inside the palette system — no new colours, no literals — while making
+ * one paper distinguishable from the next at a glance.
+ *
+ * Decorative by design: the colour carries no meaning here, it only separates.
+ * Use `getSubjectPalette` wherever the colour is supposed to MEAN a subject.
+ */
+export function paletteFromKey(key: string | null | undefined): SubjectPalette {
+  const k = (key ?? '').trim();
+  if (!k) return FALLBACK_SUBJECT_PALETTE;
+  const names = Object.keys(SUBJECT_SEEDS) as (keyof typeof SUBJECT_SEEDS)[];
+  let hash = 0;
+  for (let i = 0; i < k.length; i += 1) hash = (hash * 31 + k.charCodeAt(i)) >>> 0;
+  return paletteFromSeed(SUBJECT_SEEDS[names[hash % names.length]]);
+}
+
 export default getSubjectPalette;

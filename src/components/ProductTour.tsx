@@ -313,9 +313,9 @@ function ProductTour({ open, onOpenChange }: ProductTourProps) {
           )}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <DialogPrimitive.Title className="sr-only">ShikshAQ product tour</DialogPrimitive.Title>
+          <DialogPrimitive.Title className="sr-only">Shikshaq product tour</DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">
-            A short tour of finding teachers and reading past papers on ShikshAQ.
+            A short tour of finding teachers and reading past papers on Shikshaq.
           </DialogPrimitive.Description>
 
           {/* Nav row: inverted logo left, 40px close disc right. */}

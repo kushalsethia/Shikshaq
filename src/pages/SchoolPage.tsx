@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, FileText } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
 import { schoolSlug } from '@/lib/school-slug';
+import { loadPaperIndex, schoolBySlug, hasYear } from '@/lib/question-bank';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useChromeConfig } from '@/components/layout/AppShell';
@@ -47,13 +48,20 @@ function splitNameForHeading(name: string): [string, string] {
   return [name.slice(0, lastSpace), name.slice(lastSpace + 1)];
 }
 
+/* Two sources feed this page (the `papers` table and the question bank) and
+   they describe a paper differently — one has an editorial title and a year
+   column, the other has a question count and often no year at all. Rather
+   than teach the row JSX about both, each source maps itself into this shape
+   and builds its own `meta` line, so the markup below prints one thing. */
 interface SchoolPaper {
   id: string;
   title: string;
   subject: string;
   class: string;
   board: string;
-  year: number;
+  /** Null where the source never recorded one — sorted last, never shown as 0. */
+  year: number | null;
+  meta: string;
 }
 
 export default function SchoolPage() {
@@ -83,12 +91,64 @@ export default function SchoolPage() {
         .order('year', { ascending: false });
 
       const rows = (data || []).filter((p) => schoolSlug(p.school) === slug);
-      return { name: rows[0]?.school ?? null, papers: rows as SchoolPaper[] };
+      return {
+        name: rows[0]?.school ?? null,
+        papers: rows.map((p): SchoolPaper => ({
+          id: p.id,
+          title: p.title,
+          subject: p.subject,
+          class: p.class,
+          board: p.board,
+          year: p.year ?? null,
+          meta: [p.subject, p.class ? `Class ${p.class}` : null, p.board, p.year]
+            .filter(Boolean)
+            .join(' · '),
+        })),
+      };
     },
   });
 
-  const school = query.data;
-  const papers = school?.papers ?? [];
+  /* The bank's half of this school. Until this existed, /school/:slug read
+     only the `papers` table, so a school with bank papers live on
+     /past-papers had an empty page of its own — the wiring simply stopped.
+     This reads the light paper index (~31KB) rather than the full bank
+     (2.5MB): a school page lists papers, it never shows question text. Both
+     the fetch and the grouping are memoised for the session, so opening a
+     second school costs nothing beyond the lookup. */
+  const bankQuery = useQuery({
+    queryKey: ['school-bank', slug],
+    staleTime: Infinity,
+    gcTime: Infinity,
+    queryFn: async () => schoolBySlug(await loadPaperIndex(), slug),
+  });
+
+  const bankSchool = bankQuery.data ?? null;
+
+  const papers = useMemo<SchoolPaper[]>(() => {
+    const fromBank = (bankSchool?.papers ?? []).map((b): SchoolPaper => ({
+      id: b.id,
+      title: `Class ${b.cls} Mathematics`,
+      subject: 'Mathematics',
+      class: b.cls,
+      board: b.board,
+      year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : null,
+      /* Says what this row actually knows. The school is the page, and the
+         subject is in the title, so neither is repeated here. */
+      meta: [
+        b.board,
+        hasYear(b.year) ? b.year : 'Year not recorded',
+        `${b.questionCount} question${b.questionCount === 1 ? '' : 's'}`,
+      ].join(' · '),
+    }));
+
+    return [...(query.data?.papers ?? []), ...fromBank].sort((a, b) => {
+      // Undated papers go last rather than sorting as year zero.
+      if (a.year === b.year) return 0;
+      if (a.year === null) return 1;
+      if (b.year === null) return -1;
+      return b.year - a.year;
+    });
+  }, [query.data, bankSchool]);
 
   // Shared facets — boards/classes/years feed the summary line, years also
   // drive the year chips below, and boards+subjects drive the teacher
@@ -99,7 +159,8 @@ export default function SchoolPage() {
     [papers],
   );
   const years = useMemo(
-    () => [...new Set(papers.map((p) => p.year).filter(Boolean))].sort((a, b) => b - a),
+    () => [...new Set(papers.map((p) => p.year).filter((y): y is number => y != null))]
+      .sort((a, b) => b - a),
     [papers],
   );
 
@@ -109,7 +170,15 @@ export default function SchoolPage() {
     /* Each clause drops rather than guesses when its data is missing
        (design.md §0.10). A school with one year shows that year, not a range. */
     const parts = [`${papers.length} paper${papers.length === 1 ? '' : 's'}`];
-    if (boards.length) parts.push(boards.join(' & '));
+    /* "ISC & ICSE & Board" — a school with three boards read as a chain of
+       ampersands. A list separates with commas and joins the last with one. */
+    if (boards.length) {
+      parts.push(
+        boards.length === 1
+          ? boards[0]
+          : `${boards.slice(0, -1).join(', ')} & ${boards[boards.length - 1]}`,
+      );
+    }
     if (classes.length) {
       parts.push(
         classes.length === 1
@@ -119,7 +188,7 @@ export default function SchoolPage() {
     }
     if (years.length) {
       const ascYears = [...years].sort((a, b) => a - b);
-      parts.push(ascYears.length === 1 ? String(ascYears[0]) : `${ascYears[0]}–${ascYears[ascYears.length - 1]}`);
+      parts.push(ascYears.length === 1 ? String(ascYears[0]) : `${ascYears[0]}-${ascYears[ascYears.length - 1]}`);
     }
     return parts.join(' · ');
   }, [papers, boards, classes, years]);
@@ -209,12 +278,28 @@ export default function SchoolPage() {
     ? `${BROWSE_PATH}?filter_boards=${encodeURIComponent(boards.join(','))}`
     : `${BROWSE_PATH}?filter_subjects=${encodeURIComponent(subjects.join(','))}`;
 
-  const name = school?.name ?? 'School';
+  /* Both sources are independent: if the table is down but the bank
+     answered, this school's bank papers still render. Only a dead end when
+     neither could answer at all. */
+  const loading = query.isLoading || bankQuery.isLoading;
+  const failed = query.isError && bankQuery.isError;
+
+  /* Either source can be the one that knows this school's name. When neither
+     does and nothing is still in flight, the slug resolves to no school at
+     all — say that, rather than heading the page with a bare "School", which
+     read as a page about a school whose name had failed to load. */
+  const resolvedName = query.data?.name ?? bankSchool?.name ?? null;
+  const unknownSchool = !resolvedName && !loading && !failed;
+  const name = resolvedName ?? (unknownSchool ? 'School not found' : 'School');
   usePageMeta(
-    papers.length ? `${name} past papers | Shikshaq` : 'School past papers | Shikshaq',
+    papers.length
+      ? `${name} past papers | Shikshaq`
+      : unknownSchool
+        ? 'School not found | Shikshaq'
+        : 'School past papers | Shikshaq',
     papers.length
       ? `${papers.length} past papers from ${name}, free to read on Shikshaq.`
-      : 'Past papers from Kolkata schools, free to read on Shikshaq.',
+      : 'Past papers from schools across India, free to read on Shikshaq.',
   );
 
   // This route (S16, "new" per a-to-z.md) shipped with no structured data at
@@ -245,7 +330,7 @@ export default function SchoolPage() {
     };
   }, [papers.length, name, slug]);
 
-  const hasResults = !query.isLoading && !query.isError && papers.length > 0;
+  const hasResults = !loading && papers.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -282,13 +367,41 @@ export default function SchoolPage() {
                through to "No papers from this school yet.", which is a
                factual claim about the data made on the strength of a
                network error, and it offered no way to retry. */
-            <BentoPanel fill="card">
-              {query.isLoading ? (
+            <BentoPanel fill="card" className="px-[22px] py-8 sm:px-6 lg:px-8">
+              {loading ? (
                 <ListLoading />
-              ) : query.isError ? (
-                <ListError onRetry={() => query.refetch()} />
+              ) : failed ? (
+                <ListError onRetry={() => { query.refetch(); bankQuery.refetch(); }} />
               ) : (
-                <ListEmpty line="No papers from this school yet." />
+                /* A bare "no papers yet" line left a reader at a dead end on a
+                   page they reached on purpose. The library grows by people
+                   sending papers in, so the empty state asks for the one thing
+                   that would fill it, and offers somewhere to go if they have
+                   nothing to give. */
+                <div className="mx-auto w-full max-w-prose">
+                  <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+                    No papers here yet
+                  </h2>
+                  <p className="mt-2.5 text-[14.5px] leading-[1.6] text-warm-prose">
+                    {resolvedName
+                      ? `Nobody has sent us a paper from ${resolvedName} yet. If you have one sitting in a drawer, it takes a minute to send and the next batch revises from it.`
+                      : 'We have no papers filed under this school. It may not be on Shikshaq yet, or the link may be out of date.'}
+                  </p>
+                  <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
+                    <Button asChild variant="primary" size={48}>
+                      <Link to="/submit-a-paper">
+                        Send a paper
+                        <ArrowRight className="h-[15px] w-[15px]" aria-hidden="true" />
+                      </Link>
+                    </Button>
+                    <Link
+                      to={PAST_PAPERS_PATH}
+                      className="tap-44 inline-flex items-center text-[14px] font-semibold text-brand-blue underline underline-offset-4 transition-colors duration-tap hover:text-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      Read papers from every school
+                    </Link>
+                  </div>
+                </div>
               )}
             </BentoPanel>
           ) : (
@@ -387,9 +500,7 @@ export default function SchoolPage() {
                               {paper.title}
                             </span>
                             <span className="mt-px block truncate text-[12px]" style={{ color: palette.meta }}>
-                              {[paper.subject, paper.class ? `Class ${paper.class}` : null, paper.board, paper.year]
-                                .filter(Boolean)
-                                .join(' · ')}
+                              {paper.meta}
                             </span>
                           </span>
                           <ArrowRight className="h-4 w-4 flex-none" style={{ color: palette.meta }} aria-hidden="true" />

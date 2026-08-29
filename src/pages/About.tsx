@@ -119,7 +119,7 @@ export default function About() {
           {/* Handoff AB-003: lede + stats grid. */}
           <BentoPanel fill="card" className="p-[22px]">
             <p className="text-[15px] leading-[1.6] text-warm-prose">
-              ShikshAQ started because finding a tutor in Kolkata still meant asking three
+              Shikshaq started because finding a tutor in Kolkata still meant asking three
               neighbours and trusting a photocopied leaflet. We list teachers, verify who they
               say they are, and then get out of the way. The fee you agree is the fee the
               teacher keeps.
@@ -136,6 +136,169 @@ export default function About() {
                   <div className="mt-0.5 text-[12.5px] leading-[1.4] text-warm-label">{st.label}</div>
                 </div>
               ))}
+            </div>
+          </BentoPanel>
+
+          {/* The story, told properly. The page opened on a statement, a
+              paragraph and a stats grid, which says what Shikshaq is but never
+              how it came to exist or why it is shaped the way it is. Three
+              short movements: the problem as it actually is in Kolkata, the
+              decision that follows from it, and who it is for. Every claim
+              here is one the product already keeps elsewhere. */}
+          <BentoPanel fill="card" className="p-[22px]">
+            <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-deep">
+              How this started
+            </span>
+            <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+              Finding a tutor should not be a favour you ask around for
+            </h2>
+            <div className="mt-3 grid max-w-prose gap-3 text-[15px] leading-[1.65] text-warm-prose">
+              <p>
+                In most of Kolkata, finding a teacher still runs on hearsay. You ask a neighbour,
+                who asks their sister, who knows someone who taught her son four years ago. If you
+                are lucky the number still works. Nobody can tell you what he charges, which boards
+                he has actually taught, or whether he travels to your part of the city, so you
+                arrange a meeting to find out and lose a Saturday discovering the answer is no.
+              </p>
+              <p>
+                The alternatives were worse. Coaching directories sold the same enquiry to six
+                centres and left the phone ringing for a month. Aggregators quoted a rate, took a
+                cut of every class, and made the teacher raise their fee to cover it. In both cases
+                the person who actually teaches was the last one consulted and the first one
+                squeezed.
+              </p>
+              <p>
+                So we built the boring version instead: a list you can filter, with the fee, the
+                boards, the classes and the areas each teacher travels to written down before you
+                contact anyone, and a WhatsApp thread straight to them when you do. No commission,
+                because the moment we take one we start having opinions about who you should pick.
+              </p>
+            </div>
+          </BentoPanel>
+
+          <BentoPanel fill="card" className="p-[22px]">
+            <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-deep">
+              Who it is for
+            </span>
+            <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+              Both sides of the same conversation
+            </h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-[18px] bg-muted p-4">
+                <p className="text-[14.5px] font-bold text-foreground">If you are looking</p>
+                <p className="mt-1.5 text-[14px] leading-[1.6] text-warm-secondary">
+                  Search by subject, class, board and area, read what other students wrote, and
+                  message the teacher yourself. You never pay us, and we never put ourselves in the
+                  middle of what you agree with them.
+                </p>
+              </div>
+              <div className="rounded-[18px] bg-muted p-4">
+                <p className="text-[14.5px] font-bold text-foreground">If you teach</p>
+                <p className="mt-1.5 text-[14px] leading-[1.6] text-warm-secondary">
+                  Listing is free and stays free. You set your own rate, you keep all of it, and
+                  enquiries arrive as a message from a real person rather than as a lead somebody
+                  sold. Nothing about your listing goes live until you have approved it.
+                </p>
+              </div>
+            </div>
+          </BentoPanel>
+
+          {/* How we work — the reasoning under the "no commission" pill in the
+              header, spelled out. Every claim here is one the product already
+              makes elsewhere (the fee line on every teacher profile, the
+              WhatsApp CTA, the verification badge, the free-to-read papers);
+              nothing is asserted that the app does not already do. */}
+          <BentoPanel fill="card" className="p-[22px]">
+            <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+              How we work
+            </h2>
+            <p className="mt-2.5 text-[15px] leading-[1.6] text-warm-prose">
+              Most tuition sites earn by standing between you and the teacher. A cut of
+              every fee, a number you cannot dial, a counsellor who rings for a month. We took
+              the other bet: be useful enough to be worth opening, and take nothing from the
+              people doing the actual teaching.
+            </p>
+            <ul className="mt-4 grid gap-3">
+              {[
+                {
+                  head: 'The fee is the fee',
+                  body: 'Whatever you settle with a teacher is what they keep. We take no commission, so nobody here has a reason to steer you towards a pricier tutor.',
+                },
+                {
+                  head: 'You message them, not us',
+                  body: 'Every profile ends in a WhatsApp thread with that teacher. No call centre, no lead form, no one selling your number onward.',
+                },
+                {
+                  head: 'Verified means a person checked',
+                  body: 'The badge means ID and qualifications were looked at by a human. Where we have not checked, there is no badge. We would rather show you less than imply more.',
+                },
+                {
+                  head: 'Free stays free',
+                  body: 'Past papers are free to read and always will be. They are not bait for an account upgrade, because there is no upgrade.',
+                },
+              ].map((pt) => (
+                <li key={pt.head} className="flex gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="mt-[7px] h-2 w-2 flex-none rounded-[2px] bg-brand"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-[14.5px] font-bold text-foreground">{pt.head}</span>
+                    <span className="mt-0.5 block text-[14px] leading-[1.55] text-warm-secondary">
+                      {pt.body}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </BentoPanel>
+
+          {/* The papers network. This is the one part of Shikshaq that students
+              built for each other rather than something we made for them, so it
+              gets said in their terms, not ours. Indigo panel because papers are
+              indigo everywhere else in the product. */}
+          <BentoPanel fill="card" className="p-[22px]">
+            <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-blue">
+              Students helping students
+            </span>
+            <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+              The papers came from the people who sat them
+            </h2>
+            <p className="mt-2.5 text-[15px] leading-[1.6] text-warm-prose">
+              Nobody at Shikshaq wrote a single question on this site. Every past paper here was
+              sent in by a student who had already sat it and decided the next batch should not
+              have to hunt for it the way they did. A prelim from a school that never put
+              theirs online, a half-yearly that only ever existed as a photocopy going round a
+              class WhatsApp group.
+            </p>
+            <p className="mt-3 text-[15px] leading-[1.6] text-warm-prose">
+              That is the whole mechanism. One person who is finished helping the person who is
+              about to start. It costs the sender nothing and saves the next reader an afternoon,
+              which is a good trade about a thousand times over.
+            </p>
+            <div className="mt-4 rounded-[18px] bg-muted p-4">
+              <p className="text-[13.5px] font-bold text-foreground">Where we draw the line</p>
+              <p className="mt-1 text-[13.5px] leading-[1.6] text-warm-secondary">
+                The questions belong to the schools that set them, not to us and not to the
+                student who shared them. So papers are free to read and not to download or
+                repost, every one names its school, and any school that wants theirs taken down
+                only has to ask. We would rather host fewer papers honestly than more of them
+                badly.
+              </p>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2.5">
+              {/* indigo, not primary: papers are blue in every other surface of
+                  the product (the mode toggle, the covers, the reader), and an
+                  orange CTA on the papers panel breaks that one association. */}
+              <Button asChild variant="indigo" size={46}>
+                <Link to="/past-papers">
+                  Read the papers
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </Button>
+              <Button asChild variant="secondary" size={46}>
+                <Link to="/contact">Send us one you have</Link>
+              </Button>
             </div>
           </BentoPanel>
 
@@ -157,7 +320,7 @@ export default function About() {
             </div>
             <p className="text-[13.5px] leading-[1.65] text-background/78">
               &ldquo;We built this for our own families first. If a teacher near you is good, you
-              should be able to find them in under a minute &mdash; and talk to them without
+              should be able to find them in under a minute, and talk to them without
               anyone taking a cut.&rdquo;
             </p>
             <Button asChild variant="primary" size={46} className="mt-4">
@@ -184,7 +347,7 @@ export default function About() {
               <div className="min-w-0 flex-1">
                 <p className="text-[16px] font-semibold text-foreground">Know a good teacher?</p>
                 <p className="mt-0.5 text-[14px] leading-[1.45] text-warm-secondary">
-                  Recommend them &mdash; we&rsquo;ll reach out and get them listed, free.
+                  Recommend them and we&rsquo;ll reach out to get them listed, free.
                 </p>
               </div>
               <ArrowRight className="h-5 w-5 flex-none text-warm-label" aria-hidden="true" />

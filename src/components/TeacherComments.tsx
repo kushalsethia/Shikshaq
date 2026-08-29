@@ -421,17 +421,25 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
       ) : error ? (
         <ListError onRetry={fetchComments} />
       ) : comments.length === 0 ? (
-        // "No reviews yet" is one of VISUAL_DIRECTION §4's named LOUD moments —
-        // the single highest-leverage empty state on this page, since a new
-        // teacher profile will sit at zero reviews for a while.
-        <div className="sticker sticker-rotate-sm outline-offset-shadow mx-auto max-w-sm rounded-2xl bg-card px-6 py-8 text-center">
-          <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-subtle">
+        /* The house empty-state shape (design.md §3, the same shell ListEmpty
+           and ListOverFiltered use), not a bespoke card. This was a tilted
+           `sticker` with an offset shadow sitting inside the reviews panel —
+           a rotated white card on a tinted card, carrying two effects the flat
+           pass (S-002/H-021) removed everywhere else on the page. It is still
+           the page's loudest empty state; it is just loud in this product's
+           language now. */
+        <div className="flex flex-col items-start gap-4 rounded-2xl bg-card p-6">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-subtle">
             <Sparkles className="h-6 w-6 text-brand-deep" aria-hidden="true" />
           </span>
-          <p className="font-display text-xl font-bold tracking-tight text-foreground">No reviews yet</p>
-          <p className="mx-auto mt-2 max-w-[32ch] text-sm text-muted-foreground">
-            Be the first parent or student to share how it went.
-          </p>
+          <div>
+            <p className="font-display text-[19px] font-extrabold tracking-[-0.03em] text-foreground">
+              No reviews yet
+            </p>
+            <p className="mt-1.5 max-w-[38ch] text-[14px] leading-[1.55] text-warm-secondary">
+              Be the first parent or student to share how it went.
+            </p>
+          </div>
         </div>
       ) : (
         <>
@@ -440,14 +448,15 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
               swipe nobody was told to make). Desktop: fanned overlapping
               stack (C7 / C-062) — −22px overlap approximated with allowed
               spacing steps, see review-card.tsx. */}
-          <div className="stagger-children flex flex-col gap-[12px] pb-4 pt-2 md:flex-row md:flex-wrap md:gap-[12px] md:overflow-visible md:pb-8 md:pt-0">
+          {/* One grid, one render. This used to mount EVERY review twice — a
+              `fan` copy hidden below md and a flat copy hidden above it — so
+              the DOM carried double the cards on every profile. The fan itself
+              is gone too: rotated, -22px-overlapped cards with unclamped text
+              were hard to read and looked like a stack of loose paper rather
+              than reviews. Straight cards in a grid, same card shell. */}
+          <div className="stagger-children grid grid-cols-1 gap-3 pb-4 pt-2 md:grid-cols-2 md:pb-8 md:pt-0 xl:grid-cols-3">
             {cards.map((card, i) => (
-              <ReviewCard key={card.id} review={card} index={i} fan className="hidden md:block" />
-            ))}
-            {cards.map((card, i) => (
-              <div key={card.id} className="md:hidden">
-                <ReviewCard review={card} index={i} fan={false} fullWidth />
-              </div>
+              <ReviewCard key={card.id} review={card} index={i} fullWidth />
             ))}
           </div>
 

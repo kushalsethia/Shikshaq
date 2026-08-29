@@ -21,7 +21,7 @@ const SECTIONS: LegalSection[] = [
   {
     n: '01',
     title: 'Introduction',
-    short: 'By using ShikshAQ you consent to this policy — and you can withdraw that consent any time.',
+    short: 'By using Shikshaq you consent to this policy, and you can withdraw that consent any time.',
     body: (
       <>
         <p className={pClass}>
@@ -111,7 +111,7 @@ const SECTIONS: LegalSection[] = [
       <>
         <p className={pClass}>
           Your number lets a teacher reply to you. Your saves and contacts let you pick up where you left
-          off. Verification documents let us check that a teacher is who they say they are — that is the
+          off. Verification documents let us check that a teacher is who they say they are. That is the
           only reason we ask for them.
         </p>
         <p className={pMtClass}>We use the collected information for the following purposes:</p>
@@ -156,7 +156,7 @@ const SECTIONS: LegalSection[] = [
       <>
         <p className={pClass}>
           Your searches and saved teachers are private to you. Teacher verification documents are visible
-          only to the two of us who run ShikshAQ, are never published, and are never shared with another
+          only to the two of us who run Shikshaq, are never published, and are never shared with another
           teacher or a school.
         </p>
         <h3 className={h3Class}>4.1 Google OAuth</h3>
@@ -201,7 +201,7 @@ const SECTIONS: LegalSection[] = [
         <h3 className={h3Class}>4.4 Data sharing</h3>
         <p className={pClass}>
           We do not sell, trade, or rent your personal information to third parties. We have been asked to
-          sell "parent leads" and we have said no every time — there is no version of ShikshAQ where your
+          sell "parent leads" and we have said no every time. There is no version of Shikshaq where your
           number becomes someone's marketing list. We may share your information only in the following
           circumstances:
         </p>
@@ -224,7 +224,7 @@ const SECTIONS: LegalSection[] = [
       </>
     ),
     bullets: [
-      'Reviews show your first name and class — never your number.',
+      'Reviews show your first name and class, never your number.',
       'Paper reading history is private; teachers cannot see it.',
       'We do not show your exact address anywhere, only your locality.',
     ],
@@ -275,7 +275,7 @@ const SECTIONS: LegalSection[] = [
   {
     n: '07',
     title: 'Your rights and choices',
-    short: 'Ask for your data, correct it, or have it deleted — by WhatsApp is fine.',
+    short: 'Ask for your data, correct it, or have it deleted. By WhatsApp is fine.',
     body: (
       <>
         <p className={pClass}>
@@ -334,7 +334,7 @@ const SECTIONS: LegalSection[] = [
       <>
         <p className={pClass}>
           Delete your account and we remove your profile and contact details within seven days. Verification
-          documents are deleted as soon as a decision is made — approved or not. We keep a minimal record
+          documents are deleted as soon as a decision is made, approved or not. We keep a minimal record
           that a decision happened, for the audit log.
         </p>
         <p className={pMtClass}>
@@ -469,7 +469,7 @@ const SECTIONS: LegalSection[] = [
   {
     n: '12',
     title: 'Contact us',
-    short: 'Email, WhatsApp, or our website — whichever is easiest for you.',
+    short: 'Email, WhatsApp, or our website, whichever is easiest for you.',
     body: (
       <>
         <p className={pClass}>
@@ -589,7 +589,7 @@ export default function PrivacyPolicy() {
       ]}
       sections={SECTIONS}
       footHead="Want your data, or want it gone?"
-      footBody="Ask on WhatsApp or by email. We will send you everything we hold within a week, or delete it — your choice, and no questions asked."
+      footBody="Ask on WhatsApp or by email. We will send you everything we hold within a week, or delete it. Your choice, and no questions asked."
       crossLink={{ label: 'Terms of use', href: '/terms-of-service' }}
     />
   );

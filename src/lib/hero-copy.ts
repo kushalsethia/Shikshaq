@@ -27,6 +27,9 @@ export interface HeroCopy {
   after: string;
   chip: HeroChip;
   mode: HeroMode;
+  /** Where the bold span points, when it names something reachable — a
+   *  teacher's profile or a filtered list. Null for lines that name nothing. */
+  href?: string | null;
 }
 
 interface LastSearch {
@@ -63,6 +66,10 @@ export interface ResolveHeroCopyInput {
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_KEY = 'shikshaq.heroLine';
+/** The last line shown, so the next visit can step past it. */
+const LAST_LINE_KEY = 'shikshaq.heroLastLine';
+/** Advances once per visit so the trail lines cycle rather than alternate. */
+const ROTATION_KEY = 'shikshaq.heroRotation';
 
 const POOL: Array<{ before: string; bold: string; after: string }> = [
   { before: 'Who is ', bold: 'teaching your child', after: ' this term?' },
@@ -71,6 +78,22 @@ const POOL: Array<{ before: string; bold: string; after: string }> = [
   { before: 'Find the teacher, ', bold: 'message them yourself', after: '. No agent in between.' },
   { before: 'Which subject is ', bold: 'giving you trouble', after: ' this year?' },
   { before: 'Start where most parents start: ', bold: 'a name and an area', after: '.' },
+  /* Additions past the handoff's six. H-005a governs these: second person,
+     exactly one bold span, three lines max at 375px, no inventory boasting,
+     session-stable (the index is still drawn once, below).
+
+     Tone note: the brief asked for flirty. These are cheeky rather than
+     flirty, because the reader is often a parent choosing who sits with
+     their child for an hour a week — warmth lands there, a come-on does not.
+     Same playfulness, aimed at the subject instead of the person. */
+  { before: 'Still Googling ', bold: '"tuition near me"', after: '? You can stop now.' },
+  { before: 'That one chapter ', bold: 'nobody understands', after: '?' },
+  { before: 'Homework at midnight is ', bold: 'a solvable problem', after: '.' },
+  { before: 'Somewhere in Kolkata, ', bold: 'someone loves physics', after: '.' },
+  { before: 'Boards are coming. ', bold: 'Pretending otherwise', after: ' is not a plan.' },
+  { before: 'Chemistry going badly? ', bold: 'You are not the first', after: '.' },
+  { before: 'Ask around, or ', bold: 'just ask here', after: '. Both work.' },
+  { before: 'The right teacher makes ', bold: 'one subject bearable', after: '. Start there.' },
 ];
 
 function readJSON<T>(key: string): T | null {
@@ -144,7 +167,7 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName }:
       eyebrow: 'Your shortlist',
       before: `${name}, you saved `,
       bold: likedSingleTeacherName,
-      after: ' — message them?',
+      after: '. Message them?',
       chip: 'stripe',
       mode: 'teachers',
     };
@@ -162,45 +185,139 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName }:
     };
   }
 
-  // Branch 3 — recent search, fresh and complete.
+  /* Branches 3-5, rewritten as a CANDIDATE SET rather than a precedence chain.
+
+     Strict precedence meant one visitor saw the identical "You looked at
+     {name} last time. Still deciding?" on every single visit for thirty days,
+     which is both monotonous and reads like being watched. Now every piece of
+     trail data contributes two or three phrasings, subject-led ones included,
+     and the session index picks among them — so the line varies between
+     visits while staying fixed within one, which is what H-005a rule 7 asks.
+
+     Each candidate carries an href, so the bold span is the way through to the
+     thing it names instead of a dead mention. */
+  const slugify = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const candidates: HeroCopy[] = [];
+
   const lastSearch = readJSON<LastSearch>('shikshaq.lastSearch');
   if (lastSearch && isFresh(lastSearch.at) && lastSearch.subject && lastSearch.area) {
     const subjectClass = lastSearch.classLevel ? `${lastSearch.subject} ${lastSearch.classLevel}` : lastSearch.subject;
-    return {
-      eyebrow: 'Where you left off',
-      before: 'Still looking for ',
-      bold: subjectClass,
-      after: ` in ${lastSearch.area}?`,
-      chip: 'avatar',
-      mode: 'teachers',
-    };
+    const href = `/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(lastSearch.subject)}&filter_areas=${encodeURIComponent(lastSearch.area)}`;
+    candidates.push(
+      {
+        eyebrow: 'Where you left off',
+        before: 'Still looking for ',
+        bold: subjectClass,
+        after: ` in ${lastSearch.area}?`,
+        chip: 'avatar', mode: 'teachers', href,
+      },
+      {
+        eyebrow: lastSearch.subject,
+        before: 'Pick up your ',
+        bold: `${lastSearch.subject} search`,
+        after: ` in ${lastSearch.area}.`,
+        chip: null, mode: 'teachers', href,
+      },
+    );
   }
 
-  // Branch 4 — recently viewed teacher.
   const lastViewedTeacher = readJSON<LastViewedTeacher>('shikshaq.lastViewedTeacher');
   if (lastViewedTeacher && isFresh(lastViewedTeacher.at) && lastViewedTeacher.name) {
-    return {
-      eyebrow: 'Where you left off',
-      before: 'You looked at ',
-      bold: lastViewedTeacher.name,
-      after: ' last time. Still deciding?',
-      chip: 'stripe',
-      mode: 'teachers',
-    };
+    const t = lastViewedTeacher;
+    const teacherHref = `/all-tuition-teachers-in-kolkata?q=${encodeURIComponent(t.name!)}`;
+    candidates.push(
+      {
+        eyebrow: 'Where you left off',
+        before: 'You looked at ',
+        bold: t.name!,
+        after: ' last time. Still deciding?',
+        chip: 'stripe', mode: 'teachers', href: teacherHref,
+      },
+      {
+        eyebrow: 'Still on your list',
+        before: '',
+        bold: t.name!,
+        after: ' is a message away.',
+        chip: 'stripe', mode: 'teachers', href: teacherHref,
+      },
+      {
+        eyebrow: t.area ? t.area : 'Near you',
+        before: 'Pick up where you left off with ',
+        bold: t.name!,
+        after: '.',
+        chip: null, mode: 'teachers', href: teacherHref,
+      },
+    );
+    if (t.subject) {
+      candidates.push({
+        eyebrow: t.subject,
+        before: 'More ',
+        bold: `${t.subject} teachers`,
+        after: t.area ? ` around ${t.area}.` : ' in Kolkata.',
+        chip: null, mode: 'teachers',
+        href: `/${slugify(t.subject)}-tuition-teachers-in-kolkata`,
+      });
+    }
   }
 
-  // Branch 5 — recent paper subject.
   const lastPaperSubject = readJSON<LastPaperSubject>('shikshaq.lastPaperSubject');
   if (lastPaperSubject && isFresh(lastPaperSubject.at) && lastPaperSubject.board && lastPaperSubject.subject) {
-    return {
-      eyebrow: 'Past papers',
-      before: 'Two papers open in ',
-      bold: `${lastPaperSubject.board} ${lastPaperSubject.subject}`,
-      after: '. Want a tutor for it?',
-      chip: 'cover',
-      mode: 'papers',
-    };
+    const lp = lastPaperSubject;
+    candidates.push(
+      {
+        eyebrow: 'Past papers',
+        before: 'Two papers open in ',
+        bold: `${lp.board} ${lp.subject}`,
+        after: '. Want a tutor for it?',
+        chip: 'cover', mode: 'papers',
+        href: `/past-papers/results?filter_boards=${encodeURIComponent(lp.board!)}&filter_subjects=${encodeURIComponent(lp.subject!)}`,
+      },
+      {
+        eyebrow: lp.subject!,
+        before: 'Revising ',
+        bold: lp.subject!,
+        after: `? There are more ${lp.board} papers.`,
+        chip: null, mode: 'papers',
+        href: `/past-papers/results?filter_subjects=${encodeURIComponent(lp.subject!)}`,
+      },
+    );
   }
+
+  if (candidates.length > 0) {
+    /* Rotate, and never twice running. The session index alone still landed on
+       the same sentence visit after visit, so a returning reader met "You
+       looked at {name} last time. Still deciding?" every single time for a
+       month, which is the opposite of a greeting. Remembering the last line
+       and stepping past it guarantees the wording moves even when the trail
+       itself has not. */
+    const key = (c: HeroCopy) => `${c.eyebrow}|${c.bold}`;
+    let last: string | null = null;
+    try {
+      last = localStorage.getItem(LAST_LINE_KEY);
+    } catch {
+      last = null;
+    }
+    const fresh = candidates.filter((c) => key(c) !== last);
+    const pool = fresh.length > 0 ? fresh : candidates;
+    /* A counter that advances every visit, not the fixed session index — with
+       the index frozen, "never the same as last time" just alternated between
+       two lines forever. Advancing walks the whole set. */
+    let turn = 0;
+    try {
+      turn = Number(localStorage.getItem(ROTATION_KEY) ?? '0') || 0;
+      localStorage.setItem(ROTATION_KEY, String((turn + 1) % 1000));
+    } catch {
+      turn = sessionPoolIndex();
+    }
+    const picked = pool[turn % pool.length];
+    try {
+      localStorage.setItem(LAST_LINE_KEY, key(picked));
+    } catch {
+      /* private mode: rotation falls back to the session index alone. */
+    }
+    return picked;
+  }
+
 
   // Branch 6 — the pool, resolved once per session.
   const line = POOL[sessionPoolIndex()];
@@ -211,5 +328,26 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName }:
     after: line.after,
     chip: 'avatar',
     mode: 'teachers',
+  };
+}
+
+/** The hero while the search desk is set to past papers.
+ *  Every H-005 branch except 5 resolves teacher-flavoured copy, so without
+ *  this the greeting sat still while the desk beneath it changed subject —
+ *  which made the toggle read as decoration. Keeps the reader's first name
+ *  when the base copy had one, so being signed in still shows. */
+export function papersHeroCopy(
+  base: HeroCopy,
+  profile: { full_name?: string | null } | null | undefined,
+): HeroCopy {
+  if (base.mode === 'papers') return base;
+  const name = profile?.full_name ? firstNameOf(profile.full_name) : null;
+  return {
+    eyebrow: 'Past papers',
+    before: name ? `${name}, revise from ` : 'Revise from ',
+    bold: 'real board papers',
+    after: ' set by Kolkata schools',
+    chip: null,
+    mode: 'papers',
   };
 }

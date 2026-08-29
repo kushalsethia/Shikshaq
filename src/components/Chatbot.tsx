@@ -57,7 +57,7 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
   {
     keywords: ['which class', 'which grade', 'which boards', 'icse', 'cbse', 'ib', 'igcse', 'state board'],
-    response: 'Shikshaq supports Classes 1–12, UG, and PG. Boards supported: ICSE/ISC, CBSE, IB, IGCSE, and State Boards.',
+    response: 'Shikshaq supports Classes 1-12, UG, and PG. Boards supported: ICSE/ISC, CBSE, IB, IGCSE, and State Boards.',
   },
   {
     keywords: ['how do i find', 'how to find tutor', 'find right tutor', 'choose tutor'],
@@ -145,7 +145,7 @@ const QUICK_RESPONSES: { keywords: string[]; response: string }[] = [
   },
   {
     keywords: ['first time', 'never had tuition', 'where to start'],
-    response: 'Browse tutors for your class and subject, shortlist a few, speak to them, and try an initial class before deciding. You can compare 2–4 teachers.',
+    response: 'Browse tutors for your class and subject, shortlist a few, speak to them, and try an initial class before deciding. You can compare 2-4 teachers.',
   },
   {
     keywords: ['how to contact you', 'contact shikshaq', 'whatsapp number', 'support number', 'reach you', 'customer support', 'contact support', 'your email', 'your whatsapp'],
@@ -384,7 +384,7 @@ export function Chatbot() {
           nav to clear, so it always gets the smaller offset there. */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed ${chromeless ? 'bottom-[calc(24px_+_env(safe-area-inset-bottom))]' : 'bottom-[calc(88px_+_env(safe-area-inset-bottom))]'} lg:bottom-[calc(24px_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-card text-foreground shadow-[0_0_0_1px_#E7DFD5,0_10px_26px_rgba(0,0,0,.20)] hover:-translate-y-0.5 active:scale-[0.97] transition-[transform,box-shadow,opacity] duration-200 ${
+        className={`fixed ${chromeless ? 'bottom-[calc(24px_+_env(safe-area-inset-bottom))]' : 'bottom-[calc(88px_+_env(safe-area-inset-bottom))]'} lg:bottom-[calc(24px_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-brand-foreground shadow-[0_10px_26px_rgba(0,0,0,.22)] hover:-translate-y-0.5 active:scale-[0.97] transition-[transform,box-shadow,opacity] duration-200 ${
           launcherVisible
             ? isScrolling && !isOpen
               ? 'opacity-30 scale-90 pointer-events-none'
@@ -458,7 +458,7 @@ export function Chatbot() {
                   className={`max-w-[82%] rounded-[18px] px-3 py-2 md:px-4 md:py-2.5 ${
                     message.role === 'user'
                       ? 'bg-brand text-brand-foreground'
-                      : 'bg-muted text-foreground'
+                      : 'bg-muted text-foreground shadow-border'
                   }`}
                 >
                   <div
@@ -551,18 +551,29 @@ export function Chatbot() {
               flex-1 area down to near zero and clipping the second line of the greeting
               bubble underneath it. A fixed-height scroll strip keeps the chips from eating
               the space the greeting needs. */}
+          {/* The row scrolls, so the last chip is always half-cut at the panel
+              edge. A trailing fade in the panel's own fill turns that from
+              looking clipped into looking scrollable, and the chips are sized
+              down: at 44px they were as heavy as the composer itself. */}
           {messages.length <= 1 && !loading && (
-            <div className="px-3 md:px-4 pb-2 flex-shrink-0 flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-hide">
-              {SUGGESTED_PROMPTS.map((prompt) => (
-                <Chip
-                  key={prompt}
-                  tone="facet"
-                  size={44}
-                  onClick={() => handleSend(prompt)}
-                >
-                  {prompt}
-                </Chip>
-              ))}
+            <div className="relative flex-shrink-0">
+              <div className="flex flex-nowrap gap-1.5 overflow-x-auto px-3 pb-2 scrollbar-hide md:px-4">
+                {SUGGESTED_PROMPTS.map((prompt) => (
+                  <Chip
+                    key={prompt}
+                    tone="facet"
+                    size={44}
+                    className="!h-9 flex-none whitespace-nowrap !px-3.5 text-[13px]"
+                    onClick={() => handleSend(prompt)}
+                  >
+                    {prompt}
+                  </Chip>
+                ))}
+              </div>
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-card to-transparent"
+              />
             </div>
           )}
 

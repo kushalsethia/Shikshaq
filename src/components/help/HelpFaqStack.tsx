@@ -70,7 +70,7 @@ const GUIDE_TINT_BY_TITLE: Record<string, (typeof GUIDE_TINTS)[number]> = {
    admin-added fifth topic (not in this map) falls back to the same
    in-page behaviour, keeping every card real and clickable rather than
    guessing a destination for content that doesn't exist yet. */
-type GuideLink = { kind: 'route'; href: string } | { kind: 'category'; category: HelpFaqCategory };
+type GuideLink = { kind: 'route'; href: string } | { kind: 'category'; category: HelpFaqCategory | 'all' };
 
 const GUIDE_LINK_BY_TITLE: Record<string, GuideLink> = {
   'Finding a teacher': { kind: 'route', href: BROWSE_PATH },
@@ -146,12 +146,17 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
           a `hidden` class. */}
       <BentoPanel ref={questionsRef} fill="card" className="p-[22px]">
         <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">{questionsHeading}</h2>
-        <div className="mt-3.5 flex flex-col gap-2">
+        {/* Two columns from lg. As one column each question was a 1150px-wide
+            bar holding forty characters of text and a chevron a whole screen
+            away from it, and the list ran far past the fold for no reason.
+            Accordions in a grid open within their own column, so nothing
+            jumps. */}
+        <div className="mt-3.5 grid grid-cols-1 gap-2 lg:grid-cols-2 lg:items-start lg:gap-x-3">
           {questions.map((q) => (
             <details
               key={q.question}
               data-category={q.category}
-              className={`group rounded-2xl bg-card p-[16px_18px] shadow-[inset_0_0_0_1px_hsl(var(--border))] [&[open]]:bg-muted [&[open]]:shadow-none ${
+              className={`disclosure group rounded-2xl bg-card p-[16px_18px] shadow-[inset_0_0_0_1px_hsl(var(--border))] [&[open]]:bg-muted [&[open]]:shadow-none ${
                 activeCategory !== 'all' && activeCategory !== q.category ? 'hidden' : ''
               }`}
             >

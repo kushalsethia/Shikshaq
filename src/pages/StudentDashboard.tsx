@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ControlBlock, PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/lib/auth-context';
+import { setAuthIntent } from '@/lib/auth-intent';
 import { supabase } from '@/integrations/supabase/client';
 import { getTeachersByIds } from '@/lib/teachers';
 import { TeacherCard } from '@/components/TeacherCard';
@@ -121,6 +122,12 @@ export default function StudentDashboard() {
   // Redirect if not authenticated or not a student
   useEffect(() => {
     if (!loading && !user) {
+      /* AU-004a lists this as a `dashboard` call site. Without the write the
+         shelf gate was the one entry point that sent people to /auth with no
+         intent, so they got the generic hero instead of variant F ("Your saved
+         teachers are still here") — the one line that explains why they are
+         being asked to sign in at all. */
+      setAuthIntent({ kind: 'dashboard' });
       navigate('/auth');
       return;
     }

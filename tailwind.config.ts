@@ -432,6 +432,30 @@ export default {
           from: { opacity: "0", transform: "scale(0.8)" },
           to: { opacity: "1", transform: "scale(1)" },
         },
+        /* The mobile search bar detaching from the page and settling as a
+           pinned sheet. Deliberately shallower than `pop`: a full-bleed bar
+           scaling from 0.8 reads as a zoom, where a 3% lift with overshoot
+           reads as the bar coming forward. */
+        /* Copy that changes subject rather than merely re-entering: the hero
+           headline and its eyebrow swapping between teachers and past papers.
+           The blur is what sells it as the same line re-focusing on something
+           else, where a plain fade reads as two unrelated lines. */
+        blurSwap: {
+          from: { opacity: "0", filter: "blur(10px)", transform: "translateY(8px)" },
+          to: { opacity: "1", filter: "blur(0px)", transform: "translateY(0)" },
+        },
+        /* One-shot blink for the hero's linked name. The line names something
+           you can go to, and with no underline nothing said so; a single blink
+           as the page settles points at it once and then leaves it alone. */
+        heroBlink: {
+          "0%, 100%": { opacity: "1" },
+          "18%, 58%": { opacity: "0.4" },
+          "38%, 78%": { opacity: "1" },
+        },
+        searchPop: {
+          from: { opacity: "0", transform: "translateY(-8px) scale(0.97)" },
+          to: { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
       },
       animation: {
         "rail-nudge": "rail-nudge 0.9s cubic-bezier(0.16, 1, 0.3, 1) 1",
@@ -464,6 +488,9 @@ export default {
            index.css for a no-JS way to stagger a list/grid's direct children
            automatically without hand-writing a delay per item. */
         pop: "pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both",
+        "search-pop": "searchPop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both",
+        "blur-swap": "blurSwap 0.42s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "hero-blink": "heroBlink 1.15s ease-in-out 0.55s 1 both",
       },
     },
   },

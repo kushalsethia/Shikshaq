@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/utils/searchFacets';
 import { useSearchIndex, type TeacherHit, type PaperHit } from '@/hooks/useSearchIndex';
 import { useExitPresence } from '@/hooks/useExitPresence';
+import { recordSearch } from '@/lib/activity-trail';
 import { getRecentSearches, addRecentSearch, type RecentSearch } from '@/utils/recentSearches';
 import { setSearchExpanded } from '@/hooks/useSearchExpanded';
 
@@ -104,9 +105,13 @@ interface SearchControlProps {
    * change-log entries ahead of their turn.
    */
   heroDesk?: boolean;
+  /** Hide the Subject/Class/Area facet row. Browse carries a full filter rail
+   *  of its own, so the row there was a second, weaker copy of the same
+   *  controls sitting directly above them. */
+  hideFacets?: boolean;
 }
 
-export function SearchControl({ className = '', align = 'center', stackedToggle = false, alwaysShowModeToggle = false, onDark = false, initialMode, onModeChange, heroDesk = false }: SearchControlProps) {
+export function SearchControl({ className = '', align = 'center', stackedToggle = false, alwaysShowModeToggle = false, onDark = false, initialMode, onModeChange, heroDesk = false, hideFacets = false }: SearchControlProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -233,7 +238,13 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   const facetKeys = mode === 'teachers' ? TEACHER_FACET_KEYS : PAPER_FACET_KEYS;
   const hasChips = facetKeys.some((k) => selections[k].length > 0);
 
-  const results = useMemo(() => search(q), [q, search]);
+  /* Deferred so the input never waits on the index. The field updates from
+     the keystroke at high priority; re-running Fuse over every teacher and
+     paper is allowed to land a frame later, and React drops intermediate
+     queries when someone types faster than a search completes. Typing stays
+     at the speed of the keyboard however large the index grows. */
+  const deferredQ = useDeferredValue(q);
+  const results = useMemo(() => search(deferredQ), [deferredQ, search]);
   const trimmedQ = q.trim();
 
   // Collapse on outside click / Escape
@@ -283,6 +294,13 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
   const runSearch = useCallback(() => {
     if (trimmedQ) addRecentSearch(trimmedQ, mode);
+    // Feeds H-005 branch 3 ("Still looking for Maths 10 in Ballygunge?").
+    // Only the first of each facet — the hero writes one sentence, not a list.
+    recordSearch({
+      subject: selections.subject[0],
+      classLevel: selections.cls[0],
+      area: selections.area[0],
+    });
     const qs = buildParams(trimmedQ, selections, mode);
     const path = mode === 'teachers' ? '/all-tuition-teachers-in-kolkata' : '/past-papers';
     navigate(qs ? `${path}?${qs}` : path);
@@ -371,7 +389,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   /* Dropdown surface: one shared shell for the facet panel and the suggestions
      overlay. §5 — shadow-border only, never border + shadow. */
   const dropdownShell = (closing: boolean) =>
-    `absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 rounded-2xl bg-card text-left shadow-border-hover transition-all duration-150 ease-out ${
+    `absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 rounded-2xl bg-card text-left shadow-border-hover transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
       closing ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'
     } ${mobilePinned ? 'max-h-[max(220px,calc(100vh-240px))] overflow-y-auto' : ''}`;
 
@@ -412,6 +430,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           } ${mode === m ? 'font-bold text-background' : 'text-muted-foreground'}`}
         >
           {MODE_LABEL[m]}
+          {searchActive && !indexLoading && (
+            <span
+              className={`ml-1.5 tabular-nums text-xs font-semibold ${
+                mode === m ? 'text-background/65' : 'text-muted-foreground/70'
+              }`}
+            >
+              {m === 'teachers' ? teacherCount : paperCount}
+            </span>
+          )}
         </button>
       ))}
     </div>
@@ -421,14 +448,21 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
   return (
     <>
-      {/* Scrim — dims and blurs the rest of the page while the control is expanded, like a modal.
-          Click anywhere on it (or outside the control) to collapse. */}
+      {/* Scrim: dims and blurs the rest of the page while the control is
+          expanded, like a modal. Click anywhere on it to collapse.
+
+          The z-index depends on whether the control is PINNED. Pinned (mobile
+          focus mode) the control itself sits at z-70, so the scrim belongs
+          above the nav at z-65 and covers everything. Unpinned (desktop) the
+          control stays in the flow and scrolls away, so a scrim above the nav
+          left a dimmed, unusable navigation bar with no search field in sight.
+          There it sits below the nav instead. */}
       <div
         onClick={closeControl}
         aria-hidden={!reveal}
-        className={`fixed inset-0 z-[65] bg-foreground/50 backdrop-blur-sm transition-opacity duration-300 ${
-          reveal ? 'opacity-100' : 'pointer-events-none opacity-0'
-        } ${mobilePinned ? '' : 'md:bg-foreground/20'}`}
+        className={`fixed inset-0 backdrop-blur-md transition-opacity duration-300 ${
+          mobilePinned ? 'z-[65] bg-foreground/55' : 'z-30 bg-foreground/20'
+        } ${reveal ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
       />
       <div
         ref={rootRef}
@@ -442,7 +476,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
            pinned the two insets define the width, so it must not be set. */
         className={`${mobilePinned ? '' : 'w-full'} ${align === 'center' ? 'mx-auto' : ''} ${
           mobilePinned
-            ? 'fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] max-w-none'
+            ? 'fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] max-w-none animate-search-pop motion-reduce:animate-none'
             : `relative z-[45] ${expanded ? 'max-w-3xl' : 'max-w-2xl'}`
         } ${className}`}
       >
@@ -540,10 +574,10 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           {/* Facet row — horizontal snap-scroll on mobile, never ragged wrapped rows (§11). */}
           <div
             className={`overflow-hidden transition-all duration-300 ease-out ${
-              reveal ? 'mt-3 max-h-40 opacity-100' : 'invisible mt-0 max-h-0 opacity-0'
+              reveal && !hideFacets ? 'mt-3 max-h-48 opacity-100' : 'invisible mt-0 max-h-0 opacity-0'
             }`}
           >
-            <div className="relative">
+            <div className={`relative ${mobilePinned ? 'rounded-2xl bg-card px-3 py-2.5 shadow-border' : ''}`}>
               {/* The "Narrow it" label lives OUTSIDE the scroller. It used to be the scroller's
                   first child, which meant it scrolled away from the very chips it labels — and
                   because this row animates open (max-h-0 → max-h-40), the browser landed it at
@@ -553,10 +587,22 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               </span>
               {/* Scroll cue (§8/§11): the facet row hides its own scrollability on mobile with
                   no affordance — a trailing edge fade signals "more chips this way" without
-                  a border/shadow stack. sm:hidden since the row wraps instead of scrolling at sm+. */}
+                  a border/shadow stack. sm:hidden since the row wraps instead of scrolling at sm+.
+
+                  The fade has to end in whatever it sits on. Once this row moved
+                  onto its own card, `from-background` was fading to the page
+                  ground over a `bg-card` surface — a visibly wrong-coloured
+                  strip down the right edge. It also ran `inset-y-0`, tinting
+                  the "Narrow it" label above the chips and squaring off the
+                  card's rounded corner. Now it starts below the label, stops
+                  inside the card's padding, and matches its fill. */}
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent sm:hidden"
+                className={`pointer-events-none absolute bottom-0 z-10 w-8 sm:hidden ${
+                  mobilePinned
+                    ? 'right-3 top-7 rounded-r-2xl bg-gradient-to-l from-card to-transparent'
+                    : 'right-0 top-6 bg-gradient-to-l from-background to-transparent'
+                }`}
               />
               <div
                 key={mode}
@@ -621,7 +667,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                   {displayField === 'school' ? 'No schools yet. Check back once papers are added.' : 'No options available yet.'}
                 </p>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="scrollbar-slim -mr-1 flex max-h-[130px] flex-wrap gap-2 overflow-y-auto overscroll-contain pr-2">
                   {facetPanelOptions.map((opt) => {
                     const picked = selections[displayField].includes(opt);
                     return (
@@ -653,11 +699,25 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                    requirement 6. animate-fade-slide-up is the project's one
                    whitelisted entrance keyframe (tailwind.config.ts), reused
                    rather than inventing a new one. */
-                <div key={mode} className="animate-fade-slide-up p-4 sm:p-6">
+                <div key={mode} className="animate-blur-swap p-4 sm:p-6 motion-reduce:animate-none">
+                  <div className={`${sectionLabel} mb-2`}>Popular right now</div>
+                  <div className="flex snap-x gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
+                    {POPULAR[mode].map((label) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => pickPopular(label)}
+                        className={`flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${accent.subtle}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
                   {recents.length > 0 && (
                     <>
-                      <div className={`${sectionLabel} mb-2`}>Recent searches</div>
-                      <div className="mb-6 grid gap-1">
+                      <div className={`${sectionLabel} mb-2 mt-6`}>Recent searches</div>
+                      <div className="grid gap-1">
                         {recents.map((r, i) => (
                           <button
                             key={`${r.q}-${i}`}
@@ -677,71 +737,70 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                       </div>
                     </>
                   )}
-                  <div className={`${sectionLabel} mb-2`}>Popular right now</div>
-                  <div className="flex snap-x gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
-                    {POPULAR[mode].map((label) => (
-                      <button
-                        key={label}
-                        type="button"
-                        onClick={() => pickPopular(label)}
-                        className={`flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${accent.subtle}`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
                   {/* Suggested/recent shelf — teachers flavor reuses the same real
                       `is_featured` column Browse.tsx's "Featured teachers" shelf
                       reads; papers flavor is the head of the already
                       year-descending papers fetch. Hidden (not a fabricated
                       empty state) until the index has real rows to show. */}
-                  {mode === 'teachers' && featuredTeachers.length > 0 && (
-                    <>
-                      <div className={`${sectionLabel} mb-2 mt-6`}>Suggested teachers</div>
-                      <div className="grid gap-1">
-                        {featuredTeachers.map((t) => (
-                          <button key={t.id} type="button" onClick={() => openTeacher(t)} className={rowBase}>
-                            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
-                              {initial(t.name)}
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-base font-semibold text-foreground">{t.name}</span>
-                              <span className="block truncate text-sm text-muted-foreground">
-                                {[t.subjects?.split(',')[0]?.trim(), t.location?.split(',')[0]?.trim()].filter(Boolean).join(' · ')}
-                              </span>
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  {mode === 'papers' && recentPapers.length > 0 && (
-                    <>
-                      <div className={`${sectionLabel} mb-2 mt-6`}>Recently added papers</div>
-                      <div className="grid gap-1">
-                        {recentPapers.map((p) => (
-                          <button key={p.id} type="button" onClick={() => openPaper(p)} className={rowBase}>
-                            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
-                              {initial(p.school)}
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-base font-semibold text-foreground">{p.title}</span>
-                              <span className="block truncate text-sm text-muted-foreground">
-                                {p.school} · {p.board} Class {p.class}
-                              </span>
-                            </span>
-                            <span className="flex-none text-xs tabular-nums text-muted-foreground">{p.year}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                  {/* Both shelves at rest, not just the active mode's. The
+                      typing state already shows teachers AND papers together
+                      ("both types always shown here"); resting showed only one,
+                      so opening the control told you less than typing one letter
+                      into it did. Active mode leads, and the order is the DOM's
+                      so focus follows what you see. */}
+                  {(() => {
+                    const teachersShelf =
+                      featuredTeachers.length > 0 ? (
+                        <div key="shelf-teachers">
+                          <div className={`${sectionLabel} mb-2 mt-6`}>Suggested teachers</div>
+                          <div className="grid gap-1">
+                            {featuredTeachers.map((t) => (
+                              <button key={t.id} type="button" onClick={() => openTeacher(t)} className={rowBase}>
+                                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
+                                  {initial(t.name)}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-base font-semibold text-foreground">{t.name}</span>
+                                  <span className="block truncate text-sm text-muted-foreground">
+                                    {[t.subjects?.split(',')[0]?.trim(), t.location?.split(',')[0]?.trim()].filter(Boolean).join(' · ')}
+                                  </span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null;
+                    const papersShelf =
+                      recentPapers.length > 0 ? (
+                        <div key="shelf-papers">
+                          <div className={`${sectionLabel} mb-2 mt-6`}>Recently added papers</div>
+                          <div className="grid gap-1">
+                            {recentPapers.map((p) => (
+                              <button key={p.id} type="button" onClick={() => openPaper(p)} className={rowBase}>
+                                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
+                                  {initial(p.school)}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-base font-semibold text-foreground">{p.title}</span>
+                                  <span className="block truncate text-sm text-muted-foreground">
+                                    {p.school} · {p.board} Class {p.class}
+                                  </span>
+                                </span>
+                                <span className="flex-none text-xs tabular-nums text-muted-foreground">{p.year}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null;
+                    return mode === 'papers'
+                      ? [papersShelf, teachersShelf]
+                      : [teachersShelf, papersShelf];
+                  })()}
                 </div>
               )}
 
               {displayOverlayTyping && (
-                <div>
+                <div key={mode} className="animate-blur-swap motion-reduce:animate-none">
                   {/* Loading — skeleton matching the result rows' shape (§9). */}
                   {searchActive && indexLoading && (
                     <div className="grid gap-2 p-4 sm:p-6" aria-busy="true" aria-live="polite">
@@ -790,72 +849,82 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                     </p>
                   )}
 
-                  {searchActive && teacherCount > 0 && (
-                    <div className="border-b border-border p-4 sm:p-6">
-                      <div className="mb-2 flex items-baseline justify-between gap-2">
-                        <span className={sectionLabel}>Teachers</span>
-                        <span className="flex-none whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-                          {teacherCount} found
-                        </span>
-                      </div>
-                      <div className="grid gap-1">
-                        {results.teachers.map((t) => (
-                          <button key={t.id} type="button" onClick={() => openTeacher(t)} className={rowBase}>
-                            <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
-                              {initial(t.name)}
+                  {/* Group order follows the mode in the DOM, not with CSS
+                      `order`. Reordering visually while leaving the DOM alone
+                      put the group you asked for first on screen but second in
+                      the tab and screen-reader sequence — WCAG 2.4.3. */}
+                  {(() => {
+                    const teachersGroup =
+                      searchActive && teacherCount > 0 ? (
+                        <div key="teachers" className="border-b border-border p-4 sm:p-6">
+                          <div className="mb-2 flex items-baseline justify-between gap-2">
+                            <span className={sectionLabel}>Teachers</span>
+                            <span className="flex-none whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+                              {teacherCount} found
                             </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-base font-semibold text-foreground">{t.name}</span>
-                              <span className="block truncate text-sm text-muted-foreground">
-                                {[t.subjects?.split(',')[0]?.trim(), t.location?.split(',')[0]?.trim()].filter(Boolean).join(' · ')}
-                              </span>
-                            </span>
+                          </div>
+                          <div className="grid gap-1">
+                            {results.teachers.map((t) => (
+                              <button key={t.id} type="button" onClick={() => openTeacher(t)} className={rowBase}>
+                                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
+                                  {initial(t.name)}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-base font-semibold text-foreground">{t.name}</span>
+                                  <span className="block truncate text-sm text-muted-foreground">
+                                    {[t.subjects?.split(',')[0]?.trim(), t.location?.split(',')[0]?.trim()].filter(Boolean).join(' · ')}
+                                  </span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => seeAll('teachers')}
+                            className={`mt-2 flex min-h-11 items-center whitespace-nowrap rounded-lg px-1 text-sm font-medium text-brand transition-colors duration-150 hover:underline ${FOCUS} focus-visible:ring-ring`}
+                          >
+                            See all {teacherCount} teacher{teacherCount === 1 ? '' : 's'} →
                           </button>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => seeAll('teachers')}
-                        className={`mt-2 flex min-h-11 items-center whitespace-nowrap rounded-lg px-1 text-sm font-medium text-brand-blue transition-colors duration-150 hover:underline ${FOCUS} focus-visible:ring-ring`}
-                      >
-                        See all {teacherCount} teacher{teacherCount === 1 ? '' : 's'} →
-                      </button>
-                    </div>
-                  )}
-
-                  {paperCount > 0 && (
-                    <div className="border-b border-border p-4 sm:p-6">
-                      <div className="mb-2 flex items-baseline justify-between gap-2">
-                        <span className={sectionLabel}>Past Papers</span>
-                        <span className="flex-none whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-                          {paperCount} found
-                        </span>
-                      </div>
-                      <div className="grid gap-1">
-                        {results.papers.map((p) => (
-                          <button key={p.id} type="button" onClick={() => openPaper(p)} className={rowBase}>
-                            <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
-                              {initial(p.school)}
+                        </div>
+                      ) : null;
+                    const papersGroup =
+                      paperCount > 0 ? (
+                        <div key="papers" className="border-b border-border p-4 sm:p-6">
+                          <div className="mb-2 flex items-baseline justify-between gap-2">
+                            <span className={sectionLabel}>Past Papers</span>
+                            <span className="flex-none whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+                              {paperCount} found
                             </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-base font-semibold text-foreground">{p.title}</span>
-                              <span className="block truncate text-sm text-muted-foreground">
-                                {p.school} · {p.board} Class {p.class}
-                              </span>
-                            </span>
-                            <span className="flex-none text-xs tabular-nums text-muted-foreground">{p.year}</span>
+                          </div>
+                          <div className="grid gap-1">
+                            {results.papers.map((p) => (
+                              <button key={p.id} type="button" onClick={() => openPaper(p)} className={rowBase}>
+                                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
+                                  {initial(p.school)}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-base font-semibold text-foreground">{p.title}</span>
+                                  <span className="block truncate text-sm text-muted-foreground">
+                                    {p.school} · {p.board} Class {p.class}
+                                  </span>
+                                </span>
+                                <span className="flex-none text-xs tabular-nums text-muted-foreground">{p.year}</span>
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => seeAll('papers')}
+                            className={`mt-2 flex min-h-11 items-center whitespace-nowrap rounded-lg px-1 text-sm font-medium text-brand-blue transition-colors duration-150 hover:underline ${FOCUS} focus-visible:ring-ring`}
+                          >
+                            See all {paperCount} paper{paperCount === 1 ? '' : 's'} →
                           </button>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => seeAll('papers')}
-                        className={`mt-2 flex min-h-11 items-center whitespace-nowrap rounded-lg px-1 text-sm font-medium text-brand-blue transition-colors duration-150 hover:underline ${FOCUS} focus-visible:ring-ring`}
-                      >
-                        See all {paperCount} paper{paperCount === 1 ? '' : 's'} →
-                      </button>
-                    </div>
-                  )}
+                        </div>
+                      ) : null;
+                    return mode === 'papers'
+                      ? [papersGroup, teachersGroup]
+                      : [teachersGroup, papersGroup];
+                  })()}
 
                   {totalCount > 0 && (
                     <p className="bg-muted px-4 py-3 text-xs text-muted-foreground sm:px-6">

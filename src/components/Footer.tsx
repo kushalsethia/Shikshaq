@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { readActivityTrail } from '@/lib/activity-trail';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import { Mail, ChevronDown, ChevronUp, FileText, GraduationCap } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { Button } from '@/components/ui/button';
@@ -87,7 +89,10 @@ interface FooterProps {
 const COL_LABEL = 'text-xs font-medium uppercase tracking-[0.04em] text-white/70';
 // Safari still paints a disclosure triangle even with `list-none`.
 const SUMMARY_RESET = '[&::-webkit-details-marker]:hidden';
-const FOOTER_LINK = 'flex min-h-[44px] items-center text-sm text-white/85 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 rounded-lg';
+/* tap-44 rather than min-h-[44px]: the hit area stays 44px via the ::before
+   overlay, but the painted row is only as tall as the text. At a full 44px
+   each, the thirty subject links alone ran to more than 1300px of footer. */
+const FOOTER_LINK = 'tap-44 flex items-center py-[5px] text-sm text-white/85 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 rounded-lg';
 
 function sanitize(content: string) {
   if (/<[a-z][\s\S]*>/i.test(content)) {
@@ -100,8 +105,11 @@ function sanitize(content: string) {
 }
 
 function LinkList({ links }: { links: FooterLink[] }) {
+  /* Long lists go two-up. A single column of thirty subjects is a scroll, not
+     a directory; two columns halves it without shrinking anything. */
+  const dense = links.length > 10;
   return (
-    <div className="grid">
+    <div className={`grid gap-x-4 ${dense ? 'grid-cols-2' : ''}`}>
       {links.map(({ to, label }) => (
         <Link key={to + label} to={to} className={FOOTER_LINK}>{label}</Link>
       ))}
@@ -117,17 +125,31 @@ function FooterAccordion({ label, links }: { label: string; links: FooterLink[] 
      separating it from its own links, while a border on the details drops to
      the bottom of the expanded list and the header runs into its content. */
   return (
-    <details>
+    <details className="disclosure">
       <summary className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 shadow-[inset_0_-1px_0_rgba(255,255,255,.10)] ${COL_LABEL} ${SUMMARY_RESET}`}>
         {label}
         <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
       </summary>
-      <div className="pb-2">
+      {/* pt-1 is the focus ring's clearance, not decoration: the animated
+          ::details-content clips to its own box, and the first link sat flush
+          against the top edge, so its ring-offset-2 ring lost its top 4px. */}
+      <div className="pb-2 pt-1">
         <LinkList links={links} />
       </div>
     </details>
   );
 }
+
+/* Same tone rule as the hero pool (H-005a): cheeky, aimed at the subject
+   rather than the reader. Only used when the activity trail is empty. */
+const FOOTER_SIGN_OFFS = [
+  'Scrolled all the way down here. Respect.',
+  'You have read the footer. That is more than most.',
+  'Still here? Go on, search for something.',
+  'The teachers are upstairs, at the top of the page.',
+  'No newsletter, no popups. Just teachers.',
+  'Kolkata is full of good teachers. Go find one.',
+];
 
 export function Footer({ expandedContent }: FooterProps = {}) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -140,7 +162,6 @@ export function Footer({ expandedContent }: FooterProps = {}) {
   const userRole = (profile?.role as 'student' | 'guardian' | 'teacher') || null;
   const [isAdmin, setIsAdmin] = useState(false);
   const dashboardPath = userRole === 'student' ? '/dashboard/student' : userRole === 'guardian' ? '/dashboard/guardian' : userRole === 'teacher' ? '/dashboard/teacher' : null;
-  const [ctaTotals, setCtaTotals] = useState<{ teachers: number | null; papers: number | null }>({ teachers: null, papers: null });
 
   useEffect(() => {
     if (!user) { setIsAdmin(false); return; }
@@ -151,21 +172,26 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     return () => { cancelled = true; };
   }, [user]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchCtaTotals() {
+  /* Two site-wide counts, on react-query rather than a bare effect. The footer
+     is on every page, and as an effect these two HEAD requests fired again on
+     every single client-side navigation — the only Supabase traffic left on a
+     warm page move, for numbers that change perhaps daily. An hour of
+     staleTime makes them once-per-session in practice. */
+  const ctaTotalsQuery = useQuery({
+    queryKey: ['footer', 'cta-totals'],
+    staleTime: 60 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    queryFn: async () => {
       const [teachersRes, papersRes] = await Promise.all([
         supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
         supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
       ]);
-      if (cancelled) return;
       if (teachersRes.error) logger.error('Footer.fetchCtaTotals.teachers', teachersRes.error);
       if (papersRes.error) logger.error('Footer.fetchCtaTotals.papers', papersRes.error);
-      setCtaTotals({ teachers: teachersRes.count ?? null, papers: papersRes.count ?? null });
-    }
-    fetchCtaTotals();
-    return () => { cancelled = true; };
-  }, []);
+      return { teachers: teachersRes.count ?? null, papers: papersRes.count ?? null };
+    },
+  });
+  const ctaTotals = ctaTotalsQuery.data ?? { teachers: null, papers: null };
 
   useEffect(() => {
     async function fetchPageContent() {
@@ -388,6 +414,20 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     return list;
   }, [ctaTotals.teachers, ctaTotals.papers]);
 
+  /* Drawn once per mount. Recomputing per render would flicker between the
+     trail line and a pool line on every state change in the footer. */
+  const signOff = useMemo(() => {
+    const trail = readActivityTrail();
+    if (trail.teacherName) return `Still thinking about ${trail.teacherName}?`;
+    if (trail.searchSubject && trail.searchArea) {
+      return `${trail.searchSubject} in ${trail.searchArea}. Pick that back up whenever.`;
+    }
+    if (trail.paperBoard && trail.paperSubject) {
+      return `There are more ${trail.paperBoard} ${trail.paperSubject} papers where that came from.`;
+    }
+    return FOOTER_SIGN_OFFS[Math.floor(Math.random() * FOOTER_SIGN_OFFS.length)];
+  }, []);
+
   /* pt-seam: H-021's accept line is "6px of #F9F5F1 shows above" the footer's
      top corners. That gap used to come from BottomNavSpacer sitting above the
      footer at 84px; with the reserve moved below where it belongs, the seam is
@@ -506,12 +546,15 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               </div>
             </div>
 
-            <details className="hidden border-t border-white/10 lg:block">
+            <details className="disclosure hidden border-t border-white/10 lg:block">
               <summary className={`flex min-h-[44px] cursor-pointer list-none items-center gap-2 ${COL_LABEL} ${SUMMARY_RESET}`}>
                 Tuition teachers by subject in Kolkata
                 <ChevronDown className="h-4 w-4" aria-hidden />
               </summary>
-              <div className="flex flex-wrap gap-x-6">
+              {/* pt-1 for the same reason as the mobile accordion: the clipped
+                  ::details-content box would otherwise eat the first link's
+                  focus ring. */}
+              <div className="flex flex-wrap gap-x-6 pt-1">
                 {subjectLinks.map(({ to, label }) => (
                   <Link key={to} to={to} className={`${FOOTER_LINK} whitespace-nowrap text-xs text-white/70`}>
                     {label}
@@ -640,6 +683,52 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                   )}
                 </Button>
               )}
+            </div>
+          </PageContainer>
+        )}
+
+        {/* A sign-off that knows where you have been. Reads the same activity
+            trail the hero's H-005 branches 3-5 read, so the top and the bottom
+            of the page agree about what you were last doing; falls back to a
+            playful line when the trail is empty. Nothing here leaves the
+            device — see src/lib/activity-trail.ts. */}
+        {/* The two things a visitor can give back, as actual buttons rather
+            than links buried in a collapsed column. Both routes already exist:
+            /join is the teacher listing flow, /submit-a-paper is the paper
+            hand-off. The footer claimed papers were "shared by students" while
+            offering nobody a way to share one. */}
+        <PageContainer className="px-5 pb-5 sm:px-6 lg:px-8">
+          {/* sm:flex-1 on the buttons, never plain flex-1: below sm this row is
+              flex-col, where `flex: 1 1 0%` applies its basis to the HEIGHT and
+              overrides h-12 — both buttons collapsed to 24px of content at
+              320px. They only need to share width once it becomes a row. */}
+          <div className="flex flex-col gap-2.5 sm:flex-row">
+            <Button asChild variant="indigo" size={48} className="sm:flex-1">
+              <Link to="/submit-a-paper">
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                Submit a paper
+              </Link>
+            </Button>
+            <Button asChild variant="primary" size={48} className="sm:flex-1">
+              <Link to="/join">
+                <GraduationCap className="h-4 w-4" aria-hidden="true" />
+                Join as a teacher
+              </Link>
+            </Button>
+          </div>
+        </PageContainer>
+
+        {/* Given a container and real clearance. As a bare `pb-1` line at
+            white/55 it floated between the CMS block and the wordmark with
+            nothing holding it, and the giant wordmark started a few pixels
+            under it — it read as a stray sentence rather than a sign-off. The
+            bg-white/[0.06] tile is the same treatment the auth page's value
+            note uses on a dark surface. */}
+        {signOff && (
+          <PageContainer className="px-5 pb-7 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3 rounded-[18px] bg-white/[0.06] px-4 py-3">
+              <span aria-hidden="true" className="h-2 w-2 flex-none rounded-full bg-brand" />
+              <p className="text-[14px] leading-[1.5] text-white/75">{signOff}</p>
             </div>
           </PageContainer>
         )}

@@ -2,7 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom";
+import { installRoutePrefetch } from "@/lib/route-prefetch";
 import { lazy, Suspense, type ReactNode } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { LikesProvider } from "@/lib/likes-context";
@@ -25,6 +27,8 @@ const TeacherProfile = lazy(() => import("./pages/TeacherProfile"));
 const Help = lazy(() => import("./pages/Help"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const Join = lazy(() => import("./pages/Join"));
+const SubmitPaper = lazy(() => import("./pages/SubmitPaper"));
+const BankPaper = lazy(() => import("./pages/BankPaper"));
 const JoinApply = lazy(() => import("./pages/JoinApply"));
 const PastPapers = lazy(() => import("./pages/PastPapers"));
 const PaperResults = lazy(() => import("./pages/PaperResults"));
@@ -80,6 +84,14 @@ const queryClient = new QueryClient({
   },
 });
 
+/* Which reader a paper opens in. The question-bank papers carry the bank's
+   6-hex ids, the database's carry UUIDs, so this discriminates on the id shape
+   alone — no fetch, no lookup table, and nothing to keep in sync. */
+const PaperRoute = () => {
+  const { id } = useParams<{ id: string }>();
+  return id && /^[0-9a-f]{6}$/.test(id) ? <BankPaper /> : <PaperReader />;
+};
+
 // Component to redirect old /teacher/:slug routes to new /tuition-teachers/:slug
 const TeacherRedirect = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -106,6 +118,13 @@ const TeacherRedirect = () => {
 const RouteTransition = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   return <div key={location.pathname}>{children}</div>;
+};
+
+/* Warms a route's chunk when the pointer reaches a link to it — see
+   lib/route-prefetch.ts for why and for the connection-aware opt-out. */
+const RoutePrefetch = () => {
+  useEffect(() => installRoutePrefetch(), []);
+  return null;
 };
 
 const App = () => (
@@ -153,6 +172,7 @@ const App = () => (
             </a>
             <ScrollToTop />
             <CanonicalTag />
+            <RoutePrefetch />
             <Chatbot />
             <OnboardingModal />
             <AppShell>
@@ -204,6 +224,7 @@ const App = () => (
               <Route path="/help" element={<Navigate to="/more" replace />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/join" element={<Join />} />
+              <Route path="/submit-a-paper" element={<SubmitPaper />} />
               <Route path="/join/apply" element={
                 <Suspense fallback={<PageLoader />}>
                   <JoinApply />
@@ -215,9 +236,14 @@ const App = () => (
                   <PaperResults />
                 </Suspense>
               } />
+              {/* One address space for every paper. The question-bank papers
+                  are papers like any other and live at /past-papers/:id too —
+                  they just read as questions instead of an embedded scan. The
+                  bank's ids are 6 hex characters and the database's are UUIDs,
+                  so the route can pick a reader without fetching anything. */}
               <Route path="/past-papers/:id" element={
                 <Suspense fallback={<PageLoader />}>
-                  <PaperReader />
+                  <PaperRoute />
                 </Suspense>
               } />
               {/* S16. a-to-z.md marks this the one route that is `new` — the

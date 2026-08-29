@@ -22,6 +22,7 @@ import { SubjectCard } from '@/components/SubjectCard';
 import { HomeGreeting } from '@/components/HomeGreeting';
 import { HomeActivitySection } from '@/components/HomeActivitySection';
 import { SearchDesk } from '@/components/home/SearchDesk';
+import { RegionNotice } from '@/components/RegionNotice';
 import { EyesPanel } from '@/components/home/EyesPanel';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { useChromeConfig } from '@/components/layout/AppShell';
@@ -32,7 +33,7 @@ import { PaperCover } from '@/components/papers/paper-cover';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { useAuth } from '@/lib/auth-context';
 import { useLikes } from '@/lib/likes-context';
-import { resolveHeroCopy } from '@/lib/hero-copy';
+import { resolveHeroCopy, papersHeroCopy } from '@/lib/hero-copy';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
@@ -80,6 +81,11 @@ interface StudentQuote {
   comment: string;
   authorName: string;
   authorMeta: string;
+  /** Who the review is about. A quote like "Ashok sir explains clearly" is
+   *  unreadable on the home page without it — the reader has no idea who
+   *  "Ashok sir" is or how to reach them. */
+  teacherName: string | null;
+  teacherSlug: string | null;
 }
 
 const BOARD_ORDER = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'] as const;
@@ -366,7 +372,17 @@ export default function Index() {
         });
 
 
-      return { featured, subjectList, boardTally, classTally };
+        // Per-board published-paper counts. `papersRes` was already being
+        // fetched (and only its error inspected), so this is free.
+        const paperBoardTally: Record<string, number> = {};
+        (papersRes.data || []).forEach((row) => {
+          const raw = ((row as { board?: string | null }).board || '').trim();
+          if (!raw) return;
+          const key = BOARD_ORDER.find((b) => raw.toLowerCase().includes(b.toLowerCase()));
+          if (key) paperBoardTally[key] = (paperBoardTally[key] || 0) + 1;
+        });
+
+      return { featured, subjectList, boardTally, classTally, paperBoardTally };
     },
   });
 
@@ -374,6 +390,7 @@ export default function Index() {
   const subjects = home.data?.subjectList ?? [];
   const boardCounts = home.data?.boardTally ?? {};
   const classCounts = home.data?.classTally ?? {};
+  const paperBoardCounts = home.data?.paperBoardTally ?? {};
   const loading = home.isPending;
   const loadError = home.isError;
   void classCounts;
@@ -423,7 +440,9 @@ export default function Index() {
         .select('id, title, school, subject, board, class, year, created_at')
         .eq('is_published', true)
         .order('created_at', { ascending: false })
-        .limit(3);
+        /* 10, not 3. The shelf is a carousel now, so three covers left it
+           half empty at desktop with nothing to scroll to. */
+        .limit(10);
       return (data || []) as RecentPaper[];
     },
   });
@@ -442,10 +461,13 @@ export default function Index() {
            de-anonymisable by a single join. The view nulls user_id on
            anonymous rows and is the only read path a logged-out visitor has. */
         .from('teacher_comments_public')
-        .select('id, comment, is_anonymous, user_id, created_at')
+        .select('id, comment, is_anonymous, user_id, created_at, teacher_id')
         .eq('approved', true)
         .order('created_at', { ascending: false })
-        .limit(6);
+        /* Pull a wider slice than the six we show: the rail is deduplicated to
+           one quote per teacher below, and with one popular teacher holding a
+           dozen reviews a limit of 6 returned six cards about the same person. */
+        .limit(60);
       if (!comments || comments.length === 0) return [];
 
       const userIds = [...new Set(comments.filter((c) => !c.is_anonymous).map((c) => c.user_id))];
@@ -460,9 +482,47 @@ export default function Index() {
         });
       }
 
-      return comments.map((c) => {
+      /* The teachers these quotes are about, in one batched read — same shape
+         as the profiles lookup above, no per-row query. */
+      const teacherIds = [...new Set(comments.map((c) => (c as { teacher_id?: string }).teacher_id).filter(Boolean))] as string[];
+      const teacherMap = new Map<string, { name: string | null; slug: string | null }>();
+      if (teacherIds.length > 0) {
+        const { data: tRows } = await supabase
+          .from('teachers_list')
+          .select('id, name, slug')
+          .in('id', teacherIds);
+        (tRows || []).forEach((t) => {
+          if (t.id) teacherMap.set(t.id, { name: t.name, slug: t.slug });
+        });
+      }
+
+      /* One quote per teacher, teachers with the most reviews first — six
+         cards all praising the same tutor says nothing about the site. */
+      const perTeacher = new Map<string, number>();
+      comments.forEach((c) => {
+        const id = (c as { teacher_id?: string }).teacher_id;
+        if (id) perTeacher.set(id, (perTeacher.get(id) ?? 0) + 1);
+      });
+      const seenTeacher = new Set<string>();
+      const picked = comments
+        .filter((c) => {
+          const id = (c as { teacher_id?: string }).teacher_id;
+          if (!id) return false;
+          if (seenTeacher.has(id)) return false;
+          seenTeacher.add(id);
+          return true;
+        })
+        .sort((a, b) => {
+          const ca = perTeacher.get((a as { teacher_id?: string }).teacher_id ?? '') ?? 0;
+          const cb = perTeacher.get((b as { teacher_id?: string }).teacher_id ?? '') ?? 0;
+          return cb - ca;
+        })
+        .slice(0, 6);
+
+      return picked.map((c) => {
         const profile = c.is_anonymous ? null : profilesMap.get(c.user_id);
-        const name = c.is_anonymous ? 'Anonymous' : profile?.full_name || 'A ShikshAQ user';
+        const teacher = teacherMap.get((c as { teacher_id?: string }).teacher_id ?? '');
+        const name = c.is_anonymous ? 'Anonymous' : profile?.full_name || 'A Shikshaq user';
         const metaParts = c.is_anonymous
           ? []
           : profile?.role === 'guardian'
@@ -473,6 +533,8 @@ export default function Index() {
           comment: c.comment,
           authorName: name,
           authorMeta: (metaParts as string[]).join(' · '),
+          teacherName: teacher?.name ?? null,
+          teacherSlug: teacher?.slug ?? null,
         };
       });
     },
@@ -503,18 +565,41 @@ export default function Index() {
     return featuredTeachers.find((t) => t.id === onlyId)?.name ?? null;
   }, [likedCount, likedTeacherIds, featuredTeachers]);
 
-  const heroCopy = useMemo(
+  const baseHeroCopy = useMemo(
     () => resolveHeroCopy({ profile, likedCount, likedSingleTeacherName }),
     [profile, likedCount, likedSingleTeacherName],
   );
+  const heroCopy = useMemo(
+    () => (heroMode === 'papers' ? papersHeroCopy(baseHeroCopy, profile) : baseHeroCopy),
+    [heroMode, baseHeroCopy, profile],
+  );
+  /* Teachers are orange, papers are blue — the same two accents the search
+     desk, the fork panels and the results rows already use. Carrying it up
+     into the greeting is what makes the switch read as the whole page
+     changing subject rather than one control changing state. */
+  const heroAccent = heroMode === 'papers' ? 'text-brand-blue' : 'text-brand';
+  /* H-005a rule 3: three lines maximum at 375px, measured against the LONGEST
+     REAL value — not a short sample. Six lines failed it: two pool lines, the
+     handoff's own "No agent in between." line at four, and branches 3-5 once
+     they carry a real 25-character name or "WBCHSE Environmental Science".
+     The branch copy is specified verbatim, so the size steps down instead of
+     the words being cut — every branch stays inside three lines at any real
+     value, and short lines keep the full 34px. */
+  const heroLength = (heroCopy.before + heroCopy.bold + heroCopy.after).length;
+  const heroSize =
+    heroLength > 74
+      ? 'text-[26px] leading-[1.16] lg:text-[44px] lg:leading-[1.06]'
+      : heroLength > 54
+        ? 'text-[29px] leading-[1.15] lg:text-[50px] lg:leading-[1.04]'
+        : 'text-[34px] leading-[1.14] lg:text-[58px] lg:leading-[1.02]';
   // The hero's own mode (from the copy resolver) drives the search desk's
   // initial mode too, the same way the old two-line headline used to swap
   // with SearchDesk's onModeChange — except now the direction of truth runs
   // the other way for the papers branch: H-005's branch 5 both names the
   // hero copy AND wants the desk in papers mode from first paint.
   useEffect(() => {
-    if (heroCopy.mode === 'papers') setHeroMode('papers');
-  }, [heroCopy.mode]);
+    if (baseHeroCopy.mode === 'papers') setHeroMode('papers');
+  }, [baseHeroCopy.mode]);
 
   const heroAvatarChip = heroCopy.chip === null ? null : (
     <span
@@ -542,25 +627,52 @@ export default function Index() {
               flex-col stack (gap-seam) reproduces the exact prior order/spacing.
               `lg`: grid-cols-[1.15fr_1fr] — greeting+search left, forks stacked
               right — per the 34-desktop.md D-005 "Home hero" row. */}
-          <div className="flex flex-col gap-seam lg:grid lg:grid-cols-[1.15fr_1fr] lg:items-start lg:gap-2">
+          {/* No lg:items-start. Pinned to the top, the right column ended
+              wherever its two fork panels ended and left a tall band of page
+              ground beside the search desk — the hero read as half-finished at
+              desktop. The columns are equal height now and the forks divide it
+              between them. */}
+          <div className="flex flex-col gap-seam lg:grid lg:grid-cols-[1.15fr_1fr] lg:gap-2">
             <div className="flex flex-col gap-seam lg:gap-2">
           {/* -------------------------------------------------------- 1 · Greeting */}
           <BentoPanel fill="card" edge="top" className="relative overflow-hidden pt-[14px] px-[22px]">
-            <p className="text-[12.5px] font-medium text-warm-meta">{heroCopy.eyebrow}</p>
+            {/* Both lines are keyed on the mode so a toggle flip remounts them
+                and re-runs the entrance. animate-blur-swap defocuses the old
+                wording out and the new wording in, which reads as one line
+                changing its mind rather than two lines crossfading. */}
+            <p
+              key={`eyebrow-${heroMode}`}
+              className={`animate-blur-swap text-[12.5px] font-semibold ${heroAccent} motion-reduce:animate-none`}
+            >
+              {heroCopy.eyebrow}
+            </p>
             <h1
-              key={heroCopy.before + heroCopy.bold}
-              className="animate-hero-swap mt-[6px] font-display text-[34px] font-normal leading-[1.14] tracking-[-0.045em] text-foreground lg:text-[58px] lg:leading-[1.02] lg:tracking-[-0.05em]"
+              key={`${heroMode}-${heroCopy.before}${heroCopy.bold}`}
+              className={`animate-blur-swap mt-[6px] font-display font-normal tracking-[-0.045em] text-foreground motion-reduce:animate-none lg:tracking-[-0.05em] ${heroSize}`}
             >
               {heroAvatarChip}
               {heroAvatarChip ? ' ' : null}
               {heroCopy.before}
-              <span className="font-extrabold">{heroCopy.bold}</span>
+              {/* When the line names something reachable, the name IS the way
+                  there. It used to be inert text: the hero told you it knew
+                  which teacher you were considering and then made you go and
+                  find them again. */}
+              {heroCopy.href ? (
+                <Link
+                  to={heroCopy.href}
+                  className={`animate-hero-blink font-extrabold motion-reduce:animate-none ${heroAccent} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
+                >
+                  {heroCopy.bold}
+                </Link>
+              ) : (
+                <span className={`font-extrabold ${heroAccent}`}>{heroCopy.bold}</span>
+              )}
               {heroCopy.after}
             </h1>
 
             {/* H-007: live facet-count pills replace the old stat-pill pair. */}
-            {subjects.length > 0 && (
-              <div className="-mx-[22px] mt-4 overflow-x-auto px-[22px] scrollbar-hide">
+            {heroMode === 'teachers' && subjects.length > 0 && (
+              <div key="pills-teachers" className="-mx-[22px] mt-4 animate-blur-swap overflow-x-auto px-[22px] scrollbar-hide motion-reduce:animate-none">
                 <div className="flex w-max items-center gap-2">
                   {subjects.slice(0, 3).map((s) => (
                     <span
@@ -574,6 +686,22 @@ export default function Index() {
                       />
                       {s.name} · {s.teacherCount}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {heroMode === 'papers' && Object.keys(paperBoardCounts).length > 0 && (
+              <div key="pills-papers" className="-mx-[22px] mt-4 animate-blur-swap overflow-x-auto px-[22px] scrollbar-hide motion-reduce:animate-none">
+                <div className="flex w-max items-center gap-2">
+                  {BOARD_ORDER.filter((b) => paperBoardCounts[b]).slice(0, 3).map((b) => (
+                    <Link
+                      key={b}
+                      to={`/past-papers/results?filter_boards=${encodeURIComponent(b)}`}
+                      className="flex h-[38px] shrink-0 items-center gap-[7px] whitespace-nowrap rounded-full bg-brand-blue-subtle px-3.5 text-[13px] font-semibold text-brand-blue"
+                    >
+                      <span aria-hidden className="h-2 w-2 rounded-[2px] bg-brand-blue" />
+                      {b} · {paperBoardCounts[b]}
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -602,7 +730,12 @@ export default function Index() {
                     />
                   ))}
                 </div>
-                <span className="text-meta font-semibold text-muted-foreground">
+                {/* A pill, like every other small fact on this page. It was
+                    bare grey text sitting beside a row of avatars, which read
+                    as a caption someone forgot to style rather than as part of
+                    the same family as the facet pills directly above it. */}
+                <span className="flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-full bg-muted px-3.5 text-[13px] font-semibold text-foreground">
+                  <ShieldCheck className="h-[15px] w-[15px] flex-none text-brand-deep" strokeWidth={2.25} aria-hidden="true" />
                   {stats.teachers} verified tutors in Kolkata
                 </span>
               </div>
@@ -611,6 +744,13 @@ export default function Index() {
 
           {/* ---------------------------------------------------------- 2 · Search */}
           <SearchDesk onModeChange={setHeroMode} />
+
+          {/* Compact form of the same notice Browse carries. Sits under the
+              search rather than above it: the point is to catch someone as
+              they go to search, not to greet them with a caveat. It renders
+              nothing at all unless location is already known AND outside West
+              Bengal — it never prompts from here. */}
+          <RegionNotice variant="inline" />
             </div>
 
             {/* lg:pt-[72px] matches the nav reserve the greeting panel gets from
@@ -620,7 +760,7 @@ export default function Index() {
                 clearing the floating top bar and the first fork's heading sat
                 underneath it. The left column's reserve only offsets its own
                 cell. */}
-            <div className="flex flex-col gap-seam lg:gap-2 lg:pt-[72px]">
+            <div className="flex flex-col gap-seam lg:gap-2 lg:pt-[72px] [&>*]:lg:flex-1 [&>*]:lg:flex [&>*]:lg:flex-col [&>*]:lg:justify-between">
           {/* --------------------------------------------------- 3 · Teachers fork */}
           <BentoPanel fill="brandTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
             <div className="flex items-center justify-between">
@@ -701,14 +841,17 @@ export default function Index() {
                 ))}
               </div>
             ) : leadTeacher ? (
-              /* D-005 "Home featured rail": a scroller below `lg`, a
-                 grid-cols-4 gap-3.5 grid (no scroller) at `lg` and up — a
-                 1152px column hiding cards behind a drag gesture nobody
-                 performs is the exact anti-pattern the spec calls out. */
-              <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] pt-3 scrollbar-hide lg:overflow-visible">
-                <ul className="flex w-max snap-x snap-mandatory gap-3 lg:grid lg:w-full lg:grid-cols-4 lg:gap-3.5 lg:snap-none">
+              /* A carousel at every width. D-005 called for a grid-cols-4 at
+                 lg on the reasoning that a wide column should not hide cards
+                 behind a drag gesture — but at 1900px that grid gave each card
+                 a ~450px portrait, so the row read as a photo gallery and
+                 pushed the rest of the page off the fold. Fixed-width cards
+                 keep the photo small AND let the row show that more teachers
+                 exist than fit, which is what a featured rail is for. */
+              <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] pt-3 scrollbar-hide">
+                <ul className="flex w-max snap-x snap-mandatory gap-3">
                   {featuredTeachers.map((t) => (
-                    <li key={t.id} className="w-[168px] flex-none snap-start lg:w-auto">
+                    <li key={t.id} className="w-[168px] flex-none snap-start lg:w-[196px]">
                       <TeacherCard
                         id={t.id}
                         name={t.name}
@@ -797,12 +940,16 @@ export default function Index() {
                   ~1150px panel width at 1280px, turning "141 tutors" into
                   text pushed off past the visible edge by justify-between.
                   2-up grid keeps every pill a sane, readable width. */}
-              <div className="stagger-children mt-[14px] space-y-2 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
+              {/* One row at lg. A 2-up grid of five pills left a ragged
+                  half-empty last row, and each pill was still wide enough that
+                  "141 tutors" sat marooned from its board name. Five equal
+                  columns fill the width and read as one scale. */}
+              <div className="stagger-children mt-[14px] space-y-2 lg:grid lg:grid-cols-5 lg:gap-2.5 lg:space-y-0">
                 {BOARD_ORDER.filter((b) => boardCounts[b]).map((b, i) => (
                   <Link
                     key={b}
                     to={`/all-tuition-teachers-in-kolkata?filter_boards=${encodeURIComponent(b)}`}
-                    className={`flex h-[52px] min-h-[44px] items-center justify-between rounded-full px-[18px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-card-reveal ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'} ${BOARD_TILT_CLASSES[i % BOARD_TILT_CLASSES.length]}`}
+                    className={`flex h-[52px] min-h-[44px] items-center justify-between gap-2 rounded-full px-[18px] lg:h-[64px] lg:flex-col lg:items-start lg:justify-center lg:rounded-[20px] lg:px-[16px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-card-reveal ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'} ${BOARD_TILT_CLASSES[i % BOARD_TILT_CLASSES.length]}`}
                   >
                     <span className="font-display text-[17px] font-bold">{b}</span>
                     <span className="text-[14px] tabular-nums opacity-80">
@@ -845,7 +992,7 @@ export default function Index() {
               {[
                 { icon: <Search />, title: 'Tell us the subject', body: 'Subject, class and your area. Three taps, no account needed.' },
                 { icon: <Users />, title: 'Compare real profiles', body: 'Rates, boards, reviews and travel radius, all on one card.' },
-                { icon: <MessageCircle />, title: 'Message on WhatsApp', body: 'Talk to the teacher directly. ShikshAQ never sits in the middle.' },
+                { icon: <MessageCircle />, title: 'Message on WhatsApp', body: 'Talk to the teacher directly. Shikshaq never sits in the middle.' },
               ].map((step, i) => (
                 <li key={step.title} className={`flex flex-col ${i > 0 ? 'lg:border-l lg:border-background/25 lg:pl-6' : ''}`}>
                   <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-background/15 text-white [&_svg]:size-5">
@@ -897,45 +1044,60 @@ export default function Index() {
             <span aria-hidden className="pointer-events-none absolute -left-10 top-0 h-[160px] w-[160px] rounded-full bg-white/[.06]" />
             <span aria-hidden className="pointer-events-none absolute -right-10 top-10 h-[190px] w-[190px] rounded-full bg-white/[.06]" />
 
-            <p className="relative text-[11.5px] font-bold uppercase tracking-[.04em] text-white/70">04</p>
-            <h2 className="relative font-display text-[23px] font-extrabold text-white lg:text-[30px]">the boards set</h2>
+            {/* Two columns from lg. As one centred stack the tray was capped
+                at 420px, so on a 1900px screen this panel was mostly empty
+                blue with a small huddle of covers in the middle. Copy and CTA
+                on one side, the shelf on the other, and the shelf shows five
+                covers instead of three because there is now room for them. */}
+            <div className="relative lg:flex lg:items-center lg:gap-12">
+              <div className="lg:flex-1">
+                <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/70">04</p>
+                <h2 className="font-display text-[23px] font-extrabold text-white lg:text-[30px]">the boards set</h2>
+                <p className="mt-3 max-w-prose text-[14px] leading-[1.5] text-white/80 lg:text-[15px]">
+                  {/* Not "from Kolkata schools": the question bank added 193 ICSE
+                      and CBSE papers from schools across India, and a handful of
+                      the covers beside this line are from Mumbai and Bengaluru. */}
+                  Free past papers: ICSE, CBSE and ISC, classes 9 to 12, read as questions with
+                  marks, chapters and figures.
+                </p>
+                <Link
+                  to="/past-papers"
+                  className="mt-4 inline-flex h-[46px] items-center gap-2 whitespace-nowrap rounded-full bg-warm-card px-6 text-[14px] font-extrabold text-brand-blue-deep transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue"
+                >
+                  Browse past papers
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
 
-            {recentPapers.length > 0 ? (
-              <div className="relative mx-auto mt-5 max-w-[420px] rounded-t-[24px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pb-3 pt-4">
-                <div className="scrollbar-hide flex items-end justify-center gap-3 overflow-x-auto overflow-y-visible">
-                  {recentPapers.slice(0, 3).map((p) => (
-                    <PaperCover
-                      key={p.id}
-                      paper={p}
-                      href={`/past-papers/${p.id}`}
-                      size="mobile"
-                      className="flex-none"
-                    />
-                  ))}
+              {recentPapers.length > 0 ? (
+                <div className="mx-auto mt-6 w-full max-w-[420px] rounded-t-[24px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pb-3 pt-4 lg:mx-0 lg:mt-0 lg:max-w-none lg:flex-[1.2]">
+                  {/* justify-start, not center: a centred flex row whose content
+                      overflows is clipped at BOTH ends, and the part past the
+                      start edge cannot be scrolled back to. With ten covers in
+                      here that would strand the first few. */}
+                  <div className="scrollbar-hide flex items-end justify-start gap-3 overflow-x-auto overflow-y-visible">
+                    {recentPapers.slice(0, 10).map((p, i) => (
+                      <PaperCover
+                        key={p.id}
+                        paper={p}
+                        href={`/past-papers/${p.id}`}
+                        size="mobile"
+                        /* Three fit a phone; the rest are there to scroll to. */
+                        className="flex-none" 
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="relative mt-5">
-                <EmptyResults
-                  icon={<FileText className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
-                  heading="Papers are being added"
-                  message="Free, from Kolkata schools. Check back shortly."
-                  action={{ label: 'Browse past papers', onClick: () => navigate('/past-papers') }}
-                />
-              </div>
-            )}
-
-            <div className="relative mt-5 flex flex-col items-center gap-1 text-center">
-              <p className="max-w-prose text-[14px] leading-[1.5] text-white/80">
-                Free past papers from Kolkata schools: ICSE, CBSE and ISC, classes 9 to 12.
-              </p>
-              <Link
-                to="/past-papers"
-                className="mt-[14px] inline-flex h-[46px] items-center gap-2 whitespace-nowrap rounded-full bg-warm-card px-6 text-[14px] font-extrabold text-brand-blue-deep transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue"
-              >
-                Browse past papers
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              ) : (
+                <div className="mt-5 lg:flex-1">
+                  <EmptyResults
+                    icon={<FileText className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+                    heading="Papers are being added"
+                    message="Free ICSE, CBSE and ISC papers. Check back shortly."
+                    action={{ label: 'Browse past papers', onClick: () => navigate('/past-papers') }}
+                  />
+                </div>
+              )}
             </div>
           </BentoPanel>
 
@@ -943,7 +1105,7 @@ export default function Index() {
           <BentoPanel fill="brandTint" className="p-[22px]">
             <div className="flex items-center gap-3">
               <IconDisc tone="brand" size={38} shape="square"><ShieldCheck className="h-[19px] w-[19px]" /></IconDisc>
-              <h2 className="font-display text-[22px] font-extrabold tracking-[-0.04em] text-brand-deep lg:text-[28px]">Why guardians use ShikshAQ</h2>
+              <h2 className="font-display text-[22px] font-extrabold tracking-[-0.04em] text-brand-deep lg:text-[28px]">Why guardians use Shikshaq</h2>
             </div>
             <ul className="mt-[18px] flex flex-col gap-4">
               {[
@@ -965,9 +1127,18 @@ export default function Index() {
           {/* ------------------------------------------------------ 12 · From students */}
           {studentQuotes.length > 0 && (
             <BentoPanel fill="card" className="!px-0 !py-[22px] lg:!py-8">
-              <div className="flex items-center gap-3 px-[22px]">
-                <IconDisc tone="muted" size={32} shape="square" className="!rounded-xl"><MessageCircle /></IconDisc>
-                <h2 className="font-display text-[22px] font-extrabold lg:text-[28px]">From students</h2>
+              <div className="px-[22px]">
+                <div className="flex items-center gap-3">
+                  <IconDisc tone="muted" size={32} shape="square" className="!rounded-xl"><MessageCircle /></IconDisc>
+                  <h2 className="font-display text-[22px] font-extrabold lg:text-[28px]">From students</h2>
+                </div>
+                {/* Without this line the rail is a wall of praise for people
+                    the reader has never heard of — "Ashok sir explains
+                    clearly" means nothing until you know Ashok sir is on this
+                    site and one tap away. */}
+                <p className="mt-1.5 text-[14px] leading-[1.5] text-warm-secondary">
+                  Every one of them found their teacher here. Tap a name to see that teacher.
+                </p>
               </div>
 
               {/* D-005 doesn't itemize this rail by name, but its own
@@ -979,14 +1150,57 @@ export default function Index() {
               <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] scrollbar-hide lg:overflow-x-visible">
                 <ul className="flex w-max gap-3 lg:grid lg:w-auto lg:grid-cols-3">
                   {studentQuotes.map((q) => (
-                    <li key={q.id} className="flex w-[250px] flex-none flex-col gap-[14px] rounded-[20px] bg-muted p-4 lg:w-auto">
-                      <p className="line-clamp-5 text-[14px] leading-[1.55] text-[#4A443E]">&ldquo;{q.comment}&rdquo;</p>
-                      <div className="mt-auto flex items-center gap-2">
-                        <StripePlaceholder name={q.authorName} initialSize={14} className="h-[26px] w-[26px] flex-none rounded-full" />
-                        <div className="min-w-0">
-                          <p className="truncate text-[12.5px] font-semibold text-foreground">{q.authorName}</p>
-                          {q.authorMeta && <p className="truncate text-[12.5px] text-warm-meta">{q.authorMeta}</p>}
+                    <li
+                      key={q.id}
+                      className="relative flex w-[268px] flex-none flex-col rounded-[20px] bg-muted p-[18px] pt-[22px] lg:w-auto"
+                    >
+                      {/* A real quote mark, set large and low-contrast behind
+                          the opening line. The card was three stacked blocks of
+                          near-identical grey; this gives it a top and tells you
+                          at a glance that the thing you are reading is somebody
+                          speaking. aria-hidden because the quotation is already
+                          punctuated in the text. */}
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-4 top-1 select-none font-display text-[54px] leading-none text-foreground/[0.07]"
+                      >
+                        &rdquo;
+                      </span>
+
+                      <p className="relative line-clamp-5 text-[15px] leading-[1.55] text-warm-prose">
+                        {q.comment}
+                      </p>
+
+                      <div className="mt-auto pt-4">
+                        <div className="flex items-center gap-2.5">
+                          <StripePlaceholder
+                            name={q.authorName}
+                            initialSize={14}
+                            className="h-[30px] w-[30px] flex-none rounded-full"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate text-[13px] font-bold text-foreground">{q.authorName}</p>
+                            {q.authorMeta && (
+                              <p className="truncate text-[12px] text-warm-meta">{q.authorMeta}</p>
+                            )}
+                          </div>
                         </div>
+
+                        {/* The teacher, on its own line under the attribution
+                            and reading as a sentence rather than a bare pill:
+                            it is the answer to "who is this about", which the
+                            name above does not give you. */}
+                        {q.teacherName && q.teacherSlug && (
+                          <Link
+                            to={`/tuition-teachers/${q.teacherSlug}`}
+                            className="mt-2.5 flex min-h-11 items-center gap-1.5 text-[12.5px] text-warm-secondary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >
+                            <span aria-hidden="true" className="h-1.5 w-1.5 flex-none rounded-full bg-brand" />
+                            <span className="min-w-0 truncate">
+                              on <span className="font-bold text-foreground">{q.teacherName}</span>
+                            </span>
+                          </Link>
+                        )}
                       </div>
                     </li>
                   ))}

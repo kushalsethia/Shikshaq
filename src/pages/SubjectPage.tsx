@@ -15,19 +15,19 @@ const SUBJECT_SEO: Record<string, { title: string; description: string }> = {
   },
   '/science-tuition-teachers-in-kolkata': {
     title: 'Science Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Science tutors in Kolkata covering Physics, Chemistry, and Biology for Classes 6–12. CBSE, ICSE, IGCSE, and State Board. Free on Shikshaq.',
+    description: 'Find Science tutors in Kolkata covering Physics, Chemistry, and Biology for Classes 6-12. CBSE, ICSE, IGCSE, and State Board. Free on Shikshaq.',
   },
   '/physics-tuition-teachers-in-kolkata': {
     title: 'Physics Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Physics tutors in Kolkata for Classes 9–12 and JEE preparation. CBSE, ICSE, IGCSE, and State Board. Connect directly for free on Shikshaq.',
+    description: 'Find Physics tutors in Kolkata for Classes 9-12 and JEE preparation. CBSE, ICSE, IGCSE, and State Board. Connect directly for free on Shikshaq.',
   },
   '/chemistry-tuition-teachers-in-kolkata': {
     title: 'Chemistry Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Chemistry tutors in Kolkata for Classes 9–12 and JEE/NEET preparation. CBSE, ICSE, IGCSE, and State Board. Connect directly for free on Shikshaq.',
+    description: 'Find Chemistry tutors in Kolkata for Classes 9-12 and JEE/NEET preparation. CBSE, ICSE, IGCSE, and State Board. Connect directly for free on Shikshaq.',
   },
   '/biology-tuition-teachers-in-kolkata': {
     title: 'Biology Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Biology tutors in Kolkata for Classes 9–12 and NEET preparation. CBSE, ICSE, IGCSE, and State Board. Connect directly for free on Shikshaq.',
+    description: 'Find Biology tutors in Kolkata for Classes 9-12 and NEET preparation. CBSE, ICSE, IGCSE, and State Board. Connect directly for free on Shikshaq.',
   },
   '/computer-tuition-teachers-in-kolkata': {
     title: 'Computer Tuition Teachers in Kolkata | Shikshaq',
@@ -39,27 +39,27 @@ const SUBJECT_SEO: Record<string, { title: string; description: string }> = {
   },
   '/history-tuition-teachers-in-kolkata': {
     title: 'History Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find History tutors in Kolkata for Indian and world history, Classes 6–12. CBSE, ICSE, and State Board. Connect directly for free on Shikshaq.',
+    description: 'Find History tutors in Kolkata for Indian and world history, Classes 6-12. CBSE, ICSE, and State Board. Connect directly for free on Shikshaq.',
   },
   '/geography-tuition-teachers-in-kolkata': {
     title: 'Geography Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Geography tutors in Kolkata for physical and human geography, Classes 6–12. CBSE, ICSE, and State Board. Connect directly for free on Shikshaq.',
+    description: 'Find Geography tutors in Kolkata for physical and human geography, Classes 6-12. CBSE, ICSE, and State Board. Connect directly for free on Shikshaq.',
   },
   '/economics-tuition-teachers-in-kolkata': {
     title: 'Economics Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Economics tutors in Kolkata for micro and macro economics, Classes 11–12, and competitive exams. Connect directly for free on Shikshaq.',
+    description: 'Find Economics tutors in Kolkata for micro and macro economics, Classes 11-12, and competitive exams. Connect directly for free on Shikshaq.',
   },
   '/accounts-tuition-teachers-in-kolkata': {
     title: 'Accounts Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Accounts tutors in Kolkata for Classes 11–12 and CA preparation. CBSE, ICSE, and State Board. Connect directly for free on Shikshaq.',
+    description: 'Find Accounts tutors in Kolkata for Classes 11-12 and CA preparation. CBSE, ICSE, and State Board. Connect directly for free on Shikshaq.',
   },
   '/business-studies-tuition-teachers-in-kolkata': {
     title: 'Business Studies Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Business Studies tutors in Kolkata for Classes 11–12 across all boards. Connect directly for free on Shikshaq.',
+    description: 'Find Business Studies tutors in Kolkata for Classes 11-12 across all boards. Connect directly for free on Shikshaq.',
   },
   '/commerce-tuition-teachers-in-kolkata': {
     title: 'Commerce Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Commerce tutors in Kolkata covering Accounts, Economics, and Business Studies for Classes 11–12. Connect directly for free on Shikshaq.',
+    description: 'Find Commerce tutors in Kolkata covering Accounts, Economics, and Business Studies for Classes 11-12. Connect directly for free on Shikshaq.',
   },
   '/commercial-studies-tuition-teachers-in-kolkata': {
     title: 'Commercial Studies Tuition Teachers in Kolkata | Shikshaq',
@@ -67,15 +67,15 @@ const SUBJECT_SEO: Record<string, { title: string; description: string }> = {
   },
   '/psychology-tuition-teachers-in-kolkata': {
     title: 'Psychology Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Psychology tutors in Kolkata for IGCSE, IB, and Class 11–12. Behavioural sciences and introduction to psychology. Connect directly for free on Shikshaq.',
+    description: 'Find Psychology tutors in Kolkata for IGCSE, IB, and Class 11-12. Behavioural sciences and introduction to psychology. Connect directly for free on Shikshaq.',
   },
   '/sociology-tuition-teachers-in-kolkata': {
     title: 'Sociology Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Sociology tutors in Kolkata for Classes 11–12. Social structures, culture, and society. Connect directly for free on Shikshaq.',
+    description: 'Find Sociology tutors in Kolkata for Classes 11-12. Social structures, culture, and society. Connect directly for free on Shikshaq.',
   },
   '/political-science-tuition-teachers-in-kolkata': {
     title: 'Political Science Tuition Teachers in Kolkata | Shikshaq',
-    description: 'Find Political Science tutors in Kolkata for Indian polity and international relations, Classes 11–12. Connect directly for free on Shikshaq.',
+    description: 'Find Political Science tutors in Kolkata for Indian polity and international relations, Classes 11-12. Connect directly for free on Shikshaq.',
   },
   '/environmental-science-tuition-teachers-in-kolkata': {
     title: 'Environmental Science Tuition Teachers in Kolkata | Shikshaq',

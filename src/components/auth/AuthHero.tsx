@@ -90,10 +90,7 @@ export interface AuthHero {
   /** First element of the dark block. */
   subline: string;
   /** AU-007 value note. */
-  noteTitle: string;
-  noteBody: string;
   /** Value-note tile colour follows intent: green, orange or indigo. */
-  noteTint: 'brand' | 'whatsapp' | 'papers';
 }
 
 /* `break-words` matters here: variant D interpolates a real paper title, and a
@@ -169,9 +166,6 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
           </Well>
         ),
         subline: "We'll take you straight to the chat",
-        noteTitle: 'Why sign in',
-        noteBody: 'Your number stays yours. You message the teacher, not us.',
-        noteTint: 'whatsapp',
       };
     }
 
@@ -196,9 +190,6 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
           </Well>
         ),
         subline: `Sign in and we'll add ${first} to your saved teachers`,
-        noteTitle: 'Why sign in',
-        noteBody: 'Your shortlist follows you on every device you sign in on.',
-        noteTint: 'brand',
       };
     }
 
@@ -226,9 +217,6 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
           </Well>
         ),
         subline: 'Sign in once and the paper opens',
-        noteTitle: 'Why sign in',
-        noteBody: 'Every paper you open stays on your shelf, free.',
-        noteTint: 'papers',
       };
     }
 
@@ -247,9 +235,6 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
           </Well>
         ),
         subline: 'Sign in so we know the review is real',
-        noteTitle: 'Why sign in',
-        noteBody: 'Reviews only come from signed-in accounts. You choose whether your name shows.',
-        noteTint: 'brand',
       };
 
     /* F — the visitor tried to reach their own account. */
@@ -287,9 +272,6 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
           </Well>
         ),
         subline: 'Sign in with the same account and it all comes back',
-        noteTitle: 'Why sign in',
-        noteBody: 'Use the same Google account or email you signed in with before.',
-        noteTint: 'brand',
       };
     }
 
@@ -307,9 +289,6 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
           </Well>
         ),
         subline: 'Sign in to start your application',
-        noteTitle: 'Why sign in',
-        noteBody: 'Applying is free and nothing is published until you approve it.',
-        noteTint: 'brand',
       };
 
     /* H — a staff redirect. Nothing here may look promotional. */
@@ -327,9 +306,6 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
           </Well>
         ),
         subline: 'Sign in with your staff account',
-        noteTitle: 'Why sign in',
-        noteBody: 'Access is checked against your role after sign-in. Wrong account means no access, not an error.',
-        noteTint: 'brand',
       };
 
     /* A — the default. Explicitly NOT counts: three pills naming what the
@@ -360,9 +336,6 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
           </Well>
         ),
         subline: 'Sign in to continue to Shikshaq',
-        noteTitle: 'Why sign in',
-        noteBody: 'Searching stays free without an account. Signing in only saves what you find.',
-        noteTint: 'brand',
       };
     }
   }

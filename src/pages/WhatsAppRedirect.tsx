@@ -177,8 +177,8 @@ export default function WhatsAppRedirect() {
         </h1>
         <p className="mx-auto mt-2 max-w-[34ch] text-[15px] leading-[1.6] text-[#3E6F53]">
           {name
-            ? `Connecting you with ${name}. Fees and timings are settled directly between you two — Shikshaq takes no commission.`
-            : 'Fees and timings are settled directly between you and the teacher — Shikshaq takes no commission.'}
+            ? `Connecting you with ${name}. Fees and timings are settled directly between you two. Shikshaq takes no commission.`
+            : 'Fees and timings are settled directly between you and the teacher. Shikshaq takes no commission.'}
         </p>
 
         {/* Required, not optional: app handoff to WhatsApp fails often enough

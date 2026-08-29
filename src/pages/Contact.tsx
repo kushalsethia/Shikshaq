@@ -50,9 +50,9 @@ export default function Contact() {
   } = useSentenceBuilder();
 
   usePageMeta(
-    'Contact ShikshAQ | Talk to a real person',
+    'Contact Shikshaq | Talk to a real person',
     // Was 178 chars, truncated in the SERP snippet. 149 now.
-    'Reach the two people who run ShikshAQ directly for teacher search, paper takedowns, or listing yourself. A real person replies, usually the same day.'
+    'Reach the two people who run Shikshaq directly for teacher search, paper takedowns, or listing yourself. A real person replies, usually the same day.'
   );
 
   // Handoff CT-003: one topic is always selected (defaults to the first) —
@@ -77,7 +77,7 @@ export default function Contact() {
     if (!nameField.isValid || !contactField.isValid || !messageField.isValid) return;
 
     const reasonLabel = REASONS.find((r) => r.id === reason)?.label ?? 'General';
-    const subject = encodeURIComponent(`ShikshAQ - ${reasonLabel}`);
+    const subject = encodeURIComponent(`Shikshaq - ${reasonLabel}`);
     const body = encodeURIComponent(
       `Name: ${name}\nReach me on: ${contact}\n\n${message}`
     );
@@ -194,12 +194,12 @@ export default function Contact() {
                 <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />
               </Button>
               <span className="text-[13px] leading-[1.55] text-warm-label">
-                Goes straight to the two people who run ShikshAQ. No newsletter, and we never
+                Goes straight to the two people who run Shikshaq. No newsletter, and we never
                 pass your number to a teacher without asking.
               </span>
               {sent ? (
                 <p role="status" className="text-body-secondary text-brand-deep">
-                  Your email app should be open now &mdash; send it from there and we&rsquo;ll reply.
+                  Your email app should be open now. Send it from there and we&rsquo;ll reply.
                 </p>
               ) : null}
             </form>

@@ -100,6 +100,30 @@ const FieldTextarea = React.forwardRef<
 ));
 FieldTextarea.displayName = "FieldTextarea";
 
+/** Single-line select, 56px — same shell as FieldInput so a chosen value and a
+ *  typed value look identical in a form. `appearance-none` plus the caret drawn
+ *  as a background image, because the platform caret ignores the field's own
+ *  type scale and colour. */
+const FieldSelect = React.forwardRef<
+  HTMLSelectElement,
+  React.SelectHTMLAttributes<HTMLSelectElement>
+>(({ className, ...props }, ref) => (
+  <select
+    ref={ref}
+    className={cn(
+      controlBase,
+      "h-14 appearance-none bg-[length:20px] bg-[right_18px_center] bg-no-repeat pr-12",
+      className,
+    )}
+    style={{
+      backgroundImage:
+        "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B6257' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
+    }}
+    {...props}
+  />
+));
+FieldSelect.displayName = "FieldSelect";
+
 /**
  * Convenience hook for the blur-only error rule: keeps the message hidden until
  * the control has been blurred at least once, so typing is never interrupted.
@@ -117,4 +141,4 @@ function useBlurValidation(value: string, validate: (v: string) => string | unde
   };
 }
 
-export { Field, FieldInput, FieldTextarea, useBlurValidation, controlBase };
+export { Field, FieldInput, FieldSelect, FieldTextarea, useBlurValidation, controlBase };

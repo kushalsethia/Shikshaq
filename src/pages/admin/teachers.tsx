@@ -538,7 +538,7 @@ export default function AdminTeachersPage() {
       ? new Date(teacher.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
       : '-';
     const fee = teacher['Min Fees'] || teacher['Max Fees']
-      ? `₹${teacher['Min Fees'] ?? '-'}–${teacher['Max Fees'] ?? '-'}`
+      ? `₹${teacher['Min Fees'] ?? '-'}-${teacher['Max Fees'] ?? '-'}`
       : '-';
     const busy = rowBusyId === String(teacher.id);
 
@@ -610,7 +610,7 @@ export default function AdminTeachersPage() {
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="name">Name (A–Z)</SelectItem>
+        <SelectItem value="name">Name (A-Z)</SelectItem>
         <SelectItem value="fees">Fees: low to high</SelectItem>
         <SelectItem value="joined">Joined: newest</SelectItem>
       </SelectContent>

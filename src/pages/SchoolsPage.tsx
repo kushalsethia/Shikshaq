@@ -5,6 +5,7 @@ import { ArrowRight, School } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
 import { schoolSlug } from '@/lib/school-slug';
+import { loadPaperIndex, schoolsOfPapers, type BankPaper } from '@/lib/question-bank';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { NumberedHeading } from '@/components/ui/numbered-heading';
@@ -25,8 +26,11 @@ import { useChromeConfig } from '@/components/layout/AppShell';
  */
 
 interface SchoolStat {
+  /** Carried rather than recomputed at render, so the row's href is the same
+      slug the two sources were merged on. */
+  slug: string;
   school: string;
-  board: string;
+  board: string | null;
   count: number;
   otherBoardCount: number;
 }
@@ -35,8 +39,8 @@ export default function SchoolsPage() {
   const navigate = useNavigate();
 
   usePageMeta(
-    'All Schools | Shikshaq',
-    'Browse past papers from every Kolkata school on Shikshaq, ICSE, CBSE and ISC, classes 9 to 12. Free to read.',
+    'Past Papers by School | Shikshaq',
+    'Browse free past papers grouped by the school that set them, ICSE, CBSE and ISC, classes 9 to 12. Open any school to read its papers question by question.',
   );
 
   // Handoff SC-005: this route renders its own eyes panel, replacing
@@ -52,22 +56,50 @@ export default function SchoolsPage() {
     queryKey: ['schools', 'index'],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase.from('papers').select('school,board').eq('is_published', true);
-      if (error) throw error;
+      /* Two sources, one index. The table was the only one wired in, so
+         every school that exists solely in the question bank was missing
+         from the page that claims to list them all. A bank failure must not
+         empty the index, and vice versa — each is caught on its own and the
+         query only fails if neither source answered. */
+      const [dbResult, bank] = await Promise.all([
+        supabase.from('papers').select('school,board').eq('is_published', true),
+        loadPaperIndex().catch(() => [] as BankPaper[]),
+      ]);
+      if (dbResult.error && bank.length === 0) throw dbResult.error;
 
-      const bySchool = new Map<string, Map<string, number>>();
-      (data || []).forEach((p) => {
-        const boards = bySchool.get(p.school) ?? new Map<string, number>();
-        boards.set(p.board, (boards.get(p.board) || 0) + 1);
-        bySchool.set(p.school, boards);
+      /* Keyed on slug, not on the raw name: the table's "La Martiniere for
+         Boys" and the bank's cleaned equivalent are one school and must not
+         become two half-populated rows. */
+      const bySchool = new Map<string, { name: string; boards: Map<string, number> }>();
+      const add = (name: string, board: string | null) => {
+        const slug = schoolSlug(name);
+        if (!slug) return;
+        const entry = bySchool.get(slug) ?? { name, boards: new Map<string, number>() };
+        if (board) entry.boards.set(board, (entry.boards.get(board) || 0) + 1);
+        else entry.boards.set('', (entry.boards.get('') || 0) + 1);
+        bySchool.set(slug, entry);
+      };
+
+      (dbResult.data || []).forEach((p) => add(p.school, p.board));
+      schoolsOfPapers(bank).forEach((school) => {
+        school.papers.forEach((paper) => add(school.name, paper.board));
       });
 
       const schoolStats: SchoolStat[] = Array.from(bySchool.entries())
-        .map(([school, boards]) => {
-          const entries = Array.from(boards.entries()).sort((a, b) => b[1] - a[1]);
-          const [dominantBoard, dominantCount] = entries[0];
-          const total = entries.reduce((sum, [, c]) => sum + c, 0);
-          return { school, board: dominantBoard, count: dominantCount, otherBoardCount: total - dominantCount };
+        .map(([slug, { name, boards }]) => {
+          const total = Array.from(boards.values()).reduce((sum, c) => sum + c, 0);
+          // Papers with no board recorded are counted but never named as one.
+          const named = Array.from(boards.entries())
+            .filter(([board]) => board)
+            .sort((a, b) => b[1] - a[1]);
+          const [dominantBoard, dominantCount] = named[0] ?? [null, 0];
+          return {
+            slug,
+            school: name,
+            board: dominantBoard,
+            count: dominantBoard ? dominantCount : total,
+            otherBoardCount: dominantBoard ? total - dominantCount : 0,
+          };
         })
         .sort((a, b) => a.school.localeCompare(b.school));
 
@@ -115,10 +147,10 @@ export default function SchoolsPage() {
               <ListError onRetry={() => query.refetch()} />
             ) : schoolStats.length > 0 ? (
               <div className="stagger-children grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]">
-                {schoolStats.map(({ school, board, count, otherBoardCount }) => (
+                {schoolStats.map(({ slug, school, board, count, otherBoardCount }) => (
                   <Link
-                    key={school}
-                    to={`/school/${schoolSlug(school)}`}
+                    key={slug}
+                    to={`/school/${slug}`}
                     className="flex min-h-11 animate-card-reveal items-center gap-3 rounded-2xl bg-muted px-[14px] py-3 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:animate-none motion-reduce:hover:translate-y-0 lg:px-[15px] lg:py-[13px]"
                   >
                     <IconDisc
@@ -132,7 +164,7 @@ export default function SchoolsPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[14.5px] font-bold text-foreground">{school}</span>
                       <span className="mt-px block text-[12px] tabular-nums text-muted-foreground">
-                        {board} · {count} paper{count === 1 ? '' : 's'}
+                        {board ? `${board} · ` : ''}{count} paper{count === 1 ? '' : 's'}
                         {otherBoardCount > 0 ? ` + ${otherBoardCount} more` : ''}
                       </span>
                     </span>
@@ -145,7 +177,7 @@ export default function SchoolsPage() {
                 tone="papers"
                 icon={<School className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
                 heading="Schools are being updated"
-                message="We're still gathering papers from Kolkata schools, nothing's uploaded yet."
+                message="We're still gathering papers from schools, nothing's uploaded yet."
                 action={{ label: 'Browse past papers', onClick: () => navigate('/past-papers') }}
               />
             )}

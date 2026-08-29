@@ -143,11 +143,11 @@ export function WriteReviewSheet({ open, onOpenChange, submitting, error, onSubm
           </div>
 
           <div>
-            {/* "Your name — optional" per O-006 is a free-text field this
+            {/* "Your name (optional)" per O-006 is a free-text field this
                 app's account-tied review model doesn't have (see file header
                 comment) — the real equivalent is this anonymous toggle. */}
             <label htmlFor="write-review-anonymous" className="mb-1 block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">
-              Your name <span className="font-medium normal-case tracking-normal text-warm-meta">— optional</span>
+              Your name <span className="font-medium normal-case tracking-normal text-warm-meta">(optional)</span>
             </label>
             <div className="flex items-center gap-2">
               <Checkbox

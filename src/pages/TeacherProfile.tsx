@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { recordViewedTeacher } from '@/lib/activity-trail';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -134,8 +135,15 @@ function SubjectPill({ label }: { label: string }) {
 // before-value.
 function SpeechChip({ children, accent = false }: { children: React.ReactNode; accent?: boolean }) {
   return (
+    /* Wraps, never truncates. Beside the photo these chips had ~216px to hold
+       a full board list or every area a teacher travels to, so both ended in
+       an ellipsis that hid the actual answer. They now sit full width under
+       the photo and name and are free to run to a second line.
+       rounded-[16px] is half of the 32px single-line height, so one line still
+       reads as a pill while two lines read as a rounded block rather than a
+       stretched lozenge. */
     <span
-      className={`animate-card-reveal motion-reduce:animate-none inline-flex h-[32px] max-w-full min-w-0 items-center truncate whitespace-nowrap rounded-full px-[14px] text-[13.5px] font-bold backdrop-blur-sm ${
+      className={`animate-card-reveal motion-reduce:animate-none inline-flex min-h-[32px] max-w-full items-center rounded-[16px] px-[14px] py-[6px] text-[13.5px] font-bold leading-[1.35] backdrop-blur-sm ${
         accent ? 'bg-brand text-brand-foreground' : 'bg-card/90 text-foreground shadow-border'
       }`}
     >
@@ -236,6 +244,18 @@ export default function TeacherProfile() {
 
   const teacher = profileQuery.data ?? null;
   const loading = profileQuery.isPending && Boolean(slug);
+
+  /* Feeds H-005 branch 4 ("You looked at {name} last time. Still deciding?").
+     Runs on the resolved profile, not on the route param, so a slug that 404s
+     never writes a teacher the hero would then name back. */
+  useEffect(() => {
+    if (!teacher?.name) return;
+    recordViewedTeacher({
+      name: teacher.name,
+      subject: teacher.subjects?.name ?? teacher.subjects_from_shikshaq?.split(',')[0]?.trim() ?? null,
+      area: (teacher as { area?: string | null }).area?.split(',')[0]?.trim() ?? null,
+    });
+  }, [teacher]);
 
   /* pages.md §3 row 7 — "Similar teachers | rail | 6 cards, rail density".
      Same subject, excluding this teacher, featured first. Enriched via the
@@ -604,7 +624,13 @@ export default function TeacherProfile() {
       ? `Up to ₹${teacher.max_fees.toLocaleString()}`
       : null;
   const classSizeValue = teacher.class_size ? teacher.class_size.replace(/\bSolo\b/g, 'One-on-one') : null;
-  const hasStats = Boolean(teacher.experience_years || feesValue || classSizeValue);
+  /* P-007 draws a THREE-across row. With one value present it rendered a lone
+     tile floating next to two tile-widths of nothing, and that value is listed
+     again in Teaching details directly below — so one tile is suppressed
+     rather than shown orphaned. Zero still gets the "not listed yet" note,
+     because that says something the details grid cannot. */
+  const statTileCount = [teacher.experience_years, feesValue, classSizeValue].filter(Boolean).length;
+  const hasStats = statTileCount >= 2;
 
   /* The six facts pages.md §3 names, in its order. Built as a list so a missing
      value drops its row instead of rendering a label with nothing under it. */
@@ -747,15 +773,6 @@ export default function TeacherProfile() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  {/* S3 header chips: gap:6px margin-bottom:10px — both exact tokens (gap-1.5 / mb-2.5), kept. */}
-                  {(boardsList.length > 0 || teacher.area || teacher.experience_years) && (
-                    <div className="stagger-children mb-2.5 flex flex-wrap gap-1.5 lg:hidden">
-                      {boardsList.length > 0 && <SpeechChip accent>{boardsList.join(' + ')}</SpeechChip>}
-                      {teacher.area && <SpeechChip>{teacher.area}</SpeechChip>}
-                      {teacher.experience_years && <SpeechChip>{teacher.experience_years}+ years</SpeechChip>}
-                    </div>
-                  )}
-
                   <div className="flex flex-wrap items-center gap-x-[7px] gap-y-1">
                     {/* Name is always the bold element; "Sir"/"Ma'am" is a
                         secondary courtesy label and reads small and light
@@ -769,7 +786,7 @@ export default function TeacherProfile() {
                       </span>
                     )}
                     {teacher.is_verified && (
-                      <span title="Verified by ShikshAQ" className="flex-none">
+                      <span title="Verified by Shikshaq" className="flex-none">
                         <ShieldCheck
                           className="h-[19px] w-[19px] fill-brand text-background lg:h-[26px] lg:w-[26px] lg:text-card"
                           strokeWidth={2}
@@ -805,57 +822,38 @@ export default function TeacherProfile() {
                   )}
                 </div>
               </div>
+
+              {/* S3 header chips, moved out of the column beside the photo and
+                  given the panel's full width. Sharing that column capped them
+                  at ~216px, which is not enough for a real board list or a
+                  travel radius, so both were being cut. Below the photo and the
+                  name they get the whole width and the panel simply grows to
+                  fit them. */}
+              {(boardsList.length > 0 || teacher.area || teacher.experience_years) && (
+                <div className="stagger-children mt-[14px] flex flex-wrap gap-1.5 lg:hidden">
+                  {boardsList.length > 0 && <SpeechChip accent>{boardsList.join(' + ')}</SpeechChip>}
+                  {teacher.area && <SpeechChip>{teacher.area}</SpeechChip>}
+                  {teacher.experience_years && <SpeechChip>{teacher.experience_years}+ years</SpeechChip>}
+                </div>
+              )}
             </BentoPanel>
 
             {/* Handoff P-007: a 3-across row at every width, each tile its
                 own BentoPanel — was a stacked grid that cost three rows for
                 three short facts at 375px. */}
-            {hasStats ? (
+            {hasStats && (
               <div className="stagger-children flex gap-seam">
                 {teacher.experience_years && <StatTile icon={Clock} label="Experience" value={`${teacher.experience_years}+ years`} />}
                 {feesValue && <StatTile icon={Wallet} label="Fees / month" value={feesValue} />}
                 {classSizeValue && <StatTile icon={Users} label="Class size" value={classSizeValue} />}
               </div>
-            ) : (
+            )}
+            {statTileCount === 0 && (
               <BentoPanel fill="muted" className="text-sm text-muted-foreground">
                 Experience, fees, and class size aren't listed yet, ask {firstName} directly on WhatsApp.
               </BentoPanel>
             )}
 
-            {/* Contact panel — mobile/tablet only; desktop's contact card lives in
-                the sticky right column below. Green WhatsApp CTA (design.md §4).
-                Handoff P-008: bg-muted -> bg-mint, radius 20 -> 30. */}
-            <BentoPanel ref={primaryCtaRef} fill="mint" className="flex flex-col p-4 lg:hidden">
-              <p className="mb-[12px] text-[13.5px] leading-[1.55] text-[#3E6F53]">
-                Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
-              </p>
-              <Button variant="whatsapp" size={52} onClick={handleWhatsAppClick} className="whatsapp-pulse-once rounded-[16px]">
-                <WhatsAppIcon className="h-[19px] w-[19px]" />
-                Message on WhatsApp
-              </Button>
-              {!user && (
-                // Bug fix, mobile QA: this line sat directly under the green
-                // WhatsApp CTA in brand blue — the one sanctioned colour on a
-                // WhatsApp button/its caption is green (rule: never blue next
-                // to it). Desktop's equivalent caption (below) was already
-                // neutral; this brings mobile in line with it.
-                // Handoff P-008: neutral-on-mint (never blue) — #3E6F53.
-                <span className="mt-[10px] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#3E6F53]">
-                  Sign in to message, quick, one tap.
-                </span>
-              )}
-            </BentoPanel>
-
-            {/* Handoff P-009: each of these three becomes its own BentoPanel. */}
-            {descriptionHtml && (
-              <BentoPanel fill="card" className="p-[22px]">
-                <SectionHeading>About {firstName}</SectionHeading>
-                <div
-                  className="max-w-prose text-[15px] leading-[1.65] text-warm-prose [&_p+p]:mt-3 lg:text-[16px] lg:leading-[1.6]"
-                  dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-                />
-              </BentoPanel>
-            )}
 
             {/* One "Teaching details" section, not three.
                 pages.md §3 section 4 asks for a 2-col meta grid — label 11.5px
@@ -882,6 +880,30 @@ export default function TeacherProfile() {
                     </div>
                   ))}
                 </dl>
+              </BentoPanel>
+            )}
+
+            {/* Contact panel — mobile/tablet only; desktop's contact card lives in
+                the sticky right column below. Green WhatsApp CTA (design.md §4).
+                Handoff P-008: bg-muted -> bg-mint, radius 20 -> 30. */}
+            <BentoPanel ref={primaryCtaRef} fill="mint" className="flex flex-col p-4 lg:hidden">
+              <p className="mb-[12px] text-[13.5px] leading-[1.55] text-[#3E6F53]">
+                Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
+              </p>
+              <Button variant="whatsapp" size={52} onClick={handleWhatsAppClick} className="whatsapp-pulse-once rounded-[16px]">
+                <WhatsAppIcon className="h-[19px] w-[19px]" />
+                Message on WhatsApp
+              </Button>
+            </BentoPanel>
+
+            {/* Handoff P-009: each of these three becomes its own BentoPanel. */}
+            {descriptionHtml && (
+              <BentoPanel fill="card" className="p-[22px]">
+                <SectionHeading>About {firstName}</SectionHeading>
+                <div
+                  className="max-w-prose text-[15px] leading-[1.65] text-warm-prose [&_p+p]:mt-3 lg:text-[16px] lg:leading-[1.6]"
+                  dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                />
               </BentoPanel>
             )}
 
@@ -992,9 +1014,8 @@ export default function TeacherProfile() {
                     Share
                   </Button>
                 </div>
-                {!user && <p className="mt-3 text-xs text-background/70">Sign in to message, quick, one tap.</p>}
                 <ul className="mt-4 space-y-2 text-xs text-background/70">
-                  {teacher.is_verified && <li>ID and degree verified by ShikshAQ</li>}
+                  {teacher.is_verified && <li>ID and degree verified by Shikshaq</li>}
                   <li>Fees are settled directly with the teacher. Shikshaq takes no commission.</li>
                 </ul>
               </div>

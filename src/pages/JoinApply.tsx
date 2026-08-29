@@ -64,7 +64,7 @@ const STEPS = [
   { label: 'Who you are', head: "Let's get you listed", lede: 'Free to list, free to stay. We never take a cut of your fee.' },
   { label: 'What you teach', head: 'What do you teach?', lede: 'Pick everything you genuinely teach. Guardians filter on this, so be honest.' },
   { label: 'Where you teach', head: 'Where do you teach?', lede: 'Travel radius matters more than an address. Nobody sees your exact address.' },
-  { label: 'Your fee, your terms', head: 'What do you charge?', lede: 'You set it, you keep it. ShikshAQ takes nothing and never handles the money.' },
+  { label: 'Your fee, your terms', head: 'What do you charge?', lede: 'You set it, you keep it. Shikshaq takes nothing and never handles the money.' },
   { label: 'Verify & consent', head: 'One quick check', lede: 'A student we can call to confirm you teach, then your consent to go live.' },
 ];
 
@@ -681,7 +681,7 @@ export default function JoinApply() {
           ) : (
             <Link
               to="/join"
-              aria-label="Back to why join ShikshAQ"
+              aria-label="Back to why join Shikshaq"
               /* C-013: a 40px painted disc carries `before:-inset-[2px]` so the
                  hit box is 44×44 — the changelog names these discs explicitly. */
               className="relative flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/12 text-background transition-colors before:absolute before:-inset-[2px] before:content-[''] hover:bg-white/20"
@@ -1141,15 +1141,15 @@ export default function JoinApply() {
                 <div className="rounded-2xl bg-background ring-1 ring-inset ring-warm-hairline p-4 grid gap-4">
                   <p className="text-sm font-semibold text-foreground">Memorandum of Understanding</p>
                   <p className="text-sm leading-relaxed text-warm-prose">
-                    This Memorandum of Understanding confirms that you grant ShikshAQ permission to display your submitted profile (name, locality, place of
+                    This Memorandum of Understanding confirms that you grant Shikshaq permission to display your submitted profile (name, locality, place of
                     teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and
                     enhancing their learning experience.
                   </p>
                   <div className="text-sm text-warm-prose">
                     <p className="font-semibold mb-2">I have read and understood the above Memorandum of Understanding and consent to:</p>
                     <ol className="list-decimal list-inside grid gap-1.5 ml-2">
-                      <li>ShikshAQ displaying my educator profile as previously submitted;</li>
-                      <li>The use of my WhatsApp link to let students land directly on my WhatsApp chat through ShikshAQ for communication;</li>
+                      <li>Shikshaq displaying my educator profile as previously submitted;</li>
+                      <li>The use of my WhatsApp link to let students land directly on my WhatsApp chat through Shikshaq for communication;</li>
                       <li>The use of my provided information for student outreach and internal communication;</li>
                       <li>This digital form serving as a legally binding agreement.</li>
                     </ol>
