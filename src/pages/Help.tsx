@@ -72,7 +72,7 @@ export default function Help() {
             <button
               type="button"
               onClick={() => setFeedbackOpen(true)}
-              className="inline-flex min-h-11 items-center align-middle text-[13px] text-background underline"
+              className="inline-flex min-h-11 items-center rounded align-middle text-[13px] text-background underline underline-offset-2 transition-opacity duration-tap hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
             >
               Tell us here
             </button>

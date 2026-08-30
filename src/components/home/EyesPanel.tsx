@@ -402,6 +402,10 @@ function EyesPanel({
                 onClick={() => onModeChange(m)}
                 className={cn(
                   'tap-44 flex h-9 items-center justify-center rounded-full px-4 text-[13.5px] font-bold transition-colors duration-500',
+                  /* This pair sits on the panel's own tinted fill, so the
+                     ring needs an offset in that fill rather than the page
+                     background, or it reads as a halo with a gap. */
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
                   mode === m ? 'bg-panel text-background' : mode === 'papers' ? 'text-white/85' : 'text-[rgba(31,31,31,.7)]',
                 )}
               >

@@ -381,10 +381,16 @@ export function Chatbot() {
     <>
       {/* Handoff O-011: 52x52 bg-card disc (not the old solid-brand fill),
           right-4, route-aware bottom offset — desktop never has a bottom
-          nav to clear, so it always gets the smaller offset there. */}
+          nav to clear, so it always gets the smaller offset there.
+
+          It carries a focus ring like every other control: it is tabbable
+          (tabIndex flips with launcherVisible) but was the one interactive
+          element on the page that gave a keyboard user nothing back. Ring in
+          brand-blue, because the button itself is brand orange and an orange
+          ring on orange is not a ring. */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed ${chromeless ? 'bottom-[calc(24px_+_env(safe-area-inset-bottom))]' : 'bottom-[calc(88px_+_env(safe-area-inset-bottom))]'} lg:bottom-[calc(24px_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-brand-foreground shadow-[0_10px_26px_rgba(0,0,0,.22)] hover:-translate-y-0.5 active:scale-[0.97] transition-[transform,box-shadow,opacity] duration-200 ${
+        className={`fixed ${chromeless ? 'bottom-[calc(24px_+_env(safe-area-inset-bottom))]' : 'bottom-[calc(88px_+_env(safe-area-inset-bottom))]'} lg:bottom-[calc(24px_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-brand-foreground shadow-[0_10px_26px_rgba(0,0,0,.22)] hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-[transform,box-shadow,opacity] duration-200 ${
           launcherVisible
             ? isScrolling && !isOpen
               ? 'opacity-30 scale-90 pointer-events-none'

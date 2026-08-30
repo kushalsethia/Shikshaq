@@ -386,7 +386,10 @@ export default function Index() {
     },
   });
 
-  const featuredTeachers = home.data?.featured ?? [];
+  /* `?? []` inline is a new array identity on every render, which invalidated
+     the useMemo downstream every time and re-derived its work for nothing.
+     Same fix as bankPapers and recentPapers on the papers page. */
+  const featuredTeachers = useMemo(() => home.data?.featured ?? [], [home.data]);
   const subjects = home.data?.subjectList ?? [];
   const boardCounts = home.data?.boardTally ?? {};
   const classCounts = home.data?.classTally ?? {};
@@ -697,7 +700,7 @@ export default function Index() {
                     <Link
                       key={b}
                       to={`/past-papers/results?filter_boards=${encodeURIComponent(b)}`}
-                      className="flex h-[38px] shrink-0 items-center gap-[7px] whitespace-nowrap rounded-full bg-brand-blue-subtle px-3.5 text-[13px] font-semibold text-brand-blue"
+                      className="flex h-[38px] shrink-0 items-center gap-[7px] whitespace-nowrap rounded-full bg-brand-blue-subtle px-3.5 text-[13px] font-semibold text-brand-blue transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
                     >
                       <span aria-hidden className="h-2 w-2 rounded-[2px] bg-brand-blue" />
                       {b} · {paperBoardCounts[b]}
@@ -786,17 +789,20 @@ export default function Index() {
                   <Link
                     to="/all-tuition-teachers-in-kolkata"
                     aria-label="Find a teacher"
-                    className="tap-44 ml-2 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-panel text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97]"
+                    className="tap-44 ml-2 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-panel text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
                   >
                     <ArrowUpRight className="h-4 w-4" aria-hidden />
                   </Link>
                 </div>
               )}
             </div>
-            <Link to="/all-tuition-teachers-in-kolkata" className="mt-[14px] block">
+            <Link
+              to="/all-tuition-teachers-in-kolkata"
+              className="group mt-[14px] block rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
+            >
               <p className="text-[12.5px] font-medium text-warm-secondary">Find a teacher</p>
               <p className="mt-[2px] font-display text-[25px] font-extrabold leading-[1.05] tracking-[-0.045em]">
-                <span className="text-brand-deep">Message them</span>{' '}
+                <span className="text-brand-deep decoration-2 underline-offset-4 group-hover:underline">Message them</span>{' '}
                 <span className="font-normal text-foreground">yourself, free</span>
               </p>
             </Link>
@@ -804,7 +810,10 @@ export default function Index() {
 
           {/* ----------------------------------------------------- 4 · Papers fork */}
           <BentoPanel fill="papersTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
-            <Link to="/past-papers" className="flex items-center justify-between gap-3">
+            <Link
+              to="/past-papers"
+              className="group flex items-center justify-between gap-3 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
+            >
               <div>
                 <p className="text-[12.5px] font-medium text-warm-secondary">Past papers</p>
                 <p className="mt-[2px] font-display text-[22px] font-extrabold tracking-[-0.04em]">
@@ -814,7 +823,7 @@ export default function Index() {
               </div>
               <span
                 aria-hidden
-                className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-brand-blue text-white"
+                className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-brand-blue text-white transition-transform duration-hover ease-settle group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:group-hover:transform-none"
               >
                 <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={2.5} />
               </span>

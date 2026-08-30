@@ -609,7 +609,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 href="https://ngoaquaterra.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-[44px] items-center gap-2 transition-opacity duration-150 hover:opacity-70"
+                className="flex min-h-[44px] items-center gap-2 rounded-md transition-opacity duration-150 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <span>© {new Date().getFullYear()} Shikshaq. An AquaTerra Start-up.</span>
                 <img

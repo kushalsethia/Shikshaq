@@ -22,7 +22,11 @@ const AccordionTrigger = React.forwardRef<
     <AccordionPrimitive.Trigger
       ref={ref}
       className={cn(
+        // Focus ring lives on the primitive, not on each caller: every
+        // accordion in the app is one of these, and a trigger you can tab
+        // to but cannot see is the same bug repeated per surface.
         "flex flex-1 items-center justify-between py-4 font-medium transition-[text-decoration-color] hover:underline [&[data-state=open]>svg]:rotate-180",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-inset rounded-[10px]",
         className,
       )}
       {...props}

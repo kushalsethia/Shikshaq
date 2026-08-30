@@ -383,7 +383,22 @@ export default function PastPapers() {
   const mostRead = landing.data?.mostRead ?? [];
   /* Bank papers lead: they read as questions rather than as a scan, which is
      the better thing to land on. */
-  const recentPapers = [...bankPapers, ...(landing.data?.recentPapers ?? [])];
+  /* Sorted, and memoised for the same reason bankPapers is: a fresh array
+     each render is a new identity downstream. It is labelled "Recently added",
+     so it is ordered by year with undated papers last rather than by whichever
+     source happened to be concatenated first. */
+  const recentPapers = useMemo(() => {
+    const merged = [...bankPapers, ...(landing.data?.recentPapers ?? [])];
+    return merged.sort((a, b) => (b.year || 0) - (a.year || 0));
+  }, [bankPapers, landing.data]);
+
+  /* A shelf is a shelf, not the whole library. This rail was rendering every
+     paper: 199 covers across 33,000px of horizontal scroll, which is not a
+     browsing gesture anyone completes, and 199 cover images on first paint.
+     Twelve is a shelf you can actually reach the end of, and the end of it is
+     a door to the rest. */
+  const SHELF_LIMIT = 12;
+  const shelfPapers = useMemo(() => recentPapers.slice(0, SHELF_LIMIT), [recentPapers]);
   const subjectCounts = useMemo(() => {
     const out: Record<string, number> = { ...(landing.data?.subjectCounts ?? {}) };
     bankPapers.forEach((p) => { out[p.subject] = (out[p.subject] ?? 0) + 1; });
@@ -652,7 +667,7 @@ export default function PastPapers() {
             <h2 className="mb-3 px-[22px] font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">Recently added</h2>
             <div className="px-[22px]">
               <ShelfLedge>
-                {recentPapers.map((p) => (
+                {shelfPapers.map((p) => (
                   <PaperCover
                     key={p.id}
                     paper={coverPaper(p)}
@@ -666,6 +681,30 @@ export default function PastPapers() {
                     className="animate-card-reveal motion-reduce:animate-none !h-[228px] !w-[150px]"
                   />
                 ))}
+                {/* The end of the shelf is where someone is already looking
+                    when they run out of covers, so that is where the way to
+                    the rest belongs. Sized and aligned as a cover so the rail
+                    keeps one rhythm; dashed rather than filled so it reads as
+                    a door and not as another paper. */}
+                {recentPapers.length > SHELF_LIMIT && (
+                  <Link
+                    to="/past-papers/results"
+                    className="group flex h-[228px] w-[128px] flex-none flex-col items-center justify-center gap-2 rounded-[6px_16px_16px_6px] border-2 border-dashed border-warm-band bg-muted/40 px-3 text-center transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue text-brand-blue-foreground transition-transform duration-hover ease-settle group-hover:translate-x-0.5">
+                      <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />
+                    </span>
+                    <span className="text-[13.5px] font-bold leading-[1.3] tracking-[-0.01em] text-foreground">
+                      {/* totalPapers, not this shelf's own length: the headline
+                          above counts the whole library and the two must not
+                          disagree on the same screen. */}
+                      All {totalPapers ?? recentPapers.length} papers
+                    </span>
+                    <span className="text-[11.5px] leading-[1.35] text-warm-secondary">
+                      Filter by subject, board or class
+                    </span>
+                  </Link>
+                )}
               </ShelfLedge>
             </div>
           </BentoPanel>
