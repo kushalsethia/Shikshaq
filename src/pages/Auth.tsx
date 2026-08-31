@@ -466,7 +466,7 @@ export default function Auth() {
   const hero = resolveAuthHero(authIntent, { papers: paperCount });
 
   return (
-    <div className="flex min-h-screen flex-col bg-background max-lg:h-[100dvh] max-lg:overflow-hidden">
+    <div className="flex min-h-screen flex-col bg-background max-lg:h-[100dvh] max-lg:overflow-hidden lg:h-screen lg:overflow-hidden">
       {/* Handoff AU-003: the page splits into two stacked blocks with a 6px
           seam, instead of one flat near-black ground. Desktop keeps the same
           two blocks side by side rather than stacked (06's own geometry
@@ -476,16 +476,14 @@ export default function Auth() {
           floated at a different height from the orange one and the pair read as
           two unrelated cards dropped on the page. Stretched, they are one
           split panel — which is what AU-003 describes. */}
-      {/* No lg:flex-1 on the row. Stretching it to the viewport made both
-          panels ~500px tall for ~200px of content, so the split read as two
-          empty slabs. Sized to content and centred with my-auto, the panels
-          are as tall as the taller of the two and no taller. */}
-      {/* max-lg: this row becomes a bounded-height flex column so `main`
-          below can scroll internally instead of the whole page scrolling —
-          on a short viewport the page itself no longer moves, only the
-          sign-in panel's own content does. Scoped to max-lg only; nothing
-          here touches the lg:my-auto centred, content-sized desktop split. */}
-      <div className="max-lg:flex max-lg:h-full max-lg:min-h-0 max-lg:flex-col lg:mx-auto lg:my-auto lg:flex lg:w-full lg:max-w-[1000px] lg:items-stretch lg:justify-center lg:gap-6 lg:px-10 lg:py-12">
+      {/* Owner call, reversing the two comments this replaces: a
+          content-sized, centred 1000px pair of cards left ~450px of empty
+          page ground on every side at a real desktop width — "two black
+          boxes wasting a lot of space." Full-bleed now: the row fills the
+          entire viewport, edge to edge, split into the two halves below.
+          max-lg: still a bounded-height flex column so `main` can scroll
+          internally on a short mobile viewport. */}
+      <div className="max-lg:flex max-lg:h-full max-lg:min-h-0 max-lg:flex-col lg:flex lg:h-full lg:w-full lg:items-stretch">
 
         {/* Hero block (AU-003 point 1) — nav row, eyebrow, h1, sticker
             cluster. This block is the page's whole accent budget.
@@ -498,8 +496,8 @@ export default function Auth() {
             column is as tall as the sign-in block beside it, and top-aligned
             content left a third of the panel as empty fill. The headline group
             now centres in the space below the nav row. */}
-        <div className={`max-lg:shrink-0 rounded-t-bento px-5 pb-[26px] lg:flex lg:flex-1 lg:flex-col lg:rounded-bento lg:px-8 lg:pb-8 ${hero.ink.fill}`}>
-          <header className="flex items-center justify-between gap-3 pt-4">
+        <div className={`max-lg:shrink-0 rounded-t-bento px-5 pb-[26px] lg:relative lg:flex lg:h-full lg:flex-1 lg:flex-col lg:justify-center lg:overflow-y-auto lg:rounded-none lg:px-16 lg:py-14 ${hero.ink.fill}`}>
+          <header className="flex items-center justify-between gap-3 pt-4 lg:absolute lg:inset-x-0 lg:top-0 lg:px-16 lg:pt-10">
             <Logo size="md" ariaLabel="Back to home" onDark={hero.ink.onDark} />
             <Link
               to="/"
@@ -555,10 +553,11 @@ export default function Auth() {
           ground in the notch where both blocks' corners curved apart —
           a stray line right where the fill changes colour. They now
           share one continuous rounded shape (hero rounded-t-bento, this
-          one rounded-b-bento, no gap), rounded-bento returning at lg
-          where the two sit side by side instead of stacked. */}
-      <main className="flex-1 max-lg:min-h-0 max-lg:overflow-y-auto rounded-b-bento bg-panel p-[22px_20px] pb-20 lg:flex-1 lg:rounded-bento lg:pb-[22px]">
-        <div className="mx-auto w-full max-w-[470px] lg:mx-0">
+          one rounded-b-bento, no gap). At lg both blocks go flush/
+          unrounded and fill the whole viewport edge to edge instead —
+          see the row div's own comment above. */}
+      <main className="flex-1 max-lg:min-h-0 max-lg:overflow-y-auto rounded-b-bento bg-panel p-[22px_20px] pb-20 lg:flex lg:h-full lg:flex-1 lg:flex-col lg:justify-center lg:overflow-y-auto lg:rounded-none lg:px-16 lg:py-14 lg:pb-14">
+        <div className="mx-auto w-full max-w-[470px] lg:mx-0 lg:max-w-[420px]">
           <div className="flex flex-col gap-[18px]">
             <div>
               {/* Handoff AU-004: sub-line moves here, first element of the
