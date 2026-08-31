@@ -457,9 +457,20 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
               is gone too: rotated, -22px-overlapped cards with unclamped text
               were hard to read and looked like a stack of loose paper rather
               than reviews. Straight cards in a grid, same card shell. */}
-          <div className="stagger-children grid grid-cols-1 gap-3 pb-4 pt-2 md:grid-cols-2 md:pb-8 md:pt-0 xl:grid-cols-3">
+          {/* Grid up to md (stacked mobile, 2-up tablet); a horizontal
+              scroll-snap carousel from lg — "carousel instead of a grid" —
+              rather than a 3-up grid that just got taller with more reviews. */}
+          <div className="stagger-children grid grid-cols-1 gap-3 pb-4 pt-2 md:grid-cols-2 md:pb-8 md:pt-0 lg:flex lg:snap-x lg:snap-mandatory lg:gap-4 lg:overflow-x-auto lg:pb-2 lg:scrollbar-hide">
             {cards.map((card, i) => (
-              <ReviewCard key={card.id} review={card} index={i} fullWidth teacherImageUrl={teacherImageUrl} teacherName={teacherName} />
+              <ReviewCard
+                key={card.id}
+                review={card}
+                index={i}
+                fullWidth
+                teacherImageUrl={teacherImageUrl}
+                teacherName={teacherName}
+                className="lg:w-[320px] lg:flex-none lg:snap-start"
+              />
             ))}
           </div>
 
