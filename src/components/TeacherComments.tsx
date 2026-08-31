@@ -55,6 +55,9 @@ interface TeacherCommentsProps {
       subject/area. Optional — auth-intent.ts falls back to the default hero
       rather than render one with a blank in it. */
   teacherName?: string | null;
+  /** Owner call: review cards show the teacher's own photo, not the
+   *  reviewer's — see review-card.tsx. */
+  teacherImageUrl?: string | null;
   area?: string | null;
 }
 
@@ -86,7 +89,7 @@ function getCommentInitials(comment: Comment): string {
   return 'U';
 }
 
-export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, area }: TeacherCommentsProps) {
+export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, teacherImageUrl, area }: TeacherCommentsProps) {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -456,7 +459,7 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
               than reviews. Straight cards in a grid, same card shell. */}
           <div className="stagger-children grid grid-cols-1 gap-3 pb-4 pt-2 md:grid-cols-2 md:pb-8 md:pt-0 xl:grid-cols-3">
             {cards.map((card, i) => (
-              <ReviewCard key={card.id} review={card} index={i} fullWidth />
+              <ReviewCard key={card.id} review={card} index={i} fullWidth teacherImageUrl={teacherImageUrl} teacherName={teacherName} />
             ))}
           </div>
 

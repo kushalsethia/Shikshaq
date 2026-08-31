@@ -2,6 +2,7 @@ import { Star } from "lucide-react";
 
 import { getSubjectPalette } from "@/lib/subject-palette";
 import { StripePlaceholder } from "@/components/ui/stripe-placeholder";
+import { validateImageSrc } from "@/utils/imageSanitizer";
 
 /* C7 — Redesign Reviews.dc.html R1 (desktop fan) / R2 (mobile scroll rail):
    subject-tinted card, one tilted gain sticker, subject+class title, hairline
@@ -42,15 +43,20 @@ interface ReviewCardProps {
       reviews horizontally and keeps the fixed width, so this is opt-in. */
   fullWidth?: boolean;
   className?: string;
+  /** Owner call: the avatar on a review is the TEACHER being reviewed, not
+   *  the student who wrote it — every card on one teacher's page shows that
+   *  same teacher's photo. Falls back to the subject-tinted initials stripe
+   *  (keyed off the teacher's own name, not the reviewer's) when there is no
+   *  photo, rather than ever showing the reviewer's face. */
+  teacherImageUrl?: string | null;
+  teacherName?: string | null;
 }
 
-export function ReviewCard({ review, index, fan = false, fullWidth = false, className }: ReviewCardProps) {
+export function ReviewCard({ review, index, fan = false, fullWidth = false, className, teacherImageUrl, teacherName }: ReviewCardProps) {
   const palette = getSubjectPalette(review.subject);
   const title = [review.subject, review.className].filter(Boolean).join(" · ") || "Review";
   const tilt = TILTS[index % TILTS.length];
   const drop = DROPS[index % DROPS.length];
-  // "Name · meta" -> "Name", for the stripe avatar's initial (handoff P-010).
-  const authorName = review.who.split(" · ")[0];
 
   return (
     <div
@@ -107,7 +113,16 @@ export function ReviewCard({ review, index, fan = false, fullWidth = false, clas
             cards every attribution lines up instead of floating wherever its
             quote happened to end. */}
         <div className="mt-auto flex items-center gap-[9px] pt-[12px]">
-          <StripePlaceholder name={authorName} initialSize={13} className="h-[26px] w-[26px] flex-none rounded-full" />
+          {teacherImageUrl ? (
+            <img
+              src={validateImageSrc(teacherImageUrl)}
+              alt=""
+              aria-hidden
+              className="h-[26px] w-[26px] flex-none rounded-full object-cover"
+            />
+          ) : (
+            <StripePlaceholder name={teacherName ?? review.who} initialSize={13} className="h-[26px] w-[26px] flex-none rounded-full" />
+          )}
           <div className="min-w-0">
             <p className="truncate text-[12.5px] font-semibold text-foreground">
               {review.who}

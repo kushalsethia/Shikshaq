@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, Search, X } from 'lucide-react';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { useChromeConfig } from '@/components/layout/AppShell';
@@ -136,6 +136,16 @@ export function LegalReader({
 
   const [activeIndex, setActiveIndex] = useState(0);
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [query, setQuery] = useState('');
+  const normalizedQuery = query.trim().toLowerCase();
+  const searching = normalizedQuery.length > 0;
+  // Only the guaranteed-plain-text fields — `body` is a ReactNode and isn't
+  // reliably string-searchable, so this matches what a reader would actually
+  // type (a clause name, not exact prose).
+  const sectionMatches = (s: LegalSection) =>
+    s.title.toLowerCase().includes(normalizedQuery) ||
+    s.short.toLowerCase().includes(normalizedQuery) ||
+    (s.bullets ?? []).some((b) => b.toLowerCase().includes(normalizedQuery));
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -207,17 +217,39 @@ export function LegalReader({
         <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">
           On this page
         </span>
-        <nav aria-label="On this page" className="mt-[10px] grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">
+        <div className="relative mt-[10px]">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-warm-secondary" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search this document..."
+            aria-label="Search this document"
+            className="h-11 w-full rounded-full bg-muted pl-11 pr-11 text-[14px] text-foreground placeholder:text-warm-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="Clear search"
+              className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-warm-secondary transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          )}
+        </div>
+        <nav aria-label="On this page" className="mt-2 grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">
           {sections.map((s, i) => {
             const isActive = i === activeIndex;
             const isLast = i === sections.length - 1;
+            const matches = !searching || sectionMatches(s);
             return (
               <a
                 key={s.n}
                 href={`#legal-section-${s.n}`}
                 className={`flex min-h-11 items-center gap-3 py-[9px] text-[14.5px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   isLast ? '' : 'shadow-[inset_0_-1px_0_#F0EAE2]'
-                }`}
+                } ${matches ? '' : 'hidden'}`}
               >
                 <span className="w-[18px] flex-none text-[12.5px] font-bold tabular-nums text-warm-label">
                   {i + 1}
@@ -229,6 +261,9 @@ export function LegalReader({
             );
           })}
         </nav>
+        {searching && !sections.some(sectionMatches) && (
+          <p className="mt-2 text-[13.5px] text-warm-secondary">No section matches "{query}".</p>
+        )}
       </BentoPanel>
 
       {/* LG-002 prose — 16px/1.7 measure, h2 19px/800/-0.03em with mt-[26px]
@@ -244,7 +279,12 @@ export function LegalReader({
                 const idx = sections.findIndex((sec) => sec.n === s.n);
                 sectionRefs.current[idx] = el;
               }}
-              className={`max-w-[62ch] scroll-mt-24 ${i === 0 ? '' : 'mt-[26px]'}`}
+              /* Search filters visibility only (hidden, not unmounted) — the
+                 full document stays in the DOM and crawlable regardless of
+                 whatever a visitor happened to type. */
+              className={`max-w-[62ch] scroll-mt-24 ${i === 0 ? '' : 'mt-[26px]'} ${
+                searching && !sectionMatches(s) ? 'hidden' : ''
+              }`}
             >
               <h2 className="m-0 font-display text-[19px] font-extrabold leading-[1.15] tracking-[-0.03em] text-foreground">
                 {s.title}
@@ -279,7 +319,7 @@ export function LegalReader({
             const idx = sections.findIndex((sec) => sec.n === copyrightSection.n);
             sectionRefs.current[idx] = el;
           }}
-          className="scroll-mt-24 p-[22px]"
+          className={`scroll-mt-24 p-[22px] ${searching && !sectionMatches(copyrightSection) ? 'hidden' : ''}`}
         >
           <div className="flex items-center gap-3">
             <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-xl bg-brand-blue">

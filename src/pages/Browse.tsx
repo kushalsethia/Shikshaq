@@ -1265,6 +1265,18 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
   // The search bar's Teachers/Papers toggle doubles as the page-mode switch —
   // flipping to Papers carries the active subject/class/board filters over.
+  // Was navigating to `/past-papers` — that route's own general landing
+  // page (steps/hero/browse-by-board), not filtered results, so flipping
+  // this toggle dropped the visitor on an unfiltered page instead of
+  // "just filtering" as asked. `/past-papers/results` (PaperResults.tsx)
+  // is the actual results view and reads these exact filter_* params
+  // directly off the URL, so this now lands already-filtered instead of on
+  // a second landing page they'd have to filter again from scratch.
+  // A true same-page, no-navigation toggle (papers rendered inline on this
+  // same URL) would need PaperResults' results-grid pulled out of its page
+  // shell into a shared component both routes mount — flagged as a
+  // follow-up, not done here to avoid rushing a merge of two ~1000+ line
+  // pages without proper testing.
   const handleSearchModeChange = (mode: 'teachers' | 'papers') => {
     if (mode !== 'papers') return;
     const params = new URLSearchParams();
@@ -1272,7 +1284,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     if (selectedClass && selectedClass !== 'all') params.set('filter_classes', selectedClass);
     if (filters.boards.length) params.set('filter_boards', filters.boards.join(','));
     const qs = params.toString();
-    navigate(qs ? `/past-papers?${qs}` : '/past-papers');
+    navigate(qs ? `/past-papers/results?${qs}` : '/past-papers/results');
   };
 
   const clearFilters = () => {

@@ -1,6 +1,6 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowRight, ChevronDown, Mail, Search, X } from 'lucide-react';
 
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { NumberedHeading } from '@/components/ui/numbered-heading';
@@ -8,6 +8,10 @@ import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { BROWSE_PATH, PAST_PAPERS_PATH } from '@/lib/nav-config';
+import { iconDiscVariants } from '@/components/ui/icon-disc';
+import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
+import { getWhatsAppLink } from '@/utils/whatsapp';
+import { cn } from '@/lib/utils';
 
 /* Handoff HP-001..HP-005 (About Contact Help 404 Redesign.dc.html).
 
@@ -105,6 +109,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
   } = useSentenceBuilder();
 
   const [activeCategory, setActiveCategory] = useState<HelpFaqCategory | 'all'>('all');
+  const [query, setQuery] = useState('');
   const questionsRef = useRef<HTMLDivElement>(null);
 
   const goToCategory = (category: HelpFaqCategory | 'all') => {
@@ -112,12 +117,44 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
     questionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  // Client-side only — the whole question set is a few dozen items at most,
+  // nowhere near needing a server round-trip. Matches question OR answer
+  // text, so "fee" still surfaces "Do I pay through Shikshaq..." even though
+  // the word isn't in the question itself.
+  const normalizedQuery = query.trim().toLowerCase();
+  const searching = normalizedQuery.length > 0;
+  const matchesQuery = (q: HelpFaqQuestion) =>
+    q.question.toLowerCase().includes(normalizedQuery) || q.answer.toLowerCase().includes(normalizedQuery);
+
   return (
     <BentoStack>
       {/* Handoff HP-002: header + category chips. */}
       <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[22px]">
         <NumberedHeading as="h1" line1={heading.line1} ordinal={heading.ordinal} line2={heading.line2} />
-        <div className="-mx-5 mt-4 overflow-x-auto px-5 scrollbar-hide lg:-mx-8 lg:px-8">
+
+        <div className="relative mt-4">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-warm-secondary" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search a question..."
+            aria-label="Search questions"
+            className="h-12 w-full rounded-full bg-muted pl-11 pr-11 text-[14.5px] text-foreground placeholder:text-warm-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-warm-secondary transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          )}
+        </div>
+
+        <div className={`-mx-5 mt-3 overflow-x-auto px-5 scrollbar-hide lg:-mx-8 lg:px-8 ${searching ? 'pointer-events-none opacity-40' : ''}`}>
           <div className="flex w-max gap-2">
             {CATEGORY_CHIPS.map((c) => {
               const on = activeCategory === c.key;
@@ -145,29 +182,43 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
           active chip (HP-002's crawler requirement) — filtering only toggles
           a `hidden` class. */}
       <BentoPanel ref={questionsRef} fill="card" className="p-[22px]">
-        <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">{questionsHeading}</h2>
+        <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+          {searching ? `Results for "${query}"` : questionsHeading}
+        </h2>
         {/* Two columns from lg. As one column each question was a 1150px-wide
             bar holding forty characters of text and a chevron a whole screen
             away from it, and the list ran far past the fold for no reason.
             Accordions in a grid open within their own column, so nothing
             jumps. */}
         <div className="mt-3.5 grid grid-cols-1 gap-2 lg:grid-cols-2 lg:items-start lg:gap-x-3">
-          {questions.map((q) => (
-            <details
-              key={q.question}
-              data-category={q.category}
-              className={`disclosure group rounded-2xl bg-card p-[16px_18px] shadow-[inset_0_0_0_1px_hsl(var(--border))] [&[open]]:bg-muted [&[open]]:shadow-none ${
-                activeCategory !== 'all' && activeCategory !== q.category ? 'hidden' : ''
-              }`}
-            >
-              <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                <span className="text-[15.5px] font-bold tracking-[-0.02em] text-foreground">{q.question}</span>
-                <ChevronDown className="mt-0.5 h-[18px] w-[18px] flex-none text-warm-secondary transition-transform duration-200 group-open:rotate-180" strokeWidth={2.25} aria-hidden="true" />
-              </summary>
-              <p className="mt-2.5 text-[14px] leading-[1.6] text-warm-prose">{q.answer}</p>
-            </details>
-          ))}
+          {questions.map((q) => {
+            // Search overrides the category chips rather than ANDing with
+            // them — searching "fee" while the "Teachers" chip is still
+            // active from an earlier tap shouldn't hide a match filed under
+            // "general".
+            const visible = searching ? matchesQuery(q) : activeCategory === 'all' || activeCategory === q.category;
+            return (
+              <details
+                key={q.question}
+                data-category={q.category}
+                className={`disclosure group rounded-2xl bg-card p-[16px_18px] shadow-[inset_0_0_0_1px_hsl(var(--border))] [&[open]]:bg-muted [&[open]]:shadow-none ${
+                  visible ? '' : 'hidden'
+                }`}
+              >
+                <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                  <span className="text-[15.5px] font-bold tracking-[-0.02em] text-foreground">{q.question}</span>
+                  <ChevronDown className="mt-0.5 h-[18px] w-[18px] flex-none text-warm-secondary transition-transform duration-200 group-open:rotate-180" strokeWidth={2.25} aria-hidden="true" />
+                </summary>
+                <p className="mt-2.5 text-[14px] leading-[1.6] text-warm-prose">{q.answer}</p>
+              </details>
+            );
+          })}
         </div>
+        {searching && !questions.some(matchesQuery) && (
+          <p className="mt-3.5 text-[14px] text-warm-secondary">
+            No questions match "{query}" — try Contact us below instead.
+          </p>
+        )}
       </BentoPanel>
 
       {/* Handoff HP-004: guides. Copy unchanged — sourced from the live,
@@ -210,13 +261,40 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
       <BentoPanel fill="dark" className="p-[22px]">
         <h2 className="text-[19px] font-extrabold tracking-[-0.03em]">{contactHeading}</h2>
         <p className="mt-2 text-[14px] leading-[1.55] text-background/70">{contactBody}</p>
-        <Link
-          to="/contact"
-          className="mt-3.5 inline-flex h-12 items-center gap-2 rounded-full bg-brand px-5 text-[14.5px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
-        >
-          Contact us
-          <ArrowRight className="h-[15px] w-[15px]" aria-hidden="true" />
-        </Link>
+        <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
+          <Link
+            to="/contact"
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-5 text-[14.5px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+          >
+            Contact us
+            <ArrowRight className="h-[15px] w-[15px]" aria-hidden="true" />
+          </Link>
+          <a
+            href={getWhatsAppLink('8240980312')}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Shikshaq on WhatsApp"
+            className={cn(iconDiscVariants({ tone: 'whatsapp', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+          >
+            <WhatsAppIcon />
+          </a>
+          <a
+            href="https://instagram.com/shikshaq.in"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Shikshaq on Instagram"
+            className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+          >
+            <InstagramIcon />
+          </a>
+          <a
+            href="mailto:ngo.aquaterra@gmail.com"
+            aria-label="Email Shikshaq"
+            className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+          >
+            <Mail strokeWidth={1.8} aria-hidden />
+          </a>
+        </div>
         {footerExtra}
       </BentoPanel>
 

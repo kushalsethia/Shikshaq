@@ -485,7 +485,10 @@ const SECTIONS: LegalSection[] = [
           </li>
           <li>
             <strong>WhatsApp:</strong>{' '}
-            <a href="https://wa.me/918240980312" target="_blank" rel="noopener noreferrer" className={linkClass}>
+            {/* Our own WhatsApp support line, not a foreign destination like
+                the Google/Supabase links elsewhere on this page — stays in
+                this tab rather than forcing a new one open. */}
+            <a href="https://wa.me/918240980312" className={linkClass}>
               +91 8240980312
             </a>
           </li>
@@ -533,7 +536,10 @@ const SECTIONS: LegalSection[] = [
           </li>
           <li>
             <strong>Phone/WhatsApp:</strong>{' '}
-            <a href="https://wa.me/918240980312" target="_blank" rel="noopener noreferrer" className={linkClass}>
+            {/* Our own WhatsApp support line, not a foreign destination like
+                the Google/Supabase links elsewhere on this page — stays in
+                this tab rather than forcing a new one open. */}
+            <a href="https://wa.me/918240980312" className={linkClass}>
               +91 8240980312
             </a>
           </li>

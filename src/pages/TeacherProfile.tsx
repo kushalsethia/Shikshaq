@@ -259,12 +259,34 @@ export default function TeacherProfile() {
     });
   }, [teacher]);
 
-  /* pages.md §3 row 7 — "Similar teachers | rail | 6 cards, rail density".
-     Same subject, excluding this teacher, featured first. Enriched via the
-     shared getTeachersByIds (same fee/area/experience fields Browse/Index's
-     rails use) so the cards render with real data, never a bare name+photo. */
-  const similarTeachersQuery = useQuery({
-    queryKey: ['similar-teachers', teacher?.subjects?.slug, teacher?.id],
+  /* Owner call: reframed from "Similar teachers" (same subject only) to
+     "More teachers we think you'd like" — deliberately NOT subject-filtered
+     any more, so it surfaces teachers across other subjects too instead of
+     only ever showing the same one. The same-subject rail this replaces
+     still exists, just moved to its own "More teachers in {subject}"
+     section below (recommendedInSubjectQuery). */
+  const recommendedTeachersQuery = useQuery({
+    queryKey: ['recommended-teachers', teacher?.id],
+    enabled: Boolean(teacher?.id),
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('teachers_list')
+        .select('id, name, slug, image_url, subjects(name, slug)')
+        .neq('id', teacher!.id)
+        .order('is_featured', { ascending: false })
+        .limit(6);
+      if (error || !data) return [];
+      return getTeachersByIds((data as any[]).map((t) => t.id));
+    },
+  });
+  const recommendedTeachers = recommendedTeachersQuery.data ?? [];
+
+  /* "More teachers in {subject}" — the same-subject rail "Similar teachers"
+     used to be, now living under its own heading after the broadened
+     recommendation rail above. */
+  const moreInSubjectQuery = useQuery({
+    queryKey: ['more-in-subject-teachers', teacher?.subjects?.slug, teacher?.id],
     enabled: Boolean(teacher?.subjects?.slug && teacher?.id),
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
@@ -279,7 +301,7 @@ export default function TeacherProfile() {
       return getTeachersByIds((data as any[]).map((t) => t.id));
     },
   });
-  const similarTeachers = similarTeachersQuery.data ?? [];
+  const moreInSubjectTeachers = moreInSubjectQuery.data ?? [];
 
   // Called unconditionally, above the loading/error/not-found early returns
   // below — AppShell already renders the B2 pre-footer + Footer for this
@@ -920,21 +942,21 @@ export default function TeacherProfile() {
                 TeacherComments.tsx for the heading/write-review pill/card
                 treatment. */}
             <BentoPanel fill="brandTint" className="p-[22px]">
-              <TeacherComments teacherId={teacher.id} subject={primarySubject} teacherSlug={teacher.slug} teacherName={teacher.name} area={areaLabel} />
+              <TeacherComments teacherId={teacher.id} subject={primarySubject} teacherSlug={teacher.slug} teacherName={teacher.name} teacherImageUrl={teacher.image_url} area={areaLabel} />
             </BentoPanel>
 
             {/* Handoff P-011: the similar-teachers rail and the closing
                 sentence share one panel now, instead of sitting loose on
                 page ground. */}
             <BentoPanel fill="card" className="!px-0 !py-[22px] lg:!py-8">
-              {similarTeachers.length > 0 && (
+              {recommendedTeachers.length > 0 && (
                 <>
                   <div className="px-[22px]">
-                    <SectionHeading>Similar teachers</SectionHeading>
+                    <SectionHeading>More teachers we think you&rsquo;d like</SectionHeading>
                   </div>
                   <div className="overflow-x-auto overflow-y-visible px-[22px] py-1 scrollbar-hide">
                     <ul className="flex w-max snap-x snap-mandatory gap-4">
-                      {similarTeachers.map((t) => (
+                      {recommendedTeachers.map((t) => (
                         <li key={t.id} className="w-[168px] flex-none snap-start sm:w-[200px] lg:w-[220px]">
                           <TeacherCard
                             id={t.id}
@@ -958,11 +980,55 @@ export default function TeacherProfile() {
                 </>
               )}
 
-              {/* Sentence footer — scoped to this teacher's subject and area. */}
+              {/* "More teachers in {subject}" — same-subject rail, kept as its
+                  own section rather than folded into the broadened one above
+                  (owner call: keep both, don't just rename). */}
+              {moreInSubjectTeachers.length > 0 && (
+                <>
+                  <div className="mt-[22px] px-[22px]">
+                    <SectionHeading>More teachers in {primarySubject || 'this subject'}</SectionHeading>
+                  </div>
+                  <div className="overflow-x-auto overflow-y-visible px-[22px] py-1 scrollbar-hide">
+                    <ul className="flex w-max snap-x snap-mandatory gap-4">
+                      {moreInSubjectTeachers.map((t) => (
+                        <li key={t.id} className="w-[168px] flex-none snap-start sm:w-[200px] lg:w-[220px]">
+                          <TeacherCard
+                            id={t.id}
+                            name={t.name}
+                            slug={t.slug}
+                            subject={t.subjects?.name || 'Tuition Teacher'}
+                            subjectSlug={t.subjects?.slug}
+                            imageUrl={t.image_url ?? undefined}
+                            sirMaam={t.sirMaam}
+                            whatsappLink={t.whatsappLink}
+                            experienceYears={t.experienceYears}
+                            minFees={t.minFees}
+                            maxFees={t.maxFees}
+                            area={t.area}
+                            variant="rail"
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
+
+              {/* Sentence footer — was a dead link to the unfiltered browse
+                  page despite naming a subject+area ("not actually working
+                  with the filters"). Now carries the real filter_subjects/
+                  filter_areas query params Browse.tsx reads, so it lands
+                  already filtered. */}
               <p className="mt-[18px] px-[22px] text-base text-warm-prose">
                 Looking for more{' '}
                 <Link
-                  to={BROWSE_PATH}
+                  to={`${BROWSE_PATH}${(() => {
+                    const params = new URLSearchParams();
+                    if (primarySubject) params.set('filter_subjects', primarySubject);
+                    if (areaLabel) params.set('filter_areas', areaLabel);
+                    const qs = params.toString();
+                    return qs ? `?${qs}` : '';
+                  })()}`}
                   className="font-semibold text-foreground underline underline-offset-2 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {primarySubject || 'tuition'} teachers near {areaLabel}
