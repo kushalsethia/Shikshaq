@@ -13,7 +13,9 @@
     "test:gemini": "node scripts/test-gemini-api.js",
     "generate-sitemap": "tsx scripts/generate-sitemap.ts",
     "import-bank": "tsx scripts/import-bank.ts",
-    "generate-bank-sql": "tsx scripts/generate-bank-sql.ts"
+    "generate-bank-sql": "tsx scripts/generate-bank-sql.ts",
+    "push:all": "git push origin redesign/handoff-v1 && git push kanitest redesign/handoff-v1:main",
+    "remotes:setup": "git remote get-url kanitest || git remote add kanitest https://github.com/kaxx4/shikshaqkanitest.git"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
