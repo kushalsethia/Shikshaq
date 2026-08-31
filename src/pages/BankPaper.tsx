@@ -145,8 +145,13 @@ export default function BankPaper() {
   }, [questions, reportFor, reportText, paper]);
 
   /* One question card. Extracted so the gated tail can render inside its
-     own clipped container while staying identical to a free one. */
-  const questionCard = (row: BankQuestion, gated: boolean) => (
+     own clipped container while staying identical to a free one.
+     `blurPx` ramps rather than jumping straight to full blur — the first
+     gated question is barely softened, climbing to fully unreadable by the
+     third, so the gate reads as a fade instead of an abrupt cutoff. Free
+     questions (including the FIRST question, always index 0, always
+     ungated per FREE_QUESTIONS) pass 0. */
+  const questionCard = (row: BankQuestion, blurPx: number) => (
     <li
       key={row.i}
       id={`q-${row.i}`}
@@ -154,9 +159,8 @@ export default function BankPaper() {
          gate is that the text stays in the document for crawlers;
          hiding it from screen readers only would give assistive
          tech a worse deal than Googlebot. */
-      className={`min-w-0 rounded-[18px] bg-muted p-[16px] ${
-        gated ? 'select-none blur-[5px]' : ''
-      }`}
+      className={`min-w-0 rounded-[18px] bg-muted p-[16px] ${blurPx > 0 ? 'select-none' : ''}`}
+      style={blurPx > 0 ? { filter: `blur(${blurPx}px)` } : undefined}
     >
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         {row.n && (
@@ -198,7 +202,7 @@ export default function BankPaper() {
       {/* Not offered on a blurred question: you cannot report what
           you cannot read, and leaving it would put a row of
           invisible buttons in the tab order. */}
-      {!(gated) && (
+      {!(blurPx > 0) && (
         <button
           type="button"
           onClick={() => {
@@ -321,7 +325,7 @@ export default function BankPaper() {
           {paper && visible.length > 0 && (
             <ol className="grid grid-cols-1 gap-3">
               {(gatedFrom === null ? visible : visible.slice(0, gatedFrom)).map((row) =>
-                questionCard(row, false),
+                questionCard(row, 0),
               )}
             </ol>
           )}
@@ -337,7 +341,10 @@ export default function BankPaper() {
             <div className="relative mt-3">
               <div className="max-h-[180px] overflow-hidden">
                 <ol className="grid grid-cols-1 gap-3">
-                  {visible.slice(gatedFrom).map((row) => questionCard(row, true))}
+                  {/* Ramp: 2px / 4px / 6px / 8px, then holds at 8px — a
+                      gradual fade into the gate over the first four gated
+                      questions rather than one flat blur amount. */}
+                  {visible.slice(gatedFrom).map((row, i) => questionCard(row, Math.min(2 + i * 2, 8)))}
                 </ol>
               </div>
 
