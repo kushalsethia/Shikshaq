@@ -205,7 +205,14 @@ export default function Index() {
           supabase.from('subjects').select('*').in('name', desiredSubjects).limit(10),
           // teacher_upvote_stats is a pre-aggregated view (teacher_id, upvote_count) —
           // avoids pulling every teacher_upvotes row down and counting client-side.
-          supabase.from('teacher_upvote_stats').select('teacher_id, upvote_count').order('upvote_count', { ascending: false }).limit(6),
+          // Was limit(6) — the featured rail showed at most 6 teachers no
+          // matter how many the site actually has, so "start with the
+          // teachers parents pick" read as a small, fixed set rather than a
+          // rail with real depth to scroll through. 24 is a real cap for
+          // page weight, not an arbitrary "still small" number — allTeachers
+          // below already pulls up to 200 for other purposes, so the fill
+          // logic has plenty to draw from without a second round trip.
+          supabase.from('teacher_upvote_stats').select('teacher_id, upvote_count').order('upvote_count', { ascending: false }).limit(24),
           supabase
             .from('teachers_list')
             .select('id, name, slug, image_url, is_verified, subject_id, classes, subjects(name, slug), subjects_text:subjects')
@@ -241,10 +248,11 @@ export default function Index() {
           const teacherMap = new Map(allTeachers.map((t) => [t.id, t]));
           teachersData = topIds.map((id) => teacherMap.get(id)).filter(Boolean) as typeof allTeachers;
         }
-        if (teachersData.length < 6) {
+        const FEATURED_TARGET = 24;
+        if (teachersData.length < FEATURED_TARGET) {
           const existingIds = new Set(teachersData.map((t) => t.id));
           const shuffled = allTeachers.filter((t) => !existingIds.has(t.id)).sort(() => Math.random() - 0.5);
-          teachersData = [...teachersData, ...shuffled.slice(0, 6 - teachersData.length)];
+          teachersData = [...teachersData, ...shuffled.slice(0, FEATURED_TARGET - teachersData.length)];
         }
 
         if (teachersData.length > 0) {
