@@ -43,6 +43,29 @@ Only environment variables. Nothing else.
 | `VITE_SUPABASE_URL` | set | set | same project — see below |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | set | set | same project |
 | `VITE_PREVIEW_TOOLS` | **unset** | `true` | role/auth preview toggle |
+| `VITE_PREVIEW_*_EMAIL` / `_PASSWORD` | unset | set | the toggle's two accounts |
+
+### The preview role toggle
+
+`src/components/PreviewRoleToggle.tsx`, bottom-left, test build only. Switches
+between signed-out, student and teacher by really signing in, so what you see
+is what RLS actually returns.
+
+It is **compiled out** of the live bundle, not hidden. Verify after a build:
+
+```bash
+grep -rl "PreviewRoleToggle\|Test build, not live" dist/assets/*.js   # empty = good
+```
+
+**Admin is deliberately not one of the roles**, and `PreviewRole` has no
+`'admin'` member so re-adding it is a type error. Its password would ship in
+the bundle in plain text, and admin reaches 147 teachers' applications, emails
+and phone numbers. Sign in normally for admin.
+
+The two accounts (`preview-student@` / `preview-teacher@preview.shikshaq.in`)
+are powerless by design, because their passwords are public by construction:
+neither is an admin, and the teacher has **no Shikshaqmine listing**, so
+`/dashboard/teacher` shows its empty state rather than real content.
 
 **Both deployments share ONE Supabase project** (`uvtifolnsneitetzohtn`).
 Confirmed as intended. It means the test site reads and writes **live**

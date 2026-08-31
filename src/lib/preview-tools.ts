@@ -21,5 +21,10 @@
 export const PREVIEW_TOOLS =
   import.meta.env.VITE_PREVIEW_TOOLS === 'true';
 
-/** The roles the preview toggle can put you in. */
-export type PreviewRole = 'signed-out' | 'student' | 'teacher' | 'admin';
+/** The roles the preview toggle can put you in.
+ *
+ * 'admin' is deliberately NOT a member, so adding it back is a type error
+ * rather than an oversight. An admin preview would need its password in the
+ * bundle, and admin reaches real teachers' applications, emails and phone
+ * numbers. Sign in normally for that. */
+export type PreviewRole = 'signed-out' | 'student' | 'teacher';

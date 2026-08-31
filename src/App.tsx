@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "
 import { installRoutePrefetch } from "@/lib/route-prefetch";
 import { lazy, Suspense, type ReactNode } from "react";
 import { AuthProvider } from "@/lib/auth-context";
+import { PreviewRoleToggle } from "@/components/PreviewRoleToggle";
 import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
 import { StudiesWithProvider } from "@/lib/studies-with-context";
@@ -142,6 +143,9 @@ const App = () => (
                 offset), so it must render inside the Router, not above it. */}
             <Toaster />
             <Sonner />
+            {/* Test deployment only. Compiled out of the live bundle entirely
+                (VITE_PREVIEW_TOOLS unset -> tree-shaken), not merely hidden. */}
+            <PreviewRoleToggle />
             {/* Skip link. The href stayed #main-content, but only Index.tsx ever
                 set that id — so on every route except the home page this, the
                 first control a keyboard or screen-reader user meets, pointed at
