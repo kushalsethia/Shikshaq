@@ -6,6 +6,8 @@ import { Footer } from '@/components/Footer';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
 import { MathText } from '@/components/papers/math-text';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { useAuth } from '@/lib/auth-context';
+import { GateSheet } from '@/components/auth/gate-sheet';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import {
   loadPaper, loadPaperQuestions, hasYear,
@@ -38,6 +40,8 @@ export default function BankPaper() {
   const [q, setQ] = useState('');
   const [reportFor, setReportFor] = useState('');
   const [reportText, setReportText] = useState('');
+  const [gateOpen, setGateOpen] = useState(false);
+  const { user } = useAuth();
 
   /* This paper's own row and this paper's own questions, and nothing else.
      It used to fetch the entire bank — 6,912 questions — to read one of them. */
@@ -74,6 +78,23 @@ export default function BankPaper() {
     [questions, chapter, needle],
   );
 
+  /* The sign-in gate.
+
+     A soft gate, deliberately: the questions are all rendered and the tail is
+     blurred, so a crawler still reads the whole paper and these 193 pages keep
+     the long-tail search traffic they were built for. It converts readers; it
+     does not secure anything, and the database still serves the rows to anyone
+     who asks. Making it real would mean revoking anon SELECT, which would take
+     every paper and school page out of the index.
+
+     Not applied while the reader is filtering. Searching inside a paper and
+     being told the match is behind a wall is a worse experience than either
+     state on its own, and the filtered view is not the reading surface. */
+  const FREE_QUESTIONS = 5;
+  const filtering = Boolean(chapter || needle);
+  const gatedFrom =
+    !user && !filtering && visible.length > FREE_QUESTIONS ? FREE_QUESTIONS : null;
+
   usePageMeta(
     paper
       ? `${paper.school} Class ${paper.cls} Maths ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
@@ -82,6 +103,10 @@ export default function BankPaper() {
       ? `All ${paper.questionCount} questions from the ${paper.school} Class ${paper.cls} Mathematics ${paper.exam}, with marks, chapters and figures. Free to read.`
       : 'Read a free past year question paper on Shikshaq.',
   );
+
+  /* The gate is a reason to sign in, not a paywall, so the description still
+     says free. It stays true: every question is readable, an account is the
+     only cost, and the page still renders all of them for a crawler. */
 
   /* Many papers print their own marks inline, "Find: [3]". Our pill would then
      say the same number twice on one card, so ours stands down; the paper's
@@ -118,6 +143,76 @@ export default function BankPaper() {
     ].filter(Boolean);
     return `${getWhatsAppLink('8240980312')}?text=${encodeURIComponent(lines.join('\n'))}`;
   }, [questions, reportFor, reportText, paper]);
+
+  /* One question card. Extracted so the gated tail can render inside its
+     own clipped container while staying identical to a free one. */
+  const questionCard = (row: BankQuestion, gated: boolean) => (
+    <li
+      key={row.i}
+      id={`q-${row.i}`}
+      /* Blurred, but NOT aria-hidden. The whole point of a soft
+         gate is that the text stays in the document for crawlers;
+         hiding it from screen readers only would give assistive
+         tech a worse deal than Googlebot. */
+      className={`min-w-0 rounded-[18px] bg-muted p-[16px] ${
+        gated ? 'select-none blur-[5px]' : ''
+      }`}
+    >
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        {row.n && (
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-blue px-1.5 text-[12px] font-extrabold tabular-nums text-white">
+            {row.n}
+          </span>
+        )}
+        {row.m !== null && !marksShownInText(row) && (
+          <span className="rounded-full bg-card px-2 py-0.5 text-[11.5px] font-bold tabular-nums text-foreground shadow-border">
+            {row.m} {row.m === 1 ? 'mark' : 'marks'}
+          </span>
+        )}
+        {row.ty && (
+          <span className="rounded-full bg-card px-2 py-0.5 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-warm-secondary shadow-border">
+            {row.ty}
+          </span>
+        )}
+        {row.c && (
+          <span className="rounded-full bg-brand-blue-subtle px-2 py-0.5 text-[11.5px] font-semibold text-brand-blue-deep">
+            {row.c}
+          </span>
+        )}
+      </div>
+
+      <MathText text={row.t} className="text-[15px] leading-[1.6] text-foreground" />
+
+      {row.f && (
+        <figure className="mt-2.5">
+          <img
+            src={`/paper-figures/${row.f}`}
+            alt={`Figure for question ${row.n ?? ''}`}
+            loading="lazy"
+            decoding="async"
+            className="max-h-[300px] w-auto max-w-full rounded-[12px] bg-card p-2 shadow-border"
+          />
+        </figure>
+      )}
+
+      {/* Not offered on a blurred question: you cannot report what
+          you cannot read, and leaving it would put a row of
+          invisible buttons in the tab order. */}
+      {!(gated) && (
+        <button
+          type="button"
+          onClick={() => {
+            setReportFor(row.i);
+            document.getElementById('report-a-question')?.scrollIntoView({ block: 'center' });
+          }}
+          className="mt-2.5 inline-flex min-h-11 items-center gap-1.5 text-[12px] font-semibold text-warm-label transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+          Something wrong here?
+        </button>
+      )}
+    </li>
+  );
 
   if (failed) {
     return (
@@ -225,60 +320,49 @@ export default function BankPaper() {
 
           {paper && visible.length > 0 && (
             <ol className="grid grid-cols-1 gap-3">
-              {visible.map((row) => (
-                <li key={row.i} id={`q-${row.i}`} className="min-w-0 rounded-[18px] bg-muted p-[16px]">
-                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                    {row.n && (
-                      <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-blue px-1.5 text-[12px] font-extrabold tabular-nums text-white">
-                        {row.n}
-                      </span>
-                    )}
-                    {row.m !== null && !marksShownInText(row) && (
-                      <span className="rounded-full bg-card px-2 py-0.5 text-[11.5px] font-bold tabular-nums text-foreground shadow-border">
-                        {row.m} {row.m === 1 ? 'mark' : 'marks'}
-                      </span>
-                    )}
-                    {row.ty && (
-                      <span className="rounded-full bg-card px-2 py-0.5 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-warm-secondary shadow-border">
-                        {row.ty}
-                      </span>
-                    )}
-                    {row.c && (
-                      <span className="rounded-full bg-brand-blue-subtle px-2 py-0.5 text-[11.5px] font-semibold text-brand-blue-deep">
-                        {row.c}
-                      </span>
-                    )}
-                  </div>
-
-                  <MathText text={row.t} className="text-[15px] leading-[1.6] text-foreground" />
-
-                  {row.f && (
-                    <figure className="mt-2.5">
-                      <img
-                        src={`/paper-figures/${row.f}`}
-                        alt={`Figure for question ${row.n ?? ''}`}
-                        loading="lazy"
-                        decoding="async"
-                        className="max-h-[300px] w-auto max-w-full rounded-[12px] bg-card p-2 shadow-border"
-                      />
-                    </figure>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReportFor(row.i);
-                      document.getElementById('report-a-question')?.scrollIntoView({ block: 'center' });
-                    }}
-                    className="mt-2.5 inline-flex min-h-11 items-center gap-1.5 text-[12px] font-semibold text-warm-label transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <Flag className="h-3.5 w-3.5" aria-hidden="true" />
-                    Something wrong here?
-                  </button>
-                </li>
-              ))}
+              {(gatedFrom === null ? visible : visible.slice(0, gatedFrom)).map((row) =>
+                questionCard(row, false),
+              )}
             </ol>
           )}
+
+          {/* The gated tail.
+
+              Every remaining question is rendered, so a crawler still reads the
+              whole paper and these 193 pages keep their long-tail traffic. It is
+              clipped to a glimpse rather than laid out in full: at full height
+              this was 7,878px of blurred cards to scroll past before reaching
+              the reason to sign in, which is a wall, not a teaser. */}
+          {gatedFrom !== null && (
+            <div className="relative mt-3">
+              <div className="max-h-[180px] overflow-hidden">
+                <ol className="grid grid-cols-1 gap-3">
+                  {visible.slice(gatedFrom).map((row) => questionCard(row, true))}
+                </ol>
+              </div>
+
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[140px] bg-gradient-to-b from-transparent to-card" />
+
+              <div className="relative -mt-[52px] rounded-[18px] bg-card px-4 pb-1 pt-2 text-center">
+                <p className="text-[17px] font-extrabold tracking-[-0.03em] text-foreground">
+                  {visible.length - gatedFrom} more{' '}
+                  {visible.length - gatedFrom === 1 ? 'question' : 'questions'} in this paper
+                </p>
+                <p className="mx-auto mt-1 max-w-[34ch] text-[13.5px] leading-[1.5] text-warm-prose">
+                  Reading the rest is free. It just needs an account, so we can
+                  keep your place across papers.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setGateOpen(true)}
+                  className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full bg-brand-blue px-5 text-[14px] font-bold text-white transition-transform duration-tap hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+                >
+                  Sign in to read all {paper?.questionCount ?? questions.length}
+                </button>
+              </div>
+            </div>
+          )}
+
 
           {paper && visible.length === 0 && !loading && (
             <p className="text-[15px] text-warm-prose">Nothing in this paper matches that.</p>
@@ -361,6 +445,18 @@ export default function BankPaper() {
           </div>
         )}
       </main>
+
+      {/* The canonical papers sign-in sheet, already built for exactly this
+          and unused until now. Named the specific paper rather than prompting
+          generically, per its own rule 4. */}
+      <GateSheet
+        open={gateOpen}
+        onOpenChange={setGateOpen}
+        flavor="papers"
+        redirectTo={`/past-papers/${id ?? ''}`}
+        paperTitle={paper ? `${paper.school} Class ${paper.cls} Mathematics` : null}
+        paperSubject="Mathematics"
+      />
 
       <Footer />
     </div>
