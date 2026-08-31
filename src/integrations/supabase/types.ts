@@ -65,6 +65,107 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_papers: {
+        Row: {
+          board: string
+          cls: string
+          created_at: string
+          exam: string | null
+          has_school: boolean
+          id: string
+          is_board_paper: boolean
+          is_published: boolean
+          marks: number
+          question_count: number
+          school: string
+          school_raw: string | null
+          subject: string
+          year: string | null
+        }
+        Insert: {
+          board?: string
+          cls?: string
+          created_at?: string
+          exam?: string | null
+          has_school?: boolean
+          id: string
+          is_board_paper?: boolean
+          is_published?: boolean
+          marks?: number
+          question_count?: number
+          school: string
+          school_raw?: string | null
+          subject?: string
+          year?: string | null
+        }
+        Update: {
+          board?: string
+          cls?: string
+          created_at?: string
+          exam?: string | null
+          has_school?: boolean
+          id?: string
+          is_board_paper?: boolean
+          is_published?: boolean
+          marks?: number
+          question_count?: number
+          school?: string
+          school_raw?: string | null
+          subject?: string
+          year?: string | null
+        }
+        Relationships: []
+      }
+      bank_questions: {
+        Row: {
+          body: string
+          chapter: string | null
+          figure: string | null
+          id: string
+          marks: number | null
+          number: string | null
+          options: string[] | null
+          ord: number
+          page: number | null
+          paper_id: string
+          qtype: string | null
+        }
+        Insert: {
+          body: string
+          chapter?: string | null
+          figure?: string | null
+          id: string
+          marks?: number | null
+          number?: string | null
+          options?: string[] | null
+          ord: number
+          page?: number | null
+          paper_id: string
+          qtype?: string | null
+        }
+        Update: {
+          body?: string
+          chapter?: string | null
+          figure?: string | null
+          id?: string
+          marks?: number | null
+          number?: string | null
+          options?: string[] | null
+          ord?: number
+          page?: number | null
+          paper_id?: string
+          qtype?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_questions_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "bank_papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           comment: string | null

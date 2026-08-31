@@ -25,7 +25,6 @@ import { config } from 'dotenv';
    the sitemap under a slug SchoolPage.tsx cannot resolve — a submitted URL
    that 404s, which is the exact bug already fixed once for /cbse-ncert-. */
 import { schoolSlug } from '../src/lib/school-slug';
-import { schoolsOf, papersOf } from '../src/lib/question-bank';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -249,37 +248,51 @@ ${urlElements}
 /**
  * The question bank's own URLs.
  *
- * The bank is a static asset rather than a table, so this script never saw
- * it: 193 paper pages and the ~79 schools that exist only in the bank were
- * absent from the sitemap even though every one of them is a real, linked,
- * indexable page. Read from disk here for the same reason schoolSlug is
- * imported rather than copied — one derivation, no second implementation to
- * drift out of step with what the app actually routes.
+ * 193 paper pages, and the schools that exist only in the bank, are real,
+ * linked, indexable pages and belong here. They are read from bank_papers,
+ * which is where the bank lives — a sitemap built from a copy of the data
+ * would start advertising URLs the app no longer serves the moment the two
+ * diverged.
+ *
+ * has_school is the database's own answer to "is this a school page at all",
+ * so board papers and unreadable school names are excluded at the query
+ * rather than re-decided here.
  */
-function readBankURLs(currentDate: string): { schools: SitemapURL[]; papers: SitemapURL[] } {
-  const bankPath = path.join(__dirname, '..', 'public', 'question-bank.json');
-  if (!fs.existsSync(bankPath)) {
-    console.warn('   Question bank not found, skipping its URLs');
+async function readBankURLs(currentDate: string): Promise<{ schools: SitemapURL[]; papers: SitemapURL[] }> {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.warn('   No Supabase credentials, skipping question bank URLs');
     return { schools: [], papers: [] };
   }
 
   try {
-    const bank = JSON.parse(fs.readFileSync(bankPath, 'utf-8'));
-    const schools: SitemapURL[] = schoolsOf(bank).map((school) => ({
-      loc: `/school/${school.slug}`,
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data, error } = await supabase
+      .from('bank_papers')
+      .select('id, school, has_school')
+      .eq('is_published', true);
+    if (error) throw new Error(error.message);
+
+    const rows = data ?? [];
+    // Deduped on the slug, because two source spellings that resolve to the
+    // same school are one page, not two.
+    const slugs = new Set<string>();
+    rows.forEach((r) => { if (r.has_school) slugs.add(schoolSlug(r.school)); });
+
+    const schools: SitemapURL[] = [...slugs].map((slug) => ({
+      loc: `/school/${slug}`,
       changefreq: 'weekly',
       priority: 0.5,
       lastmod: currentDate,
     }));
-    const papers: SitemapURL[] = papersOf(bank).map((paper) => ({
-      loc: `/past-papers/${paper.id}`,
+    const papers: SitemapURL[] = rows.map((r) => ({
+      loc: `/past-papers/${r.id}`,
       changefreq: 'yearly',
       priority: 0.6,
       lastmod: currentDate,
     }));
     return { schools, papers };
   } catch (err) {
-    console.error('   Failed to read question bank:', err);
+    console.error('   Failed to read the question bank from Supabase:', err);
     return { schools: [], papers: [] };
   }
 }
@@ -305,7 +318,7 @@ async function main() {
   // Fetch dynamic teacher pages
   const teacherPages = await fetchTeacherSlugs();
   const schoolPages = await fetchSchoolSlugs();
-  const bankURLs = readBankURLs(currentDate);
+  const bankURLs = await readBankURLs(currentDate);
 
   // Combine all URLs. Deduped because a school with papers in both the table
   // and the bank is one page and must be listed once.

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck } from 'lucide-react';
 import { SearchControl } from '@/components/SearchControl';
-import { loadPaperIndex, hasYear, schoolLabel } from '@/lib/question-bank';
+import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
@@ -291,7 +291,7 @@ export default function PastPapers() {
       (await loadPaperIndex()).map((b) => ({
         id: b.id,
         title: `Class ${b.cls} Mathematics`,
-        school: schoolLabel(b.school),
+        school: b.school,
         subject: 'Maths',
         class: b.cls,
         board: b.board,
@@ -301,6 +301,7 @@ export default function PastPapers() {
         created_at: '',
         _bankYear: b.year,
         _questions: b.questionCount,
+        _isBoard: b.isBoardPaper,
       })),
   });
   /* Memoised on the query data, not written as `?? []` inline: a fresh []
@@ -318,13 +319,14 @@ export default function PastPapers() {
      the year when the papers ARE the board's own — and the footer carries the
      exam and the question count. */
   const coverPaper = (p: Paper) => {
-    const bank = p as Paper & { _bankYear?: string; _questions?: number };
+    const bank = p as Paper & { _bankYear?: string; _questions?: number; _isBoard?: boolean };
     if (p.file_url !== null || bank._questions === undefined) return p;
     const year = bank._bankYear ?? '';
-    /* "ICSE 2026" with no school IS the board's own paper — schoolLabel marks
-       those "ICSE board paper", and the year becomes the headline because it
-       is the only thing separating one board paper from the next. */
-    const schoolIsBoard = /board paper$/i.test(p.school);
+    /* "ICSE 2026" with no school IS the board's own paper. The year becomes
+       the headline for those, because it is the only thing separating one
+       board paper from the next. The database says which they are, so this no
+       longer sniffs the display name for the words "board paper". */
+    const schoolIsBoard = bank._isBoard === true;
     return {
       ...p,
       subject: schoolIsBoard && hasYear(year) ? year : p.school,

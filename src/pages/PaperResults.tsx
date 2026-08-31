@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUp, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { PaperSheetCard } from '@/components/papers/paper-sheet-card';
-import { loadPaperIndex, hasYear, schoolLabel } from '@/lib/question-bank';
+import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -81,7 +81,7 @@ export default function PaperResults() {
       (await loadPaperIndex()).map((b) => ({
         id: b.id,
         title: `Class ${b.cls} Mathematics`,
-        school: schoolLabel(b.school),
+        school: b.school,
         subject: 'Maths',
         class: b.cls,
         board: b.board,

@@ -2,7 +2,7 @@
 /**
  * ONE-OFF IMPORT: question bank JSON -> Supabase
  *
- * Loads public/question-bank.json into `bank_papers` and `bank_questions`
+ * Loads data/question-bank.json into `bank_papers` and `bank_questions`
  * (created by migration 20260829_bank_papers_and_questions.sql).
  *
  * Why a script and not a migration: the bank is 2.5MB of verbatim question
@@ -28,7 +28,7 @@ import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 
-import { papersOf, hasYear, type BankQuestion } from '../src/lib/question-bank';
+import { papersOf, hasYear, type BankQuestion } from './bank-source';
 import { schoolLabel, isBoardPaper, hasSchool } from './school-names';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -37,7 +37,7 @@ config({ path: path.join(__dirname, '..', '.env') });
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const BANK_PATH = path.join(__dirname, '..', 'public', 'question-bank.json');
+const BANK_PATH = path.join(__dirname, '..', 'data', 'question-bank.json');
 
 const PAPER_BATCH = 200;
 const QUESTION_BATCH = 400;

@@ -8,7 +8,7 @@ import { MathText } from '@/components/papers/math-text';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import {
-  loadBank, papersOf, questionsOf, hasYear, schoolLabel,
+  loadPaper, loadPaperQuestions, hasYear,
   type BankPaper as BankPaperMeta, type BankQuestion,
 } from '@/lib/question-bank';
 
@@ -30,28 +30,36 @@ const CONTAINER = 'mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8';
 
 export default function BankPaper() {
   const { id } = useParams<{ id: string }>();
-  const [bank, setBank] = useState<BankQuestion[] | null>(null);
+  const [paper, setPaper] = useState<BankPaperMeta | null>(null);
+  const [questions, setQuestions] = useState<BankQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [chapter, setChapter] = useState('');
   const [q, setQ] = useState('');
   const [reportFor, setReportFor] = useState('');
   const [reportText, setReportText] = useState('');
 
+  /* This paper's own row and this paper's own questions, and nothing else.
+     It used to fetch the entire bank — 6,912 questions — to read one of them. */
   useEffect(() => {
     let cancelled = false;
-    loadBank()
-      .then((d) => { if (!cancelled) setBank(d); })
-      .catch(() => { if (!cancelled) setFailed(true); });
+    setPaper(null);
+    setQuestions([]);
+    setFailed(false);
+    setLoading(true);
+    if (!id) { setLoading(false); return; }
+    Promise.all([loadPaper(id), loadPaperQuestions(id)])
+      .then(([meta, rows]) => {
+        if (cancelled) return;
+        setPaper(meta);
+        setQuestions(rows);
+        setLoading(false);
+      })
+      .catch(() => { if (!cancelled) { setFailed(true); setLoading(false); } });
     return () => { cancelled = true; };
-  }, []);
+  }, [id]);
 
   useEffect(() => { setChapter(''); setQ(''); setReportFor(''); setReportText(''); }, [id]);
-
-  const paper: BankPaperMeta | null = useMemo(
-    () => (bank && id ? papersOf(bank).find((p) => p.id === id) ?? null : null),
-    [bank, id],
-  );
-  const questions = useMemo(() => (bank && id ? questionsOf(bank, id) : []), [bank, id]);
 
   const chapters = useMemo(() => {
     const seen: string[] = [];
@@ -68,10 +76,10 @@ export default function BankPaper() {
 
   usePageMeta(
     paper
-      ? `${schoolLabel(paper.school)} Class ${paper.cls} Maths ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
+      ? `${paper.school} Class ${paper.cls} Maths ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
       : 'Past paper | Shikshaq',
     paper
-      ? `All ${paper.questionCount} questions from the ${schoolLabel(paper.school)} Class ${paper.cls} Mathematics ${paper.exam}, with marks, chapters and figures. Free to read.`
+      ? `All ${paper.questionCount} questions from the ${paper.school} Class ${paper.cls} Mathematics ${paper.exam}, with marks, chapters and figures. Free to read.`
       : 'Read a free past year question paper on Shikshaq.',
   );
 
@@ -102,7 +110,7 @@ export default function BankPaper() {
     const lines = [
       'Hi Shikshaq, there is a problem with a question.',
       '',
-      paper ? `Paper: ${schoolLabel(paper.school)} Class ${paper.cls} ${paper.exam}` : null,
+      paper ? `Paper: ${paper.school} Class ${paper.cls} ${paper.exam}` : null,
       row ? `Question: ${row.n ?? row.i}` : null,
       row ? `Id: ${row.i}` : null,
       '',
@@ -143,7 +151,7 @@ export default function BankPaper() {
 
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[14px] font-bold text-white">
-              {paper ? `${schoolLabel(paper.school)} · Class ${paper.cls} Mathematics` : 'Past paper'}
+              {paper ? `${paper.school} · Class ${paper.cls} Mathematics` : 'Past paper'}
             </h1>
             {facts.length > 0 && (
               <p className="truncate text-[11.5px] tabular-nums text-white/60">
@@ -196,14 +204,14 @@ export default function BankPaper() {
 
       <main id="main-content" className={`flex-1 ${CONTAINER} pb-14 pt-4`}>
         {paper && (
-          <DisclaimerStrip tone="dark" school={schoolLabel(paper.school)} reportHref="/contact" />
+          <DisclaimerStrip tone="dark" school={paper.school} reportHref="/contact" />
         )}
 
         {/* RD-004 document surface: the questions are the sheet, lifted off the
             dark ground. It runs the full length of the paper rather than
             scrolling inside itself, so the page keeps one scrollbar. */}
         <div className="mt-4 rounded-xl bg-card p-4 shadow-[0_18px_40px_rgba(0,0,0,.45)] sm:p-6">
-          {!bank && (
+          {loading && (
             <div className="grid gap-3" aria-busy="true">
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="h-[104px] animate-shimmer rounded-[18px] bg-muted bg-[length:200%_100%]" />
@@ -211,7 +219,7 @@ export default function BankPaper() {
             </div>
           )}
 
-          {bank && !paper && (
+          {!loading && !paper && (
             <p className="text-[15px] text-warm-prose">We could not find that paper.</p>
           )}
 
@@ -272,7 +280,7 @@ export default function BankPaper() {
             </ol>
           )}
 
-          {paper && visible.length === 0 && bank && (
+          {paper && visible.length === 0 && !loading && (
             <p className="text-[15px] text-warm-prose">Nothing in this paper matches that.</p>
           )}
         </div>

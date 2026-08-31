@@ -44,3 +44,6 @@ docs/GOOGLE_AUTH_CUSTOM_DOMAIN.md
 
 # Supabase CLI scratch
 supabase/.temp/
+
+# tsc -b incremental state
+*.tsbuildinfo

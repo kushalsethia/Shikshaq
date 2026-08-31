@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import Fuse from 'fuse.js';
 import { supabase } from '@/integrations/supabase/client';
-import { loadPaperIndex, hasYear, schoolLabel } from '@/lib/question-bank';
+import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 
 export interface TeacherHit {
   id: string;
@@ -100,7 +100,7 @@ async function loadIndex(): Promise<void> {
   const bankHits: PaperHit[] = (bankRes ?? []).map((b) => ({
     id: b.id,
     title: `Class ${b.cls} Mathematics`,
-    school: schoolLabel(b.school),
+    school: b.school,
     subject: 'Maths',
     class: b.cls,
     board: b.board,

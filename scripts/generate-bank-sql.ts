@@ -28,13 +28,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
-import { papersOf, hasYear, type BankQuestion } from '../src/lib/question-bank';
+import { papersOf, hasYear, type BankQuestion } from './bank-source';
 import { schoolLabel, isBoardPaper, hasSchool } from './school-names';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BANK_PATH = path.join(__dirname, '..', 'public', 'question-bank.json');
+const BANK_PATH = path.join(__dirname, '..', 'data', 'question-bank.json');
 const OUT_FILE = path.join(__dirname, '..', 'supabase', 'bank-import.sql');
 const OUT_DIR = path.join(__dirname, '..', 'supabase', 'bank');
 

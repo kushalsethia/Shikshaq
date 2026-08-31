@@ -7,12 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "prebuild": "npm run generate-paper-index && npm run generate-sitemap",
+    "prebuild": "npm run generate-sitemap",
     "lint": "eslint .",
     "preview": "vite preview",
     "test:gemini": "node scripts/test-gemini-api.js",
     "generate-sitemap": "tsx scripts/generate-sitemap.ts",
-    "generate-paper-index": "tsx scripts/generate-paper-index.ts",
     "import-bank": "tsx scripts/import-bank.ts",
     "generate-bank-sql": "tsx scripts/generate-bank-sql.ts"
   },
