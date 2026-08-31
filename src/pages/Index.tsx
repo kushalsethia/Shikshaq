@@ -921,6 +921,10 @@ export default function Index() {
             </Link>
           </BentoPanel>
 
+          {/* Subjects (6) / Board (7) / Class (9) as one 3-column row at lg —
+              was three full-width panels stacked vertically even on wide
+              desktop, each just a shorter row of the same-width content. */}
+          <div className="lg:grid lg:grid-cols-3 lg:items-start lg:gap-2">
           {/* --------------------------------------------------------- 6 · Subjects */}
           <BentoPanel fill="card" className="p-[22px]">
             <NumberedHeading
@@ -989,54 +993,6 @@ export default function Index() {
             </BentoPanel>
           )}
 
-          {/* ------------------------------------------------------ How it works */}
-          {/* No mt-seam. BentoStack already owns the 6px seam between every pair
-              of panels (T-004/D-002); adding one here stacked on top of it and
-              made this the only 12px gap on the page — the "extra padding
-              between the rounded sections" report. */}
-          <BentoPanel fill="brand" className="relative overflow-visible px-[22px] pb-6 pt-[26px]">
-            {/* D-007: tilt flattens at `lg` — a 6deg tilt on a 340px badge
-                reads as charm, the same tilt on a 1100px-wide row reads as
-                broken. Implemented as lg:rotate-0, mobile tilt untouched. */}
-            <span
-              aria-hidden
-              className="absolute right-[22px] top-[-12px] -rotate-[6deg] rounded-full bg-panel px-3 py-1.5 text-[11px] font-bold text-background motion-reduce:rotate-0 lg:rotate-0"
-            >
-              Takes 3 minutes
-            </span>
-
-            <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/75">
-              02 · Two minutes, start to finish
-            </p>
-            <h2 className="mt-2 font-display text-[28px] font-extrabold tracking-[-0.045em] text-white">
-              Then talk to them yourself
-            </h2>
-
-            {/* D-005 "Home how-it-works": 3 steps stacked below `lg`, 3
-                columns with the existing border-l divider at `lg`. Was
-                `sm:grid` (640px) — moved to the spec'd `lg` (1024px)
-                breakpoint. */}
-            <ol className="mt-[22px] flex flex-col gap-[18px] lg:grid lg:grid-cols-3 lg:gap-6">
-              {[
-                { icon: <Search />, title: 'Tell us the subject', body: 'Subject, class and your area. Three taps, no account needed.' },
-                { icon: <Users />, title: 'Compare real profiles', body: 'Rates, boards, reviews and travel radius, all on one card.' },
-                { icon: <MessageCircle />, title: 'Message on WhatsApp', body: 'Talk to the teacher directly. Shikshaq never sits in the middle.' },
-              ].map((step, i) => (
-                <li key={step.title} className={`flex flex-col ${i > 0 ? 'lg:border-l lg:border-background/25 lg:pl-6' : ''}`}>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-background/15 text-white [&_svg]:size-5">
-                    {step.icon}
-                  </span>
-                  <h3 className="mt-[10px] font-display text-[17px] font-bold text-white">{step.title}</h3>
-                  <p className="mt-1 text-[14px] leading-[1.5] text-white/85">{step.body}</p>
-                </li>
-              ))}
-            </ol>
-
-            <p className="mt-[22px] text-[14px] text-white/80">
-              No fees, no middleman, no commission, ever.
-            </p>
-          </BentoPanel>
-
           {/* --------------------------------------------------------- 9 · By class */}
           <BentoPanel fill="card" className="p-[22px]">
             <NumberedHeading
@@ -1066,6 +1022,7 @@ export default function Index() {
               ))}
             </ul>
           </BentoPanel>
+          </div>
 
           {/* ------------------------------------------------------- 10 · New papers */}
           <BentoPanel fill="papers" className="relative overflow-hidden px-[22px] pb-[26px] pt-[22px]">
@@ -1129,6 +1086,60 @@ export default function Index() {
             </div>
           </BentoPanel>
 
+          {/* "Then talk to them yourself" (how-it-works, moved here from
+              between Board/Class above) paired in line with "Why guardians
+              use Shikshaq" — both are "why trust this" content, and neither
+              needed the full page width it was taking stacked alone. */}
+          <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-2">
+          {/* --------------------------------------------------- 8 · How it works */}
+          {/* No mt-seam. BentoStack already owns the 6px seam between every pair
+              of panels (T-004/D-002); adding one here stacked on top of it and
+              made this the only 12px gap on the page — the "extra padding
+              between the rounded sections" report. */}
+          <BentoPanel fill="brand" className="relative overflow-visible px-[22px] pb-6 pt-[26px]">
+            {/* D-007: tilt flattens at `lg` — a 6deg tilt on a 340px badge
+                reads as charm, the same tilt on a 1100px-wide row reads as
+                broken. Implemented as lg:rotate-0, mobile tilt untouched. */}
+            <span
+              aria-hidden
+              className="absolute right-[22px] top-[-12px] -rotate-[6deg] rounded-full bg-panel px-3 py-1.5 text-[11px] font-bold text-background motion-reduce:rotate-0 lg:rotate-0"
+            >
+              Takes 3 minutes
+            </span>
+
+            <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/75">
+              02 · Two minutes, start to finish
+            </p>
+            <h2 className="mt-2 font-display text-[28px] font-extrabold tracking-[-0.045em] text-white">
+              Then talk to them yourself
+            </h2>
+
+            {/* D-005 "Home how-it-works": 3 steps stacked below `lg`. Was 3
+                columns from `lg` too, but this panel is now half the row's
+                width there (paired with Guardian trust beside it), so 3
+                columns squeezed each step's text under its own icon —
+                kept a single column at every width instead. */}
+            <ol className="mt-[22px] flex flex-col gap-[18px]">
+              {[
+                { icon: <Search />, title: 'Tell us the subject', body: 'Subject, class and your area. Three taps, no account needed.' },
+                { icon: <Users />, title: 'Compare real profiles', body: 'Rates, boards, reviews and travel radius, all on one card.' },
+                { icon: <MessageCircle />, title: 'Message on WhatsApp', body: 'Talk to the teacher directly. Shikshaq never sits in the middle.' },
+              ].map((step) => (
+                <li key={step.title} className="flex flex-col">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-background/15 text-white [&_svg]:size-5">
+                    {step.icon}
+                  </span>
+                  <h3 className="mt-[10px] font-display text-[17px] font-bold text-white">{step.title}</h3>
+                  <p className="mt-1 text-[14px] leading-[1.5] text-white/85">{step.body}</p>
+                </li>
+              ))}
+            </ol>
+
+            <p className="mt-[22px] text-[14px] text-white/80">
+              No fees, no middleman, no commission, ever.
+            </p>
+          </BentoPanel>
+
           {/* --------------------------------------------------- 11 · Guardian trust */}
           <BentoPanel fill="brandTint" className="p-[22px]">
             <div className="flex items-center gap-3">
@@ -1151,6 +1162,7 @@ export default function Index() {
               ))}
             </ul>
           </BentoPanel>
+          </div>
 
           {/* ------------------------------------------------------ 12 · From students */}
           {studentQuotes.length > 0 && (
