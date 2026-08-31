@@ -446,7 +446,16 @@ function TeacherCardComponent({
          thing that still varies (8px mobile / 10px desktop). */}
       <Link
         to={`/tuition-teachers/${slug}`}
-        className="group flex h-full flex-col overflow-hidden rounded-[32px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:p-2.5"
+        /* No overflow-hidden here (was on this same element as shadow-border/
+           shadow-border-hover) — overflow:hidden clips a box's OWN shadow,
+           since the shadow paints outside the border box but the clip
+           applies to this element's whole paint, so the card's border-shadow
+           (and the lift-shadow on hover) were being cut off, especially
+           bottom/right. Nothing here actually needs it: the photo already
+           self-clips via its own overflow-hidden wrapper below, and every
+           overlay (badge, heart, upvote pill) is a child of that wrapper,
+           not of this Link. */
+        className="group flex h-full flex-col rounded-[32px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:p-2.5"
       >
         {/* §2.5 compact grid card (mockup "01 Start with the teachers parents pick"):
             shorter photo than the old 4/5 portrait, tighter body, so four cards read

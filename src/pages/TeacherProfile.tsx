@@ -254,6 +254,8 @@ export default function TeacherProfile() {
       name: teacher.name,
       subject: teacher.subjects?.name ?? teacher.subjects_from_shikshaq?.split(',')[0]?.trim() ?? null,
       area: (teacher as { area?: string | null }).area?.split(',')[0]?.trim() ?? null,
+      slug: teacher.slug,
+      imageUrl: teacher.image_url,
     });
   }, [teacher]);
 

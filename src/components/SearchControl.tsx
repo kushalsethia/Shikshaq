@@ -585,25 +585,6 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               <span className={`${sectionLabel} mb-1.5 block ${align === 'center' ? 'sm:text-center' : ''}`}>
                 Narrow it
               </span>
-              {/* Scroll cue (§8/§11): the facet row hides its own scrollability on mobile with
-                  no affordance — a trailing edge fade signals "more chips this way" without
-                  a border/shadow stack. sm:hidden since the row wraps instead of scrolling at sm+.
-
-                  The fade has to end in whatever it sits on. Once this row moved
-                  onto its own card, `from-background` was fading to the page
-                  ground over a `bg-card` surface — a visibly wrong-coloured
-                  strip down the right edge. It also ran `inset-y-0`, tinting
-                  the "Narrow it" label above the chips and squaring off the
-                  card's rounded corner. Now it starts below the label, stops
-                  inside the card's padding, and matches its fill. */}
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute bottom-0 z-10 w-8 sm:hidden ${
-                  mobilePinned
-                    ? 'right-3 top-7 rounded-r-2xl bg-gradient-to-l from-card to-transparent'
-                    : 'right-0 top-6 bg-gradient-to-l from-background to-transparent'
-                }`}
-              />
               <div
                 key={mode}
                 ref={facetRowRef}

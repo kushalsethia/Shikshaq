@@ -28,7 +28,7 @@ export interface EyesPanelProps {
 }
 
 const PUPIL_MAX_X = 20;
-const PUPIL_MAX_Y = 16;
+const PUPIL_MAX_Y = 18;
 const PUPIL_DISTANCE_NORM = 260;
 const IDLE_BLINK_MS = 5200;
 // Handoff M-005: the lid drops for 150ms (how long it stays visually
@@ -58,7 +58,10 @@ function Eye({
   return (
     <div
       aria-hidden
-      className="relative h-[74px] w-[104px] shrink-0 overflow-hidden rounded-[50%] bg-card shadow-[inset_0_3px_6px_rgba(31,31,31,.13)]"
+      /* Bumped from h-[74px] — taller relative to the same width reads
+         rounder (less flattened-oval), which is what makes an eye read as
+         cute rather than sleepy. */
+      className="relative h-[86px] w-[104px] shrink-0 overflow-hidden rounded-[50%] bg-card shadow-[inset_0_3px_6px_rgba(31,31,31,.13)]"
     >
       {/* The pupil carries two catchlights. A flat black disc reads as a dot;
           a highlight is what makes an eye read as wet, lit and alive, and it
@@ -74,16 +77,16 @@ function Eye({
           does not re-render while the eyes track. */}
       <div
         ref={pupilRef}
-        className="absolute left-1/2 top-1/2 h-[34px] w-[34px] rounded-full bg-panel will-change-transform"
+        className="absolute left-1/2 top-1/2 h-[38px] w-[38px] rounded-full bg-panel will-change-transform"
         style={{ transform: 'translate(-50%, -50%)' }}
       >
         <span
           aria-hidden
-          className="absolute left-[6px] top-[5px] h-[11px] w-[11px] rounded-full bg-white/90"
+          className="absolute left-[7px] top-[6px] h-[12px] w-[12px] rounded-full bg-white/90"
         />
         <span
           aria-hidden
-          className="absolute bottom-[7px] right-[6px] h-[5px] w-[5px] rounded-full bg-white/45"
+          className="absolute bottom-[8px] right-[7px] h-[6px] w-[6px] rounded-full bg-white/45"
         />
       </div>
       {/* Lid: full-bleed div in the dome's own fill, resting off-panel and
@@ -368,7 +371,7 @@ function EyesPanel({
         ref={domeRef}
         onClick={handleTap}
         role="presentation"
-        style={{ borderRadius: '50% 50% 0 0 / 90px 90px 0 0' }}
+        style={{ borderRadius: '50% 50% 0 0 / 98px 98px 0 0' }}
         className={cn(
           'relative mt-[26px] box-border w-[124%] -mx-[12%] px-[12%] pb-[26px] pt-[34px] transition-colors duration-[850ms] ease-settle motion-reduce:transition-none',
           domeFill,

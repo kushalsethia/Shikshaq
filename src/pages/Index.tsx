@@ -562,15 +562,21 @@ export default function Index() {
   // H-005 branch 1b needs the single liked teacher's name. H-005 adds no new
   // query, so this only resolves when that teacher is already in the
   // featured list this page already fetched — otherwise 1b falls through to 2.
-  const likedSingleTeacherName = useMemo(() => {
+  const likedSingleTeacher = useMemo(() => {
     if (likedCount !== 1) return null;
     const [onlyId] = Array.from(likedTeacherIds);
-    return featuredTeachers.find((t) => t.id === onlyId)?.name ?? null;
+    return featuredTeachers.find((t) => t.id === onlyId) ?? null;
   }, [likedCount, likedTeacherIds, featuredTeachers]);
+  const likedSingleTeacherName = likedSingleTeacher?.name ?? null;
 
   const baseHeroCopy = useMemo(
-    () => resolveHeroCopy({ profile, likedCount, likedSingleTeacherName }),
-    [profile, likedCount, likedSingleTeacherName],
+    () => resolveHeroCopy({
+      profile,
+      likedCount,
+      likedSingleTeacherName,
+      likedSingleTeacherImageUrl: likedSingleTeacher?.image_url ?? null,
+    }),
+    [profile, likedCount, likedSingleTeacherName, likedSingleTeacher],
   );
   const heroCopy = useMemo(
     () => (heroMode === 'papers' ? papersHeroCopy(baseHeroCopy, profile) : baseHeroCopy),
@@ -604,17 +610,25 @@ export default function Index() {
     if (baseHeroCopy.mode === 'papers') setHeroMode('papers');
   }, [baseHeroCopy.mode]);
 
+  /* chip 'stripe' means the line names ONE specific teacher (heroCopy.bold) —
+     that chip must be that teacher's own photo or nothing, never a
+     different, unrelated teacher's face next to their name. Only the
+     generic 'avatar' branches (no specific person named) borrow
+     featuredTeachers[0] as decoration. */
+  const namesSpecificTeacher = heroCopy.chip === 'stripe';
+  const chipImageUrl = namesSpecificTeacher ? heroCopy.imageUrl : featuredTeachers[0]?.image_url;
+  const chipPlaceholderName = namesSpecificTeacher ? heroCopy.bold : featuredTeachers[0]?.name;
   const heroAvatarChip = heroCopy.chip === null ? null : (
     <span
       aria-hidden
       className={`relative inline-block h-[28px] w-[28px] shrink-0 overflow-hidden rounded-full align-[-6px] ${
-        featuredTeachers[0]?.image_url ? '' : 'ring-1 ring-warm-hairline'
+        chipImageUrl ? '' : 'ring-1 ring-warm-hairline'
       }`}
     >
-      {featuredTeachers[0]?.image_url ? (
-        <img src={validateImageSrc(featuredTeachers[0].image_url)} alt="" className="h-full w-full object-cover" />
+      {chipImageUrl ? (
+        <img src={validateImageSrc(chipImageUrl)} alt="" className="h-full w-full object-cover" />
       ) : (
-        <StripePlaceholder name={featuredTeachers[0]?.name} initialSize={14} className="h-full w-full" />
+        <StripePlaceholder name={chipPlaceholderName} initialSize={14} className="h-full w-full" />
       )}
     </span>
   );
@@ -810,9 +824,14 @@ export default function Index() {
 
           {/* ----------------------------------------------------- 4 · Papers fork */}
           <BentoPanel fill="papersTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
+            {/* Same top-left icon-badge treatment as the teachers fork above
+                (Users, bg-brand) — this panel had no equivalent icon at all. */}
+            <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand-blue text-white">
+              <BookOpen className="h-[19px] w-[19px]" strokeWidth={2.25} aria-hidden />
+            </span>
             <Link
               to="/past-papers"
-              className="group flex items-center justify-between gap-3 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
+              className="group mt-[14px] flex items-center justify-between gap-3 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
             >
               <div>
                 <p className="text-[12.5px] font-medium text-warm-secondary">Past papers</p>

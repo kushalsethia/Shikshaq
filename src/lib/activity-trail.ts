@@ -45,11 +45,17 @@ export function recordSearch(input: {
 }
 
 /** Branch 4. Name is the only field the branch requires; subject and area
- *  ride along because they cost nothing and future copy may want them. */
+ *  ride along because they cost nothing and future copy may want them.
+ *  slug/imageUrl let the hero link straight to this teacher's own profile
+ *  and show this teacher's own photo — without them the hero either falls
+ *  back to a name search (can land on a different teacher) or, worse,
+ *  another teacher's photo next to this one's name. */
 export function recordViewedTeacher(input: {
   name?: string | null;
   subject?: string | null;
   area?: string | null;
+  slug?: string | null;
+  imageUrl?: string | null;
 }): void {
   const name = input.name?.trim();
   if (!name) return;
@@ -57,6 +63,8 @@ export function recordViewedTeacher(input: {
     name,
     subject: input.subject?.trim() || undefined,
     area: input.area?.trim() || undefined,
+    slug: input.slug?.trim() || undefined,
+    imageUrl: input.imageUrl || undefined,
   });
 }
 

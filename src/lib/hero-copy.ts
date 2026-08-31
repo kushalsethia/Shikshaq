@@ -1,15 +1,9 @@
 /* Handoff H-005 — the home hero's copy resolver.
    One pure function, no new query: branches 1-2 read the useAuth() profile
-   the page already holds, 3-5 read localStorage keys the app already writes
-   (or should — see the note below), 6 is a session-stable random pool.
+   the page already holds, 3-5 read localStorage keys src/lib/activity-trail.ts
+   writes from TeacherProfile/PaperReader/SearchControl, 6 is a session-stable
+   random pool.
 
-   ⚠ Branches 3-5 read `shikshaq.lastSearch` / `shikshaq.lastViewedTeacher` /
-   `shikshaq.lastPaperSubject` from localStorage. The changelog describes these
-   as "already written by the app" — a repo-wide grep found no writer for any
-   of the three, so until something writes them these branches simply never
-   fire (harmless: resolution falls through to 6). Flagged rather than
-   invented a writer, since adding one is a behavioural change H-005 doesn't
-   ask for.
    ⚠ Branch 1b's copy calls for a gendered pronoun ("message her/him?") that
    the app has no reliable source for; "message them?" is used instead rather
    than guessing a gender. */
@@ -30,6 +24,11 @@ export interface HeroCopy {
   /** Where the bold span points, when it names something reachable — a
    *  teacher's profile or a filtered list. Null for lines that name nothing. */
   href?: string | null;
+  /** Set only when the bold span names one specific teacher AND a photo for
+   *  that exact person is in hand. The chip must never fall back to some
+   *  other teacher's photo when a name is on screen — showing person A's
+   *  face next to person B's name is worse than showing no photo at all. */
+  imageUrl?: string | null;
 }
 
 interface LastSearch {
@@ -42,6 +41,8 @@ interface LastViewedTeacher {
   name?: string;
   subject?: string;
   area?: string;
+  slug?: string;
+  imageUrl?: string | null;
   at: number;
 }
 interface LastPaperSubject {
@@ -62,6 +63,9 @@ export interface ResolveHeroCopyInput {
    * in hand this is left undefined and branch 1b falls through to 2.
    */
   likedSingleTeacherName?: string | null;
+  /** Same source as likedSingleTeacherName — the one saved teacher's own
+   *  photo, so branch 1b's chip never borrows an unrelated teacher's face. */
+  likedSingleTeacherImageUrl?: string | null;
 }
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -146,7 +150,7 @@ function sessionPoolIndex(): number {
   }
 }
 
-export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName }: ResolveHeroCopyInput): HeroCopy {
+export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName, likedSingleTeacherImageUrl }: ResolveHeroCopyInput): HeroCopy {
   const name = profile?.full_name ? firstNameOf(profile.full_name) : null;
 
   // Branch 1 — signed in, multiple saved teachers.
@@ -170,6 +174,7 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName }:
       after: '. Message them?',
       chip: 'stripe',
       mode: 'teachers',
+      imageUrl: likedSingleTeacherImageUrl,
     };
   }
 
@@ -224,28 +229,35 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName }:
   const lastViewedTeacher = readJSON<LastViewedTeacher>('shikshaq.lastViewedTeacher');
   if (lastViewedTeacher && isFresh(lastViewedTeacher.at) && lastViewedTeacher.name) {
     const t = lastViewedTeacher;
-    const teacherHref = `/all-tuition-teachers-in-kolkata?q=${encodeURIComponent(t.name!)}`;
+    // Prefer a direct profile link over the old name-search query — a slug
+    // lands exactly on that teacher; a `q=` search can land on someone else
+    // entirely when names collide or partially match.
+    const teacherHref = t.slug
+      ? `/tuition-teachers/${t.slug}`
+      : `/all-tuition-teachers-in-kolkata?q=${encodeURIComponent(t.name!)}`;
     candidates.push(
       {
         eyebrow: 'Where you left off',
         before: 'You looked at ',
         bold: t.name!,
         after: ' last time. Still deciding?',
-        chip: 'stripe', mode: 'teachers', href: teacherHref,
+        chip: 'stripe', mode: 'teachers', href: teacherHref, imageUrl: t.imageUrl,
       },
       {
+        // Was "{name} is a message away." — read as pushy/surveillance-y
+        // ("we noticed, go message them now"), rather than a soft reminder.
         eyebrow: 'Still on your list',
         before: '',
         bold: t.name!,
-        after: ' is a message away.',
-        chip: 'stripe', mode: 'teachers', href: teacherHref,
+        after: ' is still here, whenever you are ready.',
+        chip: 'stripe', mode: 'teachers', href: teacherHref, imageUrl: t.imageUrl,
       },
       {
         eyebrow: t.area ? t.area : 'Near you',
         before: 'Pick up where you left off with ',
         bold: t.name!,
         after: '.',
-        chip: null, mode: 'teachers', href: teacherHref,
+        chip: null, mode: 'teachers', href: teacherHref, imageUrl: t.imageUrl,
       },
     );
     if (t.subject) {

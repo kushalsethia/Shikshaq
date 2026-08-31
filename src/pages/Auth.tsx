@@ -466,7 +466,7 @@ export default function Auth() {
   const hero = resolveAuthHero(authIntent, { papers: paperCount });
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-background max-lg:h-[100dvh] max-lg:overflow-hidden">
       {/* Handoff AU-003: the page splits into two stacked blocks with a 6px
           seam, instead of one flat near-black ground. Desktop keeps the same
           two blocks side by side rather than stacked (06's own geometry
@@ -480,7 +480,12 @@ export default function Auth() {
           panels ~500px tall for ~200px of content, so the split read as two
           empty slabs. Sized to content and centred with my-auto, the panels
           are as tall as the taller of the two and no taller. */}
-      <div className="lg:mx-auto lg:my-auto lg:flex lg:w-full lg:max-w-[1000px] lg:items-stretch lg:justify-center lg:gap-6 lg:px-10 lg:py-12">
+      {/* max-lg: this row becomes a bounded-height flex column so `main`
+          below can scroll internally instead of the whole page scrolling —
+          on a short viewport the page itself no longer moves, only the
+          sign-in panel's own content does. Scoped to max-lg only; nothing
+          here touches the lg:my-auto centred, content-sized desktop split. */}
+      <div className="max-lg:flex max-lg:h-full max-lg:min-h-0 max-lg:flex-col lg:mx-auto lg:my-auto lg:flex lg:w-full lg:max-w-[1000px] lg:items-stretch lg:justify-center lg:gap-6 lg:px-10 lg:py-12">
 
         {/* Hero block (AU-003 point 1) — nav row, eyebrow, h1, sticker
             cluster. This block is the page's whole accent budget.
@@ -493,8 +498,8 @@ export default function Auth() {
             column is as tall as the sign-in block beside it, and top-aligned
             content left a third of the panel as empty fill. The headline group
             now centres in the space below the nav row. */}
-        <div className={`rounded-b-bento px-5 pb-[26px] lg:flex lg:flex-1 lg:flex-col lg:rounded-bento lg:px-8 lg:pb-8 ${hero.ink.fill}`}>
-          <header className="flex items-center justify-between gap-3 pt-5">
+        <div className={`max-lg:shrink-0 rounded-t-bento px-5 pb-[26px] lg:flex lg:flex-1 lg:flex-col lg:rounded-bento lg:px-8 lg:pb-8 ${hero.ink.fill}`}>
+          <header className="flex items-center justify-between gap-3 pt-4">
             <Logo size="md" ariaLabel="Back to home" onDark={hero.ink.onDark} />
             <Link
               to="/"
@@ -505,13 +510,13 @@ export default function Auth() {
           </header>
 
           {showResetPassword ? (
-            <h1 className={`mt-6 font-display text-[34px] font-black leading-[1.02] tracking-[-0.04em] ${hero.ink.text}`}>
+            <h1 className={`mt-5 font-display text-[34px] font-black leading-[1.02] tracking-[-0.04em] ${hero.ink.text}`}>
               Reset your password
             </h1>
           ) : (
             <>
               {/* Handoff AU-004: eyebrow on the hero block. */}
-              <p className={`mt-6 text-[11.5px] font-bold uppercase tracking-[0.08em] ${hero.ink.quiet}`}>
+              <p className={`mt-5 text-[11.5px] font-bold uppercase tracking-[0.08em] ${hero.ink.quiet}`}>
                 {hero.eyebrow}
               </p>
               {/* h1 46px/.92/-0.055em/400 with the highlighted span at 900 on
@@ -536,9 +541,6 @@ export default function Auth() {
           )}
         </div>
 
-        {/* 6px seam of page ground between the two blocks (stacked only). */}
-        <div aria-hidden className="h-seam bg-background lg:hidden" />
-
       {/* Handoff O-011 made the help FAB route-aware: on a chromeless route
           like this one it now parks at bottom-24px (not the bottom-nav
           bottom-88px it used to use everywhere), so it only occupies the
@@ -546,8 +548,16 @@ export default function Auth() {
           pb-20 keeps the disclaimer's last line clear of that corner
           without the much larger reserve the old route-unaware FAB needed.
           Handoff AU-003 point 2: near-black sign-in block, bg-panel
-          rounded-bento p-[22px_20px] flex-1. */}
-      <main className="flex-1 rounded-bento bg-panel p-[22px_20px] pb-20 lg:flex-1 lg:pb-[22px]">
+          rounded-bento p-[22px_20px] flex-1.
+          No seam / no rounded-bento here on mobile any more: the two
+          blocks used to sit rounded-b-bento / rounded-bento with a 6px
+          bg-background seam between them, which put a sliver of page
+          ground in the notch where both blocks' corners curved apart —
+          a stray line right where the fill changes colour. They now
+          share one continuous rounded shape (hero rounded-t-bento, this
+          one rounded-b-bento, no gap), rounded-bento returning at lg
+          where the two sit side by side instead of stacked. */}
+      <main className="flex-1 max-lg:min-h-0 max-lg:overflow-y-auto rounded-b-bento bg-panel p-[22px_20px] pb-20 lg:flex-1 lg:rounded-bento lg:pb-[22px]">
         <div className="mx-auto w-full max-w-[470px] lg:mx-0">
           <div className="flex flex-col gap-[18px]">
             <div>
