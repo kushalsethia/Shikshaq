@@ -14,8 +14,8 @@
     "generate-sitemap": "tsx scripts/generate-sitemap.ts",
     "import-bank": "tsx scripts/import-bank.ts",
     "generate-bank-sql": "tsx scripts/generate-bank-sql.ts",
-    "push:all": "git push origin redesign/handoff-v1 && git push kanitest redesign/handoff-v1:main",
-    "remotes:setup": "git remote get-url kanitest || git remote add kanitest https://github.com/kaxx4/shikshaqkanitest.git"
+    "push:all": "npm run remotes:setup && git push origin redesign/handoff-v1 && git push kanitest redesign/handoff-v1:main",
+    "remotes:setup": "node -e \"const{execSync:e}=require('child_process');try{e('git remote get-url kanitest',{stdio:'pipe'});console.log('kanitest remote already set up')}catch{e('git remote add kanitest https://github.com/kaxx4/shikshaqkanitest.git');console.log('added kanitest remote (test deploy)')}\""
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
