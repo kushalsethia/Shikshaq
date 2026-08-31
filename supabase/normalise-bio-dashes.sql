@@ -1,4 +1,8 @@
 -- =====================================================================
+-- APPLIED 2026-08-31. 66 bios and 4 descriptions changed, 70 originals in
+-- public._dash_backup. Kept as the record of what was done; re-running is
+-- harmless but finds nothing left to change.
+--
 -- Remove em/en dashes from teacher bios and Shikshaqmine descriptions
 --
 -- Scope, deliberately narrow:

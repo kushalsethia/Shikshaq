@@ -47,3 +47,7 @@ supabase/.temp/
 
 # tsc -b incremental state
 *.tsbuildinfo
+
+# Regenerable bank load SQL (npm run generate-bank-sql); the data lives in Supabase
+supabase/bank-import.sql
+supabase/bank/
