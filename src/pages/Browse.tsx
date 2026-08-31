@@ -1207,8 +1207,13 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     if (fetchDebounceRef.current) {
       clearTimeout(fetchDebounceRef.current);
     }
+    // Was 0ms for text search — every keystroke fired the full fetch +
+    // Shikshaqmine-enrichment pipeline immediately, which is exactly what
+    // made typing a name feel slow (a network round trip and a re-render
+    // per character, sometimes arriving out of order). Debounced like every
+    // other filter now, letting keystrokes coalesce into one request.
     const searchQuery = searchParams.get('q');
-    const debounceMs = searchQuery ? 0 : 250;
+    const debounceMs = searchQuery ? 300 : 250;
     fetchDebounceRef.current = setTimeout(() => {
       fetchTeachers();
     }, debounceMs);
