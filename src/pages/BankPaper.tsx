@@ -371,7 +371,10 @@ export default function BankPaper() {
             <div className="mb-5 border-b border-border pb-4 text-center">
               <p className="text-[13px] italic text-muted-foreground">{paper.school}</p>
               <h2 className="mt-1 font-display text-[20px] font-extrabold tracking-[-0.02em] text-foreground sm:text-[23px]">
-                Class {paper.cls} Mathematics {paper.exam ? `— ${paper.exam}` : ''}
+                {/* Middle dot, not an em dash -- CLAUDE.md bans em/en dashes in
+                   site copy; · is this codebase's own standing separator
+                   convention (used throughout the badge line right below). */}
+                Class {paper.cls} Mathematics {paper.exam ? `· ${paper.exam}` : ''}
               </h2>
               {hasYear(paper.year) && (
                 <p className="mt-0.5 text-[13px] tabular-nums text-muted-foreground">{paper.year}</p>
