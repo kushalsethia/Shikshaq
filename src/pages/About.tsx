@@ -134,7 +134,11 @@ export default function About() {
               say they are, and then get out of the way. The fee you agree is the fee the
               teacher keeps.
             </p>
-            <div className="mt-4 grid grid-cols-2 gap-2.5">
+            {/* lg:grid-cols-4: unconditional grid-cols-2 gave each of these
+                four compact number+label tiles a ~595px-wide cell on a real
+                desktop panel — a 24px number stretched across most of that
+                width with nothing else to fill it. One row at lg instead. */}
+            <div className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
               {statTiles.map((st) => (
                 <div
                   key={st.label}
