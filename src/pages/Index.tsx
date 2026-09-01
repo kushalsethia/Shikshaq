@@ -87,6 +87,7 @@ interface StudentQuote {
    *  "Ashok sir" is or how to reach them. */
   teacherName: string | null;
   teacherSlug: string | null;
+  teacherImageUrl: string | null;
 }
 
 const BOARD_ORDER = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'] as const;
@@ -497,14 +498,14 @@ export default function Index() {
       /* The teachers these quotes are about, in one batched read — same shape
          as the profiles lookup above, no per-row query. */
       const teacherIds = [...new Set(comments.map((c) => (c as { teacher_id?: string }).teacher_id).filter(Boolean))] as string[];
-      const teacherMap = new Map<string, { name: string | null; slug: string | null }>();
+      const teacherMap = new Map<string, { name: string | null; slug: string | null; imageUrl: string | null }>();
       if (teacherIds.length > 0) {
         const { data: tRows } = await supabase
           .from('teachers_list')
-          .select('id, name, slug')
+          .select('id, name, slug, image_url')
           .in('id', teacherIds);
         (tRows || []).forEach((t) => {
-          if (t.id) teacherMap.set(t.id, { name: t.name, slug: t.slug });
+          if (t.id) teacherMap.set(t.id, { name: t.name, slug: t.slug, imageUrl: (t as { image_url?: string | null }).image_url ?? null });
         });
       }
 
@@ -547,6 +548,7 @@ export default function Index() {
           authorMeta: (metaParts as string[]).join(' · '),
           teacherName: teacher?.name ?? null,
           teacherSlug: teacher?.slug ?? null,
+          teacherImageUrl: teacher?.imageUrl ?? null,
         };
       });
     },
@@ -1263,11 +1265,29 @@ export default function Index() {
 
                       <div className="mt-auto pt-4">
                         <div className="flex items-center gap-2.5">
-                          <StripePlaceholder
-                            name={q.authorName}
-                            initialSize={14}
-                            className="h-[30px] w-[30px] flex-none rounded-full"
-                          />
+                          {/* Owner call (already applied to ReviewCard on the
+                             teacher-profile reviews): the avatar is the
+                             TEACHER being quoted about, not the student who
+                             wrote it — a recognisable face the reader can
+                             connect to "on {teacherName}" below, where a
+                             reviewer's own placeholder initials wouldn't
+                             mean anything. Falls back to the same
+                             subject-less initials stripe, keyed off the
+                             teacher's name, never the reviewer's. */}
+                          {q.teacherImageUrl ? (
+                            <img
+                              src={validateImageSrc(q.teacherImageUrl)}
+                              alt=""
+                              aria-hidden
+                              className="h-[30px] w-[30px] flex-none rounded-full object-cover"
+                            />
+                          ) : (
+                            <StripePlaceholder
+                              name={q.teacherName ?? q.authorName}
+                              initialSize={14}
+                              className="h-[30px] w-[30px] flex-none rounded-full"
+                            />
+                          )}
                           <div className="min-w-0">
                             <p className="truncate text-[13px] font-bold text-foreground">{q.authorName}</p>
                             {q.authorMeta && (
