@@ -929,10 +929,16 @@ export default function Index() {
             </Link>
           </BentoPanel>
 
-          {/* Subjects (6) / Board (7) / Class (9) as one 3-column row at lg —
-              was three full-width panels stacked vertically even on wide
-              desktop, each just a shorter row of the same-width content. */}
-          <div className="lg:grid lg:grid-cols-3 lg:items-start lg:gap-2">
+          {/* Subjects (6) / Board (7) / Class (9) as one row at lg — was three
+              full-width panels stacked vertically. An equal grid-cols-3 (each
+              exactly 1/3) squeezed content built for full page width — the
+              5-across board row and 12-across class row both truncated/
+              wrapped badly inside a plain third. Weighted instead: subjects
+              needs the most room (an internal 2-up card grid), board and
+              class need less (short pills / a compact number grid), and
+              their own internal breakpoints below are re-tuned for these
+              narrower columns rather than the page-width ones they had. */}
+          <div className="lg:grid lg:grid-cols-[1.3fr_0.85fr_0.85fr] lg:items-stretch lg:gap-2">
           {/* --------------------------------------------------------- 6 · Subjects */}
           <BentoPanel fill="card" className="p-[22px]">
             <NumberedHeading
@@ -944,13 +950,17 @@ export default function Index() {
             />
 
             {loading && subjects.length === 0 ? (
-              <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <div className="mt-4 grid grid-cols-2 gap-2">
                 {[...Array(8)].map((_, i) => (
                   <div key={i} className="h-28 rounded-2xl bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer" />
                 ))}
               </div>
             ) : subjects.length > 0 ? (
-              <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+              /* Was lg:grid-cols-4 — that assumed the full page width this
+                 panel no longer has now that it shares a row with Board and
+                 Class. 2-up still gives each subject card real room in its
+                 narrower column. */
+              <div className="mt-4 grid grid-cols-2 gap-2">
                 {subjects.slice(0, 8).map((s) => (
                   <SubjectCard key={s.id} name={s.name} slug={s.slug} context="teachers" teacherCount={s.teacherCount} paperCount={s.paperCount} />
                 ))}
@@ -973,23 +983,18 @@ export default function Index() {
               <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">
                 Your board
               </h2>
-              {/* D-005's table doesn't itemize this panel, but its own
-                  governing principle ("one-column stacks become grids") and
-                  D-007 ("tilts flatten at lg") both apply here regardless —
-                  left as a flex-col stack, each pill stretches to the full
-                  ~1150px panel width at 1280px, turning "141 tutors" into
-                  text pushed off past the visible edge by justify-between.
-                  2-up grid keeps every pill a sane, readable width. */}
-              {/* One row at lg. A 2-up grid of five pills left a ragged
-                  half-empty last row, and each pill was still wide enough that
-                  "141 tutors" sat marooned from its board name. Five equal
-                  columns fill the width and read as one scale. */}
-              <div className="stagger-children mt-[14px] space-y-2 lg:grid lg:grid-cols-5 lg:gap-2.5 lg:space-y-0">
+              {/* Was a 5-across row at lg, sized for the full page width this
+                  panel no longer has (it now shares a row with Subjects and
+                  Class) — squeezed into ~300px, 5 columns truncated "141
+                  tutors" past recognition. Back to the plain stacked list at
+                  every width, which is what this panel's own narrower column
+                  actually has room for. */}
+              <div className="stagger-children mt-[14px] space-y-2">
                 {BOARD_ORDER.filter((b) => boardCounts[b]).map((b, i) => (
                   <Link
                     key={b}
                     to={`/all-tuition-teachers-in-kolkata?filter_boards=${encodeURIComponent(b)}`}
-                    className={`flex h-[52px] min-h-[44px] items-center justify-between gap-2 rounded-full px-[18px] lg:h-[64px] lg:flex-col lg:items-start lg:justify-center lg:rounded-[20px] lg:px-[16px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-card-reveal ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'} ${BOARD_TILT_CLASSES[i % BOARD_TILT_CLASSES.length]}`}
+                    className={`flex h-[52px] min-h-[44px] items-center justify-between gap-2 rounded-full px-[18px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-card-reveal ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'} ${BOARD_TILT_CLASSES[i % BOARD_TILT_CLASSES.length]}`}
                   >
                     <span className="font-display text-[17px] font-bold">{b}</span>
                     <span className="text-[14px] tabular-nums opacity-80">
@@ -1016,8 +1021,12 @@ export default function Index() {
                 Below 360 the six columns work out to 39px each, under the
                 C-013 44px floor — a width the handoff never draws, so the
                 sub-360 sliver falls back to four columns of the same chip at
-                the same gap. Nothing at or above 360 changes. */}
-            <ul className="mt-4 grid grid-cols-4 gap-2 min-[360px]:grid-cols-6 sm:grid-cols-8 lg:grid-cols-12">
+                the same gap.
+                lg:grid-cols-12 assumed this panel had the full page width;
+                sharing a row with Subjects/Board now, 12 across a ~300px
+                column worked out to ~20px chips. Capped at 4 (3 rows of 4)
+                instead, which is what this column actually has room for. */}
+            <ul className="mt-4 grid grid-cols-4 gap-2 min-[360px]:grid-cols-6 sm:grid-cols-8 lg:grid-cols-4">
               {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
                 <li key={n}>
                   <Link
@@ -1098,7 +1107,12 @@ export default function Index() {
               between Board/Class above) paired in line with "Why guardians
               use Shikshaq" — both are "why trust this" content, and neither
               needed the full page width it was taking stacked alone. */}
-          <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-2">
+          {/* items-stretch, not items-start: with unequal content, items-start
+             let the shorter panel (guardian trust) stop where its content
+             ended, leaving flat blank canvas below it while the taller panel
+             kept going — a visible gap on the right. Stretched, both panels'
+             own fill colour runs the full shared height instead. */}
+          <div className="lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-2">
           {/* --------------------------------------------------- 8 · How it works */}
           {/* No mt-seam. BentoStack already owns the 6px seam between every pair
               of panels (T-004/D-002); adding one here stacked on top of it and

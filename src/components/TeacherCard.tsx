@@ -243,15 +243,29 @@ function TeacherCardComponent({
          matched grid (bug 7). Grid already had this; row/rail did not, so a
          mobile results list could visibly step in height card to card —
          added here too rather than only on grid. */
-      /* items-center, not items-start: the two-line reservation keeps every
-         card's name block the same height, but a one-line name pinned to the
-         top of it left 20px of dead gap before the class and area line.
-         Centred, the reservation still lines the cards up and now reads as
-         deliberate rather than as a missing second line. */
-      className={`flex items-center gap-1 font-display font-extrabold tracking-[-0.03em] text-foreground ${isSm || isRow ? 'min-w-0 min-h-[2.4em] text-body-secondary leading-[1.3]' : 'min-w-0 min-h-[2.6em] text-body-secondary leading-[1.3] sm:text-card-title sm:leading-[1.35]'}`}
+      /* Owner call, reversing the two comments this replaces: names must
+         ACTUALLY take up two lines, not a one-line name centred inside a
+         reserved two-line box. Split after the first word so every name
+         with 2+ words (every real name here) genuinely wraps onto a second
+         line, instead of relying on natural CSS wrap only kicking in for
+         the longest names. items-start now — the split makes every card's
+         name block genuinely the same two-line height, so centring is no
+         longer needed to hide a short one-liner. */
+      className={`flex items-start gap-1 font-display font-extrabold tracking-[-0.03em] text-foreground ${isSm || isRow ? 'min-w-0 min-h-[2.4em] text-body-secondary leading-[1.3]' : 'min-w-0 min-h-[2.6em] text-body-secondary leading-[1.3] sm:text-card-title sm:leading-[1.35]'}`}
       title={displayName}
     >
-      <span className="min-w-0 line-clamp-2 break-words">{displayName}</span>
+      <span className="min-w-0 break-words">
+        {(() => {
+          const spaceAt = displayName.indexOf(' ');
+          if (spaceAt === -1) return displayName;
+          return (
+            <>
+              <span className="block truncate">{displayName.slice(0, spaceAt)}</span>
+              <span className="block truncate">{displayName.slice(spaceAt + 1)}</span>
+            </>
+          );
+        })()}
+      </span>
       {verified && (
         /* Handoff S-004: ShieldCheck is the only verification mark outside
            the product tour (which uses BadgeCheck) — two glyphs for one

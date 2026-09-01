@@ -477,7 +477,14 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
         className={`${mobilePinned ? '' : 'w-full'} ${align === 'center' ? 'mx-auto' : ''} ${
           mobilePinned
             ? 'fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] max-w-none animate-search-pop motion-reduce:animate-none'
-            : `relative z-[45] ${expanded ? 'max-w-3xl' : 'max-w-2xl'}`
+            /* z-[45] was unconditional — TopBar is z-40 and fixed, so on any
+               page where this control sits in the normal scroll flow near
+               the top, scrolling slid the (at-rest) search bar's box up
+               past/through the fixed navbar and it painted ON TOP of it
+               (45 > 40), even though nothing was actually open. Only needs
+               to clear the navbar while genuinely showing its dropdown/
+               facets (`reveal`) — at rest it stays below it instead. */
+            : `relative ${reveal ? 'z-[45]' : 'z-20'} ${expanded ? 'max-w-3xl' : 'max-w-2xl'}`
         } ${className}`}
       >
         {stackedToggle && (

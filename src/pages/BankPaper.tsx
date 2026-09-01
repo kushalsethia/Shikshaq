@@ -322,6 +322,29 @@ export default function BankPaper() {
             <p className="text-[15px] text-warm-prose">We could not find that paper.</p>
           )}
 
+          {/* Formal exam-header block, per your reference photo — centred
+              school/course line, bold title, total marks and an "answer all
+              questions" instruction, like the top of an actual printed
+              paper, instead of the questions just starting cold. */}
+          {paper && (
+            <div className="mb-5 border-b border-border pb-4 text-center">
+              <p className="text-[13px] italic text-muted-foreground">{paper.school}</p>
+              <h2 className="mt-1 font-display text-[20px] font-extrabold tracking-[-0.02em] text-foreground sm:text-[23px]">
+                Class {paper.cls} Mathematics {paper.exam ? `— ${paper.exam}` : ''}
+              </h2>
+              {hasYear(paper.year) && (
+                <p className="mt-0.5 text-[13px] tabular-nums text-muted-foreground">{paper.year}</p>
+              )}
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[13px] font-semibold tabular-nums text-foreground">
+                <span>{paper.questionCount} question{paper.questionCount === 1 ? '' : 's'}</span>
+                {paper.marks > 0 && <span>Total: {paper.marks} marks</span>}
+              </div>
+              <p className="mt-2 text-[12.5px] uppercase tracking-[0.04em] text-muted-foreground">
+                Answer all questions
+              </p>
+            </div>
+          )}
+
           {paper && visible.length > 0 && (
             <ol className="grid grid-cols-1 gap-3">
               {(gatedFrom === null ? visible : visible.slice(0, gatedFrom)).map((row) =>
