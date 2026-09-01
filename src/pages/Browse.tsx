@@ -1207,7 +1207,14 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             const recordsToFilter = allShikshaqData;
             const matchingSlugs = filterShikshaqRecords(recordsToFilter, effectiveFilters).map((r: any) => r.Slug);
             lastQueryRef.current = { shikshaqRecords: recordsToFilter, effectiveFilters };
-            filteredTeachers = teachersData.filter((t) => matchingSlugs.includes(t.slug));
+            // Was matchingSlugs.includes(t.slug) inside this filter -- an O(n) array
+            // scan run once per teacher, so up to ~3000 teachers x ~3000 matching
+            // slugs (both capped at MAX_TEACHER_PAGES*TEACHER_PAGE_SIZE /
+            // SHIKSHAQ_PREFILTER_LIMIT) was up to ~9M string comparisons on every
+            // filtered fetch on this, the full-fetch (name-search) path. A Set
+            // lookup is O(1) per teacher instead.
+            const matchingSlugSet = new Set(matchingSlugs);
+            filteredTeachers = teachersData.filter((t) => matchingSlugSet.has(t.slug));
 
             if (nameSearchResultsWithScores.length > 0) {
               const nameScoreMap = new Map<string, number>();
