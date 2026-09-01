@@ -24,6 +24,7 @@ import { HomeActivitySection } from '@/components/HomeActivitySection';
 import { SearchDesk } from '@/components/home/SearchDesk';
 import { RegionNotice } from '@/components/RegionNotice';
 import { EyesPanel } from '@/components/home/EyesPanel';
+import { CornerMascot } from '@/components/home/CornerMascot';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { ProductTour, useProductTour } from '@/components/ProductTour';
@@ -787,7 +788,13 @@ export default function Index() {
                 cell. */}
             <div className="flex flex-col gap-seam lg:gap-2 lg:pt-[72px] [&>*]:lg:flex-1 [&>*]:lg:flex [&>*]:lg:flex-col [&>*]:lg:justify-between">
           {/* --------------------------------------------------- 3 · Teachers fork */}
-          <BentoPanel fill="brandTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
+          <BentoPanel fill="brandTint" className="lg:relative !px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
+            {/* Owner call: this panel + the papers one below "feel too blank"
+                on desktop — a small cursor-following mascot in the corner of
+                each, orange here / blue there. */}
+            <div className="lg:absolute lg:right-8 lg:top-8">
+              <CornerMascot tone="teachers" />
+            </div>
             <div className="flex items-center justify-between">
               <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand text-[#1F1F1F]">
                 <Users className="h-[19px] w-[19px]" strokeWidth={2.25} aria-hidden />
@@ -831,7 +838,10 @@ export default function Index() {
           </BentoPanel>
 
           {/* ----------------------------------------------------- 4 · Papers fork */}
-          <BentoPanel fill="papersTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
+          <BentoPanel fill="papersTint" className="lg:relative !px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
+            <div className="lg:absolute lg:right-8 lg:top-8">
+              <CornerMascot tone="papers" />
+            </div>
             {/* Same top-left icon-badge treatment as the teachers fork above
                 (Users, bg-brand) — this panel had no equivalent icon at all. */}
             <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand-blue text-white">
