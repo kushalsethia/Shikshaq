@@ -624,29 +624,12 @@ export default function PastPapers() {
           )}
         </BentoPanel>
 
-        {/* ------------------------------------------------------ Board tabs */}
-        {/* D4: board tabs with live counts, mirrored on mobile. Real counts
-            from boardCounts (already fetched for the By subject/board
-            toggle below) — never a placeholder.
-            Handoff PP-006: BentoPanel, single horizontal scroller, no border-b. */}
-        {!loading && !loadError && featuredBoards.length > 0 && (
-          <BentoPanel fill="card" className="!px-0 !pl-4 py-4">
-            <div className="flex gap-[18px] overflow-x-auto pr-4 scrollbar-hide">
-              {featuredBoards.map((b) => (
-                <button
-                  key={b}
-                  onClick={() => navigate(`/past-papers/results?filter_boards=${encodeURIComponent(b)}`)}
-                  className={`flex min-h-11 flex-none items-center gap-2 whitespace-nowrap font-display text-[17px] font-extrabold tracking-[-0.02em] text-foreground transition-colors duration-tap ease-tap hover:text-brand-blue ${FOCUS_BLUE}`}
-                >
-                  {b}
-                  <span className="inline-flex h-[26px] min-w-[26px] items-center justify-center rounded-full bg-brand-blue-subtle px-[9px] font-sans text-[12.5px] font-bold text-brand-blue-deep tabular-nums">
-                    {boardCounts[b]}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </BentoPanel>
-        )}
+        {/* Board tabs (D4) removed per explicit request: SearchControl below
+            already exposes Board as one of its four facet chips (subject,
+            class, board, school — PAPER_FACET_KEYS), so this was the same
+            "pick a board" entry point twice on one page. featuredBoards/
+            boardCounts stay — the "By subject & board" toggle further down
+            still uses them. */}
 
         {/* D4's hero drops the search bar entirely (it's a hand-off frame,
             not a functional prototype). "Design wins, keep functionality" —
