@@ -412,7 +412,16 @@ export default function PastPapers() {
     return out;
   }, [landing.data, bankPapers]);
   const totalPapers = (landing.data?.totalPapers ?? 0) + bankPapers.length || null;
-  const loading = !hasFilters && landing.isPending;
+  /* Was `!hasFilters && landing.isPending` alone — totalPapers sums TWO
+     independent queries (landing's DB count + bankQuery's 193 static
+     papers), but this only waited on landing. The moment landing resolved,
+     loading flipped false and the header rendered whatever partial total
+     existed at that instant (bankPapers still `[]` if bankQuery hadn't
+     resolved yet), then re-rendered a bigger number a beat later once it
+     did — "the number of papers show up randomly" (it wasn't random, it
+     was two async counts landing at different times, only one of them
+     actually gated). Both queries now hold the header back. */
+  const loading = !hasFilters && (landing.isPending || bankQuery.isPending);
   const loadError = landing.isError;
 
   // The search bar's Teachers/Papers toggle doubles as the page-mode switch.
