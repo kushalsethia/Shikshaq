@@ -310,7 +310,11 @@ export default function BankPaper() {
               />
             </div>
             {chapters.length > 1 && (
-              <div className="-mx-4 mt-2.5 overflow-x-auto px-4 scrollbar-hide sm:mx-0 sm:px-0">
+              /* overscroll-x-contain: this row starts flush with the physical
+                 left edge on mobile (-mx-4 cancels the page's own padding), so
+                 a scroll gesture starting right at "All" collides with the
+                 browser's own edge-swipe-back gesture without this. */
+              <div className="-mx-4 mt-2.5 overflow-x-auto overscroll-x-contain px-4 scrollbar-hide sm:mx-0 sm:px-0">
                 <div className="flex w-max items-center gap-2">
                   {['All', ...chapters].map((t) => {
                     const on = (t === 'All' && !chapter) || chapter === t;
@@ -320,7 +324,7 @@ export default function BankPaper() {
                         type="button"
                         aria-pressed={on}
                         onClick={() => setChapter(t === 'All' ? '' : t)}
-                        className={`flex h-9 flex-none items-center whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel ${
+                        className={`tap-44 flex h-9 flex-none items-center whitespace-nowrap rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel ${
                           on ? 'bg-brand-blue text-white' : 'bg-white/10 text-white/85 hover:bg-white/20'
                         }`}
                       >
