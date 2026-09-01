@@ -110,10 +110,20 @@ const FieldSelect = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <select
     ref={ref}
+    /* className last would look natural, but it isn't here: `Field` (the
+       wrapper every FieldSelect actually gets used through) already builds
+       its own controlProps.className from controlBase — which sets px-4,
+       i.e. a 16px right padding — and that whole string arrives here AS
+       `className`. Putting it last let twMerge treat it as this element's
+       final word on padding-right, silently overriding pr-12 back down to
+       16px: barely more than the chevron's own 18px+20px offset, so long
+       option text ran right under the arrow instead of stopping short of
+       it. This project's own arrow-clearance classes go last instead, so
+       they always win regardless of what a wrapper's className carries in. */
     className={cn(
       controlBase,
-      "h-14 appearance-none bg-[length:20px] bg-[right_18px_center] bg-no-repeat pr-12",
       className,
+      "h-14 appearance-none bg-[length:20px] bg-[right_18px_center] bg-no-repeat pr-12",
     )}
     style={{
       backgroundImage:
