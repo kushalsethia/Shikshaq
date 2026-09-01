@@ -97,7 +97,10 @@ export default function Join() {
           {/* Handoff JN-003: benefits panel. */}
           <BentoPanel fill="card" className="p-[22px]">
             <h2 className="sr-only">Why teach on Shikshaq</h2>
-            <div className="grid grid-cols-2 gap-2">
+            {/* lg:grid-cols-4: same fix as About's stat tiles — unconditional
+                grid-cols-2 gave these four short benefit cards a stretched
+                ~595px-wide cell on a real desktop panel. One row at lg. */}
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
               {BENEFITS.map((b) => {
                 const Icon = b.icon;
                 return (
