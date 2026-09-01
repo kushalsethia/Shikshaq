@@ -1004,6 +1004,13 @@ export default function PastPapers() {
           </BentoPanel>
         )}
 
+        {/* "Three steps" / "Who owns these papers" paired side by side at lg,
+            like the Home page's how-it-works/guardian-trust pairing — both
+            are "how this works" content and neither needed the full page
+            width stacked alone. items-stretch so both panels' own fill
+            colour runs the full shared height (same reasoning as Home's
+            pairing) rather than the shorter one stopping short. */}
+        <div className="lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-2">
         {/* ------------------------------------------------------------ 3 steps */}
         {/* p-[22px]: the mockup never draws this panel, so it follows its
             neighbours on this page rather than BentoPanel's 20px default. */}
@@ -1011,7 +1018,12 @@ export default function PastPapers() {
           <h2 className="mb-8 text-center font-display text-[21px] font-extrabold tracking-[-0.03em] lg:text-[26px] text-foreground">
             Three steps, no cost,{' '}<br />no catch.
           </h2>
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+          {/* sm:grid-cols-3 was sized for the full page width this panel had
+             stacked alone — halved to a paired lg column, 3-up left each
+             step's icon+title+body too narrow to read. Back to a single
+             column at lg, same fix as Home's "Talk to them yourself" steps
+             when that panel was paired the same way. */}
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 lg:grid-cols-1">
             {PAPER_STEPS.map((step) => (
               <div key={step.n}>
                 <div className="mb-3 flex items-center gap-3">
@@ -1044,8 +1056,13 @@ export default function PastPapers() {
             tile, "Find a teacher" — the entry names the treatment but not
             exact copy, so this reuses the site's existing wording for the
             identical action rather than inventing new copy). */}
-        <BentoPanel fill="dark" className="p-[18px] lg:grid lg:grid-cols-[1fr_1.4fr] lg:items-center lg:gap-10 lg:px-8 lg:py-7">
-          <h2 className="mb-1.5 font-display text-[19px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white lg:mb-0 lg:text-[26px]">
+        {/* Was lg:grid-cols-[1fr_1.4fr] laying heading and text side by side —
+           sized for the full page width this panel had stacked alone.
+           Halved to a paired lg column, back to a single stacked column
+           (heading above text, like every width below lg already renders)
+           rather than squeezing that split into ~300px. */}
+        <BentoPanel fill="dark" className="p-[18px] lg:flex lg:h-full lg:flex-col lg:justify-center lg:px-8 lg:py-7">
+          <h2 className="mb-1.5 font-display text-[19px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white lg:mb-3 lg:text-[26px]">
             Who owns these papers
           </h2>
           <div className="space-y-3">
@@ -1063,6 +1080,7 @@ export default function PastPapers() {
             </Link>
           </div>
         </BentoPanel>
+        </div>
 
         {/* Handoff PP-014: shared tail, identical to Home — the sentence-
             builder mode is pinned to 'papers' above (useEffect), so the
