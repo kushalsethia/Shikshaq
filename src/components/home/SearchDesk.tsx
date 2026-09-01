@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchControl } from '@/components/SearchControl';
-import { HeroFieldSearch } from '@/components/home/HeroFieldSearch';
 import { Chip } from '@/components/ui/chip';
 import type { SearchMode } from '@/utils/searchFacets';
 
@@ -56,16 +55,13 @@ export function SearchDesk({ onModeChange, className = '' }: SearchDeskProps) {
        no overhang, no shadow. The wrapping `-mt` negative margin that used to
        hang this card off the hero block is gone from Index.tsx entirely. */
     <div className={`rounded-bento bg-card p-4 pb-[18px] sm:p-6 ${className}`}>
-      {/* Two devices, one search. desktop-01-home.png puts three labelled
-          dropdowns and a Search button in this card; the mobile mockups put the
-          single field with the Teachers/Papers toggle. The build previously used
-          the mobile device at every width, which was the largest desktop
-          departure from the handoff. Both write the same query string to the
-          same route, so a URL from one width still works at the other. */}
-      <div className="lg:hidden">
-        <SearchControl align="flex-start" stackedToggle alwaysShowModeToggle onModeChange={handleModeChange} heroDesk />
-      </div>
-      <HeroFieldSearch className="hidden lg:block" />
+      {/* Owner call: desktop used to get a teachers-only 3-dropdown field
+          (HeroFieldSearch) with no Teachers/Papers toggle and no free-text
+          search — "the search bar is currently specialized to find a
+          teacher, it needs to be very similar to mobile." One SearchControl
+          at every width now — same toggle, same field, same expandable
+          subject/class/area facet chips mobile already has. */}
+      <SearchControl align="flex-start" stackedToggle alwaysShowModeToggle onModeChange={handleModeChange} heroDesk />
 
       {/* No "Popular" label. Home concepts 2a runs the facet chips straight
           under the field with nothing introducing them — the row is self-evident
