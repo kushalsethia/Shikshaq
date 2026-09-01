@@ -410,7 +410,7 @@ export function Chatbot() {
           so it used to pop in and vanish instantly despite the transition class. */}
       {panelPresence.mounted && (
         <div
-          className={`fixed ${hasFloatingCta ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 bg-card rounded-bento shadow-pill flex flex-col origin-bottom-right ${
+          className={`fixed ${hasFloatingCta ? 'bottom-[240px] lg:bottom-[176px]' : 'bottom-40 lg:bottom-24'} left-3 right-3 md:left-auto md:right-6 md:w-[28rem] h-[50vh] md:h-[600px] max-h-[400px] md:max-h-[600px] z-50 overflow-hidden bg-card rounded-bento shadow-pill flex flex-col origin-bottom-right ${
             panelPresence.closing ? 'animate-accordion-up' : 'animate-fade-slide-up'
           }`}
         >
@@ -583,8 +583,12 @@ export function Chatbot() {
             </div>
           )}
 
-          {/* Input - Composer 56px + 44px send disc (pages.md §19). */}
-          <div className="p-3 md:p-4 flex-shrink-0 bg-card safe-area-pb">
+          {/* Input - Composer 56px + 44px send disc (pages.md §19).
+              rounded-b-[inherit], matching the header's own rounded-t-[inherit]
+              above — without it this bar's square corners sat flush against
+              the panel's rounded-bento bottom edge instead of following its
+              curve, so the panel read as "not fully enclosed" at the bottom. */}
+          <div className="rounded-b-[inherit] p-3 md:p-4 flex-shrink-0 bg-card safe-area-pb">
             <div className="flex gap-2 items-center h-14">
               <input
                 ref={inputRef}
