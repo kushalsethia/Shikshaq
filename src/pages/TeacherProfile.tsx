@@ -896,7 +896,16 @@ export default function TeacherProfile() {
                 <SectionHeading>Teaching details</SectionHeading>
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
                   {teachingDetails.map(({ label, value }) => (
-                    <div key={label}>
+                    /* Subjects/Boards/Areas repeat the profile card's own
+                       desktop header (subject pills, boardsList, area) —
+                       "area, board and subjects is there, and then it's
+                       again there in teaching details." Dropped from this
+                       list at lg only; mobile's header doesn't show them so
+                       this stays their only home there. */
+                    <div
+                      key={label}
+                      className={['Subjects', 'Boards', 'Areas'].includes(label) ? 'lg:hidden' : ''}
+                    >
                       <dt className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">
                         {label}
                       </dt>
