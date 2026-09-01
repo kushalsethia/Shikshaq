@@ -25,6 +25,8 @@ import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { deriveExperienceYears, pageAllTeachers, fetchShikshaqmineChunked } from '@/lib/teachers';
+import { PaperSheetCard, type PaperSheetCardPaper } from '@/components/papers/paper-sheet-card';
+import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 import { SEOHead } from '@/components/SEOHead';
 import { FAQSchema } from '@/components/FAQSchema';
 import { SEOContentBlock } from '@/components/seo/SEOContentBlock';
@@ -463,6 +465,84 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
      page. TeacherCard itself is already React.memo'd, but every prop here
      was already a stable primitive, so that memoisation was never the
      bottleneck — this recomputation was. */
+  // In-place Teachers/Past-papers toggle — no navigation, same URL, this
+  // page's own filter state reused for both. See handleSearchModeChange.
+  const [viewMode, setViewMode] = useState<'teachers' | 'papers'>('teachers');
+  const [papers, setPapers] = useState<PaperSheetCardPaper[]>([]);
+  const [papersTotal, setPapersTotal] = useState(0);
+  const [papersPage, setPapersPage] = useState(0);
+  const [papersLoading, setPapersLoading] = useState(false);
+  const [papersLoadingMore, setPapersLoadingMore] = useState(false);
+  const [papersLoadError, setPapersLoadError] = useState(false);
+  const bankPapersRef = useRef<PaperSheetCardPaper[] | null>(null);
+  const [papersRetryToken, setPapersRetryToken] = useState(0);
+  const PAPERS_PAGE_SIZE = 24;
+
+  useEffect(() => {
+    if (viewMode !== 'papers') return;
+    let cancelled = false;
+
+    async function loadBankOnce(): Promise<PaperSheetCardPaper[]> {
+      if (bankPapersRef.current) return bankPapersRef.current;
+      const rows = await loadPaperIndex();
+      const mapped: PaperSheetCardPaper[] = rows.map((b) => ({
+        id: b.id,
+        title: `Class ${b.cls} Mathematics`,
+        school: b.school,
+        subject: 'Maths',
+        class: b.cls,
+        board: b.board,
+        exam_type: b.exam,
+        year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+        file_url: null,
+      }));
+      bankPapersRef.current = mapped;
+      return mapped;
+    }
+
+    async function fetchPapers() {
+      setPapersLoading(true);
+      setPapersLoadError(false);
+      setPapersPage(0);
+      try {
+        const bank = await loadBankOnce();
+        const eq = (want: string[], value: string) =>
+          want.length === 0 || want.some((w) => w.toLowerCase() === value.toLowerCase());
+        const bankMatches = bank.filter((p) =>
+          eq(filters.subjects, p.subject) && eq(filters.classes, p.class) && eq(filters.boards, p.board));
+
+        let query = supabase
+          .from('papers')
+          .select('id,title,school,subject,class,board,exam_type,year,file_url', { count: 'exact' })
+          .eq('is_published', true);
+        if (filters.subjects.length > 1) query = query.in('subject', filters.subjects);
+        else if (filters.subjects.length === 1) query = query.eq('subject', filters.subjects[0]);
+        if (filters.classes.length > 1) query = query.in('class', filters.classes);
+        else if (filters.classes.length === 1) query = query.eq('class', filters.classes[0]);
+        if (filters.boards.length > 1) query = query.in('board', filters.boards);
+        else if (filters.boards.length === 1) query = query.eq('board', filters.boards[0]);
+        const { data, error, count } = await query
+          .order('year', { ascending: false })
+          .order('school', { ascending: true })
+          .range(0, PAPERS_PAGE_SIZE - 1);
+        if (error) throw error;
+        if (cancelled) return;
+
+        const merged = [...bankMatches, ...((data as PaperSheetCardPaper[]) ?? [])];
+        setPapers(merged.slice(0, PAPERS_PAGE_SIZE));
+        setPapersTotal((count ?? 0) + bankMatches.length);
+      } catch {
+        if (!cancelled) setPapersLoadError(true);
+      } finally {
+        if (!cancelled) setPapersLoading(false);
+      }
+    }
+
+    fetchPapers();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, filters.subjects.join(','), filters.classes.join(','), filters.boards.join(','), papersRetryToken]);
+
   const enrichedDisplayedTeachers = useMemo(
     () =>
       displayedTeachers.map((teacher) => {
@@ -1299,23 +1379,16 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   // Was navigating to `/past-papers` — that route's own general landing
   // page (steps/hero/browse-by-board), not filtered results, so flipping
   // this toggle dropped the visitor on an unfiltered page instead of
-  // "just filtering" as asked. `/past-papers/results` (PaperResults.tsx)
-  // is the actual results view and reads these exact filter_* params
-  // directly off the URL, so this now lands already-filtered instead of on
-  // a second landing page they'd have to filter again from scratch.
-  // A true same-page, no-navigation toggle (papers rendered inline on this
-  // same URL) would need PaperResults' results-grid pulled out of its page
-  // shell into a shared component both routes mount — flagged as a
-  // follow-up, not done here to avoid rushing a merge of two ~1000+ line
-  // pages without proper testing.
+  // "just filtering" as asked. That was itself a partial fix — the owner
+  // then asked directly for a true same-page toggle, no navigation at all:
+  // "you don't have to reload or refresh... simply instead of the teacher
+  // cards, the paper cards come up." viewMode below swaps the results panel
+  // in place; this page's own subjects/classes/boards filter state is
+  // reused as-is for the papers query rather than a second, parallel filter
+  // UI, since a teacher's subject/class/board and a paper's are the same
+  // three facets on the same URL.
   const handleSearchModeChange = (mode: 'teachers' | 'papers') => {
-    if (mode !== 'papers') return;
-    const params = new URLSearchParams();
-    if (selectedSubject && selectedSubject !== 'all') params.set('filter_subjects', selectedSubject);
-    if (selectedClass && selectedClass !== 'all') params.set('filter_classes', selectedClass);
-    if (filters.boards.length) params.set('filter_boards', filters.boards.join(','));
-    const qs = params.toString();
-    navigate(qs ? `/past-papers/results?${qs}` : '/past-papers/results');
+    setViewMode(mode);
   };
 
   const clearFilters = () => {
@@ -1659,7 +1732,12 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               the h1 — the strongest on-page relevance signal, missing the
               target keyword on five commercial routes whose title tag and URL
               are both built from it. */}
-          {pageContext ? (
+          {viewMode === 'papers' ? (
+            /* Client-side toggle only (teachers stays the URL's/crawler's
+               default state) — safe to swap the heading without touching
+               pageContext's SEO-critical board/subject branch below. */
+            <>{papersTotal || ''} past paper{papersTotal === 1 ? '' : 's'} <span className="font-black">in Kolkata</span></>
+          ) : pageContext ? (
             <>{pageContext.label} tuition teachers <span className="font-black">in Kolkata</span></>
           ) : (
             /* "147 tuition teachers in Kolkata", not the bare "147 teachers"
@@ -1674,7 +1752,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             <>{resultCountLabel} tuition teacher{teachers.length === 1 ? '' : 's'} <span className="font-black">in Kolkata</span></>
           )}
         </h1>
-        {pageContext ? (
+        {viewMode === 'papers' ? null : pageContext ? (
           <p className="mt-1 text-[14.5px] text-warm-meta">
             {loading ? 'Loading teachers…' : `${resultCountLabel} teacher${teachers.length === 1 ? '' : 's'} in Kolkata`}
           </p>
@@ -1808,7 +1886,72 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               are untouched. */}
 
           {/* Five list states (design.md Section 3). */}
-          {fetchError ? (
+          {viewMode === 'papers' ? (
+            /* In-place papers mode — same page, same filters, no navigation.
+               A simpler subset of PaperResults.tsx's own states (loading/
+               error/empty/results/load-more), reusing this page's existing
+               subjects/classes/boards filter state rather than a second
+               parallel filter UI. */
+            <div>
+              <h2 className="sr-only">Past papers</h2>
+              {papersLoadError ? (
+                <ListError onRetry={() => setPapersRetryToken((t) => t + 1)} />
+              ) : papersLoading ? (
+                <ListLoading count={8} media={96} lines={2} />
+              ) : papers.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 gap-[14px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {papers.map((p) => (
+                      <PaperSheetCard key={p.id} paper={p} className="h-full" />
+                    ))}
+                  </div>
+                  {papers.length < papersTotal ? (
+                    <div className="mt-8 flex justify-center">
+                      <Button
+                        variant="muted"
+                        size={46}
+                        disabled={papersLoadingMore}
+                        onClick={async () => {
+                          setPapersLoadingMore(true);
+                          try {
+                            const nextPage = papersPage + 1;
+                            const from = nextPage * PAPERS_PAGE_SIZE;
+                            let query = supabase
+                              .from('papers')
+                              .select('id,title,school,subject,class,board,exam_type,year,file_url')
+                              .eq('is_published', true);
+                            if (filters.subjects.length > 1) query = query.in('subject', filters.subjects);
+                            else if (filters.subjects.length === 1) query = query.eq('subject', filters.subjects[0]);
+                            if (filters.classes.length > 1) query = query.in('class', filters.classes);
+                            else if (filters.classes.length === 1) query = query.eq('class', filters.classes[0]);
+                            if (filters.boards.length > 1) query = query.in('board', filters.boards);
+                            else if (filters.boards.length === 1) query = query.eq('board', filters.boards[0]);
+                            const { data, error } = await query
+                              .order('year', { ascending: false })
+                              .order('school', { ascending: true })
+                              .range(from - (bankPapersRef.current?.length ?? 0), from - (bankPapersRef.current?.length ?? 0) + PAPERS_PAGE_SIZE - 1);
+                            if (error) throw error;
+                            setPapers((prev) => [...prev, ...((data as PaperSheetCardPaper[]) ?? [])]);
+                            setPapersPage(nextPage);
+                          } catch {
+                            // Leave existing results in place; try again on next click.
+                          } finally {
+                            setPapersLoadingMore(false);
+                          }
+                        }}
+                      >
+                        {papersLoadingMore ? 'Loading…' : 'Load more'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <ListEnd count={papers.length} />
+                  )}
+                </>
+              ) : (
+                <ListEmpty line="No papers match these filters. Try a different subject, class or board." />
+              )}
+            </div>
+          ) : fetchError ? (
             <ListError onRetry={handleRetry} />
           ) : loading ? (
             <ListLoading count={8} media={96} lines={2} />
