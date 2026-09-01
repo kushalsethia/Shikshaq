@@ -13,6 +13,7 @@ import { recordVisit } from '@/lib/recently-visited';
 import { GateSheet } from '@/components/auth/gate-sheet';
 import { setAuthIntent } from '@/lib/auth-intent';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
+import { PaperDisclaimerDialog } from '@/components/papers/paper-disclaimer-dialog';
 import { generateBreadcrumbSchema, injectSchemas } from '@/utils/structuredDataGenerators';
 
 interface Paper {
@@ -406,6 +407,7 @@ export default function PaperReader() {
           copyright/attribution line should still be there — only the document
           viewport itself is withheld from print, further down. */}
       <div>
+        <PaperDisclaimerDialog />
         <DisclaimerStrip tone="dark" school={paper.school} reportHref={requestRemovalUrl(paper)} />
       </div>
 

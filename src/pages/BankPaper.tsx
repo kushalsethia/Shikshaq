@@ -4,6 +4,7 @@ import { ArrowLeft, Flag, Search } from 'lucide-react';
 
 import { Footer } from '@/components/Footer';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
+import { PaperDisclaimerDialog } from '@/components/papers/paper-disclaimer-dialog';
 import { MathText } from '@/components/papers/math-text';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useAuth } from '@/lib/auth-context';
@@ -336,7 +337,10 @@ export default function BankPaper() {
 
       <main id="main-content" className={`flex-1 ${CONTAINER} pb-14 pt-4`}>
         {paper && (
-          <DisclaimerStrip tone="dark" school={paper.school} reportHref="/contact" />
+          <>
+            <PaperDisclaimerDialog />
+            <DisclaimerStrip tone="dark" school={paper.school} reportHref="/contact" />
+          </>
         )}
 
         {/* RD-004 document surface: the questions are the sheet, lifted off the

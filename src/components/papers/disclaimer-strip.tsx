@@ -43,9 +43,10 @@ function DisclaimerStrip({ school, reportHref, tone = "bone" }: DisclaimerStripP
           dark ? "text-[11.5px] leading-[1.5] text-white/60" : "text-body-secondary text-warm-prose",
         )}
       >
-        Shared for revision only. Copyright stays with{" "}
-        <span className={cn(dark && "font-semibold text-indigo-link-on-dark")}>{school}</span>. Reading is
-        free, downloading and reposting are not.{" "}
+        This paper is the property of{" "}
+        <span className={cn(dark && "font-semibold text-indigo-link-on-dark")}>{school}</span>. Shikshaq
+        claims no ownership over it. It was contributed by a student and is shared solely to assist exam
+        preparation. Reading is free, downloading and reposting are not.{" "}
         <a
           href={reportHref}
           target="_blank"
