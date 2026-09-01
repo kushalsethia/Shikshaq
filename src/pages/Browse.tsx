@@ -1795,7 +1795,14 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               <h2 className="sr-only">Teachers</h2>
               {/* Every teacher here travels to a Kolkata address, so a reader in
                   another state is filtering a list that cannot reach them. */}
-              <RegionNotice className="mb-3" />
+              <RegionNotice
+                className="mb-3"
+                onWantRemote={() => {
+                  if (!filters.modeOfTeaching.includes('Online')) {
+                    setFilters({ ...filters, modeOfTeaching: [...filters.modeOfTeaching, 'Online'] });
+                  }
+                }}
+              />
               {/* Mobile: result rows. Desktop: three-column card grid
                   (design.md Section 5 / C-048). Same data, two TeacherCard variants. */}
               <div className="flex flex-col gap-[10px] lg:hidden">

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { MapPin, X } from 'lucide-react';
 
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { ensureRegion, requestRegion, cachedRegion, type RegionStatus } from '@/lib/user-region';
+import { BROWSE_PATH } from '@/lib/nav-config';
+import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 
 /* A one-line notice for readers outside West Bengal.
 
@@ -25,9 +28,21 @@ const DISMISS_KEY = 'shikshaq.regionNoticeDismissed';
 export function RegionNotice({
   variant = 'panel',
   className = '',
+  onWantRemote,
 }: {
   variant?: 'panel' | 'inline';
   className?: string;
+  /** PREVIEW_TOOLS "I'm fine with a remote teacher" choice. Browse.tsx's
+   *  own filter state is only initialised from the URL on first mount — a
+   *  client-side navigation to a new `?filter_modeOfTeaching=Online` on the
+   *  SAME route does not remount it, so that state (still empty) wins the
+   *  race and its own filters-to-URL sync effect strips the param straight
+   *  back out. A bare <Link> here could not actually filter anything when
+   *  already on Browse.tsx, which is the only place this ever renders.
+   *  Callers on Browse.tsx should pass a callback that updates their own
+   *  filters state directly; without one this falls back to a real
+   *  navigation, which still works from anywhere else. */
+  onWantRemote?: () => void;
 }) {
   const [status, setStatus] = useState<RegionStatus>(() => cachedRegion());
   const [asked, setAsked] = useState(false);
@@ -122,21 +137,55 @@ export function RegionNotice({
         </span>
         <div className="min-w-0">
           <p className="text-[14.5px] font-bold text-brand-deep">
-            You are outside West Bengal
+            {PREVIEW_TOOLS ? 'We do not have teachers in your area yet' : 'You are outside West Bengal'}
           </p>
           <p className="mt-1 text-[13.5px] leading-[1.55] text-brand-deep/85">
             Every teacher listed here teaches in and around Kolkata, so in-person classes will not
             reach you yet, and more cities are coming. Plenty of these teachers do take online
-            classes, though, and you can ask any of them directly.
+            classes, though{PREVIEW_TOOLS ? '.' : ', and you can ask any of them directly.'}
           </p>
+          {/* PREVIEW_TOOLS only: the two-choice version is new and unproven,
+              kept off the live site (per CLAUDE.md's test-build convention)
+              until it's been used for real. Live keeps the original single
+              WhatsApp CTA below, untouched. */}
+          {PREVIEW_TOOLS && (
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={dismiss}
+                className="inline-flex min-h-11 items-center rounded-full bg-card px-4 text-[13.5px] font-bold text-brand-deep shadow-border transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                I'm looking for teachers in Kolkata
+              </button>
+              {onWantRemote ? (
+                <button
+                  type="button"
+                  onClick={() => { onWantRemote(); dismiss(); }}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[13.5px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  I'm fine with a remote teacher
+                </button>
+              ) : (
+                <Link
+                  to={`${BROWSE_PATH}?filter_modeOfTeaching=Online`}
+                  onClick={dismiss}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[13.5px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  I'm fine with a remote teacher
+                </Link>
+              )}
+            </div>
+          )}
           <a
             href={wa}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2.5 inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[13.5px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={PREVIEW_TOOLS
+              ? 'mt-2 inline-flex min-h-11 items-center gap-2 text-[12.5px] font-semibold text-brand-deep underline underline-offset-2'
+              : 'mt-2.5 inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[13.5px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
           >
-            <WhatsAppIcon className="h-4 w-4" />
-            Ask about online classes
+            <WhatsAppIcon className={PREVIEW_TOOLS ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden={PREVIEW_TOOLS || undefined} />
+            {PREVIEW_TOOLS ? 'Or ask a teacher directly on WhatsApp' : 'Ask about online classes'}
           </a>
         </div>
       </div>
