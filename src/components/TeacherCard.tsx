@@ -313,10 +313,22 @@ function TeacherCardComponent({
   // absent rather than rendering empty punctuation. Same line-clamp-2 fix as
   // metaRow above — the joined string was clipping mid-word inside whichever
   // part (area, fee) landed on the truncation boundary.
-  const factsRow = factsLine && !isRail && (
-    <p className={`mt-1 line-clamp-2 break-words font-semibold tabular-nums text-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>
-      {factsLine}
-    </p>
+  // min-h on the wrapper, not the <p> itself: same fix as the name's 2-line
+  // reserve above, for the same reason. This line is present on some cards
+  // and absent on others (no fee/experience data for that teacher) — in a
+  // row that stretches every card to match its tallest sibling (grid-compact
+  // rail, and Browse's grid), a card missing this line still gets stretched
+  // to the row's height, so the line's own space just becomes dead space at
+  // the card's bottom instead of disappearing. Reserving it here means every
+  // card is naturally the same height already, so the stretch does nothing.
+  const factsRow = !isRail && (
+    <div className="mt-1 min-h-[1.5em]">
+      {factsLine && (
+        <p className={`line-clamp-2 break-words font-semibold tabular-nums text-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>
+          {factsLine}
+        </p>
+      )}
+    </div>
   );
 
   // Handoff S-003: the badge splits by variant. grid/rail keep it on the

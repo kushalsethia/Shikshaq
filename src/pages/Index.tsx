@@ -899,7 +899,17 @@ export default function Index() {
                  pushed the rest of the page off the fold. Fixed-width cards
                  keep the photo small AND let the row show that more teachers
                  exist than fit, which is what a featured rail is for. */
-              <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] pt-3 scrollbar-hide">
+              /* overflow-y-visible here was a no-op: per spec, once one axis
+                 is non-visible (overflow-x-auto, needed for the horizontal
+                 scroll), 'visible' on the other axis computes to 'auto'
+                 instead — confirmed live via getComputedStyle. So the
+                 hover-lift shadow (shadow-border-hover, -translate-y-0.5 on
+                 TeacherCard) was getting clipped at the row's top/bottom
+                 edge on hover. True vertical overflow can't coexist with
+                 horizontal auto-scroll, so the real fix is padding room for
+                 the shadow instead of an overflow value that was never
+                 doing anything. */
+              <div className="mt-4 overflow-x-auto overflow-y-hidden px-[22px] pb-3 pt-3 scrollbar-hide">
                 <ul className="flex w-max snap-x snap-mandatory gap-3">
                   {featuredTeachers.map((t) => (
                     <li key={t.id} className="w-[168px] flex-none snap-start lg:w-[196px]">
