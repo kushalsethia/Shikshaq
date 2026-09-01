@@ -788,13 +788,13 @@ export default function Index() {
                 cell. */}
             <div className="flex flex-col gap-seam lg:gap-2 lg:pt-[72px] [&>*]:lg:flex-1 [&>*]:lg:flex [&>*]:lg:flex-col [&>*]:lg:justify-between">
           {/* --------------------------------------------------- 3 · Teachers fork */}
-          <BentoPanel fill="brandTint" className="lg:relative !px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
-            {/* Owner call: this panel + the papers one below "feel too blank"
-                on desktop — a small cursor-following mascot in the corner of
-                each, orange here / blue there. */}
-            <div className="lg:absolute lg:right-8 lg:top-8">
-              <CornerMascot tone="teachers" />
-            </div>
+          <BentoPanel fill="brandTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
+            {/* Owner call, reworked: the mascot was a tiny corner badge —
+                "make them bigger, take up half the panel, circular." Now a
+                real side-by-side split at lg: text content on the left,
+                a big circular tracking face on the right. */}
+            <div className="lg:flex lg:h-full lg:items-center lg:gap-6">
+            <div className="min-w-0 lg:flex-1">
             <div className="flex items-center justify-between">
               <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand text-[#1F1F1F]">
                 <Users className="h-[19px] w-[19px]" strokeWidth={2.25} aria-hidden />
@@ -835,13 +835,15 @@ export default function Index() {
                 <span className="font-normal text-foreground">yourself, free</span>
               </p>
             </Link>
+            </div>
+            <CornerMascot tone="teachers" />
+            </div>
           </BentoPanel>
 
           {/* ----------------------------------------------------- 4 · Papers fork */}
-          <BentoPanel fill="papersTint" className="lg:relative !px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
-            <div className="lg:absolute lg:right-8 lg:top-8">
-              <CornerMascot tone="papers" />
-            </div>
+          <BentoPanel fill="papersTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
+            <div className="lg:flex lg:h-full lg:items-center lg:gap-6">
+            <div className="min-w-0 lg:flex-1">
             {/* Same top-left icon-badge treatment as the teachers fork above
                 (Users, bg-brand) — this panel had no equivalent icon at all. */}
             <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand-blue text-white">
@@ -865,6 +867,9 @@ export default function Index() {
                 <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={2.5} />
               </span>
             </Link>
+            </div>
+            <CornerMascot tone="papers" />
+            </div>
           </BentoPanel>
             </div>
           </div>

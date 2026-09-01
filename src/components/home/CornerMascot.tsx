@@ -1,18 +1,20 @@
 import * as React from 'react';
 
-/* "Find a teacher" / "Revise past papers free" felt empty on desktop — a small
-   two-eyed mascot in each panel's corner that tracks the cursor, one orange
-   (teachers), one blue (papers). Reuses EyesPanel's own pupil-follow math
-   (distance-normalised offset, eased toward target) at a much smaller scale,
-   rather than a second, divergent implementation of the same idea.
+/* "Find a teacher" / "Revise past papers free" felt empty on desktop — a big
+   circular mascot face, roughly half the panel, orange for teachers / blue
+   for papers, whose eyes track the cursor. First pass tucked this into a tiny
+   corner badge; the owner asked for it big and centred instead — a real
+   circular face, not a decorative sliver.
+
+   Reuses EyesPanel's own pupil-follow math (distance-normalised offset,
+   eased toward target) rather than a second, divergent implementation.
 
    Desktop only: a touch device has no cursor to follow, and EyesPanel already
-   owns the tilt-follow treatment for touch elsewhere on this page — a second,
-   competing gyroscope reader here would be redundant, not additive. */
+   owns the tilt-follow treatment for touch elsewhere on this page. */
 
-const PUPIL_MAX = 3.2;
-const DISTANCE_NORM = 220;
-const EASE_PER_FRAME = 0.22;
+const PUPIL_MAX = 9;
+const DISTANCE_NORM = 260;
+const EASE_PER_FRAME = 0.2;
 
 function usesReducedMotion(): boolean {
   if (typeof window === 'undefined' || !window.matchMedia) return false;
@@ -76,22 +78,26 @@ export function CornerMascot({ tone }: { tone: 'teachers' | 'papers' }) {
   }, []);
 
   const fill = tone === 'teachers' ? 'bg-brand' : 'bg-brand-blue';
-  const eyeWhite = tone === 'teachers' ? 'bg-[#1F1F1F]/10' : 'bg-white/25';
+  const eyeWhite = tone === 'teachers' ? 'bg-[#1F1F1F]/[0.14]' : 'bg-white/30';
 
   return (
     <div
       ref={rootRef}
       aria-hidden
-      className={`hidden lg:flex h-9 w-[52px] flex-none items-center justify-center gap-2 rounded-full ${fill}`}
+      /* h-full + aspect-square, not a fixed max-w: the panel's own height
+         varies (padding, content length), so sizing off height keeps the
+         circle from either looking small in a tall panel or overflowing a
+         short one. max-h caps it from getting absurd on a very tall panel. */
+      className={`relative hidden aspect-square h-full max-h-[230px] w-auto flex-none items-center justify-center gap-4 rounded-full lg:flex ${fill}`}
     >
       {[leftPupilRef, rightPupilRef].map((ref, i) => (
         <span
           key={i}
-          className={`relative h-4 w-4 shrink-0 overflow-hidden rounded-full ${eyeWhite}`}
+          className={`relative h-[30%] w-[22%] shrink-0 overflow-hidden rounded-full ${eyeWhite}`}
         >
           <span
             ref={ref}
-            className="absolute left-1/2 top-1/2 h-[7px] w-[7px] rounded-full bg-[#1F1F1F]"
+            className="absolute left-1/2 top-1/2 h-[46%] w-[46%] rounded-full bg-[#1F1F1F]"
             style={{ transform: 'translate(-50%, -50%)' }}
           />
         </span>
