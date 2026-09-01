@@ -115,7 +115,7 @@ function FavouritesStack({ favourites }: { favourites: FavouriteTeacher[] }) {
               onClick={() => setFrontIndex(i)}
               aria-label={`Show ${t.name} in favourites preview`}
               aria-current={ordered[0].id === t.id}
-              className={`h-1.5 rounded-full transition-all duration-150 ${
+              className={`h-1.5 rounded-full transition-[width,background-color] duration-150 ${
                 ordered[0].id === t.id ? 'w-4 bg-brand' : 'w-1.5 bg-hairline'
               }`}
             />

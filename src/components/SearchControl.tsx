@@ -382,7 +382,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   /* Dropdown surface: one shared shell for the facet panel and the suggestions
      overlay. §5 — shadow-border only, never border + shadow. */
   const dropdownShell = (closing: boolean) =>
-    `absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 rounded-2xl bg-card text-left shadow-border-hover transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+    `absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 rounded-2xl bg-card text-left shadow-border-hover transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
       closing ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'
     } ${pinned ? 'max-h-[max(220px,calc(100vh-240px))] overflow-y-auto' : ''}`;
 
@@ -483,7 +483,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
       >
         {stackedToggle && (
           <div
-            className={`flex overflow-hidden transition-all duration-300 ease-out ${
+            className={`flex overflow-hidden transition-[margin,max-height,opacity] duration-300 ease-out ${
               align === 'center' ? 'justify-center' : 'justify-start'
             } ${stackedToggleVisible ? 'mb-3 max-h-16 opacity-100' : 'mb-0 max-h-0 opacity-0'}`}
           >
@@ -574,7 +574,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
           {/* Facet row — horizontal snap-scroll on mobile, never ragged wrapped rows (§11). */}
           <div
-            className={`overflow-hidden transition-all duration-300 ease-out ${
+            className={`overflow-hidden transition-[margin,max-height,opacity] duration-300 ease-out ${
               reveal && !hideFacets ? 'mt-3 max-h-48 opacity-100' : 'invisible mt-0 max-h-0 opacity-0'
             }`}
           >

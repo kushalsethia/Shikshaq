@@ -1731,7 +1731,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           </div>
         )}
 
-        <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-foreground lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]">
+        <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] tabular-nums text-foreground lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]">
           {/* Board routes take the labelled heading too. They used to fall
               through to the generic count branch, so /icse-…, /cbse-ncert-…,
               /igcse-…, /international-board-… and /state-board-… all rendered
