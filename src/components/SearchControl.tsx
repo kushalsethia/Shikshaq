@@ -137,18 +137,6 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     return () => mq.removeEventListener('change', onMq);
   }, []);
 
-  // Separate from `narrow` above (which only resizes icon/button chrome) — this
-  // is the app's general mobile cutoff (see use-mobile.tsx / index.css's 768px
-  // convention). Below it, the expanded control switches to a pinned-to-top,
-  // scroll-locked "focused mode" instead of the in-flow dropdown desktop uses.
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)');
-    const onMq = () => setIsMobile(mq.matches);
-    onMq();
-    mq.addEventListener('change', onMq);
-    return () => mq.removeEventListener('change', onMq);
-  }, []);
   const [q, setQ] = useState('');
   const [field, setField] = useState<FacetKey | 'q' | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -173,13 +161,17 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   // stay tied to `reveal` so the rest of the expand/collapse choreography is untouched.
   const stackedToggleVisible = stackedToggle && (reveal || alwaysShowModeToggle);
 
-  // Mobile-only "focused mode": once revealed, the bar/facet-row/results pin near
-  // the top of the viewport instead of sitting wherever the collapsed pill happened
-  // to be in normal flow, the scrim darkens further, and background scroll locks.
-  // Desktop keeps the original in-flow dropdown + light scrim untouched.
+  // "Focused mode", every width now: once revealed, the bar/facet-row/results
+  // pin near the top of the viewport instead of sitting wherever the collapsed
+  // pill happened to be in normal flow, the scrim darkens further, and
+  // background scroll locks. Was mobile-only (isMobile, <768px) — desktop kept
+  // the plain in-flow dropdown, which meant an open search on a wide screen
+  // didn't block scroll and could visually collide with page content below it
+  // (the recurring "search bar overlaps X" reports). Same pinned treatment at
+  // every width now; there is no narrower-viewport-only branch left to gate on.
   //
-  // `pinEngaged` deliberately lags `reveal && isMobile` by one animation frame.
-  // The very tap that focuses the field is what sets `reveal` true — if pinning
+  // `pinEngaged` deliberately lags `reveal` by one animation frame. The very
+  // tap/click that focuses the field is what sets `reveal` true — if pinning
   // (a `relative` → `fixed inset-x-3 top-3` swap) applied on that SAME render,
   // the control physically jumped out from under the pointer mid-gesture: the
   // browser resolves `mousedown` against the field at its in-flow position, the
@@ -193,14 +185,14 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   // without ever occupying the space under an in-flight pointer.
   const [pinEngaged, setPinEngaged] = useState(false);
   useEffect(() => {
-    if (!(reveal && isMobile)) {
+    if (!reveal) {
       setPinEngaged(false);
       return;
     }
     const id = requestAnimationFrame(() => setPinEngaged(true));
     return () => cancelAnimationFrame(id);
-  }, [reveal, isMobile]);
-  const mobilePinned = reveal && isMobile && pinEngaged;
+  }, [reveal]);
+  const pinned = reveal && pinEngaged;
 
   // Notifies the sticky header to drop below the scrim while this control is
   // expanded, so nothing of the header shows through the scrim unblurred.
@@ -209,12 +201,13 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     return () => setSearchExpanded(false);
   }, [reveal]);
 
-  // Locks background scroll on mobile while pinned open — the scrim alone doesn't
-  // stop the page from being dragged/scrolled underneath it. Storing and restoring
-  // scrollY (instead of a bare `overflow:hidden`) avoids the page jumping back to
-  // the top on iOS Safari when the lock engages/releases.
+  // Locks background scroll while pinned open, at every width now — the scrim
+  // alone doesn't stop the page from being dragged/scrolled (touch) or wheeled
+  // (desktop) underneath it. Storing and restoring scrollY (instead of a bare
+  // `overflow:hidden`) avoids the page jumping back to the top on iOS Safari
+  // when the lock engages/releases.
   useEffect(() => {
-    if (!mobilePinned) return;
+    if (!pinned) return;
     const y = window.scrollY;
     const body = document.body.style;
     body.position = 'fixed';
@@ -232,7 +225,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
       body.overflow = '';
       window.scrollTo(0, y);
     };
-  }, [mobilePinned]);
+  }, [pinned]);
 
   const accent = ACCENT[mode];
   const facetKeys = mode === 'teachers' ? TEACHER_FACET_KEYS : PAPER_FACET_KEYS;
@@ -391,7 +384,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   const dropdownShell = (closing: boolean) =>
     `absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 rounded-2xl bg-card text-left shadow-border-hover transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
       closing ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'
-    } ${mobilePinned ? 'max-h-[max(220px,calc(100vh-240px))] overflow-y-auto' : ''}`;
+    } ${pinned ? 'max-h-[max(220px,calc(100vh-240px))] overflow-y-auto' : ''}`;
 
   const sectionLabel = 'text-xs font-medium uppercase tracking-wide text-muted-foreground';
 
@@ -451,17 +444,18 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
       {/* Scrim: dims and blurs the rest of the page while the control is
           expanded, like a modal. Click anywhere on it to collapse.
 
-          The z-index depends on whether the control is PINNED. Pinned (mobile
-          focus mode) the control itself sits at z-70, so the scrim belongs
-          above the nav at z-65 and covers everything. Unpinned (desktop) the
-          control stays in the flow and scrolls away, so a scrim above the nav
-          left a dimmed, unusable navigation bar with no search field in sight.
-          There it sits below the nav instead. */}
+          The z-index depends on whether the control is PINNED, which now
+          happens at every width once `reveal` settles (see `pinned` above).
+          Pinned, the control itself sits at z-70, so the scrim belongs above
+          the nav at z-65 and covers everything. The lighter/lower z-30 branch
+          only ever shows for the single frame between `reveal` turning true
+          and `pinEngaged` catching up a frame later — kept rather than
+          removed, since that's still a real (if brief) state. */}
       <div
         onClick={closeControl}
         aria-hidden={!reveal}
         className={`fixed inset-0 backdrop-blur-md transition-opacity duration-300 ${
-          mobilePinned ? 'z-[65] bg-foreground/55' : 'z-30 bg-foreground/20'
+          pinned ? 'z-[65] bg-foreground/55' : 'z-30 bg-foreground/20'
         } ${reveal ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
       />
       <div
@@ -474,8 +468,8 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
            the submit disc and the mode toggle were all sliced by 12px, which
            is the "things are overflowing / touching the corners" report. When
            pinned the two insets define the width, so it must not be set. */
-        className={`${mobilePinned ? '' : 'w-full'} ${align === 'center' ? 'mx-auto' : ''} ${
-          mobilePinned
+        className={`${pinned ? '' : 'w-full'} ${align === 'center' ? 'mx-auto' : ''} ${
+          pinned
             ? 'fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] max-w-none animate-search-pop motion-reduce:animate-none'
             /* z-[45] was unconditional — TopBar is z-40 and fixed, so on any
                page where this control sits in the normal scroll flow near
@@ -584,7 +578,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               reveal && !hideFacets ? 'mt-3 max-h-48 opacity-100' : 'invisible mt-0 max-h-0 opacity-0'
             }`}
           >
-            <div className={`relative ${mobilePinned ? 'rounded-2xl bg-card px-3 py-2.5 shadow-border' : ''}`}>
+            <div className={`relative ${pinned ? 'rounded-2xl bg-card px-3 py-2.5 shadow-border' : ''}`}>
               {/* The "Narrow it" label lives OUTSIDE the scroller. It used to be the scroller's
                   first child, which meant it scrolled away from the very chips it labels — and
                   because this row animates open (max-h-0 → max-h-40), the browser landed it at
