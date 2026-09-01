@@ -1136,24 +1136,22 @@ export default function Index() {
              let the shorter panel (guardian trust) stop where its content
              ended, leaving flat blank canvas below it while the taller panel
              kept going — a visible gap on the right. Stretched, both panels'
-             own fill colour runs the full shared height instead. */}
-          <div className="lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-2">
+             own fill colour runs the full shared height instead.
+             Equal grid-cols-2 still read unbalanced even stretched: at 708px
+             each, "Talk to them" (3 icon-stacked steps + a closing line)
+             filled ~94% of the shared height while "Why guardians" (3
+             shorter inline rows) filled ~50%, measured live — same panel,
+             same colour, visibly more empty fill. Narrowing guardians'
+             column reflows its short row text onto more lines, closing
+             most of that gap, same fix as the Subjects/Board/Class row
+             above. */}
+          <div className="lg:grid lg:grid-cols-[1.15fr_0.85fr] lg:items-stretch lg:gap-2">
           {/* --------------------------------------------------- 8 · How it works */}
           {/* No mt-seam. BentoStack already owns the 6px seam between every pair
               of panels (T-004/D-002); adding one here stacked on top of it and
               made this the only 12px gap on the page — the "extra padding
               between the rounded sections" report. */}
           <BentoPanel fill="brand" className="relative overflow-visible px-[22px] pb-6 pt-[26px]">
-            {/* D-007: tilt flattens at `lg` — a 6deg tilt on a 340px badge
-                reads as charm, the same tilt on a 1100px-wide row reads as
-                broken. Implemented as lg:rotate-0, mobile tilt untouched. */}
-            <span
-              aria-hidden
-              className="absolute right-[22px] top-[-12px] -rotate-[6deg] rounded-full bg-panel px-3 py-1.5 text-[11px] font-bold text-background motion-reduce:rotate-0 lg:rotate-0"
-            >
-              Takes 3 minutes
-            </span>
-
             <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/75">
               02 · Two minutes, start to finish
             </p>
@@ -1193,17 +1191,22 @@ export default function Index() {
               <IconDisc tone="brand" size={38} shape="square"><ShieldCheck className="h-[19px] w-[19px]" /></IconDisc>
               <h2 className="font-display text-[22px] font-extrabold tracking-[-0.04em] text-brand-deep lg:text-[28px]">Why guardians use Shikshaq</h2>
             </div>
-            <ul className="mt-[18px] flex flex-col gap-4">
+            {/* mt-8/gap-7/size-44, up from mt-[18px]/gap-4/size-36: this list
+               was the shorter of the paired columns even after the fr-weight
+               above narrowed its column (its three lines were already short
+               enough not to reflow at the narrower width) — more room per
+               real row, not new copy, closes most of the remaining gap. */}
+            <ul className="mt-8 flex flex-col gap-7">
               {[
                 { icon: <ShieldCheck />, title: 'Verified, every one', body: 'ID and degree checked by a human before a profile goes live.' },
                 { icon: <IndianRupee />, title: 'No commission, ever', body: 'Teachers keep every rupee of their fee. We never invoice anyone.' },
                 { icon: <Users />, title: 'Reviews you can trust', body: 'Every review comes from a student who actually messaged the teacher.' },
               ].map((row) => (
-                <li key={row.title} className="flex items-start gap-3">
-                  <IconDisc tone="muted" size={36} className="text-brand-deep"><span className="[&_svg]:h-[17px] [&_svg]:w-[17px]">{row.icon}</span></IconDisc>
+                <li key={row.title} className="flex items-start gap-3.5">
+                  <IconDisc tone="muted" size={44} className="text-brand-deep"><span className="[&_svg]:h-5 [&_svg]:w-5">{row.icon}</span></IconDisc>
                   <div>
-                    <p className="text-[16px] font-semibold text-brand-deep">{row.title}</p>
-                    <p className="mt-0.5 text-[14px] leading-[1.5] text-warm-prose">{row.body}</p>
+                    <p className="text-[17px] font-semibold text-brand-deep">{row.title}</p>
+                    <p className="mt-1 text-[14.5px] leading-[1.6] text-warm-prose">{row.body}</p>
                   </div>
                 </li>
               ))}
