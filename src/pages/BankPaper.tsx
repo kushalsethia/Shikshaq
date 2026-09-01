@@ -78,6 +78,39 @@ export default function BankPaper() {
     [questions, chapter, needle],
   );
 
+  /* The source splits a multi-part printed question ("1. a) ... b) ... c) ...")
+     into one row per part, but every part carries the SAME printed number —
+     the badge showed "1","1","1","2","2","2"... which reads as duplicated/
+     wrong numbering, not as three parts of one question. This derives a
+     display-only a/b/c suffix for runs that share a number; it never touches
+     `row.n` itself or the question text, both of which stay exactly as
+     stored. Built from the full, unfiltered `questions` (paper order), not
+     `visible`, so the lettering stays stable regardless of chapter/search
+     filtering. */
+  const displayNumbers = useMemo(() => {
+    const map = new Map<string, string>();
+    let runNumber: string | null = null;
+    let runIds: string[] = [];
+    const flushRun = () => {
+      if (runIds.length === 0) return;
+      if (runIds.length === 1) {
+        map.set(runIds[0], runNumber ?? '');
+      } else {
+        runIds.forEach((id, idx) => map.set(id, `${runNumber}${String.fromCharCode(97 + idx)}`));
+      }
+    };
+    for (const row of questions) {
+      if (row.n !== runNumber) {
+        flushRun();
+        runNumber = row.n;
+        runIds = [];
+      }
+      runIds.push(row.i);
+    }
+    flushRun();
+    return map;
+  }, [questions]);
+
   /* The sign-in gate.
 
      A soft gate, deliberately: the questions are all rendered and the tail is
@@ -136,7 +169,7 @@ export default function BankPaper() {
       'Hi Shikshaq, there is a problem with a question.',
       '',
       paper ? `Paper: ${paper.school} Class ${paper.cls} ${paper.exam}` : null,
-      row ? `Question: ${row.n ?? row.i}` : null,
+      row ? `Question: ${(row.n && displayNumbers.get(row.i)) ?? row.n ?? row.i}` : null,
       row ? `Id: ${row.i}` : null,
       '',
       reportText.trim() || 'What is wrong:',
@@ -165,7 +198,7 @@ export default function BankPaper() {
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         {row.n && (
           <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-blue px-1.5 text-[12px] font-extrabold tabular-nums text-white">
-            {row.n}
+            {displayNumbers.get(row.i) ?? row.n}
           </span>
         )}
         {row.m !== null && !marksShownInText(row) && (
@@ -191,7 +224,7 @@ export default function BankPaper() {
         <figure className="mt-2.5">
           <img
             src={`/paper-figures/${row.f}`}
-            alt={`Figure for question ${row.n ?? ''}`}
+            alt={`Figure for question ${displayNumbers.get(row.i) ?? row.n ?? ''}`}
             loading="lazy"
             decoding="async"
             className="max-h-[300px] w-auto max-w-full rounded-[12px] bg-card p-2 shadow-border"
@@ -439,7 +472,7 @@ export default function BankPaper() {
                   <option value="">Choose one</option>
                   {questions.map((row) => (
                     <option key={row.i} value={row.i}>
-                      {row.n ? `Question ${row.n}` : row.i}
+                      {row.n ? `Question ${displayNumbers.get(row.i) ?? row.n}` : row.i}
                       {row.c ? ` · ${row.c}` : ''}
                     </option>
                   ))}
