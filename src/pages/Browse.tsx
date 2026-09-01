@@ -451,6 +451,32 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     };
   });
   const [displayedTeachers, setDisplayedTeachers] = useState<Teacher[]>([]);
+
+  /* The mobile and desktop card blocks below each independently re-derived
+     firstSubject/firstArea/meta per teacher — string splits/maps/filters/
+     joins for up to 24 teachers, TWICE (once per block), on every render of
+     this component regardless of cause (a filter chip, a keystroke,
+     anything). displayedTeachers only actually changes when a fetch
+     resolves; memoising the derived fields once here, keyed on it, cuts
+     that redundant work from "every render" to "only when the list
+     genuinely changes" — part of the page-wide lag/glitch reports on this
+     page. TeacherCard itself is already React.memo'd, but every prop here
+     was already a stable primitive, so that memoisation was never the
+     bottleneck — this recomputation was. */
+  const enrichedDisplayedTeachers = useMemo(
+    () =>
+      displayedTeachers.map((teacher) => {
+        const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
+        const subjectList = allSubjects ? allSubjects.split(',').map((s) => s.trim()).filter(Boolean) : [];
+        const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
+        const area = (teacher as { area?: string | null }).area ?? null;
+        const firstArea = area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null;
+        const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
+        const experienceYears = deriveExperienceYears((teacher as { _yearStarted?: number | null })._yearStarted);
+        return { teacher, firstSubject, firstArea, meta, experienceYears };
+      }),
+    [displayedTeachers],
+  );
   const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
   const [hasMore, setHasMore] = useState(true);
 
@@ -1806,34 +1832,26 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               {/* Mobile: result rows. Desktop: three-column card grid
                   (design.md Section 5 / C-048). Same data, two TeacherCard variants. */}
               <div className="flex flex-col gap-[10px] lg:hidden">
-                {displayedTeachers.map((teacher) => {
-                  const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
-                  const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
-                  const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
-                  const area = (teacher as { area?: string | null }).area ?? null;
-                  const firstArea = area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null;
-                  const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
-                  return (
-                    <TeacherCard
-                      key={teacher.id}
-                      id={teacher.id}
-                      name={teacher.name}
-                      slug={teacher.slug}
-                      subject={firstSubject}
-                      subjectSlug={teacher.subjects?.slug}
-                      imageUrl={teacher.image_url ?? undefined}
-                      sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
-                      meta={meta || undefined}
-                      isFeatured={!!teacher.is_featured}
-                      variant="row"
-                      whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
-                      experienceYears={deriveExperienceYears((teacher as { _yearStarted?: number | null })._yearStarted)}
-                      minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
-                      maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
-                      area={firstArea}
-                    />
-                  );
-                })}
+                {enrichedDisplayedTeachers.map(({ teacher, firstSubject, firstArea, meta, experienceYears }) => (
+                  <TeacherCard
+                    key={teacher.id}
+                    id={teacher.id}
+                    name={teacher.name}
+                    slug={teacher.slug}
+                    subject={firstSubject}
+                    subjectSlug={teacher.subjects?.slug}
+                    imageUrl={teacher.image_url ?? undefined}
+                    sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
+                    meta={meta || undefined}
+                    isFeatured={!!teacher.is_featured}
+                    variant="row"
+                    whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
+                    experienceYears={experienceYears}
+                    minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
+                    maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
+                    area={firstArea}
+                  />
+                ))}
               </div>
 
               {/* 4 columns from xl. At 1900px three columns gave each card a
@@ -1841,13 +1859,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                   you scan — the whole point of this page is comparing many
                   teachers at once. gap tightened with it. */}
               <div className="hidden grid-cols-3 gap-[14px] stagger-children lg:grid xl:grid-cols-4">
-                {displayedTeachers.map((teacher, cardIndex) => {
-                  const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
-                  const subjectList = allSubjects ? allSubjects.split(',').map(s => s.trim()).filter(Boolean) : [];
-                  const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
-                  const area = (teacher as { area?: string | null }).area ?? null;
-                  const firstArea = area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null;
-                  const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
+                {enrichedDisplayedTeachers.map(({ teacher, firstSubject, firstArea, meta, experienceYears }, cardIndex) => {
                   return (
                     /* micro-06 rule 7: "Nothing animates on page load except the
                        entrance fade-up on the first fold." Every card in the
@@ -1871,7 +1883,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                         isFeatured={!!teacher.is_featured}
                         variant="grid"
                         whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
-                        experienceYears={deriveExperienceYears((teacher as { _yearStarted?: number | null })._yearStarted)}
+                        experienceYears={experienceYears}
                         minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
                         maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
                         area={firstArea}
