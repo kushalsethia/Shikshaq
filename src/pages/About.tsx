@@ -12,6 +12,7 @@ import { logger } from '@/utils/logger';
 import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
+import { Logo } from '@/components/Logo';
 
 // S21 — one typographic statement on a faint grid ground ("a straight line
 // between a parent and a teacher"), three tilted annotation pills, an origin
@@ -102,8 +103,17 @@ export default function About() {
     <div className="min-h-screen bg-background">
       <main>
         <BentoStack>
-          {/* Handoff AB-002: the annotated statement, now inside a bone header panel. */}
-          <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[26px]">
+          {/* Handoff AB-002: the annotated statement, now inside a bone header panel.
+              "Start with a sexy graphic with the logo" — a dark panel ahead of it,
+              same decorative-blob language the papers/brand panels already use
+              elsewhere on the site, with the wordmark large and on its own. */}
+          <BentoPanel fill="dark" edge="top" className="relative overflow-hidden px-[22px] py-[34px] text-center lg:py-[48px]">
+            <span aria-hidden className="pointer-events-none absolute -left-12 -top-12 h-[200px] w-[200px] rounded-full bg-brand/25" />
+            <span aria-hidden className="pointer-events-none absolute -bottom-16 -right-10 h-[220px] w-[220px] rounded-full bg-brand-blue/25" />
+            <Logo size="lg" onDark className="relative mx-auto h-9 w-auto lg:h-11" ariaLabel="Shikshaq" priority />
+          </BentoPanel>
+
+          <BentoPanel fill="card" className="px-[22px] pt-[22px] pb-[26px]">
             <AnnotatedStatement
               statement={statement}
               align="left"
