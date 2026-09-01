@@ -735,7 +735,11 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                       featuredTeachers.length > 0 ? (
                         <div key="shelf-teachers">
                           <div className={`${sectionLabel} mb-2 mt-6`}>Suggested teachers</div>
-                          <div className="grid gap-1">
+                          {/* Was a single-column list ("not just top to
+                              bottom") — a real grid at sm+ now, where there's
+                              width to actually use for more than one card a
+                              row. */}
+                          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {featuredTeachers.map((t) => (
                               <button key={t.id} type="button" onClick={() => openTeacher(t)} className={rowBase}>
                                 <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
@@ -756,7 +760,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                       recentPapers.length > 0 ? (
                         <div key="shelf-papers">
                           <div className={`${sectionLabel} mb-2 mt-6`}>Recently added papers</div>
-                          <div className="grid gap-1">
+                          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {recentPapers.map((p) => (
                               <button key={p.id} type="button" onClick={() => openPaper(p)} className={rowBase}>
                                 <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
@@ -845,7 +849,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                               {teacherCount} found
                             </span>
                           </div>
-                          <div className="grid gap-1">
+                          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {results.teachers.map((t) => (
                               <button key={t.id} type="button" onClick={() => openTeacher(t)} className={rowBase}>
                                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
@@ -878,7 +882,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                               {paperCount} found
                             </span>
                           </div>
-                          <div className="grid gap-1">
+                          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {results.papers.map((p) => (
                               <button key={p.id} type="button" onClick={() => openPaper(p)} className={rowBase}>
                                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
