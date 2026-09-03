@@ -82,12 +82,18 @@ export function routeAllowsAdaptation(pathname: string): boolean {
  */
 const SEO_ROUTE_PREFIXES = ['/school/', '/schools', '/subjects'];
 const SEO_ROUTE_SUFFIX = '-tuition-teachers-in-kolkata';
+/* The one path that wears the SEO suffix without being an SEO landing page:
+   this is Browse itself, the main teachers list and the most important
+   adaptive surface on the site. Matching it by suffix capped it to
+   copy-level, which is the opposite of what it should be. */
+const BROWSE_LANDING = '/all-tuition-teachers-in-kolkata';
 /** `/past-papers/:id` — the individual paper reader, not the results list. */
 const SEO_PAPER_READER = /^\/past-papers\/(?!results$)[^/]+\/?$/;
 
 export function isSeoRoute(pathname: string): boolean {
   const path = pathname.replace(/\/+$/, '') || '/';
   if (path === '/') return false;
+  if (path === BROWSE_LANDING) return false;
   if (path.endsWith(SEO_ROUTE_SUFFIX)) return true;
   if (SEO_ROUTE_PREFIXES.some((p) => path === p.replace(/\/$/, '') || path.startsWith(p))) {
     return true;
@@ -125,8 +131,16 @@ export function effectiveAdaptationLevel(
 export const COPY_LIMITS = {
   /** Three lines at 375px, which is the design target. */
   headlineChars: 78,
-  ctaChars: 28,
+  /* 28 fit the site's existing short CTAs ("Message on WhatsApp" is 20), but
+     "Find {subject} teachers" needs room for the longest subject name
+     ("Environmental Science", 21 chars) plus the fixed wrapper — 36 is the
+     smallest limit that still fits every entry in searchFacets.ts's SUBJECTS
+     list without truncating a real one. */
+  ctaChars: 36,
   eyebrowChars: 32,
+  /** A suggested chip runs a bit longer than a CTA — it carries a subject
+   *  name plus an area name in one label ("Maths near Ballygunge"). */
+  chipChars: 40,
 } as const;
 
 /* CLAUDE.md: no em or en dashes in site copy. The bios were normalised once

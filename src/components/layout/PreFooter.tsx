@@ -11,6 +11,8 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import logoImage from "@/assets/shikshaq-logo.svg";
 import { BROWSE_PATH, PAST_PAPERS_PATH } from "@/lib/nav-config";
 import { getWhatsAppLink } from "@/utils/whatsapp";
+import { useIntent } from "@/lib/intent-context";
+import { intentCta } from "@/lib/intent/copy";
 
 /* Redesign S5 — the pre-footer block family (design.md §6).
 
@@ -44,6 +46,14 @@ export function preFooterFor(pathname: string): PreFooterVariant {
 /* ---------- B1 · full explainer ---------- */
 
 function B1() {
+  // A known subject swaps both the label and the destination — "Find a
+  // teacher" pointing at the unfiltered list is the correct default for a
+  // reader the index knows nothing about, not a placeholder to always
+  // upgrade away from, so this only overrides when intentCta has enough to
+  // build a real filtered destination from.
+  const { intent } = useIntent();
+  const cta = intentCta(intent);
+
   return (
     <div className="relative rounded-3xl bg-card p-6 shadow-border sm:p-8">
       <Sticker tone="brand" tilt={-3} size={30}>
@@ -104,7 +114,7 @@ function B1() {
       </ul>
       <div className="mt-6 flex flex-wrap gap-3">
         <Button asChild variant="primary" size={44}>
-          <Link to={BROWSE_PATH}>Find a teacher</Link>
+          <Link to={cta?.href ?? BROWSE_PATH}>{cta?.label ?? 'Find a teacher'}</Link>
         </Button>
         {/* Indigo, not muted — papers are the indigo half of the brand pair
             everywhere else on the site, and the mockup pairs the two CTAs as

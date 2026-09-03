@@ -21,6 +21,9 @@
  */
 
 import {
+  EMPTY_BUDGET,
+  EMPTY_SLOT,
+  FACET_SLOT_KEYS,
   SIGNAL_STRENGTH,
   stageRank,
   type JourneyStage,
@@ -30,9 +33,11 @@ import {
   type SignalKind,
   type SignalPayload,
   type Slot,
+  type FacetSlotKey,
 } from './types';
 import {
   CAPS,
+  emptySlots,
   readSession,
   readStore,
   updateSession,
@@ -41,11 +46,19 @@ import {
   type IntentStore,
   type SessionState,
 } from './store';
+import { filledSignature, observeStep } from './predict';
 import {
   normaliseArea,
   normaliseBoard,
   normaliseClass,
+  normaliseClassSize,
+  normaliseExamType,
+  normaliseExperience,
+  normaliseMany,
+  normalisePlaceOfTeaching,
+  normaliseSchool,
   normaliseSubject,
+  normaliseTeachingMode,
 } from './vocabulary';
 
 /** Teacher profiles opened in one session before the reader is comparing
@@ -59,17 +72,39 @@ function fresh(at: number): boolean {
 }
 
 /** Writes a slot only when the new evidence is at least as good as what is
- *  already there, or what is there has expired. */
+ *  already there, or what is there has expired. Takes the whole list, so a
+ *  multi-select filter replaces the slot wholesale rather than merging into
+ *  it — someone who changes Maths+Physics to just Physics has deselected
+ *  Maths, and merging would quietly keep it. */
 function considerSlot(
   current: Slot<string>,
-  value: string | null,
+  values: string[],
   source: Provenance,
 ): Slot<string> {
-  if (!value) return current;
+  if (values.length === 0) return current;
   const held = current.value !== null && fresh(current.at);
   if (held && RANK[source] < RANK[current.source]) return current;
-  return { value, source, at: Date.now() };
+  return { value: values[0], values, source, at: Date.now() };
 }
+
+/** Every facet the recorder knows how to read, paired with the normaliser
+ *  that guards it. Adding a facet is one entry here plus one field on
+ *  SignalPayload, rather than another hand-written pair of lines below. */
+const FACET_NORMALISERS: Record<
+  FacetSlotKey,
+  (v: string | null | undefined) => string | null
+> = {
+  subject: normaliseSubject,
+  classLevel: normaliseClass,
+  area: normaliseArea,
+  board: normaliseBoard,
+  classSize: normaliseClassSize,
+  teachingMode: normaliseTeachingMode,
+  placeOfTeaching: normalisePlaceOfTeaching,
+  school: normaliseSchool,
+  examType: normaliseExamType,
+  experience: normaliseExperience,
+};
 
 /* --------------------------------------------------------- state machine */
 
@@ -88,12 +123,12 @@ export function deriveStage({ store, session }: StageInputs): JourneyStage {
     return 'evaluation';
   }
 
-  const explicitSlots = [
-    store.slots.subject,
-    store.slots.classLevel,
-    store.slots.area,
-    store.slots.board,
-  ].filter((s) => s.value !== null && s.source === 'explicit' && fresh(s.at));
+  /* Every facet counts, not just the original four: someone who set Online +
+     Solo + a fee ceiling has specified their search every bit as precisely as
+     someone who named a subject and an area, and the stage should say so. */
+  const explicitSlots = FACET_SLOT_KEYS.map((key) => store.slots[key]).filter(
+    (s) => s.value !== null && s.source === 'explicit' && fresh(s.at),
+  );
 
   if (explicitSlots.length >= 2) return 'specification';
 
@@ -114,47 +149,54 @@ function pushSignal(session: SessionState, kind: SignalKind, payload: SignalPayl
 /** Applies the vocabulary-checked facets a payload carries. Values outside
  *  the app's own facet lists are dropped here, never stored. */
 function applyFacets(store: IntentStore, payload: SignalPayload, source: Provenance): void {
-  const subject = normaliseSubject(payload.subject);
-  const classLevel = normaliseClass(payload.classLevel);
-  const area = normaliseArea(payload.area);
-  const board = normaliseBoard(payload.board);
+  const incoming = {} as Record<FacetSlotKey, string[]>;
+  for (const key of FACET_SLOT_KEYS) {
+    incoming[key] = normaliseMany(payload[key], FACET_NORMALISERS[key]);
+  }
 
   /* A new subject invalidates what was chosen for the old one. Someone moving
      from Maths to Physics has not kept their Maths class level on purpose, and
      carrying it over is how a page ends up confidently describing a search
      nobody made. The reader can re-state it in one tap; guessing wrong costs
      more than asking again. */
+  const nextSubject = incoming.subject[0] ?? null;
   const changingSubject =
-    subject !== null &&
+    nextSubject !== null &&
     store.slots.subject.value !== null &&
-    store.slots.subject.value !== subject;
+    store.slots.subject.value !== nextSubject;
 
-  if (changingSubject && classLevel === null) {
-    store.slots.classLevel = { value: null, source: 'inferred', at: 0 };
+  if (changingSubject) {
+    /* Everything below subject describes HOW to teach that subject, so it
+       goes with it unless this same signal restates it. Board survives: it
+       is a property of the student, not of the subject, and someone on the
+       ICSE syllabus stays on it when they switch from Maths to Physics. */
+    for (const key of ['classLevel', 'classSize', 'teachingMode', 'placeOfTeaching', 'examType'] as const) {
+      if (incoming[key].length === 0) store.slots[key] = { ...EMPTY_SLOT };
+    }
   }
 
-  store.slots.subject = considerSlot(store.slots.subject, subject, source);
-  store.slots.classLevel = considerSlot(store.slots.classLevel, classLevel, source);
-  store.slots.area = considerSlot(store.slots.area, area, source);
-  store.slots.board = considerSlot(store.slots.board, board, source);
+  for (const key of FACET_SLOT_KEYS) {
+    store.slots[key] = considerSlot(store.slots[key], incoming[key], source);
+  }
 
   if (payload.mode === 'teachers' || payload.mode === 'papers') {
     store.mode = payload.mode;
   }
-  if (payload.feeTouched === true) {
+
+  const min = typeof payload.minFees === 'number' ? payload.minFees : null;
+  const max = typeof payload.maxFees === 'number' ? payload.maxFees : null;
+  if (payload.feeTouched === true || min !== null || max !== null) {
     store.priceObserved = true;
+    store.budget = { min, max, source, at: Date.now() };
   }
 }
 
 /** Empties the facet slots. Used when the reader clears their filters, which
  *  is an explicit statement that the old specification no longer applies. */
 function clearFacets(store: IntentStore): void {
-  const blank: Slot<string> = { value: null, source: 'inferred', at: 0 };
-  store.slots.subject = { ...blank };
-  store.slots.classLevel = { ...blank };
-  store.slots.area = { ...blank };
-  store.slots.board = { ...blank };
+  store.slots = emptySlots();
   store.priceObserved = false;
+  store.budget = { ...EMPTY_BUDGET };
 }
 
 /**
@@ -175,6 +217,21 @@ export function recordSignal(kind: SignalKind, payload: SignalPayload = {}): voi
 
   const source: Provenance = strength === 'strong' ? 'explicit' : 'derived';
 
+  /* Snapshot before the write, so the predictor can learn the TRANSITION
+     rather than just the destination: "with a subject already chosen, this
+     reader picked an area next" is the useful fact, and it is unrecoverable
+     once the slots have moved. */
+  const beforeStore = readStore();
+  const beforeSignature = filledSignature(beforeStore.slots);
+  const beforeValues = FACET_SLOT_KEYS.reduce<Partial<Record<FacetSlotKey, string>>>(
+    (acc, key) => {
+      const v = beforeStore.slots[key].value;
+      if (v) acc[key] = v;
+      return acc;
+    },
+    {},
+  );
+
   updateStore((store) => {
     if (payload.cleared === true) {
       clearFacets(store);
@@ -185,9 +242,11 @@ export function recordSignal(kind: SignalKind, payload: SignalPayload = {}): voi
     switch (kind) {
       case 'search_submitted':
       case 'builder_submitted': {
-        const subject = normaliseSubject(payload.subject);
-        const area = normaliseArea(payload.area);
-        const classLevel = normaliseClass(payload.classLevel);
+        /* The trail record is one sentence, so it takes the primary of each
+           facet even when the reader selected several. */
+        const subject = store.slots.subject.value;
+        const area = store.slots.area.value;
+        const classLevel = store.slots.classLevel.value;
         /* activity-trail's branch-3 record needs BOTH a subject and an area to
            read as a sentence, so a bare keyword search still writes nothing
            rather than storing half a line the hero cannot use. */
@@ -215,8 +274,8 @@ export function recordSignal(kind: SignalKind, payload: SignalPayload = {}): voi
         if (name) {
           store.lastTeacher = {
             name,
-            subject: normaliseSubject(payload.subject) ?? undefined,
-            area: normaliseArea(payload.area) ?? undefined,
+            subject: normaliseMany(payload.subject, normaliseSubject)[0] ?? undefined,
+            area: normaliseMany(payload.area, normaliseArea)[0] ?? undefined,
             slug: payload.id?.trim() || undefined,
             imageUrl: payload.imageUrl || undefined,
             at: Date.now(),
@@ -226,8 +285,8 @@ export function recordSignal(kind: SignalKind, payload: SignalPayload = {}): voi
       }
 
       case 'paper_viewed': {
-        const board = normaliseBoard(payload.board);
-        const subject = normaliseSubject(payload.subject);
+        const board = normaliseMany(payload.board, normaliseBoard)[0] ?? null;
+        const subject = normaliseMany(payload.subject, normaliseSubject)[0] ?? null;
         if (board && subject) {
           store.lastPaper = { board, subject, at: Date.now() };
         }
@@ -288,6 +347,23 @@ export function recordSignal(kind: SignalKind, payload: SignalPayload = {}): voi
       draft.saved = false;
     }
   });
+
+  /* Learn only from what the reader actually stated. Teaching the model from
+     derived values would have it memorise the site's own routing (every
+     visitor to /maths-tuition-teachers gets subject=Maths) instead of this
+     person's preferences, and then predict the site back at itself. */
+  if (source === 'explicit' && payload.cleared !== true) {
+    const afterStore = readStore();
+    const changed = FACET_SLOT_KEYS.filter(
+      (key) => afterStore.slots[key].value !== (beforeValues[key] ?? null),
+    );
+    const values = FACET_SLOT_KEYS.reduce<Partial<Record<FacetSlotKey, string>>>((acc, key) => {
+      const v = afterStore.slots[key].value;
+      if (v) acc[key] = v;
+      return acc;
+    }, {});
+    observeStep({ before: beforeSignature, changed, values });
+  }
 
   const stage = deriveStage({ store: readStore(), session });
 

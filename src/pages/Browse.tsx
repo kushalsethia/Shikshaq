@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { SearchControl } from '@/components/SearchControl';
 import { recordSignal } from '@/lib/intent/signals';
+import { useIntent } from '@/lib/intent-context';
+import { suggestedFilterChips, type SuggestedFilterChip } from '@/lib/intent/copy';
 import { TeacherCard } from '@/components/TeacherCard';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
@@ -894,6 +896,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     }
   }, [filters, searchParams, setSearchParams]);
 
+  const { intent } = useIntent();
+
   /* Intent capture. The filter state is the most precise statement of intent
      the site ever gets, and nothing was reading it.
 
@@ -917,17 +921,27 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       filters.subjects.length > 0 ||
       filters.classes.length > 0 ||
       filters.boards.length > 0 ||
-      filters.areas.length > 0;
+      filters.areas.length > 0 ||
+      filters.classSize.length > 0 ||
+      filters.modeOfTeaching.length > 0 ||
+      filters.placeOfTeaching.length > 0 ||
+      filters.schools.length > 0 ||
+      filters.examTypes.length > 0 ||
+      filters.minExperience !== null;
     const feeTouched = filters.minFees != null || filters.maxFees != null;
 
+    /* The whole array of each facet, not the first of it. Someone comparing
+       Maths and Physics across two areas has said all four things, and
+       truncating to one made the index know strictly less than the URL it
+       was reading. */
     if (!intentPrimedRef.current) {
       intentPrimedRef.current = true;
       if (anyApplied) {
         recordSignal('subject_route_viewed', {
-          subject: filters.subjects[0] ?? pageContext?.label ?? null,
-          classLevel: filters.classes[0] ?? null,
-          area: filters.areas[0] ?? null,
-          board: filters.boards[0] ?? null,
+          subject: filters.subjects.length > 0 ? filters.subjects : (pageContext?.label ?? null),
+          classLevel: filters.classes,
+          area: filters.areas,
+          board: filters.boards,
           mode: 'teachers',
         });
       }
@@ -940,11 +954,19 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     }
 
     recordSignal('filters_applied', {
-      subject: filters.subjects[0] ?? null,
-      classLevel: filters.classes[0] ?? null,
-      area: filters.areas[0] ?? null,
-      board: filters.boards[0] ?? null,
+      subject: filters.subjects,
+      classLevel: filters.classes,
+      area: filters.areas,
+      board: filters.boards,
+      classSize: filters.classSize,
+      teachingMode: filters.modeOfTeaching,
+      placeOfTeaching: filters.placeOfTeaching,
+      school: filters.schools,
+      examType: filters.examTypes,
+      experience: filters.minExperience,
       feeTouched,
+      minFees: filters.minFees,
+      maxFees: filters.maxFees,
       mode: 'teachers',
     });
   }, [filters, pageContext?.label]);
@@ -1607,6 +1629,35 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       : []),
   ];
 
+  /* Suggested (not yet applied) chips — one per slot the intent index already
+     knows, offered only while the reader has not touched a filter yet. Once
+     any real filter is applied the row disappears rather than sitting beside
+     it: at that point filterChips already shows what is active, and a second
+     row making the same offer again would just be noise. Distinct from
+     FilterChips.tsx on purpose — that component's chips carry a remove (X)
+     affordance for something already applied; these carry no such action
+     because clicking one APPLIES it, so they render from the plain Chip
+     primitive instead of being bolted onto a component built for the
+     opposite gesture. */
+  const suggestedChips: SuggestedFilterChip[] = filterChips.length === 0 ? suggestedFilterChips(intent) : [];
+
+  const applySuggestedChip = (chip: SuggestedFilterChip) => {
+    switch (chip.kind) {
+      case 'subject':
+        setFilters({ ...filters, subjects: [chip.value] });
+        break;
+      case 'area':
+        setFilters({ ...filters, areas: [chip.value] });
+        break;
+      case 'classLevel':
+        setFilters({ ...filters, classes: [chip.value] });
+        break;
+      case 'board':
+        setFilters({ ...filters, boards: [chip.value] });
+        break;
+    }
+  };
+
   // Whether the page is showing the unfiltered, un-searched default view — the only
   // context where a "Featured teachers" shelf makes sense (mixing it into an already-
   // filtered/searched result set would be confusing, and would mean re-deriving which
@@ -2071,6 +2122,27 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             </ScrollRail>
           </div>
       </BentoPanel>
+
+      {suggestedChips.length > 0 && (
+        <BentoPanel fill="card" className="px-4 py-3">
+          <div className="mb-2 text-[12.5px] font-semibold text-warm-secondary">
+            Suggested for you
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {suggestedChips.map((chip) => (
+              <Chip
+                key={chip.key}
+                type="button"
+                tone="facet"
+                size={38}
+                onClick={() => applySuggestedChip(chip)}
+              >
+                {chip.label}
+              </Chip>
+            ))}
+          </div>
+        </BentoPanel>
+      )}
 
       {/* Handoff B-014: the desktop two-column shell (rail + results) is
           unchanged in structure, each side now its own BentoPanel. */}

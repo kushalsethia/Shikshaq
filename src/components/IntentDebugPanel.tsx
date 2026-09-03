@@ -21,7 +21,15 @@ import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { useIntent } from '@/lib/intent-context';
 import { adaptationLevel, THRESHOLD } from '@/lib/intent/guardrails';
 import { readSession, readStore, resetAll } from '@/lib/intent/store';
-import type { Slot } from '@/lib/intent/types';
+import { FACET_SLOT_KEYS } from '@/lib/intent/types';
+import type { FacetSlotKey, Slot } from '@/lib/intent/types';
+import {
+  MIN_SUPPORT,
+  modelStats,
+  predictNextSlot,
+  predictSlotValue,
+  resetModel,
+} from '@/lib/intent/predict';
 
 function age(at: number): string {
   if (!at) return 'never';
@@ -38,11 +46,30 @@ const SOURCE_COLOUR: Record<string, string> = {
   inferred: '#A39A90',
 };
 
+const SLOT_LABEL: Record<FacetSlotKey, string> = {
+  subject: 'subject',
+  classLevel: 'class',
+  area: 'area',
+  board: 'board',
+  classSize: 'size',
+  teachingMode: 'online',
+  placeOfTeaching: 'place',
+  school: 'school',
+  examType: 'exam',
+  experience: 'exp',
+};
+
 function SlotRow({ name, slot }: { name: string; slot: Slot<string> }) {
+  /* Shows the whole list, not just the primary: a slot holding
+     Maths + Physics is the case most worth being able to see. */
+  const extra = slot.values.length > 1 ? ` +${slot.values.length - 1}` : '';
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', lineHeight: 1.5 }}>
       <span style={{ width: 54, opacity: 0.55 }}>{name}</span>
-      <span style={{ fontWeight: 600, flex: 1 }}>{slot.value ?? '—'}</span>
+      <span style={{ fontWeight: 600, flex: 1 }} title={slot.values.join(', ')}>
+        {slot.value ?? '—'}
+        {extra}
+      </span>
       {slot.value && (
         <>
           <span style={{ color: SOURCE_COLOUR[slot.source] ?? '#fff', fontSize: 10 }}>
@@ -99,6 +126,8 @@ export function IntentDebugPanel() {
       return null;
     }
   })();
+  const model = modelStats();
+  const nextSlots = predictNextSlot(intent);
 
   const pct = Math.round(intent.confidence * 100);
   const barColour =
@@ -251,10 +280,45 @@ export function IntentDebugPanel() {
       </Section>
 
       <Section title="Slots">
-        <SlotRow name="subject" slot={intent.subject} />
-        <SlotRow name="class" slot={intent.classLevel} />
-        <SlotRow name="area" slot={intent.area} />
-        <SlotRow name="board" slot={intent.board} />
+        {FACET_SLOT_KEYS.map((key) => (
+          <SlotRow key={key} name={SLOT_LABEL[key]} slot={intent[key]} />
+        ))}
+        {(intent.budget.min !== null || intent.budget.max !== null) && (
+          <div style={{ display: 'flex', gap: 6, lineHeight: 1.5 }}>
+            <span style={{ width: 54, opacity: 0.55 }}>budget</span>
+            <span style={{ fontWeight: 600, flex: 1 }}>
+              {intent.budget.min ?? '0'} to {intent.budget.max ?? 'any'}
+            </span>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Learned model">
+        <div style={{ opacity: 0.7, lineHeight: 1.6 }}>
+          {model.observations} observation{model.observations === 1 ? '' : 's'} ·{' '}
+          {model.contexts} context{model.contexts === 1 ? '' : 's'} · {model.pairs} pair
+          {model.pairs === 1 ? '' : 's'}
+        </div>
+        {nextSlots.length === 0 && (
+          <div style={{ opacity: 0.4, lineHeight: 1.45, marginTop: 2 }}>
+            No prediction yet. Needs {MIN_SUPPORT} observations of the same
+            move before it will guess, by design.
+          </div>
+        )}
+        {nextSlots.map((p) => {
+          const likely = predictSlotValue(intent, p.value);
+          return (
+            <div key={p.value} style={{ display: 'flex', gap: 6, lineHeight: 1.5 }}>
+              <span style={{ flex: 1 }}>
+                next: {SLOT_LABEL[p.value]}
+                {likely ? ` = ${likely.value}` : ' (no value yet)'}
+              </span>
+              <span style={{ opacity: 0.6 }}>
+                p{p.p.toFixed(2)} n{p.support}
+              </span>
+            </div>
+          );
+        })}
       </Section>
 
       <Section title="State">
@@ -318,6 +382,7 @@ export function IntentDebugPanel() {
         type="button"
         onClick={() => {
           resetAll();
+          resetModel();
           refresh();
         }}
         style={{
@@ -332,7 +397,7 @@ export function IntentDebugPanel() {
           fontSize: 11,
         }}
       >
-        Forget everything (cold start)
+        Forget everything, model included
       </button>
     </div>
   );

@@ -11,23 +11,51 @@
 
 import {
   DEFAULT_INTENT,
+  FACET_SLOT_KEYS,
   type Evidence,
+  type FacetSlotKey,
   type IntentIndex,
   type PrimaryIntent,
+  type Provenance,
   type Slot,
 } from './types';
 import { readSession, readStore, THIRTY_DAYS_MS } from './store';
 import { deriveStage } from './signals';
 
-/** What a slot contributes at full freshness, by provenance. Explicit values
- *  carry most of the weight because they are the only ones the reader
- *  actually said. */
-const SLOT_WEIGHT = {
+/* What a slot contributes at full freshness, by provenance. Explicit values
+   carry most of the weight because they are the only ones the reader actually
+   said. Subject and area carry most of the weight because they are what the
+   product is actually organised around, and what copy can say something
+   useful about. The rest corroborate: three of them together are worth about
+   one stated subject, which is the right ratio — knowing someone wants Online
+   group tuition is real information, but it does not tell you WHAT to teach
+   them. */
+const SLOT_WEIGHT: Record<FacetSlotKey, Record<Provenance, number>> = {
   subject: { explicit: 0.34, derived: 0.18, inferred: 0.06 },
   classLevel: { explicit: 0.2, derived: 0.1, inferred: 0.04 },
   area: { explicit: 0.2, derived: 0.1, inferred: 0.04 },
   board: { explicit: 0.12, derived: 0.06, inferred: 0.02 },
-} as const;
+  school: { explicit: 0.12, derived: 0.06, inferred: 0.02 },
+  teachingMode: { explicit: 0.08, derived: 0.04, inferred: 0.015 },
+  classSize: { explicit: 0.06, derived: 0.03, inferred: 0.01 },
+  placeOfTeaching: { explicit: 0.06, derived: 0.03, inferred: 0.01 },
+  examType: { explicit: 0.06, derived: 0.03, inferred: 0.01 },
+  experience: { explicit: 0.06, derived: 0.03, inferred: 0.01 },
+};
+
+/** What each slot is called in the debug panel's evidence list. */
+const SLOT_LABEL: Record<FacetSlotKey, string> = {
+  subject: 'subject',
+  classLevel: 'class',
+  area: 'area',
+  board: 'board',
+  classSize: 'class size',
+  teachingMode: 'mode',
+  placeOfTeaching: 'place',
+  school: 'school',
+  examType: 'exam',
+  experience: 'experience',
+};
 
 /** Full value for a day, then a straight decline to nothing at thirty days.
  *  A slot past the window contributes zero rather than a small amount, so
@@ -105,17 +133,34 @@ export function resolveIntent(live: LiveContext): IntentIndex {
   const evidence: Evidence[] = [];
   let confidence = 0;
 
-  const slots = [
-    ['subject', store.slots.subject, SLOT_WEIGHT.subject],
-    ['class', store.slots.classLevel, SLOT_WEIGHT.classLevel],
-    ['area', store.slots.area, SLOT_WEIGHT.area],
-    ['board', store.slots.board, SLOT_WEIGHT.board],
-  ] as const;
-
-  for (const [name, slot, weights] of slots) {
-    const { weight, evidence: e } = slotEvidence(name, slot, weights, now);
+  for (const key of FACET_SLOT_KEYS) {
+    const { weight, evidence: e } = slotEvidence(
+      SLOT_LABEL[key],
+      store.slots[key],
+      SLOT_WEIGHT[key],
+      now,
+    );
     confidence += weight;
     if (e) evidence.push(e);
+  }
+
+  if (store.budget.min !== null || store.budget.max !== null) {
+    const weight = 0.08 * freshness(store.budget.at, now);
+    confidence += weight;
+    const { min, max } = store.budget;
+    const range =
+      min !== null && max !== null
+        ? `${min} to ${max}`
+        : min !== null
+          ? `over ${min}`
+          : `under ${max}`;
+    evidence.push({
+      kind: 'url',
+      strength: 'strong',
+      note: `budget ${range}`,
+      weight,
+      at: store.budget.at,
+    });
   }
 
   const stage = deriveStage({ store, session });
@@ -184,6 +229,13 @@ export function resolveIntent(live: LiveContext): IntentIndex {
     classLevel: store.slots.classLevel,
     area: store.slots.area,
     board: store.slots.board,
+    classSize: store.slots.classSize,
+    teachingMode: store.slots.teachingMode,
+    placeOfTeaching: store.slots.placeOfTeaching,
+    school: store.slots.school,
+    examType: store.slots.examType,
+    experience: store.slots.experience,
+    budget: store.budget,
     mode: store.mode,
     primaryIntent: resolvePrimaryIntent(live.pathname, store.mode),
     stage,

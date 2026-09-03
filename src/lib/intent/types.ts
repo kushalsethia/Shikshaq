@@ -68,14 +68,77 @@ export type PrimaryIntent =
   | 'join_as_teacher'
   | 'understand';
 
-export interface Slot<T> {
+export interface Slot<T = string> {
+  /**
+   * The primary value, which is always `values[0]`. Kept as its own field
+   * because almost every consumer wants exactly one thing to say ("Find
+   * {subject} teachers"), and making each of them reach into an array and
+   * pick would spread the same `?? null` dance across every surface.
+   */
   value: T | null;
+  /**
+   * Everything the reader stated for this facet, primary first.
+   *
+   * Browse's filters are arrays — someone can be looking for Maths AND
+   * Physics across Ballygunge AND Gariahat — and reading only the first of
+   * each threw the rest away, so the index knew strictly less than the URL
+   * it was built from. Copy still speaks about `value`; ranking, chips and
+   * anything counting breadth of intent read `values`.
+   */
+  values: T[];
   source: Provenance;
   /** Epoch ms. Drives decay: a month-old subject is worth less than today's. */
   at: number;
 }
 
-export const EMPTY_SLOT: Slot<string> = { value: null, source: 'inferred', at: 0 };
+export const EMPTY_SLOT: Slot<string> = { value: null, values: [], source: 'inferred', at: 0 };
+
+/** Builds a slot from a list, keeping the primary and the full set in step so
+ *  the two can never disagree about what the reader said. */
+export function slotOf(values: string[], source: Provenance, at: number): Slot<string> {
+  const clean = values.filter((v) => typeof v === 'string' && v.trim().length > 0);
+  if (clean.length === 0) return { ...EMPTY_SLOT };
+  return { value: clean[0], values: clean, source, at };
+}
+
+/** The facets the index tracks. Every one is a real filter or a real
+ *  dropdown somewhere in the app — nothing here is modelled speculatively. */
+export type FacetSlotKey =
+  | 'subject'
+  | 'classLevel'
+  | 'area'
+  | 'board'
+  | 'classSize'
+  | 'teachingMode'
+  | 'placeOfTeaching'
+  | 'school'
+  | 'examType'
+  | 'experience';
+
+export const FACET_SLOT_KEYS: FacetSlotKey[] = [
+  'subject',
+  'classLevel',
+  'area',
+  'board',
+  'classSize',
+  'teachingMode',
+  'placeOfTeaching',
+  'school',
+  'examType',
+  'experience',
+];
+
+/** What the reader has told us about money. Deliberately not a Slot: it is a
+ *  range of numbers, not a vocabulary value, and pretending otherwise would
+ *  mean stringifying it just to fit a shape it does not have. */
+export interface Budget {
+  min: number | null;
+  max: number | null;
+  source: Provenance;
+  at: number;
+}
+
+export const EMPTY_BUDGET: Budget = { min: null, max: null, source: 'inferred', at: 0 };
 
 /* ------------------------------------------------------------------ signals */
 
@@ -116,12 +179,31 @@ export const SIGNAL_STRENGTH: Record<SignalKind, SignalStrength> = {
   section_dwell: 'weak',
 };
 
-/** Signal payloads. Every field optional: a caller records what it has. */
+/**
+ * Signal payloads. Every field optional: a caller records what it has.
+ *
+ * Each facet takes either one value or a list, because the two real sources
+ * disagree in shape and both are legitimate — a sentence-builder dropdown
+ * yields exactly one subject, Browse's filters yield an array of them. The
+ * recorder normalises both into the same slot rather than making every call
+ * site wrap or unwrap to suit it.
+ */
+export type FacetInput = string | null | undefined | Array<string | null | undefined>;
+
 export interface SignalPayload {
-  subject?: string | null;
-  classLevel?: string | null;
-  area?: string | null;
-  board?: string | null;
+  subject?: FacetInput;
+  classLevel?: FacetInput;
+  area?: FacetInput;
+  board?: FacetInput;
+  classSize?: FacetInput;
+  /** Online / Offline. Named to avoid colliding with `mode`, which is the
+   *  teachers-vs-papers surface and a different question entirely. */
+  teachingMode?: FacetInput;
+  placeOfTeaching?: FacetInput;
+  school?: FacetInput;
+  examType?: FacetInput;
+  /** Minimum years, as the filter states it ('1', '3', '5', '10', '15', '20'). */
+  experience?: FacetInput;
   mode?: SearchMode | null;
   /** Free-text query. Never becomes a slot value; kept for recent-searches. */
   query?: string | null;
@@ -134,6 +216,9 @@ export interface SignalPayload {
   imageUrl?: string | null;
   /** True when a fee filter was actually touched. The only price evidence. */
   feeTouched?: boolean;
+  /** The actual range, when the reader set one. */
+  minFees?: number | null;
+  maxFees?: number | null;
   /** Set when a filter set was emptied, so the machine can step back. */
   cleared?: boolean;
 }
@@ -163,11 +248,25 @@ export interface Evidence {
 /* ------------------------------------------------------------------- index */
 
 export interface IntentIndex {
-  /* WHAT. Every value normalised against the searchFacets vocabulary. */
+  /* WHAT. Every value normalised against the app's own filter vocabulary. */
   subject: Slot<string>;
   classLevel: Slot<string>;
   area: Slot<string>;
   board: Slot<string>;
+  /** Group or Solo. */
+  classSize: Slot<string>;
+  /** Online or Offline. */
+  teachingMode: Slot<string>;
+  /** Teacher's place or Student's Home. */
+  placeOfTeaching: Slot<string>;
+  /** Papers-side, and the sentence builder's fourth dropdown. */
+  school: Slot<string>;
+  examType: Slot<string>;
+  /** Minimum years of experience asked for. */
+  experience: Slot<string>;
+
+  /** The fee range, when one was set. */
+  budget: Budget;
 
   /* WHICH surface. */
   mode: SearchMode | null;
@@ -190,6 +289,13 @@ export const DEFAULT_INTENT: IntentIndex = {
   classLevel: EMPTY_SLOT,
   area: EMPTY_SLOT,
   board: EMPTY_SLOT,
+  classSize: EMPTY_SLOT,
+  teachingMode: EMPTY_SLOT,
+  placeOfTeaching: EMPTY_SLOT,
+  school: EMPTY_SLOT,
+  examType: EMPTY_SLOT,
+  experience: EMPTY_SLOT,
+  budget: EMPTY_BUDGET,
   mode: null,
   primaryIntent: null,
   stage: 'discovery',

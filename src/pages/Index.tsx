@@ -36,6 +36,8 @@ import { resolveHeroCopy, papersHeroCopy } from '@/lib/hero-copy';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
+import { useIntent } from '@/lib/intent-context';
+import { intentCta } from '@/lib/intent/copy';
 import { clearExpiredCache } from '@/utils/cache';
 import { getShikshaqmineBasicBySlugs } from '@/lib/teachers';
 import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
@@ -134,6 +136,11 @@ export default function Index() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { likedTeacherIds, likedCount } = useLikes();
+  const { intent } = useIntent();
+  // Shared by the teachers-fork CTA and the featured-teachers footer link
+  // below — both fall back to their own existing copy/destination when this
+  // is null, which is most visitors (nothing subject-specific known yet).
+  const teachersCta = intentCta(intent);
 
   useRequireRole();
 
@@ -819,7 +826,7 @@ export default function Index() {
                     ))}
                   </div>
                   <Link
-                    to="/all-tuition-teachers-in-kolkata"
+                    to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
                     aria-label="Find a teacher"
                     className="tap-44 ml-2 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-panel text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
                   >
@@ -828,11 +835,16 @@ export default function Index() {
                 </div>
               )}
             </div>
+            {/* The eyebrow line is the one piece of this block that follows
+                intent ("Find a teacher" -> "Find Maths teachers"); the
+                stylised "Message them yourself, free" line under it is brand
+                voice, not a CTA label, and stays fixed so the block does not
+                read as unstable every time the subject changes. */}
             <Link
-              to="/all-tuition-teachers-in-kolkata"
+              to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
               className="group mt-[14px] block rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
             >
-              <p className="text-[12.5px] font-medium text-warm-secondary">Find a teacher</p>
+              <p className="text-[12.5px] font-medium text-warm-secondary">{teachersCta?.label ?? 'Find a teacher'}</p>
               <p className="mt-[2px] font-display text-[25px] font-extrabold leading-[1.05] tracking-[-0.045em]">
                 <span className="text-brand-deep decoration-2 underline-offset-4 group-hover:underline">Message them</span>{' '}
                 <span className="font-normal text-foreground">yourself, free</span>
@@ -956,10 +968,19 @@ export default function Index() {
             )}
 
             <Link
-              to="/all-tuition-teachers-in-kolkata"
+              to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
               className="flex h-11 items-center gap-2 whitespace-nowrap px-[22px] pt-[18px] text-body-secondary font-medium text-brand-blue transition-colors duration-tap hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
-              {(stats.teachers ?? 0) > 0 ? `All ${stats.teachers} teachers` : 'All teachers'}
+              {/* teachersCta drops the global stats.teachers count rather than
+                  keep it beside a subject-specific label — "All 350 Maths
+                  teachers" would put a real number next to a filtered
+                  destination it does not describe, which is exactly the kind
+                  of invented-looking claim the copy guardrails forbid. */}
+              {teachersCta
+                ? teachersCta.label
+                : (stats.teachers ?? 0) > 0
+                  ? `All ${stats.teachers} teachers`
+                  : 'All teachers'}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </BentoPanel>

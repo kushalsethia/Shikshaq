@@ -69,6 +69,9 @@ export function useSentenceBuilder() {
         subject: paperSlotValues.subject,
         classLevel: paperSlotValues.cls,
         board: paperSlotValues.board,
+        // The fourth dropdown. Explicitly chosen from a real list, and until
+        // now the only slot on this form nothing downstream ever saw.
+        school: paperSlotValues.school,
         mode: 'papers',
       });
     }

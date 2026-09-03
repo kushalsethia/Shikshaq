@@ -12,7 +12,9 @@ import {
 } from '@/utils/searchFacets';
 import { useSearchIndex, type TeacherHit, type PaperHit } from '@/hooks/useSearchIndex';
 import { useExitPresence } from '@/hooks/useExitPresence';
-import { recordSearch } from '@/lib/activity-trail';
+import { useIntent } from '@/lib/intent-context';
+import { recordSignal } from '@/lib/intent/signals';
+import { suggestedSearches } from '@/lib/intent/copy';
 import { getRecentSearches, addRecentSearch, type RecentSearch } from '@/utils/recentSearches';
 import { setSearchExpanded } from '@/hooks/useSearchExpanded';
 
@@ -127,6 +129,12 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   const { ensureLoaded, search, schools, ready, featuredTeachers, recentPapers } = useSearchIndex();
 
   const [mode, setMode] = useState<SearchMode>(initialMode || (location.pathname === '/past-papers' ? 'papers' : 'teachers'));
+  const { intent } = useIntent();
+  // Frozen with the rest of the intent index (see intent-context.tsx's freeze
+  // rule) — the resting chips don't reshuffle while this control is open,
+  // only between one page view and the next. Falls back to the same
+  // hardcoded POPULAR list this always showed when the index has nothing.
+  const restingChips = useMemo(() => suggestedSearches(mode, intent) ?? POPULAR[mode], [mode, intent]);
 
   useEffect(() => {
     onModeChange?.(mode);
@@ -339,13 +347,20 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   }, []);
 
   const runSearch = useCallback(() => {
-    if (trimmedQ) addRecentSearch(trimmedQ, mode);
-    // Feeds H-005 branch 3 ("Still looking for Maths 10 in Ballygunge?").
-    // Only the first of each facet — the hero writes one sentence, not a list.
-    recordSearch({
-      subject: selections.subject[0],
-      classLevel: selections.cls[0],
-      area: selections.area[0],
+    /* Every facet the overlay holds, in full. recordSearch() only ever took
+       three of them and only the first value of each, so a search made with
+       two subjects and a board selected reached the index as one subject and
+       nothing else. recordSignal takes the arrays directly; the hero's
+       one-sentence trail record still reads the primary of each, which it
+       derives itself. */
+    recordSignal('search_submitted', {
+      query: trimmedQ || null,
+      subject: selections.subject,
+      classLevel: selections.cls,
+      area: selections.area,
+      board: selections.board,
+      school: selections.school,
+      mode,
     });
     const qs = buildParams(trimmedQ, selections, mode);
     const path = mode === 'teachers' ? '/all-tuition-teachers-in-kolkata' : '/past-papers';
@@ -929,7 +944,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                 <div key={mode} className="animate-blur-swap p-4 sm:p-6 motion-reduce:animate-none">
                   <div className={`${sectionLabel} mb-2`}>Popular right now</div>
                   <div className="flex snap-x gap-2 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
-                    {POPULAR[mode].map((label) => (
+                    {restingChips.map((label) => (
                       <button
                         key={label}
                         type="button"

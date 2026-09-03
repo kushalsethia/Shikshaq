@@ -29,10 +29,15 @@
  * greeting is never worth an exception.
  */
 
-import type { JourneyStage, SearchMode, Signal, Slot } from './types';
-import { EMPTY_SLOT } from './types';
+import type { Budget, JourneyStage, SearchMode, Signal, Slot } from './types';
+import { EMPTY_BUDGET, EMPTY_SLOT, FACET_SLOT_KEYS, type FacetSlotKey } from './types';
 
-const STORE_KEY = 'shikshaq.intent.v1';
+const STORE_KEY = 'shikshaq.intent';
+/** The v1 envelope, read once and upgraded. Its slots held a single `value`
+ *  each and only four facets; dropping it instead of upgrading would wipe a
+ *  returning reader's whole trail on deploy, which is a worse bug than the
+ *  one the new shape fixes. */
+const STORE_KEY_V1 = 'shikshaq.intent.v1';
 const SESSION_KEY = 'shikshaq.intent.session';
 
 /* Legacy keys, still written for one release so a rollback is clean. Flip to
@@ -102,17 +107,15 @@ export interface StoredLastPaper {
   at: number;
 }
 
+export type StoredSlots = Record<FacetSlotKey, Slot<string>>;
+
 export interface IntentStore {
-  v: 1;
-  slots: {
-    subject: Slot<string>;
-    classLevel: Slot<string>;
-    area: Slot<string>;
-    board: Slot<string>;
-  };
+  v: 2;
+  slots: StoredSlots;
   mode: SearchMode | null;
   /** True only once a fee filter has actually been touched. */
   priceObserved: boolean;
+  budget: Budget;
   /** Highest stage reached durably. Session stage may sit above it. */
   stage: JourneyStage;
 
@@ -141,18 +144,21 @@ export interface SessionState {
   signals: Signal[];
 }
 
+export function emptySlots(): StoredSlots {
+  return FACET_SLOT_KEYS.reduce((acc, key) => {
+    acc[key] = { ...EMPTY_SLOT };
+    return acc;
+  }, {} as StoredSlots);
+}
+
 export function emptyStore(): IntentStore {
   const now = Date.now();
   return {
-    v: 1,
-    slots: {
-      subject: { ...EMPTY_SLOT },
-      classLevel: { ...EMPTY_SLOT },
-      area: { ...EMPTY_SLOT },
-      board: { ...EMPTY_SLOT },
-    },
+    v: 2,
+    slots: emptySlots(),
     mode: null,
     priceObserved: false,
+    budget: { ...EMPTY_BUDGET },
     stage: 'discovery',
     lastSearch: null,
     lastTeacher: null,
@@ -259,33 +265,76 @@ function migrateLegacy(): IntentStore {
   return store;
 }
 
-/** Repairs anything missing or wrong-typed, so a hand-edited or half-written
- *  envelope degrades to defaults rather than throwing at a call site. */
+/** Reads one slot defensively, accepting BOTH shapes: v2's `values` array
+ *  and v1's lone `value`. A v1 slot upgrades to a single-item list, which is
+ *  exactly what it always meant. */
+function readSlot(raw: unknown): Slot<string> {
+  if (!raw || typeof raw !== 'object') return { ...EMPTY_SLOT };
+  const c = raw as Partial<Slot<string>> & { value?: unknown; values?: unknown };
+  if (typeof c.at !== 'number') return { ...EMPTY_SLOT };
+  const source =
+    c.source === 'explicit' || c.source === 'derived' || c.source === 'inferred'
+      ? c.source
+      : 'inferred';
+
+  const values: string[] = [];
+  if (Array.isArray(c.values)) {
+    for (const v of c.values) {
+      if (typeof v === 'string' && v.trim() && !values.includes(v)) values.push(v);
+    }
+  } else if (typeof c.value === 'string' && c.value.trim()) {
+    values.push(c.value);
+  }
+  if (values.length === 0) return { ...EMPTY_SLOT };
+  return { value: values[0], values, source, at: c.at };
+}
+
+function readBudget(raw: unknown): Budget {
+  if (!raw || typeof raw !== 'object') return { ...EMPTY_BUDGET };
+  const b = raw as Partial<Budget>;
+  const min = typeof b.min === 'number' && Number.isFinite(b.min) ? b.min : null;
+  const max = typeof b.max === 'number' && Number.isFinite(b.max) ? b.max : null;
+  if (min === null && max === null) return { ...EMPTY_BUDGET };
+  const source =
+    b.source === 'explicit' || b.source === 'derived' || b.source === 'inferred'
+      ? b.source
+      : 'explicit';
+  return { min, max, source, at: typeof b.at === 'number' ? b.at : Date.now() };
+}
+
+/**
+ * Repairs anything missing or wrong-typed, so a hand-edited or half-written
+ * envelope degrades to defaults rather than throwing at a call site.
+ *
+ * Accepts v1 and v2 alike: every field it does not find simply comes back
+ * empty, and readSlot handles the one shape change between them. A v1
+ * envelope therefore upgrades in place, keeping the trail records that make
+ * a returning reader recognisable, rather than being thrown away for having
+ * the wrong version number.
+ */
 function reconcile(raw: unknown): IntentStore | null {
   if (!raw || typeof raw !== 'object') return null;
+  /* `v` is read off the untyped object rather than through
+     Partial<IntentStore>, whose `v` is the literal 2 — comparing that to 1
+     is a type error even though 1 is exactly what a stored v1 envelope
+     holds. */
+  const version = (raw as { v?: unknown }).v;
+  if (version !== 1 && version !== 2) return null;
   const r = raw as Partial<IntentStore>;
-  if (r.v !== 1) return null;
   const base = emptyStore();
-  const slot = (s: unknown): Slot<string> => {
-    if (!s || typeof s !== 'object') return { ...EMPTY_SLOT };
-    const c = s as Partial<Slot<string>>;
-    if (typeof c.value !== 'string' || typeof c.at !== 'number') return { ...EMPTY_SLOT };
-    const source =
-      c.source === 'explicit' || c.source === 'derived' || c.source === 'inferred'
-        ? c.source
-        : 'inferred';
-    return { value: c.value, source, at: c.at };
-  };
+
+  const slots = emptySlots();
+  const rawSlots = (r.slots ?? {}) as Record<string, unknown>;
+  for (const key of FACET_SLOT_KEYS) {
+    slots[key] = readSlot(rawSlots[key]);
+  }
+
   return {
-    v: 1,
-    slots: {
-      subject: slot(r.slots?.subject),
-      classLevel: slot(r.slots?.classLevel),
-      area: slot(r.slots?.area),
-      board: slot(r.slots?.board),
-    },
+    v: 2,
+    slots,
     mode: r.mode === 'teachers' || r.mode === 'papers' ? r.mode : null,
     priceObserved: r.priceObserved === true,
+    budget: readBudget(r.budget),
     stage: typeof r.stage === 'string' ? (r.stage as JourneyStage) : base.stage,
     lastSearch: r.lastSearch ?? null,
     lastTeacher: r.lastTeacher ?? null,
@@ -305,11 +354,22 @@ let cached: IntentStore | null = null;
 
 export function readStore(): IntentStore {
   if (cached) return cached;
-  const reconciled = reconcile(readRaw<unknown>('local', STORE_KEY));
-  if (reconciled) {
-    cached = reconciled;
+
+  const current = reconcile(readRaw<unknown>('local', STORE_KEY));
+  if (current) {
+    cached = current;
     return cached;
   }
+
+  /* No v2 envelope. Try the v1 one before falling back to the original five
+     keys, so an upgrade keeps whatever the reader had. */
+  const upgraded = reconcile(readRaw<unknown>('local', STORE_KEY_V1));
+  if (upgraded) {
+    cached = upgraded;
+    writeRaw('local', STORE_KEY, cached);
+    return cached;
+  }
+
   cached = migrateLegacy();
   writeRaw('local', STORE_KEY, cached);
   return cached;
@@ -413,6 +473,7 @@ export function resetAll(): void {
   cached = null;
   sessionCached = null;
   removeRaw('local', STORE_KEY);
+  removeRaw('local', STORE_KEY_V1);
   removeRaw('session', SESSION_KEY);
   for (const key of Object.values(LEGACY_KEYS)) removeRaw('local', key);
 }
