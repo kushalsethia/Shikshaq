@@ -255,6 +255,39 @@ export default {
         "body-secondary": ["0.9375rem", { lineHeight: "1.6", letterSpacing: "0" }],
         meta: ["0.84375rem", { lineHeight: "1.4", letterSpacing: "0" }],
         label: ["0.71875rem", { lineHeight: "1.2", letterSpacing: "0.04em" }],
+
+        /* ---- The sizes the product actually uses ------------------------
+           Measured, not guessed: 607 arbitrary `text-[Npx]` values across 43
+           distinct sizes. The semantic ramp above covers 11.5/13.5/15/16/17/
+           18/23, but the codebase keeps reaching for sizes it does not have —
+           14px appears 65 times, 13px 48, 14.5px 59, 12.5px 44. That is a gap
+           in the scale, not 500 mistakes.
+
+           DELIBERATELY SIZE-ONLY, with no paired lineHeight or letterSpacing.
+           The semantic tokens above carry metrics, so swapping `text-[14px]`
+           for a metric-carrying token would change line-height on every call
+           site that does not set its own `leading-` — 154 of them. These are
+           declared bare so `text-[14px]` -> `text-14` is a byte-for-byte
+           no-op, which is the whole point of adding them.
+
+           For NEW work prefer the semantic tokens above: they carry the
+           metrics and say what the text is for. These exist so existing
+           arbitrary values have somewhere to land, and so the next person
+           reaching for 14px finds a token instead of typing brackets. */
+        "10": "0.625rem",
+        "11": "0.6875rem",
+        "12": "0.75rem",
+        "12.5": "0.78125rem",
+        "13": "0.8125rem",
+        "14": "0.875rem",
+        "14.5": "0.90625rem",
+        "15.5": "0.96875rem",
+        "19": "1.1875rem",
+        "20": "1.25rem",
+        "21": "1.3125rem",
+        "22": "1.375rem",
+        "24": "1.5rem",
+        "26": "1.625rem",
       },
       /* ---- Spacing (task #5) -------------------------------------------------
          DESIGN_SYSTEM.md §4 only ever *documented* an allowed step list
@@ -387,6 +420,16 @@ export default {
           from: { opacity: "0", transform: "translateY(20px) scale(0.97)" },
           to: { opacity: "1", transform: "translateY(0) scale(1)" },
         },
+        /* Browse's result grid: a real fetch (up to a few seconds) lands the
+           whole page of cards at once, and cardReveal's plain fade/scale made
+           that read as a single flat pop rather than results settling in.
+           blur→sharp is what reads as "arriving" rather than "appearing" —
+           same idea as blurSwap, shorter travel since a grid card is a much
+           smaller element than a hero line. */
+        cardBlurIn: {
+          from: { opacity: "0", filter: "blur(6px)", transform: "translateY(10px)" },
+          to: { opacity: "1", filter: "blur(0px)", transform: "translateY(0)" },
+        },
         shimmer: {
           from: { "background-position": "-200% 0" },
           to: { "background-position": "200% 0" },
@@ -472,6 +515,7 @@ export default {
         "sticker-in": "stickerIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
         "panel-fade": "panelFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
         "card-reveal": "cardReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "card-blur-in": "cardBlurIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both",
         shimmer: "shimmer 1.5s ease-in-out infinite",
 
         /* VISUAL_LANGUAGE.md §7. `sparkle` and `bob` are ambient infinite

@@ -51,3 +51,18 @@ supabase/.temp/
 # Regenerable bank load SQL (npm run generate-bank-sql); the data lives in Supabase
 supabase/bank-import.sql
 supabase/bank/
+
+# Downloaded skill/tool archives and bank deploy zips that landed in the repo
+# root while working. Hundreds of MB between them; never part of the app.
+*.zip
+
+# Scratch output from scripts/convert-subject-bank.ts (--reserve id list, etc.)
+tmp/
+
+# Raw upstream subject-bank JSONs, ~9MB, consumed once by
+# scripts/convert-subject-bank.ts. The CONVERTED output
+# (data/question-bank-subjects.json) is committed as the source of record for
+# re-imports, exactly as data/question-bank.json is for the maths bank. Keep
+# local copies of these two if you ever need to re-run the conversion.
+/history_civics_bank.json
+/question_bank_economics.json

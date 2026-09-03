@@ -3,12 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     
-    <!-- Google Tag Manager -->
-    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer','GTM-KK8D28BG');</script>
+    <!-- Google Tag Manager — DEFERRED.
+
+         GTM and gtag both loaded here, and together they were the bulk of a
+         measured ~684ms of blocking time on a cold load, which is a Core Web
+         Vitals problem on exactly the mobile paper pages we care about ranking.
+
+         GTM is the heavy one and carries no conversion tracking, so it now
+         waits for the page to finish loading (or for the first real
+         interaction, whichever comes first) before it injects itself. gtag
+         below is deliberately NOT deferred: it fires the Google Ads conversion,
+         and a deferred conversion ping is a conversion you may not record.
+
+         dataLayer is still created synchronously, so anything that pushes to it
+         before GTM arrives is queued and replayed rather than dropped. -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      (function (w, d, s, l, i) {
+        var loaded = false;
+        function loadGTM() {
+          if (loaded) return;
+          loaded = true;
+          w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+          var f = d.getElementsByTagName(s)[0],
+            j = d.createElement(s),
+            dl = l != 'dataLayer' ? '&l=' + l : '';
+          j.async = true;
+          j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+          f.parentNode.insertBefore(j, f);
+        }
+        /* Whichever comes first: the page is done, or the visitor touches
+           something. The interaction listeners matter because a visitor who
+           acts before load still needs their events recorded. */
+        if (d.readyState === 'complete') {
+          setTimeout(loadGTM, 0);
+        } else {
+          w.addEventListener('load', function () { setTimeout(loadGTM, 0); }, { once: true });
+        }
+        ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function (e) {
+          w.addEventListener(e, loadGTM, { once: true, passive: true });
+        });
+      })(window, document, 'script', 'dataLayer', 'GTM-KK8D28BG');
+    </script>
     <!-- End Google Tag Manager -->
     
     <!-- Google tag (gtag.js) -->

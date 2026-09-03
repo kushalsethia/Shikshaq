@@ -104,8 +104,26 @@ Only these steps: `1, 2, 3, 4, 6, 8, 12, 16, 20, 24`. No `p-5`, `gap-7`, `mt-9`,
 | Related items (label→field, icon→text) | `gap-2` |
 | Page horizontal container | `mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8` |
 
-**Every page uses that same container.** Inconsistent page width is a top source of the
-"random" feeling. Narrow reading pages (legal, FAQ, help) may use `max-w-3xl` instead.
+**Full-bleed fill, contained content.** This rule used to read "Every page uses that same
+container", which stopped being true and contradicted the code: the redesigned pages stack
+`BentoPanel`s that run edge to edge with zero gap, and wrapping those in `max-w-6xl` would
+put page ground down both sides of every panel and destroy the seam-by-fill language the
+whole system rests on (see §11 and `PageContainer.tsx`). The owner's decision is
+edge-to-edge; this doc was the thing that was wrong.
+
+So the container applies to **content, not to fills**:
+
+- A panel's **background** goes full-bleed. `BentoStack` is `gap-0`, panels touch, and
+  separation comes from the fill change at the seam.
+- A panel's **content** still goes through `PageContainer` (or an equivalent `max-w`
+  wrapper) so text never renders at a 1400px measure. At 1440 an uncontained paragraph is
+  roughly 220 characters per line.
+- Two saturated fills must never be adjacent. With separation coming from fill alone, an
+  orange panel touching an indigo one has nothing to separate them.
+
+Narrow reading pages (legal, FAQ, help) may use `max-w-3xl` instead. Inconsistent *content*
+width is still a top source of the "random" feeling; inconsistent *fill* width is not, because
+fills are meant to be edge to edge.
 
 Proximity rule: spacing between related items must be visibly smaller than spacing to the
 next group. If a label sits as far from its input as from the next field, the grouping is broken.
