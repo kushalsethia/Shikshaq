@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useRef, type CSSProperties } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef, Fragment, type CSSProperties } from 'react';
 import { useSearchParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
@@ -15,6 +15,8 @@ import { IconDisc } from '@/components/ui/icon-disc';
 import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { ScrollRail } from '@/components/ui/scroll-rail';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
+import { bankSubjectMatches } from '@/lib/subject-vocabulary';
+import { InlinePapersNudge } from '@/components/browse/InlinePapersNudge';
 import { cn } from '@/lib/utils';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { ListLoading, ListEmpty, ListOverFiltered, ListError, ListEnd } from '@/components/ui/list-states';
@@ -678,16 +680,37 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       return;
     }
     let cancelled = false;
-    supabase
-      .from('papers')
-      .select('school')
-      .eq('is_published', true)
-      .ilike('subject', `%${pageContext.label}%`)
-      .then(({ data, error }) => {
-        if (cancelled || error || !data) return;
-        const schools = new Set(data.map((p) => p.school).filter(Boolean));
-        if (data.length > 0) setSubjectPapers({ count: data.length, schools: schools.size });
-      });
+    /* BOTH paper sources, not just the `papers` table.
+       This counted PDFs only, while the CTA beneath it links to a results page
+       that merges PDFs with the 619-paper question bank. On the Maths page that
+       meant advertising "4 past maths papers" when 197 existed, and on the
+       History page the promo did not render at all despite 302 bank papers,
+       because the PDF table has no History row. Counting one source and linking
+       to another is how a promo ends up understating by 98%.
+
+       Subject is matched through the vocabulary map, so the site's "Maths"
+       finds bank rows whose subject is "Mathematics". */
+    Promise.all([
+      supabase
+        .from('papers')
+        .select('school')
+        .eq('is_published', true)
+        .ilike('subject', `%${pageContext.label}%`),
+      loadPaperIndex().catch(() => []),
+    ]).then(([pdfRes, bankRows]) => {
+      if (cancelled) return;
+      const label = pageContext.label;
+      const pdf = pdfRes.error ? [] : (pdfRes.data ?? []);
+      const bank = (bankRows as { subject: string; school: string; hasSchool: boolean }[])
+        .filter((b) => bankSubjectMatches(label, b.subject));
+      const count = pdf.length + bank.length;
+      if (count === 0) return; // never a zero, never a fabricated stat
+      const schools = new Set<string>([
+        ...pdf.map((p) => p.school).filter(Boolean),
+        ...bank.filter((b) => b.hasSchool).map((b) => b.school),
+      ]);
+      setSubjectPapers({ count, schools: schools.size });
+    });
     return () => {
       cancelled = true;
     };
@@ -2103,8 +2126,22 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               {/* Mobile: result rows. Desktop: three-column card grid
                   (design.md Section 5 / C-048). Same data, two TeacherCard variants. */}
               <div className="flex flex-col gap-[10px] stagger-children lg:hidden">
-                {enrichedDisplayedTeachers.map(({ teacher, firstSubject, firstArea, meta, experienceYears }) => (
-                  <div key={teacher.id} className="animate-card-blur-in">
+                {enrichedDisplayedTeachers.map(({ teacher, firstSubject, firstArea, meta, experienceYears }, i) => (
+                  <Fragment key={teacher.id}>
+                  {/* One papers card, after the 6th row and again after the
+                      18th. Deep enough in that the reader has actually engaged
+                      with the results, and only twice, so it stays a nudge.
+                      It draws nothing when the bank has no papers for the
+                      filters in play. */}
+                  {(i === 6 || i === 18) && (
+                    <InlinePapersNudge
+                      variant="row"
+                      subjects={filters.subjects}
+                      classes={filters.classes}
+                      boards={filters.boards}
+                    />
+                  )}
+                  <div className="animate-card-blur-in">
                     <TeacherCard
                       id={teacher.id}
                       name={teacher.name}
@@ -2123,6 +2160,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                       area={firstArea}
                     />
                   </div>
+                  </Fragment>
                 ))}
               </div>
 
@@ -2131,9 +2169,21 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                   you scan — the whole point of this page is comparing many
                   teachers at once. gap tightened with it. */}
               <div className="hidden grid-cols-3 gap-[14px] stagger-children lg:grid xl:grid-cols-4">
-                {enrichedDisplayedTeachers.map(({ teacher, firstSubject, firstArea, meta, experienceYears }) => {
+                {enrichedDisplayedTeachers.map(({ teacher, firstSubject, firstArea, meta, experienceYears }, i) => {
                   return (
-                    /* The fetch behind this list can take a few real seconds
+                    <Fragment key={teacher.id}>
+                    {/* Same two positions as the mobile list. In a 3/4-column
+                        grid the card simply takes one cell, so the rhythm of
+                        the grid is unbroken. */}
+                    {(i === 6 || i === 18) && (
+                      <InlinePapersNudge
+                        variant="card"
+                        subjects={filters.subjects}
+                        classes={filters.classes}
+                        boards={filters.boards}
+                      />
+                    )}
+                    {/* The fetch behind this list can take a few real seconds
                        (Shikshaqmine enrichment over hundreds of rows), and
                        every card used to land in one flat pop the instant it
                        resolved — the wait plus the sudden mass-appear read as
@@ -2143,8 +2193,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                        everything from the 6th card on) sequence them in one
                        by one instead of all at once — cheap even at 24 cards
                        since the container only ever runs one CSS animation
-                       per child, not a JS loop. */
-                    <div key={teacher.id} className="h-full animate-card-blur-in">
+                       per child, not a JS loop. */}
+                    <div className="h-full animate-card-blur-in">
                       <TeacherCard
                         id={teacher.id}
                         name={teacher.name}
@@ -2163,6 +2213,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                         area={firstArea}
                       />
                     </div>
+                    </Fragment>
                   );
                 })}
               </div>

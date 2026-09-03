@@ -16,6 +16,7 @@ import { CanonicalTag } from "@/components/CanonicalTag";
 import { Chatbot } from "@/components/Chatbot";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProductTourHost } from "@/components/ProductTour";
+import { PapersLiveAnnouncement } from "@/components/papers/papers-live-announcement";
 /* Index stays EAGER: it is the landing route, so code-splitting it would only
    add a round trip before first paint. Everything else is lazy - an /impeccable
    audit flagged a 474KB main chunk with 10 pages bundled in eagerly. */
@@ -183,6 +184,9 @@ const App = () => (
                 trigger is a window event and a second copy would answer the
                 same tap. */}
             <ProductTourHost />
+            {/* Shown once, and only to a visitor who has already been through the
+                tour, so a first visit is never two announcements deep. */}
+            <PapersLiveAnnouncement />
             <AppShell>
             <RouteTransition>
             {/* One Suspense boundary around the whole route table. The routes

@@ -4,6 +4,7 @@ import { ArrowUp, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { PaperSheetCard } from '@/components/papers/paper-sheet-card';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
+import { bankSubjectToSite, bankSubjectMatches } from '@/lib/subject-vocabulary';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -78,11 +79,18 @@ export default function PaperResults() {
     staleTime: Infinity,
     gcTime: Infinity,
     queryFn: async (): Promise<Paper[]> =>
+      /* b.subject, not the literal 'Mathematics'/'Maths' these two lines used
+         to carry. That was true while the bank held nothing else; once History
+         & Civics and Economics landed it meant all 619 bank papers claimed to
+         be maths, so a History filter returned none of its 302 papers and every
+         one of them rendered as "Class X Mathematics". Subject is mapped into
+         the SITE vocabulary here so it matches the filter chips, the facets and
+         the subject pages. */
       (await loadPaperIndex()).map((b) => ({
         id: b.id,
-        title: `Class ${b.cls} Mathematics`,
+        title: `Class ${b.cls} ${b.subject}`,
         school: b.school,
-        subject: 'Maths',
+        subject: bankSubjectToSite(b.subject),
         class: b.cls,
         board: b.board,
         exam_type: b.exam,
@@ -97,7 +105,12 @@ export default function PaperResults() {
     const eq = (want: string[], value: string) =>
       want.length === 0 || want.some((w) => w.toLowerCase() === value.toLowerCase());
     return rows.filter((p) =>
-      eq(subjectFilters, p.subject) &&
+      /* Subject goes through the vocabulary map rather than a plain equality:
+         a ?filter_subjects=Maths link has to find rows whose bank subject is
+         "Mathematics", and an older ?filter_subjects=Mathematics link has to
+         keep working. */
+      (subjectFilters.length === 0 ||
+        subjectFilters.some((w) => bankSubjectMatches(w, p.subject))) &&
       eq(classFilters, p.class) &&
       eq(boardFilters, p.board) &&
       eq(schoolFilters, p.school) &&
@@ -369,7 +382,15 @@ export default function PaperResults() {
               message="Please refresh the page and try again."
               action={{ label: 'Refresh', onClick: () => window.location.reload() }}
             />
-          ) : papers.length > 0 ? (
+          ) : /* shownPapers, not papers. This gated the whole result list on the
+                 Supabase PDF rows alone while the count beside the heading used
+                 the MERGED total, so any filter matching bank papers but no PDF
+                 rows rendered "302 papers found" directly above "No papers match
+                 all of those filters yet". It stayed hidden while every bank row
+                 claimed to be Maths, which is the one subject with PDF rows to
+                 carry it; correcting the bank's subjects surfaced it for all 302
+                 History & Civics and 124 Economics papers. */
+            shownPapers.length > 0 ? (
             <>
               <div className="stagger-children grid grid-cols-1 gap-[10px] sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                 {shownPapers.map((p) => (
