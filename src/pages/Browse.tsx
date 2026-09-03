@@ -352,6 +352,46 @@ function applyServerPrefilters(query: any, f: FilterState) {
   return query;
 }
 
+/* Every Shikshaqmine row, unfiltered — the pool the "Without {filter} · {n}"
+   options are counted against.
+
+   Those options were measured against lastQueryRef's candidates, which is what
+   applyServerPrefilters had already returned: rows that survived subject, class,
+   board, area, size, mode, place AND fees. Dropping one filter from a set the
+   same filter had already emptied could only ever count 0, so the pills never
+   rendered once and every over-filtered search offered "clear everything" or
+   nothing. Measured against the live data: Maths alone matches 59 teachers,
+   yet a Maths+IB+Class 1+Howrah search showed no "Without Howrah · 59" pill.
+
+   Fetching the whole table is affordable HERE and nowhere else: 147 rows /
+   497 kB, one request, issued only when the empty state actually renders, and
+   cached for the session. Counting it with filterShikshaqRecords — the very
+   predicate the results themselves ran through — is what keeps the number
+   honest; a SQL re-implementation of that predicate could drift from it and
+   promise a count the page then fails to show.
+
+   Safe because Shikshaqmine maps 1:1 onto teachers_list (147/147, none paused,
+   none without a listing), so a row counted here is a card that will render.
+   If that stops being true, this count becomes an over-estimate. */
+let relaxPoolCache: Promise<any[]> | null = null;
+
+function loadRelaxPool(): Promise<any[]> {
+  if (!relaxPoolCache) {
+    relaxPoolCache = Promise.resolve(
+      supabase.from('Shikshaqmine').select(SHIKSHAQ_COLUMNS) as any,
+    )
+      .then(({ data, error }: any) => {
+        if (error) throw new Error(error.message);
+        return (data as any[]) ?? [];
+      })
+      .catch((err: unknown) => {
+        relaxPoolCache = null; // let the next empty state try again
+        throw err;
+      });
+  }
+  return relaxPoolCache;
+}
+
 /**
  * Applies the active sort to the FULL result set (never just the visible page), so
  * "Load more" batches stay in the same order as what's already on screen. Pure function
@@ -450,6 +490,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       minFees: minFeesParam ? parseInt(minFeesParam) : null,
       maxFees: maxFeesParam ? parseInt(maxFeesParam) : null,
       minExperience: searchParams.get('filter_experience') || null,
+      schools: parseArrayParam(searchParams.get('filter_schools')),
+      examTypes: parseArrayParam(searchParams.get('filter_examTypes')),
     };
   });
   const [displayedTeachers, setDisplayedTeachers] = useState<Teacher[]>([]);
@@ -487,9 +529,11 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       const rows = await loadPaperIndex();
       const mapped: PaperSheetCardPaper[] = rows.map((b) => ({
         id: b.id,
-        title: `Class ${b.cls} Mathematics`,
+        // Was hardcoded Mathematics/Maths, true only while the bank held
+        // nothing else. It now also carries History & Civics and Economics.
+        title: `Class ${b.cls} ${b.subject}`,
         school: b.school,
-        subject: 'Maths',
+        subject: b.subject,
         class: b.cls,
         board: b.board,
         exam_type: b.exam,
@@ -509,7 +553,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         const eq = (want: string[], value: string) =>
           want.length === 0 || want.some((w) => w.toLowerCase() === value.toLowerCase());
         const bankMatches = bank.filter((p) =>
-          eq(filters.subjects, p.subject) && eq(filters.classes, p.class) && eq(filters.boards, p.board));
+          eq(filters.subjects, p.subject) && eq(filters.classes, p.class) && eq(filters.boards, p.board)
+          && eq(filters.schools, p.school) && eq(filters.examTypes, p.exam_type));
 
         let query = supabase
           .from('papers')
@@ -521,6 +566,10 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         else if (filters.classes.length === 1) query = query.eq('class', filters.classes[0]);
         if (filters.boards.length > 1) query = query.in('board', filters.boards);
         else if (filters.boards.length === 1) query = query.eq('board', filters.boards[0]);
+        if (filters.schools.length > 1) query = query.in('school', filters.schools);
+        else if (filters.schools.length === 1) query = query.eq('school', filters.schools[0]);
+        if (filters.examTypes.length > 1) query = query.in('exam_type', filters.examTypes);
+        else if (filters.examTypes.length === 1) query = query.eq('exam_type', filters.examTypes[0]);
         const { data, error, count } = await query
           .order('year', { ascending: false })
           .order('school', { ascending: true })
@@ -541,7 +590,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     fetchPapers();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, filters.subjects.join(','), filters.classes.join(','), filters.boards.join(','), papersRetryToken]);
+  }, [viewMode, filters.subjects.join(','), filters.classes.join(','), filters.boards.join(','), filters.schools.join(','), filters.examTypes.join(','), papersRetryToken]);
 
   const enrichedDisplayedTeachers = useMemo(
     () =>
@@ -577,6 +626,10 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   // fetch, so the EmptyResults "relax a filter" options can be computed with real
   // counts (components/EmptyResults.md) without a second Supabase round trip.
   const lastQueryRef = useRef<{ shikshaqRecords: any[]; effectiveFilters: FilterState } | null>(null);
+  // The unfiltered pool the relax options are counted against (see loadRelaxPool).
+  // Null until an over-filtered empty state asks for it, so the ~497 kB is never
+  // spent by the overwhelming majority of sessions, which never hit a dead end.
+  const [relaxPool, setRelaxPool] = useState<any[] | null>(null);
   // Cache of the last fetch's enriched (pre-sort) result set + upvote counts, keyed by the
   // searchParams that determined it (everything EXCEPT `sort`). Lets the sort control
   // re-order the whole result set with zero network round trips when only `sort` changes.
@@ -648,10 +701,10 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
     document.title = 'All Tuition Teachers in Kolkata | Shikshaq';
     const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
-    if (metaDesc) metaDesc.setAttribute('content', 'Browse all verified tuition teachers in Kolkata. Filter by subject, class, board, area, mode of teaching, and fees. Free to use, connect directly with local tutors.');
+    if (metaDesc) metaDesc.setAttribute('content', 'Browse all verified tuition teachers in Kolkata. Filter by subject, class, board, area, mode of teaching, and fees. Free to use, connect directly with local teachers.');
     return () => {
       document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
-      if (metaDesc) metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board. No commission, no middlemen.');
+      if (metaDesc) metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local teachers for CBSE, ICSE, IGCSE, IB, State Board. No commission, no middlemen.');
     };
   }, [manageSeo]);
 
@@ -837,6 +890,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       minFees: minFeesParam ? parseInt(minFeesParam) : null,
       maxFees: maxFeesParam ? parseInt(maxFeesParam) : null,
       minExperience: searchParams.get('filter_experience') || null,
+      schools: parseArrayParam(searchParams.get('filter_schools')),
+      examTypes: parseArrayParam(searchParams.get('filter_examTypes')),
     };
 
     // Extract filters from search query (q parameter)
@@ -860,6 +915,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       minFees: searchQuery ? (extractedFilters.minFees ?? null) : urlFilters.minFees,
       maxFees: searchQuery ? (extractedFilters.maxFees ?? null) : urlFilters.maxFees,
       minExperience: searchQuery ? (extractedFilters.minExperience ?? null) : urlFilters.minExperience,
+      schools: searchQuery ? [...(extractedFilters.schools || [])] : [...urlFilters.schools],
+      examTypes: searchQuery ? [...(extractedFilters.examTypes || [])] : [...urlFilters.examTypes],
     };
 
     // Only update if filters actually differ (prevent unnecessary updates)
@@ -954,6 +1011,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           minFees: minFeesParam ? parseInt(minFeesParam) : null,
           maxFees: maxFeesParam ? parseInt(maxFeesParam) : null,
           minExperience: searchParams.get('filter_experience') || null,
+          schools: parseArrayParam(searchParams.get('filter_schools')),
+          examTypes: parseArrayParam(searchParams.get('filter_examTypes')),
         };
 
         // Include class/subject from the quick-pick dropdowns (combine with filter panel selections)
@@ -982,7 +1041,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             urlFilters.areas.length > 0 || urlFilters.modeOfTeaching.length > 0 ||
             urlFilters.placeOfTeaching.length > 0 ||
             urlFilters.minFees != null || urlFilters.maxFees != null ||
-            urlFilters.minExperience != null;
+            urlFilters.minExperience != null ||
+            urlFilters.schools.length > 0 || urlFilters.examTypes.length > 0;
 
         let effectiveFilters: FilterState = {
           subjects: effectiveSubjectFilters,
@@ -995,6 +1055,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           minFees: urlFilters.minFees,
           maxFees: urlFilters.maxFees,
           minExperience: urlFilters.minExperience,
+          schools: urlFilters.schools,
+          examTypes: urlFilters.examTypes,
         };
 
         // If there's a search query, REPLACE all filters with ones extracted from it
@@ -1023,6 +1085,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             minFees: urlFilters.minFees,
             maxFees: urlFilters.maxFees,
             minExperience: extractedFilters.minExperience ?? urlFilters.minExperience,
+            schools: extractedFilters.schools || [],
+            examTypes: extractedFilters.examTypes || [],
           };
         }
 
@@ -1412,6 +1476,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       minFees: null,
       maxFees: null,
       minExperience: null,
+      schools: [],
+      examTypes: [],
     });
     setSearchParams({});
     setDisplayedTeachers([]);
@@ -1542,12 +1608,45 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   // would return results, "Without {value} · {n}", highest count first, max 3
   // (components/EmptyResults.md). Falls back to a single "Clear all filters" option
   // when nothing would relax into results, or when the empty state isn't filter-driven.
+  // A dead end is the only place the unfiltered pool is worth its ~497 kB, so it
+  // is fetched when one is actually on screen rather than kept warm on every
+  // search. Once loaded it stays for the session; the pills appear as soon as it
+  // lands, which is why the empty state renders without them first.
+  const isDeadEnd = !loading && !fetchError && displayedTeachers.length === 0;
+  useEffect(() => {
+    if (!isDeadEnd || relaxPool) return;
+    let cancelled = false;
+    loadRelaxPool()
+      .then((rows) => {
+        if (!cancelled) setRelaxPool(rows);
+      })
+      .catch((err: unknown) => {
+        // Losing the pills is not losing the empty state: the headline and the
+        // Clear filters button are already rendered and remain the way out.
+        if (import.meta.env.DEV) console.warn('relax pool fetch failed:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDeadEnd, relaxPool]);
+
   const emptyStateOptions = useMemo(() => {
     const fallback = [{ label: 'Clear all filters', onClick: clearFilters }];
     if (loading || displayedTeachers.length > 0) return fallback;
 
     const ctx = lastQueryRef.current;
     if (!ctx) return fallback;
+
+    /* A name search narrows the results but not this pool, so every count would
+       promise teachers the name filter then removes. No pool, no pills — the
+       headline and Clear filters still stand. */
+    if ((searchParams.get('q') ?? '').trim().length >= 3) return fallback;
+
+    /* The pool must be one the filters have NOT been applied to. Until it
+       lands, there is nothing honest to count: ctx.shikshaqRecords is the
+       server-prefiltered set, and counting that is what made every pill read 0. */
+    const pool = relaxPool;
+    if (!pool) return fallback;
 
     type Category = 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas' | 'modeOfTeaching' | 'placeOfTeaching' | 'minExperience';
     const entries: Array<{ category: Category; value: string; label: string }> = [
@@ -1581,7 +1680,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     const scored = entries
       .map((entry) => {
         const without = withoutOne(ctx.effectiveFilters, entry.category, entry.value);
-        const n = filterShikshaqRecords(ctx.shikshaqRecords, without).length;
+        const n = filterShikshaqRecords(pool, without).length;
         return { entry, n };
       })
       .filter((s) => s.n > 0)
@@ -1600,7 +1699,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         }
       },
     }));
-  }, [loading, displayedTeachers.length, filters]);
+  }, [loading, displayedTeachers.length, filters, relaxPool, searchParams]);
 
   // Templated first-fold copy/colour (VISUAL_DIRECTION.md §9a "SEO subject/board
   // pages" ruling + REFERENCE_DEVICES.md's wayfinding table: subject = signpost,
@@ -1636,7 +1735,14 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   const activeClassLabel = quickPickClassValue ? `Class ${quickPickClassValue}` : filters.classes[0] ? `Class ${filters.classes[0]}` : null;
   const activeAreaLabel = filters.areas[0] || null;
   const subLineParts = [pageContextLine, activeSubjectLabel, activeClassLabel, activeAreaLabel].filter(Boolean) as string[];
-  const resultCountLabel = loading ? '...' : teachers.length;
+  /* '…', not '...': the real ellipsis character, matching 'Loading teachers…'
+     and 'Loading…' elsewhere in this same file.
+     `hasZeroResults` exists because DESIGN_SYSTEM.md §13 forbids advertising
+     emptiness — rendering "0 tuition teachers in Kolkata" as the loudest
+     element on the page states the opposite of what this hub is for. The
+     count itself stays real wherever there IS one. */
+  const resultCountLabel = loading ? '…' : teachers.length;
+  const hasZeroResults = !loading && teachers.length === 0;
   const sortPills: { value: string; label: string }[] = [
     { value: 'upvotes', label: 'Most upvoted' },
     { value: 'experience', label: 'Experience' },
@@ -1692,6 +1798,13 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           while the loading skeleton is already showing, so a pull can't
           double-trigger a fetch that's already in flight. */}
       <PullToRefresh onRefresh={handleRetry} disabled={loading}>
+      {/* Owner correction: edge-to-edge (0 gutter) is the intended
+          pattern here — a prior pass wrapped this in PageContainer to
+          match PastPapers/TeacherProfile's hand-rolled centred column,
+          backwards from what the handoff actually calls for. Kept the
+          `<main>` landmark that pass added (this route never had one),
+          just without the width cap. */}
+      <main>
       <BentoStack>
 
       {/* Handoff B-002: the near-black control block becomes the stack's
@@ -1756,12 +1869,20 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                the strongest page on the site, was the only browse h1 dropping
                the phrase its own URL and title tag are built from. The count
                stays real; it just stopped being the whole heading. */
-            <>{resultCountLabel} tuition teacher{teachers.length === 1 ? '' : 's'} <span className="font-black">in Kolkata</span></>
+            hasZeroResults ? (
+              <>Tuition teachers <span className="font-black">in Kolkata</span></>
+            ) : (
+              <>{resultCountLabel} tuition teacher{teachers.length === 1 ? '' : 's'} <span className="font-black">in Kolkata</span></>
+            )
           )}
         </h1>
         {viewMode === 'papers' ? null : pageContext ? (
           <p className="mt-1 text-[14.5px] text-warm-meta">
-            {loading ? 'Loading teachers…' : `${resultCountLabel} teacher${teachers.length === 1 ? '' : 's'} in Kolkata`}
+            {loading
+              ? 'Loading teachers…'
+              : hasZeroResults
+                ? 'No teachers match these filters yet'
+                : `${resultCountLabel} teacher${teachers.length === 1 ? '' : 's'} in Kolkata`}
           </p>
         ) : subLineParts.length > 0 && (
           <p
@@ -1878,7 +1999,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         {/* Desktop persistent filter rail (design.md S5 / C-048) -- the
             sheet's content unwrapped, same FilterGroupsBody as the mobile
             sheet. Handoff B-014: FilterRail renders itself as a BentoPanel now. */}
-        <FilterRail filters={filters} onFilterChange={setFilters} resultCount={teachers.length} />
+        <FilterRail filters={filters} onFilterChange={setFilters} resultCount={viewMode === 'papers' ? papersTotal : teachers.length} mode={viewMode} />
 
         {/* Handoff B-011/B-013: results live inside one BentoPanel — list
             states render inside it too, so the panel is never empty while a
@@ -1981,26 +2102,27 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               />
               {/* Mobile: result rows. Desktop: three-column card grid
                   (design.md Section 5 / C-048). Same data, two TeacherCard variants. */}
-              <div className="flex flex-col gap-[10px] lg:hidden">
+              <div className="flex flex-col gap-[10px] stagger-children lg:hidden">
                 {enrichedDisplayedTeachers.map(({ teacher, firstSubject, firstArea, meta, experienceYears }) => (
-                  <TeacherCard
-                    key={teacher.id}
-                    id={teacher.id}
-                    name={teacher.name}
-                    slug={teacher.slug}
-                    subject={firstSubject}
-                    subjectSlug={teacher.subjects?.slug}
-                    imageUrl={teacher.image_url ?? undefined}
-                    sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
-                    meta={meta || undefined}
-                    isFeatured={!!teacher.is_featured}
-                    variant="row"
-                    whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
-                    experienceYears={experienceYears}
-                    minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
-                    maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
-                    area={firstArea}
-                  />
+                  <div key={teacher.id} className="animate-card-blur-in">
+                    <TeacherCard
+                      id={teacher.id}
+                      name={teacher.name}
+                      slug={teacher.slug}
+                      subject={firstSubject}
+                      subjectSlug={teacher.subjects?.slug}
+                      imageUrl={teacher.image_url ?? undefined}
+                      sirMaam={(teacher as { sir_maam?: string | null }).sir_maam ?? null}
+                      meta={meta || undefined}
+                      isFeatured={!!teacher.is_featured}
+                      variant="row"
+                      whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
+                      experienceYears={experienceYears}
+                      minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
+                      maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
+                      area={firstArea}
+                    />
+                  </div>
                 ))}
               </div>
 
@@ -2009,18 +2131,20 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                   you scan — the whole point of this page is comparing many
                   teachers at once. gap tightened with it. */}
               <div className="hidden grid-cols-3 gap-[14px] stagger-children lg:grid xl:grid-cols-4">
-                {enrichedDisplayedTeachers.map(({ teacher, firstSubject, firstArea, meta, experienceYears }, cardIndex) => {
+                {enrichedDisplayedTeachers.map(({ teacher, firstSubject, firstArea, meta, experienceYears }) => {
                   return (
-                    /* micro-06 rule 7: "Nothing animates on page load except the
-                       entrance fade-up on the first fold." Every card in the
-                       list carried animate-card-reveal, so all 24 ran their
-                       0.45s reveal at once — including cards four thousand
-                       pixels down, which finish long before anyone scrolls to
-                       them. That is the rule broken and the paint wasted at the
-                       same time: invisible motion, on the page that renders the
-                       most cards, on the phones least able to afford it. Only
-                       the first row of three can be on screen at load. */
-                    <div key={teacher.id} className={cardIndex < 3 ? 'h-full animate-card-reveal' : 'h-full'}>
+                    /* The fetch behind this list can take a few real seconds
+                       (Shikshaqmine enrichment over hundreds of rows), and
+                       every card used to land in one flat pop the instant it
+                       resolved — the wait plus the sudden mass-appear read as
+                       broken, not busy. animate-card-blur-in on every card,
+                       not just the first row, lets stagger-children's capped
+                       per-child delay (0/40/80/120/160ms, then 200ms for
+                       everything from the 6th card on) sequence them in one
+                       by one instead of all at once — cheap even at 24 cards
+                       since the container only ever runs one CSS animation
+                       per child, not a JS loop. */
+                    <div key={teacher.id} className="h-full animate-card-blur-in">
                       <TeacherCard
                         id={teacher.id}
                         name={teacher.name}
@@ -2068,9 +2192,15 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             </div>
           ) : isDefaultView ? (
             // Empty, no data yet -- never advertise emptiness (design.md Section 3.2).
-            <ListEmpty line="Kolkata's verified tutors, across every subject and board." />
+            // "teachers", not "tutors": the product standardises on teacher
+            // everywhere that matters -- the nav label, the h1, the mode
+            // toggle, every SEO route slug.
+            <ListEmpty line="Kolkata's verified teachers, across every subject and board." />
           ) : (
-            <ListOverFiltered onClear={clearFilters} count={filterCount} />
+            // emptyStateOptions was computed here and rendered nowhere --
+            // the measured "Without {filter} - {n}" relax options existed as
+            // dead code while the dead end offered only "clear everything".
+            <ListOverFiltered onClear={clearFilters} count={filterCount} options={emptyStateOptions} />
           )}
         </BentoPanel>
       </div>
@@ -2138,6 +2268,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           03's geometry appendix / COVERAGE. */}
       {seo?.content && pageContext && <SEOContentBlock content={seo.content} label={pageContext.label} />}
 
+      </main>
       </PullToRefresh>
 
       {/* Outside the wrapper on purpose: FilterSheet is a Radix Sheet, which
@@ -2148,8 +2279,9 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         onOpenChange={setFilterSheetOpen}
         filters={filters}
         onFilterChange={setFilters}
-        resultCount={teachers.length}
+        resultCount={viewMode === 'papers' ? papersTotal : teachers.length}
         onClear={clearFilters}
+        mode={viewMode}
       />
     </div>
   );

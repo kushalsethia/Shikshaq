@@ -113,10 +113,22 @@ function ListOverFiltered({
   onClear,
   count,
   className,
+  options,
 }: {
   onClear: () => void;
   count?: number;
   className?: string;
+  /**
+   * "Relax one filter" choices, highest-yield first, per
+   * components/EmptyResults.md — each labelled with the real count it would
+   * return ("Without Psychology · 12"). Browse computes these against the
+   * same records it just queried, so they are measured, not guessed.
+   *
+   * Optional: callers that cannot compute them still get the headline and
+   * the clear-everything button, which is what this component did for
+   * every caller before these were wired up.
+   */
+  options?: { label: string; onClick: () => void }[];
 }) {
   const headline =
     count === 1
@@ -124,14 +136,44 @@ function ListOverFiltered({
       : count && count > 1
         ? `Nothing matched all ${count} filters.`
         : "Nothing matched those filters.";
+  /* Browse's own fallback for "nothing would relax into results" is a single
+     { label: 'Clear all filters' } entry — which is the button already
+     rendered below. Dropping it here keeps that from appearing twice. */
+  const relaxOptions = (options ?? []).filter(
+    (o) => o.label.toLowerCase() !== "clear all filters",
+  );
   return (
     <StatePanel tone="brand-subtle" className={className}>
       <Blob mood="meh" size={56} />
+      {/* "Most people find someone within 5 km" was a statistic this product
+          cannot compute — there is no distance/radius query behind it, which
+          Browse.tsx:1650-1654 already says in as many words when it refuses
+          the same claim in the h1 sub-line (design.md Section 0 rule 10:
+          never a number that cannot be fetched). It also told the reader to
+          "loosen the rate or widen the area" as fixed text, naming two
+          facets they may never have set. Both gone; the headline already
+          says what happened and the button says what to do about it. */}
       <p className="text-body text-foreground">
-        <strong className="font-semibold">{headline}</strong>{" "}
-        Loosen the rate or widen the area. Most people find someone within 5 km.
+        <strong className="font-semibold">{headline}</strong>
       </p>
-      <Button variant="primary" size={44} onClick={onClear}>
+      {/* The relax options come first: dropping one filter keeps the work
+          the reader already did, where "Clear filters" throws all of it
+          away. That ordering is the whole point of measuring them. */}
+      {relaxOptions.length > 0 && (
+        <div className="flex flex-wrap justify-center gap-2">
+          {relaxOptions.map((opt) => (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={opt.onClick}
+              className="flex min-h-11 items-center rounded-full bg-card px-4 text-[13.5px] font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <Button variant={relaxOptions.length > 0 ? 'secondary' : 'primary'} size={44} onClick={onClear}>
         Clear filters
       </Button>
     </StatePanel>
