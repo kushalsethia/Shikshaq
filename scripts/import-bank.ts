@@ -37,7 +37,13 @@ config({ path: path.join(__dirname, '..', '.env') });
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const BANK_PATH = path.join(__dirname, '..', 'data', 'question-bank.json');
+/* Defaults to the original maths bank; `--file <path>` points it at another
+   converted bank (see convert-subject-bank.ts). Same upsert-on-id path
+   either way, so a second bank adds rows rather than replacing the first. */
+const fileArgIndex = process.argv.indexOf('--file');
+const BANK_PATH = fileArgIndex !== -1 && process.argv[fileArgIndex + 1]
+  ? path.resolve(process.argv[fileArgIndex + 1])
+  : path.join(__dirname, '..', 'data', 'question-bank.json');
 
 const PAPER_BATCH = 200;
 const QUESTION_BATCH = 400;

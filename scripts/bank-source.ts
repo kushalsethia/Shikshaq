@@ -29,6 +29,7 @@ export interface BankQuestion {
   pg?: number;            // source page
   f?: string;             // figure filename
   o?: string[];           // options
+  subj?: string;          // subject; absent on the original maths bank
 }
 
 export interface BankPaper {
@@ -37,7 +38,11 @@ export interface BankPaper {
   year: string;
   exam: string;
   cls: string;
-  subject: 'Mathematics';
+  /* Was the literal 'Mathematics'. bank_papers.subject has always been a
+     plain text column (default 'Mathematics'), so widening this needs no
+     migration - it only stops the pipeline from overwriting every paper's
+     real subject with the one the type happened to name. */
+  subject: string;
   board: string;
   questionCount: number;
   marks: number;
@@ -70,7 +75,7 @@ export function papersOf(bank: BankQuestion[]): BankPaper[] {
         year: row.y ?? '',
         exam: row.e ?? '',
         cls: row.k ?? 'X',
-        subject: 'Mathematics',
+        subject: row.subj ?? 'Mathematics',
         board: boardOf(row.s, row.e),
         questionCount: 0,
         marks: 0,

@@ -141,7 +141,12 @@ const NO_SCHOOL = /^(unknownschool|unknown school|unknown)$/i;
 /* Values in the school column that are not schools. "Graphs Question" is a
    topic file and "Brugesh Sir" is a tutor; both were being given a school
    page of their own, and both were in the sitemap. */
-const NOT_A_SCHOOL = /^(graphs?|brugesh sir)$/i;
+/* The History & Civics / Economics banks put a topic in the school column on
+   a handful of rows, so "Inflation Mcqs" and "Consumer Awareness" were being
+   given a school page each and landing in the sitemap as thin pages. "Hist"
+   is the subject abbreviated, not a school either. Matched on the cleaned
+   label, so the mangled run-together heading is caught by its "mcqs" tail. */
+const NOT_A_SCHOOL = /^(graphs?|brugesh sir|hist|.*\bmcqs?$|consumer awareness)$/i;
 
 /** Names the source abbreviated past the point of safe expansion. */
 export const UNRESOLVED_SCHOOLS = [
