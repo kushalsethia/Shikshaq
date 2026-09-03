@@ -883,6 +883,28 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       newParams.delete('filter_experience');
     }
 
+    /* Papers-mode facets. These were READ from the URL in three places and
+       written back in none, which loses a selection rather than merely
+       omitting it: newParams starts as a copy of the current URL, so an
+       existing filter_schools was carried along, but an UPDATED one never
+       reached the URL. The URL therefore kept the stale value, and the
+       URL-to-filters effect below rebuilds state from the URL on the next
+       params change — writing the stale selection back over the new one.
+       The reader's choice reverted on a later, unrelated interaction. */
+    const schoolsParam = serializeArrayParam(filters.schools);
+    if (schoolsParam) {
+      newParams.set('filter_schools', schoolsParam);
+    } else {
+      newParams.delete('filter_schools');
+    }
+
+    const examTypesParam = serializeArrayParam(filters.examTypes);
+    if (examTypesParam) {
+      newParams.set('filter_examTypes', examTypesParam);
+    } else {
+      newParams.delete('filter_examTypes');
+    }
+
     // Only update URL if params actually changed (avoid infinite loop)
     const currentParams = searchParams.toString();
     const newParamsStr = newParams.toString();
@@ -916,6 +938,12 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
      These routes feed the index but never read from it: routeAllowsAdaptation
      keeps every SEO page byte-stable for crawlers. */
   const intentPrimedRef = useRef(false);
+  /* Set by applySuggestedChip (further down) when the change about to arrive
+     came from tapping a PREDICTED chip, and read then cleared by the effect
+     below — the only place that knows how to record it. A ref rather than
+     state: it must not cause a render, and it has to survive until the
+     filters effect runs. */
+  const appliedPredictionRef = useRef(false);
   useEffect(() => {
     const anyApplied =
       filters.subjects.length > 0 ||
@@ -942,18 +970,22 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           classLevel: filters.classes,
           area: filters.areas,
           board: filters.boards,
-          mode: 'teachers',
+          mode: viewMode,
         });
       }
       return;
     }
 
     if (!anyApplied && !feeTouched) {
-      recordSignal('filters_applied', { cleared: true, mode: 'teachers' });
+      recordSignal('filters_applied', { cleared: true, mode: viewMode });
       return;
     }
 
+    const fromPrediction = appliedPredictionRef.current;
+    appliedPredictionRef.current = false;
+
     recordSignal('filters_applied', {
+      fromPrediction,
       subject: filters.subjects,
       classLevel: filters.classes,
       area: filters.areas,
@@ -967,9 +999,12 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       feeTouched,
       minFees: filters.minFees,
       maxFees: filters.maxFees,
-      mode: 'teachers',
+      /* Browse renders both lists behind one toggle, so the mode has to come
+         from that toggle. Hardcoding 'teachers' told the index every papers
+         search on this page was a teachers search. */
+      mode: viewMode,
     });
-  }, [filters, pageContext?.label]);
+  }, [filters, pageContext?.label, viewMode]);
 
   // Extract filters from search query and merge with URL filters
   useEffect(() => {
@@ -1642,6 +1677,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   const suggestedChips: SuggestedFilterChip[] = filterChips.length === 0 ? suggestedFilterChips(intent) : [];
 
   const applySuggestedChip = (chip: SuggestedFilterChip) => {
+    if (chip.predicted) appliedPredictionRef.current = true;
     switch (chip.kind) {
       case 'subject':
         setFilters({ ...filters, subjects: [chip.value] });

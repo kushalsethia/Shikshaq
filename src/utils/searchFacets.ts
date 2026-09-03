@@ -38,6 +38,32 @@ export const AREAS = [
 
 export const EXAM_TYPES = ['Prelims', 'Half-Yearly', 'Final', 'Unit Test', 'Sample Paper'];
 
+/* The teacher-side facets, hoisted here because this file is already the
+   designated home for "the same values that filter the Browse page" and
+   these had no shared home at all.
+
+   ⚠ They are still ALSO declared privately in FilterPanel.tsx,
+   browse/FilterGroups.tsx, admin/teachers.tsx, JoinApply.tsx and
+   TeacherDashboard.tsx — five to six copies each, predating this file's
+   involvement. Those are deliberately left alone here rather than swept in
+   one pass across four working forms; new readers should import from this
+   module, and the copies can be retired one file at a time. */
+export const CLASS_SIZE = ['Group', 'Solo'];
+export const MODE_OF_TEACHING = ['Online', 'Offline'];
+export const PLACE_OF_TEACHING = ["Teacher's place", "Student's Home"];
+
+/** Minimum-years options, value and label together as the filter renders them. */
+export const EXPERIENCE_OPTIONS = [
+  { value: '1', label: '1+ years' },
+  { value: '3', label: '3+ years' },
+  { value: '5', label: '5+ years' },
+  { value: '10', label: '10+ years' },
+  { value: '15', label: '15+ years' },
+  { value: '20', label: '20+ years' },
+];
+
+export const EXPERIENCE_VALUES = EXPERIENCE_OPTIONS.map((o) => o.value);
+
 export type SearchMode = 'teachers' | 'papers';
 export type TeacherFacetKey = 'subject' | 'cls' | 'area' | 'board';
 export type PaperFacetKey = 'subject' | 'cls' | 'board' | 'school';

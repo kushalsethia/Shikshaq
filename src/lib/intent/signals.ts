@@ -348,11 +348,13 @@ export function recordSignal(kind: SignalKind, payload: SignalPayload = {}): voi
     }
   });
 
-  /* Learn only from what the reader actually stated. Teaching the model from
-     derived values would have it memorise the site's own routing (every
-     visitor to /maths-tuition-teachers gets subject=Maths) instead of this
-     person's preferences, and then predict the site back at itself. */
-  if (source === 'explicit' && payload.cleared !== true) {
+  /* Learn only from what the reader actually stated, unprompted.
+     Derived values would teach the model the site's own routing (every
+     visitor to /maths-tuition-teachers gets subject=Maths) rather than this
+     person's preferences. Accepted predictions are excluded for a sharper
+     reason: see SignalPayload.fromPrediction — a model that counts its own
+     accepted suggestions as evidence will confirm anything it guesses. */
+  if (source === 'explicit' && payload.cleared !== true && payload.fromPrediction !== true) {
     const afterStore = readStore();
     const changed = FACET_SLOT_KEYS.filter(
       (key) => afterStore.slots[key].value !== (beforeValues[key] ?? null),

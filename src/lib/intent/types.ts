@@ -221,6 +221,18 @@ export interface SignalPayload {
   maxFees?: number | null;
   /** Set when a filter set was emptied, so the machine can step back. */
   cleared?: boolean;
+  /**
+   * True when this value was applied by accepting the model's own suggestion.
+   *
+   * The slot still updates — the reader really did choose it — but the
+   * predictor must NOT learn from it, or it trains on its own output: it
+   * suggests an area, the suggestion gets tapped because it was the easiest
+   * thing on screen, and it reads that tap as independent confirmation of
+   * the pattern it invented. Two or three rounds of that and a coincidence
+   * has bootstrapped itself past MIN_SUPPORT into a confident prediction
+   * with nothing behind it.
+   */
+  fromPrediction?: boolean;
 }
 
 export interface Signal {
