@@ -458,6 +458,51 @@ export type Database = {
         }
         Relationships: []
       }
+      question_reports: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          paper_id: string
+          question_id: string
+          reporter_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          paper_id: string
+          question_id: string
+          reporter_id?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          paper_id?: string
+          question_id?: string
+          reporter_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_reports_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "bank_papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_reports_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "bank_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rate_limit_log: {
         Row: {
           attempt_count: number
@@ -1091,6 +1136,26 @@ export type Database = {
         Args: { teacher_uuid: string }
         Returns: number
       }
+      /* The only read path to bank_questions: anon SELECT on that table is
+         revoked, and this returns five rows to a signed-out caller and the
+         whole paper to a signed-in one. Hand-added, like home_facet_counts
+         above, because these types are checked in rather than regenerated. */
+      bank_paper_questions: {
+        Args: { p_paper_id: string }
+        Returns: {
+          id: string
+          paper_id: string
+          number: string | null
+          body: string
+          marks: number | null
+          chapter: string | null
+          qtype: string | null
+          page: number | null
+          figure: string | null
+          options: string[] | null
+        }[]
+      }
+      home_facet_counts: { Args: never; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_teacher: { Args: never; Returns: boolean }
       normalize_phone_to_10_digits: {

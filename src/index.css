@@ -41,7 +41,14 @@
     --accent: 35 40% 88%;
     --accent-foreground: 0 0% 12.2%;
 
-    --destructive: 0 84% 60%;
+    /* Darkened from `0 84% 60%`, which was too light for BOTH of its jobs.
+       Measured against the live tokens at 60%: white on it (button.tsx:47,
+       badge.tsx:13) was 3.78:1, and it as TEXT (TopBar's "Sign out",
+       BankPaper's send-failure line) was 3.63:1 on card, 3.49:1 on background,
+       3.17:1 on muted. Floor is 4.5:1. This is the error colour, so it is the
+       one hue a reader cannot afford to miss. Darkening the token fixes every
+       site at once rather than patching four call sites. */
+    --destructive: 0 72% 42%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 33.3 27.3% 87.1%;
@@ -136,7 +143,13 @@
        tokens above ARE the §2.2 tint row — they were already present and have
        been nudged to the handoff's exact hexes (#FFF2E5 → #FFF4E8,
        #EBECFF → #EDEEFF); every existing consumer keeps working.           */
-    --brand-deep: 30 100% 35%;        /* #B35900 */
+    /* 32%, not 35%. At #B35900 this measured 4.45:1 on its own --brand-subtle
+       tint — 0.05 short of the floor, which is exactly the kind of miss that
+       survives review because it looks fine. It is the text-on-tint ink for
+       every brandTint panel and pre-footer eyebrow, so a 3% lightness change
+       clears all of those pairs at once. --brand-blue-deep needs no equivalent
+       change; it already measures 6.79:1 on its tint. */
+    --brand-deep: 30 100% 32%;        /* #A35100 */
     --brand-blue-deep: 235.7 67.2% 51%; /* #2E3AD6 */
 
     /* ---- Colored glow shadows (VISUAL_LANGUAGE.md §2.2, §8) -------------- */
@@ -1188,4 +1201,26 @@ input[type="date"].date-input-left,
 
 @media (max-width: 1023px) {
   .marquee-track { animation: none; }
+}
+
+/* Printing a gated paper.
+
+   Ctrl+P and "Save as PDF" were a clean way around the reader's copy lock:
+   the print view rendered every question the client held, as selectable text
+   in a file. The questions are dropped from the printed page and replaced by
+   a line saying where to read them.
+
+   This protects the FIVE free questions only. The other 181 are not on the
+   client at all -- the server never sent them -- which is what actually keeps
+   them off a printout. */
+@media print {
+  /* The list itself stays displayed so its ::after can render -- hiding the
+     container would take the replacement line down with the questions. */
+  [data-paper-locked] > li { display: none !important; }
+  [data-paper-locked]::after {
+    display: block;
+    content: 'The questions in this paper are read on shikshaq.in. Please open the paper there.';
+    padding: 24px 0;
+    font-size: 13px;
+  }
 }

@@ -5,13 +5,37 @@ import { ArrowLeft, Flag, Search } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
 import { PaperDisclaimerDialog } from '@/components/papers/paper-disclaimer-dialog';
+import { PaperShareLock, paperLockClass } from '@/components/papers/paper-share-lock';
 import { MathText } from '@/components/papers/math-text';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useAuth } from '@/lib/auth-context';
 import { GateSheet } from '@/components/auth/gate-sheet';
-import { getWhatsAppLink } from '@/utils/whatsapp';
+import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
+import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
+
+/* The bank and the site name the same subject differently: bank_papers
+   says "Mathematics", every facet, route and filter on the site says
+   "Maths". Without this alias the maths papers — the entire original bank —
+   would link to ?filter_subjects=Mathematics, a filter no teacher matches. */
+const BANK_SUBJECT_ALIASES: Record<string, string> = {
+  mathematics: 'Maths',
+};
+
+/** The teachers route for a bank paper's subject, or the filtered browse
+ *  when that subject has no page of its own. Never an invented slug. */
+function subjectTeacherPath(subject: string): string {
+  const key = subject.trim().toLowerCase();
+  const siteName = BANK_SUBJECT_ALIASES[key] ?? subject.trim();
+  const hit = Object.entries(SUBJECT_PATH_TO_FILTER).find(
+    ([, name]) => name.toLowerCase() === siteName.toLowerCase(),
+  );
+  return hit
+    ? hit[0]
+    : `/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(siteName)}`;
+}
 import {
-  loadPaper, loadPaperQuestions, hasYear,
+  loadPaper, loadPaperQuestions, hasYear, paperTitle,
   type BankPaper as BankPaperMeta, type BankQuestion,
 } from '@/lib/question-bank';
 
@@ -31,6 +55,103 @@ const CONTAINER = 'mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8';
    Question text is rendered verbatim, byte-exact from the source, never
    cleaned or retyped. */
 
+/**
+ * The inline report form, opened from a question's own Flag chip.
+ *
+ * Submitting writes a row to `question_reports` rather than opening a
+ * WhatsApp draft: the report stays in the product, where it can be queued
+ * and moderated, and a reader without WhatsApp can still file one. Works
+ * signed out — reporter_id is recorded only when there is a session, which
+ * is exactly what the table's insert policy permits.
+ */
+function QuestionReport({
+  questionId,
+  paperId,
+  onDone,
+}: {
+  questionId: string;
+  paperId: string;
+  onDone: () => void;
+}) {
+  const [note, setNote] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  async function submit() {
+    if (state === 'sending') return;
+    setState('sending');
+    const { data: sessionData } = await supabase.auth.getSession();
+    const { error } = await supabase.from('question_reports').insert({
+      question_id: questionId,
+      paper_id: paperId,
+      note: note.trim() ? note.trim().slice(0, 1000) : null,
+      reporter_id: sessionData.session?.user.id ?? null,
+    });
+    if (error) {
+      logger.error('question report failed', error);
+      setState('error');
+      return;
+    }
+    setState('sent');
+    // Left on screen briefly so the confirmation is actually read.
+    setTimeout(onDone, 1400);
+  }
+
+  if (state === 'sent') {
+    return (
+      /* role="status" — the form this replaces is gone from the page, so
+         without a live region a screen-reader user gets silence and no way to
+         know the report was filed. */
+      <p
+        role="status"
+        className="mt-2 rounded-[12px] bg-mint px-3 py-2 text-[12.5px] font-semibold text-foreground"
+      >
+        Thanks. We will take a look at this one.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-2 rounded-[12px] bg-card p-2.5 shadow-border">
+      <label htmlFor={`report-note-${questionId}`} className="sr-only">
+        What is wrong with this question?
+      </label>
+      <textarea
+        id={`report-note-${questionId}`}
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+        maxLength={1000}
+        placeholder="What is wrong? (optional)"
+        className="w-full resize-none rounded-[8px] bg-muted px-2.5 py-2 text-base text-foreground placeholder:text-warm-prose focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={submit}
+          disabled={state === 'sending'}
+          className="inline-flex min-h-11 items-center rounded-full bg-brand px-4 text-[12.5px] font-bold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          {state === 'sending' ? 'Sending…' : 'Send report'}
+        </button>
+        <button
+          type="button"
+          onClick={onDone}
+          className="inline-flex min-h-11 items-center px-2 text-[12.5px] font-semibold text-warm-secondary transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Cancel
+        </button>
+        {state === 'error' && (
+          /* role="alert" — a failure that only appears visually leaves a
+             screen-reader user believing the report was sent. */
+          <span role="alert" className="text-[12px] font-semibold text-destructive">
+            That did not send. Try again?
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function BankPaper() {
   const { id } = useParams<{ id: string }>();
   const [paper, setPaper] = useState<BankPaperMeta | null>(null);
@@ -40,7 +161,6 @@ export default function BankPaper() {
   const [chapter, setChapter] = useState('');
   const [q, setQ] = useState('');
   const [reportFor, setReportFor] = useState('');
-  const [reportText, setReportText] = useState('');
   const [gateOpen, setGateOpen] = useState(false);
   const { user } = useAuth();
 
@@ -53,7 +173,11 @@ export default function BankPaper() {
     setFailed(false);
     setLoading(true);
     if (!id) { setLoading(false); return; }
-    Promise.all([loadPaper(id), loadPaperQuestions(id)])
+    /* Re-runs when the user signs in, which is the whole point: the gate now
+       withholds the rows themselves, so unlocking is a re-fetch, not a CSS
+       change. `user?.id` rather than `user` so a new object identity for the
+       same person does not re-request the paper. */
+    Promise.all([loadPaper(id), loadPaperQuestions(id, Boolean(user))])
       .then(([meta, rows]) => {
         if (cancelled) return;
         setPaper(meta);
@@ -62,9 +186,9 @@ export default function BankPaper() {
       })
       .catch(() => { if (!cancelled) { setFailed(true); setLoading(false); } });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, user?.id]);
 
-  useEffect(() => { setChapter(''); setQ(''); setReportFor(''); setReportText(''); }, [id]);
+  useEffect(() => { setChapter(''); setQ(''); setReportFor(''); }, [id]);
 
   const chapters = useMemo(() => {
     const seen: string[] = [];
@@ -94,8 +218,15 @@ export default function BankPaper() {
     let runIds: string[] = [];
     const flushRun = () => {
       if (runIds.length === 0) return;
+      /* A run of rows that all carry NO printed number is not a multi-part
+         question, it is a paper that never numbered its questions — every
+         History and Economics paper in the bank is like this. Suffixing it
+         produced "nulla", "nullb", "nullc" from the template literal below.
+         The badge never showed it (it is gated on row.n), so this surfaced
+         only once the report chip started naming the question. */
+      if (runNumber === null || runNumber === '') return;
       if (runIds.length === 1) {
-        map.set(runIds[0], runNumber ?? '');
+        map.set(runIds[0], runNumber);
       } else {
         runIds.forEach((id, idx) => map.set(id, `${runNumber}${String.fromCharCode(97 + idx)}`));
       }
@@ -112,35 +243,53 @@ export default function BankPaper() {
     return map;
   }, [questions]);
 
-  /* The sign-in gate.
+  /* How a question is NAMED to assistive tech, which is a different job from
+     the badge. The badge may legitimately show nothing when the paper printed
+     no number; a control that acts on one question still has to say which one,
+     or a 186-question paper puts 186 identically-named buttons in the
+     accessibility tree. Falls back to paper position, counted over the full
+     ordered list so it does not shift when a chapter filter is applied. */
+  const questionNames = useMemo(() => {
+    const map = new Map<string, string>();
+    questions.forEach((row, i) => {
+      map.set(row.i, displayNumbers.get(row.i) ?? `${i + 1}`);
+    });
+    return map;
+  }, [questions, displayNumbers]);
 
-     A soft gate, deliberately: the questions are all rendered and the tail is
-     blurred, so a crawler still reads the whole paper and these 193 pages keep
-     the long-tail search traffic they were built for. It converts readers; it
-     does not secure anything, and the database still serves the rows to anyone
-     who asks. Making it real would mean revoking anon SELECT, which would take
-     every paper and school page out of the index.
+  /* The sign-in gate — now a real one.
 
-     Not applied while the reader is filtering. Searching inside a paper and
-     being told the match is behind a wall is a worse experience than either
-     state on its own, and the filtered view is not the reading surface. */
-  const FREE_QUESTIONS = 5;
+     It used to be a soft gate: every question was rendered and the tail merely
+     blurred, so the rows were sitting in the DOM and in any unauthenticated API
+     response. This now reads through the bank_paper_questions RPC with anon
+     SELECT revoked, so a signed-out reader is SENT five questions and the rest
+     do not exist on the client. There is no blur to defeat and nothing to
+     un-hide with devtools.
+
+     `withheld` is therefore a difference between what the paper says it has and
+     what the server was willing to send, not a slice index into rows we hold.
+     It is only ever non-zero while signed out.
+
+     The old "not applied while filtering" exemption is gone with the rows it
+     protected: filtering cannot reveal a question the client never received. */
+  const withheld =
+    paper && !user ? Math.max(0, paper.questionCount - questions.length) : 0;
   const filtering = Boolean(chapter || needle);
-  const gatedFrom =
-    !user && !filtering && visible.length > FREE_QUESTIONS ? FREE_QUESTIONS : null;
 
   usePageMeta(
     paper
-      ? `${paper.school} Class ${paper.cls} Maths ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
+      ? `${paper.school} Class ${paper.cls} ${paper.subject} ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
       : 'Past paper | Shikshaq',
     paper
-      ? `All ${paper.questionCount} questions from the ${paper.school} Class ${paper.cls} Mathematics ${paper.exam}, with marks, chapters and figures. Free to read.`
+      ? `${paper.questionCount} questions from the ${paper.school} Class ${paper.cls} ${paper.subject} ${paper.exam}, with marks, chapters and figures. First five free, the rest with a free account.`
       : 'Read a free past year question paper on Shikshaq.',
   );
 
-  /* The gate is a reason to sign in, not a paywall, so the description still
-     says free. It stays true: every question is readable, an account is the
-     only cost, and the page still renders all of them for a crawler. */
+  /* The description no longer claims "All N questions ... Free to read". Under
+     the real gate that sentence was false twice over: a signed-out reader is
+     sent five, and this description's own audience is a crawler, which is
+     signed out. It still says free, because that remains true -- an account is
+     the only cost -- but it now says what you get before you have one. */
 
   /* Many papers print their own marks inline, "Find: [3]". Our pill would then
      say the same number twice on one card, so ours stands down; the paper's
@@ -164,37 +313,17 @@ export default function BankPaper() {
       ].filter(Boolean) as string[]
     : [];
 
-  const reportHref = useMemo(() => {
-    const row = questions.find((r) => r.i === reportFor);
-    const lines = [
-      'Hi Shikshaq, there is a problem with a question.',
-      '',
-      paper ? `Paper: ${paper.school} Class ${paper.cls} ${paper.exam}` : null,
-      row ? `Question: ${(row.n && displayNumbers.get(row.i)) ?? row.n ?? row.i}` : null,
-      row ? `Id: ${row.i}` : null,
-      '',
-      reportText.trim() || 'What is wrong:',
-    ].filter(Boolean);
-    return `${getWhatsAppLink('8240980312')}?text=${encodeURIComponent(lines.join('\n'))}`;
-  }, [questions, reportFor, reportText, paper]);
 
-  /* One question card. Extracted so the gated tail can render inside its
-     own clipped container while staying identical to a free one.
-     `blurPx` ramps rather than jumping straight to full blur — the first
-     gated question is barely softened, climbing to fully unreadable by the
-     third, so the gate reads as a fade instead of an abrupt cutoff. Free
-     questions (including the FIRST question, always index 0, always
-     ungated per FREE_QUESTIONS) pass 0. */
-  const questionCard = (row: BankQuestion, blurPx: number) => (
+  /* One question card.
+     The `blurPx` parameter is gone with the soft gate that needed it. It
+     ramped a CSS blur across the gated tail; under the real gate those rows
+     are never sent, so every card this renders is one the reader is entitled
+     to and there is nothing left to soften. */
+  const questionCard = (row: BankQuestion) => (
     <li
       key={row.i}
       id={`q-${row.i}`}
-      /* Blurred, but NOT aria-hidden. The whole point of a soft
-         gate is that the text stays in the document for crawlers;
-         hiding it from screen readers only would give assistive
-         tech a worse deal than Googlebot. */
-      className={`min-w-0 rounded-[18px] bg-muted p-[16px] ${blurPx > 0 ? 'select-none' : ''}`}
-      style={blurPx > 0 ? { filter: `blur(${blurPx}px)` } : undefined}
+      className="min-w-0 rounded-[18px] bg-muted p-[16px]"
     >
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         {row.n && (
@@ -217,9 +346,92 @@ export default function BankPaper() {
             {row.c}
           </span>
         )}
+
+        {/* Report, as one more chip on this line rather than a full-width
+            "Something wrong here?" button under every question. Icon only
+            until it is needed; the label and the field appear on tap.
+
+            The name carries the question's own number. A 186-question paper
+            put 186 buttons in the accessibility tree reading the identical
+            string, so a screen reader's element list was 186 indistinguishable
+            rows and there was no way to tell which one you were on. `title`
+            tracks aria-label rather than staying fixed, which had given the
+            expanded chip two different names at once. */}
+        {(() => {
+          const qLabel = questionNames.get(row.i) ?? '';
+          const name = reportFor === row.i
+            ? `Close report for question ${qLabel}`.trim()
+            : `Report a problem with question ${qLabel}`.trim();
+          return (
+          <button
+            type="button"
+            id={`report-chip-${row.i}`}
+            onClick={() => setReportFor((cur) => (cur === row.i ? '' : row.i))}
+            aria-expanded={reportFor === row.i}
+            aria-label={name}
+            title={name}
+            /* min-h-11/min-w-11 keeps the real tap target at the 44px
+               floor while the painted chip stays chip-sized, the same
+               trick ui/chip.tsx uses. */
+            className={`relative ml-auto inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full px-2 text-[11.5px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+              reportFor === row.i
+                ? 'bg-brand-subtle text-brand-deep'
+                : 'text-warm-label hover:bg-card hover:text-foreground'
+            }`}
+          >
+            <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+            {reportFor === row.i && <span>Report</span>}
+          </button>
+          );
+        })()}
       </div>
 
       <MathText text={row.t} className="text-[15px] leading-[1.6] text-foreground" />
+
+      {/* An MCQ without its choices is unanswerable, and 4,176 of them
+          arrived with the History & Civics and Economics banks. The column
+          has always been read into BankQuestion.o — nothing ever rendered
+          it, which went unnoticed while the bank was maths-only.
+
+          Deliberately NOT re-lettered. 81% of these options already carry
+          their own label from the paper ("a. Dominion status", "(c) 1947"),
+          so adding a/b/c/d here would print "a. a. Dominion status"; the
+          remaining 19% have no label in the source, and inventing one would
+          be writing paper data the paper does not have. The marker below is
+          a dot — presentation, not a claim about how the paper numbered
+          its choices. Text renders verbatim through MathText, same as the
+          question stem. */}
+      {row.o && row.o.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {row.o.map((opt, i) => (
+            <li key={`${row.i}-opt-${i}`} className="flex gap-2">
+              <span aria-hidden="true" className="mt-[9px] h-1 w-1 flex-none rounded-full bg-warm-label" />
+              <MathText text={opt} className="text-[14px] leading-[1.55] text-warm-prose" />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* After the stem and its options, not before them. It used to render
+          directly under the meta line, so the DOM order was: chips, report
+          form, "Send report", then the question you were being asked to
+          describe a problem with. */}
+      {reportFor === row.i && (
+        <QuestionReport
+          questionId={row.i}
+          paperId={paper?.id ?? ''}
+          onDone={() => {
+            setReportFor('');
+            /* Focus goes back to the chip that opened this. Without it the
+               whole form unmounts under the focused button and focus falls to
+               <body>, dropping a keyboard reader at the top of a 186-question
+               document. */
+            window.requestAnimationFrame(() => {
+              document.getElementById(`report-chip-${row.i}`)?.focus();
+            });
+          }}
+        />
+      )}
 
       {row.f && (
         <figure className="mt-2.5">
@@ -233,22 +445,6 @@ export default function BankPaper() {
         </figure>
       )}
 
-      {/* Not offered on a blurred question: you cannot report what
-          you cannot read, and leaving it would put a row of
-          invisible buttons in the tab order. */}
-      {!(blurPx > 0) && (
-        <button
-          type="button"
-          onClick={() => {
-            setReportFor(row.i);
-            document.getElementById('report-a-question')?.scrollIntoView({ block: 'center' });
-          }}
-          className="mt-2.5 inline-flex min-h-11 items-center gap-1.5 text-[12px] font-semibold text-warm-label transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Flag className="h-3.5 w-3.5" aria-hidden="true" />
-          Something wrong here?
-        </button>
-      )}
     </li>
   );
 
@@ -267,9 +463,14 @@ export default function BankPaper() {
 
   return (
     <div className="flex min-h-screen flex-col bg-panel">
-      {/* Everything you steer with, in one sticky block. Separately stuck they
-          would need a hard-coded offset each and drift apart the moment the
-          title wrapped. */}
+      {/* ONLY the title bar is sticky.
+          All three controls used to be stuck together, which measured 166px at
+          every width tested — 20% of a phone viewport, and 37% at 200% zoom,
+          leaving 284px for the paper. DESIGN_SYSTEM.md §11: "Sticky headers
+          must be short. Max h-14 on mobile; the content is the point."
+          Identity and the way back stay put at ~68px; the search field and the
+          chapter rail scroll away, which is fine because both are things you
+          reach for deliberately rather than mid-read. */}
       <div className="sticky top-0 z-40 bg-panel shadow-[inset_0_-1px_0_rgba(255,255,255,.10)]">
         <div className={`${CONTAINER} flex items-center gap-3 py-[12px]`}>
           <Link
@@ -282,19 +483,30 @@ export default function BankPaper() {
             </span>
           </Link>
 
+          {/* Both lines truncate, and at 320px the facts line loses most of
+              itself ("17 chapters · Board Examination · 2018" cut to about a
+              third). `title` gives the full value a way back. Most of it also
+              reappears in the exam-header block below, which is why this is a
+              tooltip rather than a layout change. */}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[14px] font-bold text-white">
-              {paper ? `${paper.school} · Class ${paper.cls} Mathematics` : 'Past paper'}
+            <h1
+              className="truncate text-[14px] font-bold text-white"
+              title={paper ? `${paper.school} · Class ${paper.cls} ${paper.subject}` : undefined}
+            >
+              {paper ? `${paper.school} · Class ${paper.cls} ${paper.subject}` : 'Past paper'}
             </h1>
             {facts.length > 0 && (
-              <p className="truncate text-[11.5px] tabular-nums text-white/60">
+              <p className="truncate text-[11.5px] tabular-nums text-white/60" title={facts.join(' · ')}>
                 {facts.join(' · ')}
               </p>
             )}
           </div>
         </div>
+      </div>
 
-        {(chapters.length > 1 || questions.length > 0) && (
+      {/* Outside the sticky block, so these scroll away with the page. */}
+      {(chapters.length > 1 || questions.length > 0) && (
+        <div className="bg-panel">
           <div className={`${CONTAINER} pb-3`}>
             <div className="relative">
               <Search
@@ -306,7 +518,7 @@ export default function BankPaper() {
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search in this paper"
                 aria-label="Search in this paper"
-                className="h-10 w-full rounded-full bg-white/10 pl-10 pr-4 text-[14.5px] text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+                className="h-10 w-full rounded-full bg-white/10 pl-10 pr-4 text-base text-white placeholder:text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
               />
             </div>
             {chapters.length > 1 && (
@@ -336,13 +548,14 @@ export default function BankPaper() {
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <main id="main-content" className={`flex-1 ${CONTAINER} pb-14 pt-4`}>
         {paper && (
           <>
             <PaperDisclaimerDialog />
+            <PaperShareLock paperTitle={paperTitle(paper)} />
             <DisclaimerStrip tone="dark" school={paper.school} reportHref="/contact" />
           </>
         )}
@@ -374,7 +587,7 @@ export default function BankPaper() {
                 {/* Middle dot, not an em dash -- CLAUDE.md bans em/en dashes in
                    site copy; · is this codebase's own standing separator
                    convention (used throughout the badge line right below). */}
-                Class {paper.cls} Mathematics {paper.exam ? `· ${paper.exam}` : ''}
+                Class {paper.cls} {paper.subject} {paper.exam ? `· ${paper.exam}` : ''}
               </h2>
               {hasYear(paper.year) && (
                 <p className="mt-0.5 text-[13px] tabular-nums text-muted-foreground">{paper.year}</p>
@@ -390,132 +603,74 @@ export default function BankPaper() {
           )}
 
           {paper && visible.length > 0 && (
-            <ol className="grid grid-cols-1 gap-3">
-              {(gatedFrom === null ? visible : visible.slice(0, gatedFrom)).map((row) =>
-                questionCard(row, 0),
-              )}
+            /* data-paper-locked drives the print rule in index.css: Ctrl+P and
+               "Save as PDF" render the page without the questions, so printing
+               is not a way around the gate. Selection is off here and nowhere
+               else on the page -- see paperLockClass. */
+            <ol data-paper-locked className={`grid grid-cols-1 gap-3 ${paperLockClass}`}>
+              {visible.map((row) => questionCard(row))}
             </ol>
           )}
 
-          {/* The gated tail.
+          {/* The lock.
 
-              Every remaining question is rendered, so a crawler still reads the
-              whole paper and these 193 pages keep their long-tail traffic. It is
-              clipped to a glimpse rather than laid out in full: at full height
-              this was 7,878px of blurred cards to scroll past before reaching
-              the reason to sign in, which is a wall, not a teaser. */}
-          {gatedFrom !== null && (
-            <div className="relative mt-3">
-              <div className="max-h-[180px] overflow-hidden">
-                <ol className="grid grid-cols-1 gap-3">
-                  {/* Ramp: 2px / 4px / 6px / 8px, then holds at 8px — a
-                      gradual fade into the gate over the first four gated
-                      questions rather than one flat blur amount. */}
-                  {visible.slice(gatedFrom).map((row, i) => questionCard(row, Math.min(2 + i * 2, 8)))}
-                </ol>
-              </div>
+              There is no blurred tail any more because there is no tail: the
+              server sent five questions and kept the rest. So this states the
+              count from the paper's own question_count rather than pretending
+              to show rows it does not have -- honest about what is behind it,
+              and impossible to defeat by deleting a CSS filter.
 
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[140px] bg-gradient-to-b from-transparent to-card" />
-
-              <div className="relative -mt-[52px] rounded-[18px] bg-card px-4 pb-1 pt-2 text-center">
-                <p className="text-[17px] font-extrabold tracking-[-0.03em] text-foreground">
-                  {visible.length - gatedFrom} more{' '}
-                  {visible.length - gatedFrom === 1 ? 'question' : 'questions'} in this paper
-                </p>
-                <p className="mx-auto mt-1 max-w-[34ch] text-[13.5px] leading-[1.5] text-warm-prose">
-                  Reading the rest is free. It just needs an account, so we can
-                  keep your place across papers.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setGateOpen(true)}
-                  className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full bg-brand-blue px-5 text-[14px] font-bold text-white transition-transform duration-tap hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-                >
-                  Sign in to read all {paper?.questionCount ?? questions.length}
-                </button>
-              </div>
+              Hidden while filtering: "182 more questions" under a chapter
+              search reads as a claim about the search, not about the paper. */}
+          {withheld > 0 && !filtering && (
+            <div className="mt-3 rounded-[18px] bg-brand-blue-subtle px-4 py-5 text-center">
+              <p className="text-[17px] font-extrabold tracking-[-0.03em] text-foreground">
+                {withheld} more {withheld === 1 ? 'question' : 'questions'} in this paper
+              </p>
+              <p className="mx-auto mt-1 max-w-[34ch] text-[13.5px] leading-[1.5] text-warm-prose">
+                Reading the rest is free. It just needs an account, so we can
+                keep your place across papers.
+              </p>
+              <button
+                type="button"
+                onClick={() => setGateOpen(true)}
+                className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full bg-brand-blue px-5 text-[14px] font-bold text-white transition-transform duration-tap hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+              >
+                Sign in to read all {paper?.questionCount ?? questions.length}
+              </button>
             </div>
           )}
 
 
           {paper && visible.length === 0 && !loading && (
-            <p className="text-[15px] text-warm-prose">Nothing in this paper matches that.</p>
+            /* A signed-out reader is searching five questions, not the paper,
+               so "nothing matches" would be a false negative on a paper that
+               does contain the word. Say which haystack was actually searched. */
+            <p className="text-[15px] text-warm-prose">
+              {withheld > 0
+                ? `No match in the ${questions.length} free questions. The other ${withheld} are behind a free account.`
+                : 'Nothing in this paper matches that.'}
+            </p>
           )}
         </div>
 
         {paper && (
           <div className="mt-4 rounded-[24px] bg-brand p-[18px]">
-            <p className="text-[17px] font-extrabold tracking-[-0.03em] text-[#1F1F1F]">
+            <p className="text-[17px] font-extrabold tracking-[-0.03em] text-foreground">
               Stuck on one of these?
             </p>
+            {/* Was hardcoded to Maths in both the label and the href, which
+                sent a reader of a History & Civics paper to maths teachers.
+                The route is resolved from SUBJECT_PATH_TO_FILTER (the same
+                table the subject pages themselves are built from) so the
+                link can only ever point at a route that exists; anything
+                without its own page falls back to the filtered browse. */}
             <Link
-              to="/maths-tuition-teachers-in-kolkata"
-              className="mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[14px] font-bold text-[#FCFAF7] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              to={subjectTeacherPath(paper.subject)}
+              className="mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[14px] font-bold text-card transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              Find a Maths teacher
+              Find a {paper.subject} teacher
             </Link>
-          </div>
-        )}
-
-        {/* OCR gets things wrong, and the bank says so itself: 57 records are
-            several questions in one, some marks were never recovered, and the
-            chapter tags are unmeasured. The reader is the one who will notice,
-            so give them somewhere to say it, with the question already
-            selected when they arrive from a card. */}
-        {paper && questions.length > 0 && (
-          <div id="report-a-question" className="mt-4 rounded-[20px] bg-white/[0.06] p-[18px]">
-            <p className="text-[15px] font-extrabold text-white">Something wrong with a question?</p>
-            <p className="mt-1 text-[13.5px] leading-[1.55] text-white/70">
-              These come from scanned papers, so a stray character or a wrong chapter tag happens.
-              Tell us which one and what looks off.
-            </p>
-
-            <div className="mt-3 grid gap-2.5 sm:grid-cols-[minmax(0,220px)_1fr]">
-              <label className="block">
-                <span className="mb-1 block text-[11.5px] font-bold uppercase tracking-[0.04em] text-white/50">
-                  Question
-                </span>
-                <select
-                  value={reportFor}
-                  onChange={(e) => setReportFor(e.target.value)}
-                  className="h-11 w-full appearance-none rounded-[14px] bg-white/10 px-3.5 text-[14px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
-                >
-                  <option value="">Choose one</option>
-                  {questions.map((row) => (
-                    <option key={row.i} value={row.i}>
-                      {row.n ? `Question ${displayNumbers.get(row.i) ?? row.n}` : row.i}
-                      {row.c ? ` · ${row.c}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="mb-1 block text-[11.5px] font-bold uppercase tracking-[0.04em] text-white/50">
-                  What is wrong
-                </span>
-                <input
-                  value={reportText}
-                  onChange={(e) => setReportText(e.target.value)}
-                  placeholder="e.g. the figure belongs to another question"
-                  className="h-11 w-full rounded-[14px] bg-white/10 px-3.5 text-[14px] text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
-                />
-              </label>
-            </div>
-
-            {reportFor ? (
-              <a
-                href={reportHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-[13.5px] font-bold text-panel transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
-              >
-                <Flag className="h-4 w-4" aria-hidden="true" />
-                Send the report
-              </a>
-            ) : (
-              <p className="mt-3 text-[12.5px] text-white/50">Pick a question to send a report.</p>
-            )}
           </div>
         )}
       </main>
@@ -528,8 +683,8 @@ export default function BankPaper() {
         onOpenChange={setGateOpen}
         flavor="papers"
         redirectTo={`/past-papers/${id ?? ''}`}
-        paperTitle={paper ? `${paper.school} Class ${paper.cls} Mathematics` : null}
-        paperSubject="Mathematics"
+        paperTitle={paper ? `${paper.school} Class ${paper.cls} ${paper.subject}` : null}
+        paperSubject={paper?.subject ?? "Mathematics"}
       />
 
       <Footer />

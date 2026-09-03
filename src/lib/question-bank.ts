@@ -50,7 +50,10 @@ export interface BankPaper {
   year: string;
   exam: string;
   cls: string;
-  subject: 'Mathematics';
+  /* Was the literal 'Mathematics' — true only while the bank held nothing
+     else. bank_papers.subject is a plain text column, and the bank now also
+     carries History & Civics and Economics. */
+  subject: string;
   board: string;
   questionCount: number;
   marks: number;
@@ -93,10 +96,16 @@ const toPaper = (r: PaperRow): BankPaper => ({
   year: r.year ?? '',
   exam: r.exam ?? '',
   cls: r.cls,
-  subject: 'Mathematics',
+  /* Reads the column instead of asserting Mathematics. bank_papers.subject
+     has always existed; the bank simply only held maths until the History &
+     Civics and Economics banks landed. */
+  subject: r.subject ?? 'Mathematics',
   board: r.board,
   questionCount: r.question_count,
-  marks: r.marks,
+  /* Number(): marks is a numeric column now (half marks are real), and
+     PostgREST serialises numeric as a STRING to preserve precision. Without
+     this the declared `marks: number` would quietly be "82.5". */
+  marks: Number(r.marks) || 0,
 });
 
 let indexCache: Promise<BankPaper[]> | null = null;
@@ -132,30 +141,43 @@ export function loadPaperIndex(): Promise<BankPaper[]> {
 
 /* A reader opens one paper, so it fetches one paper's questions. Memoised per
    paper id: going back and forward between two papers should not re-fetch
-   either of them. */
+   either of them.
+
+   Keyed by paper id AND by whether the caller is signed in, because those two
+   states now return different rows. Signing in from the gate has to be able to
+   re-ask for the same paper and get all of it, rather than being handed the
+   five questions cached a moment earlier while signed out. */
 const questionCache = new Map<string, Promise<BankQuestion[]>>();
 
-/** One paper's questions, in printed order. */
-export function loadPaperQuestions(paperId: string): Promise<BankQuestion[]> {
-  const hit = questionCache.get(paperId);
+/**
+ * One paper's questions, in printed order.
+ *
+ * Reads through the `bank_paper_questions` RPC, not the table: anon SELECT on
+ * bank_questions is revoked, and the function returns five rows to a signed-out
+ * caller and the whole paper to a signed-in one. A signed-out reader therefore
+ * receives five questions and no trace of the rest -- there is nothing in the
+ * payload to un-blur, which is the point.
+ *
+ * @param signedIn only ever affects the CACHE KEY. The gate itself is decided
+ *   server-side from auth.uid(); passing true here cannot unlock anything.
+ */
+export function loadPaperQuestions(paperId: string, signedIn = false): Promise<BankQuestion[]> {
+  const key = `${paperId}:${signedIn ? 'full' : 'free'}`;
+  const hit = questionCache.get(key);
   if (hit) return hit;
 
   const req = Promise.resolve(
-    supabase
-      .from('bank_questions')
-      .select('id, paper_id, number, body, marks, chapter, qtype, page, figure, options')
-      .eq('paper_id', paperId)
-      .order('ord', { ascending: true }),
+    supabase.rpc('bank_paper_questions', { p_paper_id: paperId }),
   )
     .then(({ data, error }) => {
       if (error) throw new Error(`bank questions: ${error.message}`);
-      return (data ?? []).map(
+      return ((data ?? []) as any[]).map(
         (r): BankQuestion => ({
           i: r.id,
           p: r.paper_id,
           n: r.number,
           t: r.body,
-          m: r.marks,
+          m: r.marks === null || r.marks === undefined ? null : Number(r.marks),
           c: r.chapter,
           ty: r.qtype,
           pg: r.page ?? undefined,
@@ -165,11 +187,11 @@ export function loadPaperQuestions(paperId: string): Promise<BankQuestion[]> {
       );
     })
     .catch((err: unknown) => {
-      questionCache.delete(paperId);
+      questionCache.delete(key);
       throw err;
     });
 
-  questionCache.set(paperId, req);
+  questionCache.set(key, req);
   return req;
 }
 
@@ -190,7 +212,7 @@ export function loadPaper(paperId: string): Promise<BankPaper | null> {
 
 /** The title a paper is listed under across the papers surface. */
 export function paperTitle(p: BankPaper): string {
-  return [p.school, `Class ${p.cls} Mathematics`, hasYear(p.year) ? p.year : null]
+  return [p.school, `Class ${p.cls} ${p.subject}`, hasYear(p.year) ? p.year : null]
     .filter(Boolean)
     .join(' · ');
 }
