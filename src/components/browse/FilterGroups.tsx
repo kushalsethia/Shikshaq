@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   BookOpen, GraduationCap, MapPin, IndianRupee, Wifi, Landmark, Users, Clock, X,
+  School as SchoolIcon, FileText,
   type LucideIcon,
 } from 'lucide-react';
+import { useSearchIndex } from '@/hooks/useSearchIndex';
 import { Chip } from '@/components/ui/chip';
 import { Input } from '@/components/ui/input';
 import {
@@ -37,6 +39,29 @@ import { BentoPanel } from '@/components/layout/PageContainer';
 
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 const BOARDS = ['ICSE', 'ISC', 'CBSE', 'IGCSE', 'IB', 'State'];
+/* The real, queried values — `select distinct exam_type from papers union
+   select distinct exam from bank_papers` against the live project. The
+   filter spans both tables (Browse queries papers.exam_type and matches
+   bank rows on their `exam`), so it needs the union of the two.
+
+   This list was previously inferred from labels read off the rendered UI,
+   and three of its four entries ('Board paper', 'Pre-board', 'Prelim')
+   matched no row at all — the real values are 'Board Examination',
+   'Pre-board Examination' and 'Prelims'. Guessed facet values are worse
+   than no facet: every one is a dead end that looks like a real choice.
+
+   'chapterwise' is genuinely in the data but is a categorisation rather
+   than a sitting, so it is deliberately not offered as a Category. */
+const EXAM_TYPES = [
+  'Board Examination',
+  'Pre-board Examination',
+  'Prelims',
+  'Half Yearly Examination',
+  'Half-Yearly',
+  'Annual Examination',
+  'Sample Paper',
+  'Unit Test',
+];
 const CLASS_SIZE = ['Group', 'Solo'];
 const SUBJECTS = SUBJECT_DISPLAY_ORDER;
 const EXPERIENCE_OPTIONS = [
@@ -99,9 +124,17 @@ export interface FilterGroupsProps {
   onFilterChange: (filters: FilterState) => void;
   /** Real result count for the current filter set — never invented (design.md §0.10). */
   resultCount: number;
+  /** Browse's same-page Teachers/Past-papers toggle (viewMode). A teacher
+   *  has no school or exam-type facet, and a paper has no area/fee/mode/
+   *  class-size/experience — each mode gets the groups that apply to it
+   *  rather than always showing the teacher set regardless of which
+   *  results are actually on screen. Defaults to 'teachers' so every
+   *  existing caller (which never filters papers) keeps its current
+   *  groups untouched. */
+  mode?: 'teachers' | 'papers';
 }
 
-type ArrayFilterKey = 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas';
+type ArrayFilterKey = 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas' | 'schools' | 'examTypes';
 
 /* core-02-filters.png heads each group with a small square icon tile and a
    sentence-case heading ("Subjects taught"), not the all-caps micro-label this
@@ -125,10 +158,17 @@ function groupItem(
   children: React.ReactNode,
 ) {
   return (
+    /* Concentric radius fix: on the desktop rail this card sits inside
+       FilterRail's BentoPanel (rounded-bento = 30px, default 20px
+       padding) — 30 - 20 = 10px, exactly rounded-md, not another copy of
+       the outer 30px. The mobile sheet's body has no rounded outer
+       surface around it (full-screen sheet, flat background), but 30px
+       read as oversized/blobby on a compact accordion row there too, so
+       the same smaller radius serves both contexts. */
     <AccordionItem
       key={value}
       value={value}
-      className="overflow-hidden rounded-bento border-b-0 bg-card"
+      className="overflow-hidden rounded-md border-b-0 bg-card"
     >
       <AccordionTrigger className="px-[18px] py-[14px] hover:no-underline">
         <div className="flex min-w-0 flex-1 items-center gap-[10px]">
@@ -155,7 +195,8 @@ export function FilterGroupsBody({
   filters,
   onFilterChange,
   selectedTone = 'facet-on',
-}: Pick<FilterGroupsProps, 'filters' | 'onFilterChange'> & {
+  mode = 'teachers',
+}: Pick<FilterGroupsProps, 'filters' | 'onFilterChange' | 'mode'> & {
   /**
    * Selected-pill tone. Mobile sheet (S2 mockup) selects in orange
    * (`facet-on`, the default); the desktop rail (D2 mockup) selects in
@@ -164,10 +205,24 @@ export function FilterGroupsBody({
    */
   selectedTone?: 'facet-on' | 'dark';
 }) {
+  const isPapers = mode === 'papers';
+
+  // Real school list, same source PastPapers'/the search overlay's own
+  // facet dropdown reads — not a second, possibly-stale copy of it.
+  const { ensureLoaded, schools: realSchools } = useSearchIndex();
+  useEffect(() => {
+    if (isPapers) ensureLoaded();
+  }, [isPapers, ensureLoaded]);
+
   const [subjectQuery, setSubjectQuery] = useState('');
   const filteredSubjects = subjectQuery.trim()
     ? SUBJECTS.filter((s) => s.toLowerCase().includes(subjectQuery.trim().toLowerCase()))
     : SUBJECTS;
+
+  const [schoolQuery, setSchoolQuery] = useState('');
+  const filteredSchools = schoolQuery.trim()
+    ? realSchools.filter((s) => s.toLowerCase().includes(schoolQuery.trim().toLowerCase()))
+    : realSchools;
 
   const [areaQuery, setAreaQuery] = useState('');
   const filteredAreaGroups = areaQuery.trim()
@@ -275,7 +330,9 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {groupItem(
+      {/* Areas/Fee/Mode are teacher-only facets — a paper has no travel
+          radius, no fee and no "online vs at home". */}
+      {!isPapers && groupItem(
         'areas',
         'Areas',
         MapPin,
@@ -304,7 +361,7 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {groupItem(
+      {!isPapers && groupItem(
         'fee',
         'Monthly fee',
         IndianRupee,
@@ -356,7 +413,7 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {groupItem(
+      {!isPapers && groupItem(
         'mode',
         'Mode of teaching',
         Wifi,
@@ -370,7 +427,9 @@ export function FilterGroupsBody({
 
       {/* Kept for functionality — not one of design.md's five groups, but the
           only way to set board/class-size/experience filters, and Board feeds
-          the `filter_boards` URL contract the SEO routes depend on. */}
+          the `filter_boards` URL contract the SEO routes depend on. Board
+          applies to both teachers and papers, so it's the one group that
+          never gets hidden by mode. */}
       {groupItem(
         'boards',
         'Boards',
@@ -381,7 +440,45 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {groupItem(
+      {/* School + Category (exam_type) — papers-only, the two facets a
+          teacher card has nothing equivalent to. */}
+      {isPapers && groupItem(
+        'schools',
+        'School',
+        SchoolIcon,
+        filters.schools.length,
+        <div className="flex flex-col gap-3">
+          <Input
+            type="search"
+            value={schoolQuery}
+            onChange={(e) => setSchoolQuery(e.target.value)}
+            placeholder="Search schools…"
+            aria-label="Search schools"
+            className="h-10 text-sm"
+          />
+          {filteredSchools.length === 0 ? (
+            <p className="text-body-secondary text-warm-meta">
+              {realSchools.length === 0 ? 'Loading schools…' : `No schools match "${schoolQuery}".`}
+            </p>
+          ) : (
+            <div className="scrollbar-slim flex max-h-[220px] flex-wrap gap-[8px] overflow-y-auto">
+              {filteredSchools.map((s) => pill(s, filters.schools.includes(s), () => toggle('schools', s), s))}
+            </div>
+          )}
+        </div>,
+      )}
+
+      {isPapers && groupItem(
+        'examTypes',
+        'Category',
+        FileText,
+        filters.examTypes.length,
+        <div className="flex flex-wrap gap-[8px]">
+          {EXAM_TYPES.map((e) => pill(e, filters.examTypes.includes(e), () => toggle('examTypes', e), e))}
+        </div>,
+      )}
+
+      {!isPapers && groupItem(
         'classSize',
         'Class size',
         Users,
@@ -393,7 +490,7 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {groupItem(
+      {!isPapers && groupItem(
         'experience',
         'Experience',
         Clock,
@@ -455,6 +552,8 @@ export function activeFilterCount(filters: FilterState): number {
     filters.areas.length +
     filters.modeOfTeaching.length +
     filters.placeOfTeaching.length +
+    filters.schools.length +
+    filters.examTypes.length +
     (filters.minFees != null ? 1 : 0) +
     (filters.maxFees != null ? 1 : 0) +
     (filters.minExperience != null ? 1 : 0)
@@ -472,6 +571,8 @@ const EMPTY_FILTERS: FilterState = {
   minFees: null,
   maxFees: null,
   minExperience: null,
+  schools: [],
+  examTypes: [],
 };
 
 /** Mobile presentation — genuinely full-screen popup (owner mobile QA F7:
@@ -491,6 +592,7 @@ export function FilterSheet({
   onFilterChange,
   resultCount,
   onClear,
+  mode = 'teachers',
 }: FilterGroupsProps & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -548,7 +650,7 @@ export function FilterSheet({
         {/* Scrollable body — must stay flex:1/min-height:0 or long option sets
             clip (design.md §2.3). */}
         <div className="min-h-0 flex-1 overflow-y-auto bg-background px-[16px] pb-[16px] pt-[4px]">
-          <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} />
+          <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} mode={mode} />
         </div>
 
         {/* Handoff O-002: footer — bg-card rounded-t-bento, pinned. */}
@@ -580,7 +682,7 @@ export function FilterSheet({
             className="rounded-full px-[22px] text-[15px] font-bold"
             onClick={() => onOpenChange(false)}
           >
-            Show {resultCount} teachers
+            Show {resultCount} {mode === 'papers' ? 'papers' : 'teachers'}
           </Button>
         </div>
       </SheetContent>
@@ -592,7 +694,7 @@ export function FilterSheet({
  * unwrapped (design.md §5 / components.md C6). No Clear-all/footer chrome;
  * the sticky filter bar above the results carries the applied chips and the
  * global "Clear all" already. */
-export function FilterRail({ filters, onFilterChange, resultCount }: FilterGroupsProps) {
+export function FilterRail({ filters, onFilterChange, mode = 'teachers' }: FilterGroupsProps) {
   return (
     <nav aria-label="Filters" className="hidden lg:block lg:w-[284px] lg:flex-none">
       {/* Handoff B-014: the rail is a BentoPanel now — sticky top-24, no
@@ -603,7 +705,7 @@ export function FilterRail({ filters, onFilterChange, resultCount }: FilterGroup
             h1 -> h3 skip on desktop. This supplies the level without adding a
             heading the mockup does not show. */}
         <h2 className="sr-only">Filters</h2>
-        <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} selectedTone="dark" />
+        <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} selectedTone="dark" mode={mode} />
       </BentoPanel>
     </nav>
   );

@@ -47,6 +47,11 @@ export interface FilterState {
   minFees: number | null;
   maxFees: number | null;
   minExperience: string | null;
+  /** Papers-mode only (Browse's same-page teachers/papers toggle) — a
+   *  teacher has no school or exam-type facet, but Subject/Class/Board are
+   *  shared between both. */
+  schools: string[];
+  examTypes: string[];
 }
 
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];

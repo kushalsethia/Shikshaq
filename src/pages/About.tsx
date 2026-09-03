@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, GraduationCap } from 'lucide-react';
+import { ArrowRight, GraduationCap, Search, ShieldCheck } from 'lucide-react';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { useRevealOnScroll } from '@/hooks/useRevealOnScroll';
 import { AnnotatedStatement, AnnotatedHighlight } from '@/components/marketing/annotated-statement';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { IconDisc } from '@/components/ui/icon-disc';
@@ -13,6 +14,26 @@ import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { Logo } from '@/components/Logo';
+
+/* Fades a panel up into place the moment it actually enters the viewport
+   (see useRevealOnScroll for why that has to be scroll-triggered rather
+   than a mount-time keyframe on a page this long). Plain opacity/transform
+   transition, not a keyframe — interruptible, and motion-reduce drops
+   straight to the resting state with no animation at all. */
+function Reveal({ children, delayMs = 0 }: { children: ReactNode; delayMs?: number }) {
+  const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
+  return (
+    <div
+      ref={ref}
+      className={`transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none motion-reduce:!opacity-100 motion-reduce:!translate-y-0 ${
+        revealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+      }`}
+      style={{ transitionDelay: revealed ? `${delayMs}ms` : '0ms' }}
+    >
+      {children}
+    </div>
+  );
+}
 
 // S21 — one typographic statement on a faint grid ground ("a straight line
 // between a parent and a teacher"), three tilted annotation pills, an origin
@@ -72,16 +93,21 @@ export default function About() {
      say we are trustworthy — rendered "0 past papers, free to read" and
      "0 Kolkata schools represented" as if they were achievements. design.md
      §3.2: never advertise emptiness. A zero drops its tile. */
+  /* Each stat keeps its own fixed colour regardless of which subset of the
+     four actually renders (papers/schools drop out on a failed query, per
+     the "never advertise emptiness" rule below) — a real colour per tile
+     instead of three flat greys and one orange accent, so the row reads
+     as a set of highlights rather than a plain data table. */
   const statTiles = [
     (stats.teachers ?? 0) > 0
-      ? { value: stats.teachers!.toLocaleString('en-IN'), label: 'verified teachers listed', ink: 'text-foreground', tint: 'bg-muted' }
+      ? { value: stats.teachers!.toLocaleString('en-IN'), label: 'verified teachers listed', ink: 'text-brand-deep', tint: 'bg-brand-subtle' }
       : null,
     (stats.papers ?? 0) > 0
-      ? { value: stats.papers!.toLocaleString('en-IN'), label: 'past papers, free to read', ink: 'text-foreground', tint: 'bg-muted' }
+      ? { value: stats.papers!.toLocaleString('en-IN'), label: 'past papers, free to read', ink: 'text-brand-blue-deep', tint: 'bg-brand-blue-subtle' }
       : null,
     // A fact, not a query — always true, so it always shows (same reasoning
     // PreFooter's B2 uses for its commission line).
-    { value: '₹0', label: 'commission taken from a fee', ink: 'text-brand-deep', tint: 'bg-brand-subtle' },
+    { value: '₹0', label: 'commission taken from a fee', ink: 'text-foreground', tint: 'bg-mint' },
     (stats.schools ?? 0) > 0
       ? { value: stats.schools!.toLocaleString('en-IN'), label: 'Kolkata schools represented', ink: 'text-foreground', tint: 'bg-muted' }
       : null,
@@ -90,7 +116,11 @@ export default function About() {
   const statement = (
     <>
       a straight{' '}
-      <AnnotatedHighlight tone="pill-brand">line</AnnotatedHighlight>
+      {/* block-dark, not the original pill-brand: that highlight is a
+          light brand-subtle tint meant to pop against a white panel — sat
+          on the new solid-orange hero it would have all but disappeared,
+          orange-on-orange. A dark block reads clearly against it instead. */}
+      <AnnotatedHighlight tone="block-dark">line</AnnotatedHighlight>
       <br className="lg:hidden" />
       <span className="hidden lg:inline"> </span>between{' '}
       <br className="lg:hidden" />
@@ -103,270 +133,350 @@ export default function About() {
     <div className="min-h-screen bg-background">
       <main>
         <BentoStack>
-          {/* Handoff AB-002: the annotated statement, now inside a bone header panel.
-              "Start with a sexy graphic with the logo" — a dark panel ahead of it,
-              same decorative-blob language the papers/brand panels already use
-              elsewhere on the site, with the wordmark large and on its own. */}
-          <BentoPanel fill="dark" edge="top" className="relative overflow-hidden px-[22px] py-[34px] text-center lg:py-[48px]">
-            <span aria-hidden className="pointer-events-none absolute -left-12 -top-12 h-[200px] w-[200px] rounded-full bg-brand/25" />
-            <span aria-hidden className="pointer-events-none absolute -bottom-16 -right-10 h-[220px] w-[220px] rounded-full bg-brand-blue/25" />
+          {/* Owner redesign, working from a reference screenshot of a
+              creative-agency site: oversized display type on a bold
+              colour-block hero, not a quiet statement on white — the old
+              two-panel version (a brief dark logo intro, then the same
+              statement at a fairly modest 38-44px on a flat card) read
+              as reserved next to that reference. Kept the logo intro (it
+              still earns its own brief dark moment) but folded the
+              statement into one loud, solid-orange panel, pushed the
+              type scale up near what Index.tsx's own hero numbers use
+              (up to ~74px there), and added a floating stat chip — the
+              reference's own floating "+260k"/"Save 15%" badges,
+              translated into a real number this product actually has
+              rather than an invented one. */}
+          {/* First fold — already on screen at mount, so this plays as a
+              real entrance (fade-slide-up) instead of the scroll-triggered
+              Reveal everything below the fold uses. bob is the project's
+              existing desktop-only ambient loop (VISUAL_LANGUAGE.md §7,
+              hard-disabled under 1024px in index.css) — the same slow
+              drift the two decorative blobs already use elsewhere, here
+              giving the logo panel's own pair some life instead of sitting
+              static behind a headline that now animates in over them. */}
+          <BentoPanel fill="dark" edge="top" className="relative animate-fade-slide-up overflow-hidden px-[22px] py-[26px] text-center lg:py-[34px]">
+            <span aria-hidden className="pointer-events-none absolute -left-12 -top-12 h-[200px] w-[200px] animate-bob rounded-full bg-brand/25" />
+            <span aria-hidden className="pointer-events-none absolute -bottom-16 -right-10 h-[220px] w-[220px] animate-bob rounded-full bg-brand-blue/25 [animation-delay:-3s]" />
             <Logo size="lg" onDark className="relative mx-auto h-9 w-auto lg:h-11" ariaLabel="Shikshaq" priority />
           </BentoPanel>
 
-          <BentoPanel fill="card" className="px-[22px] pt-[22px] pb-[26px]">
+          <BentoPanel fill="brand" className="relative animate-fade-slide-up overflow-hidden px-[22px] pb-[34px] pt-[30px] [animation-delay:100ms] lg:px-8 lg:pb-[52px] lg:pt-[40px]">
+            <span aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-[260px] w-[260px] animate-bob rounded-full bg-white/10" />
+            <span aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-[220px] w-[220px] animate-bob rounded-full bg-black/10 [animation-delay:-2s]" />
             <AnnotatedStatement
               statement={statement}
               align="left"
-              statementClassName="text-[38px] leading-[1.04] tracking-[-0.05em] lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]"
-              className="mt-5"
+              /* text-brand-foreground, not text-white: white on #FF8000
+                 measures 2.52:1, which fails AA (4.5:1) and even the 3:1
+                 large-text floor. index.css:112-123 already fought and
+                 documented exactly this — the --brand-foreground token
+                 (near-black, 6.46:1) is the answer it landed on, and this
+                 hero had reintroduced the original bug. */
+              statementClassName="text-brand-foreground text-[52px] leading-[0.98] tracking-[-0.05em] lg:text-[84px] lg:leading-[0.94] lg:tracking-[-0.045em]"
+              className="relative mt-2"
               pills={[
                 { label: 'No commission, ever', anchor: 'top-right', tone: 'dark', tilt: 4, dot: false },
                 { label: 'WhatsApp, not a call centre', anchor: 'bottom-left', tone: 'bone', tilt: -3, dot: false },
               ]}
             />
+            {/* The floating stat chip — real count, never a placeholder
+                zero: only renders once the query resolves with a genuine
+                number, same "never advertise emptiness" rule the tile
+                grid below already follows. */}
+            {(stats.teachers ?? 0) > 0 && (
+              <div
+                aria-hidden="true"
+                className="relative z-10 mx-auto mt-8 flex w-fit -rotate-2 animate-sticker-in items-center gap-3 rounded-[20px] bg-white px-[18px] py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition-transform duration-300 [animation-delay:450ms] hover:-rotate-1 hover:scale-[1.03] lg:mx-0"
+              >
+                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-brand-subtle text-brand-deep">
+                  <ShieldCheck className="h-5 w-5" strokeWidth={2.25} />
+                </span>
+                <span className="text-left">
+                  <span className="block font-display text-[20px] font-black leading-none tracking-[-0.03em] text-foreground tabular-nums">
+                    {stats.teachers!.toLocaleString('en-IN')}+
+                  </span>
+                  <span className="block text-[12px] font-semibold text-warm-secondary">verified teachers, zero cut</span>
+                </span>
+              </div>
+            )}
           </BentoPanel>
 
-          {/* Handoff AB-003: lede + stats grid. */}
-          <BentoPanel fill="card" className="p-[22px]">
-            <p className="text-[15px] leading-[1.6] text-warm-prose">
-              Shikshaq started because finding a tutor in Kolkata still meant asking three
-              neighbours and trusting a photocopied leaflet. We list teachers, verify who they
-              say they are, and then get out of the way. The fee you agree is the fee the
-              teacher keeps.
-            </p>
-            {/* lg:grid-cols-4: unconditional grid-cols-2 gave each of these
-                four compact number+label tiles a ~595px-wide cell on a real
-                desktop panel — a 24px number stretched across most of that
-                width with nothing else to fill it. One row at lg instead. */}
-            <div className="mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-              {statTiles.map((st) => (
-                <div
-                  key={st.label}
-                  className={`flex h-[120px] flex-col justify-center rounded-[18px] p-[14px] ${st.tint}`}
-                >
-                  <div className={`font-display text-[24px] font-black tracking-[-0.04em] tabular-nums ${st.ink}`}>
-                    {st.value}
+          <Reveal>
+            {/* Handoff AB-003: lede + stats grid. Trimmed to one sentence —
+                the fuller version of this claim is the entire next panel,
+                so this only needs to be the one-line version of it. */}
+            <BentoPanel fill="card" className="p-[22px]">
+              <p className="text-[15px] leading-[1.6] text-warm-prose">
+                We list teachers, verify who they say they are, then get out of the way. The fee
+                you agree is the fee they keep.
+              </p>
+              {/* lg:grid-cols-4: unconditional grid-cols-2 gave each of these
+                  four compact number+label tiles a ~595px-wide cell on a real
+                  desktop panel — a 24px number stretched across most of that
+                  width with nothing else to fill it. One row at lg instead.
+                  stagger-children + animate-card-reveal: each tile pops in a
+                  beat after the last instead of the whole grid landing as
+                  one flat block; hover lift gives them the same tactility
+                  the rest of the product's cards already have. */}
+              <div className="stagger-children mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+                {statTiles.map((st) => (
+                  <div
+                    key={st.label}
+                    className={`flex h-[120px] animate-card-reveal flex-col justify-center rounded-[18px] p-[14px] transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${st.tint}`}
+                  >
+                    <div className={`font-display text-[24px] font-black tracking-[-0.04em] tabular-nums ${st.ink}`}>
+                      {st.value}
+                    </div>
+                    <div className="mt-0.5 text-[12.5px] leading-[1.4] text-warm-label">{st.label}</div>
                   </div>
-                  <div className="mt-0.5 text-[12.5px] leading-[1.4] text-warm-label">{st.label}</div>
-                </div>
-              ))}
-            </div>
-          </BentoPanel>
+                ))}
+              </div>
+            </BentoPanel>
+          </Reveal>
 
           {/* The story, told properly. The page opened on a statement, a
               paragraph and a stats grid, which says what Shikshaq is but never
               how it came to exist or why it is shaped the way it is. Three
               short movements: the problem as it actually is in Kolkata, the
               decision that follows from it, and who it is for. Every claim
-              here is one the product already keeps elsewhere. */}
-          <BentoPanel fill="card" className="p-[22px]">
-            <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-deep">
-              How this started
-            </span>
-            <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
-              Finding a tutor should not be a favour you ask around for
-            </h2>
-            <div className="mt-3 grid max-w-prose gap-3 text-[15px] leading-[1.65] text-warm-prose">
-              <p>
-                In most of Kolkata, finding a teacher still runs on hearsay. You ask a neighbour,
-                who asks their sister, who knows someone who taught her son four years ago. If you
-                are lucky the number still works. Nobody can tell you what he charges, which boards
-                he has actually taught, or whether he travels to your part of the city, so you
-                arrange a meeting to find out and lose a Saturday discovering the answer is no.
+              here is one the product already keeps elsewhere.
+              fill="mint": the colour-block journey down the page (dark ->
+              brand -> card -> mint -> ...) is the reference's whole visual
+              language — panels now stack with zero gap between them (per
+              owner correction elsewhere), so an unbroken run of flat white
+              cards would have read as one long undifferentiated slab. */}
+          <Reveal>
+            <BentoPanel fill="mint" className="p-[22px]">
+              <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-deep">
+                How this started
+              </span>
+              <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+                Finding a tutor should not be a favour you ask around for
+              </h2>
+              {/* Three paragraphs (the hearsay problem, why directories and
+                  aggregators made it worse, then the decision) cut to one —
+                  the same three beats, said once each instead of explained. */}
+              <p className="mt-3 max-w-prose text-[15px] leading-[1.65] text-warm-prose">
+                In Kolkata, finding a teacher still runs on hearsay and a phone number that may not
+                even work. Directories sold your enquiry to six centres; aggregators took a cut and
+                made the teacher raise their fee to cover it. So we built the boring version
+                instead: fee, boards and area written down before you contact anyone, then
+                straight to WhatsApp. No commission, because the moment we take one we start having
+                opinions about who you should pick.
               </p>
-              <p>
-                The alternatives were worse. Coaching directories sold the same enquiry to six
-                centres and left the phone ringing for a month. Aggregators quoted a rate, took a
-                cut of every class, and made the teacher raise their fee to cover it. In both cases
-                the person who actually teaches was the last one consulted and the first one
-                squeezed.
-              </p>
-              <p>
-                So we built the boring version instead: a list you can filter, with the fee, the
-                boards, the classes and the areas each teacher travels to written down before you
-                contact anyone, and a WhatsApp thread straight to them when you do. No commission,
-                because the moment we take one we start having opinions about who you should pick.
-              </p>
-            </div>
-          </BentoPanel>
+            </BentoPanel>
+          </Reveal>
 
-          <BentoPanel fill="card" className="p-[22px]">
-            <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-deep">
-              Who it is for
-            </span>
-            <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
-              Both sides of the same conversation
-            </h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-[18px] bg-muted p-4">
-                <p className="text-[14.5px] font-bold text-foreground">If you are looking</p>
-                <p className="mt-1.5 text-[14px] leading-[1.6] text-warm-secondary">
-                  Search by subject, class, board and area, read what other students wrote, and
-                  message the teacher yourself. You never pay us, and we never put ourselves in the
-                  middle of what you agree with them.
-                </p>
+          <Reveal>
+            <BentoPanel fill="card" className="p-[22px]">
+              <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-deep">
+                Who it is for
+              </span>
+              <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+                Both sides of the same conversation
+              </h2>
+              {/* Two colour-matched cards, not two identical grey blocks —
+                  each card's own tint (blue for the reader, orange for the
+                  teacher) plus a SOLID disc in that same family, not the
+                  subtle tone: a light disc on a light card of the same
+                  colour would have gone flat again, same mistake the tinted
+                  hero pill would have made. Copy trimmed to one line each —
+                  the full mechanics (fee, verification, WhatsApp) are the
+                  next two panels, this is just "which of these two are you". */}
+              <div className="stagger-children mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="animate-card-reveal rounded-[18px] bg-brand-blue-subtle p-4 transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+                  <IconDisc tone="papers" size={40} className="mb-2.5">
+                    <Search />
+                  </IconDisc>
+                  <p className="text-[14.5px] font-bold text-brand-blue-deep">If you are looking</p>
+                  <p className="mt-1.5 text-[14px] leading-[1.6] text-foreground/70">
+                    Filter by subject, board and area, read real reviews, message the teacher
+                    yourself. You never pay us, never in the middle.
+                  </p>
+                </div>
+                <div className="animate-card-reveal rounded-[18px] bg-brand-subtle p-4 transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+                  <IconDisc tone="brand" size={40} className="mb-2.5">
+                    <GraduationCap />
+                  </IconDisc>
+                  <p className="text-[14.5px] font-bold text-brand-deep">If you teach</p>
+                  <p className="mt-1.5 text-[14px] leading-[1.6] text-foreground/70">
+                    Free to list, forever. Set your own rate, keep all of it. Enquiries are real
+                    people messaging you, not sold leads.
+                  </p>
+                </div>
               </div>
-              <div className="rounded-[18px] bg-muted p-4">
-                <p className="text-[14.5px] font-bold text-foreground">If you teach</p>
-                <p className="mt-1.5 text-[14px] leading-[1.6] text-warm-secondary">
-                  Listing is free and stays free. You set your own rate, you keep all of it, and
-                  enquiries arrive as a message from a real person rather than as a lead somebody
-                  sold. Nothing about your listing goes live until you have approved it.
-                </p>
-              </div>
-            </div>
-          </BentoPanel>
+            </BentoPanel>
+          </Reveal>
 
           {/* How we work — the reasoning under the "no commission" pill in the
               header, spelled out. Every claim here is one the product already
               makes elsewhere (the fee line on every teacher profile, the
               WhatsApp CTA, the verification badge, the free-to-read papers);
               nothing is asserted that the app does not already do. */}
-          <BentoPanel fill="card" className="p-[22px]">
-            <h2 className="text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
-              How we work
-            </h2>
-            <p className="mt-2.5 text-[15px] leading-[1.6] text-warm-prose">
-              Most tuition sites earn by standing between you and the teacher. A cut of
-              every fee, a number you cannot dial, a counsellor who rings for a month. We took
-              the other bet: be useful enough to be worth opening, and take nothing from the
-              people doing the actual teaching.
-            </p>
-            <ul className="mt-4 grid gap-3">
-              {[
-                {
-                  head: 'The fee is the fee',
-                  body: 'Whatever you settle with a teacher is what they keep. We take no commission, so nobody here has a reason to steer you towards a pricier tutor.',
-                },
-                {
-                  head: 'You message them, not us',
-                  body: 'Every profile ends in a WhatsApp thread with that teacher. No call centre, no lead form, no one selling your number onward.',
-                },
-                {
-                  head: 'Verified means a person checked',
-                  body: 'The badge means ID and qualifications were looked at by a human. Where we have not checked, there is no badge. We would rather show you less than imply more.',
-                },
-                {
-                  head: 'Free stays free',
-                  body: 'Past papers are free to read and always will be. They are not bait for an account upgrade, because there is no upgrade.',
-                },
-              ].map((pt) => (
-                <li key={pt.head} className="flex gap-3">
-                  <span
-                    aria-hidden="true"
-                    className="mt-[7px] h-2 w-2 flex-none rounded-[2px] bg-brand"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-[14.5px] font-bold text-foreground">{pt.head}</span>
-                    <span className="mt-0.5 block text-[14px] leading-[1.55] text-warm-secondary">
-                      {pt.body}
+          {/* fill="brandTint": another beat in the colour-block sequence
+              (dark -> orange -> white -> mint -> white -> orange-tint ->
+              blue-tint -> dark -> white) rather than three flat white
+              panels back to back. Blob colour swapped from the two
+              brand/blue subtle tints (which matched the old white card,
+              not this one — a brand-subtle blob on a brand-subtle panel
+              would have all but vanished) to white/black translucent,
+              which reads against any fill this page uses. */}
+          <Reveal>
+            <BentoPanel fill="brandTint" className="relative overflow-hidden p-[22px]">
+              <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-[220px] w-[220px] animate-bob rounded-full bg-white/50" />
+              <span aria-hidden className="pointer-events-none absolute -bottom-20 -left-14 h-[200px] w-[200px] animate-bob rounded-full bg-black/[0.06] [animation-delay:-4s]" />
+              <h2 className="relative text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+                How we work
+              </h2>
+              <p className="mt-2.5 text-[15px] leading-[1.6] text-warm-prose">
+                Most tuition sites stand between you and the teacher: a cut of every fee, a
+                counsellor who rings for a month. We took the other bet.
+              </p>
+              {/* Bodies trimmed to one line each; stagger-children +
+                  animate-card-reveal so the four points land one after
+                  another instead of as one static block, and each gets a
+                  small hover nudge to feel like a real row, not printed
+                  text. */}
+              <ul className="stagger-children mt-4 grid gap-2.5">
+                {[
+                  { head: 'The fee is the fee', body: 'No commission, so nobody here is steering you towards a pricier tutor.' },
+                  { head: 'You message them, not us', body: 'Every profile ends in a WhatsApp thread. No call centre, no lead form.' },
+                  { head: 'Verified means a person checked', body: 'No badge where we have not checked. We show less rather than imply more.' },
+                  { head: 'Free stays free', body: 'Past papers are free to read, always. There is no upgrade to bait you into.' },
+                ].map((pt) => (
+                  <li
+                    key={pt.head}
+                    className="flex animate-card-reveal gap-3 rounded-xl px-2 py-1.5 transition-colors duration-150 hover:bg-white/40 -mx-2"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="mt-[7px] h-2 w-2 flex-none rounded-[2px] bg-brand"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-[14.5px] font-bold text-foreground">{pt.head}</span>
+                      <span className="mt-0.5 block text-[13.5px] leading-[1.5] text-warm-secondary">
+                        {pt.body}
+                      </span>
                     </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </BentoPanel>
+                  </li>
+                ))}
+              </ul>
+            </BentoPanel>
+          </Reveal>
 
           {/* The papers network. This is the one part of Shikshaq that students
               built for each other rather than something we made for them, so it
-              gets said in their terms, not ours. Indigo panel because papers are
-              indigo everywhere else in the product. */}
-          <BentoPanel fill="card" className="p-[22px]">
-            <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-blue">
-              Students helping students
-            </span>
-            <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
-              The papers came from the people who sat them
-            </h2>
-            <p className="mt-2.5 text-[15px] leading-[1.6] text-warm-prose">
-              Nobody at Shikshaq wrote a single question on this site. Every past paper here was
-              sent in by a student who had already sat it and decided the next batch should not
-              have to hunt for it the way they did. A prelim from a school that never put
-              theirs online, a half-yearly that only ever existed as a photocopy going round a
-              class WhatsApp group.
-            </p>
-            <p className="mt-3 text-[15px] leading-[1.6] text-warm-prose">
-              That is the whole mechanism. One person who is finished helping the person who is
-              about to start. It costs the sender nothing and saves the next reader an afternoon,
-              which is a good trade about a thousand times over.
-            </p>
-            <div className="mt-4 rounded-[18px] bg-muted p-4">
-              <p className="text-[13.5px] font-bold text-foreground">Where we draw the line</p>
-              <p className="mt-1 text-[13.5px] leading-[1.6] text-warm-secondary">
-                The questions belong to the schools that set them, not to us and not to the
-                student who shared them. So papers are free to read and not to download or
-                repost, every one names its school, and any school that wants theirs taken down
-                only has to ask. We would rather host fewer papers honestly than more of them
-                badly.
+              gets said in their terms, not ours. fill="papersTint" (was
+              plain card with only the eyebrow text in indigo): papers are
+              blue everywhere else in the product — the mode toggle, the
+              covers, the reader — so the section about them gets an
+              actual blue block instead of a white card with one blue
+              line, closing out the colour-block sequence. */}
+          <Reveal>
+            <BentoPanel fill="papersTint" className="p-[22px]">
+              <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-blue">
+                Students helping students
+              </span>
+              <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+                The papers came from the people who sat them
+              </h2>
+              {/* Two paragraphs cut to one — nobody at Shikshaq wrote a
+                  question here, every paper was sent in by a student who'd
+                  already sat it. That's the whole mechanism; said once. */}
+              <p className="mt-2.5 text-[15px] leading-[1.6] text-warm-prose">
+                Nobody at Shikshaq wrote a single question on this site. Every past paper was sent
+                in by a student who had already sat it: a prelim, a half-yearly, whatever never
+                made it online otherwise, so the next batch would not have to hunt for it.
               </p>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2.5">
-              {/* indigo, not primary: papers are blue in every other surface of
-                  the product (the mode toggle, the covers, the reader), and an
-                  orange CTA on the papers panel breaks that one association. */}
-              <Button asChild variant="indigo" size={46}>
-                <Link to="/past-papers">
-                  Read the papers
+              <div className="mt-4 rounded-[18px] bg-muted p-4 transition-colors duration-150 hover:bg-white/60">
+                <p className="text-[13.5px] font-bold text-foreground">Where we draw the line</p>
+                <p className="mt-1 text-[13.5px] leading-[1.6] text-warm-secondary">
+                  The questions belong to the schools that set them. Free to read, not to download
+                  or repost. Every one names its school, and any school can ask for theirs down.
+                </p>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2.5">
+                {/* indigo, not primary: papers are blue in every other surface of
+                    the product (the mode toggle, the covers, the reader), and an
+                    orange CTA on the papers panel breaks that one association. */}
+                <Button asChild variant="indigo" size={46}>
+                  <Link to="/past-papers">
+                    Read the papers
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+                <Button asChild variant="secondary" size={46}>
+                  <Link to="/contact">Send us one you have</Link>
+                </Button>
+              </div>
+            </BentoPanel>
+          </Reveal>
+
+          {/* Handoff AB-004: founders panel. */}
+          <Reveal>
+            <BentoPanel fill="dark" className="relative overflow-hidden p-[22px]">
+              {/* A large faded quote mark behind the text — same device
+                  the review cards use elsewhere in the product for "this
+                  is somebody speaking", here for the one actual quote on
+                  the page. */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -right-1 -top-3 select-none font-display text-[100px] leading-none text-background/[0.06]"
+              >
+                &rdquo;
+              </span>
+              <div className="relative mb-3 flex items-center gap-3">
+                <div className="flex flex-none -space-x-3">
+                  <div className="h-14 w-14 overflow-hidden rounded-full ring-2 ring-panel transition-transform duration-200 hover:z-10 hover:scale-110">
+                    <StripePlaceholder name="Sourav" initialSize={19} />
+                  </div>
+                  <div className="h-14 w-14 overflow-hidden rounded-full ring-2 ring-panel transition-transform duration-200 hover:z-10 hover:scale-110">
+                    <StripePlaceholder name="Arka" initialSize={19} />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[14.5px] font-bold">Made by two people</div>
+                  <div className="text-[12.5px] text-background/62">Kolkata &middot; since 2023</div>
+                </div>
+              </div>
+              <p className="relative text-[13.5px] leading-[1.65] text-background/78">
+                &ldquo;We built this for our own families first. If a teacher near you is good, you
+                should be able to find them in under a minute, and talk to them without
+                anyone taking a cut.&rdquo;
+              </p>
+              <Button asChild variant="primary" size={46} className="relative mt-4">
+                <Link to="/join">
+                  List yourself as a teacher
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </Button>
-              <Button asChild variant="secondary" size={46}>
-                <Link to="/contact">Send us one you have</Link>
-              </Button>
-            </div>
-          </BentoPanel>
-
-          {/* Handoff AB-004: founders panel. */}
-          <BentoPanel fill="dark" className="p-[22px]">
-            <div className="mb-3 flex items-center gap-3">
-              <div className="flex flex-none -space-x-3">
-                <div className="h-14 w-14 overflow-hidden rounded-full ring-2 ring-panel">
-                  <StripePlaceholder name="Sourav" initialSize={19} />
-                </div>
-                <div className="h-14 w-14 overflow-hidden rounded-full ring-2 ring-panel">
-                  <StripePlaceholder name="Arka" initialSize={19} />
-                </div>
-              </div>
-              <div>
-                <div className="text-[14.5px] font-bold">Made by two people</div>
-                <div className="text-[12.5px] text-background/62">Kolkata &middot; since 2023</div>
-              </div>
-            </div>
-            <p className="text-[13.5px] leading-[1.65] text-background/78">
-              &ldquo;We built this for our own families first. If a teacher near you is good, you
-              should be able to find them in under a minute, and talk to them without
-              anyone taking a cut.&rdquo;
-            </p>
-            <Button asChild variant="primary" size={46} className="mt-4">
-              <Link to="/join">
-                List yourself as a teacher
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          </BentoPanel>
+            </BentoPanel>
+          </Reveal>
 
           {/* Handoff AB-005: recommend CTA, identical to Home's H-020 row.
               Retained: the existing "recommend a teacher" flow isn't in the
               mockup, but it's real functionality (a live route + form the app
               depends on), so it stays — styled in the mockup's own language
               rather than dropped. */}
-          <BentoPanel fill="card" className="px-[22px] !py-[18px] lg:!py-8">
-            <Link
-              to="/recommend-teacher"
-              className="flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <IconDisc tone="muted" size={44}>
-                <GraduationCap />
-              </IconDisc>
-              <div className="min-w-0 flex-1">
-                <p className="text-[16px] font-semibold text-foreground">Know a good teacher?</p>
-                <p className="mt-0.5 text-[14px] leading-[1.45] text-warm-secondary">
-                  Recommend them and we&rsquo;ll reach out to get them listed, free.
-                </p>
-              </div>
-              <ArrowRight className="h-5 w-5 flex-none text-warm-label" aria-hidden="true" />
-            </Link>
-          </BentoPanel>
+          <Reveal>
+            <BentoPanel fill="card" className="px-[22px] !py-[18px] lg:!py-8">
+              <Link
+                to="/recommend-teacher"
+                className="group flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <IconDisc tone="muted" size={44} className="transition-colors duration-150 group-hover:bg-brand-subtle group-hover:text-brand-deep">
+                  <GraduationCap />
+                </IconDisc>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[16px] font-semibold text-foreground">Know a good teacher?</p>
+                  <p className="mt-0.5 text-[14px] leading-[1.45] text-warm-secondary">
+                    Recommend them and we&rsquo;ll reach out to get them listed, free.
+                  </p>
+                </div>
+                <ArrowRight className="h-5 w-5 flex-none text-warm-label transition-transform duration-150 group-hover:translate-x-1" aria-hidden="true" />
+              </Link>
+            </BentoPanel>
+          </Reveal>
 
           {/* Shared tail. */}
           <EyesPanel

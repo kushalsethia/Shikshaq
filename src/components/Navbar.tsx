@@ -12,6 +12,7 @@ import { Logo } from '@/components/Logo';
 import { openProductTour } from '@/components/ProductTour';
 import { logger } from '@/utils/logger';
 import { useSearchExpanded } from '@/hooks/useSearchExpanded';
+import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
 import {
   Sheet, SheetClose, SheetContent, SheetGrabHandle, SheetTitle,
   SheetTrigger,
@@ -115,37 +116,15 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, signOut, profile } = useAuth();
   const { likedTeacherIds } = useLikes();
-  const [isAdmin, setIsAdmin] = useState(false);
+  /* Was this component's own `admins` select in a [user] effect. Footer ran
+     an identical one, and between them (StrictMode double-invoke, plus a
+     re-run when `user` settles) a single page load fired NINE copies of the
+     same request — see useIsAdminBadge for the measurement. One shared
+     react-query key now serves both. */
+  const isAdmin = useIsAdminBadge();
   const userRole = (profile?.role as UserRole) || null;
   const dashboardLink = getDashboardLink(userRole);
   const { teachersCount, papersCount, papersReadCount } = useNavMenuCounts(menuOpen, user?.id);
-
-  useEffect(() => {
-    async function checkAdminStatus() {
-      if (!user) {
-        setIsAdmin(false);
-        return;
-      }
-      try {
-        const { data: adminData, error: adminError } = await supabase
-          .from('admins')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (adminError) {
-          if (import.meta.env.DEV) logger.log('Error checking admin status:', adminError.message);
-          setIsAdmin(false);
-        } else {
-          setIsAdmin(Boolean(adminData));
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) console.error('Error:', error);
-        setIsAdmin(false);
-      }
-    }
-    checkAdminStatus();
-  }, [user]);
 
   // Close the mobile sheet on route change
   useEffect(() => {

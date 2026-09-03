@@ -21,7 +21,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { hasContactedTeacher } from '@/lib/contact-record';
 
 interface Comment {
   id: string;
@@ -55,9 +54,6 @@ interface TeacherCommentsProps {
       subject/area. Optional — auth-intent.ts falls back to the default hero
       rather than render one with a blank in it. */
   teacherName?: string | null;
-  /** Owner call: review cards show the teacher's own photo, not the
-   *  reviewer's — see review-card.tsx. */
-  teacherImageUrl?: string | null;
   area?: string | null;
 }
 
@@ -89,7 +85,7 @@ function getCommentInitials(comment: Comment): string {
   return 'U';
 }
 
-export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, teacherImageUrl, area }: TeacherCommentsProps) {
+export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, area }: TeacherCommentsProps) {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -108,17 +104,13 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
   // comparison. Distinguishes the immediate-post case from the anonymous
   // approval-queue case, since those are genuinely different outcomes.
   const [justSubmitted, setJustSubmitted] = useState<'approved' | 'pending' | null>(null);
-  /* Recomputed on mount and on window focus — the common path is: tap
-     WhatsApp, leave the tab (mobile hands off to the WhatsApp app; desktop
-     opens a new tab), come back, the button should now be enabled without a
-     full page reload. */
-  const [contacted, setContacted] = useState(() => hasContactedTeacher(teacherSlug));
-  useEffect(() => {
-    setContacted(hasContactedTeacher(teacherSlug));
-    const onFocus = () => setContacted(hasContactedTeacher(teacherSlug));
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [teacherSlug]);
+  /* Owner call: writing a review no longer requires having messaged the
+     teacher on WhatsApp first. That gate (a `hasContactedTeacher` check
+     that disabled the button, explained itself in a line above it, and
+     re-read on window focus so returning from the WhatsApp hand-off
+     unlocked it) is gone — it is not compulsory to have contacted someone
+     to have something to say about them, and the approval queue already
+     handles quality. Sign-in is still required; that check stays below. */
 
   useEffect(() => {
     fetchComments();
@@ -287,10 +279,6 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
       navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}`);
       return;
     }
-    if (!contacted) {
-      toast.info('Message the teacher on WhatsApp first, then you can leave a review.');
-      return;
-    }
     setWriteSheetOpen(true);
   };
 
@@ -346,22 +334,14 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
           size={44}
           className="rounded-full bg-brand text-[13.5px] font-bold text-brand-foreground hover:bg-brand-hover"
           onClick={handleWriteReviewClick}
-          disabled={Boolean(user) && !contacted}
-          title={user && !contacted ? 'Message the teacher on WhatsApp first to unlock this' : undefined}
         >
           Add your review
         </Button>
       </div>
 
-      {/* Gate notice — pages.md §"Reviews": the write-review button is only
-          offered once a WhatsApp contact is on record for this user + teacher.
-          Stated plainly rather than left as a silently-disabled button, per
-          design.md's rule that a gate names itself on the page. */}
-      {user && !contacted && (
-        <p className="mb-6 text-sm text-muted-foreground">
-          Message the teacher on WhatsApp first, then you can leave a review.
-        </p>
-      )}
+      {/* The gate notice that stood here ("Message the teacher on WhatsApp
+          first, then you can leave a review") is gone with the gate — see
+          the note where `contacted` used to be defined. */}
 
       {/* Post-submission success — LOUD moment (task #4). Anonymous reviews go to
           an approval queue, which is a genuinely different outcome from an
@@ -462,13 +442,17 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
               rather than a 3-up grid that just got taller with more reviews. */}
           <div className="stagger-children grid grid-cols-1 gap-3 pb-4 pt-2 md:grid-cols-2 md:pb-8 md:pt-0 lg:flex lg:snap-x lg:snap-mandatory lg:gap-4 lg:overflow-x-auto lg:pb-2 lg:scrollbar-hide">
             {cards.map((card, i) => (
+              /* No teacherImageUrl/teacherName here (unlike ReviewCard's other
+                 callers) — this list lives ON the teacher's own profile, so
+                 every card repeating that same teacher's face/name back at
+                 them said nothing a visitor didn't already know from the
+                 page they're on. Falls back to the reviewer's own initials,
+                 which is what "who wrote this" actually needs. */
               <ReviewCard
                 key={card.id}
                 review={card}
                 index={i}
                 fullWidth
-                teacherImageUrl={teacherImageUrl}
-                teacherName={teacherName}
                 className="lg:w-[320px] lg:flex-none lg:snap-start"
               />
             ))}

@@ -1,6 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { readActivityTrail } from '@/lib/activity-trail';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Mail, ChevronDown, ChevronUp, FileText, GraduationCap } from 'lucide-react';
 import { Logo } from '@/components/Logo';
@@ -11,8 +9,8 @@ import { iconDiscVariants } from '@/components/ui/icon-disc';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { WordmarkBleed } from '@/components/layout/WordmarkBleed';
 import { supabase } from '@/integrations/supabase/client';
-import { logger } from '@/utils/logger';
 import { useAuth } from '@/lib/auth-context';
+import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import DOMPurify from 'dompurify';
 import aquaterraLogo from '@/assets/Frame 48095868.png';
@@ -140,17 +138,6 @@ function FooterAccordion({ label, links }: { label: string; links: FooterLink[] 
   );
 }
 
-/* Same tone rule as the hero pool (H-005a): cheeky, aimed at the subject
-   rather than the reader. Only used when the activity trail is empty. */
-const FOOTER_SIGN_OFFS = [
-  'Scrolled all the way down here. Respect.',
-  'You have read the footer. That is more than most.',
-  'Still here? Go on, search for something.',
-  'The teachers are upstairs, at the top of the page.',
-  'No newsletter, no popups. Just teachers.',
-  'Kolkata is full of good teachers. Go find one.',
-];
-
 export function Footer({ expandedContent }: FooterProps = {}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isExpandedContentExpanded, setIsExpandedContentExpanded] = useState(false);
@@ -160,38 +147,12 @@ export function Footer({ expandedContent }: FooterProps = {}) {
   const [searchParams] = useSearchParams();
   const { user, profile } = useAuth();
   const userRole = (profile?.role as 'student' | 'guardian' | 'teacher') || null;
-  const [isAdmin, setIsAdmin] = useState(false);
+  /* Shared with Navbar's identical check — this pair used to fire nine
+     copies of the same `admins` select per page load between them. See
+     useIsAdminBadge for the measurement and why the /admin/* route guard
+     deliberately does NOT share this cache. */
+  const isAdmin = useIsAdminBadge();
   const dashboardPath = userRole === 'student' ? '/dashboard/student' : userRole === 'guardian' ? '/dashboard/guardian' : userRole === 'teacher' ? '/dashboard/teacher' : null;
-
-  useEffect(() => {
-    if (!user) { setIsAdmin(false); return; }
-    let cancelled = false;
-    supabase.from('admins').select('id').eq('id', user.id).maybeSingle().then(({ data }) => {
-      if (!cancelled) setIsAdmin(!!data);
-    });
-    return () => { cancelled = true; };
-  }, [user]);
-
-  /* Two site-wide counts, on react-query rather than a bare effect. The footer
-     is on every page, and as an effect these two HEAD requests fired again on
-     every single client-side navigation — the only Supabase traffic left on a
-     warm page move, for numbers that change perhaps daily. An hour of
-     staleTime makes them once-per-session in practice. */
-  const ctaTotalsQuery = useQuery({
-    queryKey: ['footer', 'cta-totals'],
-    staleTime: 60 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
-    queryFn: async () => {
-      const [teachersRes, papersRes] = await Promise.all([
-        supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
-        supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
-      ]);
-      if (teachersRes.error) logger.error('Footer.fetchCtaTotals.teachers', teachersRes.error);
-      if (papersRes.error) logger.error('Footer.fetchCtaTotals.papers', papersRes.error);
-      return { teachers: teachersRes.count ?? null, papers: papersRes.count ?? null };
-    },
-  });
-  const ctaTotals = ctaTotalsQuery.data ?? { teachers: null, papers: null };
 
   useEffect(() => {
     async function fetchPageContent() {
@@ -403,31 +364,6 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     label: `${label} tuition teachers in Kolkata`,
   }));
 
-  // Wordmark stickers — real counts only; a count that failed to load drops
-  // its clause instead of shipping the literal copy-deck numbers (design.md
-  // §0.10, brief WORDMARK STICKERS note).
-  const wordmarkStickers = useMemo(() => {
-    const list: string[] = [];
-    if (ctaTotals.teachers) list.push(`${ctaTotals.teachers.toLocaleString('en-IN')} tutors`);
-    list.push('no commission');
-    if (ctaTotals.papers) list.push(`${ctaTotals.papers.toLocaleString('en-IN')} free papers`);
-    return list;
-  }, [ctaTotals.teachers, ctaTotals.papers]);
-
-  /* Drawn once per mount. Recomputing per render would flicker between the
-     trail line and a pool line on every state change in the footer. */
-  const signOff = useMemo(() => {
-    const trail = readActivityTrail();
-    if (trail.teacherName) return `Still thinking about ${trail.teacherName}?`;
-    if (trail.searchSubject && trail.searchArea) {
-      return `${trail.searchSubject} in ${trail.searchArea}. Pick that back up whenever.`;
-    }
-    if (trail.paperBoard && trail.paperSubject) {
-      return `There are more ${trail.paperBoard} ${trail.paperSubject} papers where that came from.`;
-    }
-    return FOOTER_SIGN_OFFS[Math.floor(Math.random() * FOOTER_SIGN_OFFS.length)];
-  }, []);
-
   /* pt-seam: H-021's accept line is "6px of #F9F5F1 shows above" the footer's
      top corners. That gap used to come from BottomNavSpacer sitting above the
      footer at 84px; with the reserve moved below where it belongs, the seam is
@@ -600,7 +536,11 @@ export function Footer({ expandedContent }: FooterProps = {}) {
               </a>
             </div>
 
-            <p className="text-sm text-white/70">
+            {/* max-w-prose: without it this ran ~133 characters per line at
+                1440 (measured), roughly double the 60-75 cap DESIGN_SYSTEM.md
+                §3 sets for body copy. The paragraph further up this same
+                footer already carries it. */}
+            <p className="max-w-prose text-sm text-white/70">
               Past papers are the property of the schools that set them. Shikshaq claims no ownership and hosts them as a free community resource.
             </p>
 
@@ -687,11 +627,6 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           </PageContainer>
         )}
 
-        {/* A sign-off that knows where you have been. Reads the same activity
-            trail the hero's H-005 branches 3-5 read, so the top and the bottom
-            of the page agree about what you were last doing; falls back to a
-            playful line when the trail is empty. Nothing here leaves the
-            device — see src/lib/activity-trail.ts. */}
         {/* The two things a visitor can give back, as actual buttons rather
             than links buried in a collapsed column. Both routes already exist:
             /join is the teacher listing flow, /submit-a-paper is the paper
@@ -718,26 +653,11 @@ export function Footer({ expandedContent }: FooterProps = {}) {
           </div>
         </PageContainer>
 
-        {/* Given a container and real clearance. As a bare `pb-1` line at
-            white/55 it floated between the CMS block and the wordmark with
-            nothing holding it, and the giant wordmark started a few pixels
-            under it — it read as a stray sentence rather than a sign-off. The
-            bg-white/[0.06] tile is the same treatment the auth page's value
-            note uses on a dark surface. */}
-        {signOff && (
-          <PageContainer className="px-5 pb-7 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3 rounded-[18px] bg-white/[0.06] px-4 py-3">
-              <span aria-hidden="true" className="h-2 w-2 flex-none rounded-full bg-brand" />
-              <p className="text-[14px] leading-[1.5] text-white/75">{signOff}</p>
-            </div>
-          </PageContainer>
-        )}
-
         {/* 6. C12 WordmarkBleed — clipped by this slab's own bottom edge (the
             slab has overflow-hidden), sitting above the reserved bottom-nav
             strip because it is the last child inside the rounded panel, not
             flush with the viewport edge. */}
-        <WordmarkBleed stickers={wordmarkStickers} className="pt-4" />
+        <WordmarkBleed className="pt-4" />
       </div>
     </footer>
   );

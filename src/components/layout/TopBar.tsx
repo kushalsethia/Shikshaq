@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { openProductTour } from "@/components/ProductTour";
 import { logger } from "@/utils/logger";
 import { useExitPresence } from "@/hooks/useExitPresence";
+import { useIsAdminBadge } from "@/hooks/useIsAdminBadge";
 import {
   BROWSE_PATH,
   PAST_PAPERS_PATH,
@@ -68,38 +69,15 @@ export function TopBar({ className }: { className?: string }) {
   const location = useLocation();
   const { user, profile, signOut } = useAuth();
   const role = (profile?.role as UserRole) || null;
-  const [isAdmin, setIsAdmin] = useState(false);
+  /* Third copy of the same `admins` select (Navbar and Footer had the other
+     two) — all three render on every route, so a single page load fired
+     nine of them between them. Shared react-query key now. See
+     useIsAdminBadge for the measurement. */
+  const isAdmin = useIsAdminBadge();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuPresence = useExitPresence(menuOpen);
   const initial = (user?.email?.charAt(0) || "?").toUpperCase();
   const dashboardLink = getDashboardLink(role);
-
-  useEffect(() => {
-    async function checkAdminStatus() {
-      if (!user) {
-        setIsAdmin(false);
-        return;
-      }
-      try {
-        const { data: adminData, error: adminError } = await supabase
-          .from("admins")
-          .select("id")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (adminError) {
-          if (import.meta.env.DEV) logger.log("Error checking admin status:", adminError.message);
-          setIsAdmin(false);
-        } else {
-          setIsAdmin(Boolean(adminData));
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) console.error("Error:", error);
-        setIsAdmin(false);
-      }
-    }
-    checkAdminStatus();
-  }, [user]);
 
   useEffect(() => {
     setMenuOpen(false);

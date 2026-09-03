@@ -300,6 +300,9 @@ export default function PaperResults() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {/* Owner correction: edge-to-edge (0 gutter) is the intended
+          pattern — a prior pass wrapped this in PageContainer/max-w-6xl,
+          backwards from what the handoff actually calls for. */}
       <main className="flex-1">
       <BentoStack>
         {/* Handoff PR-001: one BentoPanel carries the back link, h1 and count

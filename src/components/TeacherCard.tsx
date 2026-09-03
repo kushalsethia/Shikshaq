@@ -100,12 +100,18 @@ function formatFeeLabel(minFees?: number | null, maxFees?: number | null): strin
 // Formats "{name}, {honorific}" per components/TeacherCard.md. Omits the comma entirely when
 // there's no recognisable honorific, so nothing is ever left trailing.
 function formatDisplayName(name: string, sirMaam?: string | null): string {
-  if (!sirMaam) return name;
+  // Trimmed once here rather than assumed clean at the source — a trailing
+  // space in Shikshaqmine's Name column ("Ritika Singh ") otherwise survived
+  // straight into the joined string as a visible double space before the
+  // honorific, and into the two-line name split below as a trailing gap on
+  // the wrapped line.
+  const trimmedName = name.trim();
+  if (!sirMaam) return trimmedName;
   const lower = String(sirMaam).toLowerCase().trim();
   let honorific: string | null = null;
   if (lower === 'sir' || lower.includes('sir')) honorific = 'Sir';
   else if (lower === "ma'am" || lower === 'maam' || lower.includes("ma'am")) honorific = "Ma'am";
-  return honorific ? `${name} ${honorific}` : name;
+  return honorific ? `${trimmedName} ${honorific}` : trimmedName;
 }
 
 function TeacherCardComponent({
@@ -313,21 +319,23 @@ function TeacherCardComponent({
   // absent rather than rendering empty punctuation. Same line-clamp-2 fix as
   // metaRow above — the joined string was clipping mid-word inside whichever
   // part (area, fee) landed on the truncation boundary.
-  // min-h on the wrapper, not the <p> itself: same fix as the name's 2-line
-  // reserve above, for the same reason. This line is present on some cards
-  // and absent on others (no fee/experience data for that teacher) — in a
-  // row that stretches every card to match its tallest sibling (grid-compact
-  // rail, and Browse's grid), a card missing this line still gets stretched
-  // to the row's height, so the line's own space just becomes dead space at
-  // the card's bottom instead of disappearing. Reserving it here means every
-  // card is naturally the same height already, so the stretch does nothing.
-  const factsRow = !isRail && (
-    <div className="mt-1 min-h-[1.5em]">
-      {factsLine && (
-        <p className={`line-clamp-2 break-words font-semibold tabular-nums text-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>
-          {factsLine}
-        </p>
-      )}
+  /* No min-h reservation any more, on either grid or grid-compact: it used
+     to hold this line's height even when factsLine was empty (a teacher
+     missing experience/fee data), on the theory that a card stretched to
+     match a taller row-sibling would otherwise dump that same dead space at
+     its own bottom edge instead — "reserve it here so the stretch has
+     nothing left to do." In practice a real fraction of teachers are
+     missing this data, so a very visible number of cards were showing a
+     blank strip directly under the name for nothing — repeatedly reported
+     as "extra padding after the name" on both the home rail and Browse's
+     grid. Letting the row's own stretch (grid items already default to
+     align-items: stretch) push any gap to the true bottom of a shorter
+     card reads as normal card-height variance, not a hole under the name.  */
+  const factsRow = !isRail && factsLine && (
+    <div className="mt-1">
+      <p className={`line-clamp-2 break-words font-semibold tabular-nums text-foreground ${isSm || isRow ? 'text-meta' : 'text-body-secondary'}`}>
+        {factsLine}
+      </p>
     </div>
   );
 

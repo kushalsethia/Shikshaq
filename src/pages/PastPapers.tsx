@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck } from 'lucide-react';
@@ -11,7 +11,6 @@ import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { useAuth } from '@/lib/auth-context';
-import { GoalRing } from '@/components/papers/goal-ring';
 import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { PullToRefresh } from '@/components/devices/PullToRefresh';
@@ -23,12 +22,27 @@ import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { BROWSE_PATH } from '@/lib/nav-config';
 
+/* One definition for every section heading on this page.
+
+   They had drifted: five were text-[21px] lg:text-[26px], one was
+   text-[19px], and the class ORDER varied between them enough that you could
+   not tell at a glance whether two headings were the same size. Deliberate
+   variants (the centred one, the one on the dark panel) now compose on top of
+   this instead of restating the whole string.
+
+   Deliberately NOT text-section-head. That token is clamp(27px..46px); this
+   page's heads are 21..26px. Whether the page or the token is right is a real
+   open question, but making them agree is a visual change to every section
+   head on the page, not a cleanup, so it is not made here. */
+const SECTION_H2 = 'font-display text-[21px] font-extrabold tracking-[-0.03em] lg:text-[26px]';
+
+
 /* Section switches. `bySchool` is off by request: with the question bank in,
    "by school" is 100 entries of which most hold a single paper, so the grid
    read as a directory rather than a way in. Subject, board and class are the
    cuts that actually narrow things. The query and markup are untouched, so
    this is one boolean to bring it back. */
-const FEATURES = { bySchool: false };
+const FEATURES = { bySchool: false, mostRead: false };
 
 interface Paper {
   id: string;
@@ -229,30 +243,24 @@ export default function PastPapers() {
     },
   });
 
-  /* Weekly goal + new-paper count (pages.md §4 section 1). Both were dropped as
-     "per-user data this schema does not have" — paper_reads now provides it.
-     Keyed on the user id so one reader's numbers can never be served from
-     another's cache entry, and skipped entirely when signed out. */
-  const WEEKLY_GOAL = 5;
+  /* New-paper count (pages.md §4 section 1) — "per-user data this schema
+     does not have" until paper_reads provided it. Keyed on the user id so
+     one reader's number can never be served from another's cache entry,
+     and skipped entirely when signed out. The weekly-read-count half of
+     this query (and the streak pill it fed) was removed per owner review;
+     newCount is still real, still live, still the only thing this query
+     now exists for. */
   const personal = useQuery({
     enabled: Boolean(user),
     queryKey: ['papers', 'personal', user?.id],
     staleTime: 60 * 1000,
     queryFn: async () => {
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-      const [thisWeek, lastRead] = await Promise.all([
-        supabase
-          .from('paper_reads')
-          .select('id', { count: 'exact', head: true })
-          .gte('read_at', weekAgo),
-        supabase
-          .from('paper_reads')
-          .select('read_at')
-          .order('read_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
+      const lastRead = await supabase
+        .from('paper_reads')
+        .select('read_at')
+        .order('read_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       /* "New" means published since you last opened anything. A reader who has
          never opened a paper has no "since", so the clause is dropped rather
@@ -267,11 +275,10 @@ export default function PastPapers() {
         newCount = count ?? 0;
       }
 
-      return { readThisWeek: thisWeek.count ?? 0, newCount };
+      return { newCount };
     },
   });
 
-  const readThisWeek = personal.data?.readThisWeek ?? 0;
   const newPaperCount = personal.data?.newCount ?? null;
 
   /* The 193 question-bank papers are papers on this surface too, not a
@@ -290,9 +297,10 @@ export default function PastPapers() {
          corrupts the data it is drawn from. */
       (await loadPaperIndex()).map((b) => ({
         id: b.id,
-        title: `Class ${b.cls} Mathematics`,
+        // Was hardcoded Mathematics/Maths -- the bank is multi-subject now.
+        title: `Class ${b.cls} ${b.subject}`,
         school: b.school,
-        subject: 'Maths',
+        subject: b.subject,
         class: b.cls,
         board: b.board,
         exam_type: b.exam,
@@ -412,6 +420,22 @@ export default function PastPapers() {
     return out;
   }, [landing.data, bankPapers]);
   const totalPapers = (landing.data?.totalPapers ?? 0) + bankPapers.length || null;
+  /* Same idea as home's adaptive hero (resolveHeroCopy) and the footer's
+     sign-off pool: the signed-in "N new papers waiting" branch below
+     already varies per reader, but a first-time/signed-out visitor always
+     landed on the exact same fixed sentence around the same real count.
+     Picking a wording once per mount — never a different NUMBER, only the
+     sentence around the one real totalPapers count already fetched — gets
+     the same "the page feels alive" effect without inventing any data. */
+  const genericHeadline = useMemo(() => {
+    const pool: ((n: string) => ReactNode)[] = [
+      (n) => (<>{n} past papers,<br /><span className="font-black">free to read</span></>),
+      (n) => (<>{n} papers,<br /><span className="font-black">yours to read free</span></>),
+      (n) => (<>Free access to<br /><span className="font-black">{n} real past papers</span></>),
+      (n) => (<>{n} papers shared<br /><span className="font-black">by students, for students</span></>),
+    ];
+    return pool[Math.floor(Math.random() * pool.length)];
+  }, []);
   /* Was `!hasFilters && landing.isPending` alone — totalPapers sums TWO
      independent queries (landing's DB count + bankQuery's 193 static
      papers), but this only waited on landing. The moment landing resolved,
@@ -466,6 +490,9 @@ export default function PastPapers() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {/* Owner correction: edge-to-edge (0 gutter) is the intended
+          pattern — a prior pass wrapped this in PageContainer/max-w-6xl,
+          backwards from what the handoff actually calls for. */}
       <main className="flex-1">
       <PullToRefresh onRefresh={() => landing.refetch()} disabled={hasFilters}>
       <BentoStack>
@@ -489,29 +516,27 @@ export default function PastPapers() {
           <span aria-hidden className="pointer-events-none absolute -right-10 top-16 h-[210px] w-[210px] rounded-full bg-white/[.06] sm:h-[280px] sm:w-[280px]" />
 
           <div className="relative mx-auto flex max-w-3xl flex-col items-center text-center">
-            {/* Streak pill — GoalRing size 24 beside "N of 5 this week". Only
-                for a signed-in reader who has opened something: a ring reading
-                0 of 5 is not encouragement, it is a scold on a first visit. */}
-            {user && readThisWeek > 0 && (
-              <span className="mb-4 inline-flex h-[30px] items-center gap-2 whitespace-nowrap rounded-full bg-white/15 px-3 py-1.5 text-[12.5px] font-bold text-white">
-                <GoalRing value={readThisWeek} goal={WEEKLY_GOAL} size={24} showValue={false} />
-                {readThisWeek} of {WEEKLY_GOAL} this week
-              </span>
-            )}
+            {/* "N of 5 this week" streak pill removed — per owner review it
+                read as a top-of-page counter (design.md's own "never a
+                fabricated/empty row" logic doesn't apply, it was real, but
+                it's still a distraction stacked right above the headline
+                whose whole job is to be the one thing said at a glance). */}
             <h1 className="font-display text-[34px] font-normal leading-[.98] tracking-[-0.03em] text-white sm:text-[52px] lg:text-[74px] lg:leading-[.94]">
               {/* "You have N new papers waiting on your shelf" (pages.md §4.1)
                   when there genuinely are new ones for THIS reader — published
-                  since the last paper they opened. Falls back to the library
-                  total, then to the generic line, so the headline always states
-                  something true rather than reaching for the personal version
-                  and finding nothing. */}
+                  since the last paper they opened. Falls back to a wording
+                  picked once per mount from genericHeadline (real count,
+                  varied sentence — same idea as home's adaptive hero), then
+                  to the plain fallback line, so the headline always states
+                  something true rather than reaching for the personal
+                  version and finding nothing. */}
               {newPaperCount != null && newPaperCount > 0 ? (
                 <>
                   You have {newPaperCount.toLocaleString('en-IN')} new paper
                   {newPaperCount === 1 ? '' : 's'},<br /><span className="font-black">waiting on your shelf</span>
                 </>
               ) : !loading && !loadError && totalPapers != null && totalPapers > 0 ? (
-                <>{totalPapers.toLocaleString('en-IN')} past papers,<br /><span className="font-black">free to read</span></>
+                genericHeadline(totalPapers.toLocaleString('en-IN'))
               ) : (
                 <>Past papers from{' '}<br /><span className="font-black">Kolkata schools</span></>
               )}
@@ -639,8 +664,14 @@ export default function PastPapers() {
             Handoff PP-007: BentoPanel wrap, H-009 field metrics via heroDesk
             (submit disc is bg-brand-blue automatically — SearchControl's
             accent already switches on mode, and this control's mode is papers). */}
-        <BentoPanel fill="card" className="p-4">
-          <SearchControl align="flex-start" stackedToggle heroDesk initialMode="papers" onModeChange={handleSearchModeChange} />
+        {/* pb-20 lg:pb-4: below lg, SearchControl's inlineFacetsDesktop chip
+            row now wraps under the field instead of sitting only at lg+ —
+            it's `position: absolute` (so it can float without shifting the
+            field itself), which means it does NOT push this panel's own
+            height. Without the extra bottom padding here the wrapped chips
+            hung half outside the card into whatever renders next. */}
+        <BentoPanel fill="card" className="p-4 pb-28 lg:pb-4">
+          <SearchControl align="flex-start" stackedToggle heroDesk initialMode="papers" onModeChange={handleSearchModeChange} inlineFacetsDesktop />
         </BentoPanel>
 
         {loading && <ShelfSkeleton />}
@@ -658,7 +689,7 @@ export default function PastPapers() {
                 QA) — the actual gate lives on each locked cover's 28px
                 lock disc below, which already opens PaperGate naming the
                 paper. Nothing else needs to ask twice. */}
-            <h2 className="mb-3 px-[22px] font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">Recently added</h2>
+            <h2 className={`mb-3 px-[22px] ${SECTION_H2} text-foreground`}>Recently added</h2>
             <div className="px-[22px]">
               <ShelfLedge>
                 {shelfPapers.map((p) => (
@@ -756,9 +787,9 @@ export default function PastPapers() {
             it is three arbitrary rows.
             Handoff PP-009: BentoPanel fill="muted", radius 24 -> 30, hairline
             expressed as an inset shadow instead of divide-y. */}
-        {mostRead.length > 0 && (
+        {FEATURES.mostRead && mostRead.length > 0 && (
           <BentoPanel fill="muted" className="!p-[18px]">
-            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">
+            <h2 className={`mb-3 ${SECTION_H2} text-foreground`}>
               Most read
             </h2>
             {/* D-005: one-column stack becomes a 2-up grid at lg (spec: "Papers
@@ -809,7 +840,7 @@ export default function PastPapers() {
             the markup are left intact so this is one flag to bring back. */}
         {FEATURES.bySchool && !loading && !loadError && schoolStats.length > 0 && (
           <BentoPanel fill="card" className="p-[22px]">
-            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">By school</h2>
+            <h2 className={`mb-3 ${SECTION_H2} text-foreground`}>By school</h2>
             <div className="stagger-children grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]">
               {schoolStats.map(({ school, board, count, otherBoardCount }) => (
                 /* A real link to the school's own page (S16), not a button that
@@ -859,7 +890,7 @@ export default function PastPapers() {
         {!loading && !loadError && (featuredSubjects.length > 0 || featuredBoards.length > 0) && (
           <BentoPanel fill="card" className="p-[22px]">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-4">
-              <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] lg:text-[26px] text-foreground">
+              <h2 className={`${SECTION_H2} text-foreground`}>
                 By {groupMode === 'subject' ? 'subject' : 'board'}
               </h2>
               {/* Segmented toggle mapped to the two real groupings this page
@@ -985,7 +1016,7 @@ export default function PastPapers() {
                 inconsistent style (owner mobile QA: "keep class there, remove
                 board from there"). Board stays as its own tabs section; this
                 row now carries Class only. */}
-            <h2 className="mb-3 font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">By class</h2>
+            <h2 className={`mb-3 ${SECTION_H2} text-foreground`}>By class</h2>
 
             {/* Classes are 9-12 only: those are the classes the handoff draws,
                 and the ones papers actually exist for. */}
@@ -1015,7 +1046,7 @@ export default function PastPapers() {
         {/* p-[22px]: the mockup never draws this panel, so it follows its
             neighbours on this page rather than BentoPanel's 20px default. */}
         <BentoPanel fill="card" className="p-[22px]">
-          <h2 className="mb-8 text-center font-display text-[21px] font-extrabold tracking-[-0.03em] lg:text-[26px] text-foreground">
+          <h2 className={`mb-8 text-center ${SECTION_H2} text-foreground`}>
             Three steps, no cost,{' '}<br />no catch.
           </h2>
           {/* sm:grid-cols-3 was sized for the full page width this panel had
@@ -1062,7 +1093,7 @@ export default function PastPapers() {
            (heading above text, like every width below lg already renders)
            rather than squeezing that split into ~300px. */}
         <BentoPanel fill="dark" className="p-[18px] lg:flex lg:h-full lg:flex-col lg:justify-center lg:px-8 lg:py-7">
-          <h2 className="mb-1.5 font-display text-[19px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white lg:mb-3 lg:text-[26px]">
+          <h2 className={`mb-1.5 ${SECTION_H2} leading-[1.1] text-white lg:mb-3`}>
             Who owns these papers
           </h2>
           <div className="space-y-3">

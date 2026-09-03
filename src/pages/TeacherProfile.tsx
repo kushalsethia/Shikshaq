@@ -708,7 +708,14 @@ export default function TeacherProfile() {
           at x = 0", and P-002's is that the profile card is square-topped
           because "it meets the nav", which it cannot do inset and pushed
           down. The sm:/lg: gutters are unchanged. */}
-      <main className="mx-auto w-full max-w-6xl px-0 pb-10 sm:px-6 sm:py-8 lg:pb-16 lg:px-8">
+      {/* pb only, not py: sm:py-8 was giving this <main> its own 32px top
+          padding ON TOP OF the profile panel's own edge="top" NavReserve
+          (PageContainer.tsx) just below — the panel is meant to bleed to
+          y=0 and let NavReserve alone clear the fixed nav pill (same as
+          About.tsx's bare `<main>`, which has none of this). Stacking both
+          pushed "Back to all teachers" ~118px down the page for a pill
+          that only needs 72px, reported as dead space above it. */}
+      <main className="mx-auto w-full max-w-6xl px-0 pb-10 sm:px-6 sm:pb-8 lg:pb-16 lg:px-8">
         {/* Desktop: 1fr / 384px grid. Left = photo/name card + prose sections. Right = sticky contact card. */}
         <div className="lg:grid lg:grid-cols-[1fr_384px] lg:gap-[40px]">
           <BentoStack className="min-w-0">
@@ -722,7 +729,17 @@ export default function TeacherProfile() {
             <BentoPanel
               fill="dark"
               edge="top"
-              className="p-[14px] pb-5 lg:rounded-[30px] lg:border lg:border-border lg:bg-card lg:px-[30px] lg:py-[28px] lg:shadow-none"
+              /* lg:pt-[14px], not lg:py-[28px]'s top half: NavReserve (inside
+                 BentoPanel, edge="top") already reserves the 72px the fixed
+                 nav pill needs to clear. That's sized for mobile, where this
+                 panel stays dark and genuinely bleeds under the pill; at lg
+                 it becomes this bordered, fully-rounded card instead, so
+                 stacking the panel's own 28px hero padding on top of the
+                 same reserve left ~100px of near-blank card-coloured space
+                 before "Back to all teachers" — read as dead space, not
+                 breathing room. A small top breather instead of the full
+                 padding; bottom keeps its 28px. */
+              className="p-[14px] pb-5 lg:rounded-[30px] lg:border lg:border-border lg:bg-card lg:px-[30px] lg:pb-[28px] lg:pt-[14px] lg:shadow-none"
             >
               {/* S3 top row: 40x40 icon buttons, 18px icons, 8px gap, 16px margin-bottom.
                   Kept at a 44px hit area (padding) around the 40px visual per the
@@ -736,7 +753,7 @@ export default function TeacherProfile() {
                   relying on a bare chevron, since there is room for it here. */}
               <Link
                 to={backHref}
-                className="mb-[16px] hidden min-h-11 items-center gap-2 text-[13px] font-semibold text-background/70 transition-colors duration-150 hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:inline-flex"
+                className="mb-[16px] hidden min-h-11 items-center gap-2 text-[13px] font-semibold text-background/70 transition-colors duration-150 hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:inline-flex lg:text-muted-foreground lg:hover:text-foreground"
               >
                 <ArrowLeft size={16} aria-hidden="true" />
                 Back to all teachers
@@ -951,7 +968,7 @@ export default function TeacherProfile() {
                 TeacherComments.tsx for the heading/write-review pill/card
                 treatment. */}
             <BentoPanel fill="brandTint" className="p-[22px]">
-              <TeacherComments teacherId={teacher.id} subject={primarySubject} teacherSlug={teacher.slug} teacherName={teacher.name} teacherImageUrl={teacher.image_url} area={areaLabel} />
+              <TeacherComments teacherId={teacher.id} subject={primarySubject} teacherSlug={teacher.slug} teacherName={teacher.name} area={areaLabel} />
             </BentoPanel>
 
             {/* Handoff P-011: the similar-teachers rail and the closing
@@ -963,7 +980,12 @@ export default function TeacherProfile() {
                   <div className="px-[22px]">
                     <SectionHeading>More teachers we think you&rsquo;d like</SectionHeading>
                   </div>
-                  <div className="overflow-x-auto overflow-y-visible px-[22px] py-1 scrollbar-hide">
+                  {/* overflow-y-visible was a no-op here — once overflow-x is
+                      auto, overflow-y resolves to auto too (CSS spec), so it
+                      never actually gave the hover lift/shadow room and could
+                      clip it instead. Same fix as the home rail's featured-
+                      teacher shelf: overflow-y-hidden + real pb/pt padding. */}
+                  <div className="overflow-x-auto overflow-y-hidden px-[22px] pb-3 pt-3 scrollbar-hide">
                     <ul className="flex w-max snap-x snap-mandatory gap-4">
                       {recommendedTeachers.map((t) => (
                         <li key={t.id} className="w-[168px] flex-none snap-start sm:w-[200px] lg:w-[220px]">
@@ -997,7 +1019,12 @@ export default function TeacherProfile() {
                   <div className="mt-[22px] px-[22px]">
                     <SectionHeading>More teachers in {primarySubject || 'this subject'}</SectionHeading>
                   </div>
-                  <div className="overflow-x-auto overflow-y-visible px-[22px] py-1 scrollbar-hide">
+                  {/* overflow-y-visible was a no-op here — once overflow-x is
+                      auto, overflow-y resolves to auto too (CSS spec), so it
+                      never actually gave the hover lift/shadow room and could
+                      clip it instead. Same fix as the home rail's featured-
+                      teacher shelf: overflow-y-hidden + real pb/pt padding. */}
+                  <div className="overflow-x-auto overflow-y-hidden px-[22px] pb-3 pt-3 scrollbar-hide">
                     <ul className="flex w-max snap-x snap-mandatory gap-4">
                       {moreInSubjectTeachers.map((t) => (
                         <li key={t.id} className="w-[168px] flex-none snap-start sm:w-[200px] lg:w-[220px]">
@@ -1095,22 +1122,6 @@ export default function TeacherProfile() {
                   {teacher.is_verified && <li>ID and degree verified by Shikshaq</li>}
                   <li>Fees are settled directly with the teacher. Shikshaq takes no commission.</li>
                 </ul>
-              </div>
-
-              <div className="rounded-[30px] bg-brand-subtle p-[20px]">
-                <p className="font-display text-[18px] font-extrabold tracking-[-0.02em] text-brand-deep">Not the right fit?</p>
-                <p className="mt-1 text-[14.5px] leading-[1.55] text-warm-prose">
-                  See other {primarySubject || 'tuition'} teachers near {areaLabel}.
-                </p>
-                <Link
-                  to={BROWSE_PATH}
-                  /* Standalone CTA, not prose — a 21px underline is under the
-                     floor, so it takes the same `tap-44` overlay the footer
-                     links use (C-013). Painted size is unchanged. */
-                  className="tap-44 mt-[4px] inline-block text-[14px] font-semibold text-brand-deep underline underline-offset-2 transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  See them all →
-                </Link>
               </div>
             </div>
           </aside>

@@ -7,7 +7,10 @@ import { useIsChromelessRoute } from "@/lib/chromeless-routes";
 
    PageContainer is the one horizontal measure for the whole product. Every
    route body goes through it so gutters cannot drift screen to screen:
-     mobile 16px · sm 24px · lg 32px, capped at max-w-6xl. */
+     mobile 12px · sm 24px · lg 32px, capped at max-w-6xl.
+   Was 16px on mobile — owner review: on a real phone width that read as
+   wasted margin rather than breathing room, more than the sm/lg gutters
+   ever did. */
 export interface PageContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   as?: "div" | "main" | "section" | "footer";
 }
@@ -18,7 +21,7 @@ const PageContainer = React.forwardRef<HTMLDivElement, PageContainerProps>(
     return (
       <Comp
         ref={ref}
-        className={cn("mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8", className)}
+        className={cn("mx-auto w-full max-w-6xl px-3 sm:px-6 lg:px-8", className)}
         {...props}
       />
     );
@@ -145,12 +148,12 @@ function TopNavSpacer() {
   );
 }
 
-/* Handoff T-004 — one owner for the 6px seam between stacked panels and the
-   page ground (`bg-background`) that shows through it. */
+/* Owner correction, superseding Handoff T-002/T-004/D-002's 6px/8px seam:
+   stacked panels are meant to touch with zero gap between them, not show a
+   strip of page ground through a gap. bg-background stays on the wrapper
+   itself (still the one owner of that fill, panels don't each need it). */
 export function BentoStack({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  /* Handoff D-002: 6px seam on mobile, 8px from `lg` — 6px reads as a
-     hairline crack at desktop density against much larger panels. */
-  return <div className={cn('flex flex-col gap-seam lg:gap-2 bg-background', className)} {...props} />;
+  return <div className={cn('flex flex-col gap-0 bg-background', className)} {...props} />;
 }
 
 /* Handoff T-005 — every section on every redesigned screen is one of these.
