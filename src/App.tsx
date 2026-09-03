@@ -15,7 +15,7 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { CanonicalTag } from "@/components/CanonicalTag";
 import { Chatbot } from "@/components/Chatbot";
 import { AppShell } from "@/components/layout/AppShell";
-import { OnboardingModal } from "@/components/OnboardingModal";
+import { ProductTourHost } from "@/components/ProductTour";
 /* Index stays EAGER: it is the landing route, so code-splitting it would only
    add a round trip before first paint. Everything else is lazy - an /impeccable
    audit flagged a 474KB main chunk with 10 pages bundled in eagerly. */
@@ -178,7 +178,11 @@ const App = () => (
             <CanonicalTag />
             <RoutePrefetch />
             <Chatbot />
-            <OnboardingModal />
+            {/* The single onboarding: opens itself on a first visit and on
+                every Shikshaq-logo tap. Mounted once, here, because the logo
+                trigger is a window event and a second copy would answer the
+                same tap. */}
+            <ProductTourHost />
             <AppShell>
             <RouteTransition>
             {/* One Suspense boundary around the whole route table. The routes

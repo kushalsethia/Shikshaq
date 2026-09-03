@@ -19,7 +19,6 @@ import { validateImageSrc } from '@/utils/imageSanitizer';
 import { logger } from '@/utils/logger';
 import { TeacherCard } from '@/components/TeacherCard';
 import { SubjectCard } from '@/components/SubjectCard';
-import { HomeGreeting } from '@/components/HomeGreeting';
 import { HomeActivitySection } from '@/components/HomeActivitySection';
 import { SearchDesk } from '@/components/home/SearchDesk';
 import { RegionNotice } from '@/components/RegionNotice';
@@ -27,7 +26,6 @@ import { EyesPanel } from '@/components/home/EyesPanel';
 import { CornerMascot } from '@/components/home/CornerMascot';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { useChromeConfig } from '@/components/layout/AppShell';
-import { ProductTour, useProductTour } from '@/components/ProductTour';
 import { NumberedHeading } from '@/components/ui/numbered-heading';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { PaperCover } from '@/components/papers/paper-cover';
@@ -132,7 +130,6 @@ function parseClassNumbers(raw: string | null | undefined): number[] {
 }
 
 export default function Index() {
-  const { open: tourOpen, setOpen: setTourOpen } = useProductTour();
 
   const navigate = useNavigate();
   const { profile } = useAuth();
@@ -203,7 +200,7 @@ export default function Index() {
          stays for the call sites still using it. */
 
         const desiredSubjects = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
-        const [subjectsRes, upvoteStatsRes, allTeachersRes, papersRes, boardRowsRes] = await Promise.all([
+        const [subjectsRes, upvoteStatsRes, allTeachersRes, facetCountsRes] = await Promise.all([
           supabase.from('subjects').select('*').in('name', desiredSubjects).limit(10),
           // teacher_upvote_stats is a pre-aggregated view (teacher_id, upvote_count) —
           // avoids pulling every teacher_upvotes row down and counting client-side.
@@ -219,24 +216,28 @@ export default function Index() {
             .from('teachers_list')
             .select('id, name, slug, image_url, is_verified, subject_id, classes, subjects(name, slug), subjects_text:subjects')
             .limit(200),
-          supabase.from('papers').select('board, class').eq('is_published', true),
-          /* Board counts joined this batch instead of running after it. It
-             shares no input with the four above and nothing waits on it, so
-             awaiting it separately was a free extra round trip on the
-             homepage's critical path. */
-          supabase.from('Shikshaqmine').select('"School Boards Catered"'),
+          /* Both of these were whole-table transfers pulled purely to be
+             counted in the browser: every published paper's board/class, and
+             every teacher's "School Boards Catered" cell. They are now one
+             aggregate done in the database (migration home_facet_counts_rpc),
+             so the homepage carries the tallies instead of the rows.
+
+             The RPC also fixed a real bug in passing: splitting that column
+             on "/" turned "N/A" into boards named "N" and "A", which this
+             page's own tokenizer below would have counted too. It counts
+             only recognised boards now. */
+          supabase.rpc('home_facet_counts'),
         ]);
 
-        if (subjectsRes.error || upvoteStatsRes.error || allTeachersRes.error || papersRes.error) {
+        if (subjectsRes.error || upvoteStatsRes.error || allTeachersRes.error) {
           if (import.meta.env.DEV) {
             console.error('Index.fetchData error:', {
               subjects: subjectsRes.error,
               upvoteStats: upvoteStatsRes.error,
               teachers: allTeachersRes.error,
-              papers: papersRes.error,
             });
           }
-          throw subjectsRes.error || upvoteStatsRes.error || allTeachersRes.error || papersRes.error;
+          throw subjectsRes.error || upvoteStatsRes.error || allTeachersRes.error;
         }
 
         const allTeachers = allTeachersRes.data || [];
@@ -348,26 +349,25 @@ export default function Index() {
         // same column Browse already tokenizes for its board filter. Counting
         // papers also meant the whole section vanished on a database with no
         // papers in it, which is the state this one is in.
-        const boardRows = boardRowsRes.data;
-        if (boardRowsRes.error) {
-          logger.error('Board counts failed', boardRowsRes.error);
+        /* Tallies now arrive pre-aggregated. Mapped through BOARD_ORDER so
+           the display order and the key spellings stay this page's own,
+           rather than whatever order jsonb_object_agg returned. */
+        const facetCounts = (facetCountsRes.data ?? {}) as {
+          paper_boards?: Record<string, number>;
+          teacher_boards?: Record<string, number>;
+        };
+        if (facetCountsRes.error) {
+          logger.error('Board counts failed', facetCountsRes.error);
         }
-        const boardTally: Record<string, number> = {};
-        (boardRows || []).forEach((row) => {
-          const raw = (row as Record<string, string | null>)['School Boards Catered'] || '';
-          // One teacher can list several boards; count them once per board.
-          const seen = new Set<string>();
-          raw.split(/[,/|]/).forEach((tok) => {
-            const t = tok.trim().toLowerCase();
-            if (!t) return;
-            const key = BOARD_ORDER.find((b) => t === b.toLowerCase() || t.includes(b.toLowerCase()));
-            if (key && !seen.has(key)) {
-              seen.add(key);
-              boardTally[key] = (boardTally[key] || 0) + 1;
-            }
+        const tallyFrom = (src: Record<string, number> | undefined) => {
+          const out: Record<string, number> = {};
+          Object.entries(src ?? {}).forEach(([raw, n]) => {
+            const key = BOARD_ORDER.find((b) => b.toLowerCase() === raw.trim().toLowerCase());
+            if (key) out[key] = (out[key] || 0) + n;
           });
-        });
-
+          return out;
+        };
+        const boardTally = tallyFrom(facetCounts.teacher_boards);
 
         // By-class rail — real per-class teacher counts, tokenized from the
         // teachers_list `classes` column (same pattern as the subject counts
@@ -382,15 +382,7 @@ export default function Index() {
         });
 
 
-        // Per-board published-paper counts. `papersRes` was already being
-        // fetched (and only its error inspected), so this is free.
-        const paperBoardTally: Record<string, number> = {};
-        (papersRes.data || []).forEach((row) => {
-          const raw = ((row as { board?: string | null }).board || '').trim();
-          if (!raw) return;
-          const key = BOARD_ORDER.find((b) => raw.toLowerCase().includes(b.toLowerCase()));
-          if (key) paperBoardTally[key] = (paperBoardTally[key] || 0) + 1;
-        });
+        const paperBoardTally = tallyFrom(facetCounts.paper_boards);
 
       return { featured, subjectList, boardTally, classTally, paperBoardTally };
     },
@@ -648,6 +640,15 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Owner correction: edge-to-edge is the intended pattern for
+          BentoStack pages — panels stretch left to right with 0 gap to
+          the viewport, not inset behind a page-level gutter. An earlier
+          pass here wrapped this in PageContainer/max-w-6xl to match
+          PastPapers/TeacherProfile's own hand-rolled centred column, on
+          the theory that THOSE were the correct reference — backwards:
+          this page's original bare `<main>` was the one actually
+          matching the handoff, and PastPapers/TeacherProfile are the
+          pages that need fixing to match it, not the other way round. */}
       <main id="main-content">
         <BentoStack>
           {/* --------------------------------------------- 1-4 · Hero grid (D-005)
@@ -725,7 +726,7 @@ export default function Index() {
                     <Link
                       key={b}
                       to={`/past-papers/results?filter_boards=${encodeURIComponent(b)}`}
-                      className="flex h-[38px] shrink-0 items-center gap-[7px] whitespace-nowrap rounded-full bg-brand-blue-subtle px-3.5 text-[13px] font-semibold text-brand-blue transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
+                      className="flex h-[38px] shrink-0 items-center gap-[7px] whitespace-nowrap rounded-full bg-brand-blue-subtle px-3.5 text-[13px] font-semibold text-brand-blue-deep transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
                     >
                       <span aria-hidden className="h-2 w-2 rounded-[2px] bg-brand-blue" />
                       {b} · {paperBoardCounts[b]}
@@ -798,7 +799,7 @@ export default function Index() {
             <div className="lg:flex lg:h-full lg:items-center lg:gap-6">
             <div className="min-w-0 lg:flex-1">
             <div className="flex items-center justify-between">
-              <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand text-[#1F1F1F]">
+              <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand text-brand-foreground">
                 <Users className="h-[19px] w-[19px]" strokeWidth={2.25} aria-hidden />
               </span>
               {featuredWithPhotos.length > 0 && (
@@ -925,8 +926,15 @@ export default function Index() {
                         verified={t.is_verified ?? undefined}
                         variant="grid-compact"
                         sirMaam={t.sirMaam ?? null}
-                        minFees={t.minFees}
-                        maxFees={t.maxFees}
+                        /* No fees on this rail. Owner call. It also only ever
+                           rendered on the subset of teachers who have both
+                           figures recorded, so the row showed a price under
+                           some cards and nothing under others — the cards
+                           without one read as free rather than as unrecorded.
+                           Fees still show on Browse and the profile, where
+                           they are a filter and a fact respectively.
+                           formatFeeLabel() returns null for absent values, so
+                           omitting the props is all this takes. */
                       />
                     </li>
                   ))}
@@ -956,16 +964,13 @@ export default function Index() {
             </Link>
           </BentoPanel>
 
-          {/* Subjects (6) / Board (7) / Class (9) as one row at lg — was three
-              full-width panels stacked vertically. An equal grid-cols-3 (each
-              exactly 1/3) squeezed content built for full page width — the
-              5-across board row and 12-across class row both truncated/
-              wrapped badly inside a plain third. Weighted instead: subjects
-              needs the most room (an internal 2-up card grid), board and
-              class need less (short pills / a compact number grid), and
-              their own internal breakpoints below are re-tuned for these
-              narrower columns rather than the page-width ones they had. */}
-          <div className="lg:grid lg:grid-cols-[1.3fr_0.85fr_0.85fr] lg:items-stretch lg:gap-2">
+          {/* Subjects (6) / Board (7) / Class (9) back to three full-width
+              panels stacked vertically. The one-row-at-lg version (weighted
+              grid-cols, each section's internal grid squeezed to fit a
+              third of the page) read as cramped columns rather than three
+              real sections — reverted per owner review; each panel gets the
+              full page width again and its own internal grid back at the
+              wider count it had for that width. */}
           {/* --------------------------------------------------------- 6 · Subjects */}
           <BentoPanel fill="card" className="p-[22px]">
             <NumberedHeading
@@ -983,11 +988,7 @@ export default function Index() {
                 ))}
               </div>
             ) : subjects.length > 0 ? (
-              /* Was lg:grid-cols-4 — that assumed the full page width this
-                 panel no longer has now that it shares a row with Board and
-                 Class. 2-up still gives each subject card real room in its
-                 narrower column. */
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
                 {subjects.slice(0, 8).map((s) => (
                   <SubjectCard key={s.id} name={s.name} slug={s.slug} context="teachers" teacherCount={s.teacherCount} paperCount={s.paperCount} />
                 ))}
@@ -1010,13 +1011,10 @@ export default function Index() {
               <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">
                 Your board
               </h2>
-              {/* Was a 5-across row at lg, sized for the full page width this
-                  panel no longer has (it now shares a row with Subjects and
-                  Class) — squeezed into ~300px, 5 columns truncated "141
-                  tutors" past recognition. Back to the plain stacked list at
-                  every width, which is what this panel's own narrower column
-                  actually has room for. */}
-              <div className="stagger-children mt-[14px] space-y-2">
+              {/* Back to a full page width, so a 5-across row at lg has real
+                  room for "141 tutors" instead of truncating inside a
+                  cramped third-of-the-page column. */}
+              <div className="stagger-children mt-[14px] grid grid-cols-1 gap-2 lg:grid-cols-5">
                 {BOARD_ORDER.filter((b) => boardCounts[b]).map((b, i) => (
                   <Link
                     key={b}
@@ -1043,17 +1041,13 @@ export default function Index() {
               support="Classes 1 through 12."
             />
 
-            {/* 02a §9 specifies `grid-cols-6 gap-2 sm:grid-cols-8
-                lg:grid-cols-12`, and that is exactly what runs from 360px up.
-                Below 360 the six columns work out to 39px each, under the
-                C-013 44px floor — a width the handoff never draws, so the
-                sub-360 sliver falls back to four columns of the same chip at
-                the same gap.
-                lg:grid-cols-12 assumed this panel had the full page width;
-                sharing a row with Subjects/Board now, 12 across a ~300px
-                column worked out to ~20px chips. Capped at 4 (3 rows of 4)
-                instead, which is what this column actually has room for. */}
-            <ul className="mt-4 grid grid-cols-4 gap-2 min-[360px]:grid-cols-6 sm:grid-cols-8 lg:grid-cols-4">
+            {/* 02a §9: `grid-cols-6 gap-2 sm:grid-cols-8 lg:grid-cols-12`,
+                which is exactly what runs from 360px up now that this panel
+                has the full page width again. Below 360 the six columns work
+                out to 39px each, under the C-013 44px floor — a width the
+                handoff never draws, so the sub-360 sliver falls back to four
+                columns of the same chip at the same gap. */}
+            <ul className="mt-4 grid grid-cols-4 gap-2 min-[360px]:grid-cols-6 sm:grid-cols-8 lg:grid-cols-12">
               {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
                 <li key={n}>
                   <Link
@@ -1066,7 +1060,6 @@ export default function Index() {
               ))}
             </ul>
           </BentoPanel>
-          </div>
 
           {/* ------------------------------------------------------- 10 · New papers */}
           <BentoPanel fill="papers" className="relative overflow-hidden px-[22px] pb-[26px] pt-[22px]">
@@ -1080,9 +1073,11 @@ export default function Index() {
                 covers instead of three because there is now room for them. */}
             <div className="relative lg:flex lg:items-center lg:gap-12">
               <div className="lg:flex-1">
-                <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/70">04</p>
+                {/* Was /70 (3.47:1 on --brand-blue). An 11.5px eyebrow is small text. */}
+                <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white">04</p>
                 <h2 className="font-display text-[23px] font-extrabold text-white lg:text-[30px]">the boards set</h2>
-                <p className="mt-3 max-w-prose text-[14px] leading-[1.5] text-white/80 lg:text-[15px]">
+                {/* Was /80 (4.06:1). */}
+                <p className="mt-3 max-w-prose text-[14px] leading-[1.5] text-white/90 lg:text-[15px]">
                   {/* Not "from Kolkata schools": the question bank added 193 ICSE
                       and CBSE papers from schools across India, and a handful of
                       the covers beside this line are from Mumbai and Bengaluru. */}
@@ -1154,10 +1149,14 @@ export default function Index() {
               made this the only 12px gap on the page — the "extra padding
               between the rounded sections" report. */}
           <BentoPanel fill="brand" className="relative overflow-visible px-[22px] pb-6 pt-[26px]">
-            <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/75">
+            {/* brand-foreground, not white: white on #FF8000 measures
+                2.52:1 and the /75 opacity variant 1.56:1 — the exact pair
+                index.css:112-123 documents as failing AA. The token is
+                near-black at 6.46:1. */}
+            <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-brand-foreground/75">
               02 · Two minutes, start to finish
             </p>
-            <h2 className="mt-2 font-display text-[28px] font-extrabold tracking-[-0.045em] text-white">
+            <h2 className="mt-2 font-display text-[28px] font-extrabold tracking-[-0.045em] text-brand-foreground">
               Then talk to them yourself
             </h2>
 
@@ -1172,17 +1171,24 @@ export default function Index() {
                 { icon: <Users />, title: 'Compare real profiles', body: 'Rates, boards, reviews and travel radius, all on one card.' },
                 { icon: <MessageCircle />, title: 'Message on WhatsApp', body: 'Talk to the teacher directly. Shikshaq never sits in the middle.' },
               ].map((step) => (
+                /* brand-foreground, not white. This panel is fill="brand", and
+                   white on #FF8000 measures 2.52:1 (the /85 and /80 variants
+                   below were worse still, at 2.19:1 and 2.09:1). The fix was
+                   applied to this panel's eyebrow and h2 when it was first
+                   raised; the three step cards inside the same panel were
+                   missed, so the documented failure survived in the place with
+                   the most words on it. */
                 <li key={step.title} className="flex flex-col">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-background/15 text-white [&_svg]:size-5">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-foreground/15 text-brand-foreground [&_svg]:size-5">
                     {step.icon}
                   </span>
-                  <h3 className="mt-[10px] font-display text-[17px] font-bold text-white">{step.title}</h3>
-                  <p className="mt-1 text-[14px] leading-[1.5] text-white/85">{step.body}</p>
+                  <h3 className="mt-[10px] font-display text-[17px] font-bold text-brand-foreground">{step.title}</h3>
+                  <p className="mt-1 text-[14px] leading-[1.5] text-brand-foreground/80">{step.body}</p>
                 </li>
               ))}
             </ol>
 
-            <p className="mt-[22px] text-[14px] text-white/80">
+            <p className="mt-[22px] text-[14px] text-brand-foreground/80">
               No fees, no middleman, no commission, ever.
             </p>
           </BentoPanel>
@@ -1264,51 +1270,69 @@ export default function Index() {
                       </p>
 
                       <div className="mt-auto pt-4">
-                        <div className="flex items-center gap-2.5">
-                          {/* Owner call (already applied to ReviewCard on the
-                             teacher-profile reviews): the avatar is the
-                             TEACHER being quoted about, not the student who
-                             wrote it — a recognisable face the reader can
-                             connect to "on {teacherName}" below, where a
-                             reviewer's own placeholder initials wouldn't
-                             mean anything. Falls back to the same
-                             subject-less initials stripe, keyed off the
-                             teacher's name, never the reviewer's. */}
-                          {q.teacherImageUrl ? (
-                            <img
-                              src={validateImageSrc(q.teacherImageUrl)}
-                              alt=""
-                              aria-hidden
-                              className="h-[30px] w-[30px] flex-none rounded-full object-cover"
-                            />
-                          ) : (
+                        {/* Owner call: the card's headline identity — photo
+                           AND name — is the TEACHER being quoted about, not
+                           the student/parent who wrote it. Was photo=
+                           teacher, name=reviewer, which paired a
+                           recognisable face with a name it didn't belong
+                           to. Falls back to the same initials stripe, keyed
+                           off the teacher's name, never the reviewer's.
+
+                           Wrapped in the same profile link the "View X's
+                           profile" row below points to when there's a
+                           teacherSlug to send it to: a recognisable face
+                           sitting right next to that teacher's own name
+                           read as a card about them, so it should behave
+                           like one and go straight to their profile,
+                           instead of the tiny text row underneath being the
+                           only thing on the whole card that actually is. */}
+                        {q.teacherName && q.teacherSlug ? (
+                          <Link
+                            to={`/tuition-teachers/${q.teacherSlug}`}
+                            className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >
+                            {q.teacherImageUrl ? (
+                              <img
+                                src={validateImageSrc(q.teacherImageUrl)}
+                                alt=""
+                                aria-hidden
+                                className="h-[30px] w-[30px] flex-none rounded-full object-cover"
+                              />
+                            ) : (
+                              <StripePlaceholder
+                                name={q.teacherName}
+                                initialSize={14}
+                                className="h-[30px] w-[30px] flex-none rounded-full"
+                              />
+                            )}
+                            <div className="min-w-0">
+                              <p className="truncate text-[13px] font-bold text-foreground">{q.teacherName}</p>
+                              <p className="truncate text-[12px] text-warm-meta">
+                                {q.authorName}{q.authorMeta ? `, ${q.authorMeta}` : ''}
+                              </p>
+                            </div>
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-2.5">
                             <StripePlaceholder
-                              name={q.teacherName ?? q.authorName}
+                              name={q.authorName}
                               initialSize={14}
                               className="h-[30px] w-[30px] flex-none rounded-full"
                             />
-                          )}
-                          <div className="min-w-0">
-                            <p className="truncate text-[13px] font-bold text-foreground">{q.authorName}</p>
-                            {q.authorMeta && (
-                              <p className="truncate text-[12px] text-warm-meta">{q.authorMeta}</p>
-                            )}
+                            <div className="min-w-0">
+                              <p className="truncate text-[13px] font-bold text-foreground">{q.authorName}</p>
+                              {q.authorMeta && <p className="truncate text-[12px] text-warm-meta">{q.authorMeta}</p>}
+                            </div>
                           </div>
-                        </div>
+                        )}
 
-                        {/* The teacher, on its own line under the attribution
-                            and reading as a sentence rather than a bare pill:
-                            it is the answer to "who is this about", which the
-                            name above does not give you. */}
                         {q.teacherName && q.teacherSlug && (
                           <Link
                             to={`/tuition-teachers/${q.teacherSlug}`}
                             className="mt-2.5 flex min-h-11 items-center gap-1.5 text-[12.5px] text-warm-secondary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           >
                             <span aria-hidden="true" className="h-1.5 w-1.5 flex-none rounded-full bg-brand" />
-                            <span className="min-w-0 truncate">
-                              on <span className="font-bold text-foreground">{q.teacherName}</span>
-                            </span>
+                            <span className="min-w-0 truncate">View {q.teacherName}&rsquo;s profile</span>
                           </Link>
                         )}
                       </div>
@@ -1336,15 +1360,16 @@ export default function Index() {
             </Link>
           </BentoPanel>
 
-          {/* HomeGreeting / HomeActivitySection (Favourites, Recently visited) are
-              real, existing localStorage/likes-backed features with no home in
-              the mockup's own section order. Kept, moved below the mockup's own
-              sections, just above the eyes panel, rather than deleted.
-              p-[22px] like every other card panel on this page — the mockup
-              never draws this one, and BentoPanel's 20px default left it the
-              single odd inset in the stack. */}
+          {/* HomeActivitySection (Favourites, Recently visited) is a real,
+              localStorage/likes-backed feature with no home in the mockup's own
+              section order. Kept, below the mockup's sections, above the eyes
+              panel. p-[22px] like every other card panel on this page.
+
+              HomeGreeting was removed (owner call). It was a saturated orange
+              "Hello, {firstName} 👋 / Here is where you left off" slab shown
+              only to signed-in readers, restating counts that the Favourites
+              and Recently-visited lists directly below it already show. */}
           <BentoPanel fill="card" className="p-[22px]">
-            <HomeGreeting />
             <HomeActivitySection />
           </BentoPanel>
 
@@ -1366,10 +1391,9 @@ export default function Index() {
         </BentoStack>
       </main>
 
-      {/* Opened by tapping the wordmark in the nav (components.md C10). The
-          trigger dispatches an event rather than reaching in through props,
-          since the logo lives in Navbar and the tour is mounted here. */}
-      <ProductTour open={tourOpen} onOpenChange={setTourOpen} />
+      {/* The tour is mounted once in App.tsx (ProductTourHost), not here: it
+          now opens on a first visit from any route, and two mounts would both
+          answer the logo-tap event and stack two dialogs. */}
     </div>
   );
 }
