@@ -1,12 +1,30 @@
 /* Handoff H-005 — the home hero's copy resolver.
    One pure function, no new query: branches 1-2 read the useAuth() profile
-   the page already holds, 3-5 read localStorage keys src/lib/activity-trail.ts
-   writes from TeacherProfile/PaperReader/SearchControl, 6 is a session-stable
-   random pool.
+   the page already holds, 3-5 read the intent store's lastSearch/lastTeacher/
+   lastPaper records (src/lib/intent/store.ts) — the same single envelope
+   TeacherProfile/PaperReader/SearchControl/the sentence builder/Browse all
+   write into via recordSignal(), rather than three raw localStorage keys of
+   its own. 6 is a session-stable random pool.
+
+   Phase 2 of the intent index: this file used to read
+   shikshaq.lastSearch/shikshaq.lastViewedTeacher/shikshaq.lastPaperSubject
+   directly. Those are now sub-records of shikshaq.intent.v1 (still mirrored
+   back to the old keys during the dual-write release), and reading the store
+   module instead of the raw keys is what lets the hero and every later
+   adaptive surface agree about who the visitor is, rather than each guessing
+   from its own copy of the same three keys.
 
    ⚠ Branch 1b's copy calls for a gendered pronoun ("message her/him?") that
    the app has no reliable source for; "message them?" is used instead rather
    than guessing a gender. */
+
+import {
+  readStore,
+  THIRTY_DAYS_MS as STORE_THIRTY_DAYS_MS,
+  type StoredLastPaper,
+  type StoredLastSearch,
+  type StoredLastTeacher,
+} from '@/lib/intent/store';
 
 export type HeroMode = 'teachers' | 'papers';
 export type HeroChip = 'avatar' | 'stripe' | 'cover' | null;
@@ -31,27 +49,6 @@ export interface HeroCopy {
   imageUrl?: string | null;
 }
 
-interface LastSearch {
-  subject?: string;
-  classLevel?: string;
-  area?: string;
-  at: number;
-}
-interface LastViewedTeacher {
-  name?: string;
-  subject?: string;
-  area?: string;
-  slug?: string;
-  imageUrl?: string | null;
-  at: number;
-}
-interface LastPaperSubject {
-  board?: string;
-  subject?: string;
-  count?: number;
-  at: number;
-}
-
 export interface ResolveHeroCopyInput {
   profile: { full_name?: string | null } | null | undefined;
   /** From useLikes().likedCount. */
@@ -68,7 +65,6 @@ export interface ResolveHeroCopyInput {
   likedSingleTeacherImageUrl?: string | null;
 }
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const SESSION_KEY = 'shikshaq.heroLine';
 /** The last line shown, so the next visit can step past it. */
 const LAST_LINE_KEY = 'shikshaq.heroLastLine';
@@ -100,18 +96,8 @@ const POOL: Array<{ before: string; bold: string; after: string }> = [
   { before: 'The right teacher makes ', bold: 'one subject bearable', after: '. Start there.' },
 ];
 
-function readJSON<T>(key: string): T | null {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-}
-
 function isFresh(at: number | undefined): boolean {
-  return typeof at === 'number' && Date.now() - at < THIRTY_DAYS_MS;
+  return typeof at === 'number' && Date.now() - at < STORE_THIRTY_DAYS_MS;
 }
 
 // H-005a rule 4: counts under ten are spelled out.
@@ -204,7 +190,20 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName, l
   const slugify = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const candidates: HeroCopy[] = [];
 
-  const lastSearch = readJSON<LastSearch>('shikshaq.lastSearch');
+  // One read of the shared envelope instead of three separate localStorage
+  // keys — this is the actual point of phase 2: the hero now sees exactly
+  // the same lastSearch/lastTeacher/lastPaper records every other adaptive
+  // surface writes and reads, rather than a copy of its own. readStore()
+  // already fails closed (returns the empty envelope) on unreadable storage,
+  // so the try/catch readJSON used to do is handled once, upstream.
+  let store: ReturnType<typeof readStore> | null = null;
+  try {
+    store = readStore();
+  } catch {
+    store = null;
+  }
+
+  const lastSearch: StoredLastSearch | null = store?.lastSearch ?? null;
   if (lastSearch && isFresh(lastSearch.at) && lastSearch.subject && lastSearch.area) {
     const subjectClass = lastSearch.classLevel ? `${lastSearch.subject} ${lastSearch.classLevel}` : lastSearch.subject;
     const href = `/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(lastSearch.subject)}&filter_areas=${encodeURIComponent(lastSearch.area)}`;
@@ -226,7 +225,7 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName, l
     );
   }
 
-  const lastViewedTeacher = readJSON<LastViewedTeacher>('shikshaq.lastViewedTeacher');
+  const lastViewedTeacher: StoredLastTeacher | null = store?.lastTeacher ?? null;
   if (lastViewedTeacher && isFresh(lastViewedTeacher.at) && lastViewedTeacher.name) {
     const t = lastViewedTeacher;
     // Prefer a direct profile link over the old name-search query — a slug
@@ -272,7 +271,7 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName, l
     }
   }
 
-  const lastPaperSubject = readJSON<LastPaperSubject>('shikshaq.lastPaperSubject');
+  const lastPaperSubject: StoredLastPaper | null = store?.lastPaper ?? null;
   if (lastPaperSubject && isFresh(lastPaperSubject.at) && lastPaperSubject.board && lastPaperSubject.subject) {
     const lp = lastPaperSubject;
     candidates.push(

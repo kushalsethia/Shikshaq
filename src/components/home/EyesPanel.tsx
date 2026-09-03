@@ -9,11 +9,23 @@ import { SentenceBuilder, type SentenceSlot } from '@/components/home/SentenceBu
    the toggle pill and the CTA — H-023's binding rule).
 
    Pupils track the pointer on a mouse; on a touch device they follow
-   deviceorientation instead (iOS 13+ needs a permission prompt, requested
-   from the tap handler, never on mount — falls back silently to pointer
-   tracking if denied). A 5.2s idle timer blinks them, and a tap blinks them
-   too. prefers-reduced-motion disables all of it — pupils sit centred, no
-   listeners attached. */
+   deviceorientation ONLY (iOS 13+ needs a permission prompt, requested from
+   the tap handler, never on mount). A finger drag never moves them on touch —
+   a phone is held, not swiped at, and a drag reading through pointermove
+   fought the gyro rather than filling a gap before it, so touch devices wait
+   for real tilt instead of a stand-in. A 5.2s idle timer blinks them, and a
+   tap blinks them too, and grants the iOS permission prompt on the first tap
+   where one is required. prefers-reduced-motion disables all of it — pupils
+   sit centred, no listeners attached.
+
+   The gyro is CALIBRATED, not absolute: the first orientation sample becomes
+   the baseline, and every reading after that is a delta from it. Without this
+   the pupils started wherever a fixed beta=45/gamma=0 "neutral" happened to
+   land relative to how that particular phone was actually being held, which
+   read as pre-tilted and wrong more often than not — a phone is rarely held
+   at exactly 45 degrees. Calibrating to the first sample means the eyes
+   always start straight, dead centre, however the phone is being held, and
+   only move as it tilts away from that starting pose. */
 
 export interface EyesPanelProps {
   mode: 'teachers' | 'papers';
@@ -133,6 +145,10 @@ function EyesPanel({
      easing the pupils toward a jittering target still tracks the jitter. This
      smooths the READING before it becomes a target. */
   const tiltRef = React.useRef<{ gamma: number; beta: number } | null>(null);
+  /** The first smoothed orientation sample, captured once and never updated —
+   *  see the header comment on why the eyes calibrate to it instead of a
+   *  fixed neutral angle. */
+  const baselineRef = React.useRef<{ gamma: number; beta: number } | null>(null);
   const [blinking, setBlinking] = React.useState(false);
   const [orientationPermission, setOrientationPermission] = React.useState<OrientationPermissionState>('unknown');
   const [tiltActive, setTiltActive] = React.useState(false);
@@ -260,25 +276,20 @@ function EyesPanel({
     };
   }, [reduced, settle]);
 
-  /* Pointer tracking. This used to be `if (reduced || isTouch) return`, which
-     meant the eyes never moved at all on a phone: `pointer: coarse` is true,
-     so nothing was bound, and M-004's tilt only takes over AFTER the reader
-     taps to grant orientation permission. Most visitors therefore saw a
-     completely static face and, reasonably, read it as broken.
-
-     `pointermove` fires for touch drags too, so binding it unless the gyro is
-     genuinely driving gives: desktop -> pointer, phone before permission ->
-     finger drag, phone with tilt granted -> tilt. M-003 and M-004 both still
-     hold; this only fills the gap between them. */
+  /* Pointer tracking — desktop only. Touch devices drive the pupils from
+     deviceorientation alone: `pointermove` fires for a finger drag too, and
+     letting it stand in before tilt was granted meant swiping near the dome
+     moved the eyes, which reads as the eyes reacting to a scroll or a stray
+     touch rather than to the phone itself. */
   React.useEffect(() => {
-    if (reduced || tiltActive) return;
+    if (reduced || isTouch) return;
     function onPointerMove(e: PointerEvent) {
       pointerRef.current = { x: e.clientX, y: e.clientY };
       settle();
     }
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     return () => window.removeEventListener('pointermove', onPointerMove);
-  }, [reduced, tiltActive, settle]);
+  }, [reduced, isTouch, settle]);
 
   /* Only iOS 13+ gates deviceorientation behind a gesture-initiated
      requestPermission(). Every other mobile browser just emits the events —
@@ -303,16 +314,29 @@ function EyesPanel({
     function onOrientation(e: DeviceOrientationEvent) {
       if (e.gamma == null || e.beta == null) return;
       setTiltActive(true);
-      // Handoff M-004: gamma maps to x over +/-30 degrees, beta maps to y as
-      // (beta - 45) / 30 -- both clamped to +/-1. Was dividing by 45, which
-      // needed a steeper tilt than specified to reach full pupil deflection.
-      // Exponential smoothing on the raw reading, then M-004's mapping.
+      // Exponential smoothing on the raw reading before anything else touches
+      // it — deviceorientation jitters by a degree or two even on a phone
+      // held dead still, and smoothing the reading (rather than the mapped
+      // pupil position) keeps the baseline capture below just as stable.
       const prev = tiltRef.current;
       const gamma = prev ? prev.gamma + (e.gamma - prev.gamma) * 0.2 : e.gamma;
       const beta = prev ? prev.beta + (e.beta - prev.beta) * 0.2 : e.beta;
       tiltRef.current = { gamma, beta };
-      const x = Math.max(-1, Math.min(1, gamma / 30)) * PUPIL_MAX_X;
-      const y = Math.max(-1, Math.min(1, (beta - 45) / 30)) * PUPIL_MAX_Y;
+      // The first smoothed sample IS "straight up": whatever angle the phone
+      // happens to be held at becomes zero, and every later reading is a
+      // delta from it. A fixed beta=45 baseline put the eyes off-centre for
+      // anyone not holding the phone at exactly that angle, which is most
+      // people, most of the time.
+      const baseline = baselineRef.current ?? { gamma, beta };
+      if (!baselineRef.current) baselineRef.current = baseline;
+      const dGamma = gamma - baseline.gamma;
+      const dBeta = beta - baseline.beta;
+      // +/-18 degrees reaches full pupil deflection (was +/-30 / +/-45,
+      // wanted more sensitivity so a comfortable, small tilt now reads).
+      // Negated: pupils lead in the direction the READER'S VIEW moves as the
+      // phone tilts, which is the opposite of which way gamma/beta increase.
+      const x = -Math.max(-1, Math.min(1, dGamma / 18)) * PUPIL_MAX_X;
+      const y = -Math.max(-1, Math.min(1, dBeta / 18)) * PUPIL_MAX_Y;
       // Tilt drives the same eased target the pointer does, so the gyro gets
       // the identical smoothing — raw orientation samples are noisy and would
       // otherwise jitter the pupils.
@@ -322,7 +346,10 @@ function EyesPanel({
       settle();
     }
     window.addEventListener('deviceorientation', onOrientation);
-    return () => window.removeEventListener('deviceorientation', onOrientation);
+    return () => {
+      window.removeEventListener('deviceorientation', onOrientation);
+      baselineRef.current = null;
+    };
   }, [reduced, isTouch, orientationPermission, settle]);
 
   const handleTap = React.useCallback(() => {
