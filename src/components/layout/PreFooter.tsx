@@ -148,7 +148,15 @@ function B2({ counts }: { counts?: B2Counts }) {
        everywhere else — so the teachers half shouted while the papers half
        spoke. Same fill logic as B3, in orange. */
     <div className="rounded-bento bg-brand-subtle p-6 sm:p-8">
-      <Eyebrow className="text-brand-deep/70">Why this list is trustworthy</Eyebrow>
+      {/* No /70. Composited on bg-brand-subtle that measured 2.73:1, and an
+          11.5px 700 eyebrow is small text, not decoration.
+          Dropping the alpha alone was NOT enough: solid --brand-deep at its
+          old 35% lightness still only reached 4.45:1 on this tint. The token
+          itself is now 32% (index.css), which is what actually clears the
+          floor here and on every other -deep-on--subtle pair.
+          The warm-label on the tiles below is left alone: the warm scale is
+          one of DESIGN_SYSTEM.md's two approved exceptions. */}
+      <Eyebrow className="text-brand-deep">Why this list is trustworthy</Eyebrow>
       {/* prefooter-02-three-count-strip.png carries a headline between the
           eyebrow and the tiles — "Verified teachers, real reviews, zero
           commission." It was missing, which left an all-caps label sitting
@@ -176,7 +184,9 @@ function B2({ counts }: { counts?: B2Counts }) {
           </div>
         ))}
       </dl>
-      <p className="mt-4 max-w-prose text-[13.5px] leading-[1.6] text-brand-deep/80">
+      {/* Was /80 — 3.21:1 on this fill, and this is body copy making the
+          product's central promise about money. */}
+      <p className="mt-4 max-w-prose text-[13.5px] leading-[1.6] text-brand-deep">
         Teachers keep every rupee of their fee. We never take a cut, and we never sell your
         number.
       </p>
@@ -194,7 +204,9 @@ function B3() {
           described the block ("Where these papers come from") rather than making
           its claim, three flat sentences sharing one repeated document icon, and
           only one of the two CTAs. */}
-      <Eyebrow className="text-brand-blue-deep/70">How the paper library works</Eyebrow>
+      {/* No /70, matching B1 above. The same alpha was removed there and
+          not carried across to this panel. */}
+      <Eyebrow className="text-brand-blue-deep">How the paper library works</Eyebrow>
       <h2 className="mt-3 max-w-[24ch] font-display text-section-head font-extrabold leading-[1.05] text-brand-blue-deep">
         Real school papers, shared by students, free to read.
       </h2>

@@ -64,6 +64,13 @@ export function ExpandableTabs({
         const expanded = active || peekIndex === index;
         const Icon = tab.icon;
         const accentBg = tab.accent === 'brand-blue' ? 'bg-brand-blue' : 'bg-brand';
+        /* The ink an ACTIVE pill needs, decided by which accent it is wearing.
+           Both branches below used to hardcode text-white, which is right on
+           brand-blue (5.44:1) and wrong on brand orange (2.52:1, the pair
+           index.css:112-123 documents as banned). This is the nav, so the
+           orange case was repeating on every scoped page. Applies in dark mode
+           too: the active pill is painted accentBg there as well. */
+        const accentInk = tab.accent === 'brand-blue' ? 'text-white' : 'text-brand-foreground';
         const accentRing = tab.accent === 'brand-blue' ? 'focus-visible:ring-brand-blue' : 'focus-visible:ring-brand';
 
         return (
@@ -95,10 +102,10 @@ export function ExpandableTabs({
                 className={`relative z-10 h-5 w-5 shrink-0 transition-colors duration-150 ${
                   isDark
                     ? active
-                      ? 'text-white'
+                      ? accentInk
                       : 'text-white/50'
                     : active
-                      ? 'text-white'
+                      ? accentInk
                       : 'text-muted-foreground'
                 }`}
                 strokeWidth={active ? 2.25 : 1.8}
@@ -114,7 +121,7 @@ export function ExpandableTabs({
                 }}
                 transition={{ duration: prefersReducedMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className={`relative z-10 overflow-hidden whitespace-nowrap text-[14px] font-bold tracking-[-0.01em] motion-reduce:transition-none ${
-                  isDark ? 'text-white' : active ? 'text-white' : 'text-foreground'
+                  active ? accentInk : isDark ? 'text-white' : 'text-foreground'
                 }`}
               >
                 {tab.label}

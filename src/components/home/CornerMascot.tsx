@@ -78,7 +78,10 @@ export function CornerMascot({ tone }: { tone: 'teachers' | 'papers' }) {
   }, []);
 
   const fill = tone === 'teachers' ? 'bg-brand' : 'bg-brand-blue';
-  const eyeWhite = tone === 'teachers' ? 'bg-[#1F1F1F]/[0.14]' : 'bg-white/30';
+  const eyeWhite = tone === 'teachers' ? 'bg-foreground/[0.14]' : 'bg-white/30';
+  /* Teacher vs. student, at a glance: a graduation cap for the teachers
+     panel, an open book for the papers/revision one. */
+  const badge = tone === 'teachers' ? '🎓' : '📚';
 
   return (
     <div
@@ -97,11 +100,33 @@ export function CornerMascot({ tone }: { tone: 'teachers' | 'papers' }) {
         >
           <span
             ref={ref}
-            className="absolute left-1/2 top-1/2 h-[46%] w-[46%] rounded-full bg-[#1F1F1F]"
+            className="absolute left-1/2 top-1/2 h-[46%] w-[46%] rounded-full bg-foreground"
             style={{ transform: 'translate(-50%, -50%)' }}
-          />
+          >
+            {/* Glossy highlight — a flat pupil with no catchlight reads dead,
+                not friendly. Fixed to the pupil's own corner, not the cursor-
+                tracked wrapper, so it moves with the eye instead of sitting
+                static while the pupil slides under it. */}
+            <span className="absolute left-[18%] top-[18%] h-[30%] w-[30%] rounded-full bg-white/90" />
+          </span>
         </span>
       ))}
+
+      {/* Corner badge — bare emoji, no coin/disc behind it. The white circle
+          read as a UI badge (a notification dot, a status pip) bolted onto
+          the face rather than something the face is wearing; dropped for a
+          floating "sticker" reading closer to a picked emoji sitting on the
+          mascot, per owner review. drop-shadow instead of a card/shadow-
+          border backing keeps it legible against the flat fill without
+          reintroducing a background shape. Fixed px, not a %-based
+          font-size: percent font-sizing resolves off the inherited (body)
+          font size, not this box's own dimensions, so it stayed pinned at a
+          few px regardless of how big the circle rendered. */}
+      <span
+        className="absolute bottom-[8%] right-[8%] text-[28px] leading-none [filter:drop-shadow(0_2px_3px_rgb(0_0_0/0.25))]"
+      >
+        {badge}
+      </span>
     </div>
   );
 }

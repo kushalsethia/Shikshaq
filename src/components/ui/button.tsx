@@ -30,16 +30,16 @@ const buttonVariants = cva(
            goes, since it is the least legible of the three and the only one
            doing nothing the lift does not already imply. */
         primary:
-          "rounded-full bg-brand text-brand-foreground shadow-border hover:bg-brand-hover hover:-translate-y-0.5",
+          "rounded-full bg-brand text-brand-foreground shadow-border hover:bg-brand-hover hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
         indigo:
-          "rounded-full bg-brand-blue text-brand-blue-foreground shadow-border hover:bg-brand-blue-hover hover:-translate-y-0.5",
+          "rounded-full bg-brand-blue text-brand-blue-foreground shadow-border hover:bg-brand-blue-hover hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
         /* Rule 4: the WhatsApp green is #25D366 on #0B3D1F and appears nowhere
            else in the product. Do not add a second green. */
         whatsapp:
-          "rounded-full bg-whatsapp text-whatsapp-text shadow-border hover:-translate-y-0.5",
+          "rounded-full bg-whatsapp text-whatsapp-text shadow-border hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
         muted:
-          "rounded-full bg-muted text-warm-prose hover:bg-accent hover:-translate-y-0.5",
-        dark: "rounded-full bg-panel text-background hover:-translate-y-0.5",
+          "rounded-full bg-muted text-warm-prose hover:bg-accent hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
+        dark: "rounded-full bg-panel text-background hover:-translate-y-0.5 motion-reduce:hover:translate-y-0",
 
         /* ---- stock shadcn variants (legacy, still in use) ---- */
         default: "rounded-md bg-primary text-primary-foreground hover:bg-primary/90",
@@ -98,7 +98,11 @@ export interface ButtonProps
 
 // Tactile press feedback. 0.97 is the floor — anything smaller feels exaggerated.
 // Disabled buttons already have pointer-events-none, so :active can't fire on them.
-const tapScale = "active:scale-[0.97]";
+/* motion-reduce:active:scale-100 — button.tsx was the one component still
+   animating without a reduced-motion escape. TeacherCard, Index, PastPapers
+   and expandable-tabs all carry the guard already, so a reader who asked the
+   OS for less motion got a still page with jumping buttons on it. */
+const tapScale = "active:scale-[0.97] motion-reduce:active:scale-100";
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (

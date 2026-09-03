@@ -84,15 +84,31 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
       <SheetOverlay />
       <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
         {children}
+        {/* Not rendered at all when the caller supplies its own close control.
+            This was `sr-only`, which clips the button but leaves it in the tab
+            order: Browse's Filters sheet passes hideCloseButton and draws its
+            own "Close filters", so a keyboard user hit an invisible second stop
+            sitting on top of the visible one, and the accessibility tree
+            announced both "Close filters" and "Close". Clipping is not
+            removing. */}
+        {!hideCloseButton && (
         <SheetPrimitive.Close
           className={cn(
-            "absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-md opacity-70 ring-offset-background transition-opacity before:absolute before:-inset-0.5 before:content-[''] data-[state=open]:bg-secondary hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none",
-            hideCloseButton && "sr-only",
+            /* Concentric radius: every `side="bottom"` sheet (the only
+               variant with a rounded corner at all — left/right/top are
+               square) renders rounded-t-[30px], and this button sits at a
+               fixed 16px inset in that top-right corner — 30 - 16 = 14px,
+               not the generic rounded-md (10px) this had been hardcoded
+               to regardless of what radius the sheet actually rendered
+               at. left/right/top sheets have no rounded corner here to
+               match, so the value is a no-op for them either way. */
+            "absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-[14px] opacity-70 ring-offset-background transition-opacity before:absolute before:-inset-0.5 before:content-[''] data-[state=open]:bg-secondary hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none",
           )}
         >
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>
+        )}
       </SheetPrimitive.Content>
     </SheetPortal>
   ),

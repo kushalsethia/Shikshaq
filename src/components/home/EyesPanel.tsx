@@ -409,7 +409,13 @@ function EyesPanel({
                      ring needs an offset in that fill rather than the page
                      background, or it reads as a halo with a gap. */
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
-                  mode === m ? 'bg-panel text-background' : mode === 'papers' ? 'text-white/85' : 'text-[rgba(31,31,31,.7)]',
+                  /* Inactive labels carry no alpha. text-[rgba(31,31,31,.7)]
+                     on the orange fill measured 3.29:1, and this is a real
+                     role="tab" control label, not decoration. The active tab
+                     is already distinguished by its bg-panel pill, so the
+                     inactive one does not need to be faded to read as
+                     inactive. */
+                  mode === m ? 'bg-panel text-background' : mode === 'papers' ? 'text-white' : 'text-brand-foreground',
                 )}
               >
                 {m === 'teachers' ? 'Teachers' : 'Past papers'}
@@ -423,13 +429,21 @@ function EyesPanel({
             onChange={onSlotChange}
             onSubmit={onSubmit}
             count={count}
-            className="mt-[18px] items-center text-center [&_p]:justify-center [&_p]:text-[26px] [&_p]:font-black [&_p]:leading-[1.25] [&_p]:tracking-[-0.03em] [&_p]:text-[#FCFAF7]"
+            className="mt-[18px] items-center text-center [&_p]:justify-center [&_p]:text-[26px] [&_p]:font-black [&_p]:leading-[1.25] [&_p]:tracking-[-0.03em] [&_p]:text-card"
           />
 
           {hint && (
+            /* Follows the dome, which is the whole point: this was a fixed
+               rgba(31,31,31,.55) while domeFill above already switches between
+               bg-brand and bg-brand-blue, so on the papers side dark ink sat on
+               indigo and measured 1.96:1 — unreadable. Dark on orange, light on
+               indigo, both at full opacity rather than an alpha that eats the
+               ratio it was picked for. */
             <p
-              className="mt-3 text-[11.5px] font-bold uppercase tracking-wide"
-              style={{ color: 'rgba(31,31,31,.55)' }}
+              className={cn(
+                'mt-3 text-[11.5px] font-bold uppercase tracking-wide',
+                mode === 'papers' ? 'text-white' : 'text-brand-foreground',
+              )}
             >
               {hint}
             </p>

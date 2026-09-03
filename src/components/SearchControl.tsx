@@ -2,7 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Search, GraduationCap, ChevronDown, Clock, ArrowRight,
+  Search, GraduationCap, ChevronDown, Clock, ArrowRight, X,
   BookOpen, MapPin, Landmark, School as SchoolIcon,
 } from 'lucide-react';
 import {
@@ -26,7 +26,7 @@ const EMPTY_SELECTIONS: Selections = { subject: [], cls: [], area: [], board: []
 const MODE_LABEL: Record<SearchMode, string> = { teachers: 'Teachers', papers: 'Past papers' };
 
 const POPULAR: Record<SearchMode, string[]> = {
-  teachers: ['Maths near Ballygunge', 'Physics Class 10', 'ICSE tutors', 'Online tuition', 'Class 12 Chemistry'],
+  teachers: ['Maths near Ballygunge', 'Physics Class 10', 'ICSE teachers', 'Online tuition', 'Class 12 Chemistry'],
   papers: ['ICSE Class 10 Maths', 'CBSE Class 12', 'Class 10 Science 2024', 'State Board Bengali', 'ISC Prelims'],
 };
 
@@ -109,9 +109,17 @@ interface SearchControlProps {
    *  of its own, so the row there was a second, weaker copy of the same
    *  controls sitting directly above them. */
   hideFacets?: boolean;
+  /**
+   * Desktop-only: renders the facet trigger chips (Subject/Class/Board/
+   * School or Area, per mode) in a persistent row to the right of the search
+   * bar, instead of only after the control is focused/expanded. Opt-in —
+   * most callers want the quieter reveal-gated behaviour; PastPapers' hero
+   * has the horizontal room and asked for the filters visible up front.
+   */
+  inlineFacetsDesktop?: boolean;
 }
 
-export function SearchControl({ className = '', align = 'center', stackedToggle = false, alwaysShowModeToggle = false, onDark = false, initialMode, onModeChange, heroDesk = false, hideFacets = false }: SearchControlProps) {
+export function SearchControl({ className = '', align = 'center', stackedToggle = false, alwaysShowModeToggle = false, onDark = false, initialMode, onModeChange, heroDesk = false, hideFacets = false, inlineFacetsDesktop = false }: SearchControlProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -143,8 +151,41 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   const [selections, setSelections] = useState<Selections>(EMPTY_SELECTIONS);
   const [recents, setRecents] = useState<RecentSearch[]>([]);
 
+  /* Persistent inline chips (inlineFacetsDesktop) open their own small
+     per-chip dropdown instead of routing through `field`, which is what
+     drives the whole reveal/pinned/scrim search-popup machinery below. A
+     quick "pick a subject" tap on the hero was launching the full
+     fixed-position, scroll-locked, scrim-and-close-button overlay meant for
+     the search field itself — this keeps that interaction lightweight and
+     anchored to the chip that opened it. Only meaningful with
+     inlineFacetsDesktop; unused otherwise. */
+  const [inlineOpenFacet, setInlineOpenFacet] = useState<FacetKey | null>(null);
+  const inlineGroupRef = useRef<HTMLDivElement>(null);
+
+  /* Was a bare `ensureLoaded()` on mount. Every page carrying a search bar
+     (Home, Browse, Past papers) therefore pulled the entire search index —
+     teachers_list at limit 2000, plus bank_papers and papers — into the
+     first-paint connection window, for a feature the reader has not
+     touched yet. Measured on Home: 25 concurrent REST calls against the
+     browser's 6-per-host limit, the tail not settling until ~4.5s, with
+     these three among the heaviest.
+
+     Deferred to idle instead, so it still preloads (search is instant when
+     it IS opened) without competing with above-the-fold data. `expandBar`
+     also calls it, so focusing the field never waits on the idle callback,
+     and ensureLoaded is idempotent (shared module-level loadPromise), so
+     the two paths can safely race. */
   useEffect(() => {
-    ensureLoaded();
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      const handle = w.requestIdleCallback(() => { void ensureLoaded(); }, { timeout: 2500 });
+      return () => w.cancelIdleCallback?.(handle);
+    }
+    const timer = setTimeout(() => { void ensureLoaded(); }, 1200);
+    return () => clearTimeout(timer);
   }, [ensureLoaded]);
 
   const reveal = expanded || field !== null;
@@ -247,11 +288,19 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
         setField(null);
         setExpanded(false);
       }
+      // Independent of the above: the inline chip dropdown isn't part of
+      // the reveal/pinned popup, so it gets its own outside-click check
+      // against its own group rather than piggybacking on rootRef (which
+      // it's a descendant of either way).
+      if (inlineGroupRef.current && !inlineGroupRef.current.contains(e.target as Node)) {
+        setInlineOpenFacet(null);
+      }
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setField(null);
         setExpanded(false);
+        setInlineOpenFacet(null);
         inputRef.current?.blur();
       }
     }
@@ -267,7 +316,11 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     setExpanded(true);
     setField('q');
     setRecents(getRecentSearches());
-  }, []);
+    /* Guarantees the index for the one interaction that actually needs it,
+       rather than relying on the idle preload above having already run.
+       Idempotent, so this is free when it has. */
+    void ensureLoaded();
+  }, [ensureLoaded]);
 
   const buildParams = useCallback((query: string, sel: Selections, forMode: SearchMode) => {
     const params = new URLSearchParams();
@@ -367,9 +420,11 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   const showEmptyBanner = overlayTyping && searchActive && !indexLoading && currentCount === 0;
   const totalCount = teacherCount + paperCount;
 
-  const facetPanelOptions = useMemo(() => {
-    if (!displayField) return [] as string[];
-    switch (displayField) {
+  // Shared by the popup's facet panel and the inline chips' own dropdown —
+  // both list the same option set for a given facet key.
+  const optionsForFacet = useCallback((key: FacetKey | null): string[] => {
+    if (!key) return [];
+    switch (key) {
       case 'subject': return SUBJECTS;
       case 'cls': return mode === 'papers' ? CLASSES.filter((c) => c !== 'UG') : CLASSES;
       case 'area': return AREAS;
@@ -377,7 +432,27 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
       case 'school': return schools;
       default: return [];
     }
-  }, [displayField, mode, schools]);
+  }, [mode, schools]);
+
+  const facetPanelOptions = useMemo(() => optionsForFacet(displayField), [optionsForFacet, displayField]);
+
+  /* Guided step-through (brief: "once they choose a filter they should
+     automatically guide to the next filter"): the facet immediately after
+     `key` in this mode's own order, or null once it was the last one. Used
+     by both the popup's "Narrow it" panel and the inline chips' dropdown so
+     picking a value always advances to the next unfilled decision instead
+     of leaving the user to reopen the row themselves. */
+  const nextFacetAfter = useCallback((key: FacetKey): FacetKey | null => {
+    // facetKeys is TeacherFacetKey[] | PaperFacetKey[] — a union of two
+    // narrower arrays, so TS's own indexOf overload resolution narrows the
+    // accepted argument to their intersection rather than the full FacetKey
+    // `key` is typed as. Both key and facetKeys agree at runtime (key only
+    // ever comes from this same mode's facetKeys to begin with); the cast
+    // just tells TS what's already true.
+    const keys = facetKeys as readonly FacetKey[];
+    const idx = keys.indexOf(key);
+    return keys[idx + 1] ?? null;
+  }, [facetKeys]);
 
   /* Dropdown surface: one shared shell for the facet panel and the suggestions
      overlay. §5 — shadow-border only, never border + shadow. */
@@ -478,9 +553,151 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                (45 > 40), even though nothing was actually open. Only needs
                to clear the navbar while genuinely showing its dropdown/
                facets (`reveal`) — at rest it stays below it instead. */
-            : `relative ${reveal ? 'z-[45]' : 'z-20'} ${expanded ? 'max-w-3xl' : 'max-w-2xl'}`
+            /* inlineFacetsDesktop:!reveal narrows the field specifically at
+               lg — the chip row + its own Search button sit to the field's
+               right at a fixed content width (each chip sized for its
+               label, not flexible), and on a ~1280px laptop width there
+               wasn't room left for all four chips plus the button once it
+               moved outside the bar; the row pushed past the viewport edge
+               and put a horizontal scrollbar on the whole page. Trading
+               some of the field's own width back to the row it shares
+               fixes that without capping how many facets show. */
+            : `relative ${reveal ? 'z-[45]' : 'z-20'} ${expanded ? 'max-w-3xl' : 'max-w-2xl'} ${
+                inlineFacetsDesktop && !reveal ? 'lg:max-w-lg' : ''
+              }`
         } ${className}`}
       >
+        {/* Pinned close button — the only way to leave the expanded search
+            was clicking the scrim or hitting Escape, neither of which is
+            discoverable. Was top-left; on mobile that corner sits directly
+            over the mode toggle/facet chips stacked above the field
+            (stackedToggle), so the two overlapped. Bottom-right of the
+            whole pinned card instead — nothing else renders there at any
+            width, toggle included. */}
+        {pinned && (
+          <button
+            type="button"
+            onClick={closeControl}
+            aria-label="Close search"
+            className={`absolute -bottom-2 -right-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-card text-foreground shadow-border-hover transition-colors duration-150 hover:bg-muted active:scale-[0.97] ${FOCUS} focus-visible:ring-ring`}
+          >
+            <X className="h-5 w-5" strokeWidth={2.25} aria-hidden="true" />
+          </button>
+        )}
+
+        {/* Persistent desktop filter row — the facet chips normally only
+            show once the control is focused/expanded (the "Narrow it" row
+            below), which on a wide hero with room to spare just reads as
+            filters that don't exist until you go looking. Positioned off
+            the root's own box so it never touches the reveal-gated facet
+            row's absolute-positioned siblings; hidden once `reveal` is true
+            since the focused-state UI (which includes this same row, just
+            below the field) takes over from there.
+
+            Each chip owns a small dropdown anchored to itself, driven by
+            `inlineOpenFacet` rather than `field` — `field` is what turns on
+            the whole reveal/pinned/scrim search popup below, and a tap on
+            "Subject" here isn't the same gesture as focusing the search
+            field. Picking a value advances straight to the next facet's
+            dropdown (nextFacetAfter) so filling Subject → Class → Board
+            reads as one guided pass instead of four separate opens; the
+            main bar's own Search button (already brand-solid, per mode)
+            sits right there the whole time for whenever they're done. */}
+        {inlineFacetsDesktop && !reveal && (
+          <div
+            ref={inlineGroupRef}
+            /* Below lg: same chips, but there's no room to the field's
+               right on a phone width, so they wrap onto their own row
+               under the field instead of sitting beside it — still visible
+               before the user has tapped anything, which was the point;
+               previously this whole block was lg-only and mobile only ever
+               saw facets after focusing the field. */
+            className={`pointer-events-auto absolute left-0 right-0 top-[calc(100%+8px)] flex flex-wrap items-center gap-2 lg:left-[calc(100%+12px)] lg:right-auto lg:top-0 lg:flex-nowrap ${
+              heroDesk ? 'lg:h-[60px]' : 'lg:h-14'
+            }`}
+          >
+            {facetKeys.map((key) => {
+              const Icon = FACET_ICON[key];
+              const selected = selections[key].length > 0;
+              const open = inlineOpenFacet === key;
+              const options = optionsForFacet(open ? key : null);
+              return (
+                <div key={key} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setInlineOpenFacet((cur) => (cur === key ? null : key))}
+                    aria-expanded={open}
+                    className={`flex h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${
+                      selected ? accent.solid : `${accent.subtle} hover:opacity-90`
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+                    {facetDisplayLabel(key, selections[key])}
+                    <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  </button>
+
+                  {open && (
+                    <div className="absolute left-0 top-[calc(100%+0.5rem)] z-30 min-w-[260px] max-w-[320px] rounded-2xl bg-card p-3 text-left shadow-border-hover">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <span className={sectionLabel}>{FACET_LABELS[key]}</span>
+                        <button
+                          type="button"
+                          onClick={() => setInlineOpenFacet(nextFacetAfter(key))}
+                          className={`flex h-9 flex-none items-center gap-1.5 rounded-full pl-4 pr-3 text-sm font-bold transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${accent.solid}`}
+                        >
+                          {nextFacetAfter(key) ? 'Next' : 'Done'}
+                          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                      {options.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {key === 'school' ? 'No schools yet. Check back once papers are added.' : 'No options available yet.'}
+                        </p>
+                      ) : (
+                        <div className="scrollbar-slim -mr-1 flex max-h-[160px] flex-wrap gap-2 overflow-y-auto overscroll-contain pr-2">
+                          {options.map((opt) => {
+                            const picked = selections[key].includes(opt);
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                aria-pressed={picked}
+                                onClick={() => setSelections((s) => ({ ...s, [key]: toggleValue(s[key], opt) }))}
+                                className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${
+                                  picked ? accent.solid : 'bg-muted text-foreground hover:bg-accent'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* The bar's own Search button only hides at lg in this mode
+                (see its `inlineFacetsDesktop` note) — below lg it's still
+                the one visible Search button, so this replacement stays
+                lg-only too. Without the gate, mobile briefly had two
+                Search buttons: the bar's own plus this one wrapped onto a
+                lone third row under the chips. Last in the row at lg so it
+                reads as "field, then filters, then go" left to right
+                instead of sitting before the filters it follows. */}
+            <button
+              type="button"
+              onClick={runSearch}
+              className={`hidden h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.97] lg:flex ${FOCUS} ${accent.solid} ${accent.ring}`}
+            >
+              Search
+              <ArrowRight className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
         {stackedToggle && (
           <div
             className={`flex overflow-hidden transition-[margin,max-height,opacity] duration-300 ease-out ${
@@ -541,7 +758,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                  shape. */
               className={
                 heroDesk
-                  ? 'h-full min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none focus-visible:outline-none placeholder:text-warm-meta'
+                  ? 'h-full min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none focus-visible:outline-none placeholder:text-warm-prose'
                   : `h-full min-w-0 flex-1 border-0 bg-transparent text-base outline-none focus-visible:outline-none ${
                       onDark ? 'text-white placeholder:text-white/45' : 'text-foreground placeholder:text-muted-foreground'
                     }`
@@ -555,20 +772,30 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               type="button"
               onClick={runSearch}
               aria-label="Search"
-              className={
+              /* inlineFacetsDesktop hides this copy at lg: that mode gets its
+                 own Search button after the chip row instead (extreme
+                 right, once the chips it's meant to follow), so this one
+                 would otherwise sit both before the chips AND duplicate it.
+                 Still the only Search button below lg, where the chip row
+                 itself is hidden. */
+              className={`${inlineFacetsDesktop && !reveal ? 'lg:hidden' : ''} ${
                 heroDesk
-                  ? `flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full transition-colors duration-150 active:scale-[0.97] ${FOCUS} ${accent.solid} ${accent.ring}`
+                  ? `flex h-[46px] flex-none items-center justify-center gap-2 rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.97] ${FOCUS} ${accent.solid} ${accent.ring}`
                   : `flex h-11 flex-none items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} ${accent.solid} ${accent.ring} ${
                       narrow ? 'w-11' : 'px-4'
                     }`
-              }
+              }`}
             >
               {/* Arrow, not a magnifier. dc.html draws this as a 44x44 orange
                   tile holding `M5 12h14M13 6l6 6-6 6` — the magnifier already
                   sits at the other end of the field, so repeating it says
-                  nothing, where the arrow says "go". */}
-              <ArrowRight className={heroDesk ? 'h-[19px] w-[19px]' : 'h-[17px] w-[17px]'} strokeWidth={2.5} aria-hidden="true" />
-              {!heroDesk && !narrow && <span className="whitespace-nowrap">Search</span>}
+                  nothing, where the arrow says "go".
+                  heroDesk carries the "Search" label too now — an icon-only
+                  disc read as decoration rather than the button that
+                  actually submits, per owner review; text on every width
+                  this control renders at removes the ambiguity. */}
+              <ArrowRight className={heroDesk ? 'h-[18px] w-[18px]' : 'h-[17px] w-[17px]'} strokeWidth={2.5} aria-hidden="true" />
+              {(heroDesk || !narrow) && <span className="whitespace-nowrap">Search</span>}
             </button>
           </div>
 
@@ -609,13 +836,13 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                     onClick={() => setField(open ? 'q' : key)}
                     aria-expanded={open}
                     className={`flex min-h-11 flex-none snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${
-                      /* Matches the Chip primitive's own facet tone
-                         ("bg-muted text-foreground hover:bg-accent") — this
-                         button is hand-rolled rather than <Chip>, and had
-                         dropped the hover half of that pair, so an unselected
-                         facet pill gave no feedback on pointer-hover devices
-                         until the moment it was clicked. */
-                      selected ? accent.subtle : 'bg-muted text-foreground hover:bg-accent'
+                      /* accent.subtle (idle) → accent.solid (has a value):
+                         one mode-matched hue applied to the whole facet
+                         cluster, not a per-chip neutral gray — same "exactly
+                         one accent" reading as the rest of the page, just
+                         carried by every chip in this row instead of none of
+                         them. */
+                      selected ? accent.solid : `${accent.subtle} hover:opacity-90`
                     }`}
                   >
                     <Icon className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -643,7 +870,25 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           {/* Facet panel */}
           {panelPresence.mounted && displayField && (
             <div className={`${dropdownShell(panelPresence.closing)} p-4 sm:p-6`}>
-              <div className={`${sectionLabel} mb-3`}>{FACET_LABELS[displayField]}</div>
+              {/* Owner revision: auto-jumping to the next facet the instant
+                  one value was picked didn't leave room to pick a second
+                  value in the SAME facet first ("board" can be multi-select
+                  too) — replaced with a plain toggle below (stays open,
+                  multi-select) plus this explicit Next, right half of the
+                  header per the brief, bigger than a text link since it's
+                  now the primary way through the sequence rather than an
+                  automatic side-effect. */}
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className={sectionLabel}>{FACET_LABELS[displayField]}</span>
+                <button
+                  type="button"
+                  onClick={() => setField(nextFacetAfter(displayField) ?? 'q')}
+                  className={`flex h-9 flex-none items-center gap-1.5 rounded-full pl-4 pr-3 text-sm font-bold transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${accent.solid}`}
+                >
+                  {nextFacetAfter(displayField) ? 'Next' : 'Done'}
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </div>
               {facetPanelOptions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   {displayField === 'school' ? 'No schools yet. Check back once papers are added.' : 'No options available yet.'}
@@ -659,7 +904,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                         aria-pressed={picked}
                         onClick={() => setSelections((s) => ({ ...s, [displayField]: toggleValue(s[displayField], opt) }))}
                         className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${
-                          picked ? accent.subtle : 'bg-muted text-foreground hover:bg-accent'
+                          picked ? accent.solid : 'bg-muted text-foreground hover:bg-accent'
                         }`}
                       >
                         {opt}

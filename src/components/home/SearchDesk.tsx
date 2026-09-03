@@ -68,14 +68,23 @@ export function SearchDesk({ onModeChange, className = '' }: SearchDeskProps) {
           and the label was costing a chip's width of scroll on a 390px screen.
           Handoff H-010: 44px chips (was 40, below the floor), -mx-4 px-4 scroller. */}
       <div className="-mx-4 mt-2.5 overflow-x-auto px-4 pb-0.5 scrollbar-hide sm:mx-0 sm:px-0">
-        <div key={mode} className="flex w-max animate-blur-swap items-center gap-2 motion-reduce:animate-none sm:w-full sm:flex-wrap">
+        {/* Was sm:w-full sm:flex-wrap — teachers' chip labels ("Under ₹800",
+            "Home tuition") and papers' ("ICSE", "CBSE") aren't the same
+            total width, so at sm+ the row wrapped to a different number of
+            lines per mode and the whole hero's height jumped on toggle. A
+            single scrolling row, the same treatment mobile already uses,
+            keeps the height constant at every width regardless of which
+            mode's labels are showing. */}
+        <div key={mode} className="flex w-max animate-blur-swap items-center gap-2 motion-reduce:animate-none">
           {POPULAR_CHIPS[mode].map((c) => (
             <Chip
               key={c.label}
               tone="facet"
               size={44}
               className={`flex-none whitespace-nowrap px-[18px] text-[14.5px] font-semibold ${
-                mode === 'papers' ? '!bg-brand-blue-subtle !text-brand-blue' : ''
+                /* -deep is index.css's documented text-on-tint ink (6.79:1);
+                   the solid accent gives 4.74:1 with no margin. */
+                mode === 'papers' ? '!bg-brand-blue-subtle !text-brand-blue-deep' : ''
               }`}
               onClick={() => navigate(c.href)}
             >
