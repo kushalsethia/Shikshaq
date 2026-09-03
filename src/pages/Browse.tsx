@@ -3,6 +3,7 @@ import { useSearchParams, Link, useNavigate, useLocation } from 'react-router-do
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { SearchControl } from '@/components/SearchControl';
+import { recordSignal } from '@/lib/intent/signals';
 import { TeacherCard } from '@/components/TeacherCard';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
@@ -892,6 +893,61 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       }, 0);
     }
   }, [filters, searchParams, setSearchParams]);
+
+  /* Intent capture. The filter state is the most precise statement of intent
+     the site ever gets, and nothing was reading it.
+
+     Two distinctions are deliberate and load-bearing:
+
+     1. The FIRST run is not an explicit choice. Filters arrive pre-hydrated
+        from the URL, and on the 35 SEO routes SubjectPage/BoardPage set them
+        before the reader touches anything. Recording that as "they picked
+        Maths from a dropdown" would let a shared link or a Google result put
+        words in someone's mouth. First run records the weaker
+        `subject_route_viewed`; every later change is the real thing.
+     2. An empty filter set is a statement, not an absence. Clearing filters
+        means the old specification no longer applies, so it is recorded as
+        such rather than simply not recorded.
+
+     These routes feed the index but never read from it: routeAllowsAdaptation
+     keeps every SEO page byte-stable for crawlers. */
+  const intentPrimedRef = useRef(false);
+  useEffect(() => {
+    const anyApplied =
+      filters.subjects.length > 0 ||
+      filters.classes.length > 0 ||
+      filters.boards.length > 0 ||
+      filters.areas.length > 0;
+    const feeTouched = filters.minFees != null || filters.maxFees != null;
+
+    if (!intentPrimedRef.current) {
+      intentPrimedRef.current = true;
+      if (anyApplied) {
+        recordSignal('subject_route_viewed', {
+          subject: filters.subjects[0] ?? pageContext?.label ?? null,
+          classLevel: filters.classes[0] ?? null,
+          area: filters.areas[0] ?? null,
+          board: filters.boards[0] ?? null,
+          mode: 'teachers',
+        });
+      }
+      return;
+    }
+
+    if (!anyApplied && !feeTouched) {
+      recordSignal('filters_applied', { cleared: true, mode: 'teachers' });
+      return;
+    }
+
+    recordSignal('filters_applied', {
+      subject: filters.subjects[0] ?? null,
+      classLevel: filters.classes[0] ?? null,
+      area: filters.areas[0] ?? null,
+      board: filters.boards[0] ?? null,
+      feeTouched,
+      mode: 'teachers',
+    });
+  }, [filters, pageContext?.label]);
 
   // Extract filters from search query and merge with URL filters
   useEffect(() => {

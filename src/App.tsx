@@ -8,6 +8,8 @@ import { installRoutePrefetch } from "@/lib/route-prefetch";
 import { lazy, Suspense, type ReactNode } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { PreviewRoleToggle } from "@/components/PreviewRoleToggle";
+import { IntentProvider } from "@/lib/intent-context";
+import { IntentDebugPanel } from "@/components/IntentDebugPanel";
 import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
 import { StudiesWithProvider } from "@/lib/studies-with-context";
@@ -140,6 +142,11 @@ const App = () => (
               warnings fired on every page load; startTransition also stops
               route changes blocking paint on slow renders. */}
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            {/* The intent index. Inside the Router because it resolves once per
+                route entry and holds still for that view; below Auth and Likes
+                because it reads both. It renders nothing and changes nothing on
+                its own — surfaces opt in by calling useIntent(). */}
+            <IntentProvider>
             {/* Sonner's Toaster reads useLocation() (O-010's route-aware bottom
                 offset), so it must render inside the Router, not above it. */}
             <Toaster />
@@ -147,6 +154,10 @@ const App = () => (
             {/* Test deployment only. Compiled out of the live bundle entirely
                 (VITE_PREVIEW_TOOLS unset -> tree-shaken), not merely hidden. */}
             <PreviewRoleToggle />
+            {/* Same build-time gate, same reason: the intent panel names the
+                signals behind an adaptation, which is a development tool and
+                has no business in a visitor's bundle. */}
+            <IntentDebugPanel />
             {/* Skip link. The href stayed #main-content, but only Index.tsx ever
                 set that id — so on every route except the home page this, the
                 first control a keyboard or screen-reader user meets, pointed at
@@ -534,6 +545,7 @@ const App = () => (
             </Suspense>
             </RouteTransition>
             </AppShell>
+            </IntentProvider>
           </BrowserRouter>
             </StudiesWithProvider>
           </UpvotesProvider>

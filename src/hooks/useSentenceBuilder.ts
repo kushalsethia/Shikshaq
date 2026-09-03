@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBJECTS, CLASSES, AREAS, BOARDS, type SearchMode } from '@/utils/searchFacets';
 import type { SentenceSlot } from '@/components/home/SentenceBuilder';
+import { recordSignal } from '@/lib/intent/signals';
 
 /* Handoff H-023/S-015 — the sentence-builder state EyesPanel needs
    (mode, slot values, submit routing), extracted so every page that
@@ -52,6 +53,26 @@ export function useSentenceBuilder() {
   }, [builderMode]);
 
   const handleSubmit = useCallback(() => {
+    /* The strongest explicit signal the site has, and until now the only one it
+       threw away: these slots are chosen from closed dropdowns, so there is no
+       parsing and no guessing about what the reader meant. They went straight
+       into a URL and nothing else ever saw them. */
+    if (builderMode === 'teachers') {
+      recordSignal('builder_submitted', {
+        subject: teacherSlotValues.subject,
+        classLevel: teacherSlotValues.cls,
+        area: teacherSlotValues.area,
+        mode: 'teachers',
+      });
+    } else {
+      recordSignal('builder_submitted', {
+        subject: paperSlotValues.subject,
+        classLevel: paperSlotValues.cls,
+        board: paperSlotValues.board,
+        mode: 'papers',
+      });
+    }
+
     if (builderMode === 'teachers') {
       const params = new URLSearchParams();
       if (teacherSlotValues.subject) params.set('filter_subjects', teacherSlotValues.subject);

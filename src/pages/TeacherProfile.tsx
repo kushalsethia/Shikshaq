@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { recordViewedTeacher } from '@/lib/activity-trail';
+import { recordSignal } from '@/lib/intent/signals';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -575,6 +576,17 @@ export default function TeacherProfile() {
     );
     setSignInIntent(intent);
     setSignInSheetOpen(true);
+
+    /* Reaching for the contact or save action is the clearest "I have decided"
+       the site gets, and it is worth recording whether or not the sign-in that
+       follows succeeds. Someone who opened the gate and backed out has still
+       told us where they are in the journey. */
+    recordSignal('contact_started', {
+      id: teacher.slug,
+      name: teacher.name,
+      subject: primarySubject ?? null,
+      area: areaLabel,
+    });
   };
 
   const handleHeartClick = async (e: React.MouseEvent) => {
@@ -583,7 +595,18 @@ export default function TeacherProfile() {
       openSignInSheet('save');
       return;
     }
-    await toggleLike(teacher.id);
+    const nowLiked = await toggleLike(teacher.id);
+    /* Only a save counts. Un-saving is not evidence of evaluating, and
+       recording it would let a reader who changed their mind stay pinned to a
+       stage they have stepped out of. */
+    if (nowLiked) {
+      recordSignal('teacher_saved', {
+        id: teacher.slug,
+        name: teacher.name,
+        subject: primarySubject ?? null,
+        area: areaLabel,
+      });
+    }
   };
 
   const handleWhatsAppClick = () => {

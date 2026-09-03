@@ -1,4 +1,4 @@
-// Device-local "recorded contact" tracker — same pattern as recently-visited.ts.
+// Device-local "recorded contact" tracker.
 //
 // R7 / pages.md §"Reviews": the write-review button is only offered "if a
 // contact was recorded for this user + teacher" — a light anti-spam trust
@@ -6,26 +6,28 @@
 // being posted by someone who never spoke to the teacher.
 //
 // O-04 (a-to-z.md §5) is unresolved: there is no server-side WhatsApp-tap
-// event table (`whatsapp_clicks` does not exist — see TeacherDashboard.tsx's
-// own note on this). Per a-to-z.md §5's instruction to "ship the screen
-// without the dependent clause" rather than guess and build around a missing
-// dependency, this is a client-side, best-effort record: not tamper-proof,
-// not synced across devices, but it does gate the button on a real WhatsApp
-// hand-off in the common case, which is what the feature is for.
-const STORAGE_KEY = 'shikshaq_contacted_teachers';
-const MAX_ENTRIES = 100;
+// event table (`whatsapp_clicks` does not exist). Per a-to-z.md §5's
+// instruction to "ship the screen without the dependent clause" rather than
+// guess and build around a missing dependency, this is a client-side,
+// best-effort record: not tamper-proof, not synced across devices, but it does
+// gate the button on a real WhatsApp hand-off in the common case.
+//
+// As of the intent index this is a SHIM over src/lib/intent/store.ts. The
+// `shikshaq_contacted_teachers` key is now a sub-record of
+// `shikshaq.intent.v1`, holding the identical {slug, ts} shape and the
+// identical cap of 100, so Account's Contacted tab and the review gate are
+// unaffected. The old key is still mirrored for one release.
+//
+// ⚠ The gate must fail CLOSED. Every read below returns an empty list when
+// storage is unreadable, so an unavailable store withholds the review button
+// rather than opening it to someone who never made contact.
 
-interface ContactRecord {
-  slug: string;
-  ts: number;
-}
+import { recordContactEntry } from '@/lib/intent/signals';
+import { readStore } from '@/lib/intent/store';
 
-function readAll(): ContactRecord[] {
+function readAll(): { slug: string; ts: number }[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as ContactRecord[];
-    return Array.isArray(parsed) ? parsed : [];
+    return readStore().contacts;
   } catch {
     return [];
   }
@@ -35,9 +37,7 @@ function readAll(): ContactRecord[] {
 export function recordContact(slug: string) {
   if (!slug) return;
   try {
-    const existing = readAll().filter((entry) => entry.slug !== slug);
-    const next = [{ slug, ts: Date.now() }, ...existing].slice(0, MAX_ENTRIES);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    recordContactEntry(slug);
   } catch {
     // localStorage unavailable — gating just stays closed, fails safe.
   }
