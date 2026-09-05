@@ -11,6 +11,7 @@ import { WordmarkBleed } from '@/components/layout/WordmarkBleed';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
+import { useSiteCounts } from '@/hooks/useSiteCounts';
 import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
 import DOMPurify from 'dompurify';
 import aquaterraLogo from '@/assets/Frame 48095868.png';
@@ -118,6 +119,116 @@ function LinkList({ links }: { links: FooterLink[] }) {
 }
 
 /** Collapsible group — the mobile-compact form of a footer column. */
+/* ---------------------------------------------------------------------------
+   What Shikshaq is, said once, in the footer.
+
+   The old identity block was a logo over one grey sentence, which is the
+   least-read shape a description can take: it looks like boilerplate, so it
+   reads as boilerplate. This says the same thing as a single running sentence
+   at display size, with the site's real figures set INSIDE the prose as
+   objects rather than listed underneath it as a stat row.
+
+   Reference: Adam Katz's portfolio, where inline images sit mid-sentence and
+   carry the meaning the words are only introducing. The register is
+   deliberately QUIET (this sits under every page and must not shout); the
+   loud half of the same idea belongs on /about.
+
+   Every figure is fetched. A count that has not arrived renders as a plain
+   word, not a skeleton and not a zero, so the sentence is grammatical and
+   true at every stage of loading. That is why each Fig() call has a fallback
+   noun rather than a placeholder.
+--------------------------------------------------------------------------- */
+
+/** A live figure set into the sentence, as a link to the thing it counts. */
+function Fig({ to, value, children }: { to: string; value: number | null; children: React.ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className={cn(
+        'inline whitespace-nowrap rounded-full px-2 py-0.5',
+        'bg-white/10 text-white transition-colors duration-hover hover:bg-white/20',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel',
+      )}
+    >
+      {value !== null && (
+        <>
+          <span className="font-display font-black tabular-nums">{value.toLocaleString('en-IN')}</span>{' '}
+        </>
+      )}
+      {children}
+    </Link>
+  );
+}
+
+/** A verb in the second sentence: an action you can take, linked to where you
+ *  take it. Tinted rather than white so the two sentences read as different
+ *  registers, one describing and one offering. */
+function Act({ to, children, tone = 'brand' }: { to: string; children: React.ReactNode; tone?: 'brand' | 'papers' }) {
+  return (
+    <Link
+      to={to}
+      className={cn(
+        'inline whitespace-nowrap rounded-full px-1.5 py-0.5 font-semibold',
+        'transition-colors duration-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel',
+        tone === 'brand'
+          ? 'bg-brand text-brand-foreground hover:bg-brand/85'
+          : 'bg-brand-blue text-white hover:bg-brand-blue/85',
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function FooterExplainer() {
+  const { data } = useSiteCounts();
+  const teachers = data?.teachers ?? null;
+  const papers = data?.papers ?? null;
+  const schools = data?.schools ?? null;
+
+  return (
+    <div className="space-y-4">
+      <Logo size="nav" onDark className="tap-44 [&_img]:h-[26px]" />
+
+      {/* Sentence one: what this is. Display size, because it is the footer's
+          statement rather than its small print. Punctuation sits on the same
+          line as the object it follows, or JSX's own newline becomes a space
+          and the full stop drifts away from the word. */}
+      <p className="max-w-[26ch] font-display text-[clamp(21px,3.2vw,32px)] font-black leading-[1.6] tracking-[-0.03em] text-white sm:max-w-[36ch]">
+        Shikshaq is{' '}
+        <Fig to="/all-tuition-teachers-in-kolkata" value={teachers}>verified teachers</Fig>{' '}
+        in Kolkata, and{' '}
+        <Fig to="/past-papers" value={papers}>past papers</Fig>{' '}
+        from <Fig to="/schools" value={schools}>Kolkata schools</Fig>.
+      </p>
+
+      {/* Sentence two: what you can do here. The reference's whole trick is
+          that the inline objects carry the meaning the prose only introduces,
+          so every verb below is the real destination for that verb, not a
+          decorated noun. */}
+      <p className="max-w-[62ch] text-[15px] leading-[2] text-white/85">
+        You can{' '}
+        <Act to="/all-tuition-teachers-in-kolkata">filter by subject or board</Act>{' '}
+        or <Act to="/all-tuition-teachers-in-kolkata">search your own area</Act>{' '}
+        of the city. You can{' '}
+        <Act to="/past-papers" tone="papers">read the papers free</Act>{' '}
+        with the first five questions and no account, or{' '}
+        <Act to="/blog" tone="papers">see what gets asked most</Act>{' '}
+        before you start. Then you message the teacher yourself on WhatsApp
+        <WhatsAppIcon
+          aria-hidden
+          className="ml-1.5 inline-block h-4 w-4 align-[-2px] text-whatsapp"
+        />. No agent
+        stands in between, they keep every rupee of their fee, and we take nothing.
+      </p>
+
+      <p className="max-w-prose text-[14px] leading-[1.55] text-white/60">
+        Free to search, free to contact. We never sell your number.
+      </p>
+    </div>
+  );
+}
+
 function FooterAccordion({ label, links }: { label: string; links: FooterLink[] }) {
   /* 02a puts the hairline on the SUMMARY as `inset 0 -1px 0
      rgba(255,255,255,.10)`, not on the <details> as a border-b. The difference
@@ -394,15 +505,8 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             step wins. The sm:/lg: rows still override both. */}
         <PageContainer className="px-5 pt-8 pb-[34px] sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <div className="space-y-8">
-            {/* Identity */}
-            <div className="space-y-3">
-              {/* 02a's footer spec: "Logo `h-[26px]`, inverted." `size="nav"` is h-10
-                  (40px) — the nav pill's size, not the footer's. */}
-              <Logo size="nav" onDark className="tap-44 [&_img]:h-[26px]" />
-              <p className="max-w-prose text-[14px] leading-[1.55] text-white/70">
-                Quality tuition teachers in Kolkata, and past papers from Kolkata schools. Free on both counts.
-              </p>
-            </div>
+            {/* Identity, and what this site actually is. */}
+            <FooterExplainer />
 
             {/* 2. Pill-labelled link columns — copy.md §2: find a teacher · past
                 papers · contact, as quick-access pills above the full column
