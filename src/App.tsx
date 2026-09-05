@@ -43,6 +43,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const SubjectsPage = lazy(() => import("./pages/SubjectsPage"));
+const Blog = lazy(() => import("./pages/Blog"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
 const SchoolsPage = lazy(() => import("./pages/SchoolsPage"));
 
 // Lazy load heavy components for better performance on mobile
@@ -283,6 +285,20 @@ const App = () => (
               <Route path="/schools" element={
                 <Suspense fallback={<PageLoader />}>
                   <SchoolsPage />
+                </Suspense>
+              } />
+              {/* Reading. One index and one article route: every article is
+                  generated from the question bank's own chapter statistics
+                  (src/content/blog.ts), so there is no per-article route to
+                  add when the bank grows. */}
+              <Route path="/blog" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Blog />
+                </Suspense>
+              } />
+              <Route path="/blog/:slug" element={
+                <Suspense fallback={<PageLoader />}>
+                  <BlogPost />
                 </Suspense>
               } />
               <Route path="/about" element={<About />} />

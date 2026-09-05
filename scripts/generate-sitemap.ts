@@ -18,6 +18,12 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+
+/* Imported rather than re-listed: the article set is generated, so hardcoding
+   slugs here would be a second copy of it, drifting the moment the bank grows.
+   The import is type-only at runtime cost of one small module with no
+   browser dependencies. */
+import { BLOG_ARTICLES, BLOG_PATH } from '../src/content/blog';
 import { config } from 'dotenv';
 /* Imported, not reimplemented. A local copy of this drifted immediately: it
    omitted the `&` -> ' and ' expansion that schoolSlug does before stripping
@@ -75,6 +81,16 @@ const STATIC_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
      site carrying exam-question text. Weekly is wrong (it never changes) but
      0.7 reflects that it is the strongest long-tail asset here. */
   { loc: '/past-papers/icse-2025-maths', changefreq: 'yearly', priority: 0.7 },
+  /* Reading. The index plus one page per article, expanded from the same
+     generated chapter stats the pages themselves render, so an article added
+     by re-running generate-blog-stats is in the sitemap the next build without
+     anyone remembering to list it. These change only when the bank does. */
+  { loc: BLOG_PATH, changefreq: 'monthly', priority: 0.6 },
+  ...BLOG_ARTICLES.map((a) => ({
+    loc: `${BLOG_PATH}/${a.slug}`,
+    changefreq: 'monthly' as const,
+    priority: 0.5,
+  })),
 ];
 
 /**

@@ -340,6 +340,9 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     { to: '/', label: 'Home' },
     { to: '/all-tuition-teachers-in-kolkata', label: 'Browse teachers' },
     { to: '/past-papers', label: 'Past papers' },
+    /* Next to the papers, because that is what it is about: the reading pages
+       are counted out of the same bank and are useless without it. */
+    { to: '/blog', label: 'What the papers show' },
     { to: '/subjects', label: 'Subjects' },
     { to: '/schools', label: 'Schools' },
     ...(dashboardPath ? [{ to: dashboardPath, label: 'Your dashboard' }] : []),
