@@ -1,10 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, GraduationCap, Search, ShieldCheck } from 'lucide-react';
+import { ArrowRight, GraduationCap, Plus, Search, ShieldCheck } from 'lucide-react';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { useRevealOnScroll } from '@/hooks/useRevealOnScroll';
 import { AnnotatedStatement, AnnotatedHighlight } from '@/components/marketing/annotated-statement';
-import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { Button } from '@/components/ui/button';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -68,8 +67,13 @@ export default function About() {
     async function fetchStats() {
       const [teachersRes, papersRes, schoolsRes] = await Promise.all([
         supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
-        supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
-        supabase.from('papers').select('school').eq('is_published', true),
+        /* `bank_papers`, not `papers`. The two are different tables and this
+           page was the only surface reading the old one: it advertised 18
+           papers from 5 schools while the footer, the papers library and the
+           blog all counted 619 from 155 out of bank_papers. Same site, same
+           moment, two numbers off by a factor of thirty. */
+        supabase.from('bank_papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+        supabase.from('bank_papers').select('school').eq('is_published', true),
       ]);
       if (cancelled) return;
       if (teachersRes.error) logger.error('About.fetchStats.teachers', teachersRes.error);
@@ -154,58 +158,120 @@ export default function About() {
               drift the two decorative blobs already use elsewhere, here
               giving the logo panel's own pair some life instead of sitting
               static behind a headline that now animates in over them. */}
-          <BentoPanel fill="dark" edge="top" className="relative animate-fade-slide-up overflow-hidden px-[22px] py-[26px] text-center lg:py-[34px]">
-            <span aria-hidden className="pointer-events-none absolute -left-12 -top-12 h-[200px] w-[200px] animate-bob rounded-full bg-brand/25" />
-            <span aria-hidden className="pointer-events-none absolute -bottom-16 -right-10 h-[220px] w-[220px] animate-bob rounded-full bg-brand-blue/25 [animation-delay:-3s]" />
-            <Logo size="lg" onDark className="relative mx-auto h-9 w-auto lg:h-11" ariaLabel="Shikshaq" priority />
-          </BentoPanel>
+          {/* ------------------------------------------------------------------
+              The opening, rebuilt around who actually makes this.
 
-          <BentoPanel fill="brand" className="relative animate-fade-slide-up overflow-hidden px-[22px] pb-[34px] pt-[30px] [animation-delay:100ms] lg:px-8 lg:pb-[52px] lg:pt-[40px]">
-            <span aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-[260px] w-[260px] animate-bob rounded-full bg-white/10" />
-            <span aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-[220px] w-[220px] animate-bob rounded-full bg-black/10 [animation-delay:-2s]" />
-            <AnnotatedStatement
-              statement={statement}
-              align="left"
-              /* text-brand-foreground, not text-white: white on #FF8000
-                 measures 2.52:1, which fails AA (4.5:1) and even the 3:1
-                 large-text floor. index.css:112-123 already fought and
-                 documented exactly this — the --brand-foreground token
-                 (near-black, 6.46:1) is the answer it landed on, and this
-                 hero had reintroduced the original bug. */
-              statementClassName="text-brand-foreground text-[52px] leading-[0.98] tracking-[-0.05em] lg:text-[84px] lg:leading-[0.94] lg:tracking-[-0.045em]"
-              className="relative mt-2"
-              pills={[
-                { label: 'No commission, ever', anchor: 'top-right', tone: 'dark', tilt: 4, dot: false },
-                { label: 'WhatsApp, not a call centre', anchor: 'bottom-left', tone: 'bone', tilt: -3, dot: false },
-              ]}
-            />
-            {/* The floating stat chip — real count, never a placeholder
-                zero: only renders once the query resolves with a genuine
-                number, same "never advertise emptiness" rule the tile
-                grid below already follows. */}
-            {(stats.teachers ?? 0) > 0 && (
-              <div
-                aria-hidden="true"
-                className="relative z-10 mx-auto mt-8 flex w-fit -rotate-2 animate-sticker-in items-center gap-3 rounded-[20px] bg-white px-[18px] py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition-transform duration-300 [animation-delay:450ms] hover:-rotate-1 hover:scale-[1.03] lg:mx-0"
-              >
-                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-brand-subtle text-brand-deep">
-                  <ShieldCheck className="h-5 w-5" strokeWidth={2.25} />
-                </span>
-                <span className="text-left">
-                  <span className="block font-display text-[20px] font-black leading-none tracking-[-0.03em] text-foreground tabular-nums">
-                    {stats.teachers!.toLocaleString('en-IN')}+
-                  </span>
-                  <span className="block text-[12px] font-semibold text-warm-secondary">verified teachers, zero cut</span>
+              It used to open on a logo panel and a generic statement about
+              tuition, which said nothing a hundred other listing sites do not.
+              The real story is the one thing no competitor can copy: this is
+              made by AquaTerra, an NGO whose team are students, and it is free
+              for families to use.
+
+              What is deliberately NOT claimed: that it was built unpaid, that
+              there is no revenue model, or any headcount, institution or date.
+              None of that is recorded anywhere in this repo and none of it is
+              mine to assert on a public page about real people.
+
+              Structure blends the two references: torn-paper bands between
+              full-bleed colour (Radical Futures) for the story, colour-blocked
+              cards (Sociosphere) for the concrete parts.
+          ------------------------------------------------------------------ */}
+          <BentoPanel
+            fill="dark"
+            edge="top"
+            className="relative animate-fade-slide-up overflow-hidden px-[22px] pb-[46px] pt-[30px] text-center lg:px-8 lg:pb-[64px] lg:pt-[44px]"
+          >
+            <span aria-hidden className="pointer-events-none absolute -left-16 -top-16 h-[220px] w-[220px] animate-bob rounded-full bg-brand/25" />
+            <span aria-hidden className="pointer-events-none absolute -bottom-20 -right-12 h-[240px] w-[240px] animate-bob rounded-full bg-brand-blue/30 [animation-delay:-3s]" />
+
+            <div className="relative mx-auto max-w-4xl">
+              {/* Logo renders its own inline <Link>, so mx-auto on it does
+                  nothing. Centring has to happen on a block parent. */}
+              <div className="flex justify-center">
+                <Logo size="lg" onDark className="h-9 w-auto lg:h-11" ariaLabel="Shikshaq" priority />
+              </div>
+              <span className="mt-6 block text-label uppercase tracking-[0.06em] text-white/60">
+                About Shikshaq
+              </span>
+              <h1 className="mx-auto mt-3 max-w-[16ch] text-balance font-display text-[clamp(34px,7vw,68px)] font-black leading-[0.94] tracking-[-0.045em] text-white">
+                A student team, building the list Kolkata never had.
+              </h1>
+              <p className="mx-auto mt-5 max-w-[44ch] text-lede text-white/80">
+                Shikshaq is made by{' '}
+                <a
+                  href="https://ngoaquaterra.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white"
+                >
+                  AquaTerra
+                </a>
+                , an NGO whose team are students. It is free for families to use: you search, you
+                read, and you message the teacher yourself.
+              </p>
+            </div>
+          </BentoPanel>
+          {/* Device G. On a BAND, never on a content panel: `.torn-edge` masks
+              the whole box it sits on, so putting it on the panel above would
+              cut the headline out of it and leave a strip of teeth. */}
+          <div aria-hidden className="torn-edge h-3 bg-panel [--torn-size:14px]" />
+
+          {/* What we do. Radical Futures' coloured expandable rows, with the
+              section label set vertically down the side. Each row is a claim
+              the product already keeps somewhere else: the verification badge,
+              the free-to-read papers, and the WhatsApp handoff. */}
+          <Reveal>
+            <div className="flex">
+              <div className="flex w-11 flex-none items-center justify-center bg-brand-blue lg:w-14">
+                <span className="whitespace-nowrap text-[13px] font-extrabold uppercase tracking-[0.08em] text-white [writing-mode:vertical-rl] [transform:rotate(180deg)]">
+                  What we do
                 </span>
               </div>
-            )}
-          </BentoPanel>
+              <ul className="min-w-0 flex-1">
+                {[
+                  {
+                    fill: 'bg-brand text-brand-foreground',
+                    title: 'We check who is on the list',
+                    body: 'A teacher is verified before they appear, so the name, the subjects and the number you see are the ones we were given and could confirm.',
+                  },
+                  {
+                    fill: 'bg-mint text-foreground',
+                    title: 'We host the papers, free to read',
+                    body: 'Real question papers from Kolkata schools, kept as they were set. The first five questions of any paper need no account at all.',
+                  },
+                  {
+                    fill: 'bg-brand-blue text-white',
+                    title: 'Then we stay out of the conversation',
+                    body: 'You message the teacher yourself on WhatsApp. We take no commission, because the moment we take one we start having opinions about who you should pick.',
+                  },
+                ].map((row) => (
+                  <li key={row.title}>
+                    <details className={`disclosure group ${row.fill}`}>
+                      <summary className="flex min-h-[64px] cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left [&::-webkit-details-marker]:hidden lg:px-8">
+                        <span className="font-display text-[clamp(19px,2.6vw,26px)] font-extrabold tracking-[-0.02em]">
+                          {row.title}
+                        </span>
+                        <Plus
+                          aria-hidden
+                          className="h-5 w-5 flex-none transition-transform duration-hover group-open:rotate-45"
+                          strokeWidth={2.5}
+                        />
+                      </summary>
+                      <p className="max-w-prose px-5 pb-5 text-[15px] leading-[1.65] opacity-90 lg:px-8">
+                        {row.body}
+                      </p>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
 
           <Reveal>
             {/* Handoff AB-003: lede + stats grid. Trimmed to one sentence —
                 the fuller version of this claim is the entire next panel,
                 so this only needs to be the one-line version of it. */}
-            <BentoPanel fill="card" className="p-[22px]">
+            <BentoPanel fill="card" className="px-[22px] py-9 lg:px-8 lg:py-14">
               <p className="text-[15px] leading-[1.6] text-warm-prose">
                 We list teachers, verify who they say they are, then get out of the way. The fee
                 you agree is the fee they keep.
@@ -246,11 +312,11 @@ export default function About() {
               owner correction elsewhere), so an unbroken run of flat white
               cards would have read as one long undifferentiated slab. */}
           <Reveal>
-            <BentoPanel fill="mint" className="p-[22px]">
-              <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-deep">
+            <BentoPanel fill="mint" className="px-[22px] py-9 lg:px-8 lg:py-14">
+              <span className="text-label uppercase tracking-[0.06em] text-brand-deep">
                 How this started
               </span>
-              <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+              <h2 className="mt-2 max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
                 Finding a tutor should not be a favour you ask around for
               </h2>
               {/* Three paragraphs (the hearsay problem, why directories and
@@ -268,11 +334,11 @@ export default function About() {
           </Reveal>
 
           <Reveal>
-            <BentoPanel fill="card" className="p-[22px]">
-              <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-deep">
+            <BentoPanel fill="card" className="px-[22px] py-9 lg:px-8 lg:py-14">
+              <span className="text-label uppercase tracking-[0.06em] text-brand-deep">
                 Who it is for
               </span>
-              <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+              <h2 className="mt-2 max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
                 Both sides of the same conversation
               </h2>
               {/* Two colour-matched cards, not two identical grey blocks —
@@ -303,6 +369,13 @@ export default function About() {
                     Free to list, forever. Set your own rate, keep all of it. Enquiries are real
                     people messaging you, not sold leads.
                   </p>
+                  <Link
+                    to="/join"
+                    className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-bold text-brand-deep underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    List yourself as a teacher
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
                 </div>
               </div>
             </BentoPanel>
@@ -322,10 +395,10 @@ export default function About() {
               would have all but vanished) to white/black translucent,
               which reads against any fill this page uses. */}
           <Reveal>
-            <BentoPanel fill="brandTint" className="relative overflow-hidden p-[22px]">
+            <BentoPanel fill="brandTint" className="relative overflow-hidden px-[22px] py-9 lg:px-8 lg:py-14">
               <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-[220px] w-[220px] animate-bob rounded-full bg-white/50" />
               <span aria-hidden className="pointer-events-none absolute -bottom-20 -left-14 h-[200px] w-[200px] animate-bob rounded-full bg-black/[0.06] [animation-delay:-4s]" />
-              <h2 className="relative text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+              <h2 className="relative max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
                 How we work
               </h2>
               <p className="mt-2.5 text-[15px] leading-[1.6] text-warm-prose">
@@ -373,11 +446,11 @@ export default function About() {
               actual blue block instead of a white card with one blue
               line, closing out the colour-block sequence. */}
           <Reveal>
-            <BentoPanel fill="papersTint" className="p-[22px]">
-              <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-blue">
+            <BentoPanel fill="papersTint" className="px-[22px] py-9 lg:px-8 lg:py-14">
+              <span className="text-label uppercase tracking-[0.06em] text-brand-blue">
                 Students helping students
               </span>
-              <h2 className="mt-1.5 text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
+              <h2 className="mt-2 max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
                 The papers came from the people who sat them
               </h2>
               {/* Two paragraphs cut to one — nobody at Shikshaq wrote a
@@ -409,47 +482,6 @@ export default function About() {
                   <Link to="/contact">Send us one you have</Link>
                 </Button>
               </div>
-            </BentoPanel>
-          </Reveal>
-
-          {/* Handoff AB-004: founders panel. */}
-          <Reveal>
-            <BentoPanel fill="dark" className="relative overflow-hidden p-[22px]">
-              {/* A large faded quote mark behind the text — same device
-                  the review cards use elsewhere in the product for "this
-                  is somebody speaking", here for the one actual quote on
-                  the page. */}
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute -right-1 -top-3 select-none font-display text-[100px] leading-none text-background/[0.06]"
-              >
-                &rdquo;
-              </span>
-              <div className="relative mb-3 flex items-center gap-3">
-                <div className="flex flex-none -space-x-3">
-                  <div className="h-14 w-14 overflow-hidden rounded-full ring-2 ring-panel transition-transform duration-200 hover:z-10 hover:scale-110">
-                    <StripePlaceholder name="Sourav" initialSize={19} />
-                  </div>
-                  <div className="h-14 w-14 overflow-hidden rounded-full ring-2 ring-panel transition-transform duration-200 hover:z-10 hover:scale-110">
-                    <StripePlaceholder name="Arka" initialSize={19} />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[14.5px] font-bold">Made by two people</div>
-                  <div className="text-[12.5px] text-background/62">Kolkata &middot; since 2023</div>
-                </div>
-              </div>
-              <p className="relative text-[13.5px] leading-[1.65] text-background/78">
-                &ldquo;We built this for our own families first. If a teacher near you is good, you
-                should be able to find them in under a minute, and talk to them without
-                anyone taking a cut.&rdquo;
-              </p>
-              <Button asChild variant="primary" size={46} className="relative mt-4">
-                <Link to="/join">
-                  List yourself as a teacher
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
             </BentoPanel>
           </Reveal>
 

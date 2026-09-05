@@ -52,9 +52,16 @@ under `prefers-reduced-motion`.
 
 - Footer: QUIET, editorial. One running sentence with live figures set inline.
   It sits under every page and must not shout. Reference: Adam Katz.
-- About: LOUD. Saturated section blocks, sticker labels, scalloped shapes, big
-  display type, real teacher photography. It is the one page whose job is
-  personality. Reference: Bonito.
+- About: LOUD, and it is about WHO MAKES THIS, not about teachers. Dark hero,
+  torn-paper band, full-bleed coloured expandable rows, display-scale headings
+  throughout. NO teacher photography anywhere on it (owner decision). The
+  story is AquaTerra, an NGO whose team are students, and free for families.
+  References: Radical Futures for the bands, Sociosphere for the cards.
+
+  NOT claimed on that page, and not to be added without evidence: that it was
+  built unpaid, that there is no revenue model, any headcount, any institution
+  name, or any founding date. An earlier version asserted "Made by two people"
+  with two invented avatars; it was removed as false.
 
 ## Assets
 
