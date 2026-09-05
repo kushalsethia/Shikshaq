@@ -19,6 +19,7 @@ import {
   type Provenance,
   type Slot,
 } from './types';
+import { isBrowseActive, isPapersActive } from '@/lib/nav-config';
 import { readSession, readStore, THIRTY_DAYS_MS } from './store';
 import { deriveStage } from './signals';
 
@@ -102,13 +103,38 @@ function slotEvidence(
   };
 }
 
+/* Route to intent, using nav-config's predicates rather than a second copy of
+ * them. This function used to match its own shorter prefix list, and had drifted
+ * exactly the way the facet constants had: it knew '/all-tuition-teachers' and
+ * '/tuition-teachers/', but not the ~30 hardcoded '<subject>-tuition-teachers-
+ * in-kolkata' and '<board>-tuition-teachers-in-kolkata' landing routes, nor
+ * '/subjects', '/schools' or '/school/:slug'.
+ *
+ * Those landing pages are the site's main organic entry points, so the reader
+ * arriving with the clearest possible intent -- they searched for a maths tutor
+ * in Kolkata and landed on the maths page -- was the one the index resolved as
+ * `primaryIntent: null`, and every adaptive surface fell back to its generic
+ * copy for them. isBrowseActive/isPapersActive already encode these route
+ * families and are maintained alongside the routes themselves.
+ */
 function resolvePrimaryIntent(pathname: string, mode: string | null): PrimaryIntent | null {
   if (pathname.startsWith('/join')) return 'join_as_teacher';
-  if (pathname.startsWith('/about') || pathname.startsWith('/faq')) return 'understand';
-  if (pathname.startsWith('/past-papers')) return 'find_papers';
-  if (pathname.startsWith('/all-tuition-teachers') || pathname.startsWith('/tuition-teachers')) {
-    return 'find_tutor';
+  /* '/more' is where '/help' redirects to, and both are the same explainer
+     surface as /about and /faq. */
+  if (
+    pathname.startsWith('/about') ||
+    pathname.startsWith('/faq') ||
+    pathname === '/more' ||
+    pathname === '/help'
+  ) {
+    return 'understand';
   }
+  /* Papers first: isPapersActive owns '/past-papers', '/schools' and
+     '/school/:slug', and a school page is a papers surface, not a teacher one
+     (handoff SC-005). Checked before the teacher families so the two cannot
+     both claim a path. */
+  if (isPapersActive(pathname)) return 'find_papers';
+  if (isBrowseActive(pathname)) return 'find_tutor';
   if (mode === 'papers') return 'find_papers';
   if (mode === 'teachers') return 'find_tutor';
   return null;
