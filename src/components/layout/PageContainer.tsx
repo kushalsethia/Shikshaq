@@ -153,7 +153,28 @@ function TopNavSpacer() {
    strip of page ground through a gap. bg-background stays on the wrapper
    itself (still the one owner of that fill, panels don't each need it). */
 export function BentoStack({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex flex-col gap-0 bg-background', className)} {...props} />;
+  return (
+    <div
+      className={cn(
+        'flex flex-col gap-0 bg-background',
+        /* Panels in a stack TOUCH, so their corners must not round.
+           DESIGN_SYSTEM.md section 4 already says separation comes from the
+           fill change at the seam, but BentoPanel's own `rounded-bento`
+           rounded all four corners of every panel, so each seam showed four
+           notches of page ground through it. At gap-0 that reads as a column
+           of separate cards rather than one continuous run of colour phases,
+           which is exactly the "disjoint" the owner flagged.
+
+           Done as a descendant rule rather than by changing BentoPanel's
+           default, because it must reach panels wrapped in <Reveal> (About,
+           Index) and because a BentoPanel used on its own, outside a stack,
+           is still a card and keeps its radius. */
+        '[&_[data-bento-panel]]:rounded-none',
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 /* Handoff T-005 — every section on every redesigned screen is one of these.
@@ -208,6 +229,7 @@ export const BentoPanel = React.forwardRef<HTMLDivElement, BentoPanelProps>(
     return (
       <div
         ref={ref}
+        data-bento-panel=""
         className={cn(
           'rounded-bento px-5 py-5 lg:px-8 lg:py-8',
           edge === 'top' && 'rounded-t-none',
