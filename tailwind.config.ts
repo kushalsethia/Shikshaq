@@ -33,6 +33,16 @@ export default {
       },
     },
     extend: {
+      /* Height-based variants. Tailwind ships width breakpoints only, but the
+         axis that actually runs out on a full-screen takeover (the onboarding
+         tour, the filter sheet) is height: a landscape phone is 740x380, and
+         at 380px a layout tuned for width has nowhere to put anything. `short`
+         is the point below which such a screen must re-lay-out rather than
+         merely shrink. */
+      screens: {
+        short: { raw: "(max-height: 620px)" },
+        "short-landscape": { raw: "(max-height: 560px) and (orientation: landscape)" },
+      },
       fontFamily: {
         sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
         /* `serif` used to duplicate the sans stack verbatim — a lie, since

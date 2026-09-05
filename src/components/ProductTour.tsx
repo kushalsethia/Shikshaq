@@ -271,12 +271,27 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
       if (e.key === 'ArrowLeft') setI((v) => Math.max(v - 1, 0));
     };
     document.addEventListener('keydown', onKey);
-    // The page behind must not scroll under the overlay.
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+
+    /* The page behind must not scroll under the overlay -- and the lock has to
+       go on `html`, not `body`. index.css sets `html { overflow-x: hidden }`,
+       which per the CSS Overflow spec stops body's overflow from propagating
+       to the viewport: the real scrolling element stays documentElement. The
+       old body-only lock therefore did nothing, which is why the page kept its
+       scrollbar (and kept scrolling) with the tour open.
+
+       Padding compensates for the bar the lock removes, so the page behind
+       does not jump sideways when the tour opens and closes. */
+    const root = document.documentElement;
+    const prevOverflow = root.style.overflow;
+    const prevPadding = root.style.paddingRight;
+    const barWidth = window.innerWidth - root.clientWidth;
+    root.style.overflow = 'hidden';
+    if (barWidth > 0) root.style.paddingRight = `${barWidth}px`;
+
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
+      root.style.overflow = prevOverflow;
+      root.style.paddingRight = prevPadding;
     };
   }, [open, close]);
 
@@ -308,6 +323,9 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
           : ['Marks and chapters']
         : ['They keep 100%', 'No commission'];
 
+  /* h-[100dvh] rather than inset-0: on a phone the dynamic viewport is the only
+     height that excludes the browser's own retracting chrome, and `bottom: 0`
+     measures the large viewport, which put the CTA underneath it. */
   return (
     <div
       ref={panelRef}
@@ -315,12 +333,12 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
       aria-modal="true"
       aria-label="How Shikshaq works"
       className={cn(
-        'fixed inset-0 z-[100] flex flex-col overflow-hidden transition-colors duration-500 ease-snap',
+        'fixed inset-x-0 top-0 z-[100] flex h-[100dvh] flex-col overflow-hidden transition-colors duration-500 ease-snap',
         step.bg,
       )}
     >
       {/* Chrome: the mark, and one way out that is always in the same place. */}
-      <div className="flex h-16 flex-none items-center justify-between px-5">
+      <div className="flex h-14 flex-none items-center justify-between px-5 sm:h-16 short-landscape:h-12">
         <Logo
           size="nav"
           className="tap-44 pointer-events-none [&_img]:[filter:brightness(0)]"
@@ -341,58 +359,77 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
         </button>
       </div>
 
-      {/* The step. Scrolls on a short screen rather than clipping the CTA. */}
-      <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-2">
-        <div className="flex w-full max-w-[560px] flex-col items-center">
+      {/* The step.
+
+          `overflow-y-auto` alone is not enough on either axis. On x, the CSS
+          Overflow spec forces the other axis to compute as `auto` too, so any
+          sub-pixel width (the panel is often xxx.2px wide) raised a horizontal
+          scrollbar under content that never actually overflowed sideways --
+          hence `overflow-x-hidden`. On y, `justify-center` on a scroll
+          container pushes overflowing content off the TOP, where it cannot be
+          scrolled back to; `my-auto` on the child centres it while it fits and
+          degrades to top-aligned when it does not. */}
+      <div className="flex flex-1 flex-col items-center overflow-y-auto overflow-x-hidden px-6 py-2 short:py-1">
+        {/* One column stacked, and beside itself on a landscape phone. At
+            740x380 the stack cannot fit even at its smallest clamp, and the
+            answer there is not a smaller face -- it is the width the screen
+            has and the height it does not. */}
+        <div className="my-auto flex w-full max-w-[560px] flex-col items-center short-landscape:max-w-[880px] short-landscape:flex-row short-landscape:items-center short-landscape:gap-7 short-landscape:text-left">
           <Mascot
             key={step.key}
             mood={step.mood}
             faceFill={step.faceFill}
             eyeWhite={step.eyeWhite}
             ink={step.faceInk}
-            className="mb-6 h-[124px] w-[124px] motion-safe:animate-panel-fade sm:h-[150px] sm:w-[150px]"
+            className="mb-[clamp(12px,2.4vh,24px)] h-[clamp(64px,15vh,150px)] w-[clamp(64px,15vh,150px)] flex-none motion-safe:animate-panel-fade short:h-[clamp(60px,11vh,96px)] short:w-[clamp(60px,11vh,96px)] short-landscape:mb-0 short-landscape:h-[clamp(84px,34vh,132px)] short-landscape:w-[clamp(84px,34vh,132px)]"
           />
 
-          {/* text-balance so a three-line headline does not leave one orphan
-              word on the last line at an awkward width. */}
-          <h2
-            className={cn(
-              'text-balance text-center font-display text-[40px] font-black leading-[0.94] tracking-[-0.055em] sm:text-[54px]',
-              step.ink,
-            )}
-          >
-            {step.headline}
-          </h2>
+          <div className="flex min-w-0 flex-col items-center short-landscape:items-start">
+            {/* text-balance so a three-line headline does not leave one orphan
+                word on the last line at an awkward width. */}
+            <h2
+              className={cn(
+                /* The width steps stay exactly as designed (40px, 54px from sm);
+                   what is new is the height ceiling. Driving display size off
+                   vw as well pulled a 360px phone down to 30px, which is not a
+                   display headline -- width was never the axis that ran out. */
+                'text-balance text-center font-display text-[max(28px,min(40px,7.2vh))] font-black leading-[0.94] tracking-[-0.055em] sm:text-[max(30px,min(54px,7.2vh))] short-landscape:text-left short-landscape:text-[clamp(28px,4.6vw,40px)]',
+                step.ink,
+              )}
+            >
+              {step.headline}
+            </h2>
 
-          <p
-            className={cn(
-              'mt-4 max-w-[38ch] text-pretty text-center text-[15px] leading-[1.55]',
-              step.inkSoft,
-            )}
-          >
-            {step.body}
-          </p>
+            <p
+              className={cn(
+                'mt-[clamp(10px,2vh,16px)] max-w-[38ch] text-pretty text-center text-[15px] leading-[1.55] short:text-[14px] short:leading-[1.5] short-landscape:mt-2.5 short-landscape:text-left short-landscape:text-[14px]',
+                step.inkSoft,
+              )}
+            >
+              {step.body}
+            </p>
 
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {chips.map((label) => (
-              <span
-                key={label}
-                className={cn(
-                  'inline-flex h-9 items-center rounded-full px-4 text-[13.5px] font-extrabold tabular-nums',
-                  step.chipBg,
-                  step.chipInk,
-                )}
-              >
-                {label}
-              </span>
-            ))}
+            <div className="mt-[clamp(14px,2.8vh,24px)] flex flex-wrap justify-center gap-2 short-landscape:mt-3 short-landscape:justify-start">
+              {chips.map((label) => (
+                <span
+                  key={label}
+                  className={cn(
+                    'inline-flex h-9 items-center rounded-full px-4 text-[13.5px] font-extrabold tabular-nums short:h-8 short:px-3.5 short:text-[12.5px] short-landscape:h-8 short-landscape:px-3.5 short-landscape:text-[12.5px]',
+                    step.chipBg,
+                    step.chipInk,
+                  )}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Footer: progress, then the action. */}
-      <div className="flex-none px-6 pb-8 pt-2">
-        <div className="mx-auto flex w-full max-w-[560px] flex-col items-center gap-4">
+      <div className="flex-none px-6 pt-2 pb-[max(clamp(16px,3.5vh,32px),env(safe-area-inset-bottom))] short:pt-1 short-landscape:pb-4 short-landscape:pt-1">
+        <div className="mx-auto flex w-full max-w-[560px] flex-col items-center gap-[clamp(10px,2.2vh,16px)]">
           <div className="flex items-center gap-2" role="presentation">
             {STEPS.map((s, n) => (
               <button
@@ -418,7 +455,7 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
             type="button"
             onClick={advance}
             className={cn(
-              'flex h-[56px] w-full items-center justify-center gap-2 rounded-full text-[16px] font-extrabold transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+              'flex h-[clamp(48px,7.5vh,56px)] w-full items-center justify-center gap-2 rounded-full text-[16px] font-extrabold transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
               step.chipBg,
               step.chipInk,
             )}

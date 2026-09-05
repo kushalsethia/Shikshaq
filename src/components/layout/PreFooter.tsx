@@ -55,6 +55,7 @@ function B1() {
   const cta = intentCta(intent);
 
   return (
+    <PageContainer>
     <div className="relative rounded-3xl bg-card p-6 shadow-border sm:p-8">
       <Sticker tone="brand" tilt={-3} size={30}>
         What is Shikshaq?
@@ -124,6 +125,7 @@ function B1() {
         </Button>
       </div>
     </div>
+    </PageContainer>
   );
 }
 
@@ -157,7 +159,14 @@ function B2({ counts }: { counts?: B2Counts }) {
        accent, with a glow shadow the flat pass (S-002/H-021) removed
        everywhere else — so the teachers half shouted while the papers half
        spoke. Same fill logic as B3, in orange. */
-    <div className="rounded-bento bg-brand-subtle p-6 sm:p-8">
+    /* DESIGN_SYSTEM.md §4, "full-bleed fill, contained content". This fill used
+       to sit inside PreFooter's PageContainer, so the tint stopped at max-w-6xl
+       and page ground ran down both sides of it -- on Browse that put an inset
+       panel between a full-bleed results panel above and a full-bleed footer
+       below, which is the drift §4 exists to prevent. The fill is now edge to
+       edge and only the content is measured. */
+    <div className="bg-brand-subtle py-6 sm:py-8">
+      <PageContainer>
       {/* No /70. Composited on bg-brand-subtle that measured 2.73:1, and an
           11.5px 700 eyebrow is small text, not decoration.
           Dropping the alpha alone was NOT enough: solid --brand-deep at its
@@ -200,6 +209,7 @@ function B2({ counts }: { counts?: B2Counts }) {
         Teachers keep every rupee of their fee. We never take a cut, and we never sell your
         number.
       </p>
+      </PageContainer>
     </div>
   );
 }
@@ -208,7 +218,9 @@ function B2({ counts }: { counts?: B2Counts }) {
 
 function B3() {
   return (
-    <div className="rounded-3xl bg-brand-blue-subtle p-6 sm:p-8">
+    /* Full-bleed fill, contained content -- see the note on B2. */
+    <div className="bg-brand-blue-subtle py-6 sm:py-8">
+      <PageContainer>
       {/* Rebuilt against prefooter-03-papers-explainer.png, which this had
           drifted from in the same ways B1 had: no eyebrow, a headline that
           described the block ("Where these papers come from") rather than making
@@ -270,6 +282,7 @@ function B3() {
           </a>
         </Button>
       </div>
+      </PageContainer>
     </div>
   );
 }
@@ -278,6 +291,7 @@ function B3() {
 
 function B4() {
   return (
+    <PageContainer>
     <Link
       to="/about"
       className="flex items-center gap-4 rounded-2xl bg-card p-4 shadow-border transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-6"
@@ -305,6 +319,7 @@ function B4() {
       </span>
       <ChevronRight aria-hidden className="size-5 shrink-0 text-warm-label" />
     </Link>
+    </PageContainer>
   );
 }
 
@@ -317,12 +332,15 @@ export interface PreFooterProps {
 /** 32px above the footer (design.md §1). */
 function PreFooter({ variant, counts, className }: PreFooterProps) {
   return (
-    <PageContainer as="section" className={cn("pb-8", className)}>
+    /* Not a PageContainer any more: B2 and B3 are fills and must reach the
+       edges, so the measure moved inside each variant. B1 and B4 are cards
+       (shadow-border, hover) and keep the gutter by wrapping themselves. */
+    <section className={cn("pb-8", className)}>
       {variant === "B1" ? <B1 /> : null}
       {variant === "B2" ? <B2 counts={counts} /> : null}
       {variant === "B3" ? <B3 /> : null}
       {variant === "B4" ? <B4 /> : null}
-    </PageContainer>
+    </section>
   );
 }
 
