@@ -27,6 +27,12 @@ export interface BlogArticle {
   description: string;
   /** Small routing label above the title. */
   eyebrow: string;
+  /**
+   * Footer and other cramped link lists. The full titles all carry the same
+   * "in ICSE Class 10 Maths papers" tail, which is right on the page and is
+   * twenty repetitions of the same six words in a link column.
+   */
+  shortTitle: string;
   /** Ordering on the index. Lower sorts first. */
   order: number;
   /** The chapter this article is about, if it is a chapter article. */
@@ -68,6 +74,7 @@ const OVERVIEW: BlogArticle[] = [
       `Every chapter in the ${SCOPE_LABEL} syllabus, ranked by the marks it really carried ` +
       `across ${fmt(BANK_TOTALS.papers)} papers from ${fmt(BANK_TOTALS.schools)} Kolkata schools.`,
     eyebrow: 'Counted from real papers',
+    shortTitle: 'Which chapters carry the marks',
     order: 0,
     minutes: 6,
   },
@@ -78,6 +85,7 @@ const OVERVIEW: BlogArticle[] = [
       `What ${fmt(BANK_TOTALS.questions)} questions from ${fmt(BANK_TOTALS.schools)} schools show ` +
       `about paper types, mark weights and how much of the syllabus a prelim really covers.`,
     eyebrow: 'Counted from real papers',
+    shortTitle: 'How schools set their papers',
     order: 1,
     minutes: 5,
   },
@@ -90,6 +98,7 @@ const CHAPTER_ARTICLES: BlogArticle[] = CHAPTER_STATS.map((chapter, i) => ({
     `${chapter.name} carried ${fmt(chapter.marks)} marks across ${fmt(chapter.papers)} of ` +
     `${fmt(BANK_TOTALS.papers)} papers. What that looks like question by question.`,
   eyebrow: chapter.name,
+  shortTitle: chapter.name,
   order: 10 + i,
   chapter,
   minutes: 4,

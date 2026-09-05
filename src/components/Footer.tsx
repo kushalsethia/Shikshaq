@@ -24,6 +24,8 @@ import { cn } from '@/lib/utils';
    is real functionality carried over from the pre-redesign Footer — see the
    inventory in the handoff report, not repeated here as comments. */
 
+import { BLOG_ARTICLES, BLOG_PATH } from '@/content/blog';
+
 type FooterLink = { to: string; label: string };
 
 const BOARD_FOOTER_LINKS: FooterLink[] = [
@@ -351,6 +353,15 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     { to: '/recommend-teacher', label: 'Recommend a teacher' },
   ];
 
+  /* Built from the generated article set, not hand-listed. The articles are
+     produced from the question bank's chapter stats, so a hardcoded copy here
+     would go stale the moment the bank grows a chapter. Index first, then the
+     two overviews and the eighteen chapters in their own order. */
+  const blogLinks: FooterLink[] = [
+    { to: BLOG_PATH, label: 'All reading' },
+    ...BLOG_ARTICLES.map((a) => ({ to: `${BLOG_PATH}/${a.slug}`, label: a.shortTitle })),
+  ];
+
   const supportLinks: FooterLink[] = [
     { to: '/more', label: 'Help' },
     { to: '/faq', label: 'FAQ' },
@@ -466,6 +477,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
             <div className="lg:hidden">
               <FooterAccordion label="Shikshaq" links={shikshaqLinks} />
               <FooterAccordion label="Support & legal" links={supportLinks} />
+              <FooterAccordion label="What the papers show" links={blogLinks} />
               <FooterAccordion label="Teachers by board · Kolkata" links={BOARD_FOOTER_LINKS} />
               <FooterAccordion label="Tuition teachers by subject in Kolkata" links={subjectLinks} />
             </div>
@@ -484,6 +496,20 @@ export function Footer({ expandedContent }: FooterProps = {}) {
                 <LinkList links={BOARD_FOOTER_LINKS} />
               </div>
             </div>
+
+            <details className="disclosure hidden border-t border-white/10 lg:block">
+              <summary className={`flex min-h-[44px] cursor-pointer list-none items-center gap-2 ${COL_LABEL} ${SUMMARY_RESET}`}>
+                What the papers show
+                <ChevronDown className="h-4 w-4" aria-hidden />
+              </summary>
+              <div className="flex flex-wrap gap-x-6 pt-1">
+                {blogLinks.map(({ to, label }) => (
+                  <Link key={to} to={to} className={`${FOOTER_LINK} whitespace-nowrap text-xs text-white/70`}>
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </details>
 
             <details className="disclosure hidden border-t border-white/10 lg:block">
               <summary className={`flex min-h-[44px] cursor-pointer list-none items-center gap-2 ${COL_LABEL} ${SUMMARY_RESET}`}>
