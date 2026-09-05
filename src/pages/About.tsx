@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, GraduationCap, Plus, Search, ShieldCheck } from 'lucide-react';
+import { ArrowRight, BookOpen, GraduationCap, MessageCircle, Search, ShieldCheck } from 'lucide-react';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { useRevealOnScroll } from '@/hooks/useRevealOnScroll';
 import { AnnotatedStatement, AnnotatedHighlight } from '@/components/marketing/annotated-statement';
@@ -13,6 +13,7 @@ import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { Logo } from '@/components/Logo';
+import { NumberedHeading } from '@/components/ui/numbered-heading';
 
 /* Fades a panel up into place the moment it actually enters the viewport
    (see useRevealOnScroll for why that has to be scroll-triggered rather
@@ -38,6 +39,10 @@ function Reveal({ children, delayMs = 0 }: { children: ReactNode; delayMs?: numb
 // between a parent and a teacher"), three tilted annotation pills, an origin
 // story paragraph, real stat tiles, and a near-black founders card. Replaces
 // the previous hero+principles+CTA layout entirely (changelog C-058).
+/* Full-bleed fill, contained content (DESIGN_SYSTEM.md section 4). */
+const BAND_PAD =
+  'px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl';
+
 export default function About() {
   usePageMeta(
     'About Shikshaq | Free tuition teacher matching in Kolkata',
@@ -216,57 +221,64 @@ export default function About() {
               cut the headline out of it and leave a strip of teeth. */}
           <div aria-hidden className="torn-edge h-3 bg-panel [--torn-size:14px]" />
 
-          {/* What we do. Radical Futures' coloured expandable rows, with the
-              section label set vertically down the side. Each row is a claim
-              the product already keeps somewhere else: the verification badge,
-              the free-to-read papers, and the WhatsApp handoff. */}
+          {/* What we do, in the home page's own section language.
+
+              This was a borrowed device: three coloured accordion rows with
+              the section label set sideways down a vertical bar. Three things
+              were wrong with it. The label bar was indigo and so was the third
+              row, so they merged into one L-shaped mass. The bar stopped the
+              rows reaching the left edge while every other band on the site
+              does. And sideways type is nobody's language here.
+
+              Home opens each of its sections with NumberedHeading (an ordinal
+              between two display lines) inside a card panel, then a grid of
+              icon-disc cards. That is the house pattern, so this uses it. */}
           <Reveal>
-            <div className="flex">
-              <div className="flex w-11 flex-none items-center justify-center bg-brand-blue lg:w-14">
-                <span className="whitespace-nowrap text-[13px] font-extrabold uppercase tracking-[0.08em] text-white [writing-mode:vertical-rl] [transform:rotate(180deg)]">
-                  What we do
-                </span>
-              </div>
-              <ul className="min-w-0 flex-1">
+            <BentoPanel fill="card" className={BAND_PAD}>
+              <NumberedHeading
+                size="compact"
+                line1="What we"
+                ordinal="01"
+                line2="actually do"
+                support="Three things, and then we get out of the way."
+              />
+              <div className="stagger-children mt-6 grid gap-4 sm:grid-cols-3">
                 {[
                   {
-                    fill: 'bg-brand text-brand-foreground',
+                    tone: 'brand' as const,
+                    icon: <ShieldCheck />,
+                    tint: 'bg-brand-subtle',
                     title: 'We check who is on the list',
                     body: 'A teacher is verified before they appear, so the name, the subjects and the number you see are the ones we were given and could confirm.',
                   },
                   {
-                    fill: 'bg-mint text-foreground',
+                    tone: 'papers' as const,
+                    icon: <BookOpen />,
+                    tint: 'bg-brand-blue-subtle',
                     title: 'We host the papers, free to read',
                     body: 'Real question papers from Kolkata schools, kept as they were set. The first five questions of any paper need no account at all.',
                   },
                   {
-                    fill: 'bg-brand-blue text-white',
-                    title: 'Then we stay out of the conversation',
+                    tone: 'muted' as const,
+                    icon: <MessageCircle />,
+                    tint: 'bg-muted',
+                    title: 'Then we stay out of it',
                     body: 'You message the teacher yourself on WhatsApp. We take no commission, because the moment we take one we start having opinions about who you should pick.',
                   },
-                ].map((row) => (
-                  <li key={row.title}>
-                    <details className={`disclosure group ${row.fill}`}>
-                      <summary className="mx-auto flex min-h-[64px] max-w-6xl cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left [&::-webkit-details-marker]:hidden lg:px-8">
-                        <span className="font-display text-[clamp(19px,2.6vw,26px)] font-extrabold tracking-[-0.02em]">
-                          {row.title}
-                        </span>
-                        <Plus
-                          aria-hidden
-                          className="h-5 w-5 flex-none transition-transform duration-hover group-open:rotate-45"
-                          strokeWidth={2.5}
-                        />
-                      </summary>
-                      <div className="mx-auto max-w-6xl px-5 pb-5 lg:px-8">
-                        <p className="max-w-prose text-[15px] leading-[1.65] opacity-90">
-                          {row.body}
-                        </p>
-                      </div>
-                    </details>
-                  </li>
+                ].map((c) => (
+                  <div
+                    key={c.title}
+                    className={`animate-card-reveal rounded-[18px] p-5 transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${c.tint}`}
+                  >
+                    <IconDisc tone={c.tone} size={40} className="mb-3">
+                      {c.icon}
+                    </IconDisc>
+                    <p className="text-[15px] font-bold leading-[1.3] text-foreground">{c.title}</p>
+                    <p className="mt-2 text-[14px] leading-[1.6] text-foreground/70">{c.body}</p>
+                  </div>
                 ))}
-              </ul>
-            </div>
+              </div>
+            </BentoPanel>
           </Reveal>
 
           <Reveal>
@@ -315,12 +327,13 @@ export default function About() {
               cards would have read as one long undifferentiated slab. */}
           <Reveal>
             <BentoPanel fill="mint" className="px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
-              <span className="block text-label uppercase tracking-[0.06em] text-brand-deep">
-                How this started
-              </span>
-              <h2 className="mt-2 max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
-                Finding a tutor should not be a favour you ask around for
-              </h2>
+              <NumberedHeading
+                size="compact"
+                line1="How this"
+                ordinal="02"
+                line2="started"
+                support="Finding a tutor should not be a favour you ask around for."
+              />
               {/* Three paragraphs (the hearsay problem, why directories and
                   aggregators made it worse, then the decision) cut to one —
                   the same three beats, said once each instead of explained. */}
@@ -337,12 +350,13 @@ export default function About() {
 
           <Reveal>
             <BentoPanel fill="card" className="px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
-              <span className="block text-label uppercase tracking-[0.06em] text-brand-deep">
-                Who it is for
-              </span>
-              <h2 className="mt-2 max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
-                Both sides of the same conversation
-              </h2>
+              <NumberedHeading
+                size="compact"
+                line1="Both sides of"
+                ordinal="03"
+                line2="the same conversation"
+                support="Whether you are looking for a teacher or you are one."
+              />
               {/* Two colour-matched cards, not two identical grey blocks —
                   each card's own tint (blue for the reader, orange for the
                   teacher) plus a SOLID disc in that same family, not the
@@ -400,13 +414,15 @@ export default function About() {
             <BentoPanel fill="brandTint" className="relative overflow-hidden px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
               <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-[220px] w-[220px] animate-bob rounded-full bg-white/50" />
               <span aria-hidden className="pointer-events-none absolute -bottom-20 -left-14 h-[200px] w-[200px] animate-bob rounded-full bg-black/[0.06] [animation-delay:-4s]" />
-              <h2 className="relative max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
-                How we work
-              </h2>
-              <p className="mt-2.5 text-[15px] leading-[1.6] text-warm-prose">
-                Most tuition sites stand between you and the teacher: a cut of every fee, a
-                counsellor who rings for a month. We took the other bet.
-              </p>
+              <div className="relative">
+                <NumberedHeading
+                  size="compact"
+                  line1="How we"
+                  ordinal="04"
+                  line2="work"
+                  support="Most tuition sites stand between you and the teacher. We took the other bet."
+                />
+              </div>
               {/* Bodies trimmed to one line each; stagger-children +
                   animate-card-reveal so the four points land one after
                   another instead of as one static block, and each gets a
@@ -449,12 +465,13 @@ export default function About() {
               line, closing out the colour-block sequence. */}
           <Reveal>
             <BentoPanel fill="papersTint" className="px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
-              <span className="block text-label uppercase tracking-[0.06em] text-brand-blue">
-                Students helping students
-              </span>
-              <h2 className="mt-2 max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
-                The papers came from the people who sat them
-              </h2>
+              <NumberedHeading
+                size="compact"
+                line1="The papers came from"
+                ordinal="05"
+                line2="the people who sat them"
+                support="Students helping students. Nobody here wrote a single question."
+              />
               {/* Two paragraphs cut to one — nobody at Shikshaq wrote a
                   question here, every paper was sent in by a student who'd
                   already sat it. That's the whole mechanism; said once. */}
