@@ -247,7 +247,7 @@ export default function About() {
                 ].map((row) => (
                   <li key={row.title}>
                     <details className={`disclosure group ${row.fill}`}>
-                      <summary className="flex min-h-[64px] cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left [&::-webkit-details-marker]:hidden lg:px-8">
+                      <summary className="mx-auto flex min-h-[64px] max-w-6xl cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left [&::-webkit-details-marker]:hidden lg:px-8">
                         <span className="font-display text-[clamp(19px,2.6vw,26px)] font-extrabold tracking-[-0.02em]">
                           {row.title}
                         </span>
@@ -257,9 +257,11 @@ export default function About() {
                           strokeWidth={2.5}
                         />
                       </summary>
-                      <p className="max-w-prose px-5 pb-5 text-[15px] leading-[1.65] opacity-90 lg:px-8">
-                        {row.body}
-                      </p>
+                      <div className="mx-auto max-w-6xl px-5 pb-5 lg:px-8">
+                        <p className="max-w-prose text-[15px] leading-[1.65] opacity-90">
+                          {row.body}
+                        </p>
+                      </div>
                     </details>
                   </li>
                 ))}
@@ -271,7 +273,7 @@ export default function About() {
             {/* Handoff AB-003: lede + stats grid. Trimmed to one sentence —
                 the fuller version of this claim is the entire next panel,
                 so this only needs to be the one-line version of it. */}
-            <BentoPanel fill="card" className="px-[22px] py-9 lg:px-8 lg:py-14">
+            <BentoPanel fill="card" className="px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
               <p className="text-[15px] leading-[1.6] text-warm-prose">
                 We list teachers, verify who they say they are, then get out of the way. The fee
                 you agree is the fee they keep.
@@ -312,8 +314,8 @@ export default function About() {
               owner correction elsewhere), so an unbroken run of flat white
               cards would have read as one long undifferentiated slab. */}
           <Reveal>
-            <BentoPanel fill="mint" className="px-[22px] py-9 lg:px-8 lg:py-14">
-              <span className="text-label uppercase tracking-[0.06em] text-brand-deep">
+            <BentoPanel fill="mint" className="px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
+              <span className="block text-label uppercase tracking-[0.06em] text-brand-deep">
                 How this started
               </span>
               <h2 className="mt-2 max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
@@ -334,8 +336,8 @@ export default function About() {
           </Reveal>
 
           <Reveal>
-            <BentoPanel fill="card" className="px-[22px] py-9 lg:px-8 lg:py-14">
-              <span className="text-label uppercase tracking-[0.06em] text-brand-deep">
+            <BentoPanel fill="card" className="px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
+              <span className="block text-label uppercase tracking-[0.06em] text-brand-deep">
                 Who it is for
               </span>
               <h2 className="mt-2 max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
@@ -395,7 +397,7 @@ export default function About() {
               would have all but vanished) to white/black translucent,
               which reads against any fill this page uses. */}
           <Reveal>
-            <BentoPanel fill="brandTint" className="relative overflow-hidden px-[22px] py-9 lg:px-8 lg:py-14">
+            <BentoPanel fill="brandTint" className="relative overflow-hidden px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
               <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-[220px] w-[220px] animate-bob rounded-full bg-white/50" />
               <span aria-hidden className="pointer-events-none absolute -bottom-20 -left-14 h-[200px] w-[200px] animate-bob rounded-full bg-black/[0.06] [animation-delay:-4s]" />
               <h2 className="relative max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
@@ -446,8 +448,8 @@ export default function About() {
               actual blue block instead of a white card with one blue
               line, closing out the colour-block sequence. */}
           <Reveal>
-            <BentoPanel fill="papersTint" className="px-[22px] py-9 lg:px-8 lg:py-14">
-              <span className="text-label uppercase tracking-[0.06em] text-brand-blue">
+            <BentoPanel fill="papersTint" className="px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
+              <span className="block text-label uppercase tracking-[0.06em] text-brand-blue">
                 Students helping students
               </span>
               <h2 className="mt-2 max-w-[22ch] font-display text-[clamp(24px,3.6vw,38px)] font-black leading-[1.02] tracking-[-0.035em] text-foreground">
@@ -491,7 +493,7 @@ export default function About() {
               depends on), so it stays — styled in the mockup's own language
               rather than dropped. */}
           <Reveal>
-            <BentoPanel fill="card" className="px-[22px] !py-[18px] lg:!py-8">
+            <BentoPanel fill="card" className="px-[22px] !py-[18px] lg:!py-8 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
               <Link
                 to="/recommend-teacher"
                 className="group flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
