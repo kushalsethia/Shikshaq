@@ -1041,7 +1041,7 @@ export default function PastPapers() {
             width stacked alone. items-stretch so both panels' own fill
             colour runs the full shared height (same reasoning as Home's
             pairing) rather than the shorter one stopping short. */}
-        <div className="lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-2">
+        <div className="lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-0">
         {/* ------------------------------------------------------------ 3 steps */}
         {/* p-[22px]: the mockup never draws this panel, so it follows its
             neighbours on this page rather than BentoPanel's 20px default. */}

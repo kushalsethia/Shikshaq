@@ -2182,7 +2182,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
       {/* Handoff B-014: the desktop two-column shell (rail + results) is
           unchanged in structure, each side now its own BentoPanel. */}
-      <div className="lg:flex lg:items-start lg:gap-8">
+      <div className="lg:flex lg:items-start lg:gap-0">
         {/* Desktop persistent filter rail (design.md S5 / C-048) -- the
             sheet's content unwrapped, same FilterGroupsBody as the mobile
             sheet. Handoff B-014: FilterRail renders itself as a BentoPanel now. */}

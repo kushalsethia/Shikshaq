@@ -698,8 +698,12 @@ export function FilterRail({ filters, onFilterChange, mode = 'teachers' }: Filte
   return (
     <nav aria-label="Filters" className="hidden lg:block lg:w-[284px] lg:flex-none">
       {/* Handoff B-014: the rail is a BentoPanel now — sticky top-24, no
-          border/shadow, separated from the results panel by fill alone. */}
-      <BentoPanel fill="card" className="sticky top-24">
+          border/shadow, separated from the results panel by fill alone.
+          fill="muted", not "card": with the lg:gap-8 that used to sit
+          between the rail and the results panel now closed to gap-0, two
+          "card" fills touching left no visible seam at all — "separated by
+          fill alone" was a promise this code never actually kept. */}
+      <BentoPanel fill="muted" className="sticky top-24">
         {/* The group labels below are h3. The mobile sheet gives them an h2
             ("Filters") to sit under; the rail draws no such title, which left a
             h1 -> h3 skip on desktop. This supplies the level without adding a

@@ -660,7 +660,7 @@ export default function Index() {
         <BentoStack>
           {/* --------------------------------------------- 1-4 · Hero grid (D-005)
               Mobile: greeting, then search, then the two fork panels — a plain
-              flex-col stack (gap-seam) reproduces the exact prior order/spacing.
+              flex-col stack, touching (gap-0), same as BentoStack's own rule.
               `lg`: grid-cols-[1.15fr_1fr] — greeting+search left, forks stacked
               right — per the 34-desktop.md D-005 "Home hero" row. */}
           {/* No lg:items-start. Pinned to the top, the right column ended
@@ -668,8 +668,8 @@ export default function Index() {
               ground beside the search desk — the hero read as half-finished at
               desktop. The columns are equal height now and the forks divide it
               between them. */}
-          <div className="flex flex-col gap-seam lg:grid lg:grid-cols-[1.15fr_1fr] lg:gap-2">
-            <div className="flex flex-col gap-seam lg:gap-2">
+          <div className="flex flex-col gap-0 lg:grid lg:grid-cols-[1.15fr_1fr] lg:gap-0">
+            <div className="flex flex-col gap-0">
           {/* -------------------------------------------------------- 1 · Greeting */}
           <BentoPanel fill="card" edge="top" className="relative overflow-hidden pt-[14px] px-[22px]">
             {/* Both lines are keyed on the mode so a toggle flip remounts them
@@ -796,7 +796,7 @@ export default function Index() {
                 clearing the floating top bar and the first fork's heading sat
                 underneath it. The left column's reserve only offsets its own
                 cell. */}
-            <div className="flex flex-col gap-seam lg:gap-2 lg:pt-[72px] [&>*]:lg:flex-1 [&>*]:lg:flex [&>*]:lg:flex-col [&>*]:lg:justify-between">
+            <div className="flex flex-col gap-0 lg:pt-[72px] [&>*]:lg:flex-1 [&>*]:lg:flex [&>*]:lg:flex-col [&>*]:lg:justify-between">
           {/* --------------------------------------------------- 3 · Teachers fork */}
           <BentoPanel fill="brandTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
             {/* Owner call, reworked: the mascot was a tiny corner badge —
@@ -925,9 +925,9 @@ export default function Index() {
                  the shadow instead of an overflow value that was never
                  doing anything. */
               <div className="mt-4 overflow-x-auto overflow-y-hidden px-[22px] pb-3 pt-3 scrollbar-hide">
-                <ul className="flex w-max snap-x snap-mandatory gap-3">
+                <ul className="flex w-max snap-x snap-mandatory gap-3 stagger-children">
                   {featuredTeachers.map((t) => (
-                    <li key={t.id} className="w-[168px] flex-none snap-start lg:w-[196px]">
+                    <li key={t.id} className="w-[168px] flex-none snap-start animate-card-blur-in lg:w-[196px]">
                       <TeacherCard
                         id={t.id}
                         name={t.name}
@@ -1163,11 +1163,11 @@ export default function Index() {
              column reflows its short row text onto more lines, closing
              most of that gap, same fix as the Subjects/Board/Class row
              above. */}
-          <div className="lg:grid lg:grid-cols-[1.15fr_0.85fr] lg:items-stretch lg:gap-2">
+          <div className="lg:grid lg:grid-cols-[1.15fr_0.85fr] lg:items-stretch lg:gap-0">
           {/* --------------------------------------------------- 8 · How it works */}
-          {/* No mt-seam. BentoStack already owns the 6px seam between every pair
-              of panels (T-004/D-002); adding one here stacked on top of it and
-              made this the only 12px gap on the page — the "extra padding
+          {/* No mt, no lg:gap. BentoStack already owns zero gap between every
+              pair of panels; adding one here stacked on top of it and made
+              this the only visible gap on the page — the "extra padding
               between the rounded sections" report. */}
           <BentoPanel fill="brand" className="relative overflow-visible px-[22px] pb-6 pt-[26px]">
             {/* brand-foreground, not white: white on #FF8000 measures

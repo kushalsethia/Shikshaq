@@ -1109,9 +1109,9 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                               {teacherCount} found
                             </span>
                           </div>
-                          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="grid gap-2 stagger-children sm:grid-cols-2 lg:grid-cols-3">
                             {results.teachers.map((t) => (
-                              <button key={t.id} type="button" onClick={() => openTeacher(t)} className={rowBase}>
+                              <button key={t.id} type="button" onClick={() => openTeacher(t)} className={`${rowBase} animate-card-blur-in`}>
                                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
                                   {initial(t.name)}
                                 </span>
@@ -1142,9 +1142,9 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                               {paperCount} found
                             </span>
                           </div>
-                          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="grid gap-2 stagger-children sm:grid-cols-2 lg:grid-cols-3">
                             {results.papers.map((p) => (
-                              <button key={p.id} type="button" onClick={() => openPaper(p)} className={rowBase}>
+                              <button key={p.id} type="button" onClick={() => openPaper(p)} className={`${rowBase} animate-card-blur-in`}>
                                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
                                   {initial(p.school)}
                                 </span>

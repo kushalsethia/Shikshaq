@@ -722,15 +722,7 @@ export default function TeacherProfile() {
           AppShell already reserves it once via BottomNavSpacer, rendered
           after this page's PreFooter/Footer. Stacked on top of each other,
           the two reservations left a dead gap between the last section here
-          (the "similar teachers" link) and the B2 strip that follows.
-
-          T-006: `px-0` below sm, not `px-4`. This main still carried the
-          pre-redesign gutter, so every panel on this page sat 16px in and
-          24px down — measured 358px wide at a 390px viewport, with a 16px
-          left edge. D-001's accept line is "at 375px a panel's left edge is
-          at x = 0", and P-002's is that the profile card is square-topped
-          because "it meets the nav", which it cannot do inset and pushed
-          down. The sm:/lg: gutters are unchanged. */}
+          (the "similar teachers" link) and the B2 strip that follows. */}
       {/* pb only, not py: sm:py-8 was giving this <main> its own 32px top
           padding ON TOP OF the profile panel's own edge="top" NavReserve
           (PageContainer.tsx) just below — the panel is meant to bleed to
@@ -738,7 +730,12 @@ export default function TeacherProfile() {
           About.tsx's bare `<main>`, which has none of this). Stacking both
           pushed "Back to all teachers" ~118px down the page for a pill
           that only needs 72px, reported as dead space above it. */}
-      <main className="mx-auto w-full max-w-6xl px-0 pb-10 sm:px-6 sm:pb-8 lg:pb-16 lg:px-8">
+      {/* No max-w/mx-auto/px — Index.tsx's owner correction applies here
+          too: edge-to-edge is the pattern for every BentoStack page, this
+          one included, not a page-level gutter. T-006 had only zeroed the
+          mobile gutter and left sm:/lg: in place; that was the bug, not a
+          decision to keep. */}
+      <main className="pb-10 sm:pb-8 lg:pb-16">
         {/* Desktop: 1fr / 384px grid. Left = photo/name card + prose sections. Right = sticky contact card. */}
         <div className="lg:grid lg:grid-cols-[1fr_384px] lg:gap-[40px]">
           <BentoStack className="min-w-0">

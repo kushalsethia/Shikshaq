@@ -148,30 +148,17 @@ function TopNavSpacer() {
   );
 }
 
-/* Owner correction, superseding Handoff T-002/T-004/D-002's 6px/8px seam:
-   stacked panels are meant to touch with zero gap between them, not show a
-   strip of page ground through a gap. bg-background stays on the wrapper
-   itself (still the one owner of that fill, panels don't each need it). */
+/* Owner correction: stacked panels touch with zero gap between them, but
+   each keeps its own full rounding — the bento-grid vibe is rounded cards
+   packed edge to edge, with the shared background showing through as a
+   small notch at each corner where two rounded corners meet, not a column
+   of square-cornered blocks fused into one shape. bg-background stays on
+   the wrapper itself (still the one owner of that fill, panels don't each
+   need it). */
 export function BentoStack({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn(
-        'flex flex-col gap-0 bg-background',
-        /* Panels in a stack TOUCH, so their corners must not round.
-           DESIGN_SYSTEM.md section 4 already says separation comes from the
-           fill change at the seam, but BentoPanel's own `rounded-bento`
-           rounded all four corners of every panel, so each seam showed four
-           notches of page ground through it. At gap-0 that reads as a column
-           of separate cards rather than one continuous run of colour phases,
-           which is exactly the "disjoint" the owner flagged.
-
-           Done as a descendant rule rather than by changing BentoPanel's
-           default, because it must reach panels wrapped in <Reveal> (About,
-           Index) and because a BentoPanel used on its own, outside a stack,
-           is still a card and keeps its radius. */
-        '[&_[data-bento-panel]]:rounded-none',
-        className,
-      )}
+      className={cn('flex flex-col gap-0 bg-background', className)}
       {...props}
     />
   );
@@ -193,9 +180,10 @@ const PANEL_FILLS = {
 
 export interface BentoPanelProps extends React.HTMLAttributes<HTMLDivElement> {
   fill?: keyof typeof PANEL_FILLS;
-  /** 'top' = square top corners (first panel, meets the nav), 'bottom' =
-      square bottom corners (panel that butts the nav reserve), undefined =
-      all four rounded. */
+  /** 'top' = first panel, reserves clearance so its content starts below the
+      floating nav pill instead of underneath it. Purely a spacing concern —
+      every panel keeps full rounding on all four corners regardless of
+      `edge`. */
   edge?: 'top' | 'bottom';
 }
 
@@ -232,8 +220,6 @@ export const BentoPanel = React.forwardRef<HTMLDivElement, BentoPanelProps>(
         data-bento-panel=""
         className={cn(
           'rounded-bento px-5 py-5 lg:px-8 lg:py-8',
-          edge === 'top' && 'rounded-t-none',
-          edge === 'bottom' && 'rounded-b-none',
           PANEL_FILLS[fill],
           className,
         )}
