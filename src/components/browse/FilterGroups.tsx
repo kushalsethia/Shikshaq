@@ -244,7 +244,14 @@ export function FilterGroupsBody({
      the invisible `.tap-44` overlay Chip already applies to every interactive
      chip (ui/chip.tsx) keeps the real tap target at the 44px floor regardless
      of how small the label reads, so shrinking height/padding/type here never
-     drops below the accessible minimum. */
+     drops below the accessible minimum.
+
+     px-2.5, not px-3: at the rail's 184px usable width, "Accounts" and
+     "Economics" missed pairing onto one row by 3px at px-3, so an 8-9 letter
+     subject routinely sat alone on its own row with ~100px empty beside it.
+     Measured live — the same 4px-per-side trim (paired with the container's
+     gap-[6px] below, was 8px) lets Accounts+Economics and several other
+     pairs share a row instead. */
   const pill = (label: string, active: boolean, onClick: () => void, key?: string) => (
     <Chip
       key={key ?? label}
@@ -252,7 +259,7 @@ export function FilterGroupsBody({
       size={44}
       onClick={onClick}
       aria-pressed={active}
-      className="h-9 px-3 text-meta"
+      className="h-9 px-2.5 text-meta"
     >
       {label}
     </Chip>
@@ -295,7 +302,7 @@ export function FilterGroupsBody({
           {filteredSubjects.length === 0 ? (
             <p className="text-body-secondary text-warm-meta">No subjects match &ldquo;{subjectQuery}&rdquo;.</p>
           ) : (
-            <div className="flex flex-wrap gap-[8px]">
+            <div className="flex flex-wrap gap-[6px]">
               {filteredSubjects.map((s) => pill(s, filters.subjects.includes(s), () => toggle('subjects', s)))}
             </div>
           )}
@@ -352,7 +359,7 @@ export function FilterGroupsBody({
             filteredAreaGroups.map((group) => (
               <div key={group.label}>
                 <p className="mb-2 text-label font-medium uppercase tracking-wide text-warm-meta">{group.label}</p>
-                <div className="flex flex-wrap gap-[8px]">
+                <div className="flex flex-wrap gap-[6px]">
                   {group.areas.map((a) => pill(a, filters.areas.includes(a), () => toggle('areas', a), a))}
                 </div>
               </div>
@@ -418,7 +425,7 @@ export function FilterGroupsBody({
         'Mode of teaching',
         Wifi,
         modeSelectedCount,
-        <div className="flex flex-wrap gap-[8px]">
+        <div className="flex flex-wrap gap-[6px]">
           {MODE_OPTIONS.map((opt) =>
             pill(opt.label, opt.isActive(filters), () => onFilterChange(opt.toggle(filters)), opt.label),
           )}
@@ -435,7 +442,7 @@ export function FilterGroupsBody({
         'Boards',
         Landmark,
         filters.boards.length,
-        <div className="flex flex-wrap gap-[8px]">
+        <div className="flex flex-wrap gap-[6px]">
           {BOARDS.map((b) => pill(b, filters.boards.includes(b), () => toggle('boards', b), b))}
         </div>,
       )}
@@ -473,7 +480,7 @@ export function FilterGroupsBody({
         'Category',
         FileText,
         filters.examTypes.length,
-        <div className="flex flex-wrap gap-[8px]">
+        <div className="flex flex-wrap gap-[6px]">
           {EXAM_TYPES.map((e) => pill(e, filters.examTypes.includes(e), () => toggle('examTypes', e), e))}
         </div>,
       )}
@@ -483,7 +490,7 @@ export function FilterGroupsBody({
         'Class size',
         Users,
         filters.classSize.length,
-        <div className="flex flex-wrap gap-[8px]">
+        <div className="flex flex-wrap gap-[6px]">
           {CLASS_SIZE.map((s) =>
             pill(s === 'Solo' ? 'One-on-one' : s, filters.classSize.includes(s), () => toggle('classSize', s), s),
           )}

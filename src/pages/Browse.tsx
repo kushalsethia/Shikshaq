@@ -8,6 +8,7 @@ import { useIntent } from '@/lib/intent-context';
 import { suggestedFilterChips, type SuggestedFilterChip } from '@/lib/intent/copy';
 import { TeacherCard } from '@/components/TeacherCard';
 import { useChromeConfig } from '@/components/layout/AppShell';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { type FilterState } from '@/components/FilterPanel';
 import { FilterSheet, FilterRail, activeFilterCount } from '@/components/browse/FilterGroups';
@@ -596,6 +597,46 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, filters.subjects.join(','), filters.classes.join(','), filters.boards.join(','), filters.schools.join(','), filters.examTypes.join(','), papersRetryToken]);
+
+  // Was inline in the "Load more" button's onClick — pulled out so the
+  // infinite-scroll sentinel below can call the exact same function a click
+  // used to.
+  const loadMorePapers = useCallback(async () => {
+    setPapersLoadingMore(true);
+    try {
+      const nextPage = papersPage + 1;
+      const from = nextPage * PAPERS_PAGE_SIZE;
+      let query = supabase
+        .from('papers')
+        .select('id,title,school,subject,class,board,exam_type,year,file_url')
+        .eq('is_published', true);
+      if (filters.subjects.length > 1) query = query.in('subject', filters.subjects);
+      else if (filters.subjects.length === 1) query = query.eq('subject', filters.subjects[0]);
+      if (filters.classes.length > 1) query = query.in('class', filters.classes);
+      else if (filters.classes.length === 1) query = query.eq('class', filters.classes[0]);
+      if (filters.boards.length > 1) query = query.in('board', filters.boards);
+      else if (filters.boards.length === 1) query = query.eq('board', filters.boards[0]);
+      const { data, error } = await query
+        .order('year', { ascending: false })
+        .order('school', { ascending: true })
+        .range(from - (bankPapersRef.current?.length ?? 0), from - (bankPapersRef.current?.length ?? 0) + PAPERS_PAGE_SIZE - 1);
+      if (error) throw error;
+      setPapers((prev) => [...prev, ...((data as PaperSheetCardPaper[]) ?? [])]);
+      setPapersPage(nextPage);
+    } catch {
+      // Leave existing results in place; the sentinel fires again on the
+      // next scroll-into-view rather than needing a click to retry.
+    } finally {
+      setPapersLoadingMore(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [papersPage, filters.subjects.join(','), filters.classes.join(','), filters.boards.join(',')]);
+
+  const papersInfiniteScrollRef = useInfiniteScroll({
+    hasMore: papers.length < papersTotal,
+    loading: papersLoadingMore,
+    onLoadMore: loadMorePapers,
+  });
 
   const enrichedDisplayedTeachers = useMemo(
     () =>
@@ -1492,7 +1533,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         const sortedTeachers = applySortOrder(enrichedTeachers, sortParam, upvoteMap);
 
         setAllTeachersData(sortedTeachers);
-        // Page size 24 with an explicit "Load more" button, never infinite scroll (Browse.md).
+        // Page size 24, loaded by the infinite-scroll sentinel further down.
         const pageSize = 24;
         setDisplayedTeachers(sortedTeachers.slice(0, pageSize));
         setTeachers(sortedTeachers); // Keep for count display
@@ -1596,6 +1637,10 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   // three facets on the same URL.
   const handleSearchModeChange = (mode: 'teachers' | 'papers') => {
     setViewMode(mode);
+    // mode_changed: typed and weighted (lib/intent/types.ts) but had no
+    // producer anywhere in the app until now, same gap as SearchControl's
+    // own teachers/papers pill.
+    recordSignal('mode_changed', { mode });
   };
 
   const clearFilters = () => {
@@ -1760,14 +1805,25 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     return 'All Tuition Teachers in Kolkata';
   };
 
-  // Page size 24 with an explicit "Load more" button — never infinite scroll (Browse.md).
-  const handleLoadMore = () => {
+  /* Owner override, 2026: was an explicit "Load more" button, deliberately
+     never infinite scroll per Browse.md. Switched to a scroll-triggered
+     sentinel (useInfiniteScroll) instead, superseding that rule for this
+     page. Still page size 24, still client-side (slices the already-fetched
+     allTeachersData — no network round trip, so there is no real "loading"
+     state to show between batches). */
+  const handleLoadMore = useCallback(() => {
     const pageSize = 24;
     const currentCount = displayedTeachers.length;
     const nextBatch = allTeachersData.slice(currentCount, currentCount + pageSize);
     setDisplayedTeachers((prev) => [...prev, ...nextBatch]);
     setHasMore(currentCount + pageSize < allTeachersData.length);
-  };
+  }, [displayedTeachers.length, allTeachersData]);
+
+  const teachersInfiniteScrollRef = useInfiniteScroll({
+    hasMore,
+    loading: false,
+    onLoadMore: handleLoadMore,
+  });
 
   // EmptyResults relax options: for each applied filter (the same values FilterChips
   // shows), re-run the last query with that one value dropped and offer the ones that
@@ -2127,10 +2183,16 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           below lg is the Filters button, which is itself lg:hidden — so with no
           chips applied the desktop rendered an empty ~68px white band between
           the search panel and the results. py-2, not py-3: it holds one 44px
-          control, and the extra padding made a slim bar chunky. */}
+          control, and the extra padding made a slim bar chunky.
+
+          lg:px-0 lg:py-2 lg:pl-4, not left to BentoPanel's lg:px-8 lg:py-8
+          default: those only cancel px-0/py-2/pl-4 at the base breakpoint —
+          tailwind-merge doesn't touch a different variant group — so at lg
+          the bar was reverting to 32px padding on every side, measured 108px
+          tall for one row of 44px chips. */}
       <BentoPanel
         fill="card"
-        className={`sticky top-[80px] z-30 isolate px-0 py-2 pl-4 ${
+        className={`sticky top-[80px] z-30 isolate px-0 py-2 pl-4 lg:px-0 lg:py-2 lg:pl-4 ${
           filterChips.length === 0 ? 'lg:hidden' : ''
         }`}
       >
@@ -2221,42 +2283,10 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                     ))}
                   </div>
                   {papers.length < papersTotal ? (
-                    <div className="mt-8 flex justify-center">
-                      <Button
-                        variant="muted"
-                        size={46}
-                        disabled={papersLoadingMore}
-                        onClick={async () => {
-                          setPapersLoadingMore(true);
-                          try {
-                            const nextPage = papersPage + 1;
-                            const from = nextPage * PAPERS_PAGE_SIZE;
-                            let query = supabase
-                              .from('papers')
-                              .select('id,title,school,subject,class,board,exam_type,year,file_url')
-                              .eq('is_published', true);
-                            if (filters.subjects.length > 1) query = query.in('subject', filters.subjects);
-                            else if (filters.subjects.length === 1) query = query.eq('subject', filters.subjects[0]);
-                            if (filters.classes.length > 1) query = query.in('class', filters.classes);
-                            else if (filters.classes.length === 1) query = query.eq('class', filters.classes[0]);
-                            if (filters.boards.length > 1) query = query.in('board', filters.boards);
-                            else if (filters.boards.length === 1) query = query.eq('board', filters.boards[0]);
-                            const { data, error } = await query
-                              .order('year', { ascending: false })
-                              .order('school', { ascending: true })
-                              .range(from - (bankPapersRef.current?.length ?? 0), from - (bankPapersRef.current?.length ?? 0) + PAPERS_PAGE_SIZE - 1);
-                            if (error) throw error;
-                            setPapers((prev) => [...prev, ...((data as PaperSheetCardPaper[]) ?? [])]);
-                            setPapersPage(nextPage);
-                          } catch {
-                            // Leave existing results in place; try again on next click.
-                          } finally {
-                            setPapersLoadingMore(false);
-                          }
-                        }}
-                      >
-                        {papersLoadingMore ? 'Loading…' : 'Load more'}
-                      </Button>
+                    <div ref={papersInfiniteScrollRef} className="mt-8 flex justify-center">
+                      {papersLoadingMore && (
+                        <span className="text-meta font-semibold text-muted-foreground">Loading…</span>
+                      )}
                     </div>
                   ) : (
                     <ListEnd count={papers.length} />
@@ -2382,13 +2412,10 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                 })}
               </div>
 
-              {/* Page size 24, explicit "Load more" -- never infinite scroll. */}
+              {/* Page size 24, now loaded by the sentinel scrolling into view
+                  (useInfiniteScroll) instead of a tapped button. */}
               {hasMore ? (
-                <div className="mt-8 flex justify-center">
-                  <Button variant="muted" size={46} onClick={handleLoadMore}>
-                    Load more
-                  </Button>
-                </div>
+                <div ref={teachersInfiniteScrollRef} className="mt-8 h-8" aria-hidden="true" />
               ) : (
                 /* "Widen your area" now clears just the area facet rather than
                    every filter — the sentence names one thing, so it should do

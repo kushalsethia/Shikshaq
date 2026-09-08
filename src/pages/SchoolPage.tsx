@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, FileText } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
+import { recordSignal } from '@/lib/intent/signals';
 import { schoolSlug } from '@/lib/school-slug';
 import { loadPaperIndex, schoolBySlug, hasYear } from '@/lib/question-bank';
 import { getSubjectPalette } from '@/lib/subject-palette';
@@ -291,6 +292,26 @@ export default function SchoolPage() {
   const resolvedName = query.data?.name ?? bankSchool?.name ?? null;
   const unknownSchool = !resolvedName && !loading && !failed;
   const name = resolvedName ?? (unknownSchool ? 'School not found' : 'School');
+
+  /* `school` is a tracked FacetSlotKey (lib/intent/types.ts) that nothing
+     populated from actually visiting a school page — only from a papers
+     filter or the sentence builder's fourth dropdown. Recording it here
+     (route-derived, medium strength, same shape as Browse's
+     subject_route_viewed a few files over) costs nothing on this SEO route:
+     guardrails.ts caps what the page may ADAPT here, not what it may
+     RECORD, and a reader who opened /school/some-school by name has told
+     the index something real regardless of what this page is allowed to do
+     with it. Fires once, when the name resolves. */
+  const schoolSignalSent = useRef(false);
+  useEffect(() => {
+    if (schoolSignalSent.current || !resolvedName) return;
+    schoolSignalSent.current = true;
+    recordSignal('subject_route_viewed', {
+      school: resolvedName,
+      board: boards,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedName]);
   /* The description was "N past papers from X, free to read on Shikshaq." at
      63-77 characters, on 66 indexable pages, while the three facts a searcher
      actually types -- board, class, year -- sat computed and unused a few

@@ -63,6 +63,23 @@ export interface ResolveHeroCopyInput {
   /** Same source as likedSingleTeacherName — the one saved teacher's own
    *  photo, so branch 1b's chip never borrows an unrelated teacher's face. */
   likedSingleTeacherImageUrl?: string | null;
+  /**
+   * `experience.level !== 'none'` from useIntent() — the same route-aware,
+   * confidence-gated bit every other adaptive surface (InlinePapersNudge,
+   * PreFooter B1, Index's own CTA) reads before acting on the trail.
+   *
+   * Branches 1/1b/2 are unaffected: those speak from the reader's OWN account
+   * facts (their name, their saved list), not an inference, so there is
+   * nothing there to gate. Branches 3-5 are different — they read
+   * lastSearch/lastTeacher/lastPaper, which is exactly the same behavioural
+   * trail resolveIntent() scores, just reached via readStore() directly
+   * instead of through confidence. A single teacher view earns roughly 0.28
+   * there, under THRESHOLD.copy's 0.4 — so before this flag, the site's
+   * single most visible line personalised off signals the guardrailed
+   * surfaces right below it on the same page would not yet act on. Missing
+   * or undefined fails closed (no trail line), matching every other
+   * guardrail's fail-closed default. */
+  trailAdaptationAllowed?: boolean;
 }
 
 const SESSION_KEY = 'shikshaq.heroLine';
@@ -136,7 +153,7 @@ function sessionPoolIndex(): number {
   }
 }
 
-export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName, likedSingleTeacherImageUrl }: ResolveHeroCopyInput): HeroCopy {
+export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName, likedSingleTeacherImageUrl, trailAdaptationAllowed }: ResolveHeroCopyInput): HeroCopy {
   const name = profile?.full_name ? firstNameOf(profile.full_name) : null;
 
   // Branch 1 — signed in, multiple saved teachers.
@@ -196,11 +213,19 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName, l
   // surface writes and reads, rather than a copy of its own. readStore()
   // already fails closed (returns the empty envelope) on unreadable storage,
   // so the try/catch readJSON used to do is handled once, upstream.
+  //
+  // Read only when trailAdaptationAllowed: left null otherwise, which empties
+  // every candidate list below and falls the whole branch through to 6 — the
+  // same generic pool a first-time visitor sees. That is the guardrail: it is
+  // enforced once, here, rather than re-checked at each of the three trail
+  // sources below.
   let store: ReturnType<typeof readStore> | null = null;
-  try {
-    store = readStore();
-  } catch {
-    store = null;
+  if (trailAdaptationAllowed) {
+    try {
+      store = readStore();
+    } catch {
+      store = null;
+    }
   }
 
   const lastSearch: StoredLastSearch | null = store?.lastSearch ?? null;

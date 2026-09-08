@@ -15,6 +15,7 @@ import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { ArrowLeft } from 'lucide-react';
 
 interface Paper {
@@ -302,7 +303,8 @@ export default function PaperResults() {
   const shownTotal = total + bankMatches.length;
 
   const hasMore = papers.length < total;
-  const remaining = Math.max(0, total - papers.length);
+
+  const infiniteScrollRef = useInfiniteScroll({ hasMore, loading: loadingMore, onLoadMore: loadMore });
 
   // Handoff PR-006: this route renders its own eyes panel (papers mode).
   useChromeConfig({ preFooter: 'none' });
@@ -400,30 +402,25 @@ export default function PaperResults() {
                 ))}
               </div>
 
-              {/* Honest position-in-list readout plus the load-more affordance.
-                  "Showing 24 of 61" is the piece that was missing: without it
-                  a student can't tell whether one more tap ends the list or
-                  starts another five.
+              {/* Honest position-in-list readout, same as before. The tap-to-load
+                  button under it is gone — the sentinel div below fires
+                  loadMore() itself once it scrolls within 600px of view, so
+                  the next page is already loading by the time the reader
+                  gets there instead of waiting on a button they have to find.
                   Handoff PR-004: bg-card -> bg-muted (sits on a bone panel now), shadow-border removed. */}
               <div className="mt-8 flex flex-col items-center gap-3">
                 <p className="text-meta tabular-nums text-muted-foreground">
                   Showing {shownPapers.length.toLocaleString('en-IN')} of {shownTotal.toLocaleString('en-IN')}
                 </p>
                 {hasMore ? (
-                  <button
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className={`flex h-12 items-center gap-2 rounded-full bg-muted px-6 text-[14px] font-bold text-foreground transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-60 motion-reduce:hover:translate-y-0 ${FOCUS}`}
-                  >
-                    {loadingMore ? (
-                      'Loading…'
-                    ) : (
+                  <div ref={infiniteScrollRef} className="flex h-12 items-center gap-2 text-[14px] font-bold text-muted-foreground" aria-hidden={!loadingMore}>
+                    {loadingMore && (
                       <>
-                        <FileText className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
-                        Load {Math.min(PAGE_SIZE, remaining)} more
+                        <FileText className="h-4 w-4 animate-pulse" strokeWidth={2} aria-hidden="true" />
+                        Loading…
                       </>
                     )}
-                  </button>
+                  </div>
                 ) : (
                   <p className="text-meta text-muted-foreground">That's every paper matching these filters.</p>
                 )}

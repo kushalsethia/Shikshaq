@@ -15,6 +15,7 @@ import { useExitPresence } from '@/hooks/useExitPresence';
 import { useIntent } from '@/lib/intent-context';
 import { recordSignal } from '@/lib/intent/signals';
 import { suggestedSearches } from '@/lib/intent/copy';
+import { extractFiltersFromQuery } from '@/utils/searchKeywordExtractor';
 import { getRecentSearches, addRecentSearch, type RecentSearch } from '@/utils/recentSearches';
 import { setSearchExpanded } from '@/hooks/useSearchExpanded';
 
@@ -129,6 +130,17 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   const { ensureLoaded, search, schools, ready, featuredTeachers, recentPapers } = useSearchIndex();
 
   const [mode, setMode] = useState<SearchMode>(initialMode || (location.pathname === '/past-papers' ? 'papers' : 'teachers'));
+  /* mode_changed was a typed, weighted SignalKind (types.ts) with no producer
+     anywhere in the app — a reader deliberately switching Teachers <-> Papers
+     told the intent index nothing. Wraps setMode rather than adding the call
+     at every click site, so a future toggle can't be added without it.
+     pickRecent's setMode is left alone: that restores UI state ahead of a
+     search that has not been submitted yet, and search_submitted already
+     carries the mode once it is. */
+  const changeMode = useCallback((m: SearchMode) => {
+    setMode(m);
+    recordSignal('mode_changed', { mode: m });
+  }, []);
   const { intent } = useIntent();
   // Frozen with the rest of the intent index (see intent-context.tsx's freeze
   // rule) — the resting chips don't reshuffle while this control is open,
@@ -353,12 +365,24 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
        nothing else. recordSignal takes the arrays directly; the hero's
        one-sentence trail record still reads the primary of each, which it
        derives itself. */
+    /* A bare keyword search — no chip picked, just typed text — used to reach
+       the index as `query` alone, which types.ts is explicit never becomes a
+       slot value. "maths tutor ballygunge" told the intent index nothing,
+       despite being a strong/explicit signal kind. extractFiltersFromQuery is
+       the same typo-tolerant vocabulary matcher Browse.tsx already runs on
+       this exact query once it lands there (to filter results) — reused here
+       so the signal recorded at the MOMENT of submission already carries what
+       the reader typed, rather than depending on a second, weaker
+       (medium/derived) extraction Browse happens to also do on mount.
+       Chip selections still win where both exist: a picked chip is a more
+       deliberate statement than a word inside a free-text query. */
+    const extracted = trimmedQ ? extractFiltersFromQuery(trimmedQ) : {};
     recordSignal('search_submitted', {
       query: trimmedQ || null,
-      subject: selections.subject,
-      classLevel: selections.cls,
-      area: selections.area,
-      board: selections.board,
+      subject: selections.subject.length ? selections.subject : extracted.subjects,
+      classLevel: selections.cls.length ? selections.cls : extracted.classes,
+      area: selections.area.length ? selections.area : extracted.areas,
+      board: selections.board.length ? selections.board : extracted.boards,
       school: selections.school,
       mode,
     });
@@ -500,7 +524,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
         <button
           key={m}
           type="button"
-          onClick={() => setMode(m)}
+          onClick={() => changeMode(m)}
           aria-pressed={mode === m}
           /* whitespace-nowrap + tracking-tight: "Past papers" is the longer of
              the two labels, and at the fixed 40px toggle height (pages.md §1)
@@ -1075,7 +1099,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                           </p>
                           <button
                             type="button"
-                            onClick={() => setMode(mode === 'teachers' ? 'papers' : 'teachers')}
+                            onClick={() => changeMode(mode === 'teachers' ? 'papers' : 'teachers')}
                             className={`mt-4 flex min-h-11 items-center rounded-lg px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring bg-muted text-foreground hover:bg-accent`}
                           >
                             Search {MODE_LABEL[mode === 'teachers' ? 'papers' : 'teachers']} instead

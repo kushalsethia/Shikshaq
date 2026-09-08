@@ -181,10 +181,20 @@ export default function About() {
               full-bleed colour (Radical Futures) for the story, colour-blocked
               cards (Sociosphere) for the concrete parts.
           ------------------------------------------------------------------ */}
+          {/* [contain:paint], not overflow-hidden alone: the two bob-animated
+              blobs below are `transform`-animated, and Chromium can fail to
+              clip a transform-animated child to an overflow-hidden ancestor
+              under GPU compositing even though overflow computes to `hidden`
+              correctly — the blue blob bled straight through the torn-edge
+              seam into the panel below it, confirmed live (its own rect sat
+              80px past the panel's actual bottom edge). contain:paint is the
+              property actually built for this guarantee ("nothing inside
+              this box paints outside it"), where overflow-hidden is usually
+              enough but was not here. */}
           <BentoPanel
             fill="dark"
             edge="top"
-            className="relative animate-fade-slide-up overflow-hidden px-[22px] pb-[46px] pt-[30px] text-center lg:px-8 lg:pb-[64px] lg:pt-[44px]"
+            className="relative animate-fade-slide-up overflow-hidden [contain:paint] px-[22px] pb-[46px] pt-[30px] text-center lg:px-8 lg:pb-[64px] lg:pt-[44px]"
           >
             <span aria-hidden className="pointer-events-none absolute -left-16 -top-16 h-[220px] w-[220px] animate-bob rounded-full bg-brand/25" />
             <span aria-hidden className="pointer-events-none absolute -bottom-20 -right-12 h-[240px] w-[240px] animate-bob rounded-full bg-brand-blue/30 [animation-delay:-3s]" />
@@ -411,7 +421,11 @@ export default function About() {
               would have all but vanished) to white/black translucent,
               which reads against any fill this page uses. */}
           <Reveal>
-            <BentoPanel fill="brandTint" className="relative overflow-hidden px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
+            {/* [contain:paint] — same fix as the hero panel above: a
+                transform-animated (animate-bob) child can bleed past
+                overflow-hidden under Chromium's compositing, this is the
+                property actually built to guarantee it stays inside. */}
+            <BentoPanel fill="brandTint" className="relative overflow-hidden [contain:paint] px-[22px] py-9 lg:px-8 lg:py-14 [&>*:not([aria-hidden])]:mx-auto [&>*:not([aria-hidden])]:w-full [&>*:not([aria-hidden])]:max-w-6xl">
               <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-[220px] w-[220px] animate-bob rounded-full bg-white/50" />
               <span aria-hidden className="pointer-events-none absolute -bottom-20 -left-14 h-[200px] w-[200px] animate-bob rounded-full bg-black/[0.06] [animation-delay:-4s]" />
               <div className="relative">

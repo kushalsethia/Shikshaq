@@ -136,7 +136,7 @@ export default function Index() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { likedTeacherIds, likedCount } = useLikes();
-  const { intent } = useIntent();
+  const { intent, experience } = useIntent();
   // Shared by the teachers-fork CTA and the featured-teachers footer link
   // below — both fall back to their own existing copy/destination when this
   // is null, which is most visitors (nothing subject-specific known yet).
@@ -585,8 +585,13 @@ export default function Index() {
       likedCount,
       likedSingleTeacherName,
       likedSingleTeacherImageUrl: likedSingleTeacher?.image_url ?? null,
+      /* Same gate InlinePapersNudge and every other adaptive surface reads —
+         below it, the trail-based candidates (branches 3-5) fall through to
+         the generic pool instead of personalising off a signal the rest of
+         the page would not yet act on. */
+      trailAdaptationAllowed: experience.level !== 'none',
     }),
-    [profile, likedCount, likedSingleTeacherName, likedSingleTeacher],
+    [profile, likedCount, likedSingleTeacherName, likedSingleTeacher, experience.level],
   );
   const heroCopy = useMemo(
     () => (heroMode === 'papers' ? papersHeroCopy(baseHeroCopy, profile) : baseHeroCopy),
