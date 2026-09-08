@@ -355,6 +355,24 @@ export default function TeacherDashboard() {
   const reviewsLoading = !!teacherData?.Slug && listingStatsQuery.isPending;
   const reviewsError = listingStatsQuery.isError ? 'Failed to load reviews' : null;
 
+  // Real WhatsApp-tap count for this listing (Handoff TD-003 follow-up: the
+  // whatsapp_clicks table now exists). The table's select RLS policy scopes
+  // rows to the signed-in teacher's own slug via Shikshaqmine, so this can
+  // only ever return this teacher's own count, never another teacher's.
+  const whatsappClicksQuery = useQuery({
+    queryKey: ['whatsappClickCount', teacherData?.Slug],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('whatsapp_clicks')
+        .select('id', { count: 'exact', head: true })
+        .eq('teacher_slug', teacherData!.Slug!);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!teacherData?.Slug,
+  });
+  const whatsappClickCount = whatsappClicksQuery.data ?? null;
+
   // "Pause your listing" — flips the self-service is_paused flag (see the TeacherData interface
   // note above), reverting on failure. Browse/search now filter on is_paused too (see Browse.tsx),
   // so pausing here does hide the profile from public results, not just this dashboard's pill.
@@ -1053,11 +1071,9 @@ export default function TeacherDashboard() {
   const completenessPct = Math.round((completenessFilled / completenessTotal) * 100);
   const missingLabels = completenessChecks.filter((c) => !c.ok).map((c) => c.label);
 
-  // Handoff TD-003, binding: there is no whatsapp_clicks/enquiries table, so
-  // this section states why rather than showing a fabricated count or a
-  // literal 0 — copy is the entry's own literal text.
-  const enquiriesExplanation =
-    "We don't count WhatsApp taps yet, so there is no number to show here. When we do, it will appear in this panel and nowhere else.";
+  // Handoff TD-003 follow-up: whatsapp_clicks now exists, so this is a real
+  // live count, not a fabricated one — same "real number or say why not"
+  // rule as before, just with the table it used to be missing.
 
   // Handoff TD-001: the status pill reflects the real row state (is_paused) —
   // never a hardcoded "Live". There is no separate verification-pending state
@@ -1115,8 +1131,9 @@ export default function TeacherDashboard() {
             ))}
           </div>
 
-          {/* Handoff TD-003: Enquiries stays a panel, not a number — no
-              whatsapp_clicks table exists, so this never shows a count or a 0. */}
+          {/* Handoff TD-003 follow-up: real WhatsApp-tap count, same visual
+              language as the Upvotes/Reviews cards above rather than a plain
+              sentence, since it's a number now. */}
           <BentoPanel fill="muted" className="px-[22px] py-5">
             <div className="flex items-center gap-[10px]">
               <IconDisc tone="muted" size={32} shape="square" className="bg-border">
@@ -1124,7 +1141,15 @@ export default function TeacherDashboard() {
               </IconDisc>
               <h2 className="text-[16px] font-bold tracking-[-0.02em] text-foreground">Enquiries</h2>
             </div>
-            <p className="mt-2.5 text-[14px] leading-[1.55] text-warm-secondary">{enquiriesExplanation}</p>
+            <div className="mt-2.5 flex items-baseline gap-2">
+              <span className="font-display text-[26px] font-black tracking-[-0.04em] text-foreground tabular-nums">
+                {whatsappClicksQuery.isPending ? '-' : whatsappClickCount}
+              </span>
+              <span className="text-[13px] font-semibold text-warm-secondary">WhatsApp taps</span>
+            </div>
+            <p className="mt-1.5 text-[13px] leading-[1.55] text-warm-secondary">
+              How many times someone has tapped "Message on WhatsApp" on your listing. Only you can see this number.
+            </p>
           </BentoPanel>
 
           {/* Your profile — manage-list idiom, kept intact from the previous version:

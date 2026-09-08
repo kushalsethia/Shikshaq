@@ -5,6 +5,7 @@ import { getWhatsAppLinkBySlug } from '@/lib/teachers';
 import { resolveTeacherWhatsAppUrl, isWhatsAppUrl } from '@/utils/whatsapp';
 import { trackWhatsAppClick } from '@/utils/clarityEvents';
 import { trackWhatsAppClickGA } from '@/utils/gaEvents';
+import { recordWhatsAppClick } from '@/utils/whatsappClickLog';
 import { recordContact } from '@/lib/contact-record';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { Button } from '@/components/ui/button';
@@ -96,6 +97,7 @@ export default function WhatsAppRedirect() {
         trackedRef.current = true;
         trackWhatsAppClick(slug);
         trackWhatsAppClickGA(slug);
+        recordWhatsAppClick(slug);
       }
 
       // Anything that isn't WhatsApp is shown as a button the user taps

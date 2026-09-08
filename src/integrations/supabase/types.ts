@@ -1024,6 +1024,24 @@ export type Database = {
           },
         ]
       }
+      whatsapp_clicks: {
+        Row: {
+          created_at: string
+          id: number
+          teacher_slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          teacher_slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          teacher_slug?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       paper_read_stats: {
