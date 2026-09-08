@@ -141,8 +141,14 @@ export function IntentDebugPanel() {
         style={{
           position: 'fixed',
           right: 12,
-          bottom: 12,
-          zIndex: 9998,
+          // 80, not 12: same overlap PreviewRoleToggle had — BottomNav is
+          // fixed inset-x-3 bottom-3 at ~72px tall on mobile (lg:hidden), so
+          // 12px put this button right on top of BottomNav's rightmost icon.
+          bottom: 80,
+          // 40, not 9998: above the app's own Sheet/Dialog system (z-50) is
+          // backwards — an open sheet should always outrank a floating debug
+          // button, not sit underneath it.
+          zIndex: 40,
           minHeight: 44,
           minWidth: 44,
           padding: '0 14px',
@@ -167,8 +173,8 @@ export function IntentDebugPanel() {
       style={{
         position: 'fixed',
         right: 12,
-        bottom: 12,
-        zIndex: 9998,
+        bottom: 80,
+        zIndex: 40,
         width: 320,
         maxHeight: '78vh',
         overflowY: 'auto',

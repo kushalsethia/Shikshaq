@@ -92,7 +92,7 @@ export function PreviewRoleToggle() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Show the preview role toggle"
-        className="fixed bottom-3 left-3 z-[90] flex h-9 items-center rounded-full bg-fuchsia-600 px-3 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className="fixed bottom-20 left-3 z-40 flex h-9 items-center rounded-full bg-fuchsia-600 px-3 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white lg:bottom-3"
       >
         Preview
       </button>
@@ -101,7 +101,16 @@ export function PreviewRoleToggle() {
 
   return (
     <div
-      className="fixed bottom-3 left-3 z-[90] max-w-[calc(100vw-1.5rem)] rounded-[14px] bg-fuchsia-950/95 p-2 text-white shadow-lg ring-1 ring-fuchsia-400/40 backdrop-blur"
+      /* bottom-20, not bottom-3: at that offset this panel sat directly over
+         BottomNav's Home icon (both fixed to the same bottom-3 left-3
+         corner on mobile, where BottomNav is not lg:hidden), and z-90 put it
+         above the app's own Sheet/Dialog system too (z-50) — an open sheet's
+         own action bar could render underneath a debug tool instead of the
+         other way round, confirmed live: the account page's "Save profile"
+         button sat partly hidden behind this bar. z-40 keeps it under any
+         real modal; bottom-20 clears BottomNav's ~72px footprint before
+         lg:bottom-3 takes over once BottomNav is lg:hidden anyway. */
+      className="fixed bottom-20 left-3 z-40 max-w-[calc(100vw-1.5rem)] rounded-[14px] bg-fuchsia-950/95 p-2 text-white shadow-lg ring-1 ring-fuchsia-400/40 backdrop-blur lg:bottom-3"
       role="region"
       aria-label="Preview role toggle, test deployment only"
     >
