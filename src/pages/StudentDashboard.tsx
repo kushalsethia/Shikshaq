@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ControlBlock, PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/lib/auth-context';
@@ -89,16 +90,84 @@ export default function StudentDashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const queryClient = useQueryClient();
+
+  /* Was four hand-rolled useEffect fetches + a manual re-fetch after save.
+     react-query gives every one of these a shared cache keyed by user id, so
+     a revisit within staleTime (5min, App.tsx's QueryClient) shows the
+     dashboard instantly from cache instead of refetching from scratch —
+     the actual "speed switching pages" complaint this migration exists for. */
+  const profileQuery = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', user!.id).single();
+      if (error) throw error;
+      return data as Profile;
+    },
+    enabled: !!user,
+  });
+  const profile = profileQuery.data ?? null;
+
+  const subjectsQuery = useQuery({
+    queryKey: ['subjects'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('subjects').select('*').order('name');
+      if (error) throw error;
+      return (data ?? []) as Subject[];
+    },
+  });
+  const subjects = subjectsQuery.data ?? [];
+
+  const studentSubjectIdsQuery = useQuery({
+    queryKey: ['studentSubjectIds', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('student_subjects')
+        .select('subject_id')
+        .eq('student_id', user!.id);
+      if (error) throw error;
+      return (data ?? []).map((s) => s.subject_id);
+    },
+    enabled: !!user,
+  });
+  // Editable copy of the fetched selection, not a direct read of query data:
+  // the checklist below mutates this ahead of a save, and a query result is
+  // not something a caller should ever write to directly. Re-seeded whenever
+  // a fresh fetch lands (first load, or the invalidation after a save) —
+  // left alone the rest of the time, same as formData below.
   const [studentSubjects, setStudentSubjects] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (studentSubjectIdsQuery.data) setStudentSubjects(studentSubjectIdsQuery.data);
+  }, [studentSubjectIdsQuery.data]);
+
+  const loading = profileQuery.isPending || subjectsQuery.isPending || studentSubjectIdsQuery.isPending;
   const { likedTeacherIds, likedCount, loading: likesLoading } = useLikes();
-  const [savedTeachers, setSavedTeachers] = useState<SavedTeacher[]>([]);
-  const [savedTeachersLoading, setSavedTeachersLoading] = useState(true);
-  const [savedTeachersError, setSavedTeachersError] = useState(false);
-  const [papersContributedCount, setPapersContributedCount] = useState(0);
+
+  const savedTeachersQuery = useQuery({
+    queryKey: ['savedTeachers', [...likedTeacherIds].sort().join(',')],
+    queryFn: () => getTeachersByIds([...likedTeacherIds]),
+    enabled: !likesLoading && likedTeacherIds.size > 0,
+  });
+  // Empty on purpose, not "still loading": zero liked teachers is a real,
+  // settled state the query is never even enabled for.
+  const savedTeachers = likedTeacherIds.size === 0 ? [] : (savedTeachersQuery.data ?? []);
+  const savedTeachersLoading = likesLoading || (likedTeacherIds.size > 0 && savedTeachersQuery.isPending);
+  const savedTeachersError = savedTeachersQuery.isError;
+
+  const papersContributedQuery = useQuery({
+    queryKey: ['papersContributedCount', user?.id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('papers')
+        .select('id', { count: 'exact', head: true })
+        .eq('created_by', user!.id);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!user,
+  });
+  const papersContributedCount = papersContributedQuery.data ?? 0;
+
   const [settingsOpen, setSettingsOpen] = useState<'profile' | 'subjects' | null>(null);
 
   // Reading history/progress has no backend yet (pages/PaperReader.md hasn't been built — no
@@ -137,124 +206,21 @@ export default function StudentDashboard() {
     }
   }, [user, profile, loading, navigate]);
 
-  // Fetch profile and subjects
+  // Seeds the edit form whenever a fresh profile lands (first load, or the
+  // invalidation after a save) — same "editable copy, not a live read"
+  // reasoning as studentSubjects above.
   useEffect(() => {
-    async function fetchData() {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // These three queries are independent of one another (profile keyed off user.id,
-        // subjects is a global lookup table, studentSubjects keyed off user.id) so they run
-        // concurrently via Promise.all instead of three sequential round-trips.
-        const [
-          { data: profileData, error: profileError },
-          { data: subjectsData },
-          { data: studentSubjectsData },
-        ] = await Promise.all([
-          supabase.from('profiles').select('*').eq('id', user.id).single(),
-          supabase.from('subjects').select('*').order('name'),
-          supabase.from('student_subjects').select('subject_id').eq('student_id', user.id),
-        ]);
-
-        if (profileError) {
-          if (import.meta.env.DEV) {
-            console.error('Error fetching profile:', profileError);
-          }
-          setLoading(false);
-          return;
-        }
-
-        setProfile(profileData as Profile);
-
-        // Populate form
-        if (profileData) {
-          setFormData({
-            phone: profileData.phone || '',
-            school_college: profileData.school_college || '',
-            grade: profileData.grade || '',
-            school_board: profileData.school_board || '',
-            address: profileData.address || '',
-            guardian_email: profileData.guardian_email || '',
-            date_of_birth: formatDateForDisplay(profileData.date_of_birth),
-          });
-        }
-
-        if (subjectsData) {
-          setSubjects(subjectsData);
-        }
-
-        if (studentSubjectsData) {
-          setStudentSubjects(studentSubjectsData.map(s => s.subject_id));
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error:', error);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, [user]);
-
-  // Fetch full teacher records for the student's saved (liked) teachers
-  useEffect(() => {
-    async function fetchSavedTeachers() {
-      if (likesLoading) return;
-
-      if (likedTeacherIds.size === 0) {
-        setSavedTeachers([]);
-        setSavedTeachersLoading(false);
-        setSavedTeachersError(false);
-        return;
-      }
-
-      setSavedTeachersLoading(true);
-      setSavedTeachersError(false);
-
-      try {
-        const teacherIds = Array.from(likedTeacherIds);
-        const teachersWithSirMaam = await getTeachersByIds(teacherIds);
-
-        setSavedTeachers(teachersWithSirMaam);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching saved teachers:', error);
-        }
-        setSavedTeachersError(true);
-      } finally {
-        setSavedTeachersLoading(false);
-      }
-    }
-
-    fetchSavedTeachers();
-  }, [likedTeacherIds, likesLoading]);
-
-  // "Papers contributed" stat — real count of papers this student has submitted (papers.created_by),
-  // regardless of publish state, since a pending submission is still a real contribution.
-  useEffect(() => {
-    async function fetchPapersContributed() {
-      if (!user) return;
-      try {
-        const { count, error } = await supabase
-          .from('papers')
-          .select('id', { count: 'exact', head: true })
-          .eq('created_by', user.id);
-        if (!error && typeof count === 'number') {
-          setPapersContributedCount(count);
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching papers contributed count:', error);
-        }
-      }
-    }
-    fetchPapersContributed();
-  }, [user]);
+    if (!profileQuery.data) return;
+    setFormData({
+      phone: profileQuery.data.phone || '',
+      school_college: profileQuery.data.school_college || '',
+      grade: profileQuery.data.grade || '',
+      school_board: profileQuery.data.school_board || '',
+      address: profileQuery.data.address || '',
+      guardian_email: profileQuery.data.guardian_email || '',
+      date_of_birth: formatDateForDisplay(profileQuery.data.date_of_birth),
+    });
+  }, [profileQuery.data]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -316,18 +282,10 @@ export default function StudentDashboard() {
     return true;
   };
 
-  const handleSave = async () => {
-    if (!user || !profile) return;
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('Failed to update profile');
 
-    // Validate required fields
-    if (!validateRequiredFields()) {
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      // Update profile
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -341,17 +299,8 @@ export default function StudentDashboard() {
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
+      if (profileError) throw new Error('Failed to update profile');
 
-      if (profileError) {
-        if (import.meta.env.DEV) {
-          console.error('Error updating profile:', profileError);
-        }
-        toast.error('Failed to update profile');
-        setSaving(false);
-        return;
-      }
-
-      // Update student subjects
       // Delete existing subjects. If this fails, stop here rather than inserting on top of
       // whatever rows are already there (which would create duplicates) and telling the user
       // the save succeeded when the subjects half of it didn't.
@@ -359,17 +308,8 @@ export default function StudentDashboard() {
         .from('student_subjects')
         .delete()
         .eq('student_id', user.id);
+      if (deleteError) throw new Error('Failed to update subjects');
 
-      if (deleteError) {
-        if (import.meta.env.DEV) {
-          console.error('Error deleting subjects:', deleteError);
-        }
-        toast.error('Failed to update subjects');
-        setSaving(false);
-        return;
-      }
-
-      // Insert new subjects
       if (studentSubjects.length > 0) {
         const { error: insertError } = await supabase
           .from('student_subjects')
@@ -379,37 +319,30 @@ export default function StudentDashboard() {
               subject_id: subjectId,
             }))
           );
-
-        if (insertError) {
-          if (import.meta.env.DEV) {
-            console.error('Error inserting subjects:', insertError);
-          }
-          toast.error('Failed to update subjects');
-          setSaving(false);
-          return;
-        }
+        if (insertError) throw new Error('Failed to update subjects');
       }
-
-      // Refresh profile to get updated age
-      const { data: updatedProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (updatedProfile) {
-        setProfile(updatedProfile as Profile);
-      }
-
+    },
+    onSuccess: () => {
+      // Replaces the old manual re-fetch-then-setProfile: invalidating lets
+      // react-query re-pull the row (picking up the DB-computed `age`) and
+      // keeps every other reader of this same cache key in sync too.
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['studentSubjectIds', user?.id] });
       toast.success('Profile updated successfully');
-    } catch (error) {
+    },
+    onError: (error) => {
       if (import.meta.env.DEV) {
         console.error('Error saving:', error);
       }
-      toast.error('Failed to update profile');
-    } finally {
-      setSaving(false);
-    }
+      toast.error(error instanceof Error ? error.message : 'Failed to update profile');
+    },
+  });
+  const saving = saveMutation.isPending;
+
+  const handleSave = () => {
+    if (!user || !profile) return;
+    if (!validateRequiredFields()) return;
+    saveMutation.mutate();
   };
 
   const handleSignOut = async () => {

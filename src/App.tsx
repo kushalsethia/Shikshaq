@@ -15,16 +15,30 @@ import { UpvotesProvider } from "@/lib/upvotes-context";
 import { StudiesWithProvider } from "@/lib/studies-with-context";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { CanonicalTag } from "@/components/CanonicalTag";
-import { Chatbot } from "@/components/Chatbot";
 import { AppShell } from "@/components/layout/AppShell";
-import { ProductTourHost } from "@/components/ProductTour";
-import { PapersLiveAnnouncement } from "@/components/papers/papers-live-announcement";
+import { BentoStack, BentoPanel } from "@/components/layout/PageContainer";
+/* Chatbot (642 lines), ProductTour (504 lines) and the one-time
+   PapersLiveAnnouncement banner are none of them needed for first paint —
+   all three are floating/overlay widgets mounted once at the app root
+   regardless of route, not primary page content, so a few ms of delay after
+   the real page paints is invisible. Lazy rather than eager cuts ~1150
+   lines of component code (plus whatever each one pulls in) out of the
+   critical main chunk every visitor downloads before Index can render. */
+const Chatbot = lazy(() => import("@/components/Chatbot").then((m) => ({ default: m.Chatbot })));
+const ProductTourHost = lazy(() => import("@/components/ProductTour").then((m) => ({ default: m.ProductTourHost })));
+const PapersLiveAnnouncement = lazy(() => import("@/components/papers/papers-live-announcement"));
 /* Index stays EAGER: it is the landing route, so code-splitting it would only
    add a round trip before first paint. Everything else is lazy - an /impeccable
    audit flagged a 474KB main chunk with 10 pages bundled in eagerly. */
 import Index from "./pages/Index";
-import Sandbox from "@/pages/Sandbox";
-import SchoolPage from "@/pages/SchoolPage";
+/* SchoolPage (618 lines) had no comment claiming a reason to be eager like
+   Index's above it, and /school/:slug is a secondary route nobody lands on
+   as often as Home — no reason for every visitor to pay for it upfront.
+   Sandbox is a dev-only tool (its own route below is gated on
+   import.meta.env.DEV) that should never have been in a shipped bundle's
+   eager path in the first place. */
+const Sandbox = lazy(() => import("@/pages/Sandbox"));
+const SchoolPage = lazy(() => import("@/pages/SchoolPage"));
 const Browse = lazy(() => import("./pages/Browse"));
 const Auth = lazy(() => import("./pages/Auth"));
 const TeacherProfile = lazy(() => import("./pages/TeacherProfile"));
@@ -68,10 +82,50 @@ const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const SignUpSuccess = lazy(() => import("./pages/SignUpSuccess"));
 const Account = lazy(() => import("./pages/Account"));
 
-// Loading fallback component
+/* A shimmer bar, sized like the piece of real copy it stands in for —
+   same "shaped like what it replaces" rule list-states.tsx's SkeletonCard
+   follows, not a generic grey box. */
+const Bar = ({ w, h = 14 }: { w: string; h?: number }) => (
+  <div
+    className="rounded-full bg-warm-band motion-safe:animate-shimmer"
+    style={{ width: w, height: h }}
+  />
+);
+
+/* Every lazy route (everything but Home) showed this while its chunk
+   downloaded and parsed — route-prefetch.ts already warms that chunk on
+   hover so the wait is usually short, but on a cold load (direct link,
+   first tap, slow connection) the reader sat on a blank page with a
+   pulsing "Loading..." for however long that took. Shaped like a real page
+   instead: BentoStack/BentoPanel are the actual shell every route already
+   renders into, so the panel geometry does not jump when the real content
+   swaps in — only the shimmer bars resolve into real copy. Not a spinner
+   and not per-route (Suspense's fallback has no way to know which lazy
+   chunk is loading without more plumbing than a loading state warrants) —
+   one generic hero-plus-cards shape close enough to most destinations that
+   the swap reads as content arriving, not as the page changing shape.
+   No entrance animation on the swap itself: M-014 above still applies —
+   this fallback simply stops rendering the instant Suspense resolves. */
 const PageLoader = () => (
-  <div className="min-h-screen bg-background flex items-center justify-center">
-    <div className="animate-pulse text-muted-foreground">Loading...</div>
+  <div className="min-h-screen bg-background" aria-busy="true" aria-live="polite">
+    <span className="sr-only">Loading…</span>
+    <BentoStack>
+      <BentoPanel fill="card" edge="top" className="flex flex-col gap-3 px-[22px] pb-[46px] pt-[56px] lg:px-8 lg:pt-[72px]">
+        <Bar w="35%" h={11} />
+        <Bar w="70%" h={26} />
+        <Bar w="50%" h={26} />
+        <Bar w="90%" h={14} />
+      </BentoPanel>
+      <BentoPanel fill="muted" className="grid grid-cols-1 gap-3 px-[22px] py-9 sm:grid-cols-2 lg:grid-cols-3 lg:px-8">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex flex-col gap-3 rounded-2xl bg-card p-4">
+            <div className="aspect-[4/3] w-full rounded-2xl bg-warm-band motion-safe:animate-shimmer" />
+            <Bar w="80%" />
+            <Bar w="55%" h={11} />
+          </div>
+        ))}
+      </BentoPanel>
+    </BentoStack>
   </div>
 );
 
@@ -191,15 +245,21 @@ const App = () => (
             <ScrollToTop />
             <CanonicalTag />
             <RoutePrefetch />
-            <Chatbot />
-            {/* The single onboarding: opens itself on a first visit and on
-                every Shikshaq-logo tap. Mounted once, here, because the logo
-                trigger is a window event and a second copy would answer the
-                same tap. */}
-            <ProductTourHost />
-            {/* Shown once, and only to a visitor who has already been through the
-                tour, so a first visit is never two announcements deep. */}
-            <PapersLiveAnnouncement />
+            {/* fallback={null}, not PageLoader: these three are floating
+                overlays layered on top of whatever page already painted, not
+                page content of their own — there is nothing to show a
+                skeleton FOR while their chunk loads. */}
+            <Suspense fallback={null}>
+              <Chatbot />
+              {/* The single onboarding: opens itself on a first visit and on
+                  every Shikshaq-logo tap. Mounted once, here, because the logo
+                  trigger is a window event and a second copy would answer the
+                  same tap. */}
+              <ProductTourHost />
+              {/* Shown once, and only to a visitor who has already been through the
+                  tour, so a first visit is never two announcements deep. */}
+              <PapersLiveAnnouncement />
+            </Suspense>
             <AppShell>
             <RouteTransition>
             {/* One Suspense boundary around the whole route table. The routes

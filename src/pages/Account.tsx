@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Settings, LogOut, ShieldCheck, X, Heart, UserRound, ChevronRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -151,6 +152,7 @@ export default function Account() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { likedTeacherIds, likedCount, loading: likesLoading, toggleLike } = useLikes();
+  const queryClient = useQueryClient();
 
   useRequireRole();
 
@@ -165,19 +167,20 @@ export default function Account() {
   // "Student · Class 10" meta needs the class/grade fields too, which live only
   // on the full profiles row (StudentDashboard.tsx / GuardianDashboard.tsx both
   // fetch it the same way).
-  const [profile, setProfile] = useState<FullProfile | null>(null);
-  useEffect(() => {
-    async function fetchProfile() {
-      if (!user) return;
-      const { data } = await supabase
+  const profileQuery = useQuery({
+    queryKey: ['accountProfile', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('profiles')
         .select('role, full_name, email, grade, student_grade')
-        .eq('id', user.id)
+        .eq('id', user!.id)
         .maybeSingle();
-      if (data) setProfile(data as FullProfile);
-    }
-    fetchProfile();
-  }, [user]);
+      if (error) throw error;
+      return data as FullProfile | null;
+    },
+    enabled: !!user,
+  });
+  const profile = profileQuery.data ?? null;
 
   const paramTab = searchParams.get('tab') as TabKey | null;
   const defaultTab: TabKey = profile?.role === 'guardian' ? 'contacted' : 'saved';
@@ -198,139 +201,99 @@ export default function Account() {
   }, [user, navigate]);
 
   // ---------------------------------------------------------------- Saved
-  const [savedTeachers, setSavedTeachers] = useState<RowTeacher[]>([]);
-  const [savedLoading, setSavedLoading] = useState(true);
-  const [savedError, setSavedError] = useState(false);
-
-  useEffect(() => {
-    async function fetchSaved() {
-      if (likesLoading) return;
-      if (likedTeacherIds.size === 0) {
-        setSavedTeachers([]);
-        setSavedLoading(false);
-        setSavedError(false);
-        return;
-      }
-      setSavedLoading(true);
-      setSavedError(false);
-      try {
-        const teachers = await getTeachersByIds(Array.from(likedTeacherIds));
-        setSavedTeachers(teachers);
-      } catch {
-        setSavedError(true);
-      } finally {
-        setSavedLoading(false);
-      }
-    }
-    fetchSaved();
-  }, [likedTeacherIds, likesLoading]);
+  // Same query shape/key as StudentDashboard.tsx's identical fetch — cache
+  // is shared if both ever read it in the same session.
+  const savedTeachersKey = [...likedTeacherIds].sort().join(',');
+  const savedTeachersQuery = useQuery({
+    queryKey: ['savedTeachers', savedTeachersKey],
+    queryFn: () => getTeachersByIds([...likedTeacherIds]),
+    enabled: !likesLoading && likedTeacherIds.size > 0,
+  });
+  const savedTeachers = likedTeacherIds.size === 0 ? [] : (savedTeachersQuery.data ?? []);
+  const savedLoading = likesLoading || (likedTeacherIds.size > 0 && savedTeachersQuery.isPending);
+  const savedError = savedTeachersQuery.isError;
 
   // ------------------------------------------------------------- Contacted
   // Contacted tracking has no server table yet (O-04 — no whatsapp_clicks /
   // enquiries table reachable from the student side). contact-record.ts is a
   // device-local, best-effort log of WhatsApp taps this browser made; it is
   // the only real signal available, so it powers this tab as a pragmatic v1.
-  const [contactedTeachers, setContactedTeachers] = useState<ContactedTeacher[]>([]);
-  const [contactedLoading, setContactedLoading] = useState(true);
-  const [contactedError, setContactedError] = useState(false);
+  const contactedQuery = useQuery({
+    queryKey: ['contactedTeachers'],
+    queryFn: async () => {
+      const records = readAllContacts();
+      if (records.length === 0) return [];
+      const slugs = records.map((r) => r.slug);
+      const [{ data: rows, error }, basicMap] = await Promise.all([
+        supabase
+          .from('teachers_list')
+          .select('id, name, slug, image_url, subjects(name, slug)')
+          .in('slug', slugs),
+        getShikshaqmineBasicBySlugs(slugs),
+      ]);
+      if (error) throw error;
 
-  useEffect(() => {
-    async function fetchContacted() {
-      setContactedLoading(true);
-      setContactedError(false);
-      try {
-        const records = readAllContacts();
-        if (records.length === 0) {
-          setContactedTeachers([]);
-          return;
-        }
-        const slugs = records.map((r) => r.slug);
-        const [{ data: rows, error }, basicMap] = await Promise.all([
-          supabase
-            .from('teachers_list')
-            .select('id, name, slug, image_url, subjects(name, slug)')
-            .in('slug', slugs),
-          getShikshaqmineBasicBySlugs(slugs),
-        ]);
-        if (error) throw error;
-
-        const bySlug = new Map((rows ?? []).map((r: any) => [r.slug, r]));
-        const merged: ContactedTeacher[] = records
-          .map((rec) => {
-            const row = bySlug.get(rec.slug);
-            if (!row) return null;
-            const basic = basicMap.get(rec.slug);
-            return {
-              id: row.id,
-              name: row.name,
-              slug: row.slug,
-              image_url: row.image_url,
-              subjects: row.subjects,
-              sirMaam: basic?.sirMaam ?? null,
-              whatsappLink: basic?.whatsappLink ?? null,
-              contactedAt: rec.ts,
-            } as ContactedTeacher;
-          })
-          .filter((t): t is ContactedTeacher => t !== null);
-
-        setContactedTeachers(merged);
-      } catch {
-        setContactedError(true);
-      } finally {
-        setContactedLoading(false);
-      }
-    }
-    fetchContacted();
-  }, []);
+      const bySlug = new Map((rows ?? []).map((r: any) => [r.slug, r]));
+      return records
+        .map((rec) => {
+          const row = bySlug.get(rec.slug);
+          if (!row) return null;
+          const basic = basicMap.get(rec.slug);
+          return {
+            id: row.id,
+            name: row.name,
+            slug: row.slug,
+            image_url: row.image_url,
+            subjects: row.subjects,
+            sirMaam: basic?.sirMaam ?? null,
+            whatsappLink: basic?.whatsappLink ?? null,
+            contactedAt: rec.ts,
+          } as ContactedTeacher;
+        })
+        .filter((t): t is ContactedTeacher => t !== null);
+    },
+  });
+  const contactedTeachers = contactedQuery.data ?? [];
+  const contactedLoading = contactedQuery.isPending;
+  const contactedError = contactedQuery.isError;
 
   // ---------------------------------------------------------------- Papers
   const WEEKLY_GOAL = 5;
-  const [readPapers, setReadPapers] = useState<ReadPaper[]>([]);
-  const [papersLoading, setPapersLoading] = useState(true);
-  const [papersError, setPapersError] = useState(false);
-  const [readThisWeek, setReadThisWeek] = useState(0);
-  const [totalPapersRead, setTotalPapersRead] = useState(0);
+  const paperReadsQuery = useQuery({
+    queryKey: ['paperReads', user?.id],
+    queryFn: async () => {
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const [{ data, error }, weekRes, totalRes] = await Promise.all([
+        supabase
+          .from('paper_reads')
+          .select('read_at, papers(id, title, school, subject, class, board, exam_type, year, file_url)')
+          .eq('user_id', user!.id)
+          .order('read_at', { ascending: false })
+          .limit(40),
+        supabase
+          .from('paper_reads')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user!.id)
+          .gte('read_at', weekAgo),
+        supabase
+          .from('paper_reads')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user!.id),
+      ]);
+      if (error) throw error;
 
-  useEffect(() => {
-    async function fetchPapers() {
-      if (!user) return;
-      setPapersLoading(true);
-      setPapersError(false);
-      try {
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        const [{ data, error }, weekRes, totalRes] = await Promise.all([
-          supabase
-            .from('paper_reads')
-            .select('read_at, papers(id, title, school, subject, class, board, exam_type, year, file_url)')
-            .eq('user_id', user.id)
-            .order('read_at', { ascending: false })
-            .limit(40),
-          supabase
-            .from('paper_reads')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .gte('read_at', weekAgo),
-          supabase
-            .from('paper_reads')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id),
-        ]);
-        if (error) throw error;
-
-        const mapped: ReadPaper[] = (data ?? [])
-          .filter((row: any) => row.papers)
-          .map((row: any) => ({ read_at: row.read_at, paper: row.papers as PaperCardPaper }));
-        setReadPapers(mapped);
-        setReadThisWeek(weekRes.count ?? 0);
-        setTotalPapersRead(totalRes.count ?? 0);
-      } catch {
-        setPapersError(true);
-      } finally {
-        setPapersLoading(false);
-      }
-    }
-    fetchPapers();
-  }, [user]);
+      const mapped: ReadPaper[] = (data ?? [])
+        .filter((row: any) => row.papers)
+        .map((row: any) => ({ read_at: row.read_at, paper: row.papers as PaperCardPaper }));
+      return { readPapers: mapped, readThisWeek: weekRes.count ?? 0, totalPapersRead: totalRes.count ?? 0 };
+    },
+    enabled: !!user,
+  });
+  const readPapers = paperReadsQuery.data?.readPapers ?? [];
+  const papersLoading = paperReadsQuery.isPending;
+  const papersError = paperReadsQuery.isError;
+  const readThisWeek = paperReadsQuery.data?.readThisWeek ?? 0;
+  const totalPapersRead = paperReadsQuery.data?.totalPapersRead ?? 0;
 
   // ---------------------------------------------------------------- Header
   const userEmail = user?.email || profile?.email || '';
@@ -357,9 +320,56 @@ export default function Account() {
   // logic onto the new Field/Chip components rather than the old shadcn
   // defaults StudentDashboard used.
   const [profileSheetOpen, setProfileSheetOpen] = useState(false);
-  const [profileLoaded, setProfileLoaded] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileSaving, setProfileSaving] = useState(false);
+
+  // All three enabled only once the sheet actually opens — same "don't fetch
+  // the edit form's data until someone is about to edit" as before, just
+  // expressed as `enabled` instead of a hand-rolled profileLoaded flag.
+  // react-query's own cache is what makes reopening the sheet later in the
+  // same session instant, which the old flag also achieved, just by hand.
+  const editFormQuery = useQuery({
+    queryKey: ['profileEditForm', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('phone, date_of_birth, school_college, grade, school_board, guardian_email, address')
+        .eq('id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: profileSheetOpen && !!user,
+  });
+  // Shares a cache key with StudentDashboard.tsx's identical global lookup.
+  const editSubjectsQuery = useQuery({
+    queryKey: ['subjects'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('subjects').select('id, name').order('name');
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: profileSheetOpen,
+  });
+  const editStudentSubjectIdsQuery = useQuery({
+    queryKey: ['studentSubjectIds', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('student_subjects')
+        .select('subject_id')
+        .eq('student_id', user!.id);
+      if (error) throw error;
+      return (data ?? []).map((s) => s.subject_id);
+    },
+    enabled: profileSheetOpen && !!user,
+  });
+  const profileLoading = profileSheetOpen
+    && (editFormQuery.isPending || editSubjectsQuery.isPending || editStudentSubjectIdsQuery.isPending);
+  useEffect(() => {
+    if (editFormQuery.isError || editSubjectsQuery.isError || editStudentSubjectIdsQuery.isError) {
+      if (import.meta.env.DEV) console.error('Error loading profile for editing');
+      toast.error('Could not load your profile');
+    }
+  }, [editFormQuery.isError, editSubjectsQuery.isError, editStudentSubjectIdsQuery.isError]);
+
   const [profileForm, setProfileForm] = useState({
     phone: '',
     date_of_birth: '',
@@ -369,47 +379,23 @@ export default function Account() {
     guardian_email: '',
     address: '',
   });
-  const [allSubjects, setAllSubjects] = useState<{ id: string; name: string }[]>([]);
-  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
-
   useEffect(() => {
-    if (!profileSheetOpen || profileLoaded || !user) return;
-    let cancelled = false;
-    (async () => {
-      setProfileLoading(true);
-      try {
-        const [{ data: profileData, error }, { data: subjectsData }, { data: studentSubjectsData }] = await Promise.all([
-          supabase.from('profiles').select('phone, date_of_birth, school_college, grade, school_board, guardian_email, address').eq('id', user.id).maybeSingle(),
-          supabase.from('subjects').select('id, name').order('name'),
-          supabase.from('student_subjects').select('subject_id').eq('student_id', user.id),
-        ]);
-        if (cancelled) return;
-        if (error) throw error;
-        if (profileData) {
-          setProfileForm({
-            phone: profileData.phone || '',
-            date_of_birth: formatDateForDisplay(profileData.date_of_birth),
-            school_college: profileData.school_college || '',
-            grade: profileData.grade || '',
-            school_board: profileData.school_board || '',
-            guardian_email: profileData.guardian_email || '',
-            address: profileData.address || '',
-          });
-        }
-        if (subjectsData) setAllSubjects(subjectsData);
-        if (studentSubjectsData) setSelectedSubjectIds(studentSubjectsData.map((s) => s.subject_id));
-        setProfileLoaded(true);
-      } catch (err) {
-        if (import.meta.env.DEV) console.error('Error loading profile for editing:', err);
-        toast.error('Could not load your profile');
-      } finally {
-        if (!cancelled) setProfileLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [profileSheetOpen, profileLoaded, user]);
+    if (!editFormQuery.data) return;
+    setProfileForm({
+      phone: editFormQuery.data.phone || '',
+      date_of_birth: formatDateForDisplay(editFormQuery.data.date_of_birth),
+      school_college: editFormQuery.data.school_college || '',
+      grade: editFormQuery.data.grade || '',
+      school_board: editFormQuery.data.school_board || '',
+      guardian_email: editFormQuery.data.guardian_email || '',
+      address: editFormQuery.data.address || '',
+    });
+  }, [editFormQuery.data]);
+  const allSubjects = editSubjectsQuery.data ?? [];
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (editStudentSubjectIdsQuery.data) setSelectedSubjectIds(editStudentSubjectIdsQuery.data);
+  }, [editStudentSubjectIdsQuery.data]);
 
   const phoneField = useBlurValidation(profileForm.phone, (v) => {
     if (!v.trim()) return 'Enter your phone number';
@@ -430,21 +416,9 @@ export default function Account() {
     setSelectedSubjectIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
   };
 
-  const handleSaveProfile = async () => {
-    if (!user) return;
-    // Blur-only errors (Field's own rule) don't fire on submit automatically,
-    // so touch every field here to surface any that were never blurred.
-    phoneField.onBlur();
-    dobField.onBlur();
-    schoolField.onBlur();
-    gradeField.onBlur();
-    if (!phoneField.isValid || !dobField.isValid || !schoolField.isValid || !gradeField.isValid) {
-      toast.error('Please fix the highlighted fields');
-      return;
-    }
-
-    setProfileSaving(true);
-    try {
+  const saveProfileMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('not signed in');
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -470,19 +444,39 @@ export default function Account() {
           .insert(selectedSubjectIds.map((subject_id) => ({ student_id: user.id, subject_id })));
         if (insertError) throw insertError;
       }
-
+    },
+    onSuccess: () => {
       toast.success('Profile updated');
       setProfileSheetOpen(false);
-      // The header's "Class {grade}" sub-line reads from the lean `profile`
-      // state fetched on mount — refresh it so a changed grade shows
-      // immediately instead of only after the next page load.
-      setProfile((prev) => (prev ? { ...prev, grade: profileForm.grade || null } : prev));
-    } catch (err) {
+      // The header's "Class {grade}" sub-line reads accountProfile's cache —
+      // patch it directly instead of waiting on a refetch, same immediacy
+      // the old setProfile(prev => ...) had.
+      queryClient.setQueryData(['accountProfile', user?.id], (prev: FullProfile | null | undefined) =>
+        prev ? { ...prev, grade: profileForm.grade || null } : prev,
+      );
+      queryClient.invalidateQueries({ queryKey: ['profileEditForm', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['studentSubjectIds', user?.id] });
+    },
+    onError: (err) => {
       if (import.meta.env.DEV) console.error('Error saving profile:', err);
       toast.error('Failed to save your profile');
-    } finally {
-      setProfileSaving(false);
+    },
+  });
+  const profileSaving = saveProfileMutation.isPending;
+
+  const handleSaveProfile = () => {
+    if (!user) return;
+    // Blur-only errors (Field's own rule) don't fire on submit automatically,
+    // so touch every field here to surface any that were never blurred.
+    phoneField.onBlur();
+    dobField.onBlur();
+    schoolField.onBlur();
+    gradeField.onBlur();
+    if (!phoneField.isValid || !dobField.isValid || !schoolField.isValid || !gradeField.isValid) {
+      toast.error('Please fix the highlighted fields');
+      return;
     }
+    saveProfileMutation.mutate();
   };
 
   const handleSignOut = async () => {
@@ -491,8 +485,14 @@ export default function Account() {
   };
 
   const handleRemoveSaved = (id: string) => {
+    // Pre-populate the cache entry for the id set toggleLike is about to
+    // produce, so the list updates instantly instead of waiting on a
+    // refetch for the new (shorter) savedTeachers query key.
+    const nextIds = [...likedTeacherIds].filter((tid) => tid !== id).sort().join(',');
+    queryClient.setQueryData(['savedTeachers', nextIds], (prev: RowTeacher[] | undefined) =>
+      (prev ?? savedTeachers).filter((t) => t.id !== id),
+    );
     toggleLike(id);
-    setSavedTeachers((prev) => prev.filter((t) => t.id !== id));
   };
 
   if (!user) return null;
@@ -575,7 +575,7 @@ export default function Account() {
             {savedLoading && savedTeachers.length === 0 ? (
               <ListLoading count={3} media={0} lines={2} />
             ) : savedError ? (
-              <ListError onRetry={() => setSavedTeachers((t) => [...t])} />
+              <ListError onRetry={() => savedTeachersQuery.refetch()} />
             ) : savedTeachers.length > 0 ? (
               <>
                 <ul className="flex flex-col gap-2.5">
@@ -630,7 +630,7 @@ export default function Account() {
             {contactedLoading ? (
               <ListLoading count={3} media={0} lines={2} />
             ) : contactedError ? (
-              <ListError onRetry={() => setContactedTeachers((t) => [...t])} />
+              <ListError onRetry={() => contactedQuery.refetch()} />
             ) : contactedTeachers.length > 0 ? (
               <ul className="flex flex-col gap-2.5">
                 {contactedTeachers.map((teacher) => (
@@ -685,7 +685,7 @@ export default function Account() {
             {papersLoading ? (
               <ListLoading count={3} media={0} lines={2} />
             ) : papersError ? (
-              <ListError onRetry={() => setReadPapers((p) => [...p])} />
+              <ListError onRetry={() => paperReadsQuery.refetch()} />
             ) : readPapers.length > 0 ? (
               <div className="flex flex-col gap-2.5">
                 {readPapers.map(({ paper, read_at }) => (

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { BentoStack, BentoPanel, PageContainer } from '@/components/layout/PageContainer';
 import { IconDisc } from '@/components/ui/icon-disc';
@@ -125,28 +126,125 @@ const LABEL_CLASSNAME = 'mb-1.5 block text-[11.5px] font-bold uppercase tracking
 const HELP_TEXT_CLASSNAME = 'text-xs text-muted-foreground';
 const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-muted';
 
+/** Normalizes a Shikshaqmine row into the dashboard's own TeacherData shape
+ *  (phone-number cleanup included) — pulled out of the old fetch effect so
+ *  the query below can call it directly. */
+function normalizeTeacherRow(data: ShikshaqmineRowWithPause): TeacherData {
+  let phoneNumber = data["Phone Number"] || null;
+  if (phoneNumber) {
+    const digits = phoneNumber.replace(/\D/g, '');
+    if (digits.length === 12 && digits.startsWith('91')) {
+      phoneNumber = digits.slice(2);
+    } else if (digits.length > 10) {
+      phoneNumber = digits.slice(-10);
+    } else if (digits.length === 10) {
+      phoneNumber = digits;
+    } else {
+      phoneNumber = null;
+    }
+  }
+
+  return {
+    "Email ID": data["Email ID"] || null,
+    Description: data["Description"] || null,
+    "LOCATION V2": data["LOCATION V2"] || (data as any)["Location V2"] || null,
+    "STUDENT'S HOME IN THESE AREAS": data["STUDENT'S HOME IN THESE AREAS"] || null,
+    "TUTOR'S HOME IN THESE AREAS": data["TUTOR'S HOME IN THESE AREAS"] || null,
+    "Qualifications etc": data["Qualifications etc"] || null,
+    "Years they started teaching": data["Years they started teaching"] || null,
+    "Featured Subject": data["Featured Subject"] || null,
+    "School Boards Catered": data["School Boards Catered"] || null,
+    "Phone Number": phoneNumber,
+    "Hero Image": data["Hero Image"] || null,
+    "Classes Taught for Backend": data["Classes Taught for Backend"] || null,
+    "Classes Taught": data["Classes Taught"] || null,
+    Title: data["Title"] || null,
+    "Sir/Ma'am?": data["Sir/Ma'am?"] || null,
+    Area: data["Area"] || null,
+    "Link": data["Link"] || null,
+    Subjects: data["Subjects"] || null,
+    "Mode of Teaching": data["Mode of Teaching"] || null,
+    "Class Size (Group/ Solo)": data["Class Size (Group/ Solo)"] || null,
+    "Min Fees": data["Min Fees"] || null,
+    "Max Fees": data["Max Fees"] || null,
+    Slug: data["Slug"] || null,
+    is_paused: Boolean(data["is_paused"]),
+  };
+}
+
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  /* `profiles` (email/role) used to be fetched independently four times in
+     this file — the redirect guard, the main data load, pause-toggle, and
+     save each ran their own `supabase.from('profiles')` call. One shared
+     query now, everything else reads it. */
+  const authProfileQuery = useQuery({
+    queryKey: ['teacherAuthProfile', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('email, role')
+        .eq('id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+  const isTeacherWithEmail =
+    authProfileQuery.data?.role === 'teacher' && !!authProfileQuery.data?.email;
+
+  // Fetches the Shikshaqmine row by the profile's email — the actual
+  // listing. `data === null` (not undefined) means the fetch completed and
+  // genuinely found no matching row, distinct from "still loading".
+  const shikshaqmineQuery = useQuery({
+    queryKey: ['shikshaqmineByEmail', authProfileQuery.data?.email],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('Shikshaqmine')
+        .select('*')
+        .eq('Email ID', authProfileQuery.data!.email!)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? normalizeTeacherRow(data as ShikshaqmineRowWithPause) : null;
+    },
+    enabled: isTeacherWithEmail,
+  });
+  // profile.email didn't match any "Email ID" in Shikshaqmine — surfaced so the
+  // teacher has something concrete to give support instead of a dead-end toast.
+  const lookupFailedEmail =
+    shikshaqmineQuery.data === null ? authProfileQuery.data!.email : null;
+
+  const loading =
+    !!user && (authProfileQuery.isPending || (isTeacherWithEmail && shikshaqmineQuery.isPending));
+
+  useEffect(() => {
+    if (shikshaqmineQuery.isError && import.meta.env.DEV) {
+      console.error('Error fetching teacher data:', shikshaqmineQuery.error);
+    }
+  }, [shikshaqmineQuery.isError, shikshaqmineQuery.error]);
+
+  // Editable copy of the fetched listing — everything below (handleInputChange,
+  // the whole form) reads/writes this exactly as it did before. Only its
+  // SOURCE changed: re-seeded whenever a fresh fetch lands (first load, or a
+  // future invalidation), left alone the rest of the time — same
+  // "editable copy, not a live query read" reasoning as Account.tsx.
   const [teacherData, setTeacherData] = useState<TeacherData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  useEffect(() => {
+    if (!shikshaqmineQuery.data) return;
+    setTeacherData(shikshaqmineQuery.data);
+    setImagePreview(shikshaqmineQuery.data["Hero Image"]);
+    setIsPaused(shikshaqmineQuery.data.is_paused);
+  }, [shikshaqmineQuery.data]);
+
+  const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [pausing, setPausing] = useState(false);
-  const [upvoteCount, setUpvoteCount] = useState<number | null>(null);
-  const [reviewCount, setReviewCount] = useState<number | null>(null);
-  // Reviews list (pages.md §12: "reviews list → B4") — this teacher's own approved reviews.
-  const [reviews, setReviews] = useState<ReviewCardData[]>([]);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
-  const [reviewsError, setReviewsError] = useState<string | null>(null);
-  // Bumped by the reviews list's Retry button to re-run the fetch effect below.
-  const [reviewsRetryKey, setReviewsRetryKey] = useState(0);
-  // Set when the Shikshaqmine lookup/write by profile.email fails to find a matching row — lets
-  // the "not found" screen tell the teacher which email to reference when contacting support,
-  // instead of the old dead-end "Teacher profile not found" toast with no recovery path.
-  const [lookupFailedEmail, setLookupFailedEmail] = useState<string | null>(null);
   const profileFormRef = useRef<HTMLDivElement>(null);
 
   // Handoff TD: this route renders its own eyes panel, replacing AppShell's
@@ -156,247 +254,106 @@ export default function TeacherDashboard() {
     builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
   } = useSentenceBuilder();
 
-  // Redirect if not authenticated or not a teacher
+  // Redirect if not authenticated or not a teacher — reads the one shared
+  // authProfileQuery instead of running its own profiles.role fetch.
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
       return;
     }
-    if (!loading && teacherData === null && !loading) {
-      // Check if user is a teacher
-      const checkTeacher = async () => {
-        if (!user) return;
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (profile?.role !== 'teacher') {
-          navigate('/');
-        }
-      };
-      checkTeacher();
+    if (!loading && authProfileQuery.data && authProfileQuery.data.role !== 'teacher') {
+      navigate('/');
     }
-  }, [user, teacherData, loading, navigate]);
+  }, [user, loading, authProfileQuery.data, navigate]);
 
-  // Fetch teacher data
-  useEffect(() => {
-    async function fetchTeacherData() {
-      if (!user) {
-        setLoading(false);
-        return;
+  // Real "Upvotes"/"Reviews" stat-card counts, plus the reviews list itself,
+  // as one query: teacher_upvotes/teacher_comments both key off
+  // teachers_list.id (not the Shikshaqmine row), so this looks that id up by
+  // slug first, then reads counts and the review rows off it. Was two
+  // separate effects (fetchCounts calling fetchReviewsList inline) plus a
+  // reviewsRetryKey counter to force a re-run — replaced by one query and
+  // its own .refetch().
+  const listingStatsQuery = useQuery({
+    queryKey: ['teacherListingStats', teacherData?.Slug],
+    queryFn: async () => {
+      const slug = teacherData!.Slug!;
+      const { data: listRow } = await supabase
+        .from('teachers_list')
+        .select('id')
+        .eq('slug', slug)
+        .maybeSingle();
+
+      if (!listRow) return { upvoteCount: null, reviewCount: null, reviews: [] as ReviewCardData[] };
+
+      const [{ count: upvotes }, { count: reviewsCount }] = await Promise.all([
+        supabase.from('teacher_upvotes').select('id', { count: 'exact', head: true }).eq('teacher_id', listRow.id),
+        supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('teacher_id', listRow.id).eq('approved', true),
+      ]);
+
+      // Reviews list — this teacher's own approved reviews, read through the same
+      // teacher_comments_public + public_profiles pairing TeacherComments.tsx uses (RLS on
+      // teacher_comments hides user_id from anon reads, and public_profiles avoids exposing PII).
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('teacher_comments_public')
+        .select('id, comment, rating, created_at, user_id, is_anonymous, approved')
+        .eq('teacher_id', listRow.id)
+        .eq('approved', true)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (commentsError) throw commentsError;
+
+      const rows = commentsData || [];
+      const userIds = [...new Set(rows.map((c) => c.user_id).filter(Boolean))] as string[];
+
+      const profilesMap = new Map<string, { full_name: string | null; role: string | null; school_college: string | null; grade: string | null }>();
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('public_profiles')
+          .select('id, full_name, role, school_college, grade')
+          .in('id', userIds);
+        (profilesData || []).forEach((p) => profilesMap.set(p.id, p));
       }
 
-      try {
-        // Get user's email
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('email, role')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (!profile || profile.role !== 'teacher' || !profile.email) {
-          setLoading(false);
-          return;
-        }
-
-        // Fetch teacher data from Shikshaqmine by email
-        const { data, error } = await supabase
-          .from('Shikshaqmine')
-          .select('*')
-          .eq('Email ID', profile.email)
-          .maybeSingle();
-
-        if (error) {
-          if (import.meta.env.DEV) {
-            console.error('Error fetching teacher data:', error);
-          }
-          toast.error('Failed to load your profile');
-          setLoading(false);
-          return;
-        }
-
-        if (!data) {
-          // profile.email didn't match any "Email ID" in Shikshaqmine — surface the email so the
-          // teacher has something concrete to give support instead of a dead-end toast.
-          setLookupFailedEmail(profile.email);
-          setLoading(false);
-          return;
-        }
-
-        // Normalize phone number to 10 digits (remove 91 prefix if present)
-        let phoneNumber = data["Phone Number"] || null;
-        if (phoneNumber) {
-          const digits = phoneNumber.replace(/\D/g, '');
-          if (digits.length === 12 && digits.startsWith('91')) {
-            // Remove 91 prefix, keep last 10 digits
-            phoneNumber = digits.slice(2);
-          } else if (digits.length > 10) {
-            // Take last 10 digits
-            phoneNumber = digits.slice(-10);
-          } else if (digits.length === 10) {
-            phoneNumber = digits;
-          } else {
-            phoneNumber = null;
+      const featuredSubject = teacherData?.["Featured Subject"] || null;
+      const cards: ReviewCardData[] = rows.map((c) => {
+        const profile = c.user_id ? profilesMap.get(c.user_id) : undefined;
+        const name = c.is_anonymous ? 'Anonymous' : profile?.full_name || 'Anonymous';
+        const infoParts: string[] = [];
+        if (!c.is_anonymous) {
+          if (profile?.role === 'guardian') infoParts.push('Guardian');
+          else if (profile?.role === 'student') {
+            if (profile.school_college) infoParts.push(profile.school_college);
+            if (profile.grade) infoParts.push(`Grade ${profile.grade}`);
           }
         }
+        const initial = c.is_anonymous
+          ? 'A'
+          : profile?.full_name
+            ? profile.full_name.trim().charAt(0).toUpperCase() || 'U'
+            : 'U';
 
-        // Set teacher data
-        const teacher: TeacherData = {
-          "Email ID": data["Email ID"] || null,
-          Description: data["Description"] || null,
-          "LOCATION V2": data["LOCATION V2"] || data["Location V2"] || null,
-          "STUDENT'S HOME IN THESE AREAS": data["STUDENT'S HOME IN THESE AREAS"] || null,
-          "TUTOR'S HOME IN THESE AREAS": data["TUTOR'S HOME IN THESE AREAS"] || null,
-          "Qualifications etc": data["Qualifications etc"] || null,
-          "Years they started teaching": data["Years they started teaching"] || null,
-          "Featured Subject": data["Featured Subject"] || null,
-          "School Boards Catered": data["School Boards Catered"] || null,
-          "Phone Number": phoneNumber,
-          "Hero Image": data["Hero Image"] || null,
-          "Classes Taught for Backend": data["Classes Taught for Backend"] || null,
-          "Classes Taught": data["Classes Taught"] || null,
-          Title: data["Title"] || null,
-          "Sir/Ma'am?": data["Sir/Ma'am?"] || null,
-          Area: data["Area"] || null,
-          "Link": data["Link"] || null,
-          Subjects: data["Subjects"] || null,
-          "Mode of Teaching": data["Mode of Teaching"] || null,
-          "Class Size (Group/ Solo)": data["Class Size (Group/ Solo)"] || null,
-          "Min Fees": data["Min Fees"] || null,
-          "Max Fees": data["Max Fees"] || null,
-          Slug: data["Slug"] || null,
-          is_paused: Boolean((data as ShikshaqmineRowWithPause)["is_paused"]),
+        return {
+          id: c.id,
+          quote: c.comment,
+          subject: featuredSubject,
+          className: null,
+          gain: null,
+          initial,
+          who: [name, infoParts.join(' · ')].filter(Boolean).join(' · '),
+          when: new Date(c.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+          rating: c.rating,
         };
+      });
 
-        setTeacherData(teacher);
-        setImagePreview(teacher["Hero Image"]);
-        setIsPaused(teacher.is_paused);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error:', error);
-        }
-        toast.error('Failed to load profile');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchTeacherData();
-  }, [user]);
-
-  // Real "Upvotes"/"Reviews" stat-card counts. teacher_upvotes/teacher_comments both key off
-  // teachers_list.id (not the Shikshaqmine row), so this looks that id up by slug first.
-  useEffect(() => {
-    async function fetchCounts() {
-      const slug = teacherData?.Slug;
-      if (!slug) {
-        setReviewsLoading(false);
-        return;
-      }
-
-      try {
-        const { data: listRow } = await supabase
-          .from('teachers_list')
-          .select('id')
-          .eq('slug', slug)
-          .maybeSingle();
-
-        if (!listRow) {
-          setReviewsLoading(false);
-          return;
-        }
-
-        const [{ count: upvotes }, { count: reviews }] = await Promise.all([
-          supabase.from('teacher_upvotes').select('id', { count: 'exact', head: true }).eq('teacher_id', listRow.id),
-          supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('teacher_id', listRow.id).eq('approved', true),
-        ]);
-
-        setUpvoteCount(upvotes ?? 0);
-        setReviewCount(reviews ?? 0);
-
-        await fetchReviewsList(listRow.id);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching upvote/review counts:', error);
-        }
-        setReviewsLoading(false);
-      }
-    }
-
-    // Reviews list — this teacher's own approved reviews, read through the same
-    // teacher_comments_public + public_profiles pairing TeacherComments.tsx uses (RLS on
-    // teacher_comments hides user_id from anon reads, and public_profiles avoids exposing PII).
-    async function fetchReviewsList(teacherListId: string) {
-      setReviewsLoading(true);
-      setReviewsError(null);
-      try {
-        const { data: commentsData, error: commentsError } = await supabase
-          .from('teacher_comments_public')
-          .select('id, comment, rating, created_at, user_id, is_anonymous, approved')
-          .eq('teacher_id', teacherListId)
-          .eq('approved', true)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (commentsError) throw commentsError;
-
-        const rows = commentsData || [];
-        const userIds = [...new Set(rows.map((c) => c.user_id).filter(Boolean))] as string[];
-
-        const profilesMap = new Map<string, { full_name: string | null; role: string | null; school_college: string | null; grade: string | null }>();
-        if (userIds.length > 0) {
-          const { data: profilesData } = await supabase
-            .from('public_profiles')
-            .select('id, full_name, role, school_college, grade')
-            .in('id', userIds);
-          (profilesData || []).forEach((p) => profilesMap.set(p.id, p));
-        }
-
-        const cards: ReviewCardData[] = rows.map((c) => {
-          const profile = c.user_id ? profilesMap.get(c.user_id) : undefined;
-          const name = c.is_anonymous ? 'Anonymous' : profile?.full_name || 'Anonymous';
-          const infoParts: string[] = [];
-          if (!c.is_anonymous) {
-            if (profile?.role === 'guardian') infoParts.push('Guardian');
-            else if (profile?.role === 'student') {
-              if (profile.school_college) infoParts.push(profile.school_college);
-              if (profile.grade) infoParts.push(`Grade ${profile.grade}`);
-            }
-          }
-          const initial = c.is_anonymous
-            ? 'A'
-            : profile?.full_name
-              ? profile.full_name.trim().charAt(0).toUpperCase() || 'U'
-              : 'U';
-
-          return {
-            id: c.id,
-            quote: c.comment,
-            subject: teacherData?.["Featured Subject"] || null,
-            className: null,
-            gain: null,
-            initial,
-            who: [name, infoParts.join(' · ')].filter(Boolean).join(' · '),
-            when: new Date(c.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-            rating: c.rating,
-          };
-        });
-
-        setReviews(cards);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error fetching reviews list:', error);
-        }
-        setReviewsError('Failed to load reviews');
-      } finally {
-        setReviewsLoading(false);
-      }
-    }
-
-    fetchCounts();
-  }, [teacherData?.Slug, reviewsRetryKey]);
+      return { upvoteCount: upvotes ?? 0, reviewCount: reviewsCount ?? 0, reviews: cards };
+    },
+    enabled: !!teacherData?.Slug,
+  });
+  const upvoteCount = listingStatsQuery.data?.upvoteCount ?? null;
+  const reviewCount = listingStatsQuery.data?.reviewCount ?? null;
+  const reviews = listingStatsQuery.data?.reviews ?? [];
+  const reviewsLoading = !!teacherData?.Slug && listingStatsQuery.isPending;
+  const reviewsError = listingStatsQuery.isError ? 'Failed to load reviews' : null;
 
   // "Pause your listing" — flips the self-service is_paused flag (see the TeacherData interface
   // note above), reverting on failure. Browse/search now filter on is_paused too (see Browse.tsx),
@@ -410,6 +367,10 @@ export default function TeacherDashboard() {
   // idempotent in both directions.
   const handlePauseToggle = async () => {
     if (!user || !teacherData) return;
+    // Was its own supabase.from('profiles') fetch — now the one shared
+    // authProfileQuery every other email lookup in this file reads too.
+    const email = authProfileQuery.data?.email;
+    if (!email) return;
 
     const nextPaused = !isPaused;
     const previousPaused = isPaused;
@@ -417,20 +378,10 @@ export default function TeacherDashboard() {
     setPausing(true);
 
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (!profile?.email) {
-        throw new Error('Email not found');
-      }
-
       const { error } = await supabase
         .from('Shikshaqmine')
         .update({ is_paused: nextPaused } as ShikshaqmineUpdateWithPause)
-        .eq('Email ID', profile.email);
+        .eq('Email ID', email);
 
       if (error) throw error;
 
@@ -848,12 +799,9 @@ export default function TeacherDashboard() {
     setSaving(true);
 
     try {
-      // Get user's email to find their record
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('id', user.id)
-        .maybeSingle();
+      // Was its own supabase.from('profiles') fetch (the third of four in
+      // this file) — now the one shared authProfileQuery.
+      const profile = authProfileQuery.data;
 
       if (!profile?.email) {
         toast.error(
@@ -957,6 +905,12 @@ export default function TeacherDashboard() {
           localStorage.removeItem(key);
         }
       });
+      // react-query's own cache, separate from the bespoke localStorage layer
+      // above (that one serves Browse/featured-teachers' public reads; this
+      // one is this dashboard's own fetch). teacherData already reflects the
+      // save locally, so nothing re-renders differently — this just keeps a
+      // later remount from serving a stale cached row.
+      queryClient.invalidateQueries({ queryKey: ['shikshaqmineByEmail', profile.email] });
 
       toast.success('Profile updated successfully');
     } catch (error) {
@@ -1759,7 +1713,7 @@ export default function TeacherDashboard() {
               {reviewsLoading ? (
                 <ListLoading count={2} media={0} lines={2} />
               ) : reviewsError ? (
-                <ListError onRetry={() => setReviewsRetryKey((k) => k + 1)} />
+                <ListError onRetry={() => listingStatsQuery.refetch()} />
               ) : reviews.length === 0 ? (
                 <p className="text-[14px] leading-[1.55] text-warm-prose">
                   No reviews yet. They'll show up here once students start leaving them.
