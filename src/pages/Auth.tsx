@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -114,13 +114,29 @@ export default function Auth() {
     loading: authLoading
   } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { paperCount, mathsCount, scienceCount } = useAuthProofCounts();
 
   /* Handoff AU-004a: the hero follows the intent that opened the gate. Read
-     once, on mount — the intent is cleared when the post-sign-in redirect
-     resolves, and re-reading would swap the hero out from under a visitor
-     who is still looking at it. */
-  const [authIntent] = useState(readAuthIntent);
+     once per arrival here — the intent is cleared when the post-sign-in
+     redirect resolves, and re-reading on every render would swap the hero
+     out from under a visitor who is still looking at it.
+
+     Keyed on location.key, not a bare useState(readAuthIntent) mount-once
+     read: a gate elsewhere (e.g. GateSheet's "Other ways to sign in") can
+     call setAuthIntent() then navigate('/auth') while this page is ALREADY
+     the current route — same pathname both times, so RouteTransition's
+     key={location.pathname} never remounts this component and a one-time
+     read stays stuck on whatever intent was true the first time /auth was
+     visited this session (confirmed: a visitor who'd seen the generic
+     "Teaching on Shikshaq" hero once kept seeing it on a later paper-gated
+     visit that should have shown the paper hero). location.key is a fresh
+     string on every history entry React Router creates — including a
+     navigate() to the same path — so this re-reads exactly when a real
+     navigation happened, without re-reading on every unrelated re-render
+     (typing in the form, etc.), which is what the original comment about
+     "swapping the hero out from under them" was actually guarding against. */
+  const authIntent = useMemo(readAuthIntent, [location.key]);
 
   // Save redirect on mount (backup — primary save happens at the click source)
   useEffect(() => {
