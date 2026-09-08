@@ -1,21 +1,28 @@
 #!/usr/bin/env tsx
 /**
- * CONVERTER: subject question-bank JSON (History & Civics, Economics)
+ * CONVERTER: subject question-bank JSON (History & Civics, Economics, English)
  *            -> the flat BankQuestion[] shape import-bank.ts already loads.
  *
  * Why a converter rather than a second importer: import-bank.ts is already
  * the byte-exact, idempotent, verified path into bank_papers/bank_questions.
- * The only thing standing between these files and that path is shape — they
- * arrive as { metadata, papers, standalone_questions, context_groups } while
- * the importer wants a flat array. So this normalises shape ONLY. Question
- * text is moved by reference (JSON.parse -> assignment -> JSON.stringify),
- * never rebuilt, sliced or re-cased, so the "text is never altered" rule
- * survives the extra hop. verify() at the bottom re-reads the output and
- * asserts every body still matches its source character for character.
+ * The only thing standing between these files and that path is shape. Two
+ * source shapes are handled, auto-detected per input file (isFlatShape()):
+ *
+ *   - NESTED: { metadata, papers, standalone_questions, context_groups }
+ *     (History & Civics, Economics) — handled by convert().
+ *   - FLAT: { metadata, papers, stimuli, questions }, linked by paper_id /
+ *     stimulus_id rather than nesting (English) — handled by convertFlat().
+ *
+ * Either way this normalises shape ONLY. Question text is moved by reference
+ * (JSON.parse -> assignment -> JSON.stringify), never rebuilt, sliced or
+ * re-cased, so the "text is never altered" rule survives the extra hop.
+ * verify() at the bottom re-reads the output and asserts every body still
+ * matches its source character for character.
  *
  *   npx tsx scripts/convert-subject-bank.ts \
  *     --in "C:/Users/kanis/Downloads/history_civics_bank.json" \
  *     --in "C:/Users/kanis/Downloads/question_bank_economics.json" \
+ *     --in "question_bank_english_partial.json" \
  *     --out data/question-bank-subjects.json
  *
  * Then feed the output through the existing importer.
@@ -290,6 +297,185 @@ function convert(file: SourceFile, srcName: string, takenPaperIds: Map<string, s
   };
 }
 
+/* -------------------------------------------------------- flat source shape */
+
+/** English's own shape: flat, linked by id rather than nested. */
+interface SourceFileFlat {
+  metadata: { subject: string };
+  papers: SourcePaperFlat[];
+  stimuli: SourceStimulus[];
+  questions: SourceQuestionFlat[];
+}
+
+interface SourcePaperFlat {
+  paper: string; // source filename
+  paper_id: string; // NOT the app's minted 6-hex scheme — see convertFlat()
+  role: string; // 'question_paper' | 'marking_scheme'
+}
+
+interface SourceQuestionFlat {
+  id: string;
+  paper_id: string;
+  school: string | null;
+  class: string | null;
+  exam_type: string | null;
+  number: string | null;
+  text: string;
+  options?: string[];
+  /* Typed as the extraction output's stated type, not trusted as it: 6 of
+     10,070 rows carry a garbled non-numeric value ("s1", or "2" as a string
+     rather than 2) — an OCR artifact, not real data. papersOf() sums this
+     field with `+=` to get a paper's total marks; hitting one non-number
+     silently switches that to string concatenation for the rest of the
+     paper ("148" + "s1" + ... -> "148s1s1s10"), which then fails the
+     numeric column on insert. See the coercion in pushRow() below. */
+  marks: unknown;
+  type: string | null;
+  section: string | null;
+  section_name: string | null;
+  stimulus_id: string | null;
+}
+
+/** Same value if it's a real, finite number; null for anything else
+    (including the garbled non-numeric marks values noted above) — the
+    "never invent data" rule applies to nulling out garbage the same way it
+    applies to leaving text alone. */
+function numericOrNull(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+/** A shared reading passage referenced by one or more questions. */
+interface SourceStimulus {
+  id: string;
+  paper_id: string;
+  kind: string | null;
+  title: string | null;
+  text: string;
+}
+
+function isFlatShape(file: unknown): file is SourceFileFlat {
+  const f = file as { questions?: unknown; stimuli?: unknown };
+  return Array.isArray(f.questions) && Array.isArray(f.stimuli);
+}
+
+/* English (and any future subject shipped this way) arrives flat rather than
+   nested, with paper_id/stimulus_id links instead of standalone_questions/
+   context_groups. Each question is already a complete, verbatim record —
+   its `parts` array (not modelled above; unused) is a list of the sub-part
+   LABELS ("i", "ii", "a") that already appear inline in its own `text`, not
+   separate sub-question bodies — so this is a flatter mapping than convert()
+   above: one row per question, plus one row per stimulus, pushed once,
+   immediately before the first question that needs it. Same "shared context
+   becomes its own row" resolution convert() already uses for context_groups,
+   so a paper still reads passage-then-questions in its original order. */
+function convertFlat(file: SourceFileFlat, srcName: string, takenPaperIds: Map<string, string>) {
+  const subject = file.metadata.subject;
+  const idPrefix = subjectPrefix(subject);
+  const qid = (raw: string) => `${idPrefix}-${raw}`;
+
+  /* Source paper_ids are not the app's hash6(filename) scheme — verified by
+     hand, they don't reproduce it — so they're re-minted here exactly like
+     every other subject rather than trusted as collision-safe against the
+     live table. Only minted for papers something actually references: the
+     100 marking-scheme entries in this file carry zero questions and would
+     otherwise burn id-mint attempts for rows nothing will ever use. */
+  const neededPaperIds = new Set<string>();
+  file.questions.forEach((q) => neededPaperIds.add(q.paper_id));
+  file.stimuli.forEach((s) => neededPaperIds.add(s.paper_id));
+
+  const paperIdMap = new Map<string, string>(); // source paper_id -> minted id
+  for (const p of file.papers) {
+    if (neededPaperIds.has(p.paper_id)) {
+      paperIdMap.set(p.paper_id, mintPaperId(p.paper, takenPaperIds));
+    }
+  }
+
+  const out: BankQuestion[] = [];
+  const ordByPaper = new Map<string, number>();
+  const nextOrd = (p: string) => {
+    const n = (ordByPaper.get(p) ?? 0) + 1;
+    ordByPaper.set(p, n);
+    return n;
+  };
+
+  const pushRow = (
+    id: string, mintedPaperId: string, number: string | null, text: string,
+    marks: number | null, chapter: string | null, school: string | null,
+    examType: string | null, cls: string | null, qtype: string | null,
+    options?: string[],
+  ) => {
+    nextOrd(mintedPaperId);
+    out.push({
+      i: id, p: mintedPaperId, n: number, t: text, m: marks ?? null,
+      c: chapter, s: school ?? null, y: null, // this source carries no year field at all
+      e: examType ?? null, k: cls ?? null, ty: qtype,
+      ...(options && options.length ? { o: options } : {}),
+      subj: subject,
+    });
+  };
+
+  const emittedStimuli = new Set<string>();
+  const stimulusById = new Map(file.stimuli.map((s) => [s.id, s]));
+  const pushStimulus = (
+    s: SourceStimulus, mintedPaperId: string,
+    school: string | null, examType: string | null, cls: string | null,
+  ) => {
+    if (emittedStimuli.has(s.id)) return; // one paper's questions can share it
+    emittedStimuli.add(s.id);
+    pushRow(
+      qid(`stim-${s.id}`), mintedPaperId, null, s.text, null,
+      s.title ?? null, school, examType, cls,
+      s.kind ? `context:${s.kind}` : 'context',
+    );
+  };
+
+  /* File order is page order within a paper (extraction emits top to
+     bottom), so walking `questions` as given and pushing a not-yet-seen
+     stimulus right before the question that needs it reproduces the
+     original passage-then-questions order without any re-sorting. */
+  for (const q of file.questions) {
+    const mintedPaperId = paperIdMap.get(q.paper_id);
+    if (!mintedPaperId) continue; // defensive; every question's paper_id resolved in a dry run
+
+    if (q.stimulus_id) {
+      const stim = stimulusById.get(q.stimulus_id);
+      if (stim) pushStimulus(stim, mintedPaperId, q.school, q.exam_type, q.class);
+    }
+
+    pushRow(
+      qid(q.id), mintedPaperId, q.number ?? null, q.text, numericOrNull(q.marks),
+      q.section_name ?? q.section ?? null, q.school, q.exam_type, q.class,
+      q.type ?? null, q.options,
+    );
+  }
+
+  /* ------------------------------------------------------------- report */
+  const questionPapers = file.papers.filter((p) => p.role === 'question_paper');
+  const rawSchools = new Set(file.questions.map((q) => q.school));
+  const unresolved = [...rawSchools].filter((s) => !hasSchool(s) && !isBoardPaper(s));
+  const alreadyFlagged = new Set(UNRESOLVED_SCHOOLS.map((s) => s.toLowerCase()));
+  const newlyUnresolved = [...rawSchools].filter(
+    (s) => hasSchool(s) && alreadyFlagged.has(schoolLabel(s).toLowerCase()),
+  );
+
+  return {
+    subject,
+    srcName,
+    rows: out,
+    report: {
+      papers: questionPapers.length,
+      standalone: file.questions.length,
+      groups: file.stimuli.length,
+      rowsProduced: out.length,
+      ocrPapers: 0, // this source's extraction field is per-question, not summarised here
+      distinctSchools: rawSchools.size,
+      notASchoolOrUnknown: unresolved,
+      abbreviationsNeedingExpansion: newlyUnresolved,
+      nonExamExamTypes: [] as string[],
+    },
+  };
+}
+
 /* ------------------------------------------------------------------ main */
 
 function parseArgs() {
@@ -334,14 +520,23 @@ function main() {
       console.error(`Not found: ${inPath}`);
       process.exit(1);
     }
-    const file: SourceFile = JSON.parse(fs.readFileSync(inPath, 'utf-8'));
-    const { subject, rows, report } = convert(file, path.basename(inPath), takenPaperIds);
+    const parsed: unknown = JSON.parse(fs.readFileSync(inPath, 'utf-8'));
+    const flat = isFlatShape(parsed);
+    const { subject, rows, report } = flat
+      ? convertFlat(parsed, path.basename(inPath), takenPaperIds)
+      : convert(parsed as SourceFile, path.basename(inPath), takenPaperIds);
 
-    console.log(`\n=== ${path.basename(inPath)} — ${subject} ===`);
-    console.log(`  papers ${report.papers}  standalone ${report.standalone}  groups ${report.groups}`);
+    console.log(`\n=== ${path.basename(inPath)} — ${subject} (${flat ? 'flat' : 'nested'} shape) ===`);
+    console.log(flat
+      ? `  papers ${report.papers}  questions ${report.standalone}  stimuli ${report.groups}`
+      : `  papers ${report.papers}  standalone ${report.standalone}  groups ${report.groups}`);
     console.log(`  -> ${report.rowsProduced} question rows`);
-    console.log(`  OCR-derived papers: ${report.ocrPapers}/${report.papers}` +
-      (report.ocrPapers === report.papers ? '  <-- ALL of them' : ''));
+    // Flat-shape sources carry extraction per question, not per paper —
+    // convertFlat() doesn't summarise it, so there's nothing real to print.
+    if (!flat) {
+      console.log(`  OCR-derived papers: ${report.ocrPapers}/${report.papers}` +
+        (report.ocrPapers === report.papers ? '  <-- ALL of them' : ''));
+    }
     console.log(`  distinct raw school values: ${report.distinctSchools}`);
     if (report.notASchoolOrUnknown.length) {
       console.log(`  NOT a school / unknown (${report.notASchoolOrUnknown.length}):`);

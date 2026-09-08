@@ -128,8 +128,8 @@ export default function SchoolPage() {
   const papers = useMemo<SchoolPaper[]>(() => {
     const fromBank = (bankSchool?.papers ?? []).map((b): SchoolPaper => ({
       id: b.id,
-      title: `Class ${b.cls} Mathematics`,
-      subject: 'Mathematics',
+      title: `Class ${b.cls} ${b.subject}`,
+      subject: b.subject,
       class: b.cls,
       board: b.board,
       year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : null,
