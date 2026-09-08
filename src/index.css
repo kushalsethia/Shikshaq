@@ -790,14 +790,12 @@ input[type="date"].date-input-left,
 .sticker-rotate-md-rev { transform: rotate(-5deg); }
 .sticker-rotate-lg-rev { transform: rotate(7deg); }
 
-/* ---- Tape / torn paper ------------------------------------------------------
+/* ---- Tape ---------------------------------------------------------------
    Artifact treatment for "pinning" cards, e.g. an onboarding step or a
    featured-teacher moment. `.tape` is a single strip positioned at the top;
    `.tape--corner-*` offer alternate placements. Color is a translucent warm
    neutral by default (reads as masking tape on any card fill) but honors
-   `--tape-color` if the caller wants a tinted strip. `.torn-edge` gives a
-   torn-paper bottom edge via a repeating conic-gradient mask — cheap, no
-   image request. */
+   `--tape-color` if the caller wants a tinted strip. */
 .tape {
   --tape-color: rgba(249, 245, 241, 0.85);
   position: absolute;
@@ -820,14 +818,6 @@ input[type="date"].date-input-left,
   left: auto;
   right: 14%;
   transform: rotate(6deg);
-}
-
-.torn-edge {
-  --torn-size: 12px;
-  mask-image: conic-gradient(from -45deg at bottom, #000 90deg, transparent 0);
-  mask-size: var(--torn-size) var(--torn-size);
-  mask-repeat: repeat-x;
-  mask-position: bottom;
 }
 
 /* ---- Halftone / riso grain ---------------------------------------------------

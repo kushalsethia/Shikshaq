@@ -226,10 +226,13 @@ export default function About() {
               </p>
             </div>
           </BentoPanel>
-          {/* Device G. On a BAND, never on a content panel: `.torn-edge` masks
-              the whole box it sits on, so putting it on the panel above would
-              cut the headline out of it and leave a strip of teeth. */}
-          <div aria-hidden className="torn-edge h-3 bg-panel [--torn-size:14px]" />
+          {/* Owner call: the torn-paper zigzag that used to sit here was the
+              one hand-torn/scrapbook element on an otherwise clean, geometric
+              site — every other seam on every other page is panels touching
+              at 0 gap with their own rounding (BentoStack's own rule, see
+              PageContainer.tsx), and this was the single exception. Removed
+              rather than restyled: the panels below already flow straight
+              into BentoStack, so they just touch like every other seam does. */}
 
           {/* What we do, in the home page's own section language.
 
