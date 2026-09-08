@@ -49,6 +49,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
         classNames: {
           toast:
             "group toast flex w-[356px] max-w-[calc(100vw_-_24px)] items-center gap-3 rounded-[20px] bg-panel p-[14px_16px] text-[14px] font-semibold text-[#FCFAF7] shadow-[0_14px_34px_rgba(0,0,0,.32)]",
+          // sonner's own base stylesheet hard-sizes [data-icon] to 16x16 via
+          // a zero-specificity :where() rule (for its default glyphs) — our
+          // StatusTile is a 32x32 tile, so it was rendering clipped/
+          // overflowing that box on every toast, worst on a narrow phone
+          // where a long title wraps to two lines and the row has the least
+          // room to spare. w-8/h-8 override the fixed size (any plain class
+          // beats :where()'s 0 specificity); flex-none stops it shrinking
+          // back below that regardless of how much the row is squeezed.
+          icon: "!w-8 !h-8 flex-none",
           description: "text-background/70",
           actionButton:
             "!ml-auto !flex-none !h-9 !rounded-full !bg-white/[0.12] !px-3 !text-[13px] !font-bold !text-background",
