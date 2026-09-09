@@ -85,6 +85,14 @@ interface PageContent {
 
 interface FooterProps {
   expandedContent?: string | null; // EXPANDED content from Shikshaqmine for teacher profiles
+  /** The outer <footer>'s own background — bg-background by default, which
+      is invisible seam-blending on every normal (light-ground) page. The
+      two paper readers use a near-black ground all the way down instead, so
+      that same cream strip showed up as a stray line right before the
+      footer's own dark slab (reported as a "separator glitch" — confirmed
+      live: bg-background sitting directly above bg-panel content with
+      nothing to blend it). Pass 'panel' from a dark-ground page only. */
+  seamFill?: 'background' | 'panel';
 }
 
 const COL_LABEL = 'text-xs font-medium uppercase tracking-[0.04em] text-white/70';
@@ -251,7 +259,7 @@ function FooterAccordion({ label, links }: { label: string; links: FooterLink[] 
   );
 }
 
-export function Footer({ expandedContent }: FooterProps = {}) {
+export function Footer({ expandedContent, seamFill = 'background' }: FooterProps = {}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isExpandedContentExpanded, setIsExpandedContentExpanded] = useState(false);
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
@@ -502,7 +510,7 @@ export function Footer({ expandedContent }: FooterProps = {}) {
      footer at 84px; with the reserve moved below where it belongs, the seam is
      stated here. */
   return (
-    <footer className="bg-background pt-seam">
+    <footer className={`${seamFill === 'panel' ? 'bg-panel' : 'bg-background'} pt-seam`}>
       {/* Handoff H-021: the footer is the stack's final panel, not an inset
           slab floating on page ground — no mx-3 inset, radius is top-only
           (it butts the bottom-nav reserve). */}

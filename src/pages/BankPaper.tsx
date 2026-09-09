@@ -712,7 +712,7 @@ export default function BankPaper() {
         paperSubject={paper?.subject ?? "Mathematics"}
       />
 
-      <Footer />
+      <Footer seamFill="panel" />
     </div>
   );
 }
