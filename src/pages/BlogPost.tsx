@@ -348,7 +348,10 @@ export default function BlogPost() {
      because every link into this route comes from a generated list: a slug
      that misses means the article set changed, and the index is the honest
      next step for a reader following an old link. */
-  useChromeConfig(article ? { preFooter: 'B3' } : null);
+  // Same reasoning as Blog.tsx: B3 is a shared, deliberately unrounded
+  // full-bleed fill (also used by /past-papers) that breaks this page's own
+  // all-bento rounded content right before the footer. No pre-footer here.
+  useChromeConfig(article ? { preFooter: 'none' } : null);
 
   if (!article) return <Navigate to={BLOG_PATH} replace />;
 

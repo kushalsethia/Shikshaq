@@ -464,13 +464,21 @@ export function Footer({ expandedContent }: FooterProps = {}) {
     { to: '/recommend-teacher', label: 'Recommend a teacher' },
   ];
 
-  /* Built from the generated article set, not hand-listed. The articles are
-     produced from the question bank's chapter stats, so a hardcoded copy here
-     would go stale the moment the bank grows a chapter. Index first, then the
-     two overviews and the eighteen chapters in their own order. */
+  /* Curated, not the full generated article set. That used to be every
+     article (fine at 18, one subject) -- with four subjects now generating
+     ~113 pages, listing all of them here put 231 links in this block alone
+     (mobile accordion + desktop disclosure both render at once) and ~345 in
+     the footer overall, confirmed live. A footer is navigation, not a
+     sitemap, and a link block that size on every single page is exactly the
+     kind of pattern that reads as thin/spammy to search engines rather than
+     genuine site structure. Each subject gets its own overview links here;
+     the full per-topic list stays one click away on /blog itself. */
   const blogLinks: FooterLink[] = [
     { to: BLOG_PATH, label: 'All reading' },
-    ...BLOG_ARTICLES.map((a) => ({ to: `${BLOG_PATH}/${a.slug}`, label: a.shortTitle })),
+    ...BLOG_ARTICLES.filter((a) => a.kind !== 'topic').map((a) => ({
+      to: `${BLOG_PATH}/${a.slug}`,
+      label: `${a.subject === 'Mathematics' ? 'Maths' : a.subject}: ${a.shortTitle}`,
+    })),
   ];
 
   const supportLinks: FooterLink[] = [

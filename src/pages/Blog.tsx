@@ -102,7 +102,15 @@ function SubjectSection({ subject, lead, others, topics }: {
 }
 
 export default function Blog() {
-  useChromeConfig({ preFooter: 'B3' });
+  /* Handoff (this session): B3 ("How the paper library works") is a shared
+     pre-footer also used by /past-papers, and it's deliberately a full-
+     bleed, unrounded fill (PreFooter.tsx's own comment: "B2 and B3 are
+     fills and must reach the viewport edges") — the opposite of this page's
+     own all-bento, rounded-edge-to-edge content. Rather than restyle a
+     component /past-papers also relies on, this page just doesn't use a
+     pre-footer: its own last BentoPanel already ends the page correctly
+     rounded, straight into Footer. */
+  useChromeConfig({ preFooter: 'none' });
 
   const bySubject = BLOG_SUBJECT_NAMES.map((subject) => {
     const articles = BLOG_ARTICLES.filter((a) => a.subject === subject).sort((a, b) => a.order - b.order);
