@@ -110,6 +110,53 @@ const toPaper = (r: PaperRow): BankPaper => ({
 
 let indexCache: Promise<BankPaper[]> | null = null;
 
+const PAGE = 1000;
+
+/* PostgREST caps an unbounded select at 1000 rows and returns them — no
+   error, nothing to catch — so a query written before the table crossed
+   that count silently starts dropping rows once it does. Confirmed live:
+   the English import pushed published bank_papers past 1000 (1,282 today),
+   and every one of them sorts undated-last, so the entire English release
+   was landing past row 1000 and vanishing from every page reading this
+   index. Paged explicitly so growth past any future page boundary fails
+   the same way growth past this one didn't: not at all. */
+async function fetchAllPages(): Promise<PaperRow[]> {
+  const rows: PaperRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('bank_papers')
+      .select(PAPER_COLUMNS)
+      .eq('is_published', true)
+      .order('year', { ascending: false, nullsFirst: false })
+      .order('school', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`bank papers: ${error.message}`);
+    rows.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+  }
+  return rows;
+}
+
+/* Three call sites (useSiteCounts, About, the live-papers banner) each count
+   distinct schools by fetching bank_papers.school and de-duping client-side
+   -- there's no distinct-count equivalent to a head:true row count. Each had
+   its own copy of this fetch, unpaged, so each was independently exposed to
+   the same 1000-row cap loadPaperIndex() above just got fixed for. Kept as
+   three call sites (each counts a slightly different filter) rather than
+   merged into one, but the pagination is shared rather than tripled. */
+export async function fetchBankSchoolValues(onlyWithSchool = false): Promise<(string | null)[]> {
+  const values: (string | null)[] = [];
+  for (let from = 0; ; from += PAGE) {
+    let q = supabase.from('bank_papers').select('school').eq('is_published', true);
+    if (onlyWithSchool) q = q.eq('has_school', true);
+    const { data, error } = await q.range(from, from + PAGE - 1);
+    if (error) throw new Error(`bank papers schools: ${error.message}`);
+    values.push(...(data ?? []).map((r) => r.school));
+    if (!data || data.length < PAGE) break;
+  }
+  return values;
+}
+
 /**
  * Every published bank paper, newest first, undated last.
  *
@@ -119,18 +166,8 @@ let indexCache: Promise<BankPaper[]> | null = null;
  */
 export function loadPaperIndex(): Promise<BankPaper[]> {
   if (!indexCache) {
-    indexCache = Promise.resolve(
-      supabase
-        .from('bank_papers')
-        .select(PAPER_COLUMNS)
-        .eq('is_published', true)
-        .order('year', { ascending: false, nullsFirst: false })
-        .order('school', { ascending: true }),
-    )
-      .then(({ data, error }) => {
-        if (error) throw new Error(`bank papers: ${error.message}`);
-        return (data ?? []).map(toPaper);
-      })
+    indexCache = fetchAllPages()
+      .then((rows) => rows.map(toPaper))
       .catch((err: unknown) => {
         indexCache = null; // let a later caller retry rather than caching the failure
         throw err;

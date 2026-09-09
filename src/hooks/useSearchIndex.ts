@@ -99,9 +99,9 @@ async function loadIndex(): Promise<void> {
      same paper found by browsing read identically. */
   const bankHits: PaperHit[] = (bankRes ?? []).map((b) => ({
     id: b.id,
-    title: `Class ${b.cls} Mathematics`,
+    title: `Class ${b.cls} ${b.subject}`,
     school: b.school,
-    subject: 'Maths',
+    subject: b.subject,
     class: b.cls,
     board: b.board,
     exam_type: b.exam,

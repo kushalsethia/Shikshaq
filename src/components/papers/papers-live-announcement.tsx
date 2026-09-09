@@ -6,6 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchBankSchoolValues } from '@/lib/question-bank';
 import { hasSeenOnboarding } from '@/lib/onboarding';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
@@ -50,11 +51,11 @@ function usePapersCounts(enabled: boolean) {
     queryFn: async () => {
       const [papers, schools] = await Promise.all([
         supabase.from('bank_papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
-        supabase.from('bank_papers').select('school').eq('is_published', true).eq('has_school', true),
+        fetchBankSchoolValues(true),
       ]);
       return {
         papers: papers.count ?? null,
-        schools: schools.data ? new Set(schools.data.map((r) => r.school)).size : null,
+        schools: new Set(schools).size || null,
       };
     },
   });

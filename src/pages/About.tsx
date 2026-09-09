@@ -8,6 +8,7 @@ import { IconDisc } from '@/components/ui/icon-disc';
 import { Button } from '@/components/ui/button';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchBankSchoolValues } from '@/lib/question-bank';
 import { logger } from '@/utils/logger';
 import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
@@ -78,13 +79,15 @@ export default function About() {
            blog all counted 619 from 155 out of bank_papers. Same site, same
            moment, two numbers off by a factor of thirty. */
         supabase.from('bank_papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
-        supabase.from('bank_papers').select('school').eq('is_published', true),
+        fetchBankSchoolValues().catch((err: unknown) => {
+          logger.error('About.fetchStats.schools', err as Error);
+          return null;
+        }),
       ]);
       if (cancelled) return;
       if (teachersRes.error) logger.error('About.fetchStats.teachers', teachersRes.error);
       if (papersRes.error) logger.error('About.fetchStats.papers', papersRes.error);
-      if (schoolsRes.error) logger.error('About.fetchStats.schools', schoolsRes.error);
-      const distinctSchools = schoolsRes.data ? new Set(schoolsRes.data.map((p) => p.school)).size : null;
+      const distinctSchools = schoolsRes ? new Set(schoolsRes).size : null;
       setStats({
         teachers: teachersRes.count ?? null,
         papers: papersRes.count ?? null,

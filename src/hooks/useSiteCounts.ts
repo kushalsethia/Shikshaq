@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { supabase } from '@/integrations/supabase/client';
+import { fetchBankSchoolValues } from '@/lib/question-bank';
 
 /**
  * The three figures the site describes itself with: verified teachers,
@@ -39,15 +40,13 @@ export function useSiteCounts() {
         /* Distinct schools has no head-count equivalent, so this reads the
            column and counts uniques. `school` is resolved at import time and
            stored on the row, so this is a single narrow column, not a join. */
-        supabase.from('bank_papers').select('school').eq('is_published', true),
+        fetchBankSchoolValues(),
       ]);
 
       return {
         teachers: teachers.count ?? null,
         papers: papers.count ?? null,
-        schools: schools.data
-          ? new Set(schools.data.map((r) => r.school).filter(Boolean)).size || null
-          : null,
+        schools: new Set(schools.filter(Boolean)).size || null,
       };
     },
   });
