@@ -344,6 +344,39 @@ function numericOrNull(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
+/* Found live: a handful of "questions" turned out to be the paper's own
+   front-matter rules ("This Question Paper contains 13 questions. All
+   questions are compulsory.") extracted and numbered as if they were real
+   sub-questions (1a, 1b, 1c, 1d) — confirmed on screen, tagged "SHORT" next
+   to genuine content. Hand-verified against the full question set: 6 other
+   entries mention similar phrases ("This paper consists of 7 printed
+   pages...") but are page-footer boilerplate trailing AFTER a real
+   question's actual text, not standing alone -- those stay untouched, since
+   editing them would mean altering verbatim question text, which nothing
+   here does. The distinguishing signal is structural, not just textual: the
+   entry is short AND the instructional phrase sits at the very start (after
+   stripping a leading numbering marker), meaning the ENTRY IS the
+   instruction, not a real question with noise appended to it. Precision
+   checked against all 10,070 questions before this was wired in: exactly 5
+   matches, all 5 hand-confirmed as pure instructions, zero false positives
+   against the 6 known noisy-but-real questions. */
+const INSTRUCTION_OPENERS = [
+  'this question paper contains',
+  'this question paper is divided',
+  'attempt all questions based on specific instructions',
+  'write the correct question number',
+  'internal choice has been given',
+  'all questions are compulsory',
+];
+const LEADING_MARKER = /^[([]?[ivxIVX0-9]{1,4}[)\].]?\s*/;
+
+function isStandaloneInstruction(text: string | null | undefined): boolean {
+  const t = (text ?? '').trim();
+  if (!t || t.length > 250) return false;
+  const body = t.replace(LEADING_MARKER, '').trim().toLowerCase();
+  return INSTRUCTION_OPENERS.some((o) => body.startsWith(o));
+}
+
 /** A shared reading passage referenced by one or more questions. */
 interface SourceStimulus {
   id: string;
@@ -529,9 +562,19 @@ function convertFlat(file: SourceFileFlat, srcName: string, takenPaperIds: Map<s
      bottom), so walking `questions` as given and pushing a not-yet-seen
      stimulus right before the question that needs it reproduces the
      original passage-then-questions order without any re-sorting. */
+  const skippedInstructions: string[] = [];
   for (const q of file.questions) {
     const mintedPaperId = paperIdMap.get(q.paper_id);
     if (!mintedPaperId) continue; // defensive; every question's paper_id resolved in a dry run
+
+    if (isStandaloneInstruction(q.text)) {
+      // Not a question at all -- see isStandaloneInstruction()'s own
+      // comment. Dropped entirely rather than imported and numbered
+      // alongside real questions.
+      skippedInstructions.push(qid(q.id));
+      continue;
+    }
+
     // The source's own q.school is null on every row (checked by hand) —
     // schoolFromFilename()'s per-paper result is the only signal there is.
     const school = schoolByPaperId.get(q.paper_id) ?? null;
@@ -549,6 +592,10 @@ function convertFlat(file: SourceFileFlat, srcName: string, takenPaperIds: Map<s
   }
 
   /* ------------------------------------------------------------- report */
+  if (skippedInstructions.length) {
+    console.log(`  dropped ${skippedInstructions.length} standalone-instruction "questions" (not real content): ` +
+      skippedInstructions.join(', '));
+  }
   const questionPapers = file.papers.filter((p) => p.role === 'question_paper');
   const rawSchools = new Set(schoolByPaperId.values());
   const unresolved = [...rawSchools].filter((s) => !hasSchool(s) && !isBoardPaper(s));
