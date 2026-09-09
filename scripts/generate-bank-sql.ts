@@ -109,9 +109,20 @@ create policy "published papers are public"
   on public.bank_papers for select to anon, authenticated
   using (is_published);
 
+/* authenticated only, deliberately -- NOT anon. bank_questions holds full
+   question text; the paper reader gate (bank_paper_questions RPC, defined
+   in supabase/migrations/*_bank_paper_questions_rpc.sql, SECURITY DEFINER)
+   is the only anon-reachable path to it, and it returns five rows to a
+   signed-out caller by checking auth.uid() itself. A plain "to anon,
+   authenticated" policy here would hand every question in the bank to any
+   direct anon SELECT, silently undoing that gate the next time this
+   generator's output is re-applied — confirmed this was already the live
+   grant shape (anon direct reads return 0 rows) when this comment was
+   written; this file was the one place still describing the un-gated
+   shape. */
 drop policy if exists "questions of published papers are public" on public.bank_questions;
 create policy "questions of published papers are public"
-  on public.bank_questions for select to anon, authenticated
+  on public.bank_questions for select to authenticated
   using (exists (select 1 from public.bank_papers p
                   where p.id = bank_questions.paper_id and p.is_published));
 
@@ -128,7 +139,9 @@ create policy "admins write questions"
 revoke all on public.bank_papers    from anon, authenticated;
 revoke all on public.bank_questions from anon, authenticated;
 grant select on public.bank_papers    to anon, authenticated;
-grant select on public.bank_questions to anon, authenticated;
+-- bank_questions: authenticated only. See the policy comment above --
+-- the gate (bank_paper_questions RPC) is the sole anon-reachable path.
+grant select on public.bank_questions to authenticated;
 grant insert, update, delete on public.bank_papers    to authenticated;
 grant insert, update, delete on public.bank_questions to authenticated;
 `;
