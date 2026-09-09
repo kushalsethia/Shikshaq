@@ -204,7 +204,6 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName, l
 
      Each candidate carries an href, so the bold span is the way through to the
      thing it names instead of a dead mention. */
-  const slugify = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const candidates: HeroCopy[] = [];
 
   // One read of the shared envelope instead of three separate localStorage
@@ -291,7 +290,7 @@ export function resolveHeroCopy({ profile, likedCount, likedSingleTeacherName, l
         bold: `${t.subject} teachers`,
         after: t.area ? ` around ${t.area}.` : ' in Kolkata.',
         chip: null, mode: 'teachers',
-        href: `/${slugify(t.subject)}-tuition-teachers-in-kolkata`,
+        href: `/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(t.subject)}`,
       });
     }
   }

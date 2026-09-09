@@ -15,8 +15,8 @@
 
 import type { IntentIndex, SearchMode } from './types';
 import { checkCopy, COPY_LIMITS } from './guardrails';
-import { subjectSlug } from './vocabulary';
 import { predictNextSlot, predictSlotValue } from './predict';
+import { BROWSE_PATH } from '@/lib/nav-config';
 
 /* --------------------------------------------------- search overlay chips */
 
@@ -176,6 +176,11 @@ export interface IntentCta {
  * that just says "Find a teacher" and dumps everyone on the same unfiltered
  * page. Returns null when there is no subject to build one from, so the
  * caller keeps its own existing label and href untouched.
+ *
+ * Lands on the generic filtered Browse listing, not a subject's dedicated
+ * SEO page (SubjectPage.tsx/BoardPage.tsx) — those stay reserved for search
+ * traffic; a real click here gets the same filter applied on the faster,
+ * already-shared page instead.
  */
 export function intentCta(intent: IntentIndex): IntentCta | null {
   const subject = intent.subject.value;
@@ -183,9 +188,9 @@ export function intentCta(intent: IntentIndex): IntentCta | null {
   if (!subject) return null;
 
   const params = new URLSearchParams();
+  params.set('filter_subjects', subject);
   if (area) params.set('filter_areas', area);
-  const qs = params.toString();
-  const href = `/${subjectSlug(subject)}-tuition-teachers-in-kolkata${qs ? `?${qs}` : ''}`;
+  const href = `${BROWSE_PATH}?${params.toString()}`;
 
   // The label stays a fixed shape ("Find {subject} teachers") regardless of
   // area — appending an area name risked overrunning ctaChars for the

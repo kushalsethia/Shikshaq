@@ -23,7 +23,7 @@ import type { SearchMode } from '@/utils/searchFacets';
 const POPULAR_CHIPS: Record<SearchMode, { label: string; href: string }[]> = {
   teachers: [
     { label: 'Class 10', href: '/all-tuition-teachers-in-kolkata?filter_classes=10' },
-    { label: 'Maths', href: '/maths-tuition-teachers-in-kolkata' },
+    { label: 'Maths', href: '/all-tuition-teachers-in-kolkata?filter_subjects=Maths' },
     { label: 'Under ₹800', href: '/all-tuition-teachers-in-kolkata?filter_maxFees=800' },
     { label: 'Home tuition', href: `/all-tuition-teachers-in-kolkata?filter_placeOfTeaching=${encodeURIComponent("Student's Home")}` },
   ],

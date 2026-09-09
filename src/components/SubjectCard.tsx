@@ -24,7 +24,6 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
 import { getSubjectPalette, paletteFromSeed, resolveSubjectFamily, SUBJECT_SEEDS } from '@/lib/subject-palette';
 
 // Deterministic per-subject shape variant so the same subject always gets the
@@ -115,22 +114,6 @@ const SUBJECT_ICONS: Record<string, typeof BookOpen> = {
   Sociology: Users,
 };
 
-// Reverse lookup: subject name -> SEO teachers route, derived from the
-// existing path->filter map in subjectMapping.ts. Multi-subject combo
-// entries (e.g. "Physics,Chemistry,Biology") are skipped since they don't
-// resolve 1:1 from an individual subject name, then re-added by hand for
-// the two subject names that legitimately mean "the combo page" (Science,
-// Social Studies).
-const SUBJECT_NAME_TO_PATH: Record<string, string> = Object.entries(SUBJECT_PATH_TO_FILTER).reduce(
-  (acc, [path, filterValue]) => {
-    if (!filterValue.includes(',')) acc[filterValue] = path;
-    return acc;
-  },
-  {} as Record<string, string>
-);
-SUBJECT_NAME_TO_PATH.Science = '/science-tuition-teachers-in-kolkata';
-SUBJECT_NAME_TO_PATH['Social Studies'] = '/social-studies-tuition-teachers-in-kolkata';
-
 function pluralize(count: number, word: string) {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
@@ -145,10 +128,14 @@ function SubjectCardComponent({
   const Icon = SUBJECT_ICONS[name] ?? BookOpen;
   const palette = paletteForSubject(name);
 
+  // Both contexts go to the fast, generic filtered listing rather than a
+  // subject's dedicated SEO page — those pages (SubjectPage.tsx/BoardPage.tsx)
+  // stay reserved for search-engine traffic; real in-app clicks get the
+  // quicker Browse/PastPapers view with the same filter pre-applied.
   const href =
     context === 'papers'
       ? `/past-papers/results?filter_subjects=${encodeURIComponent(name)}`
-      : SUBJECT_NAME_TO_PATH[name] ?? `/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(name)}`;
+      : `/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(name)}`;
 
   // DESIGN_SYSTEM §13 "never render a literal zero": with papers data still
   // unseeded, every card in the grid was reading "... · 0 papers" — not an
