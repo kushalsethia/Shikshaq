@@ -1173,6 +1173,13 @@ export type Database = {
           options: string[] | null
         }[]
       }
+      /* Hand-added, same reason as bank_paper_questions above: the only
+         anon-reachable read of Shikshaqmine.Link, returning null unless
+         auth.uid() is set. */
+      teacher_whatsapp_link: { Args: { p_slug: string }; Returns: string | null }
+      /* Hand-added, same reason: the only anon-reachable read of
+         papers.file_url, returning null unless auth.uid() is set. */
+      paper_file_url: { Args: { p_paper_id: string }; Returns: string | null }
       home_facet_counts: { Args: never; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_teacher: { Args: never; Returns: boolean }

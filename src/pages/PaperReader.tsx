@@ -14,8 +14,13 @@ import { GateSheet } from '@/components/auth/gate-sheet';
 import { setAuthIntent } from '@/lib/auth-intent';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
 import { PaperDisclaimerDialog } from '@/components/papers/paper-disclaimer-dialog';
+import { MorePapers } from '@/components/papers/more-papers';
 import { generateBreadcrumbSchema, injectSchemas } from '@/utils/structuredDataGenerators';
 
+// No file_url here: papers.file_url is no longer anon-selectable at all
+// (column-level REVOKE, migration 20260909000003_gate_paper_file_url.sql).
+// Fetched separately, only once signed in, through paper_file_url() — see
+// the `fileUrl` state below.
 interface Paper {
   id: string;
   title: string;
@@ -25,8 +30,9 @@ interface Paper {
   board: string;
   exam_type: string;
   year: number;
-  file_url: string | null;
 }
+
+const PAPER_COLUMNS = 'id,title,school,subject,class,board,exam_type,year,is_published';
 
 interface SiblingPaper {
   id: string;
@@ -91,6 +97,7 @@ export default function PaperReader() {
   const { user, loading: authLoading } = useAuth();
 
   const [paper, setPaper] = useState<Paper | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -107,7 +114,7 @@ export default function PaperReader() {
       setNotFound(false);
       setLoadError(false);
       try {
-        const { data, error } = await supabase.from('papers').select('*').eq('id', id).maybeSingle();
+        const { data, error } = await supabase.from('papers').select(PAPER_COLUMNS).eq('id', id).maybeSingle();
         if (error) throw error;
         if (cancelled) return;
         if (!data) {
@@ -152,9 +159,13 @@ export default function PaperReader() {
       });
   }, [paper, user]);
 
-  // Sibling papers (same subject/class/board) for the signed-in prev/next rail.
+  /* Sibling papers (same subject/class/board) — feeds the signed-in prev/
+     next rail AND the "more papers like this" section at the bottom, which
+     is NOT signed-in gated: title/year are already public metadata (the
+     anon column grant on `papers` covers them), so unlike file_url there is
+     nothing here worth withholding from a visitor who hasn't signed in. */
   useEffect(() => {
-    if (!paper || !user) { setSiblings([]); return; }
+    if (!paper) { setSiblings([]); return; }
     let cancelled = false;
     async function fetchSiblings() {
       const { data } = await supabase
@@ -171,7 +182,7 @@ export default function PaperReader() {
     }
     fetchSiblings();
     return () => { cancelled = true; };
-  }, [paper, user]);
+  }, [paper]);
 
   /* Feeds H-005 branch 5 ("Two papers open in ICSE Physics. Want a tutor for
      it?"). Separate from recordVisit below: that one is the Recently-visited
@@ -277,6 +288,23 @@ export default function PaperReader() {
     } else setGateOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, authLoading, !!paper, signedIn]);
+
+  // The file itself, fetched separately and only once actually signed in —
+  // this IS "never fetch the paper before auth" (the comment above already
+  // named the rule; this effect is what now actually enforces it). Reads
+  // through paper_file_url(), which returns null server-side to a
+  // signed-out caller regardless of what's asked for, so there is nothing
+  // client-side that could request it early.
+  useEffect(() => {
+    if (!paper || !signedIn) { setFileUrl(null); return; }
+    let cancelled = false;
+    supabase.rpc('paper_file_url', { p_paper_id: paper.id }).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) { if (import.meta.env.DEV) console.warn('paper_file_url error:', error); return; }
+      setFileUrl(data ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [paper, signedIn]);
 
   // Share the real paper URL — the path of least resistance for passing a
   // paper along should be "share the link", not a screenshot. No website can
@@ -442,7 +470,7 @@ export default function PaperReader() {
             onCopy={(e) => e.preventDefault()}
           >
             {signedIn ? (
-              paper.file_url ? (
+              fileUrl ? (
                 <>
                   {/* Viewer controls. The embedded native PDF viewer's pinch-zoom
                       is unreliable on mobile Safari and there is no custom
@@ -450,8 +478,12 @@ export default function PaperReader() {
                       scope), so the honest fix is to give the student a way OUT
                       of the embed: full screen, or the browser's own viewer in a
                       new tab where zoom and page controls actually work.
-                      This does not "unlock" anything — file_url is a public
-                      bucket URL and always was. */}
+                      `fileUrl` only exists in this component's state once
+                      paper_file_url() has actually returned it to a signed-in
+                      caller — see the effect above. The underlying storage
+                      bucket is still public if you already have the URL (a
+                      residual gap, not this fix's job to close), but nothing
+                      here hands it to a visitor who never signed in. */}
                   {/* Handoff RD-005: one h48 r999 bg-white/10 track. The
                      entry's −/percentage/+ zoom group isn't built: this
                      embed has no custom zoom (the file's own top-of-file
@@ -471,7 +503,7 @@ export default function PaperReader() {
                       Full screen
                     </button>
                     <a
-                      href={paper.file_url}
+                      href={fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={`tap-44 flex h-9 items-center gap-2 rounded-full bg-brand-blue px-4 text-[13px] font-bold text-white transition-colors duration-tap ease-tap hover:bg-brand-blue-hover active:scale-[0.97] ${FOCUS_DARK}`}
@@ -489,7 +521,7 @@ export default function PaperReader() {
                   >
                     <iframe
                       title={paper.title}
-                      src={`${paper.file_url}#toolbar=0&navpanes=0&view=FitH`}
+                      src={`${fileUrl}#toolbar=0&navpanes=0&view=FitH`}
                       className="h-full w-full border-0"
                     />
                     {/* Watermark layer: absolute, decorative, pointer-events none so
@@ -612,6 +644,8 @@ export default function PaperReader() {
             Browse {paper.subject} teachers
           </Link>
         </div>
+
+        <MorePapers items={siblings} currentId={paper.id} />
       </main>
 
       <GateSheet
@@ -630,13 +664,15 @@ export default function PaperReader() {
            * body (including the iframe) further up, so Ctrl+P no longer
            * renders the PDF itself, not just the chrome around it. This is
            * still only a client-side print stylesheet, not real access
-           * control: file_url points at a PUBLIC Supabase storage bucket
-           * URL, visible in the network tab and directly openable/
-           * downloadable/printable outside this page regardless of what
-           * this stylesheet does. Real enforcement requires server-side
-           * changes out of this page's scope — short-lived signed URLs
-           * and/or an authenticated proxy endpoint that streams the PDF
-           * instead of exposing a public bucket URL.
+           * control on its own — but the URL it's hiding is no longer
+           * reachable by a signed-out visitor at all (paper_file_url() RPC,
+           * migration 20260909000003_gate_paper_file_url.sql), so what's
+           * left is narrower than it was: once someone has genuinely signed
+           * in and been handed the URL, it's still a plain public Supabase
+           * storage bucket link, reusable/downloadable outside this page.
+           * Closing that residual gap needs short-lived signed URLs and/or
+           * an authenticated proxy endpoint that streams the PDF instead of
+           * exposing a bucket URL at all — out of this page's scope.
            */
           .pr-hide-print { display: none !important; }
         }

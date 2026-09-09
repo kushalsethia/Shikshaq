@@ -6,6 +6,7 @@ import { Footer } from '@/components/Footer';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
 import { PaperDisclaimerDialog } from '@/components/papers/paper-disclaimer-dialog';
 import { PaperShareLock, paperLockClass } from '@/components/papers/paper-share-lock';
+import { MorePapers } from '@/components/papers/more-papers';
 import { MathText } from '@/components/papers/math-text';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useAuth } from '@/lib/auth-context';
@@ -189,6 +190,28 @@ export default function BankPaper() {
   }, [id, user?.id]);
 
   useEffect(() => { setChapter(''); setQ(''); setReportFor(''); }, [id]);
+
+  /* Same subject + class, for the "more papers like this" section — public
+     metadata (school/cls/subject/board/year, no question text), so this
+     runs for every visitor, not just a signed-in one. */
+  const [siblings, setSiblings] = useState<{ id: string; title: string; year: string | number | null }[]>([]);
+  useEffect(() => {
+    if (!paper) { setSiblings([]); return; }
+    let cancelled = false;
+    supabase
+      .from('bank_papers')
+      .select('id,school,cls,subject,year')
+      .eq('is_published', true)
+      .eq('subject', paper.subject)
+      .eq('cls', paper.cls)
+      .order('year', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setSiblings(data.map((r) => ({ id: r.id, title: `${r.school} Class ${r.cls} ${r.subject}`, year: hasYear(r.year) ? r.year : null })));
+      });
+    return () => { cancelled = true; };
+  }, [paper]);
 
   const chapters = useMemo(() => {
     const seen: string[] = [];
@@ -673,6 +696,8 @@ export default function BankPaper() {
             </Link>
           </div>
         )}
+
+        {paper && <MorePapers items={siblings} currentId={paper.id} />}
       </main>
 
       {/* The canonical papers sign-in sheet, already built for exactly this

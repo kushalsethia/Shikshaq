@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { getWhatsAppLinkBySlug } from '@/lib/teachers';
 import { resolveTeacherWhatsAppUrl, isWhatsAppUrl } from '@/utils/whatsapp';
@@ -10,6 +10,7 @@ import { recordContact } from '@/lib/contact-record';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { Button } from '@/components/ui/button';
 import { BentoPanel } from '@/components/layout/PageContainer';
+import { useAuth } from '@/lib/auth-context';
 
 /**
  * Interstitial at /tuition-teachers/:slug/whatsapp-click.
@@ -19,7 +20,17 @@ import { BentoPanel } from '@/components/layout/PageContainer';
  * Tracks the click, then forwards to WhatsApp.
  *
  * Never indexed: noindex here, Disallow in robots.txt.
- */
+ *
+ * Real auth gate, not just a UI nicety on the profile page's own button:
+ * this route itself used to have no guard at all, so a bare GET here — no
+ * click, no sign-in, typed directly or hit by a script — resolved and
+ * redirected to the teacher's real number. teacher_whatsapp_link() (see
+ * migration 20260909000002_gate_teacher_contact_columns.sql) already
+ * returns null to a signed-out caller server-side, so the number itself
+ * cannot leak through this path any more — but redirecting a signed-out
+ * visitor to Shikshaq's own support number while the screen still says
+ * "Opening WhatsApp…" would be a confusing dead end, not a fix. Redirecting
+ * to /auth instead is the honest behaviour. */
 
 type Status = 'resolving' | 'redirecting' | 'manual' | 'notfound';
 
@@ -29,6 +40,8 @@ const REDIRECT_DELAY_MS = 500;
 export default function WhatsAppRedirect() {
   const { slug } = useParams<{ slug: string }>();
   const routerLocation = useLocation();
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
 
   const [status, setStatus] = useState<Status>('resolving');
   const [url, setUrl] = useState<string | null>(null);
@@ -52,7 +65,24 @@ export default function WhatsAppRedirect() {
     return () => robots.remove();
   }, []);
 
+  // The real gate. Waits for authLoading to settle so a signed-in visitor on
+  // a slow connection isn't bounced to /auth for the instant before their
+  // session resolves. Once settled, no user means /auth — not this page's
+  // own resolve effect below, which would otherwise fall through to
+  // Shikshaq's support number and call that "Opening WhatsApp…".
   useEffect(() => {
+    if (authLoading || user || !slug) return;
+    // No setAuthIntent 'whatsapp' call here: that variant needs a real
+    // subject and area (auth-intent.ts validates and drops anything with a
+    // blank field back to the default hero), and this page only ever has a
+    // teacher's name, never their subject/area — the profile page is where
+    // that intent is set, before the visitor ever reaches this route. Direct
+    // hits get the default sign-in hero, which is honest rather than blank.
+    navigate('/auth', { replace: true });
+  }, [authLoading, user, slug, navigate]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
     let cancelled = false;
     let cleanupTimer: (() => void) | undefined;
 

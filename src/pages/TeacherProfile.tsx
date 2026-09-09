@@ -14,7 +14,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { resolveTeacherWhatsAppUrl } from '@/utils/whatsapp';
 import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getSubjectPalette } from '@/lib/subject-palette';
-import { getTeacherBySlug, getTeachersByIds } from '@/lib/teachers';
+import { getTeacherBySlug, getTeachersByIds, getWhatsAppLinkBySlug } from '@/lib/teachers';
 import { excerptDescription } from '@/lib/excerpt-description';
 import { TeacherCard } from '@/components/TeacherCard';
 import DOMPurify from 'dompurify';
@@ -328,8 +328,12 @@ export default function TeacherProfile() {
       } catch {
         /* ok */
       }
-      const url = resolveTeacherWhatsAppUrl(teacher.whatsapp_link);
-      navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, { state: { url, name: teacher.name } });
+      // Signed in by this point (the effect's own `!user` guard above), so
+      // the gate on getWhatsAppLinkBySlug already returns the real number.
+      void getWhatsAppLinkBySlug(teacher.slug).then((link) => {
+        const url = resolveTeacherWhatsAppUrl(link);
+        navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, { state: { url, name: teacher.name } });
+      });
     }
   }, [user, teacher]);
 
@@ -609,8 +613,13 @@ export default function TeacherProfile() {
     }
   };
 
-  const handleWhatsAppClick = () => {
-    const url = resolveTeacherWhatsAppUrl(teacher.whatsapp_link);
+  const handleWhatsAppClick = async () => {
+    // Checked BEFORE resolving anything, not after: teacher.whatsapp_link no
+    // longer exists (Shikshaqmine.Link isn't fetched by the profile query at
+    // all any more — see teachers.ts). Resolving it earlier and gating only
+    // the navigation was exactly the old bug: the real number was already in
+    // memory the moment this handler ran, signed in or not. Now there is
+    // nothing to resolve until the gate has already passed.
     if (!user) {
       // design.md §3 — "after auth, continue straight to the redirect that was
       // tapped": flag the intent so the effect above fires the moment `user`
@@ -623,6 +632,8 @@ export default function TeacherProfile() {
       openSignInSheet('message');
       return;
     }
+    const link = await getWhatsAppLinkBySlug(teacher.slug);
+    const url = resolveTeacherWhatsAppUrl(link);
     navigate(`/tuition-teachers/${teacher.slug}/whatsapp-click`, { state: { url, name: teacher.name } });
   };
 

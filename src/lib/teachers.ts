@@ -53,8 +53,15 @@ export interface ShikshaqmineBasic {
   area: string | null;
 }
 
+/* No "Link" here any more -- Shikshaqmine.Link (the WhatsApp number) is no
+   longer anon-selectable at all (column-level REVOKE, see migration
+   20260909000002_gate_teacher_contact_columns.sql), and asking for it in
+   this list would fail the WHOLE query with "permission denied" for every
+   signed-out visitor, not just omit the one field. Resolved separately,
+   only when actually needed, through teacher_whatsapp_link() -- see
+   resolveWhatsAppLink() below. */
 const BASIC_COLUMNS =
-  '"Slug","Sir/Ma\'am?","Subjects","Link","Years they started teaching","Min Fees","Max Fees","Area","LOCATION V2"';
+  '"Slug","Sir/Ma\'am?","Subjects","Years they started teaching","Min Fees","Max Fees","Area","LOCATION V2"';
 
 /** "2016" / 2016 -> years of experience vs. the current year. Null when unparseable or nonsensical. */
 export function deriveExperienceYears(raw: string | number | null | undefined): number | null {
@@ -227,8 +234,10 @@ export interface ShikshaqmineProfile {
   maxFees: number | null;
 }
 
+// No "Link" here — same reason as BASIC_COLUMNS above. Resolved separately
+// through resolveWhatsAppLink() / teacher_whatsapp_link() only when needed.
 const PROFILE_COLUMNS =
-  '"Slug","Sir/Ma\'am?","Subjects","Classes Taught","Classes Taught for Backend","Area","School Boards Catered","Class Size (Group/ Solo)","Mode of Teaching","Place of Teaching","LOCATION V2","STUDENT\'S HOME IN THESE AREAS","TUTOR\'S HOME IN THESE AREAS","EXPANDED","Description","Qualifications etc","Years they started teaching","Review 1","Review 2","Review 3","Link","Min Fees","Max Fees"';
+  '"Slug","Sir/Ma\'am?","Subjects","Classes Taught","Classes Taught for Backend","Area","School Boards Catered","Class Size (Group/ Solo)","Mode of Teaching","Place of Teaching","LOCATION V2","STUDENT\'S HOME IN THESE AREAS","TUTOR\'S HOME IN THESE AREAS","EXPANDED","Description","Qualifications etc","Years they started teaching","Review 1","Review 2","Review 3","Min Fees","Max Fees"';
 
 function mapShikshaqmineProfileRow(row: any): ShikshaqmineProfile {
   return {
@@ -304,16 +313,20 @@ export async function getTeacherBySlug<T = any>(slug: string): Promise<{ teacher
   return { teacher: teacherData ?? null, shikshaqmine };
 }
 
-/** Only the WhatsApp link for a slug — used by the WhatsApp redirect interstitial. */
+/** Only the WhatsApp link for a slug — used by the WhatsApp redirect
+ *  interstitial. Reads through teacher_whatsapp_link(), not the table
+ *  directly: Shikshaqmine.Link is no longer anon-selectable at all (column-
+ *  level REVOKE, migration 20260909000002_gate_teacher_contact_columns.sql),
+ *  and the function itself is the real gate — it returns null for a
+ *  signed-out caller regardless of what this function is told, so there is
+ *  no client-side flag here that could ask for more than that. */
 export async function getWhatsAppLinkBySlug(slug: string): Promise<string | null> {
-  const { data, error } = await (supabase.from('Shikshaqmine').select('"Link"') as any)
-    .eq('Slug', slug)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('teacher_whatsapp_link', { p_slug: slug });
   if (error) {
     if (import.meta.env.DEV) console.warn('getWhatsAppLinkBySlug error:', error);
     return null;
   }
-  return (data as Record<string, string> | null)?.['Link'] ?? null;
+  return data ?? null;
 }
 
 /* ---------------------------------------------------------------------------
