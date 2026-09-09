@@ -9,13 +9,12 @@ import {
   ARTICLE_BY_SLUG,
   BLOG_ARTICLES,
   BLOG_PATH,
-  BANK_TOTALS,
-  CHAPTER_STATS,
-  SCOPE_LABEL,
+  BLOG_SUBJECTS,
   commonestMarkValue,
   fmt,
   markShare,
   paperCoverage,
+  scopeLabel,
   type BlogArticle,
 } from '@/content/blog';
 
@@ -57,10 +56,7 @@ function BarRow({
           {fmt(value)} {suffix}
         </span>
       </span>
-      <span
-        aria-hidden
-        className="mt-1.5 block h-2 rounded-full bg-brand-subtle"
-      >
+      <span aria-hidden className="mt-1.5 block h-2 rounded-full bg-brand-subtle">
         <span className="block h-2 rounded-full bg-brand" style={{ width: `${pct}%` }} />
       </span>
     </>
@@ -82,225 +78,236 @@ function BarRow({
   );
 }
 
-function MethodNote() {
+function MethodNote({ subject }: { subject: string }) {
+  const t = BLOG_SUBJECTS[subject]?.totals;
+  if (!t) return null;
   return (
     <p className="mt-8 border-t border-border pt-4 text-meta leading-[1.6] text-warm-label">
-      Counted from {fmt(BANK_TOTALS.questions)} questions in {fmt(BANK_TOTALS.papers)}{' '}
-      {SCOPE_LABEL} papers set by {fmt(BANK_TOTALS.schools)} Kolkata schools between{' '}
-      {BANK_TOTALS.firstYear} and {BANK_TOTALS.lastYear}. Chapter labels are the ones carried in
-      the paper bank. Papers are the property of the schools that set them.
+      Counted from {fmt(t.questions)} questions in {fmt(t.papers)} {scopeLabel(subject)} papers set by{' '}
+      {fmt(t.schools)} Kolkata schools{t.firstYear && t.lastYear ? ` between ${t.firstYear} and ${t.lastYear}` : ''}.
+      Topic labels are the ones carried in the paper bank. Papers are the property of the schools that set them.
     </p>
   );
 }
 
 /* ---------------------------------------------------------------------------
-   The two overview articles
+   The two per-subject overview articles
 --------------------------------------------------------------------------- */
 
-function ChaptersByMarks() {
-  const max = CHAPTER_STATS[0]?.marks ?? 0;
-  const top = CHAPTER_STATS[0];
-  const topFive = CHAPTER_STATS.slice(0, 5);
-  const topFiveShare = Math.round(
-    (topFive.reduce((n, c) => n + c.marks, 0) / BANK_TOTALS.marks) * 100,
-  );
-  /* Compared against, not asserted over. An earlier draft read "so more than
-     half the paper comes from under a third of the syllabus" while the figure
-     beside it said 49%, which is the exact failure this whole section is
-     supposed to avoid. The comparison is now derived from both numbers. */
-  const topFiveSyllabusShare = Math.round((topFive.length / BANK_TOTALS.chapters) * 100);
+function TopicsByMarks({ subject }: { subject: string }) {
+  const stats = BLOG_SUBJECTS[subject];
+  const topics = stats?.topics ?? [];
+  const totals = stats?.totals;
+  const max = topics[0]?.marks ?? 0;
+  const top = topics[0];
+  const topFive = topics.slice(0, 5);
+  const topFiveShare = totals?.marks
+    ? Math.round((topFive.reduce((n, c) => n + c.marks, 0) / totals.marks) * 100)
+    : 0;
+  /* Compared against, not asserted over: the comparison below is derived
+     from both numbers rather than stated as if it were obviously true. */
+  const topFiveTopicShare = totals?.topics ? Math.round((topFive.length / totals.topics) * 100) : 0;
+
+  if (!totals || !top) return null;
 
   return (
     <>
       <p className="text-lede text-warm-prose">
-        Every revision guide ranks these chapters by opinion. This one ranks them by the marks they
-        actually carried in {fmt(BANK_TOTALS.papers)} papers.
+        Every revision guide ranks topics by opinion. This one ranks them by the marks they actually
+        carried in {fmt(totals.papers)} papers.
       </p>
 
       <dl className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        <Stat value={fmt(BANK_TOTALS.marks)} label="marks counted" />
-        <Stat value={fmt(BANK_TOTALS.chapters)} label="chapters" />
+        <Stat value={fmt(totals.marks)} label="marks counted" />
+        <Stat value={fmt(totals.topics)} label="topics" />
         <Stat value={`${topFiveShare}%`} label="carried by the top five" />
-        <Stat value={fmt(BANK_TOTALS.papers)} label="papers read" />
+        <Stat value={fmt(totals.papers)} label="papers read" />
       </dl>
 
       <h2 className="mt-10 font-display text-section-head font-extrabold tracking-[-0.03em] text-foreground">
-        All {BANK_TOTALS.chapters} chapters, by marks carried
+        All {totals.topics} topics, by marks carried
       </h2>
       <ul className="mt-4 space-y-1">
-        {CHAPTER_STATS.map((c) => (
-          <BarRow
-            key={c.slug}
-            label={c.name}
-            value={c.marks}
-            max={max}
-            suffix="marks"
-            href={`${BLOG_PATH}/${c.slug}-in-icse-class-10-maths-papers`}
-          />
-        ))}
+        {topics.map((t) => {
+          const topicArticle = BLOG_ARTICLES.find((a) => a.subject === subject && a.topic?.slug === t.slug);
+          return (
+            <BarRow
+              key={t.slug}
+              label={t.name}
+              value={t.marks}
+              max={max}
+              suffix="marks"
+              href={topicArticle ? `${BLOG_PATH}/${topicArticle.slug}` : undefined}
+            />
+          );
+        })}
       </ul>
 
       <h2 className="mt-10 font-display text-section-head font-extrabold tracking-[-0.03em] text-foreground">
         What the ranking shows
       </h2>
       <p className="mt-3 max-w-prose text-body-secondary text-warm-prose">
-        {top?.name} carried more marks than any other chapter, {fmt(top?.marks ?? 0)} of{' '}
-        {fmt(BANK_TOTALS.marks)}, which is {markShare(top!)}% of every mark in the bank. The five
-        heaviest chapters carried {topFiveShare}% of the marks between them, which is{' '}
-        {topFiveShare > topFiveSyllabusShare ? 'more' : 'less'} than their {topFiveSyllabusShare}%
-        share of the syllabus: five of {BANK_TOTALS.chapters} chapters.
+        {top.name} carried more marks than any other topic, {fmt(top.marks)} of {fmt(totals.marks)},
+        which is {markShare(subject, top)}% of every mark in the bank. The five heaviest topics
+        carried {topFiveShare}% of the marks between them, which is{' '}
+        {topFiveShare > topFiveTopicShare ? 'more' : 'less'} than their {topFiveTopicShare}% share of
+        the topics: five of {totals.topics}.
       </p>
       <p className="mt-3 max-w-prose text-body-secondary text-warm-prose">
-        Weight is not the same as reliability. A chapter can carry a large total simply by appearing
-        in most papers at a small size, so each chapter page below also gives the share of papers it
+        Weight is not the same as reliability. A topic can carry a large total simply by appearing in
+        most papers at a small size, so each topic page below also gives the share of papers it
         appeared in and the mark value it was most often set at.
       </p>
 
-      <MethodNote />
+      <MethodNote subject={subject} />
     </>
   );
 }
 
-function HowSchoolsSetPapers() {
-  /* Exam types are recorded per question, so summing across chapters gives the
-     bank's real distribution rather than a guess at how many papers of each
-     kind exist. */
+function HowSchoolsSetPapers({ subject }: { subject: string }) {
+  const stats = BLOG_SUBJECTS[subject];
+  const totals = stats?.totals;
+  const topics = stats?.topics ?? [];
+  if (!totals) return null;
+
+  /* Exam types/mark values are recorded per topic, so summing across topics
+     gives the bank's real distribution -- but Economics carries no topics at
+     all, so this also needs a topic-less path: same numbers, read straight
+     off every row instead of aggregated from a list that's empty for it. */
   const byExam = new Map<string, number>();
-  for (const c of CHAPTER_STATS) {
-    for (const e of c.examTypes) byExam.set(e.label, (byExam.get(e.label) ?? 0) + e.count);
+  const byMark = new Map<number, number>();
+  let totalLong = 0;
+  let totalShort = 0;
+  for (const t of topics) {
+    for (const e of t.examTypes) byExam.set(e.label, (byExam.get(e.label) ?? 0) + e.count);
+    for (const m of t.markValues) byMark.set(m.value, (byMark.get(m.value) ?? 0) + m.count);
+    totalLong += t.longQuestions;
+    totalShort += t.shortQuestions;
   }
   const exams = [...byExam.entries()].sort((a, b) => b[1] - a[1]);
   const examMax = exams[0]?.[1] ?? 0;
-
-  const byMark = new Map<number, number>();
-  for (const c of CHAPTER_STATS) {
-    for (const m of c.markValues) byMark.set(m.value, (byMark.get(m.value) ?? 0) + m.count);
-  }
   const marks = [...byMark.entries()].sort((a, b) => a[0] - b[0]);
   const markMax = Math.max(...marks.map(([, n]) => n), 0);
-
-  const totalLong = CHAPTER_STATS.reduce((n, c) => n + c.longQuestions, 0);
-  const totalShort = CHAPTER_STATS.reduce((n, c) => n + c.shortQuestions, 0);
-  const longShare = totalLong + totalShort > 0
-    ? Math.round((totalLong / (totalLong + totalShort)) * 100)
-    : 0;
+  const longShare = totalLong + totalShort > 0 ? Math.round((totalLong / (totalLong + totalShort)) * 100) : 0;
 
   return (
     <>
       <p className="text-lede text-warm-prose">
-        {fmt(BANK_TOTALS.schools)} Kolkata schools, {fmt(BANK_TOTALS.papers)} papers, and a fairly
-        consistent shape underneath them.
+        {fmt(totals.schools)} Kolkata schools, {fmt(totals.papers)} papers, and a fairly consistent
+        shape underneath them.
       </p>
 
-      <h2 className="mt-10 font-display text-section-head font-extrabold tracking-[-0.03em] text-foreground">
-        What kind of paper these are
-      </h2>
-      <ul className="mt-4 space-y-1">
-        {exams.map(([label, n]) => (
-          <BarRow key={label} label={label} value={n} max={examMax} suffix="questions" />
-        ))}
-      </ul>
-      <p className="mt-4 max-w-prose text-body-secondary text-warm-prose">
-        Prelims dominate the bank, which matters when you use it: a prelim is a school setting its
-        own paper in the board's shape, so it tells you what your school tends to ask as much as
-        what the board does.
-      </p>
+      {exams.length > 0 && (
+        <>
+          <h2 className="mt-10 font-display text-section-head font-extrabold tracking-[-0.03em] text-foreground">
+            What kind of paper these are
+          </h2>
+          <ul className="mt-4 space-y-1">
+            {exams.map(([label, n]) => (
+              <BarRow key={label} label={label} value={n} max={examMax} suffix="questions" />
+            ))}
+          </ul>
+          <p className="mt-4 max-w-prose text-body-secondary text-warm-prose">
+            Prelims and board papers dominate the bank, which matters when you use it: a prelim is a
+            school setting its own paper in the board's shape, so it tells you what your school tends
+            to ask as much as what the board does.
+          </p>
+        </>
+      )}
 
-      <h2 className="mt-10 font-display text-section-head font-extrabold tracking-[-0.03em] text-foreground">
-        How questions are weighted
-      </h2>
-      <ul className="mt-4 space-y-1">
-        {marks.map(([value, n]) => (
-          <BarRow
-            key={value}
-            label={`${value} mark${value === 1 ? '' : 's'}`}
-            value={n}
-            max={markMax}
-            suffix="questions"
-          />
-        ))}
-      </ul>
-      <p className="mt-4 max-w-prose text-body-secondary text-warm-prose">
-        Of the questions the bank labels by length, {longShare}% are long-form. The rest are short,
-        which is where most of the paper's volume sits even when the marks are elsewhere.
-      </p>
+      {marks.length > 0 && (
+        <>
+          <h2 className="mt-10 font-display text-section-head font-extrabold tracking-[-0.03em] text-foreground">
+            How questions are weighted
+          </h2>
+          <ul className="mt-4 space-y-1">
+            {marks.map(([value, n]) => (
+              <BarRow key={value} label={`${value} mark${value === 1 ? '' : 's'}`} value={n} max={markMax} suffix="questions" />
+            ))}
+          </ul>
+          {(totalLong > 0 || totalShort > 0) && (
+            <p className="mt-4 max-w-prose text-body-secondary text-warm-prose">
+              Of the questions the bank labels by length, {longShare}% are long-form. The rest are
+              short, which is where most of the paper's volume sits even when the marks are elsewhere.
+            </p>
+          )}
+        </>
+      )}
 
-      <MethodNote />
+      <MethodNote subject={subject} />
     </>
   );
 }
 
 /* ---------------------------------------------------------------------------
-   A chapter article
+   A topic article
 --------------------------------------------------------------------------- */
 
-function ChapterArticle({ article }: { article: BlogArticle }) {
-  const c = article.chapter!;
-  const rank = CHAPTER_STATS.findIndex((x) => x.slug === c.slug) + 1;
-  const common = commonestMarkValue(c);
-  const markMax = Math.max(...c.markValues.map((m) => m.count), 0);
-  const examMax = Math.max(...c.examTypes.map((e) => e.count), 0);
+function TopicArticle({ article }: { article: BlogArticle }) {
+  const t = article.topic!;
+  const subject = article.subject;
+  const topics = BLOG_SUBJECTS[subject]?.topics ?? [];
+  const totals = BLOG_SUBJECTS[subject]?.totals;
+  const rank = topics.findIndex((x) => x.slug === t.slug) + 1;
+  const common = commonestMarkValue(t);
+  const markMax = Math.max(...t.markValues.map((m) => m.count), 0);
+  const examMax = Math.max(...t.examTypes.map((e) => e.count), 0);
+
+  if (!totals) return null;
 
   return (
     <>
       <p className="text-lede text-warm-prose">
-        {c.name} carried {fmt(c.marks)} marks across the bank, which ranks it {rank} of{' '}
-        {BANK_TOTALS.chapters} chapters and is {markShare(c)}% of every mark counted.
+        {t.name} carried {fmt(t.marks)} marks across the bank, which ranks it {rank} of{' '}
+        {totals.topics} topics and is {markShare(subject, t)}% of every mark counted.
       </p>
 
       <dl className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        <Stat value={fmt(c.marks)} label="marks carried" />
-        <Stat value={fmt(c.questions)} label="questions set" />
-        <Stat value={`${paperCoverage(c)}%`} label="of papers" />
-        <Stat value={String(c.averageMarks)} label="marks per question" />
+        <Stat value={fmt(t.marks)} label="marks carried" />
+        <Stat value={fmt(t.questions)} label="questions set" />
+        <Stat value={`${paperCoverage(subject, t)}%`} label="of papers" />
+        <Stat value={String(t.averageMarks)} label="marks per question" />
       </dl>
 
       <h2 className="mt-10 font-display text-section-head font-extrabold tracking-[-0.03em] text-foreground">
         How often it comes up
       </h2>
       <p className="mt-3 max-w-prose text-body-secondary text-warm-prose">
-        It appeared in {fmt(c.papers)} of {fmt(BANK_TOTALS.papers)} papers, set by{' '}
-        {fmt(c.schools)} different Kolkata schools
-        {c.firstYear && c.lastYear ? `, in papers dated ${c.firstYear} to ${c.lastYear}` : ''}.{' '}
-        {paperCoverage(c) >= 75
+        It appeared in {fmt(t.papers)} of {fmt(totals.papers)} papers, set by {fmt(t.schools)}{' '}
+        different Kolkata schools{t.firstYear && t.lastYear ? `, in papers dated ${t.firstYear} to ${t.lastYear}` : ''}.{' '}
+        {paperCoverage(subject, t) >= 75
           ? 'At that rate it is close to a certainty rather than a topic to gamble on.'
-          : paperCoverage(c) >= 40
+          : paperCoverage(subject, t) >= 40
             ? 'That is frequent enough to prepare for, and infrequent enough that a single paper may skip it.'
             : 'That is infrequent, so a given paper may well not set it at all.'}
       </p>
 
-      {c.markValues.length > 0 && (
+      {t.markValues.length > 0 && (
         <>
           <h2 className="mt-10 font-display text-section-head font-extrabold tracking-[-0.03em] text-foreground">
             What it is usually worth
           </h2>
           <ul className="mt-4 space-y-1">
-            {c.markValues.map((m) => (
-              <BarRow
-                key={m.value}
-                label={`${m.value} mark${m.value === 1 ? '' : 's'}`}
-                value={m.count}
-                max={markMax}
-                suffix="questions"
-              />
+            {t.markValues.map((m) => (
+              <BarRow key={m.value} label={`${m.value} mark${m.value === 1 ? '' : 's'}`} value={m.count} max={markMax} suffix="questions" />
             ))}
           </ul>
           {common && (
             <p className="mt-4 max-w-prose text-body-secondary text-warm-prose">
               Most often it is set as a {common.value}-mark question, {fmt(common.count)} of the{' '}
-              {fmt(c.questions)} counted here.
+              {fmt(t.questions)} counted here.
             </p>
           )}
         </>
       )}
 
-      {c.examTypes.length > 0 && (
+      {t.examTypes.length > 0 && (
         <>
           <h2 className="mt-10 font-display text-section-head font-extrabold tracking-[-0.03em] text-foreground">
             Which papers set it
           </h2>
           <ul className="mt-4 space-y-1">
-            {c.examTypes.map((e) => (
+            {t.examTypes.map((e) => (
               <BarRow key={e.label} label={e.label} value={e.count} max={examMax} suffix="questions" />
             ))}
           </ul>
@@ -324,7 +331,7 @@ function ChapterArticle({ article }: { article: BlogArticle }) {
         </Link>
       </div>
 
-      <MethodNote />
+      <MethodNote subject={subject} />
     </>
   );
 }
@@ -345,8 +352,9 @@ export default function BlogPost() {
 
   if (!article) return <Navigate to={BLOG_PATH} replace />;
 
-  const i = BLOG_ARTICLES.findIndex((a) => a.slug === article.slug);
-  const next = BLOG_ARTICLES[i + 1];
+  const subjectArticles = BLOG_ARTICLES.filter((a) => a.subject === article.subject);
+  const i = subjectArticles.findIndex((a) => a.slug === article.slug);
+  const next = subjectArticles[i + 1];
 
   return (
     <>
@@ -360,7 +368,7 @@ export default function BlogPost() {
           '@type': 'Article',
           headline: article.title,
           description: article.description,
-          about: article.chapter ? article.chapter.name : SCOPE_LABEL,
+          about: article.topic ? article.topic.name : scopeLabel(article.subject),
           isAccessibleForFree: true,
           publisher: { '@type': 'Organization', name: 'Shikshaq' },
           mainEntityOfPage: {
@@ -385,20 +393,18 @@ export default function BlogPost() {
             <h1 className="mt-2 max-w-[20ch] font-display text-display-hero font-black leading-[0.95] tracking-[-0.04em] text-foreground">
               {article.title}
             </h1>
-            <p className="mt-3 text-meta tabular-nums text-warm-label">
-              {article.minutes} min read
-            </p>
+            <p className="mt-3 text-meta tabular-nums text-warm-label">{article.minutes} min read</p>
           </PageContainer>
         </BentoPanel>
 
         <BentoPanel fill="card">
           <PageContainer className="px-0">
-            {article.chapter ? (
-              <ChapterArticle article={article} />
-            ) : article.slug === 'which-chapters-carry-the-marks' ? (
-              <ChaptersByMarks />
+            {article.kind === 'topic' ? (
+              <TopicArticle article={article} />
+            ) : article.kind === 'ranking' ? (
+              <TopicsByMarks subject={article.subject} />
             ) : (
-              <HowSchoolsSetPapers />
+              <HowSchoolsSetPapers subject={article.subject} />
             )}
 
             {next && (
@@ -408,23 +414,15 @@ export default function BlogPost() {
               >
                 <span className="min-w-0">
                   <span className="block text-label uppercase text-warm-label">Next</span>
-                  <span className="mt-1 block truncate font-bold text-foreground">
-                    {next.title}
-                  </span>
+                  <span className="mt-1 block truncate font-bold text-foreground">{next.title}</span>
                 </span>
-                <ArrowRight
-                  className="h-5 w-5 flex-none text-warm-label transition-transform duration-hover group-hover:translate-x-0.5"
-                  aria-hidden
-                />
+                <ArrowRight className="h-5 w-5 flex-none text-warm-label transition-transform duration-hover group-hover:translate-x-0.5" aria-hidden />
               </Link>
             )}
 
             <p className="mt-6 text-body-secondary text-warm-prose">
               Looking for a teacher instead?{' '}
-              <Link
-                to={BROWSE_PATH}
-                className="font-semibold text-brand-blue underline underline-offset-4"
-              >
+              <Link to={BROWSE_PATH} className="font-semibold text-brand-blue underline underline-offset-4">
                 Every verified tutor in Kolkata
               </Link>{' '}
               is free to search and free to contact.

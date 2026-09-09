@@ -1,23 +1,30 @@
 /**
  * The blog's article set.
  *
- * Every article here is built from CHAPTER_STATS, which scripts/generate-blog-
- * stats.ts counts out of the real question bank. That is the whole editorial
- * position: there is no shortage of pages telling a Class 10 student that
- * Trigonometry is important, and none of them have counted how many marks it
- * actually carried across 193 Kolkata prelim and board papers. This has.
+ * Every article here is built from BLOG_SUBJECTS, which scripts/generate-blog-
+ * stats.ts counts out of the real question bank -- one entry per subject the
+ * bank actually covers. That is the whole editorial position: there is no
+ * shortage of pages telling a student that a topic is important, and none of
+ * them have counted how many marks it actually carried across real Kolkata
+ * papers. This has, for however many subjects the bank holds real data for.
  *
- * WHAT IS DELIBERATELY NOT HERE. The bank is Class 10 ICSE Maths and nothing
- * else, so there are no Physics, English or Class 8 articles. Writing 20
- * templated posts per subject off a subject name and a class number is the
- * thing that gets a whole domain demoted, and it would put invented syllabus
- * claims next to a papers library whose entire value is that its numbers are
- * real. When the bank covers another subject, this file grows; until then it
- * does not pretend to.
+ * Per-subject article shape is NOT uniform, because the underlying data
+ * isn't: a subject only gets a topic ranking and per-topic pages when its
+ * bank actually carries usable topic-level data (Mathematics, History &
+ * Civics, English today). Economics carries exam-structure data (marks,
+ * exam types) but no topic field at all, so it gets the "how schools set
+ * their papers" article and nothing pretending to rank topics that were
+ * never counted. See generate-blog-stats.ts for exactly what each subject's
+ * bank does and doesn't carry.
+ *
+ * Mathematics' three slugs are UNCHANGED from before this file went multi-
+ * subject -- they are live, indexed URLs, and changing them would break
+ * every existing link and search result pointed at them. New subjects mint
+ * their own distinct slug shapes rather than reusing that one.
  *
  * House style (CLAUDE.md): no em or en dashes anywhere in reader-facing copy.
  */
-import { BANK_SCOPE, BANK_TOTALS, CHAPTER_STATS, type ChapterStat } from './blog-stats';
+import { BLOG_SUBJECTS, SUBJECT_NAMES, type SubjectStats, type TopicStat } from './blog-stats';
 
 export interface BlogArticle {
   slug: string;
@@ -27,16 +34,16 @@ export interface BlogArticle {
   description: string;
   /** Small routing label above the title. */
   eyebrow: string;
-  /**
-   * Footer and other cramped link lists. The full titles all carry the same
-   * "in ICSE Class 10 Maths papers" tail, which is right on the page and is
-   * twenty repetitions of the same six words in a link column.
-   */
+  /** Footer and other cramped link lists. */
   shortTitle: string;
-  /** Ordering on the index. Lower sorts first. */
+  /** Ordering within the subject. Lower sorts first. */
   order: number;
-  /** The chapter this article is about, if it is a chapter article. */
-  chapter?: ChapterStat;
+  /** Which subject's stats this article reads. */
+  subject: string;
+  /** Which of the three templates BlogPost.tsx renders. */
+  kind: 'ranking' | 'structure' | 'topic';
+  /** The topic this article is about, if kind is 'topic'. */
+  topic?: TopicStat;
   /** Reading estimate, in minutes, from the rendered section count. */
   minutes: number;
 }
@@ -44,75 +51,174 @@ export interface BlogArticle {
 const nf = new Intl.NumberFormat('en-IN');
 export const fmt = (n: number) => nf.format(n);
 
-/** Percent of the bank's papers a chapter appeared in, as a whole number. */
-export function paperCoverage(c: ChapterStat): number {
-  return Math.round((c.papers / BANK_TOTALS.papers) * 100);
+/** Percent of a subject's papers a topic appeared in, as a whole number. */
+export function paperCoverage(subject: string, t: TopicStat): number {
+  const total = BLOG_SUBJECTS[subject]?.totals.papers ?? 0;
+  return total ? Math.round((t.papers / total) * 100) : 0;
 }
 
-/** A chapter's share of every mark counted in the bank. */
-export function markShare(c: ChapterStat): number {
-  return Math.round((c.marks / BANK_TOTALS.marks) * 1000) / 10;
+/** A topic's share of every mark counted for its subject. */
+export function markShare(subject: string, t: TopicStat): number {
+  const total = BLOG_SUBJECTS[subject]?.totals.marks ?? 0;
+  return total ? Math.round((t.marks / total) * 1000) / 10 : 0;
 }
 
-/** The mark value a chapter is most often set at, and how often. */
-export function commonestMarkValue(c: ChapterStat): { value: number; count: number } | null {
-  if (!c.markValues.length) return null;
-  return c.markValues.reduce((best, m) => (m.count > best.count ? m : best));
+/** The mark value a topic is most often set at, and how often. */
+export function commonestMarkValue(t: TopicStat): { value: number; count: number } | null {
+  if (!t.markValues.length) return null;
+  return t.markValues.reduce((best, m) => (m.count > best.count ? m : best));
 }
 
-export const SCOPE_LABEL = `${BANK_SCOPE.board} Class ${BANK_SCOPE.classLevel} ${BANK_SCOPE.subject}`;
+export function scopeLabel(subject: string): string {
+  const s = BLOG_SUBJECTS[subject]?.scope;
+  if (!s) return subject;
+  // "Maths" everywhere in reader-facing copy, same as before this file went
+  // multi-subject, even though the stored/keyed value is "Mathematics".
+  const displaySubject = subject === 'Mathematics' ? 'Maths' : s.subject;
+  return s.classLevel ? `${s.board} Class ${s.classLevel} ${displaySubject}` : `${s.board} ${displaySubject}`;
+}
 
-/* ---------------------------------------------------------------------------
-   The two overview articles, then one per chapter.
---------------------------------------------------------------------------- */
+/* Mathematics keeps its exact original slugs (see file header). Every other
+   subject mints `-in-<subject-slug>-papers`. */
+function subjectSlug(subject: string): string {
+  return subject
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
-const OVERVIEW: BlogArticle[] = [
-  {
-    slug: 'which-chapters-carry-the-marks',
-    title: `Which ${SCOPE_LABEL} chapters actually carry the marks`,
+/* Mathematics' copy is reproduced byte-for-byte from this file's own
+   pre-multi-subject version (git history has the original) rather than run
+   through the generic template below: `/blog/which-chapters-carry-the-marks`
+   and its sibling pages are live, indexed URLs, and this page's own TITLE
+   and body copy are part of what search results and existing links show,
+   not just its slug. A generic re-derivation changed "ICSE Class 10 Maths"
+   to "ICSE Class 10 Mathematics" and "chapters" to "topics" the first time
+   this was tried — same page, quietly different copy, exactly the kind of
+   change that looks harmless in a diff and isn't once a page is indexed. */
+function mathematicsArticles(stats: SubjectStats): BlogArticle[] {
+  const scopeLabelMaths = `${stats.scope.board} Class ${stats.scope.classLevel} Maths`;
+  const out: BlogArticle[] = [
+    {
+      slug: 'which-chapters-carry-the-marks',
+      title: `Which ${scopeLabelMaths} chapters actually carry the marks`,
+      description:
+        `Every chapter in the ${scopeLabelMaths} syllabus, ranked by the marks it really carried ` +
+        `across ${fmt(stats.totals.papers)} papers from ${fmt(stats.totals.schools)} Kolkata schools.`,
+      eyebrow: 'Counted from real papers',
+      shortTitle: 'Which chapters carry the marks',
+      order: 0,
+      subject: 'Mathematics',
+      kind: 'ranking',
+      minutes: 6,
+    },
+    {
+      slug: 'how-kolkata-schools-set-their-papers',
+      title: 'How Kolkata schools actually set their Class 10 Maths papers',
+      description:
+        `What ${fmt(stats.totals.questions)} questions from ${fmt(stats.totals.schools)} schools show ` +
+        `about paper types, mark weights and how much of the syllabus a prelim really covers.`,
+      eyebrow: 'Counted from real papers',
+      shortTitle: 'How schools set their papers',
+      order: 1,
+      subject: 'Mathematics',
+      kind: 'structure',
+      minutes: 5,
+    },
+  ];
+
+  stats.topics.forEach((chapter, i) => {
+    out.push({
+      slug: `${chapter.slug}-in-icse-class-10-maths-papers`,
+      title: `${chapter.name} in ${scopeLabelMaths} papers`,
+      description:
+        `${chapter.name} carried ${fmt(chapter.marks)} marks across ${fmt(chapter.papers)} of ` +
+        `${fmt(stats.totals.papers)} papers. What that looks like question by question.`,
+      eyebrow: chapter.name,
+      shortTitle: chapter.name,
+      order: 10 + i,
+      subject: 'Mathematics',
+      kind: 'topic',
+      topic: chapter,
+      minutes: 4,
+    });
+  });
+
+  return out;
+}
+
+function articlesFor(subject: string, stats: SubjectStats): BlogArticle[] {
+  if (subject === 'Mathematics') return mathematicsArticles(stats);
+
+  const label = scopeLabel(subject);
+  const hasTopics = stats.topics.length > 0;
+  const out: BlogArticle[] = [];
+
+  if (hasTopics) {
+    out.push({
+      slug: `which-topics-carry-the-marks-in-${subjectSlug(subject)}-papers`,
+      title: `Which ${label} topics actually carry the marks`,
+      description:
+        `Every topic that came up in the ${label} bank, ranked by the marks it really carried ` +
+        `across ${fmt(stats.totals.papers)} papers from ${fmt(stats.totals.schools)} Kolkata schools.`,
+      eyebrow: 'Counted from real papers',
+      shortTitle: 'Which topics carry the marks',
+      order: 0,
+      subject,
+      kind: 'ranking',
+      minutes: 6,
+    });
+  }
+
+  out.push({
+    slug: `how-kolkata-schools-set-their-${subjectSlug(subject)}-papers`,
+    title: `How Kolkata schools actually set their ${label} papers`,
     description:
-      `Every chapter in the ${SCOPE_LABEL} syllabus, ranked by the marks it really carried ` +
-      `across ${fmt(BANK_TOTALS.papers)} papers from ${fmt(BANK_TOTALS.schools)} Kolkata schools.`,
-    eyebrow: 'Counted from real papers',
-    shortTitle: 'Which chapters carry the marks',
-    order: 0,
-    minutes: 6,
-  },
-  {
-    slug: 'how-kolkata-schools-set-their-papers',
-    title: 'How Kolkata schools actually set their Class 10 Maths papers',
-    description:
-      `What ${fmt(BANK_TOTALS.questions)} questions from ${fmt(BANK_TOTALS.schools)} schools show ` +
-      `about paper types, mark weights and how much of the syllabus a prelim really covers.`,
+      `What ${fmt(stats.totals.questions)} questions from ${fmt(stats.totals.schools)} schools show ` +
+      `about paper types and how questions are weighted.`,
     eyebrow: 'Counted from real papers',
     shortTitle: 'How schools set their papers',
     order: 1,
+    subject,
+    kind: 'structure',
     minutes: 5,
-  },
-];
+  });
 
-const CHAPTER_ARTICLES: BlogArticle[] = CHAPTER_STATS.map((chapter, i) => ({
-  slug: `${chapter.slug}-in-icse-class-10-maths-papers`,
-  title: `${chapter.name} in ${SCOPE_LABEL} papers`,
-  description:
-    `${chapter.name} carried ${fmt(chapter.marks)} marks across ${fmt(chapter.papers)} of ` +
-    `${fmt(BANK_TOTALS.papers)} papers. What that looks like question by question.`,
-  eyebrow: chapter.name,
-  shortTitle: chapter.name,
-  order: 10 + i,
-  chapter,
-  minutes: 4,
-}));
+  stats.topics.forEach((topic, i) => {
+    out.push({
+      slug: `${topic.slug}-in-${subjectSlug(subject)}-papers`,
+      title: `${topic.name} in ${label} papers`,
+      description:
+        `${topic.name} carried ${fmt(topic.marks)} marks across ${fmt(topic.papers)} of ` +
+        `${fmt(stats.totals.papers)} papers. What that looks like question by question.`,
+      eyebrow: topic.name,
+      shortTitle: topic.name,
+      order: 10 + i,
+      subject,
+      kind: 'topic',
+      topic,
+      minutes: 4,
+    });
+  });
 
-export const BLOG_ARTICLES: BlogArticle[] = [...OVERVIEW, ...CHAPTER_ARTICLES].sort(
-  (a, b) => a.order - b.order,
+  return out;
+}
+
+export const BLOG_ARTICLES: BlogArticle[] = SUBJECT_NAMES.flatMap((subject) =>
+  articlesFor(subject, BLOG_SUBJECTS[subject]),
 );
 
 export const ARTICLE_BY_SLUG: Record<string, BlogArticle> = Object.fromEntries(
   BLOG_ARTICLES.map((a) => [a.slug, a]),
 );
 
+/** Every subject with at least one article, in the bank's own generation
+    order (Mathematics first, since it's SUBJECT_NAMES' first entry -- the
+    original, largest, most complete bank). */
+export const BLOG_SUBJECT_NAMES = SUBJECT_NAMES;
+
 export const BLOG_PATH = '/blog';
 
-export { BANK_TOTALS, CHAPTER_STATS, BANK_SCOPE };
-export type { ChapterStat };
+export { BLOG_SUBJECTS };
+export type { SubjectStats, TopicStat };
