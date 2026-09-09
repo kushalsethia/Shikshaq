@@ -358,6 +358,99 @@ function isFlatShape(file: unknown): file is SourceFileFlat {
   return Array.isArray(f.questions) && Array.isArray(f.stimuli);
 }
 
+/* -------------------------------------------------- school from filename */
+
+/* This source carries no school field anywhere — not on a question, not on
+   its own paper record (checked by hand against all 503 paper entries: the
+   `school` key is null on every one). The name only survives in the raw
+   filename ("030_Don_Bosco_School_Siliguri_2024_12_English_Language_
+   (ICSE).pdf"), and those filenames are inconsistent enough — abbreviations,
+   missing years, reordered segments, board-only papers, regional-language
+   specimen papers with no school at all — that only a fraction match one
+   clean shape. Prototyped separately against all 403 filenames and reviewed
+   by hand (345/403 resolved) before being ported here; see the session
+   notes for the review. This extracts a best-effort RAW candidate only —
+   messy on purpose, matching how the other three subjects' school strings
+   already arrive ("Avm Juhu Icse10 Preprelim", per school-names.ts's own
+   comment) — and leans on the existing schoolLabel()/CODE_FRAGMENTS/
+   SCHOOL_ALIASES pipeline to do the actual cleanup, same as every other
+   subject. A wrong school name is worse than a terse one (school-names.ts's
+   own rule), so this is deliberately conservative: it leaves a filename
+   unresolved (null) rather than guess through it. */
+
+const CLASS_NUMERALS = new Set(['IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']);
+const LANGUAGE_TOKENS = new Set([
+  'kannada', 'malayalam', 'manipuri', 'mizo', 'odia', 'tamang', 'tangkhul',
+  'tibetan', 'lepcha', 'sherpa', 'bhutia', 'assamese', 'nepali', 'french', 'fre',
+]);
+const GENERIC_LEADERS = new Set([
+  'class', 'board', 'semester', 'sem', 'ms', 'sqp', 'unknown', 'eng', 'english',
+  'lit', 'literature', 'language', 'lang', 'i10', 'x', 'xii', 'xi', 'ix', 'viii',
+  'vii', 'vi', 'iv', 'v', 'the', 'a', 'an', 'grade', 'paper', 'term', 'ut', 'pb', 'hy',
+]);
+// Underscores/dots/dashes are separators here, not word characters — \b does
+// not fire between "_" and a letter (both count as \w), which silently
+// swallowed a trigger word into the "school" half until this was found by
+// running the prototype against all 403 filenames and reading the output.
+const TRIGGER = /\b(eng\.?|english|lit\.?|literature|language|lang|sqp|board|semester|sem\d?|prelim|preboard|assmnt|exam|term\d?|class|grade\d?|i10|icse|cbse|isc|igcse|wk|sheet|sht|marks?\d|ms)\b/i;
+const ORDINAL_ONLY = /^\d+(st|nd|rd|th)?$/i;
+const BOARD_LEADER = /^(icse|cbse|isc|igcse|ib)\b/i;
+
+const normalizeSeps = (s: string) => s.replace(/[_-]+/g, ' ');
+const hasTrigger = (s: string) => TRIGGER.test(normalizeSeps(s));
+
+function tierBoard(base: string): string | null {
+  const m = BOARD_LEADER.exec(normalizeSeps(base));
+  return m ? m[1].toUpperCase() : null;
+}
+
+function tierA(base: string): string | null {
+  const parts = base.split('_');
+  if (parts.length < 3) return null;
+  for (let i = 1; i < parts.length; i += 1) {
+    const tok = parts[i].trim().toUpperCase();
+    if (CLASS_NUMERALS.has(tok) || tok === 'UNKNOWN') {
+      const candidate = parts.slice(0, i).join('_').trim();
+      return candidate && !hasTrigger(candidate) ? candidate : null;
+    }
+  }
+  return null;
+}
+
+function tierB(base: string): string | null {
+  const m = /^\d+_(.+?)_(19|20)\d{2}_\d{1,2}_/.exec(base);
+  return m ? m[1].trim() : null;
+}
+
+function tierC(base: string): string | null {
+  const norm = normalizeSeps(base);
+  const m = TRIGGER.exec(norm);
+  if (!m || m.index === 0) return null;
+  return norm.slice(0, m.index).trim() || null;
+}
+
+function cleanCandidate(raw: string | null): string | null {
+  if (!raw) return null;
+  let s = raw.replace(/[_-]+/g, ' ').trim();
+  s = s.replace(/\s{2,}/g, ' ');
+  if (!s) return null;
+  const low = s.toLowerCase();
+  if (GENERIC_LEADERS.has(low) || LANGUAGE_TOKENS.has(low)) return null;
+  if (ORDINAL_ONLY.test(s)) return null;
+  if (/^class\s?\d+$/i.test(s)) return null;
+  if (!/[a-zA-Z]/.test(s)) return null;
+  if (s.replace(/[^a-zA-Z]/g, '').length <= 1) return null;
+  return s;
+}
+
+/** Best-effort raw school string from a source filename, or null if nothing
+    reliable enough was found. Never guesses — see the file-level comment. */
+function schoolFromFilename(filename: string): string | null {
+  const base = filename.replace(/\.pdf$/i, '');
+  const raw = tierBoard(base) ?? tierA(base) ?? tierB(base) ?? tierC(base);
+  return cleanCandidate(raw);
+}
+
 /* English (and any future subject shipped this way) arrives flat rather than
    nested, with paper_id/stimulus_id links instead of standalone_questions/
    context_groups. Each question is already a complete, verbatim record —
@@ -384,9 +477,12 @@ function convertFlat(file: SourceFileFlat, srcName: string, takenPaperIds: Map<s
   file.stimuli.forEach((s) => neededPaperIds.add(s.paper_id));
 
   const paperIdMap = new Map<string, string>(); // source paper_id -> minted id
+  // source paper_id -> best-effort school, from the filename (see schoolFromFilename above)
+  const schoolByPaperId = new Map<string, string | null>();
   for (const p of file.papers) {
     if (neededPaperIds.has(p.paper_id)) {
       paperIdMap.set(p.paper_id, mintPaperId(p.paper, takenPaperIds));
+      schoolByPaperId.set(p.paper_id, schoolFromFilename(p.paper));
     }
   }
 
@@ -436,22 +532,25 @@ function convertFlat(file: SourceFileFlat, srcName: string, takenPaperIds: Map<s
   for (const q of file.questions) {
     const mintedPaperId = paperIdMap.get(q.paper_id);
     if (!mintedPaperId) continue; // defensive; every question's paper_id resolved in a dry run
+    // The source's own q.school is null on every row (checked by hand) —
+    // schoolFromFilename()'s per-paper result is the only signal there is.
+    const school = schoolByPaperId.get(q.paper_id) ?? null;
 
     if (q.stimulus_id) {
       const stim = stimulusById.get(q.stimulus_id);
-      if (stim) pushStimulus(stim, mintedPaperId, q.school, q.exam_type, q.class);
+      if (stim) pushStimulus(stim, mintedPaperId, school, q.exam_type, q.class);
     }
 
     pushRow(
       qid(q.id), mintedPaperId, q.number ?? null, q.text, numericOrNull(q.marks),
-      q.section_name ?? q.section ?? null, q.school, q.exam_type, q.class,
+      q.section_name ?? q.section ?? null, school, q.exam_type, q.class,
       q.type ?? null, q.options,
     );
   }
 
   /* ------------------------------------------------------------- report */
   const questionPapers = file.papers.filter((p) => p.role === 'question_paper');
-  const rawSchools = new Set(file.questions.map((q) => q.school));
+  const rawSchools = new Set(schoolByPaperId.values());
   const unresolved = [...rawSchools].filter((s) => !hasSchool(s) && !isBoardPaper(s));
   const alreadyFlagged = new Set(UNRESOLVED_SCHOOLS.map((s) => s.toLowerCase()));
   const newlyUnresolved = [...rawSchools].filter(
