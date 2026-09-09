@@ -30,6 +30,31 @@ export const isPapersActive = (p: string) => p.startsWith(PAST_PAPERS_PATH) || p
 
 export const isAboutActive = (p: string) => p === '/about';
 
+/** Subject/class/board filters carried from a filtered Teachers listing
+ *  across to the Papers tab, so switching tabs mid-filter lands on the
+ *  matching papers instead of an unfiltered list. Same param names both
+ *  pages already read (Browse.tsx and PaperResults.tsx). */
+const CARRIED_FILTER_PARAMS = ['filter_subjects', 'filter_classes', 'filter_boards'];
+
+/** Destination for the persistent Teachers<->Papers tab link (TopBar,
+ *  BottomNav). Off the Teachers listing this is just `PAST_PAPERS_PATH`;
+ *  on it, any active subject/class/board filters ride along to
+ *  `/past-papers/results`, which already forwards straight into
+ *  PaperResults (see PastPapers.tsx's `hasFilters` redirect). */
+export function papersHrefFor(pathname: string, search: string): string {
+  if (!isBrowseActive(pathname)) return PAST_PAPERS_PATH;
+
+  const incoming = new URLSearchParams(search);
+  const params = new URLSearchParams();
+  for (const key of CARRIED_FILTER_PARAMS) {
+    const value = incoming.get(key);
+    if (value) params.set(key, value);
+  }
+
+  const qs = params.toString();
+  return qs ? `${PAST_PAPERS_PATH}/results?${qs}` : PAST_PAPERS_PATH;
+}
+
 /** `/account` is the hub every dashboard/shelf route now redirects into
  *  (`/liked-teachers`, `/my-teachers`, `/dashboard/student`,
  *  `/dashboard/guardian` all `<Navigate>` there) -- checking it directly

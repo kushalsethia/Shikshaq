@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth-context';
 import { ExpandableTabs, type ExpandableTab } from '@/components/ui/expandable-tabs';
 import { useSearchExpanded } from '@/hooks/useSearchExpanded';
 import {
-  BROWSE_PATH, isHomeActive, isBrowseActive, isPapersActive, isAccountActive, getAccountPath, type UserRole,
+  BROWSE_PATH, isHomeActive, isBrowseActive, isPapersActive, isAccountActive, getAccountPath, papersHrefFor, type UserRole,
 } from '@/lib/nav-config';
 
 /**
@@ -35,7 +35,9 @@ export function BottomNav() {
       isActive: isBrowseActive,
     },
     {
-      to: '/past-papers',
+      // Carries the current subject/class/board filters across when
+      // switching over from a filtered Teachers listing (see papersHrefFor).
+      to: papersHrefFor(location.pathname, location.search),
       label: 'Papers',
       icon: FileText,
       isActive: isPapersActive,

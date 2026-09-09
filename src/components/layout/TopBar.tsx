@@ -17,32 +17,24 @@ import { useExitPresence } from "@/hooks/useExitPresence";
 import { useIsAdminBadge } from "@/hooks/useIsAdminBadge";
 import {
   BROWSE_PATH,
-  PAST_PAPERS_PATH,
   getDashboardLink,
   isBrowseActive,
   isPapersActive,
+  papersHrefFor,
   type UserRole,
 } from "@/lib/nav-config";
 
 /* Redesign S2 (components.md §3, design.md §5), restyled per Handoff D-004.
 
    The desktop counterpart to the bottom nav: a 60px near-black pill carrying
-   the logo, five plain-text nav links (both halves of the product — Teachers
-   then Past papers — plus Subjects/Schools/About), and two right-aligned
+   the logo, four plain-text nav links (both halves of the product — Teachers
+   then Past papers — plus Subjects/About; Schools was dropped from this bar,
+   still reachable from the mobile sheet menu), and two right-aligned
    actions. `hidden lg:block` — below lg the floating pill (S1) is the
    navigation, and the two must never both be visible. */
 
 const isAboutActive = (p: string) => p === "/about";
 const isSubjectsActive = (p: string) => p === "/subjects";
-const isSchoolsActive = (p: string) => p === "/schools";
-
-const NAV_LINKS = [
-  { to: BROWSE_PATH, label: "Teachers", match: isBrowseActive },
-  { to: PAST_PAPERS_PATH, label: "Past papers", match: isPapersActive },
-  { to: "/subjects", label: "Subjects", match: isSubjectsActive },
-  { to: "/schools", label: "Schools", match: isSchoolsActive },
-  { to: "/about", label: "About", match: isAboutActive },
-] as const;
 
 function LogoOrTourTrigger() {
   const location = useLocation();
@@ -79,6 +71,16 @@ export function TopBar({ className }: { className?: string }) {
   const initial = (user?.email?.charAt(0) || "?").toUpperCase();
   const dashboardLink = getDashboardLink(role);
 
+  // "Past papers" carries the current subject/class/board filters when
+  // switching over from a filtered Teachers listing (see papersHrefFor) —
+  // the other links are plain routes and don't need location awareness.
+  const navLinks = [
+    { to: BROWSE_PATH, label: "Teachers", match: isBrowseActive },
+    { to: papersHrefFor(location.pathname, location.search), label: "Past papers", match: isPapersActive },
+    { to: "/subjects", label: "Subjects", match: isSubjectsActive },
+    { to: "/about", label: "About", match: isAboutActive },
+  ] as const;
+
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
@@ -107,11 +109,8 @@ export function TopBar({ className }: { className?: string }) {
         <LogoOrTourTrigger />
 
         <ul className="flex items-center gap-6">
-          {NAV_LINKS.map(({ to, label, match }) => {
+          {navLinks.map(({ to, label, match }) => {
             const active = match(location.pathname);
-            // All five NAV_LINKS entries now point at distinct routes, so
-            // key={to} is safe here; kept as key={label} anyway since
-            // label is what's user-facing and unique in this list too.
             return (
               <li key={label}>
                 <Link
