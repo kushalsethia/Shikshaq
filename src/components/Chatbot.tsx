@@ -16,7 +16,6 @@ interface ChatTeacher {
   imageUrl: string | null;
   subject: string;
   sirMaam: string | null;
-  whatsappLink: string | null;
   experienceYears: number | null;
   minFees: number | null;
   maxFees: number | null;
@@ -524,7 +523,6 @@ export function Chatbot() {
                         subject={teacher.subject}
                         imageUrl={teacher.imageUrl ?? undefined}
                         sirMaam={teacher.sirMaam}
-                        whatsappLink={teacher.whatsappLink}
                         experienceYears={teacher.experienceYears}
                         minFees={teacher.minFees}
                         maxFees={teacher.maxFees}

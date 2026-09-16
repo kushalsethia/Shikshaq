@@ -30,7 +30,6 @@ interface TeacherCardResult {
   imageUrl: string | null;
   subject: string;
   sirMaam: string | null;
-  whatsappLink: string | null;
   experienceYears: number | null;
   minFees: number | null;
   maxFees: number | null;
@@ -110,7 +109,6 @@ async function findMatchingTeachers(message: string): Promise<TeacherCardResult[
     interface ShikshaqmineBasicRow {
       Slug: string;
       "Sir/Ma'am?": string | null;
-      Link: string | null;
       'Years they started teaching': string | number | null;
       'Min Fees': number | null;
       'Max Fees': number | null;
@@ -118,11 +116,29 @@ async function findMatchingTeachers(message: string): Promise<TeacherCardResult[
       'LOCATION V2': string | null;
     }
 
-    const { data: shikshaqRows } = await supabase
+    // No "Link" here, deliberately. The WhatsApp number was revoked from `anon`
+    // at the column level (20260909000002) and this function talks to Supabase
+    // with the publishable key, i.e. as anon -- so naming that column failed the
+    // WHOLE query with "permission denied for column", not just omitting the
+    // number. Every field below (honorific, experience, fees, area) came back
+    // empty as a result, which read as "these teachers have no details" rather
+    // than as an error.
+    //
+    // Nothing is lost by dropping it: TeacherCard accepts `whatsappLink` but no
+    // longer renders a WhatsApp CTA, so this value was never displayed. Contact
+    // happens on the teacher's profile, behind the sign-in gate that exists
+    // precisely so an anonymous endpoint cannot hand numbers out.
+    const { data: shikshaqRows, error: shikshaqError } = await supabase
       .from('Shikshaqmine')
-      .select('"Slug","Sir/Ma\'am?","Link","Years they started teaching","Min Fees","Max Fees","Area","LOCATION V2"')
+      .select('"Slug","Sir/Ma\'am?","Years they started teaching","Min Fees","Max Fees","Area","LOCATION V2"')
       .in('Slug', slugs)
       .returns<ShikshaqmineBasicRow[]>();
+
+    // Surfaced on purpose. The previous version discarded this error, which is
+    // exactly why a permission failure was indistinguishable from thin data.
+    if (shikshaqError) {
+      console.warn('Shikshaqmine enrichment failed:', shikshaqError.message);
+    }
 
     const basicMap = new Map<string, ShikshaqmineBasicRow>();
     for (const row of shikshaqRows ?? []) {
@@ -138,7 +154,6 @@ async function findMatchingTeachers(message: string): Promise<TeacherCardResult[
         imageUrl: t.image_url ?? null,
         subject: t.subjects?.name ?? subjectKeyword,
         sirMaam: basic["Sir/Ma'am?"] ?? null,
-        whatsappLink: basic['Link'] ?? null,
         experienceYears: deriveExperienceYears(basic['Years they started teaching']),
         minFees: basic['Min Fees'] != null ? Number(basic['Min Fees']) : null,
         maxFees: basic['Max Fees'] != null ? Number(basic['Max Fees']) : null,
