@@ -15,7 +15,7 @@
     "generate-blog-stats": "tsx scripts/generate-blog-stats.ts",
     "import-bank": "tsx scripts/import-bank.ts",
     "generate-bank-sql": "tsx scripts/generate-bank-sql.ts",
-    "push:all": "npm run remotes:setup && git push origin HEAD:redesign/handoff-v1 && git push kanitest HEAD:main",
+    "push:all": "npm run remotes:setup && git push origin HEAD:shikshaq-2.0 && git push kanitest HEAD:main",
     "remotes:setup": "node -e \"const{execSync:e}=require('child_process');try{e('git remote get-url kanitest',{stdio:'pipe'});console.log('kanitest remote already set up')}catch{e('git remote add kanitest https://github.com/kaxx4/shikshaqkanitest.git');console.log('added kanitest remote (test deploy)')}\""
   },
   "dependencies": {
