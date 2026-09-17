@@ -10,6 +10,7 @@ import { fetchBankSchoolValues } from '@/lib/question-bank';
 import { hasSeenOnboarding } from '@/lib/onboarding';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
+import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 /* "Past papers are live" — a one-time announcement, not a second onboarding.
  *
  * Shown once per browser, and deliberately NOT to someone who is meeting the
@@ -133,7 +134,7 @@ export function PapersLiveAnnouncement() {
 
         <div className="px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
           <p className="mb-4 text-center text-[13.5px] leading-[1.55] text-warm-prose">
-            The first five questions on every paper are free to read, no account needed.
+            The first {FREE_PREVIEW_WORD} questions on every paper are free to read, no account needed.
           </p>
           <div className="flex flex-col gap-2">
             <Button onClick={go} variant="indigo" size={52} className="w-full">

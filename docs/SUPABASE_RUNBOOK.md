@@ -95,9 +95,20 @@ network-based ones in step 4 go blind. Worth knowing either way.
 
 Drops anonymous reach from 6,410 question bodies to 2,564.
 
-**Paired copy change:** `src/pages/BankPaper.tsx:~306` says "First five free".
-Make it derive from the rows actually returned rather than naming a number, so
-it cannot drift from the function again.
+**Paired copy change — one line, not six.** Seven places used to promise "the
+first five questions": the papers announcement, the browse nudge, the footer
+sentence, the product tour, About, a blog callout, and BankPaper's own meta
+description. They now all read from `src/lib/free-preview.ts`. Change both
+values there in the same deploy as this migration:
+
+```ts
+export const FREE_PREVIEW_QUESTIONS = 2;
+export const FREE_PREVIEW_WORD = 'two';
+```
+
+Getting this wrong is worse than a stale number: the page would promise five
+questions and then hand over two, which is the product telling the reader
+something untrue on the same screen that withheld the rest.
 
 ### Verify
 

@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 
 import { BLOG_FOOTER_LINKS, BLOG_PATH } from '@/content/blog-nav';
 
+import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 type FooterLink = { to: string; label: string };
 
 const BOARD_FOOTER_LINKS: FooterLink[] = [
@@ -220,7 +221,7 @@ function FooterExplainer() {
         or <Act to="/all-tuition-teachers-in-kolkata">search your own area</Act>{' '}
         of the city. You can{' '}
         <Act to="/past-papers" tone="papers">read the papers free</Act>{' '}
-        with the first five questions and no account, or{' '}
+        with the first {FREE_PREVIEW_WORD} questions and no account, or{' '}
         <Act to="/blog" tone="papers">see what gets asked most</Act>{' '}
         before you start. Then you message the teacher yourself on WhatsApp
         <WhatsAppIcon

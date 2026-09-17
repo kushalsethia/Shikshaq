@@ -9,6 +9,7 @@ import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 import { cn } from '@/lib/utils';
 import { useIntent } from '@/lib/intent-context';
 
+import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 /* A papers card, sitting in the teacher results.
  *
  * Someone comparing Class 10 ICSE Maths teachers is the single most likely
@@ -192,7 +193,7 @@ export function InlinePapersNudge({
           {headline}
         </span>
         <span className="mt-1 block text-[12.5px] leading-[1.45] text-warm-prose">
-          Free to read. First five questions need no account.
+          Free to read. First {FREE_PREVIEW_WORD} questions need no account.
         </span>
         {/* Only past two subjects: one alone just repeats the headline in
             smaller type, which is noise rather than a breakdown. */}

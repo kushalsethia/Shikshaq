@@ -16,6 +16,7 @@ import { useChromeConfig } from '@/components/layout/AppShell';
 import { Logo } from '@/components/Logo';
 import { NumberedHeading } from '@/components/ui/numbered-heading';
 
+import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 /* Fades a panel up into place the moment it actually enters the viewport
    (see useRevealOnScroll for why that has to be scroll-triggered rather
    than a mount-time keyframe on a page this long). Plain opacity/transform
@@ -272,7 +273,7 @@ export default function About() {
                     icon: <BookOpen />,
                     tint: 'bg-brand-blue-subtle',
                     title: 'We host the papers, free to read',
-                    body: 'Real question papers from Kolkata schools, kept as they were set. The first five questions of any paper need no account at all.',
+                    body: `Real question papers from Kolkata schools, kept as they were set. The first ${FREE_PREVIEW_WORD} questions of any paper need no account at all.`,
                   },
                   {
                     tone: 'muted' as const,

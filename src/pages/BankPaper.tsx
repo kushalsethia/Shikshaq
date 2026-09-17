@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
 
+import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 /* The bank and the site name the same subject differently: bank_papers
    says "Mathematics", every facet, route and filter on the site says
    "Maths". Without this alias the maths papers — the entire original bank —
@@ -306,7 +307,7 @@ export default function BankPaper() {
       ? `${paper.school} Class ${paper.cls} ${paper.subject} ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
       : 'Past paper | Shikshaq',
     paper
-      ? `${paper.questionCount} questions from the ${paper.school} Class ${paper.cls} ${paper.subject} ${paper.exam}, with marks, chapters and figures. First five free, the rest with a free account.`
+      ? `${paper.questionCount} questions from the ${paper.school} Class ${paper.cls} ${paper.subject} ${paper.exam}, with marks, chapters and figures. First ${FREE_PREVIEW_WORD} free, the rest with a free account.`
       : 'Read a free past year question paper on Shikshaq.',
   );
 

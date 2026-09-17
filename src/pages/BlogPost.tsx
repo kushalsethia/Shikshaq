@@ -5,6 +5,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { BentoStack, BentoPanel, PageContainer } from '@/components/layout/PageContainer';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { PAST_PAPERS_PATH, BROWSE_PATH } from '@/lib/nav-config';
+import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 import {
   ARTICLE_BY_SLUG,
   BLOG_ARTICLES,
@@ -319,7 +320,7 @@ function TopicArticle({ article }: { article: BlogArticle }) {
           Read the questions themselves
         </h2>
         <p className="mt-2 max-w-prose text-body-secondary text-brand-blue-deep/90">
-          The counting above comes from papers you can open. The first five questions of any paper
+          The counting above comes from papers you can open. The first {FREE_PREVIEW_WORD} questions of any paper
           need no account.
         </p>
         <Link

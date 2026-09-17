@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { hasSeenOnboarding, markOnboardingSeen } from '@/lib/onboarding';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
+import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 /* The one onboarding.
  *
  * There were two, doing the same job in two visual languages: OnboardingModal
@@ -175,7 +176,7 @@ const STEPS: Step[] = [
         free to read.
       </>
     ),
-    body: 'Real question papers from real schools, with marks and chapters. The first five questions need no account at all.',
+    body: `Real question papers from real schools, with marks and chapters. The first ${FREE_PREVIEW_WORD} questions need no account at all.`,
     chipBg: 'bg-white',
     chipInk: 'text-brand-blue-deep',
   },
