@@ -266,7 +266,7 @@ export default function Account() {
       const [{ data, error }, weekRes, totalRes] = await Promise.all([
         supabase
           .from('paper_reads')
-          .select('read_at, papers(id, title, school, subject, class, board, exam_type, year, file_url)')
+          .select('read_at, papers(id, title, school, subject, class, board, exam_type, year)')
           .eq('user_id', user!.id)
           .order('read_at', { ascending: false })
           .limit(40),

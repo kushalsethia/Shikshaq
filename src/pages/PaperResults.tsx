@@ -155,7 +155,7 @@ export default function PaperResults() {
   function runQuery(pageNum: number) {
     let query = supabase
       .from('papers')
-      .select('id,title,school,subject,class,board,exam_type,year,file_url', { count: 'exact' })
+      .select('id,title,school,subject,class,board,exam_type,year', { count: 'exact' })
       .eq('is_published', true);
 
     if (subjectFilters.length > 1) query = query.in('subject', subjectFilters);

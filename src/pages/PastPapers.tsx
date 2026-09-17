@@ -186,7 +186,7 @@ export default function PastPapers() {
     queryFn: async () => {
       const [schoolsRes, recentRes, subjectsRes, countRes, readRes] = await Promise.all([
         supabase.from('papers').select('school,board').eq('is_published', true),
-        supabase.from('papers').select('id,title,school,subject,class,board,exam_type,year,file_url,created_at').eq('is_published', true).order('created_at', { ascending: false }).limit(6),
+        supabase.from('papers').select('id,title,school,subject,class,board,exam_type,year,created_at').eq('is_published', true).order('created_at', { ascending: false }).limit(6),
         supabase.from('papers').select('subject').eq('is_published', true),
         supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
         /* Most-read joins the batch. It shares no input with the four above
@@ -329,7 +329,12 @@ export default function PastPapers() {
      exam and the question count. */
   const coverPaper = (p: Paper) => {
     const bank = p as Paper & { _bankYear?: string; _questions?: number; _isBoard?: boolean };
-    if (p.file_url !== null || bank._questions === undefined) return p;
+    /* `_questions` is the honest test for "this came from the bank", and it is
+       the only one available now that file_url is not anon-selectable. It is
+       also more correct than the old `p.file_url !== null ||` term ever was: a
+       papers-table row with no PDF uploaded has a null file_url too, so that
+       check treated it as a bank paper and drew it with a bank cover. */
+    if (bank._questions === undefined) return p;
     const year = bank._bankYear ?? '';
     /* "ICSE 2026" with no school IS the board's own paper. The year becomes
        the headline for those, because it is the only thing separating one
@@ -634,7 +639,10 @@ export default function PastPapers() {
                     key={p.id}
                     paper={coverPaper(p)}
                     meta={coverMeta(p)}
-                    tintKey={p.file_url === null ? `${p.school}-${p.id}` : undefined}
+                    /* Bank papers get a generated tint; papers-table rows keep
+                       their own cover. `_questions` identifies a bank row --
+                       see coverPaper() for why that replaced a file_url test. */
+                    tintKey={(p as { _questions?: number })._questions !== undefined ? `${p.school}-${p.id}` : undefined}
                     href={`/past-papers/${p.id}`}
                     /* Not auth-locked for now: reading is the point, and a
                        gate on a free library only stops people seeing it. */
@@ -698,7 +706,10 @@ export default function PastPapers() {
                     key={p.id}
                     paper={coverPaper(p)}
                     meta={coverMeta(p)}
-                    tintKey={p.file_url === null ? `${p.school}-${p.id}` : undefined}
+                    /* Bank papers get a generated tint; papers-table rows keep
+                       their own cover. `_questions` identifies a bank row --
+                       see coverPaper() for why that replaced a file_url test. */
+                    tintKey={(p as { _questions?: number })._questions !== undefined ? `${p.school}-${p.id}` : undefined}
                     href={`/past-papers/${p.id}`}
                     /* Not auth-locked for now: reading is the point, and a
                        gate on a free library only stops people seeing it. */

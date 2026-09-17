@@ -305,8 +305,18 @@ function filterShikshaqRecords(recordsToFilter: any[], effectiveFilters: FilterS
 // column (migration 20260816160605) added separately per-query with a fail-soft retry
 // (see runShikshaqQuery/runChunk below); on the current schema that retry never fires,
 // and it stays as protection against a future schema change rather than a live one.
+/* No "Link" in this list, and it must never come back.
+   It was here until now, and because PostgREST fails the WHOLE request when a
+   named column is forbidden rather than omitting it, this query returned 401
+   "permission denied for table Shikshaqmine" for every signed-out visitor --
+   on the main teacher browsing page. Every card lost its subjects, classes,
+   boards, area, fees, mode of teaching and experience at once, which reads as
+   "these teachers have no details" rather than as a failure.
+   Nothing needed it: TeacherCard accepts a whatsappLink prop but has not
+   rendered a WhatsApp CTA since contact moved behind the profile's sign-in
+   gate. The number is resolved there, through teacher_whatsapp_link(). */
 const SHIKSHAQ_COLUMNS =
-  'Slug, Subjects, "Classes Taught for Backend", "Classes Taught", "School Boards Catered", "Class Size (Group/ Solo)", Area, "Mode of Teaching", "Place of Teaching", "Min Fees", "Max Fees", "Sir/Ma\'am?", "Years they started teaching", "Link"';
+  'Slug, Subjects, "Classes Taught for Backend", "Classes Taught", "School Boards Catered", "Class Size (Group/ Solo)", Area, "Mode of Teaching", "Place of Teaching", "Min Fees", "Max Fees", "Sir/Ma\'am?", "Years they started teaching"';
 
 // PostgREST's `.or()` filter-string syntax uses `,` to separate conditions and `%`/`_` as
 // ILIKE wildcards — strip them from user-supplied filter values so they can't break the
@@ -565,7 +575,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
         let query = supabase
           .from('papers')
-          .select('id,title,school,subject,class,board,exam_type,year,file_url', { count: 'exact' })
+          .select('id,title,school,subject,class,board,exam_type,year', { count: 'exact' })
           .eq('is_published', true);
         if (filters.subjects.length > 1) query = query.in('subject', filters.subjects);
         else if (filters.subjects.length === 1) query = query.eq('subject', filters.subjects[0]);
@@ -609,7 +619,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       const from = nextPage * PAPERS_PAGE_SIZE;
       let query = supabase
         .from('papers')
-        .select('id,title,school,subject,class,board,exam_type,year,file_url')
+        .select('id,title,school,subject,class,board,exam_type,year')
         .eq('is_published', true);
       if (filters.subjects.length > 1) query = query.in('subject', filters.subjects);
       else if (filters.subjects.length === 1) query = query.eq('subject', filters.subjects[0]);
@@ -1499,7 +1509,6 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
               minFees: record['Min Fees'] != null ? Number(record['Min Fees']) : null,
               maxFees: record['Max Fees'] != null ? Number(record['Max Fees']) : null,
               yearStarted: record['Years they started teaching'] ? parseInt(record['Years they started teaching']) : null,
-              whatsappLink: record['Link'] || null,
             });
           });
         }
@@ -1516,7 +1525,6 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             _minFees: info?.minFees ?? null,
             _maxFees: info?.maxFees ?? null,
             _yearStarted: info?.yearStarted ?? null,
-            whatsapp_link: info?.whatsappLink ?? null,
           };
         });
 
@@ -2348,7 +2356,6 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                       meta={meta || undefined}
                       isFeatured={!!teacher.is_featured}
                       variant="row"
-                      whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
                       experienceYears={experienceYears}
                       minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
                       maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
@@ -2401,7 +2408,6 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                         meta={meta || undefined}
                         isFeatured={!!teacher.is_featured}
                         variant="grid"
-                        whatsappLink={(teacher as { whatsapp_link?: string | null }).whatsapp_link ?? null}
                         experienceYears={experienceYears}
                         minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
                         maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
