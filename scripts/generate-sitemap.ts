@@ -50,6 +50,42 @@ interface SitemapURL {
   priority: number;
 }
 
+/* This script used to fail open. Every credential check and every query error
+   returned [], main() carried on, and a perfectly valid ~50-URL sitemap was
+   written with exit code 0 -- so `prebuild` succeeded, `vite build` proceeded,
+   and Vercel deployed a sitemap that had just dropped 1,500 URLs.
+   Nobody on this team can read Vercel's build logs, so a console.warn reaches
+   no one. A red deploy is the only signal that does. */
+function fail(message: string): never {
+  console.error(`\nSITEMAP BUILD FAILED: ${message}`);
+  console.error('Refusing to write a partial sitemap. Fix the cause and rebuild.\n');
+  process.exit(1);
+}
+
+/* PostgREST caps an unbounded select at 1,000 rows and returns 200 OK. An
+   un-paged fetch therefore does not fail -- it silently truncates. That is how
+   this sitemap came to advertise 1,000 of 1,282 papers and 250 of 273 schools
+   while every build reported success, disproportionately dropping the undated
+   English imports because they sort last.
+   Commit ae42ce4 diagnosed and fixed exactly this in src/lib/question-bank.ts
+   (fetchAllPages / fetchBankSchoolValues) and never touched this file. Same
+   loop, same page size, kept here rather than imported because that module
+   builds a browser Supabase client. */
+const PAGE = 1000;
+
+type Query = { range: (from: number, to: number) => Promise<{ data: unknown[] | null; error: { message: string } | null }> };
+
+async function fetchAllRows<T>(build: () => Query, label: string): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await build().range(from, from + PAGE - 1);
+    if (error) fail(`${label}: ${error.message}`);
+    rows.push(...((data ?? []) as T[]));
+    if (!data || data.length < PAGE) break;
+  }
+  return rows;
+}
+
 /**
  * Static pages with fixed URLs
  */
@@ -158,18 +194,16 @@ const BOARD_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
  * from the papers rows, matching how SchoolPage.tsx resolves them.
  */
 async function fetchSchoolSlugs(): Promise<SitemapURL[]> {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return [];
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    fail('Missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY (schools)');
+  }
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-  try {
+  {
     console.log('Fetching school data from Supabase...');
-    const { data, error } = await supabase
-      .from('papers')
-      .select('school')
-      .eq('is_published', true);
-    if (error) {
-      console.error('Database error:', error.message);
-      return [];
-    }
+    const data = await fetchAllRows<{ school: string | null }>(
+      () => supabase.from('papers').select('school').eq('is_published', true) as unknown as Query,
+      'papers.school',
+    );
     const currentDate = new Date().toISOString().split('T')[0];
     const counts = new Map<string, number>();
     for (const row of data || []) {
@@ -187,38 +221,28 @@ async function fetchSchoolSlugs(): Promise<SitemapURL[]> {
     }
     console.log(`Found ${urls.length} schools`);
     return urls;
-  } catch (err) {
-    console.error('Failed to fetch schools:', err);
-    return [];
   }
 }
 
 async function fetchTeacherSlugs(): Promise<SitemapURL[]> {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.error('ERROR: Missing Supabase credentials');
-    console.error('Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env');
-    return [];
+    fail('Missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY (teachers)');
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  try {
+  {
     console.log('Fetching teacher data from Supabase...');
 
-    const { data: teachers, error } = await supabase
-      .from('teachers_list')
-      .select('slug')
-      .order('name');
+    const teachers = await fetchAllRows<{ slug: string }>(
+      () => supabase.from('teachers_list').select('slug').order('name') as unknown as Query,
+      'teachers_list',
+    );
 
-    if (error) {
-      console.error('Database error:', error.message);
-      return [];
-    }
-
-    if (!teachers || teachers.length === 0) {
-      console.warn('No teachers found in database');
-      return [];
-    }
+    /* Zero teachers means the query succeeded against the wrong project, or
+       RLS changed, or the table is empty -- none of which should ship a
+       sitemap missing every teacher profile. */
+    if (teachers.length === 0) fail('teachers_list returned zero rows');
 
     const today = new Date().toISOString().split('T')[0];
     console.log(`Found ${teachers.length} teachers`);
@@ -229,9 +253,6 @@ async function fetchTeacherSlugs(): Promise<SitemapURL[]> {
       changefreq: 'weekly' as const,
       priority: 0.7,
     }));
-  } catch (err) {
-    console.error('❌ Exception while fetching teachers:', err);
-    return [];
   }
 }
 
@@ -276,19 +297,15 @@ ${urlElements}
  */
 async function readBankURLs(currentDate: string): Promise<{ schools: SitemapURL[]; papers: SitemapURL[] }> {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.warn('   No Supabase credentials, skipping question bank URLs');
-    return { schools: [], papers: [] };
+    fail('Missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY (question bank)');
   }
 
-  try {
+  {
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    const { data, error } = await supabase
-      .from('bank_papers')
-      .select('id, school, has_school')
-      .eq('is_published', true);
-    if (error) throw new Error(error.message);
-
-    const rows = data ?? [];
+    const rows = await fetchAllRows<{ id: string; school: string; has_school: boolean }>(
+      () => supabase.from('bank_papers').select('id, school, has_school').eq('is_published', true) as unknown as Query,
+      'bank_papers',
+    );
     // Deduped on the slug, because two source spellings that resolve to the
     // same school are one page, not two.
     const slugs = new Set<string>();
@@ -307,9 +324,6 @@ async function readBankURLs(currentDate: string): Promise<{ schools: SitemapURL[
       lastmod: currentDate,
     }));
     return { schools, papers };
-  } catch (err) {
-    console.error('   Failed to read the question bank from Supabase:', err);
-    return { schools: [], papers: [] };
   }
 }
 
@@ -357,6 +371,17 @@ async function main() {
   console.log(`   Bank paper pages:   ${bankURLs.papers.length}`);
   console.log(`   ─────────────────────────────────`);
   console.log(`   Total URLs:         ${allURLs.length}`);
+
+  /* A floor, not just a ceiling. The 50,000 check below guards a limit we are
+     nowhere near; the failure that actually happened was the opposite one --
+     shipping far too few URLs and reporting success. This is deliberately well
+     under the real count (1,560+) so ordinary content changes never trip it,
+     while a truncation or a silently-empty table still does. */
+  const MIN_EXPECTED_URLS = 1200;
+  if (allURLs.length < MIN_EXPECTED_URLS) {
+    fail(`Only ${allURLs.length} URLs, expected at least ${MIN_EXPECTED_URLS}. `
+      + 'Likely a truncated query or an unreachable table.');
+  }
 
   if (allURLs.length > 50000) {
     console.warn('\n⚠️  WARNING: More than 50,000 URLs!');

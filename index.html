@@ -61,7 +61,12 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#F9F5F1" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#171412" media="(prefers-color-scheme: dark)" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <!-- viewport-fit=cover is load-bearing, not cosmetic: without it iOS Safari
+         reports env(safe-area-inset-*) as 0, which silently disabled the home
+         indicator and notch clearance at all eight call sites that use it
+         (BottomNav, Chatbot FAB, PageContainer, WordmarkBleed, Navbar sheet,
+         ProductTour, SearchControl, TeacherProfile's sticky CTA). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
     <!-- Resource hints for better performance -->
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
@@ -69,7 +74,16 @@
     <meta name="description" content="Find verified tuition teachers in Kolkata for free. Search by subject, class, or board. Connect directly with local tutors. No commission, no middlemen." />
     <meta name="author" content="Shikshaq" />
     <meta name="google-site-verification" content="LDwJgR1TPGyEfC0ha27ncvLL-FuvryEZBGFP-X0tmkI" />
-    <link rel="canonical" href="https://www.shikshaq.in/" />
+    <!-- No canonical here, deliberately. This file is the template every route
+         is served from, so a hardcoded value is the canonical that every one of
+         the ~1,560 URLs declares before JavaScript runs -- and a homepage URL
+         here told Google that all of them were duplicates of "/". That was
+         fixed once for JS-executing clients (CanonicalTag + src/lib/canonical.ts)
+         but the pre-JS declaration survived and is what non-rendering crawlers
+         and social unfurlers read.
+         Per-route canonicals are injected at build time by scripts/prerender.ts;
+         CanonicalTag remains the client-side fallback. -->
+
 
     <meta property="og:title" content="Shikshaq - Find Tuition Teachers in Kolkata" />
     <meta property="og:description" content="Find verified tuition teachers in Kolkata for free. Search by subject, class, or board. Connect directly with local tutors. No commission, no middlemen." />

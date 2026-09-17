@@ -45,7 +45,13 @@ Disallow: /join/apply
 # Filter-results URLs: unbounded query-string variants, one shared title and
 # one shared description. The existing /*?*filter_* rules below do not match
 # this route's params.
-Disallow: /past-papers/results
+#
+# Only the parameterised variants, though. Blocking the bare path took the main
+# browse-and-filter surface for 1,282 papers out of the crawl graph, and those
+# paper pages have few other internal links -- most were reachable only via
+# /schools -> /school/:slug. The unbounded-variant problem is real; the bare
+# URL is not part of it.
+Disallow: /past-papers/results?*
 
 # Block click-tracking interstitials
 Disallow: /*/whatsapp-click
