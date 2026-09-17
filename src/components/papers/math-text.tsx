@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { substituteGlyphs } from '@/lib/glyph-substitution';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
@@ -102,9 +103,14 @@ function Inline({ parts }: { parts: Seg[] }) {
     <>
       {parts.map((p, i) => {
         if (p.kind === 'text') {
+          /* Prose segments only, and only after segmentation has separated
+             them from the maths. A Cyrillic "х" is not "x" to KaTeX, so
+             substituting before this point would corrupt every formula on the
+             page. See lib/glyph-substitution.ts for what this does and, more
+             importantly, what it does not do. */
           return (
             <span key={i} className="whitespace-pre-wrap">
-              {p.value}
+              {substituteGlyphs(p.value)}
             </span>
           );
         }

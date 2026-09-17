@@ -19,6 +19,7 @@ import { excerptDescription } from '@/lib/excerpt-description';
 import { ContentGuard } from '@/components/ContentGuard';
 import { CaptureShield } from '@/components/CaptureShield';
 import { protectedClass } from '@/lib/copy-guard';
+import { substituteGlyphs, substituteGlyphsInHtml } from '@/lib/glyph-substitution';
 import { TeacherCard } from '@/components/TeacherCard';
 import DOMPurify from 'dompurify';
 import { validateImageSrc } from '@/utils/imageSanitizer';
@@ -999,7 +1000,7 @@ export default function TeacherProfile() {
                 <div
                   data-protected
                   className={`max-w-prose text-[15px] leading-[1.65] text-warm-prose [&_p+p]:mt-3 lg:text-[16px] lg:leading-[1.6] ${protectedClass}`}
-                  dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                  dangerouslySetInnerHTML={{ __html: substituteGlyphsInHtml(descriptionHtml) }}
                 />
               </BentoPanel>
             )}
@@ -1007,7 +1008,7 @@ export default function TeacherProfile() {
             {qualificationsText && (
               <BentoPanel fill="card" className="p-[22px]">
                 <SectionHeading>Qualifications</SectionHeading>
-                <p data-protected className={`max-w-prose text-[15px] leading-[1.65] text-warm-prose lg:text-[16px] lg:leading-[1.6] ${protectedClass}`}>{qualificationsText}</p>
+                <p data-protected className={`max-w-prose text-[15px] leading-[1.65] text-warm-prose lg:text-[16px] lg:leading-[1.6] ${protectedClass}`}>{substituteGlyphs(qualificationsText)}</p>
               </BentoPanel>
             )}
 
