@@ -129,7 +129,18 @@ export function CaptureShield({
        viewport for the couple of seconds a capture takes and then leaves. */
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-panel/95 px-6 text-center"
+      /* Solid, and set inline rather than through a Tailwind token.
+         This was `bg-panel/95` and rendered fully TRANSPARENT: `panel` resolves
+         to `var(--panel-dark)`, a raw hex, and Tailwind's `/opacity` modifier
+         cannot operate on a colour in that form -- so it silently emitted no
+         background at all and the "shield" was an invisible box with a caption.
+         Caught by reading the computed backgroundColor rather than by looking
+         at a screenshot, where the paper reader's own dark chrome behind it
+         made the overlay appear to be working.
+         Opaque rather than 95%: this exists to be in the way of a capture, and
+         letting 5% of the page through is 5% more than nothing. */
+      style={{ backgroundColor: '#1B1A18' }}
+      className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center px-6 text-center"
     >
       <p className="max-w-sm font-display text-[19px] font-black leading-[1.25] tracking-[-0.03em] text-background">
         {label}
