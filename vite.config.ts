@@ -88,21 +88,44 @@ export default defineConfig(({ mode }) => {
         chunkFileNames: `assets/[name]-[hash].js`,
         assetFileNames: `assets/[name]-[hash].[ext]`,
         // Manual chunk splitting for better code splitting
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-select',
-            '@radix-ui/react-toast',
-          ],
-          'supabase-vendor': ['@supabase/supabase-js'],
-          // Split out libs that are pulled into the eager main bundle (used by
-          // components imported directly in App.tsx / Index.tsx) so they cache
-          // independently from app code and fetch in parallel over HTTP/2.
-          'motion-vendor': ['framer-motion'],
-          'dompurify-vendor': ['dompurify'],
-          'search-vendor': ['fuse.js'],
+        /* The object form of manualChunks assigns only the modules you NAME.
+           Their dependencies are placed by Rollup's own algorithm, which put
+           this config's chunks nowhere near where their names claimed:
+
+             react-vendor  held only react-router. React and ReactDOM were
+                           inside ui-vendor, because the Radix packages
+                           imported them first.
+             supabase-vendor became the root of the module graph -- esbuild's
+                           shared helper prelude landed there, so 180kB of
+                           Supabase had to be downloaded AND evaluated before
+                           React could evaluate, on every route, including
+                           ones that touch no data.
+
+           So the intended "React caches independently of UI code" split never
+           happened: any Radix bump invalidated React for every returning
+           visitor. The function form assigns by resolved module id, which is
+           the only way to place a transitive dependency deliberately.
+
+           Packages that were absent from the old map and therefore landed in
+           the 454kB main chunk are named here too: @tanstack/react-query,
+           lucide-react, sonner, and the Radix packages beyond the original
+           four (tooltip, label, slot). */
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return;
+
+          // Order matters: react-dom and scheduler must be tested before the
+          // bare /react/ check, and before anything that depends on them.
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'react-vendor';
+          if (id.includes('react-router')) return 'router-vendor';
+          if (id.includes('@supabase')) return 'supabase-vendor';
+          if (id.includes('@tanstack')) return 'query-vendor';
+          if (id.includes('framer-motion')) return 'motion-vendor';
+          // KaTeX is ~250kB and only the paper reader needs it. Naming it
+          // keeps it out of whatever route chunk happens to import it first.
+          if (id.includes('katex')) return 'katex-vendor';
+          if (id.includes('dompurify')) return 'dompurify-vendor';
+          if (id.includes('fuse.js')) return 'search-vendor';
+          if (id.includes('@radix-ui') || id.includes('lucide-react') || id.includes('sonner')) return 'ui-vendor';
         },
       },
     },

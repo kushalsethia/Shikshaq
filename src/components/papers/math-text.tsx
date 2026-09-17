@@ -26,12 +26,42 @@ import 'katex/dist/katex.min.css';
    one unsupported macro must degrade to raw source for that span rather than
    blank the question. */
 
+/* KaTeX output is memoised on (tex, displayMode) because render() is called
+   inline in the JSX below, on every render pass, for every maths span in
+   every question -- and BankPaper renders an entire paper at once (186
+   questions in the largest), each MCQ option carrying its own <MathText>.
+   So typing one character into the paper's search filter, or opening a report
+   form, re-parsed every formula on the page from scratch: hundreds of
+   milliseconds of blocked main thread per keystroke on a mid-range Android.
+
+   The cache is safe to keep forever and safe to share across components:
+   renderToString is a pure function of these two arguments, and the input is
+   question text, which is immutable by project rule. Module scope rather than
+   useMemo because the same formula recurs across questions and across
+   remounts, and a per-component memo would miss both.
+
+   The cap is not about memory -- entries are small -- but about an unbounded
+   Map in a long session; 5k comfortably covers the largest paper's spans
+   several times over, and the reset is cheap because a re-parse is only ever
+   as expensive as it was before this cache existed. */
+const MAX_CACHE = 5000;
+const katexCache = new Map<string, string>();
+
 function render(tex: string, displayMode: boolean): string {
+  const key = `${displayMode ? 'd' : 'i'}:${tex}`;
+  const hit = katexCache.get(key);
+  if (hit !== undefined) return hit;
+
+  let html: string;
   try {
-    return katex.renderToString(tex, { displayMode, throwOnError: false, strict: false, trust: false });
+    html = katex.renderToString(tex, { displayMode, throwOnError: false, strict: false, trust: false });
   } catch {
-    return '';
+    html = '';
   }
+
+  if (katexCache.size >= MAX_CACHE) katexCache.clear();
+  katexCache.set(key, html);
+  return html;
 }
 
 interface Seg {

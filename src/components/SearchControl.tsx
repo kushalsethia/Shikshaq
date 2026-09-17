@@ -1,6 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   Search, GraduationCap, ChevronDown, Clock, ArrowRight, X,
   BookOpen, MapPin, Landmark, School as SchoolIcon,
@@ -511,14 +510,27 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
      indicator has always assumed. */
   const segmentedToggle = (
     <div className="relative grid grid-cols-2 flex-none rounded-full bg-muted p-1">
-      <motion.span
+      {/* Was a framer-motion spring. framer-motion costs 41kB gzip on the
+          eager critical path and this was one of only two real usages in the
+          whole app, so a CSS transform transition does the same job for
+          nothing. translate-x-full is exactly the old x: '100%' -- both are
+          100% of the element's own width, and the element is half the track. */}
+      <span
         aria-hidden="true"
-        layout
-        className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full shadow-border backdrop-blur-sm motion-reduce:transition-none ${
+        className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full shadow-border backdrop-blur-sm transition-transform duration-300 ease-snap motion-reduce:transition-none ${
           mode === 'papers' ? 'bg-brand-blue' : 'bg-panel'
         }`}
-        animate={{ x: mode === 'papers' ? '100%' : '0%' }}
-        transition={{ type: 'spring', stiffness: 460, damping: 36 }}
+        /* An explicit transform rather than Tailwind's translate-x-full.
+           The utility sets --tw-translate-x and rebuilds the whole transform
+           from seven --tw-* variables; on this element that composite resolved
+           to the identity matrix even with every variable correctly defined
+           and the class matching, so the indicator never moved. An identical
+           element built in isolation animated fine, which makes it some
+           interaction with this subtree rather than a missing class -- not
+           worth chasing when one declaration removes the dependency entirely.
+           Inline also guarantees it wins, which for a two-state indicator is
+           what we want. Verified moving in both directions. */
+        style={{ transform: mode === 'papers' ? 'translateX(100%)' : 'translateX(0)' }}
       />
       {(['teachers', 'papers'] as SearchMode[]).map((m) => (
         <button

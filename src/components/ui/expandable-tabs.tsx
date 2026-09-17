@@ -1,5 +1,4 @@
 import { NavLink } from 'react-router-dom';
-import { motion, useReducedMotion } from 'framer-motion';
 import { useRef, useState } from 'react';
 import { useOnClickOutside } from 'usehooks-ts';
 import type { LucideIcon } from 'lucide-react';
@@ -48,9 +47,11 @@ export function ExpandableTabs({
   const [peekIndex, setPeekIndex] = useState<number | null>(null);
   const containerRef = useRef<HTMLUListElement>(null);
   useOnClickOutside(containerRef as React.RefObject<HTMLElement>, () => setPeekIndex(null));
-  // DESIGN_SYSTEM §6: no exceptions for reduced-motion. framer-motion doesn't
-  // auto-honor the media query for arbitrary animate props, so gate it here.
-  const prefersReducedMotion = useReducedMotion();
+  /* DESIGN_SYSTEM §6: no exceptions for reduced-motion. This used to need a
+     useReducedMotion() hook because framer-motion does not auto-honor the
+     media query for arbitrary animate props. Now that the label animates in
+     CSS, `motion-reduce:transition-none` handles it at the same layer as the
+     rest of the codebase, and the hook is gone with the dependency. */
 
   const isDark = theme === 'dark';
 
@@ -111,21 +112,20 @@ export function ExpandableTabs({
                 strokeWidth={active ? 2.25 : 1.8}
                 aria-hidden
               />
-              <motion.span
+              {/* Was framer-motion animating maxWidth/opacity/marginLeft.
+                  Identical in CSS: max-w-24 is 96px, ml-1.5 is 6px, and
+                  ease-snap is cubic-bezier(0.16, 1, 0.3, 1), the exact curve
+                  this used (tailwind.config.ts:361). motion-reduce replaces
+                  the useReducedMotion duration check, and does it at the CSS
+                  layer where the rest of this codebase already handles it. */}
+              <span
                 aria-hidden
-                initial={false}
-                animate={{
-                  maxWidth: expanded ? 96 : 0,
-                  opacity: expanded ? 1 : 0,
-                  marginLeft: expanded ? 6 : 0,
-                }}
-                transition={{ duration: prefersReducedMotion ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className={`relative z-10 overflow-hidden whitespace-nowrap text-[14px] font-bold tracking-[-0.01em] motion-reduce:transition-none ${
-                  active ? accentInk : isDark ? 'text-white' : 'text-foreground'
-                }`}
+                className={`relative z-10 overflow-hidden whitespace-nowrap text-[14px] font-bold tracking-[-0.01em] transition-[max-width,opacity,margin-left] duration-300 ease-snap motion-reduce:transition-none ${
+                  expanded ? 'ml-1.5 max-w-24 opacity-100' : 'ml-0 max-w-0 opacity-0'
+                } ${active ? accentInk : isDark ? 'text-white' : 'text-foreground'}`}
               >
                 {tab.label}
-              </motion.span>
+              </span>
             </NavLink>
           </li>
         );
