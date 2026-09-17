@@ -98,9 +98,17 @@ export function UpvotesProvider({ children }: { children: ReactNode }) {
         // instead of fetching every row of teacher_upvotes and counting
         // client-side — that approach re-downloaded the entire table on
         // every page load for every visitor and only grows worse over time.
+        /* Explicitly bounded. 148 teachers today so the cap is nowhere near
+           binding, but an unbounded select against PostgREST silently
+           truncates at 1000 and returns 200 OK -- which is how the sitemap
+           came to advertise 1000 of 1282 papers for weeks without anyone
+           noticing. Ordered so that if the table ever does outgrow the cap,
+           the rows that survive are the ones worth having. */
         const { data, error } = await supabase
           .from('teacher_upvote_stats')
-          .select('teacher_id, upvote_count');
+          .select('teacher_id, upvote_count')
+          .order('upvote_count', { ascending: false })
+          .limit(1000);
 
         if (error) {
           logger.error('upvotes-context.loadUpvoteCounts', error);
