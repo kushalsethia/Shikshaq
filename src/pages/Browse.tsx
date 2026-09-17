@@ -37,7 +37,8 @@ import { SEOHead } from '@/components/SEOHead';
 import { FAQSchema } from '@/components/FAQSchema';
 import { SEOContentBlock } from '@/components/seo/SEOContentBlock';
 import type { SubjectContent } from '@/content/subject-seo';
-import { generateSubjectPageSchemas, generateBoardPageSchemas, generateBrowsePageSchemas, injectSchemas } from '@/utils/structuredDataGenerators';
+import { generateSubjectPageSchemas, generateBoardPageSchemas, generateBrowsePageSchemas } from '@/utils/structuredDataGenerators';
+import { injectSchemas } from '@/utils/injectSchemas';
 
 
 interface Teacher {

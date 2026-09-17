@@ -15,7 +15,8 @@ import { setAuthIntent } from '@/lib/auth-intent';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
 import { PaperDisclaimerDialog } from '@/components/papers/paper-disclaimer-dialog';
 import { MorePapers } from '@/components/papers/more-papers';
-import { generateBreadcrumbSchema, injectSchemas } from '@/utils/structuredDataGenerators';
+import { generateBreadcrumbSchema } from '@/utils/structuredDataGenerators';
+import { injectSchemas } from '@/utils/injectSchemas';
 
 // No file_url here: papers.file_url is no longer anon-selectable at all
 // (column-level REVOKE, migration 20260909000003_gate_paper_file_url.sql).

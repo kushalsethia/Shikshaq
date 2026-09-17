@@ -515,20 +515,8 @@ export function generateBrowsePageSchemas(params: {
   return schemas;
 }
 
-/**
- * Helper: Inject multiple schemas into page head
- */
-export function injectSchemas(schemas: object[]) {
-  // Remove existing schemas with id="page-schemas"
-  const existing = document.getElementById('page-schemas');
-  if (existing) {
-    existing.remove();
-  }
-
-  // Create new script tag with all schemas
-  const script = document.createElement('script');
-  script.id = 'page-schemas';
-  script.type = 'application/ld+json';
-  script.textContent = JSON.stringify(schemas);
-  document.head.appendChild(script);
-}
+/* injectSchemas() moved to src/utils/injectSchemas.ts.
+   This module must stay free of DOM references: scripts/prerender.ts imports
+   these generators from Node to emit static JSON-LD at build time, and
+   scripts/ is typechecked under tsconfig.node.json, which has no "dom" lib.
+   One `document` reference here failed the whole build. */

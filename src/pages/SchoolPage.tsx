@@ -19,7 +19,8 @@ import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { getShikshaqmineBasicBySlugs } from '@/lib/teachers';
 import { BROWSE_PATH, PAST_PAPERS_PATH } from '@/lib/nav-config';
-import { generateBreadcrumbSchema, generateCollectionPageSchema, injectSchemas } from '@/utils/structuredDataGenerators';
+import { generateBreadcrumbSchema, generateCollectionPageSchema } from '@/utils/structuredDataGenerators';
+import { injectSchemas } from '@/utils/injectSchemas';
 
 /* S16 — the school page.
  *
