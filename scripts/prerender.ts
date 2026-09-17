@@ -425,6 +425,19 @@ function teacherRoutes(teachers: TeacherRow[], mine: Map<string, ShikshaqmineRow
     const area = m?.Area ?? null;
     const primary = subjects[0] ?? 'Tuition';
 
+    /* NO Description and NO "Qualifications etc" here, deliberately.
+       Those two are the teacher's own prose, and they are the blocks marked
+       [data-protected] on the profile, where selection and copying are
+       blocked. Emitting them into static HTML would have made that protection
+       theatre: the browser would refuse to let you select the bio while
+       `curl https://www.shikshaq.in/tuition-teachers/<slug>` handed over the
+       same paragraph in full, to anyone, with no account and no JavaScript.
+       What stays is structured metadata -- subjects, boards, classes, areas,
+       mode. That is what these pages actually rank for ("maths tuition teacher
+       in Ballygunge"), it is factual rather than authored, and it is the half
+       a competitor could reconstruct from a directory anyway. The prose is the
+       part that took work, so it now comes only from the API, behind the same
+       gates as everything else. */
     const body = [
       `<h1>${esc(displayName)}</h1>`,
       `<p>${esc(primary)} tuition teacher in ${esc(area ?? 'Kolkata')}.</p>`,
@@ -434,21 +447,23 @@ function teacherRoutes(teachers: TeacherRow[], mine: Map<string, ShikshaqmineRow
       boards.length ? `<dt>Boards</dt><dd>${esc(boards.join(', '))}</dd>` : '',
       area ? `<dt>Area</dt><dd>${esc(area)}</dd>` : '',
       m?.['Mode of Teaching'] ? `<dt>Mode</dt><dd>${esc(m['Mode of Teaching'])}</dd>` : '',
-      m?.['Qualifications etc'] ? `<dt>Qualifications</dt><dd>${esc(m['Qualifications etc'])}</dd>` : '',
       `</dl>`,
-      m?.Description ? `<p>${esc(m.Description)}</p>` : '',
     ].join('');
 
     /* No telephone passed, deliberately. generateTeacherPersonSchema accepts
        phoneNumber, and this script could not supply it even if a template
        asked -- anon has no SELECT on Shikshaqmine."Phone Number". Contact
        stays behind the sign-in gate on the profile itself. */
+    /* The bio and qualifications are withheld from the JSON-LD for the same
+       reason they are withheld from the body block above -- a <script
+       type="application/ld+json"> is plain text in the served HTML, so putting
+       the prose there would have leaked exactly what removing it from the body
+       was meant to stop. Easy thing to miss: the visible markup looks clean
+       and the paragraph is still sitting in the page source. */
     const person = generateTeacherPersonSchema({
       url,
       name: displayName,
-      description: m?.Description ?? null,
       area,
-      qualifications: m?.['Qualifications etc'] ?? null,
       subjects,
       classesTaught: classes,
     });
