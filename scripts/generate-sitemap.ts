@@ -31,6 +31,7 @@ import { config } from 'dotenv';
    the sitemap under a slug SchoolPage.tsx cannot resolve — a submitted URL
    that 404s, which is the exact bug already fixed once for /cbse-ncert-. */
 import { schoolSlug } from '../src/lib/school-slug';
+import { isExcludedPaper } from './excluded-papers';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -302,10 +303,19 @@ async function readBankURLs(currentDate: string): Promise<{ schools: SitemapURL[
 
   {
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    const rows = await fetchAllRows<{ id: string; school: string; has_school: boolean }>(
+    const allRows = await fetchAllRows<{ id: string; school: string; has_school: boolean }>(
       () => supabase.from('bank_papers').select('id, school, has_school').eq('is_published', true) as unknown as Query,
       'bank_papers',
     );
+
+    /* Papers whose question bodies are extraction placeholders rather than
+       questions. Submitting them would point Google at pages that promise a
+       question count and contain nothing readable. Filtered before the school
+       slugs are derived below, so a school with nothing but excluded papers
+       drops out rather than getting an empty hub. See ./excluded-papers.ts. */
+    const rows = allRows.filter((r) => !isExcludedPaper(r.id));
+    const skipped = allRows.length - rows.length;
+    if (skipped > 0) console.log(`   Skipped ${skipped} papers with placeholder question text`);
     // Deduped on the slug, because two source spellings that resolve to the
     // same school are one page, not two.
     const slugs = new Set<string>();

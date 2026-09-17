@@ -39,6 +39,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { canonicalPathFor } from '../src/lib/canonical';
 import { schoolSlug } from '../src/lib/school-slug';
+import { isExcludedPaper } from './excluded-papers';
 import { SUBJECT_CONTENT, BOARD_CONTENT, type SubjectContent } from '../src/content/subject-seo';
 import {
   generateBreadcrumbSchema,
@@ -621,14 +622,21 @@ async function main(): Promise<void> {
     fail('dist/index.html has no <div id="root"></div> to anchor the prerender block to.');
   }
 
-  const papers = await fetchAll<BankPaper>(
+  const allPapers = await fetchAll<BankPaper>(
     () => supabase
       .from('bank_papers')
       .select('id, school, has_school, year, exam, cls, subject, board, question_count, marks')
       .eq('is_published', true) as unknown as Query,
     'bank_papers',
   );
-  if (papers.length === 0) fail('bank_papers returned zero rows');
+  if (allPapers.length === 0) fail('bank_papers returned zero rows');
+
+  /* Filter before deriving schools, not after. A school whose only papers are
+     all excluded then drops out on its own, instead of getting a hub page
+     listing nothing -- which would trade one thin page for another. */
+  const papers = allPapers.filter((p) => !isExcludedPaper(p.id));
+  const skipped = allPapers.length - papers.length;
+  if (skipped > 0) console.log(`   Skipped ${skipped} papers with placeholder question text`);
 
   const teachers = await fetchAll<TeacherRow>(
     () => supabase.from('teachers_list').select('slug, name, image_url').order('name') as unknown as Query,
