@@ -124,6 +124,17 @@ const FIELD_CLASSNAME =
 const LOCKED_FIELD_CLASSNAME = `${FIELD_CLASSNAME} cursor-not-allowed opacity-70`;
 const LABEL_CLASSNAME = 'mb-1.5 block text-[11.5px] font-bold uppercase tracking-[.07em] text-warm-label';
 const HELP_TEXT_CLASSNAME = 'text-xs text-muted-foreground';
+/* The three option groups that use this (subjects, boards, classes) are
+   wrapping checkbox chips -- 33 subjects alone, which is 12+ rows on a phone
+   and comfortably past the old `max-h-48`. That made each one a nested scroll
+   container on a touch page: a finger landing anywhere inside scrolled the
+   chip list instead of the page, and the only way to keep scrolling the form
+   was to find the narrow gutter beside it.
+   Fixed by removing the cap below `lg` rather than by adding
+   `overscroll-behavior: contain`, which would have made it worse -- contain
+   stops the scroll chaining to the page, which is the one thing still letting
+   a trapped user out. Desktop keeps the cap; there the form has room and a
+   mouse wheel over a bounded list is the expected behaviour. */
 const OPTION_GROUP_CLASSNAME = 'rounded-2xl bg-muted';
 
 /** Normalizes a Shikshaqmine row into the dashboard's own TeacherData shape
@@ -1375,7 +1386,7 @@ export default function TeacherDashboard() {
                 <Label className={LABEL_CLASSNAME}>
                   Subjects <span className="text-destructive">*</span>
                 </Label>
-                <div className={`mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}>
+                <div className={`mt-2 flex max-h-none flex-wrap gap-2 overflow-visible p-4 lg:max-h-48 lg:overflow-y-auto ${OPTION_GROUP_CLASSNAME}`}>
                   {SUBJECTS.map((subject) => {
                     const currentValue = teacherData.Subjects as string | null;
                     const selected = valueExistsInString(currentValue, subject);
@@ -1574,7 +1585,7 @@ export default function TeacherDashboard() {
                   <Label className={LABEL_CLASSNAME}>
                     Student's Home in These Areas <span className="text-destructive">*</span>
                   </Label>
-                  <div className={`mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}>
+                  <div className={`mt-2 flex max-h-none flex-wrap gap-2 overflow-visible p-4 lg:max-h-48 lg:overflow-y-auto ${OPTION_GROUP_CLASSNAME}`}>
                     {AREAS.map((area) => {
                       const currentValue = teacherData["STUDENT'S HOME IN THESE AREAS"] as string | null;
                       const selected = valueExistsInString(currentValue, area);
@@ -1604,7 +1615,7 @@ export default function TeacherDashboard() {
                   <Label className={LABEL_CLASSNAME}>
                     Tutor's Home in These Areas <span className="text-destructive">*</span>
                   </Label>
-                  <div className={`mt-2 flex max-h-48 flex-wrap gap-2 overflow-y-auto p-4 ${OPTION_GROUP_CLASSNAME}`}>
+                  <div className={`mt-2 flex max-h-none flex-wrap gap-2 overflow-visible p-4 lg:max-h-48 lg:overflow-y-auto ${OPTION_GROUP_CLASSNAME}`}>
                     {AREAS.map((area) => {
                       const currentValue = teacherData["TUTOR'S HOME IN THESE AREAS"] as string | null;
                       const selected = valueExistsInString(currentValue, area);

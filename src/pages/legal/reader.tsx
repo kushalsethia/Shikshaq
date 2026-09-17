@@ -225,7 +225,7 @@ export function LegalReader({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search this document..."
             aria-label="Search this document"
-            className="h-11 w-full rounded-full bg-muted pl-11 pr-11 text-[14px] text-foreground placeholder:text-warm-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="h-11 w-full rounded-full bg-muted pl-11 pr-11 text-base text-foreground placeholder:text-warm-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
           {query && (
             <button

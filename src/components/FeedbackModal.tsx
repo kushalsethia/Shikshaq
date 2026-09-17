@@ -211,7 +211,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                   placeholder="your.email@example.com"
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
-                  className="h-14 w-full rounded-[15px] bg-card px-4 text-[15.5px] text-foreground shadow-border outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+                  className="h-14 w-full rounded-[15px] bg-card px-4 text-base text-foreground shadow-border outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
                 />
               </div>
             )}

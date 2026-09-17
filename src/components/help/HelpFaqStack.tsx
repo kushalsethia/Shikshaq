@@ -140,7 +140,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search a question..."
             aria-label="Search questions"
-            className="h-12 w-full rounded-full bg-muted pl-11 pr-11 text-[14.5px] text-foreground placeholder:text-warm-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="h-12 w-full rounded-full bg-muted pl-11 pr-11 text-base text-foreground placeholder:text-warm-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
           {query && (
             <button

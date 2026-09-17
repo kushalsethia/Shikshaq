@@ -455,7 +455,17 @@ function TeacherCardComponent({
           </div>
           <div className="min-w-0 flex-1 py-1">
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-              <div className="min-w-[160px] flex-1">{nameHeading}</div>
+              {/* min-w was 160px, which fit at exactly 360px and overflowed
+                  below it. In the row variant this sits inside BentoPanel's
+                  px-4, the card's p-2.5, a w-20 photo, two gap-3s and an h-11
+                  heart column -- leaving the name block precisely 160px at
+                  360px wide, and less on a 320px phone. The overflow never
+                  showed as a scrollbar because html{overflow-x:hidden} clips
+                  it, so it silently truncated the card instead.
+                  120px still keeps the name and the upvote pill on one line at
+                  common widths; below that they wrap, which is the intended
+                  behaviour of the flex-wrap parent. */}
+              <div className="min-w-[120px] flex-1">{nameHeading}</div>
               {upvotePill}
             </div>
             {metaRow}

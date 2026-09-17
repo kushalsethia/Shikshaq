@@ -52,6 +52,21 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, disab
   const stateRef = useRef<PullToRefreshState>('idle');
   const pullDistanceRef = useRef(0);
 
+  /* onRefresh is held in a ref rather than named in the effect's dep array,
+     for the same reason as the refs above: correctness that does not depend on
+     the caller getting something subtle right.
+     Neither consumer passes a stable identity -- Browse declares handleRetry
+     fresh on every render, PastPapers passes an inline arrow -- so the effect
+     re-ran constantly, tearing down and re-adding all four window listeners on
+     every render of the two heaviest pages in the app. Worst during an active
+     pull, where setDistance re-renders on every touchmove: the listeners were
+     being replaced mid-gesture, dozens of times a second.
+     Fixing it here rather than with useCallback at both call sites means a
+     third consumer cannot reintroduce the bug by passing an inline arrow, and
+     the listeners still always invoke the latest callback. */
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
+
   function setPhase(next: PullToRefreshState) {
     stateRef.current = next;
     setState(next);
@@ -102,7 +117,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, disab
         window.setTimeout(() => {
           setPhase('refreshing');
           const startedAt = Date.now();
-          Promise.resolve(onRefresh()).finally(() => {
+          Promise.resolve(onRefreshRef.current()).finally(() => {
             const elapsed = Date.now() - startedAt;
             const wait = Math.max(0, MIN_REFRESHING_MS - elapsed);
             window.setTimeout(() => {
@@ -129,7 +144,7 @@ export function usePullToRefresh(onRefresh: () => Promise<unknown> | void, disab
       window.removeEventListener('touchcancel', onTouchEnd);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [disabled, onRefresh]);
+  }, [disabled]);
 
   return { state, pullDistance, threshold: THRESHOLD };
 }
