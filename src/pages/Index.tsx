@@ -38,7 +38,6 @@ import { useRequireRole } from '@/hooks/use-require-role';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useIntent } from '@/lib/intent-context';
 import { intentCta } from '@/lib/intent/copy';
-import { clearExpiredCache } from '@/utils/cache';
 import { getShikshaqmineBasicBySlugs } from '@/lib/teachers';
 import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
 import type { SearchMode } from '@/utils/searchFacets';
@@ -407,7 +406,9 @@ export default function Index() {
   const loadError = home.isError;
   void classCounts;
 
-  useEffect(() => { clearExpiredCache(); }, []);
+  /* clearExpiredCache() removed: utils/cache.ts schedules one idle pass per
+     page load. This, Browse's copy and the module-load call meant a single
+     visit scanned and JSON-parsed all of localStorage three times. */
 
   /* The three remaining home fetches, moved off bare useEffect onto react-query
      alongside the landing query above. They were the last of the ~180-line

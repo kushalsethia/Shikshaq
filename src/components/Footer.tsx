@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
    is real functionality carried over from the pre-redesign Footer — see the
    inventory in the handoff report, not repeated here as comments. */
 
-import { BLOG_ARTICLES, BLOG_PATH } from '@/content/blog';
+import { BLOG_FOOTER_LINKS, BLOG_PATH } from '@/content/blog-nav';
 
 type FooterLink = { to: string; label: string };
 
@@ -481,12 +481,15 @@ export function Footer({ expandedContent, seamFill = 'background' }: FooterProps
      kind of pattern that reads as thin/spammy to search engines rather than
      genuine site structure. Each subject gets its own overview links here;
      the full per-topic list stays one click away on /blog itself. */
+  /* From the generated blog-nav, not from @/content/blog. Identical output --
+     the generator computes exactly this list -- but importing blog.ts here
+     dragged its BLOG_SUBJECTS dependency (a ~116KB generated stats blob) into
+     the eager bundle, because the Footer renders on every page. A visitor who
+     never opened /blog still downloaded and parsed every chapter statistic for
+     every subject. See scripts/generate-blog-nav.ts. */
   const blogLinks: FooterLink[] = [
     { to: BLOG_PATH, label: 'All reading' },
-    ...BLOG_ARTICLES.filter((a) => a.kind !== 'topic').map((a) => ({
-      to: `${BLOG_PATH}/${a.slug}`,
-      label: `${a.subject === 'Mathematics' ? 'Maths' : a.subject}: ${a.shortTitle}`,
-    })),
+    ...BLOG_FOOTER_LINKS,
   ];
 
   const supportLinks: FooterLink[] = [

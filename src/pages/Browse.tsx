@@ -28,7 +28,7 @@ import { useUpvotes } from '@/lib/upvotes-context';
 import { RegionNotice } from '@/components/RegionNotice';
 import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKeywordExtractor';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
-import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey, clearExpiredCache } from '@/utils/cache';
+import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey} from '@/utils/cache';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { deriveExperienceYears, pageAllTeachers, fetchShikshaqmineChunked } from '@/lib/teachers';
 import { PaperSheetCard, type PaperSheetCardPaper } from '@/components/papers/paper-sheet-card';
@@ -848,7 +848,6 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
     fetchSubjects();
     // Clean up expired cache on mount
-    clearExpiredCache();
   }, []);
 
   // Sync selectedSubject with URL parameter when it changes

@@ -1,22 +1,26 @@
-import DOMPurify from 'dompurify';
-
 /**
  * Validate and sanitize image URL to prevent XSS attacks
  * This function ensures user input is properly sanitized before being used in DOM
+ *
+ * This used to run DOMPurify.sanitize() over the URL string first. That was
+ * doing no security work here and a lot of CPU work: DOMPurify allocates and
+ * parses a DOM document per call, and validateImageSrc below is invoked inline
+ * in JSX (TeacherCard, the Index rails, review cards), so a 24-card grid paid
+ * for 24+ document allocations on every render pass.
+ *
+ * It was not protecting anything. The value is bound to an <img src>, never to
+ * innerHTML, so HTML-entity stripping is irrelevant; what actually makes this
+ * safe is the protocol allowlist plus rebuilding the string from a parsed URL,
+ * both of which are below and unchanged. `new URL()` is stricter than the old
+ * path too, since it rejects anything it cannot parse rather than handing a
+ * mangled string onward.
  */
 export function sanitizeImageUrl(url: string): string | null {
   if (!url || typeof url !== 'string') return null;
-  
-  // First, sanitize the URL string using DOMPurify to remove any potential XSS
-  // This ensures no malicious scripts or HTML entities are present
-  const sanitizedString = DOMPurify.sanitize(url.trim(), { 
-    ALLOWED_TAGS: [],
-    ALLOWED_ATTR: [],
-    KEEP_CONTENT: true 
-  });
-  
+
+  const sanitizedString = url.trim();
   if (!sanitizedString) return null;
-  
+
   // Validate URL format - allow only http/https URLs or safe data URIs
   try {
     const urlObj = new URL(sanitizedString);
@@ -48,9 +52,28 @@ export function sanitizeImageUrl(url: string): string | null {
  * 
  * This function explicitly breaks taint flow by creating new strings from validated input
  */
+/* Results are memoised because this is called inline in JSX rather than from a
+   useMemo, so it re-runs for every image on every render pass, and the same
+   handful of teacher photo URLs recur across cards, rails and remounts. The
+   function is pure, so the cache is safe to share and to keep.
+   Bounded only to stop an unbounded Map in a long session; a clear costs
+   nothing beyond re-validating, which is what every call did before. */
+const MAX_URL_CACHE = 2000;
+const validatedUrls = new Map<string, string>();
+
 export function validateImageSrc(url: string | null | undefined): string {
   if (!url || typeof url !== 'string') return '';
-  
+
+  const cached = validatedUrls.get(url);
+  if (cached !== undefined) return cached;
+  const result = validateImageSrcUncached(url);
+  if (validatedUrls.size >= MAX_URL_CACHE) validatedUrls.clear();
+  validatedUrls.set(url, result);
+  return result;
+}
+
+function validateImageSrcUncached(url: string): string {
+
   // Allow blob URLs (created from File objects via URL.createObjectURL)
   // These are safe as they're created by the browser from user-selected files
   // Validate blob URL format and create a new string to break taint flow

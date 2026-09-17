@@ -148,6 +148,31 @@ export interface TeacherCardLite {
   area?: string | null;
 }
 
+/* The subjects table is small and effectively static, and getTeachersByIds
+   fetched all of it on every call -- twice per teacher profile view, once for
+   each recommendation rail. Held as a shared promise for the page session, so
+   concurrent callers await one request instead of racing identical ones.
+   Nulled on failure so a transient error does not cache an empty table for
+   the rest of the session. */
+let subjectsTablePromise: Promise<{ name: string; slug: string }[]> | null = null;
+
+function loadSubjectsTable(): Promise<{ name: string; slug: string }[]> {
+  if (!subjectsTablePromise) {
+    /* An async wrapper rather than .then() on the query builder: Supabase's
+       builder is a PromiseLike, so .then() gives back something without
+       .catch/.finally and does not satisfy Promise<T>. */
+    subjectsTablePromise = (async () => {
+      const { data, error } = await supabase.from('subjects').select('name, slug');
+      if (error) {
+        subjectsTablePromise = null;
+        return [];
+      }
+      return (data ?? []) as { name: string; slug: string }[];
+    })();
+  }
+  return subjectsTablePromise;
+}
+
 /**
  * teachers_list rows for a set of ids, enriched with Sir/Ma'am (and a
  * fallback subject derived from Shikshaqmine.Subjects when teachers_list has
@@ -181,7 +206,7 @@ export async function getTeachersByIds(ids: string[]): Promise<TeacherCardLite[]
   const slugs = results.map((t) => t.slug);
   const [basicMap, subjectsTableData] = await Promise.all([
     getShikshaqmineBasicBySlugs(slugs),
-    supabase.from('subjects').select('name, slug').then((r) => r.data ?? []),
+    loadSubjectsTable(),
   ]);
 
   return results.map((teacher) => {
@@ -294,13 +319,26 @@ export async function getTeacherBySlug<T = any>(slug: string): Promise<{ teacher
   const teacherCacheKey = `teacher_profile_row_${slug}`;
   let teacherData = getCache<T>(teacherCacheKey);
 
-  if (!teacherData) {
-    const { data, error } = await supabase
-      .from('teachers_list')
-      .select('*, subjects(name, slug)')
-      .eq('slug', slug)
-      .maybeSingle();
+  /* Both reads are keyed on the same slug and neither depends on the other's
+     result, so they go in parallel. This used to await teachers_list first and
+     only then start the Shikshaqmine fetch, which put two full round trips in
+     series at the top of the most-linked page type on the site (148 indexed
+     teacher URLs). The Shikshaqmine result is discarded if the teacher turns
+     out not to exist -- one wasted request on a 404 path, against one saved
+     round trip on every real profile view. */
+  const [teacherResult, shikshaqmineResult] = await Promise.all([
+    teacherData
+      ? Promise.resolve(null)
+      : supabase
+          .from('teachers_list')
+          .select('*, subjects(name, slug)')
+          .eq('slug', slug)
+          .maybeSingle(),
+    getShikshaqmineProfileBySlug(slug),
+  ]);
 
+  if (teacherResult) {
+    const { data, error } = teacherResult;
     if (error) {
       if (import.meta.env.DEV) console.warn('getTeacherBySlug (teachers_list) error:', error);
     } else if (data) {
@@ -309,8 +347,7 @@ export async function getTeacherBySlug<T = any>(slug: string): Promise<{ teacher
     }
   }
 
-  const shikshaqmine = teacherData ? await getShikshaqmineProfileBySlug(slug) : null;
-  return { teacher: teacherData ?? null, shikshaqmine };
+  return { teacher: teacherData ?? null, shikshaqmine: teacherData ? shikshaqmineResult : null };
 }
 
 /** Only the WhatsApp link for a slug — used by the WhatsApp redirect

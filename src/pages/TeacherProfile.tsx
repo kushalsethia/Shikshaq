@@ -273,7 +273,11 @@ export default function TeacherProfile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('teachers_list')
-        .select('id, name, slug, image_url, subjects(name, slug)')
+        /* Only ids are used -- the row data is discarded and refetched by
+           getTeachersByIds below, which returns the enriched shape this rail
+           actually renders. Selecting the full column list here transferred
+           six rows twice per profile view. */
+        .select('id')
         .neq('id', teacher!.id)
         .order('is_featured', { ascending: false })
         .limit(6);
