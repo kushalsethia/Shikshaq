@@ -22,7 +22,8 @@ export interface PaperHit {
   board: string;
   exam_type: string;
   year: number;
-  file_url: string | null;
+  /* No file_url: nothing reads it, and asking for it made the whole papers
+     query 401 for signed-out visitors -- see the select below. */
 }
 
 export interface SearchGroups {
@@ -55,7 +56,17 @@ async function loadIndex(): Promise<void> {
       .limit(TEACHER_INDEX_LIMIT),
     supabase
       .from('papers')
-      .select('id,title,school,subject,class,board,exam_type,year,file_url')
+      /* No file_url. It is revoked from anon at the column level (migration
+         20260909000003_gate_paper_file_url.sql) and PostgREST fails the WHOLE
+         request when a named column is forbidden -- it does not omit it. So
+         this query returned 401 for every signed-out visitor, which is most of
+         them, and the papers half of site search was silently empty for them.
+         Verified as a real anonymous caller: selecting it returns
+         "permission denied for table papers".
+         Nothing here needs it either. openPaper() in SearchControl stopped
+         using it when paper opening moved behind the reader's gate, and
+         PaperReader.tsx already dropped it for exactly this reason. */
+      .select('id,title,school,subject,class,board,exam_type,year')
       .eq('is_published', true)
       .order('year', { ascending: false })
       .order('id', { ascending: true })
@@ -106,7 +117,6 @@ async function loadIndex(): Promise<void> {
     board: b.board,
     exam_type: b.exam,
     year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
-    file_url: null,
   }));
   papersCache = [...(papersRes.data ?? []), ...bankHits];
 }

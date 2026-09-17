@@ -17,6 +17,7 @@ import { suggestedSearches } from '@/lib/intent/copy';
 import { extractFiltersFromQuery } from '@/utils/searchKeywordExtractor';
 import { getRecentSearches, addRecentSearch, type RecentSearch } from '@/utils/recentSearches';
 import { setSearchExpanded } from '@/hooks/useSearchExpanded';
+import { isMeteredConnection } from '@/lib/net-conditions';
 
 type Selections = Record<FacetKey, string[]>;
 
@@ -195,6 +196,18 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
      and ensureLoaded is idempotent (shared module-level loadPromise), so
      the two paths can safely race. */
   useEffect(() => {
+    /* Not on a metered connection. Idle is the right time to preload, but
+       "idle" says nothing about cost: this is ~550KB of teacher and paper
+       JSON, speculatively, for a control most visitors never open, and on a
+       Kolkata 3G connection it competes with the teacher photos that ARE on
+       screen. route-prefetch.ts already refused to speculate under Save-Data
+       or 2g; the single largest speculative download in the app had no such
+       guard, which is backwards. Same rule, now shared (lib/net-conditions).
+       expandBar() still calls ensureLoaded directly, so a reader who actually
+       opens search gets the index on any connection -- this only declines to
+       guess on their behalf. */
+    if (isMeteredConnection()) return;
+
     const w = window as Window & {
       requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
       cancelIdleCallback?: (handle: number) => void;
