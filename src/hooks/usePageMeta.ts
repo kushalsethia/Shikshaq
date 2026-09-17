@@ -1,10 +1,5 @@
 import { useEffect } from 'react';
-
-const DEFAULT_TITLE = 'Shikshaq - Find Tuition Teachers in Kolkata';
-const DEFAULT_DESCRIPTION =
-  'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local tutors for CBSE, ICSE, IGCSE, IB, State Board. No commission, no middlemen.';
-const SITE_URL = 'https://www.shikshaq.in';
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image-default.jpg`;
+import { DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE } from '@/lib/seo-defaults';
 
 /**
  * Sets a page-specific title and meta description, restoring the defaults on
