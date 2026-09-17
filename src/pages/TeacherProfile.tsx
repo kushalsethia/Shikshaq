@@ -16,6 +16,9 @@ import { WhatsAppIcon } from '@/components/BrandIcons';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { getTeacherBySlug, getTeachersByIds, getWhatsAppLinkBySlug } from '@/lib/teachers';
 import { excerptDescription } from '@/lib/excerpt-description';
+import { ContentGuard } from '@/components/ContentGuard';
+import { CaptureShield } from '@/components/CaptureShield';
+import { protectedClass } from '@/lib/copy-guard';
 import { TeacherCard } from '@/components/TeacherCard';
 import DOMPurify from 'dompurify';
 import { validateImageSrc } from '@/utils/imageSanitizer';
@@ -981,12 +984,21 @@ export default function TeacherProfile() {
               </Button>
             </BentoPanel>
 
+            {/* Copy and capture protection for the teacher's own words. Scoped
+                to the [data-protected] blocks below, so the name, subjects and
+                fees stay selectable -- those are what a parent legitimately
+                pastes into a message, and locking them protects nothing.
+                See src/lib/copy-guard.ts for what these can and cannot do. */}
+            <ContentGuard />
+            <CaptureShield label="This profile is not for copying. Share the link instead." />
+
             {/* Handoff P-009: each of these three becomes its own BentoPanel. */}
             {descriptionHtml && (
               <BentoPanel fill="card" className="p-[22px]">
                 <SectionHeading>About {firstName}</SectionHeading>
                 <div
-                  className="max-w-prose text-[15px] leading-[1.65] text-warm-prose [&_p+p]:mt-3 lg:text-[16px] lg:leading-[1.6]"
+                  data-protected
+                  className={`max-w-prose text-[15px] leading-[1.65] text-warm-prose [&_p+p]:mt-3 lg:text-[16px] lg:leading-[1.6] ${protectedClass}`}
                   dangerouslySetInnerHTML={{ __html: descriptionHtml }}
                 />
               </BentoPanel>
@@ -995,7 +1007,7 @@ export default function TeacherProfile() {
             {qualificationsText && (
               <BentoPanel fill="card" className="p-[22px]">
                 <SectionHeading>Qualifications</SectionHeading>
-                <p className="max-w-prose text-[15px] leading-[1.65] text-warm-prose lg:text-[16px] lg:leading-[1.6]">{qualificationsText}</p>
+                <p data-protected className={`max-w-prose text-[15px] leading-[1.65] text-warm-prose lg:text-[16px] lg:leading-[1.6] ${protectedClass}`}>{qualificationsText}</p>
               </BentoPanel>
             )}
 

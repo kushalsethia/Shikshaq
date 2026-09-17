@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Check, Link2, Share2 } from 'lucide-react';
 import { WhatsAppIcon } from '@/components/BrandIcons';
+import { attachCopyGuard, protectedClass, PROTECTED_ATTR } from '@/lib/copy-guard';
 
 /* Copying a paper is redirected into sharing it.
  *
@@ -42,7 +43,10 @@ import { WhatsAppIcon } from '@/components/BrandIcons';
     and the sign-in prompt stay selectable, because nothing is gained by making
     a heading un-copyable and a reader may legitimately want to paste the
     paper's name to a friend. */
-export const paperLockClass = 'select-none [-webkit-touch-callout:none]';
+/* Kept as a re-export so BankPaper's existing usage is untouched. The
+    definition now lives in lib/copy-guard beside the handlers that depend on
+    it, so the CSS half and the JS half cannot drift apart. */
+export const paperLockClass = protectedClass;
 
 type Trigger = 'copy' | 'print' | 'capture';
 
@@ -75,49 +79,28 @@ export function PaperShareLock({ paperTitle }: { paperTitle?: string }) {
     setTrigger(t);
   }, []);
 
-  useEffect(() => {
-    const onCopy = (e: Event) => {
-      e.preventDefault();
-      raise('copy');
-    };
-    const onContextMenu = (e: Event) => {
-      e.preventDefault();
-      raise('copy');
-    };
-    const onBeforePrint = () => raise('print');
-    const onKeyDown = (e: KeyboardEvent) => {
-      const meta = e.ctrlKey || e.metaKey;
-      if (meta && e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        raise('print');
-        return;
-      }
-      if (meta && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        raise('print');
-        return;
-      }
-      /* Screenshot chords. Watched, never prevented -- see the header comment.
-         PrintScreen reports as key "PrintScreen" on Windows; macOS uses
-         Cmd+Shift+3/4/5, which the page does receive even though the capture
-         itself is handled by the OS regardless of what we do here. */
-      if (e.key === 'PrintScreen' || (e.metaKey && e.shiftKey && ['3', '4', '5'].includes(e.key))) {
-        raise('capture');
-      }
-    };
+  /* The listeners live in lib/copy-guard so the teacher pages can use exactly
+     the same rules. Two behaviour changes came with the move, both fixes:
 
-    document.addEventListener('copy', onCopy);
-    document.addEventListener('cut', onCopy);
-    document.addEventListener('contextmenu', onContextMenu);
-    document.addEventListener('keydown', onKeyDown);
+     Copy is now SCOPED to the protected region instead of cancelling every
+     copy on the page. This file's own header claimed the paper's title stayed
+     selectable, and it did not -- the old document-wide handler also swallowed
+     copy and cut inside the paper's search box and the report form's textarea,
+     which protects nothing and is just a page that feels broken.
+
+     Ctrl+A followed by Ctrl+C is caught. A sweep that starts above the
+     question list has its common ancestor outside it, so checking only that
+     node missed the one shortcut most likely to be used. */
+  useEffect(() => attachCopyGuard({
+    onBlocked: () => raise('copy'),
+    onPrint: () => raise('print'),
+    onCapture: () => raise('capture'),
+  }), [raise]);
+
+  useEffect(() => {
+    const onBeforePrint = () => raise('print');
     window.addEventListener('beforeprint', onBeforePrint);
-    return () => {
-      document.removeEventListener('copy', onCopy);
-      document.removeEventListener('cut', onCopy);
-      document.removeEventListener('contextmenu', onContextMenu);
-      document.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('beforeprint', onBeforePrint);
-    };
+    return () => window.removeEventListener('beforeprint', onBeforePrint);
   }, [raise]);
 
   const url = typeof window !== 'undefined' ? window.location.href : '';

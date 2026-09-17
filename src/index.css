@@ -1203,10 +1203,37 @@ input[type="date"].date-input-left,
    This protects the FIVE free questions only. The other 181 are not on the
    client at all -- the server never sent them -- which is what actually keeps
    them off a printout. */
+/* Capture shield. <html data-capture-shield> is set by CaptureShield for a
+   couple of seconds whenever a capture looks likely -- a screenshot chord, or
+   the page losing focus to a snipping tool. Protected text is blanked rather
+   than merely covered, so a capture composited underneath an overlay still
+   gets nothing.
+
+   `color: transparent` with a matching background keeps the layout exactly
+   where it was: hiding or collapsing the text would reflow the page and make
+   the shield obvious and annoying during an ordinary alt-tab, which is by far
+   the most common reason this fires. */
+:root[data-capture-shield] [data-protected],
+:root[data-capture-shield] [data-protected] * {
+  color: transparent !important;
+  text-shadow: none !important;
+  background-image: none !important;
+}
+:root[data-capture-shield] [data-protected] img,
+:root[data-capture-shield] [data-protected] svg,
+:root[data-capture-shield] [data-protected] .katex {
+  visibility: hidden !important;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-capture-shield] [data-protected] { transition: color 60ms linear; }
+}
+
 @media print {
   /* The list itself stays displayed so its ::after can render -- hiding the
      container would take the replacement line down with the questions. */
-  [data-paper-locked] > li { display: none !important; }
+  [data-paper-locked] > li,
+  [data-protected] { display: none !important; }
+  [data-paper-locked] { display: block !important; }
   [data-paper-locked]::after {
     display: block;
     content: 'The questions in this paper are read on shikshaq.in. Please open the paper there.';

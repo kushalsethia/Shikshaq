@@ -6,6 +6,7 @@ import { Footer } from '@/components/Footer';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
 import { PaperDisclaimerDialog } from '@/components/papers/paper-disclaimer-dialog';
 import { PaperShareLock, paperLockClass } from '@/components/papers/paper-share-lock';
+import { CaptureShield } from '@/components/CaptureShield';
 import { MorePapers } from '@/components/papers/more-papers';
 import { MathText } from '@/components/papers/math-text';
 import { FIGURE_DIMENSIONS } from '@/content/figure-dimensions';
@@ -592,6 +593,7 @@ export default function BankPaper() {
           <>
             <PaperDisclaimerDialog />
             <PaperShareLock paperTitle={paperTitle(paper)} />
+            <CaptureShield />
             <DisclaimerStrip tone="dark" school={paper.school} reportHref="/contact" />
           </>
         )}
@@ -643,7 +645,7 @@ export default function BankPaper() {
                "Save as PDF" render the page without the questions, so printing
                is not a way around the gate. Selection is off here and nowhere
                else on the page -- see paperLockClass. */
-            <ol data-paper-locked className={`grid grid-cols-1 gap-3 ${paperLockClass}`}>
+            <ol data-paper-locked data-protected className={`grid grid-cols-1 gap-3 ${paperLockClass}`}>
               {visible.map((row) => questionCard(row))}
             </ol>
           )}
