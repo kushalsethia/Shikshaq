@@ -18,44 +18,54 @@ file is the only remaining dependency for everything marked that way.
 
 ## 0. Live verification, 2026-09-18
 
-Everything below was checked against the **deployed site**
-(`shikshaqkanitest.vercel.app`) and the **production database**, not against a
-dev server and not by reading code. Where a check is not reproducible from
-outside, that is said rather than glossed.
+Checked against the **deployed site** (`shikshaqkanitest.vercel.app`) and the
+**production database**, not a dev server and not by reading code.
 
-| Check | Result |
+**Database, as an anonymous caller holding only the bundled publishable key**
+
+| | |
 |---|---|
-| `get_public_profile_data` as anon | **42501 permission denied** (was 206 rows, 52,753 bytes) |
-| `purge_read_events` as anon | 42501 permission denied |
-| `teacher_own_contact` / `admin_teacher_contacts` / `is_teacher` as anon | 42501 permission denied |
-| `read_quota_exceeded`, `reset_approval_on_edit` as anon | 404 |
-| `bank_paper_questions` as anon | **2 questions** |
-| `bank_paper_questions` as a signed-in student | **40 questions** (full paper) |
-| `teacher_own_contact` as authenticated | 200 — dashboard still loads its own number |
+| `get_public_profile_data` | 42501 permission denied (was 206 rows / 52,753 bytes) |
+| `purge_read_events`, `teacher_own_contact`, `admin_teacher_contacts`, `is_teacher` | 42501 |
+| `read_quota_exceeded`, `reset_approval_on_edit` | 404 |
+| `site_counts` | 200, by design |
+| `paper_file_url` | null, by design |
+| `bank_paper_questions` anon / signed in | **2 / 40 questions** |
+| `bank_questions.body`, `Shikshaqmine."Link"` as authenticated | 403 |
 | `admin_teacher_contacts` as a non-admin | refused **by the function body**, not the grant |
-| `bank_questions` direct select as authenticated | 403 — bulk dump shut |
-| Preview copy on the live paper page | "the first **two** questions" |
-| `teacher_viewed` on the live site | fires with `teacher_slug`, `subject`, `area` |
-| `contact_started` on pressing Message | fires with the same three |
-| `contact_started` on pressing **Save** | **does not fire** — the inflation bug is gone |
-| Repeat view of the same teacher | **does not re-fire** — one visitor, one count |
-| `/auth?redirect=/%5Cevil.com` | **blocked**, nothing stored |
-| `/auth?redirect=/faq` | still stored — the fix is not over-broad |
-| Question text in the DOM | Cyrillic homoglyphs: `"А dеаlеr іn Sіkkіm ѕеllѕ gооdѕ"` |
+| `papers` with the new explicit column list | 200 — admin still loads |
+
+**Deployed site**
+
+| | |
+|---|---|
+| Preview copy | "the first **two** questions" |
+| `teacher_viewed` / `contact_started` | fire with `teacher_slug`, `subject`, `area` |
+| Pressing **Save** | fires nothing — inflation bug gone |
+| Re-viewing the same teacher | fires nothing — one visitor, one count |
+| `/auth?redirect=/%5Cevil.com` | blocked, nothing stored |
+| `/auth?redirect=/faq` | still works — not over-broad |
+| Question text in the DOM | Cyrillic: `"А dеаlеr іn Sіkkіm ѕеllѕ gооdѕ"` |
 | `user-select` on protected text | `none` |
-| PrintScreen on a paper | shield fires, overlay **opaque** `rgb(27, 26, 24)` |
-| Supabase calls on Browse | 7 requests, **all 200**, zero failures |
-| 375px on paper, teacher, privacy | no horizontal overflow, each with its own `h1` |
-| Prerendered paper page, bare path | own title, own canonical, 3 JSON-LD blocks |
+| PrintScreen | shield fires, overlay opaque `rgb(27, 26, 24)` |
+| 9 routes | own title, own `h1`, no overflow at 375px |
+| Same-origin requests | 100 recorded, **all 200** |
+| Lazy route chunks | load on real in-app navigation |
 
-**The one console error is benign and pre-existing**: `auth/v1/user` returns 401
-when there is no session, which is Supabase's normal signed-out response and
-has nothing to do with the lockdown. Confirmed by curling it directly.
+**The error boundary proved itself in production, by accident.** A `fetch`
+wrapper of mine made every request throw "Illegal invocation". The deployed app
+rendered the recovery panel on every route instead of a white page — the exact
+scenario it was built for, under production conditions. Worth recording because
+it is not a test anyone would have designed.
 
-**Not verifiable from outside, by design** — `read_events` and its retention
-bookkeeping are unreadable over REST, which is the point. The retention
-trigger being armed, `read_events` logging, and whether `ip_hash` carries real
-values all need the one query at the end of the runbook.
+**Two console errors, both benign and both pre-existing**, confirmed rather
+than assumed:
+- `401` on `auth/v1/user` with no session — Supabase's normal signed-out
+  response. Verified by curling it directly.
+- `400` from `google.co.in/ads/ga-audiences` — the Google Ads remarketing ping
+  in the GTM container, which 400s when no Ads account is linked. Confirmed not
+  ours because it appears on `/terms-of-service`, which fires no mirrored
+  analytics events at all.
 
 ## 0.5 Confirmed by the post-run query
 
