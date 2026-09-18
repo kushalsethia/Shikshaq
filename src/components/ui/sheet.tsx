@@ -19,14 +19,26 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     /* Handoff O-001/rule 2: the one overlay spec for every sheet and dialog
-       in the product — bg-panel/45, no blur. A blur costs a repaint on every
-       scroll frame behind it and hides the context the sheet is about.
+       in the product — a 45% near-black scrim, no blur by default. A blur
+       costs a repaint on every scroll frame behind it and hides the context
+       the sheet is about, so a surface that wants one opts in through
+       `overlayClassName` rather than changing this for everything.
        Handoff M-011: fades 0->1 over 500ms — explicit duration-500/ease-snap,
        not tailwindcss-animate's shorter default, so the overlay finishes
        fading in step with the panel it's behind rather than snapping to
        full opacity first. */
     className={cn(
-      "fixed inset-0 z-50 bg-panel/45 transition-opacity duration-500 ease-snap data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      /* bg-[#1B1A18]/45, NOT bg-panel/45. `panel` is defined as
+         var(--panel-dark), a literal hex, and Tailwind's `/opacity` modifier
+         cannot compute an alpha channel from a var() -- it silently emits no
+         declaration at all. This overlay therefore computed to
+         rgba(0, 0, 0, 0) and every sheet and dialog in the product has been
+         opening over an undimmed page since the rule was written. Measured,
+         not guessed. Same failure that once shipped the capture shield
+         invisible; the warm-* block carries a "no /opacity" warning for
+         exactly this reason and `panel` sits just below it without one.
+         A literal hex takes the modifier fine. */
+      "fixed inset-0 z-50 bg-[#1B1A18]/45 transition-opacity duration-500 ease-snap data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -70,6 +82,15 @@ interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {
   /**
+   * Extra classes for the scrim behind this one sheet.
+   *
+   * Exists so a single surface can frost its backdrop without changing the
+   * overlay for every sheet and dialog in the product. O-001 rule 2 sets one
+   * scrim spec deliberately, and a blur repaints the page behind it on every
+   * scroll frame, so this is opt-in per sheet rather than a new default.
+   */
+  overlayClassName?: string;
+  /**
    * Hides the Radix close `X` visually while keeping it focusable and
    * labelled (O-001) — for sheets that draw their own close control (e.g.
    * the filter sheet's 44px disc), so there's never a second, competing
@@ -79,9 +100,9 @@ interface SheetContentProps
 }
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
-  ({ side = "right", className, children, hideCloseButton, ...props }, ref) => (
+  ({ side = "right", className, overlayClassName, children, hideCloseButton, ...props }, ref) => (
     <SheetPortal>
-      <SheetOverlay />
+      <SheetOverlay className={overlayClassName} />
       <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
         {children}
         {/* Not rendered at all when the caller supplies its own close control.

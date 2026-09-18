@@ -248,7 +248,27 @@ export function Navbar() {
             <SheetContent
               side="bottom"
               aria-describedby={undefined}
-              className="border-0 bg-card px-4 pb-[calc(env(safe-area-inset-bottom)+1.625rem)]"
+              /* A half-height frosted sheet rather than the opaque near-full
+                 one this was. Three parts, and each is doing something:
+
+                 max-h-[60vh] makes it a half modal. The menu was rendering at
+                 71% of the viewport, which reads as "the page has been
+                 replaced" rather than "something has opened over it". Capping
+                 it leaves the page visible above and makes the sheet feel
+                 dismissible. overflow-y-auto because the row count varies --
+                 an admin sees one more than a signed-out reader.
+
+                 bg-[hsl(var(--card)/0.75)] + backdrop-blur-2xl is the frosting. `card` is the
+                 hsl(var(--card)) token, so the /72 modifier actually computes
+                 here -- the raw-hex tokens in the warm-* block and `panel` do
+                 NOT, which is the bug that left this sheet's own scrim
+                 invisible.
+
+                 The overlay gets a light blur too, opted into per-sheet. A
+                 translucent panel over a perfectly sharp page does not read as
+                 frosted, it reads as a rendering fault. */
+              overlayClassName="backdrop-blur-[3px]"
+              className="max-h-[60vh] overflow-y-auto border-0 bg-[hsl(var(--card)/0.75)] px-4 pb-[calc(env(safe-area-inset-bottom)+1.625rem)] backdrop-blur-2xl"
             >
               <SheetGrabHandle />
               <SheetTitle className="sr-only">Menu</SheetTitle>

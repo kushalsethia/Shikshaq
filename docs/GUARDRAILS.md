@@ -171,6 +171,44 @@ re-reported: `truncate` ellipsising long school and teacher names is that class
 working, and `11px` labels are a deliberate scale rung (the 11.5px one became
 12px in the token pass).
 
+## 0.9 Every `/opacity` on a theme colour is dead. All 40 of them.
+
+Found while frosting the nav menu, and it is the most widespread defect on this
+page.
+
+**Tailwind can only inject an alpha channel into a CSS-variable colour when the
+theme defines it with the `<alpha-value>` placeholder.** Nothing in
+`tailwind.config.ts` does — `card` is `hsl(var(--card))`, not
+`hsl(var(--card) / <alpha-value>)`. When the placeholder is missing Tailwind
+**emits no declaration at all** rather than erroring, so the class silently does
+nothing and the element falls back to transparent or to an inherited colour.
+
+Measured against the built CSS: **40 distinct classes written, 0 generated.**
+Among them `bg-panel/45` (the shared sheet/dialog scrim — so **no modal on the
+site has ever dimmed its background**), `text-background/70` ×14,
+`text-background/60` ×10, `bg-muted/80` ×7, `bg-foreground/10` ×6,
+`bg-card/90`, `bg-brand/25`, `bg-brand-blue/85`.
+
+This is the same failure that shipped the capture shield invisible, and the
+`warm-*` block already carries a "literal-hex vars, so no `/opacity`" warning —
+but the rule is broader than that comment says: it applies to the `hsl()` tokens
+too, because none of them carry `<alpha-value>` either.
+
+- [x] The sheet/dialog scrim is fixed — `bg-[#1B1A18]/45`, a literal hex, which
+      takes the modifier. Verified: `rgba(27, 26, 24, 0.45)`. Every modal in the
+      product now dims its background, which is what the spec always said.
+- [ ] **`P1` Fix the root cause: add `<alpha-value>` to the `hsl()` tokens.**
+      One line per token (`hsl(var(--card) / <alpha-value>)`), after which
+      `bg-card/75` works everywhere and the remaining ~38 classes come alive.
+      **They come alive all at once**, which is 38 places that currently render
+      with no colour declaration suddenly rendering translucent — an improvement
+      per the authors' intent, but a broad visual change that needs a pass over
+      the site. Do it as its own piece of work, not folded into something else.
+- [ ] **`P2` The literal-hex tokens still cannot take `/opacity` at all**
+      (`panel`, and everything in the `warm-*` block). `<alpha-value>` cannot
+      help those; they would have to be stored as channels. Use an explicit
+      literal-hex class or an arbitrary `hsl(var(--x)/0.75)` value instead.
+
 ## 1. Open now
 
 - [x] ~~Anonymous callers could read 206 children's profiles and delete the
