@@ -148,6 +148,13 @@ This is the weakest area and the one with the least attention on it.
 - [x] Verified working on real Vercel at the bare extensionless path
 - [x] Sitemap 1,560 → 1,830 URLs; the 1,000-row truncation is fixed
 - [x] Placeholder-content papers excluded from both sitemap and prerender
+- [x] Teacher bio prose does not reach prerendered HTML — re-verified 2026-09-18
+      by pulling seven real `Description` values from the live database and
+      searching all 148 prerendered teacher files for a distinctive interior
+      slice of each. Zero hits. The only `description` in a teacher page's
+      JSON-LD is the site-level boilerplate, and its `<meta name="description">`
+      is generated from structured fields (subjects, classes, area), not from
+      the prose. Metadata ranks; the amassed writing stays behind the app.
 - [x] Stale titles on navigation fixed; one source of SEO defaults
 - [ ] **`P1` Nothing is in Search Console yet** for the new URLs. Submit the
       sitemap on launch and watch coverage, not just impressions.
