@@ -12,6 +12,8 @@
     "generate-blog-nav": "tsx scripts/generate-blog-nav.ts",
     "postbuild": "tsx scripts/prerender.ts",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview",
     "test:gemini": "node scripts/test-gemini-api.js",
     "generate-sitemap": "tsx scripts/generate-sitemap.ts",
@@ -87,7 +89,8 @@
     "tsx": "^4.21.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19"
+    "vite": "^5.4.19",
+    "vitest": "^2.1.9"
   },
   "overrides": {
     "minimatch": ">=10.2.3",

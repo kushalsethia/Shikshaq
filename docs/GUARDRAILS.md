@@ -94,12 +94,22 @@ earns attention · `ACCEPTED` known and deliberately not doing
 
 This is the weakest area and the one with the least attention on it.
 
-- [ ] **`P0` No tests. None.** No test script, no test files, no CI gate.
-      Everything is verified by hand, including by me this session. The first
-      candidates are the ones where a silent break is expensive: the
-      `bank_paper_questions` gate returning the right count per auth state, the
-      sitemap generator's row counts, and the prerenderer's no-question-text
-      assertion.
+- [x] ~~No tests at all~~ **Started: 37 tests, and a CI gate.** `npm test`
+      (vitest 2, pinned to match vite 5) covers the glyph-substitution round
+      trip, `canonicalPathFor`, and the free-preview number/word agreement.
+      **The first run found a real bug**: `canonicalPathFor('//')` returned an
+      empty string, so a request with a stray double slash emitted a canonical
+      URL with no path. Fixed in the same commit.
+      `.github/workflows/ci.yml` gates on `tsc -b` and `npm test`, and reports
+      lint without blocking — there are 855 pre-existing lint errors and a gate
+      that is red on arrival gets ignored inside a week.
+- [ ] **`P1` Extend coverage to the expensive silent breaks.** Still untested:
+      the `bank_paper_questions` gate returning the right count per auth state,
+      the sitemap generator's row counts, and the prerenderer's
+      no-question-text assertion. Each needs either live credentials or a
+      fixture layer, which is why they did not come first.
+- [ ] **`P1` 855 lint errors.** Not triaged, so nobody knows how many are real.
+      Until this is cleared, lint cannot be a gate.
 - [x] Error boundaries in place — see section 1
 - [ ] **`P1` No alerting on the errors that are reported** — see section 1
 - [ ] **`P1` No uptime check.** Nobody is told if the site stops serving.

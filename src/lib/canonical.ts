@@ -31,6 +31,12 @@ const CANONICAL_ALIASES: Record<string, string> = {
 /** Normalise a pathname and resolve any duplicate-route alias. */
 export function canonicalPathFor(pathname: string): string {
   // Drop the trailing slash so /faq/ and /faq don't canonicalise differently.
-  const trimmed = pathname.length > 1 ? pathname.replace(/\/+$/, '') : '/';
+  const stripped = pathname.length > 1 ? pathname.replace(/\/+$/, '') : '/';
+  /* A path of only slashes -- "//", "///" -- strips down to nothing, and the
+     callers concatenate this onto the origin, so an empty string would emit a
+     canonical URL with no path at all. Those requests are reachable: a stray
+     double slash in a link or a crawler normalising badly is enough. Collapse
+     them to the root, which is the page they actually serve. */
+  const trimmed = stripped === '' ? '/' : stripped;
   return CANONICAL_ALIASES[trimmed] ?? trimmed;
 }
