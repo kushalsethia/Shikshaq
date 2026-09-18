@@ -16,6 +16,47 @@ file is the only remaining dependency for everything marked that way.
 
 ---
 
+## 0. Live verification, 2026-09-18
+
+Everything below was checked against the **deployed site**
+(`shikshaqkanitest.vercel.app`) and the **production database**, not against a
+dev server and not by reading code. Where a check is not reproducible from
+outside, that is said rather than glossed.
+
+| Check | Result |
+|---|---|
+| `get_public_profile_data` as anon | **42501 permission denied** (was 206 rows, 52,753 bytes) |
+| `purge_read_events` as anon | 42501 permission denied |
+| `teacher_own_contact` / `admin_teacher_contacts` / `is_teacher` as anon | 42501 permission denied |
+| `read_quota_exceeded`, `reset_approval_on_edit` as anon | 404 |
+| `bank_paper_questions` as anon | **2 questions** |
+| `bank_paper_questions` as a signed-in student | **40 questions** (full paper) |
+| `teacher_own_contact` as authenticated | 200 — dashboard still loads its own number |
+| `admin_teacher_contacts` as a non-admin | refused **by the function body**, not the grant |
+| `bank_questions` direct select as authenticated | 403 — bulk dump shut |
+| Preview copy on the live paper page | "the first **two** questions" |
+| `teacher_viewed` on the live site | fires with `teacher_slug`, `subject`, `area` |
+| `contact_started` on pressing Message | fires with the same three |
+| `contact_started` on pressing **Save** | **does not fire** — the inflation bug is gone |
+| Repeat view of the same teacher | **does not re-fire** — one visitor, one count |
+| `/auth?redirect=/%5Cevil.com` | **blocked**, nothing stored |
+| `/auth?redirect=/faq` | still stored — the fix is not over-broad |
+| Question text in the DOM | Cyrillic homoglyphs: `"А dеаlеr іn Sіkkіm ѕеllѕ gооdѕ"` |
+| `user-select` on protected text | `none` |
+| PrintScreen on a paper | shield fires, overlay **opaque** `rgb(27, 26, 24)` |
+| Supabase calls on Browse | 7 requests, **all 200**, zero failures |
+| 375px on paper, teacher, privacy | no horizontal overflow, each with its own `h1` |
+| Prerendered paper page, bare path | own title, own canonical, 3 JSON-LD blocks |
+
+**The one console error is benign and pre-existing**: `auth/v1/user` returns 401
+when there is no session, which is Supabase's normal signed-out response and
+has nothing to do with the lockdown. Confirmed by curling it directly.
+
+**Not verifiable from outside, by design** — `read_events` and its retention
+bookkeeping are unreadable over REST, which is the point. The retention
+trigger being armed, `read_events` logging, and whether `ip_hash` carries real
+values all need the one query at the end of the runbook.
+
 ## 1. Open now
 
 - [x] ~~Anonymous callers could read 206 children's profiles and delete the
