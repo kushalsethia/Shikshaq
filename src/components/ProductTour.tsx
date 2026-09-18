@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+
+import { useSiteCounts } from '@/hooks/useSiteCounts';
 import { ArrowRight, X } from 'lucide-react';
 
-import { supabase } from '@/integrations/supabase/client';
 import { Logo } from '@/components/Logo';
 import { cn } from '@/lib/utils';
 import { hasSeenOnboarding, markOnboardingSeen } from '@/lib/onboarding';
@@ -210,22 +210,17 @@ const STEPS: Step[] = [
    Two numbers, both real, both cheap. Anything a query cannot return is left
    off the screen rather than invented.
 --------------------------------------------------------------------------- */
-function useTourCounts(enabled: boolean) {
-  return useQuery({
-    queryKey: ['tour', 'counts'],
-    enabled,
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const [teachers, papers] = await Promise.all([
-        supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
-        supabase
-          .from('bank_papers')
-          .select('id', { count: 'exact', head: true })
-          .eq('is_published', true),
-      ]);
-      return { teachers: teachers.count ?? null, papers: papers.count ?? null };
-    },
-  });
+function useTourCounts(_enabled: boolean) {
+  /* Delegates to the one hook rather than counting the tables again. The
+     `enabled` argument is kept so the call site reads the same, but it no
+     longer gates anything: Footer renders on every route and already holds
+     ['site','counts'], so this reads a cached value instead of issuing a
+     second pair of count queries while a tour is opening. */
+  const counts = useSiteCounts();
+  return {
+    ...counts,
+    data: counts.data ? { teachers: counts.data.teachers, papers: counts.data.papers } : undefined,
+  };
 }
 
 /* ---------------------------------------------------------------------------

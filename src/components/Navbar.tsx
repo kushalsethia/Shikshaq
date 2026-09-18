@@ -13,6 +13,7 @@ import { openProductTour } from '@/components/ProductTour';
 import { logger } from '@/utils/logger';
 import { useSearchExpanded } from '@/hooks/useSearchExpanded';
 import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
+import { useSiteCounts } from '@/hooks/useSiteCounts';
 import {
   Sheet, SheetClose, SheetContent, SheetGrabHandle, SheetTitle,
   SheetTrigger,
@@ -28,18 +29,22 @@ const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visibl
  * rendered component doesn't fire four count queries on every page load
  * whether or not anyone ever opens the menu. */
 function useNavMenuCounts(open: boolean, userId: string | undefined) {
-  const totals = useQuery({
-    queryKey: ['nav-menu', 'totals'],
-    enabled: open,
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const [teachersRes, papersRes] = await Promise.all([
-        supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
-        supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
-      ]);
-      return { teachers: teachersRes.count ?? null, papers: papersRes.count ?? null };
-    },
-  });
+  /* The shared hook, not a fifth hand-rolled copy of this query.
+
+     This menu counted `papers`, which has 18 rows, while the footer, About and
+     the papers announcement all counted `bank_papers`, which has 1,282. The
+     same site told the same reader "18, free to read" here and "1,282" a
+     screen further down.
+
+     That exact bug was found and fixed on About, whose comment says the page
+     "was the only surface reading the old one". It was not -- this menu was
+     reading it too, and got missed, because the query existed in five places
+     and fixing one copy fixed one copy. Hence one hook.
+
+     No `enabled: open` gate any more and no extra request either: Footer
+     renders on every route and already holds ['site','counts'], so this shares
+     the cached result rather than issuing its own. */
+  const siteCounts = useSiteCounts();
 
   const papersRead = useQuery({
     queryKey: ['nav-menu', 'papers-read', userId],
@@ -55,8 +60,8 @@ function useNavMenuCounts(open: boolean, userId: string | undefined) {
   });
 
   return {
-    teachersCount: totals.data?.teachers ?? null,
-    papersCount: totals.data?.papers ?? null,
+    teachersCount: siteCounts.data?.teachers ?? null,
+    papersCount: siteCounts.data?.papers ?? null,
     papersReadCount: papersRead.data ?? null,
   };
 }

@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+
+import { useSiteCounts } from '@/hooks/useSiteCounts';
 import { ArrowRight } from 'lucide-react';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { fetchBankSchoolValues } from '@/lib/question-bank';
 import { hasSeenOnboarding } from '@/lib/onboarding';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
@@ -44,22 +43,17 @@ function markSeen(): void {
   }
 }
 
-function usePapersCounts(enabled: boolean) {
-  return useQuery({
-    queryKey: ['papers-live', 'counts'],
-    enabled,
-    staleTime: 10 * 60 * 1000,
-    queryFn: async () => {
-      const [papers, schools] = await Promise.all([
-        supabase.from('bank_papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
-        fetchBankSchoolValues(true),
-      ]);
-      return {
-        papers: papers.count ?? null,
-        schools: new Set(schools).size || null,
-      };
-    },
-  });
+function usePapersCounts(_enabled: boolean) {
+  /* Delegates to the one hook. This mattered more here than anywhere else:
+     the old body called fetchBankSchoolValues(true), which pages every one of
+     the 1,282 bank_papers rows -- about 100 KB -- purely to count distinct
+     schools, because REST has no distinct-count. That is precisely the query
+     site_counts() was written to replace, and this copy was still doing it. */
+  const counts = useSiteCounts();
+  return {
+    ...counts,
+    data: counts.data ? { papers: counts.data.papers, schools: counts.data.schools } : undefined,
+  };
 }
 
 export function PapersLiveAnnouncement() {

@@ -435,8 +435,29 @@ This is the weakest area and the one with the least attention on it.
 - [x] ~~Three unused dependencies~~ **Removed**, with the three shadcn
       components that were their only importers and that nothing imported in
       turn. 40 packages out of `node_modules`.
-- [ ] **`P2` Six caching layers** with different lifetimes. Works; hard to reason
-      about.
+- [x] ~~Six caching layers, hard to reason about~~ **Mapped, and it was hiding
+      a live bug.** The layers turn out to be mostly split by domain and that
+      split is defensible: teacher data in `src/utils/cache.ts` (localStorage,
+      5 min to 24 h TTLs), papers and counts in React Query (in-memory, 5 min
+      stale). The module-load `clearExpiredCache()` scan was already fixed.
+      **What the duplication was actually costing:** the site's three headline
+      numbers were fetched five different ways, and the Navbar counted the
+      wrong table. It read `papers` (**18** rows) while the Footer, About and
+      the papers announcement read `bank_papers` (**1,282**). The menu said
+      "18, free to read" while a footer one screen down said 1,282 — the same
+      site disagreeing with itself by a factor of 71.
+      That bug had already been found and fixed on About, whose comment says
+      that page "was the only surface reading the old one". It was not. Fixing
+      one copy fixed one copy.
+      All four hand-rolled copies now use `useSiteCounts`. This also removed a
+      `fetchBankSchoolValues(true)` call in the papers announcement that paged
+      every one of the 1,282 rows (~100 kB) to count distinct schools — exactly
+      what `site_counts()` was written to replace. Verified live: the menu now
+      reads "1282, free to read".
+- [ ] **`P2` ~~Six~~ Remaining hand-rolled caches** with their own TTL logic:
+      `upvotes-context.tsx` and `use-toggle-relation.ts` each roll their own
+      localStorage-plus-timestamp. Smaller than the counts problem and not
+      currently wrong, but they are the same shape.
 - [x] ~~CLAUDE.md is stale~~ **Corrected.** It said 193 papers, 70 school
       pages, five free questions and a working branch of `redesign/handoff-v1`.
       Now: 1,282 papers, 273 schools, 1,258 and 259 prerendered, two free
