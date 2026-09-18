@@ -136,6 +136,41 @@ quotas_enforcing false · anon_callable_functions 19`
       ones deliberately paired with `admin_teacher_contacts()` and
       `teacher_own_contact()`. Those are the designed pattern, not an oversight.
 
+## 0.7 Design-system audit, every template, 375px and 1280px
+
+Swept after the token consolidation, because 268 changed call sites needed
+proving rather than assuming. 85 routes reduce to ~18 distinct templates (35 of
+them are the same subject-landing component), and each was checked at both
+widths with a probe rather than by eye.
+
+**Result: zero concentric-corner breaks, zero half-pixel font sizes, zero
+horizontal overflow, on every template at both widths.**
+
+Templates covered: home, browse/subject landing, past-papers index, paper
+detail, paper results, teacher profile, school, schools, subjects, about, faq,
+contact, help/more, privacy, terms, blog, submit-a-paper, recommend-teacher,
+join, account (which `/liked-teachers` and `/dashboard/student` redirect into),
+and 404.
+
+**How concentric corners were checked**, so the next person can repeat it: for
+every element with a radius, find the nearest ancestor that also has one, and
+require `inner == outer - inset` within 2.5px. Two exclusions matter, and
+without them the check is noise:
+- **pills are not concentric partners.** A `9999px` chip inside a 30px card is a
+  chip. The first version of the probe flagged five "breaks" on the home page
+  that were all pills and badges.
+- **only flush nested surfaces count.** The element must be inset by roughly the
+  same amount on all four sides. A badge pinned to one corner is inset on two
+  sides and no concentric rule applies to it.
+
+**Observed radii, all on the scale:** 2, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28,
+30, 32, plus `9999px` pills and `4px` from Tailwind's bare `rounded`.
+
+Two things the probe surfaces that are **not** defects, noted so they are not
+re-reported: `truncate` ellipsising long school and teacher names is that class
+working, and `11px` labels are a deliberate scale rung (the 11.5px one became
+12px in the token pass).
+
 ## 1. Open now
 
 - [x] ~~Anonymous callers could read 206 children's profiles and delete the
