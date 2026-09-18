@@ -97,28 +97,34 @@ quotas_enforcing false · anon_callable_functions 19`
       check. The old string match on `proacl` silently missed every function
       with a NULL ACL, which is every function nobody has touched.
 
-- [ ] **`P1` `papers.file_url` is directly readable by `authenticated`, and is
-      empty today — which is exactly why now is the time to close it.**
-      `20260909000003` revoked the column from `anon` and added
-      `paper_file_url(uuid)` as the accessor. It did not revoke it from
-      `authenticated`, so a signed-in caller can `select file_url` straight off
-      the table (verified: anon 401, authenticated 200).
-      **Currently harmless: all 18 rows are NULL**, so nothing is exposed. The
-      moment the submit-a-paper flow starts populating it, any signed-in user
-      can list every file URL in one request, while the function hands them out
-      one paper at a time. That is precisely the bulk-versus-single distinction
-      this whole migration series draws for teacher contacts.
-      **The fix has a trap and must ship as a pair.**
-      `paper-sheet-card.tsx:132` reads `paper.file_url` directly for the
-      download link. Revoking the column alone would make `select('*')` drop it
-      silently, `paper.file_url` would be `undefined`, and the download button
-      would simply stop rendering with no error — the same silent blanking that
-      nearly shipped on the teacher dashboard. So the revoke has to land in the
-      same commit as routing that card through `paper_file_url()`.
-      **Deliberately not done blind.** With zero populated rows the download
-      path cannot be exercised before or after, so shipping it now would be an
-      unverifiable change to a payment-free but user-facing feature. Do it when
-      the submit flow goes live, and test with a real uploaded file.
+- [x] ~~`papers.file_url` readable by `authenticated`~~ **Investigated, and I
+      am reversing my own recommendation: do NOT revoke it.**
+      Tracing the callers changed the answer.
+      **No query in `src/` selects `file_url` at all.** Browse, PaperResults
+      and Account all use explicit column lists that omit it, so the download
+      link at `paper-sheet-card.tsx:132` is dead code — `paper.file_url` is
+      always `undefined`. The only consumer is the admin review screen.
+      **The revoke would have bought nothing and cost something.** An admin is
+      an `authenticated` user, so they could call `paper_file_url()` regardless
+      — the privilege is identical either way. What the revoke would actually
+      do is blind the admin's own review screen to which papers have files.
+      Checked for data loss specifically and there is none: the only
+      `update()` calls set `is_published` alone and never write `file_url`
+      back. That was the thing worth ruling out before dismissing this.
+- [x] **The real defect here was the `select('*')`, and it is fixed.**
+      `admin/papers.tsx` fetched with `select('*')`. PostgREST expands `*` to
+      the columns a role MAY read and does not error on the rest, so any future
+      column revoke turns that query into a silently smaller row — no failure,
+      no warning, fields just become undefined. That is the exact pattern
+      behind the seven-query incident earlier in this series, one of which
+      blanked every teacher card for every signed-out visitor. Now an explicit
+      column list, so that decision would fail loudly instead of quietly
+      emptying the admin screen.
+      Swept the rest: only `Shikshaqmine`, `papers` and `bank_questions` carry
+      column-level revokes, and the two remaining `select('*')` calls against
+      them — `admin/teachers.tsx:163` and `TeacherDashboard.tsx:230` — are the
+      ones deliberately paired with `admin_teacher_contacts()` and
+      `teacher_own_contact()`. Those are the designed pattern, not an oversight.
 
 ## 1. Open now
 

@@ -113,9 +113,22 @@ export default function AdminPapersPage() {
   async function fetchPapers() {
     try {
       setLoading(true);
+      /* An explicit column list, not select('*').
+         PostgREST expands `*` to the columns the current role MAY read and
+         does NOT error on the ones it may not. So a column revoke turns this
+         query into a silently smaller row: no failure, no warning, just fields
+         that are suddenly undefined. That exact pattern was found in seven
+         queries earlier in this migration series, one of which blanked every
+         teacher card for every signed-out visitor for weeks.
+         papers.file_url is the live candidate here -- it is already revoked
+         from anon, and the case for revoking it from authenticated keeps
+         coming up. Naming the columns means that decision would fail loudly
+         here instead of quietly emptying the admin review screen. */
       const { data, error } = await supabase
         .from('papers')
-        .select('*')
+        .select(
+          'id,title,school,subject,class,board,exam_type,year,file_url,is_published,created_at',
+        )
         .order('created_at', { ascending: false });
       if (error) throw error;
       setPapers((data as PaperRow[]) || []);
