@@ -71,22 +71,54 @@ quotas_enforcing false · anon_callable_functions 19`
 - **Logging works.** The signed-in read used to test the gate was recorded.
 - **Quotas off**, as intended.
 
-- [ ] **`P1` 19 anon-executable functions, and that number is a FLOOR.** I
-      predicted about five. Worse, the query that produced 19 undercounts:
-      it matched the ACL as a string for `anon=X`, and a **NULL `proacl` means
-      the default applies, which for a function is `EXECUTE TO PUBLIC`** — so
-      every function that has never had an explicit GRANT or REVOKE is
-      anon-executable and matches no string at all.
-      Six are accounted for: `site_counts`, `bank_paper_questions`,
-      `teacher_whatsapp_link` (the gates), plus `is_admin`,
-      `check_user_exists`, `check_user_has_password` (needed pre-auth). **At
-      least 13 more have never been audited**, and `get_public_profile_data`
-      is proof that an unaudited orphan can be handing out 206 children's
-      profiles.
-      Query **4b** in `RUN_THIS_ONE.sql` is corrected to use
-      `has_function_privilege`, which resolves NULL ACLs the way Postgres
-      actually will. Run it, and every SECURITY DEFINER function on that list
-      needs a reason to be there.
+- [x] ~~19 anon-executable functions, unaudited~~ **All 19 audited
+      empirically, and there is no new hole.** The number was alarming; the
+      content is not. Each was called over REST as an anonymous caller rather
+      than reasoned about from its name.
+      - **6 trigger functions** (`update_updated_at_column`,
+        `set_papers_updated_at`, `update_page_content_updated_at`,
+        `prevent_role_escalation`, `calculate_age_from_dob`,
+        `calculate_student_age_from_dob`) — PostgREST answers `PGRST202` and
+        will not route them at all, because they return `trigger`. The grant is
+        inert.
+      - **4 pure helpers** (`extract_phone_from_link`,
+        `normalize_phone_to_10_digits`, `combine_areas`,
+        `generate_unique_slug`) — they transform input the caller already
+        holds. `extract_phone_from_link` reads worst and is harmless: given
+        `wa.me/919830012345` it returns `919830012345`, which is the number you
+        just typed. It looks nothing up.
+      - **2 public aggregates** (`home_facet_counts`,
+        `get_teacher_upvote_count`) — numbers already printed on the page.
+      - **7 SECURITY DEFINER** — the three gates, `is_admin` (false to anon),
+        the two sign-in checks that must answer pre-auth, and `paper_file_url`,
+        which I flagged on sight and which turns out to be correctly gated by
+        `20260909000003`: it returns null to anon, verified.
+      Keep the corrected query (4b, `has_function_privilege`) as the standing
+      check. The old string match on `proacl` silently missed every function
+      with a NULL ACL, which is every function nobody has touched.
+
+- [ ] **`P1` `papers.file_url` is directly readable by `authenticated`, and is
+      empty today — which is exactly why now is the time to close it.**
+      `20260909000003` revoked the column from `anon` and added
+      `paper_file_url(uuid)` as the accessor. It did not revoke it from
+      `authenticated`, so a signed-in caller can `select file_url` straight off
+      the table (verified: anon 401, authenticated 200).
+      **Currently harmless: all 18 rows are NULL**, so nothing is exposed. The
+      moment the submit-a-paper flow starts populating it, any signed-in user
+      can list every file URL in one request, while the function hands them out
+      one paper at a time. That is precisely the bulk-versus-single distinction
+      this whole migration series draws for teacher contacts.
+      **The fix has a trap and must ship as a pair.**
+      `paper-sheet-card.tsx:132` reads `paper.file_url` directly for the
+      download link. Revoking the column alone would make `select('*')` drop it
+      silently, `paper.file_url` would be `undefined`, and the download button
+      would simply stop rendering with no error — the same silent blanking that
+      nearly shipped on the teacher dashboard. So the revoke has to land in the
+      same commit as routing that card through `paper_file_url()`.
+      **Deliberately not done blind.** With zero populated rows the download
+      path cannot be exercised before or after, so shipping it now would be an
+      unverifiable change to a payment-free but user-facing feature. Do it when
+      the submit flow goes live, and test with a real uploaded file.
 
 ## 1. Open now
 
