@@ -183,7 +183,7 @@ export function loadPaperIndex(): Promise<BankPaper[]> {
    Keyed by paper id AND by whether the caller is signed in, because those two
    states now return different rows. Signing in from the gate has to be able to
    re-ask for the same paper and get all of it, rather than being handed the
-   five questions cached a moment earlier while signed out. */
+   preview questions cached a moment earlier while signed out. */
 const questionCache = new Map<string, Promise<BankQuestion[]>>();
 
 /**
@@ -192,7 +192,7 @@ const questionCache = new Map<string, Promise<BankQuestion[]>>();
  * Reads through the `bank_paper_questions` RPC, not the table: anon SELECT on
  * bank_questions is revoked, and the function returns five rows to a signed-out
  * caller and the whole paper to a signed-in one. A signed-out reader therefore
- * receives five questions and no trace of the rest -- there is nothing in the
+ * receives only the preview questions and no trace of the rest -- there is nothing in the
  * payload to un-blur, which is the point.
  *
  * @param signedIn only ever affects the CACHE KEY. The gate itself is decided

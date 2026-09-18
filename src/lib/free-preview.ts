@@ -6,18 +6,18 @@
  * this constant only exists so the copy that promises a number says the same
  * number. Changing one without the other makes the product lie to the reader.
  *
- * It was six hardcoded "five"s across six files: the papers announcement, the
- * browse nudge, the footer sentence, the product tour, About, and BankPaper's
- * own meta description. Migration 20260917120001 drops the gate from 5 to 2,
- * and without this every one of those would have kept advertising five
- * questions that no longer arrive -- which is worse than a stale number,
- * because a reader who counts is being told something untrue by the page that
- * just withheld the rest.
+ * It was seven hardcoded "five"s across seven files: the papers announcement,
+ * the browse nudge, the footer sentence, the product tour, About, a blog
+ * aside, and BankPaper's own meta description. Each one is a promise made to
+ * the reader before they open anything, so a stale number here is not a
+ * cosmetic bug -- it is the page telling someone they will get five and then
+ * withholding three of them.
  *
- * WHEN 20260917120001 IS APPLIED, change both values here in the same deploy.
- * See docs/SUPABASE_RUNBOOK.md, step 2.
+ * The gate moved to 2 when 20260918100000 was applied on 2026-09-18, so these
+ * values moved with it. Nothing else should hardcode the number: import from
+ * here, and the copy can never drift from the database again.
  */
-export const FREE_PREVIEW_QUESTIONS = 5;
+export const FREE_PREVIEW_QUESTIONS = 2;
 
 /** The same number as a word, for running prose. */
-export const FREE_PREVIEW_WORD = 'five';
+export const FREE_PREVIEW_WORD = 'two';

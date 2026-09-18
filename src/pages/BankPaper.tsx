@@ -288,7 +288,7 @@ export default function BankPaper() {
      It used to be a soft gate: every question was rendered and the tail merely
      blurred, so the rows were sitting in the DOM and in any unauthenticated API
      response. This now reads through the bank_paper_questions RPC with anon
-     SELECT revoked, so a signed-out reader is SENT five questions and the rest
+     SELECT revoked, so a signed-out reader is SENT only the preview questions and the rest
      do not exist on the client. There is no blur to defeat and nothing to
      un-hide with devtools.
 
@@ -654,7 +654,7 @@ export default function BankPaper() {
           {/* The lock.
 
               There is no blurred tail any more because there is no tail: the
-              server sent five questions and kept the rest. So this states the
+              server sent only the preview questions and kept the rest. So this states the
               count from the paper's own question_count rather than pretending
               to show rows it does not have -- honest about what is behind it,
               and impossible to defeat by deleting a CSS filter.
@@ -682,7 +682,7 @@ export default function BankPaper() {
 
 
           {paper && visible.length === 0 && !loading && (
-            /* A signed-out reader is searching five questions, not the paper,
+            /* A signed-out reader is searching the preview questions, not the paper,
                so "nothing matches" would be a false negative on a paper that
                does contain the word. Say which haystack was actually searched. */
             <p className="text-[15px] text-warm-prose">

@@ -14,12 +14,20 @@ earns attention · `ACCEPTED` known and deliberately not doing
 
 ## 1. Open now
 
-- [ ] **`P0` Run `20260918140000_revoke_execute_by_role_name.sql`.** Closes a
-      hole the previous migration opened: `revoke … from public` does not remove
-      Supabase's direct `anon` grant, so `purge_read_events()` answered an
-      anonymous `POST` with HTTP 200 — an unauthenticated DELETE against the
-      audit table. Also closes `get_public_profile_data()`, which returns 206
-      profiles with names, schools and grades to anyone.
+- [ ] **`P0` Run `20260918140000_revoke_execute_by_role_name.sql`. STILL OPEN,
+      RE-CONFIRMED LIVE 2026-09-18.** Not theory and not stale: curled against
+      production today, as an anonymous caller holding only the publishable key
+      that ships in the bundle.
+      - `POST /rpc/get_public_profile_data` → **200, 52,753 bytes, 206 rows**,
+        each with `full_name`, `school_college`, `grade`, `role` and
+        `avatar_url`. Real named children at named Kolkata schools, in one
+        request, by anyone. This is the single most serious item on this page.
+      - `POST /rpc/purge_read_events` → **200**. An unauthenticated DELETE
+        against the audit table, so a scraper can trim the record of their own
+        scraping.
+      `revoke … from public` does not remove Supabase's direct `anon` grant, so
+      the previous migration did not close these. The corrective file is written
+      and ready; it has not been applied.
 - [x] ~~No error boundary~~ **Done.** Two boundaries: one outermost for a
       provider failing at boot, one around `<Routes>` so a broken page keeps the
       chrome. Verified by injecting a real render-time throw into `/faq` — the
@@ -31,9 +39,11 @@ earns attention · `ACCEPTED` known and deliberately not doing
       production, so it is not zero. But there are no stack traces, no alerting
       and no search by message, so nobody finds out unless they go looking. The
       `ErrorBoundary` is where a real service plugs in.
-- [ ] **`P0` Deploy the free-preview copy change.** `src/lib/free-preview.ts`
-      → `2` / `'two'`. The gate now hands over two questions; seven places still
-      promise five.
+- [x] ~~Free-preview copy change~~ **Done.** Verified the live RPC hands an
+      anonymous caller exactly 2 questions, then flipped the one constant the
+      seven copy sites read from, so the page no longer promises five and
+      delivers two. Checked in the browser: the paper page now reads "the first
+      two questions ... no account needed".
 - [ ] **`P1` Schedule `purge_read_events()`.** 90-day retention is written but
       nothing runs it. `pg_cron` is not installed. Retention that starts late is
       retention that did not happen, and this table records what minors read.
