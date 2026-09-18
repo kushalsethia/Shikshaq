@@ -29,6 +29,48 @@ import { logger } from '@/utils/logger';
  * list; this boundary is where that would plug in.
  */
 
+/**
+ * True when this is a stale-deploy chunk failure rather than a real fault.
+ *
+ * The message differs per browser -- Chrome, Firefox and Safari each word it
+ * their own way -- so all three are matched. Kept deliberately narrow: only a
+ * dynamic-import failure qualifies, because the recovery is a reload and
+ * reloading a genuinely broken page just shows the same crash twice.
+ */
+function isStaleChunkError(error: unknown): boolean {
+  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  return (
+    /failed to fetch dynamically imported module/i.test(message) ||
+    /error loading dynamically imported module/i.test(message) ||
+    /importing a module script failed/i.test(message) ||
+    /failed to load module script/i.test(message)
+  );
+}
+
+/**
+ * Permission to reload, granted at most once per minute.
+ *
+ * Without this a page that fails on EVERY load -- a genuinely missing chunk, a
+ * broken CDN -- would reload forever, which is worse than the blank page this
+ * whole component exists to replace. One attempt, then the panel, which is the
+ * honest outcome when reloading did not help.
+ *
+ * Fails CLOSED: if sessionStorage is unavailable (private mode, blocked
+ * storage) this returns false and the reader gets the panel and a button they
+ * can press themselves. Never an unguarded reload.
+ */
+function claimStaleChunkReload(): boolean {
+  const KEY = 'shikshaq_chunk_reload_at';
+  try {
+    const previous = Number(window.sessionStorage.getItem(KEY) ?? 0);
+    if (Number.isFinite(previous) && Date.now() - previous < 60_000) return false;
+    window.sessionStorage.setItem(KEY, String(Date.now()));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 interface Props {
   children: ReactNode;
   /** Identifies which boundary fired, since there is more than one. */
@@ -56,6 +98,21 @@ export class ErrorBoundary extends Component<Props, State> {
       error,
       info.componentStack,
     );
+
+    if (isStaleChunkError(error) && claimStaleChunkReload()) {
+      /* Not a bug in the page: the visitor is holding an index.html that
+         references chunk filenames which no longer exist, because a deploy
+         landed while they were reading. Their next route change asks for a
+         file the server no longer has, Vercel's SPA rewrite answers with
+         index.html, and the browser refuses it as the wrong MIME type.
+
+         Reloading fetches the current index.html and the current filenames,
+         which fixes it completely. Doing it automatically matters most on the
+         day it will happen most: merging to main republishes every hashed
+         asset, so everyone reading at that moment is holding a stale document.
+         Asking them to press a button is a worse answer than just doing it. */
+      window.location.reload();
+    }
   }
 
   private reset = () => {
@@ -139,3 +196,8 @@ export class ErrorBoundary extends Component<Props, State> {
     );
   }
 }
+
+/* Exported under prefixed names for the tests. The component itself is the
+   public surface; these two are decisions worth pinning independently, because
+   getting either wrong is worse than having no boundary at all. */
+export { isStaleChunkError as __isStaleChunkError, claimStaleChunkReload as __claimStaleChunkReload };
