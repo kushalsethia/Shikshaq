@@ -234,7 +234,7 @@ function TeacherCardComponent({
          fontSize) on every density — text-body-secondary (15px) throughout,
          text-card-title (16px) added back on desktop grid — for a visually
          smaller card, per the owner's live review. Was text-card-title
-         (16px) on row/rail and arbitrary text-[15.5px]/sm:text-[19px] (not a
+         (16px) on row/rail and arbitrary text-[16px]/sm:text-[19px] (not a
          scale token at all) on grid.
          Was a single-line `truncate`, which on the actual card widths (a
          3-up desktop grid, or a mobile row sharing space with the heart/
@@ -379,7 +379,7 @@ function TeacherCardComponent({
   // fixed order, each optional. Replaces the old chipsRow/factsRow pairing
   // for this variant only.
   const experienceBadge = isRow && experienceYears != null ? (
-    <span className="inline-flex h-[26px] items-center rounded-full bg-card px-[10px] text-[11.5px] font-semibold tabular-nums text-warm-secondary">
+    <span className="inline-flex h-[26px] items-center rounded-full bg-card px-[10px] text-[12px] font-semibold tabular-nums text-warm-secondary">
       {experienceYears} yrs
     </span>
   ) : null;
@@ -513,7 +513,7 @@ function TeacherCardComponent({
            is 8px at base and 10px from sm. It was a flat 24px, so from sm the
            photo's corner was 2px tighter than the curve around it and the two
            arcs visibly disagreed. */
-        className="relative aspect-[5/6] overflow-hidden rounded-[24px] bg-muted outline outline-1 -outline-offset-1 outline-black/10 sm:rounded-[22px]">
+        className="relative aspect-[5/6] overflow-hidden rounded-[24px] bg-muted outline outline-1 -outline-offset-1 outline-black/10 sm:rounded-[24px]">
           {photo}
           {subjectBadgeOnPhoto}
           {/* Upvote pill moves onto the photo per the owner's live review —

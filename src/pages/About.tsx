@@ -324,7 +324,7 @@ export default function About() {
                     <div className={`font-display text-[24px] font-black tracking-[-0.04em] tabular-nums ${st.ink}`}>
                       {st.value}
                     </div>
-                    <div className="mt-0.5 text-[12.5px] leading-[1.4] text-warm-label">{st.label}</div>
+                    <div className="mt-0.5 text-[13px] leading-[1.4] text-warm-label">{st.label}</div>
                   </div>
                 ))}
               </div>
@@ -387,7 +387,7 @@ export default function About() {
                   <IconDisc tone="papers" size={40} className="mb-2.5">
                     <Search />
                   </IconDisc>
-                  <p className="text-[14.5px] font-bold text-brand-blue-deep">If you are looking</p>
+                  <p className="text-[15px] font-bold text-brand-blue-deep">If you are looking</p>
                   <p className="mt-1.5 text-[14px] leading-[1.6] text-foreground/70">
                     Filter by subject, board and area, read real reviews, message the teacher
                     yourself. You never pay us, never in the middle.
@@ -397,7 +397,7 @@ export default function About() {
                   <IconDisc tone="brand" size={40} className="mb-2.5">
                     <GraduationCap />
                   </IconDisc>
-                  <p className="text-[14.5px] font-bold text-brand-deep">If you teach</p>
+                  <p className="text-[15px] font-bold text-brand-deep">If you teach</p>
                   <p className="mt-1.5 text-[14px] leading-[1.6] text-foreground/70">
                     Free to list, forever. Set your own rate, keep all of it. Enquiries are real
                     people messaging you, not sold leads.
@@ -465,8 +465,8 @@ export default function About() {
                       className="mt-[7px] h-2 w-2 flex-none rounded-[2px] bg-brand"
                     />
                     <span className="min-w-0">
-                      <span className="block text-[14.5px] font-bold text-foreground">{pt.head}</span>
-                      <span className="mt-0.5 block text-[13.5px] leading-[1.5] text-warm-secondary">
+                      <span className="block text-[15px] font-bold text-foreground">{pt.head}</span>
+                      <span className="mt-0.5 block text-[14px] leading-[1.5] text-warm-secondary">
                         {pt.body}
                       </span>
                     </span>
@@ -502,8 +502,8 @@ export default function About() {
                 made it online otherwise, so the next batch would not have to hunt for it.
               </p>
               <div className="mt-4 rounded-[18px] bg-muted p-4 transition-colors duration-150 hover:bg-white/60">
-                <p className="text-[13.5px] font-bold text-foreground">Where we draw the line</p>
-                <p className="mt-1 text-[13.5px] leading-[1.6] text-warm-secondary">
+                <p className="text-[14px] font-bold text-foreground">Where we draw the line</p>
+                <p className="mt-1 text-[14px] leading-[1.6] text-warm-secondary">
                   The questions belong to the schools that set them. Free to read, not to download
                   or repost. Every one names its school, and any school can ask for theirs down.
                 </p>

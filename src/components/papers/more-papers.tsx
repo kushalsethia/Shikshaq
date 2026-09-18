@@ -44,7 +44,7 @@ export function MorePapers({ items, currentId }: { items: MorePapersItem[]; curr
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-[14px] font-semibold text-foreground">{p.title}</span>
-                {p.year && <span className="block text-[12.5px] text-warm-label">{p.year}</span>}
+                {p.year && <span className="block text-[13px] text-warm-label">{p.year}</span>}
               </span>
             </Link>
           </li>

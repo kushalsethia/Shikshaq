@@ -551,7 +551,7 @@ export default function Account() {
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setTab(tab.key)}
-                className={`flex h-11 flex-none items-center gap-2 rounded-full px-4 text-[13.5px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                className={`flex h-11 flex-none items-center gap-2 rounded-full px-4 text-[14px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   selected ? 'bg-panel font-bold text-background' : 'bg-muted text-warm-secondary'
                 }`}
               >

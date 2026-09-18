@@ -125,7 +125,7 @@ export function PapersLiveAnnouncement() {
             </DialogTitle>
           </DialogHeader>
 
-          <p id="papers-live-body" className="mt-2 text-center text-[14.5px] leading-[1.55] text-white/90">
+          <p id="papers-live-body" className="mt-2 text-center text-[15px] leading-[1.55] text-white/90">
             {c?.papers && c?.schools
               ? `${c.papers} real question papers from ${c.schools} schools, typed out with their marks and chapters.`
               : 'Real question papers, typed out with their marks and chapters.'}
@@ -133,7 +133,7 @@ export function PapersLiveAnnouncement() {
         </div>
 
         <div className="px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
-          <p className="mb-4 text-center text-[13.5px] leading-[1.55] text-warm-prose">
+          <p className="mb-4 text-center text-[14px] leading-[1.55] text-warm-prose">
             The first {FREE_PREVIEW_WORD} questions on every paper are free to read, no account needed.
           </p>
           <div className="flex flex-col gap-2">

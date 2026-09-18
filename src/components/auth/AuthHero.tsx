@@ -120,7 +120,7 @@ function TeacherFragment({ name, subject, area }: { name: string; subject: strin
   return (
     <span className={`absolute left-0 top-0 flex max-w-full items-center gap-3 rounded-[18px] bg-card p-3 -rotate-3 ${TILT} ${LIFT}`}>
       <span
-        className="flex h-11 w-11 flex-none items-center justify-center rounded-[13px] font-display text-[17px] font-extrabold"
+        className="flex h-11 w-11 flex-none items-center justify-center rounded-[14px] font-display text-[17px] font-extrabold"
         style={{ backgroundColor: palette.tint, color: palette.text }}
       >
         {name.slice(0, 1).toUpperCase()}
@@ -134,7 +134,7 @@ function TeacherFragment({ name, subject, area }: { name: string; subject: strin
 }
 
 const Pill = ({ className, style, children }: { className: string; style?: React.CSSProperties; children: ReactNode }) => (
-  <span className={`inline-flex h-9 items-center whitespace-nowrap rounded-full px-4 text-[13.5px] font-extrabold ${LIFT} ${className}`} style={style}>
+  <span className={`inline-flex h-9 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-extrabold ${LIFT} ${className}`} style={style}>
     {children}
   </span>
 );
@@ -183,7 +183,7 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
         stickers: (
           <Well h={120}>
             <TeacherFragment name={intent.teacherName} subject={intent.subject} area={intent.area} />
-            <span className={`absolute bottom-0 right-[6%] inline-flex h-9 items-center gap-2 rounded-full bg-panel px-4 text-[13.5px] font-extrabold text-[#FCFAF7] rotate-[5deg] ${TILT} ${LIFT}`}>
+            <span className={`absolute bottom-0 right-[6%] inline-flex h-9 items-center gap-2 rounded-full bg-panel px-4 text-[14px] font-extrabold text-[#FCFAF7] rotate-[5deg] ${TILT} ${LIFT}`}>
               <Heart className="h-4 w-4 fill-current" aria-hidden="true" />
               Saved
             </span>
@@ -326,7 +326,7 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
             {rows.map(([dot, label, tilt], i) => (
               <span
                 key={label}
-                className={`absolute left-0 inline-flex h-9 items-center gap-2.5 whitespace-nowrap rounded-full bg-card px-4 text-[13.5px] font-extrabold text-foreground ${tilt} ${TILT} ${LIFT}`}
+                className={`absolute left-0 inline-flex h-9 items-center gap-2.5 whitespace-nowrap rounded-full bg-card px-4 text-[14px] font-extrabold text-foreground ${tilt} ${TILT} ${LIFT}`}
                 style={{ top: i * 42 }}
               >
                 <span className={`h-2 w-2 flex-none rounded-full ${dot}`} />

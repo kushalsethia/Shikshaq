@@ -415,7 +415,7 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
                 <span
                   key={label}
                   className={cn(
-                    'inline-flex h-9 items-center rounded-full px-4 text-[13.5px] font-extrabold tabular-nums short:h-8 short:px-3.5 short:text-[12.5px] short-landscape:h-8 short-landscape:px-3.5 short-landscape:text-[12.5px]',
+                    'inline-flex h-9 items-center rounded-full px-4 text-[14px] font-extrabold tabular-nums short:h-8 short:px-3.5 short:text-[13px] short-landscape:h-8 short-landscape:px-3.5 short-landscape:text-[13px]',
                     step.chipBg,
                     step.chipInk,
                   )}

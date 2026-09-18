@@ -113,8 +113,8 @@ export function AdminGuardErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted">
       <div className={`mx-auto w-full max-w-sm p-8 text-center ${adminPanelStyle}`}>
-        <p className="text-[15.5px] font-semibold text-foreground">Couldn't verify your access</p>
-        <p className="mt-2 text-[13.5px] text-warm-prose">
+        <p className="text-[16px] font-semibold text-foreground">Couldn't verify your access</p>
+        <p className="mt-2 text-[14px] text-warm-prose">
           We weren't able to confirm your admin permissions. Check your connection and try again.
         </p>
         <button type="button" onClick={onRetry} className={`mt-5 ${adminPrimaryBtnStyle}`}>
@@ -184,7 +184,7 @@ export function AdminTile({
 }) {
   return (
     <div
-      className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[13px] text-[15px] font-bold"
+      className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[14px] text-[15px] font-bold"
       style={{ background: tint.bg, color: tint.text }}
     >
       {children}
@@ -206,7 +206,7 @@ const PILL_TONE_CLASS: Record<AdminPillTone, string> = {
 export function AdminPill({ tone, children }: { tone: AdminPillTone; children: ReactNode }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 text-[11.5px] font-bold ${PILL_TONE_CLASS[tone]}`}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-bold ${PILL_TONE_CLASS[tone]}`}
     >
       {children}
     </span>
@@ -219,13 +219,13 @@ export function AdminPill({ tone, children }: { tone: AdminPillTone; children: R
    palette as AD-004's status pills so a "destructive" button always reads
    as the tinted rose, never solid red. */
 export const adminPrimaryBtnStyle =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-0 bg-panel px-5 text-[12.5px] font-bold text-background transition-transform duration-150 active:scale-[0.97]';
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-0 bg-panel px-5 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.97]';
 
 export const adminSecondaryBtnStyle =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-muted px-5 text-[12.5px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.97]';
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-muted px-5 text-[13px] font-bold text-warm-secondary transition-transform duration-150 active:scale-[0.97]';
 
 export const adminDestructiveBtnStyle =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#F9E2E2] px-5 text-[12.5px] font-bold text-[#8C2A2A] transition-transform duration-150 active:scale-[0.97]';
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-[#F9E2E2] px-5 text-[13px] font-bold text-[#8C2A2A] transition-transform duration-150 active:scale-[0.97]';
 
 /**
  * Single toast system for the admin console (see _rules.md #19 and

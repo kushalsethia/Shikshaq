@@ -62,7 +62,7 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
            actions) isn't applied: it would remove the only way to open or
            download a paper from this card, which crosses from restyling
            into removing working functionality. Flagged, not guessed. */
-        className="relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[22px] p-4 text-left transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-6"
+        className="relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[24px] p-4 text-left transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-6"
         style={{ backgroundColor: palette.tint }}
       >
         {/* Folded corner. */}

@@ -263,8 +263,12 @@ export default {
         lede: ["1.0625rem", { lineHeight: "1.55", letterSpacing: "0" }],
         body: ["1rem", { lineHeight: "1.5", letterSpacing: "0" }],
         "body-secondary": ["0.9375rem", { lineHeight: "1.6", letterSpacing: "0" }],
-        meta: ["0.84375rem", { lineHeight: "1.4", letterSpacing: "0" }],
-        label: ["0.71875rem", { lineHeight: "1.2", letterSpacing: "0.04em" }],
+        /* 14px, was 13.5px. */
+        meta: ["0.875rem", { lineHeight: "1.4", letterSpacing: "0" }],
+        /* 12px, was 11.5px. Uppercase at 11.5 was the smallest type on the
+           site and the hardest to read on a phone, so this is the one merge
+           here that is an accessibility improvement as well as a tidy-up. */
+        label: ["0.75rem", { lineHeight: "1.2", letterSpacing: "0.04em" }],
 
         /* ---- The sizes the product actually uses ------------------------
            Measured, not guessed: 607 arbitrary `text-[Npx]` values across 43
@@ -280,6 +284,11 @@ export default {
            declared bare so `text-[14px]` -> `text-14` is a byte-for-byte
            no-op, which is the whole point of adding them.
 
+           The half-pixel rungs -- 12.5, 14.5, 15.5 -- were removed along with
+           the 230 arbitrary half-pixel call sites they existed to catch. They
+           had no usages left, and a scale that offers 14 AND 14.5 invites the
+           drift it was meant to stop.
+
            For NEW work prefer the semantic tokens above: they carry the
            metrics and say what the text is for. These exist so existing
            arbitrary values have somewhere to land, and so the next person
@@ -287,11 +296,8 @@ export default {
         "10": "0.625rem",
         "11": "0.6875rem",
         "12": "0.75rem",
-        "12.5": "0.78125rem",
         "13": "0.8125rem",
         "14": "0.875rem",
-        "14.5": "0.90625rem",
-        "15.5": "0.96875rem",
         "19": "1.1875rem",
         "20": "1.25rem",
         "21": "1.3125rem",

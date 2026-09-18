@@ -138,7 +138,7 @@ export default function RecommendTeacher() {
             <h1 className="mt-3.5 font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-background">
               Know a teacher worth listing?
             </h1>
-            <p className="mt-2.5 text-[14.5px] leading-[1.55] text-background/70">
+            <p className="mt-2.5 text-[15px] leading-[1.55] text-background/70">
               Three fields. We verify before anything goes live.
             </p>
           </BentoPanel>

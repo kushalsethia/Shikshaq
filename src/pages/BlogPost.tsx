@@ -26,7 +26,7 @@ import {
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex h-[96px] flex-col-reverse justify-center rounded-[18px] bg-muted p-[14px]">
-      <dt className="mt-0.5 text-[12.5px] leading-[1.4] text-warm-label">{label}</dt>
+      <dt className="mt-0.5 text-[13px] leading-[1.4] text-warm-label">{label}</dt>
       <dd className="font-display text-[24px] font-black tabular-nums tracking-[-0.04em] text-foreground">
         {value}
       </dd>

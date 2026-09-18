@@ -173,7 +173,7 @@ export default function SubmitPaper() {
       <main id="main-content">
         <BentoStack>
           <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[26px]">
-            <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-brand-blue">
+            <span className="text-[12px] font-bold uppercase tracking-[0.04em] text-brand-blue">
               Students helping students
             </span>
             <h1 className="mt-1.5 font-display text-[32px] font-normal leading-[1.06] tracking-[-0.045em] text-foreground lg:text-[44px]">
@@ -189,7 +189,7 @@ export default function SubmitPaper() {
 
           {/* ---------------------------------------------------------- upload */}
           <BentoPanel fill="card" className="p-[22px]">
-            <span className="mb-2 block text-[11.5px] font-bold uppercase tracking-[0.04em] text-warm-label">
+            <span className="mb-2 block text-[12px] font-bold uppercase tracking-[0.04em] text-warm-label">
               The paper
             </span>
 
@@ -199,7 +199,7 @@ export default function SubmitPaper() {
               className="rounded-[18px] border-[1.5px] border-dashed border-warm-hairline bg-muted p-5 text-center"
             >
               <Upload className="mx-auto h-6 w-6 text-warm-label" aria-hidden="true" />
-              <p className="mt-2 text-[14.5px] font-semibold text-foreground">
+              <p className="mt-2 text-[15px] font-semibold text-foreground">
                 Drop the pages here, or choose files
               </p>
               <p className="mt-1 text-[13px] text-warm-secondary">
@@ -231,7 +231,7 @@ export default function SubmitPaper() {
                     className="flex items-center gap-3 rounded-[14px] bg-muted px-3.5 py-2.5"
                   >
                     <FileText className="h-4 w-4 flex-none text-brand-blue" aria-hidden="true" />
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-foreground">{f.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{f.name}</span>
                     <span className="flex-none text-[12px] tabular-nums text-warm-meta">
                       {(f.size / 1048576).toFixed(1)}MB
                     </span>
@@ -373,7 +373,7 @@ export default function SubmitPaper() {
             {stage === 'fallback' && (
               <div className="mt-3 rounded-[16px] bg-brand-subtle p-4">
                 <p className="text-[14px] font-bold text-brand-deep">Upload could not go through</p>
-                <p className="mt-1 text-[13.5px] leading-[1.55] text-brand-deep/85">
+                <p className="mt-1 text-[14px] leading-[1.55] text-brand-deep/85">
                   Nothing you typed is lost. Send it over WhatsApp instead and we will take it from
                   there, or try the upload again in a moment.
                 </p>
@@ -381,7 +381,7 @@ export default function SubmitPaper() {
                   href={waHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-2.5 inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[13.5px] font-bold text-whatsapp-text"
+                  className="mt-2.5 inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[14px] font-bold text-whatsapp-text"
                 >
                   <WhatsAppIcon className="h-4 w-4" />
                   Send on WhatsApp
@@ -412,7 +412,7 @@ export default function SubmitPaper() {
                     <row.icon className="h-4 w-4 text-brand-blue" aria-hidden="true" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[14.5px] font-bold text-foreground">{row.head}</span>
+                    <span className="block text-[15px] font-bold text-foreground">{row.head}</span>
                     <span className="mt-0.5 block text-[14px] leading-[1.55] text-warm-secondary">{row.body}</span>
                   </span>
                 </li>

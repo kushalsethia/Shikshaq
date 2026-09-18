@@ -2116,7 +2116,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           )}
         </h1>
         {viewMode === 'papers' ? null : pageContext ? (
-          <p className="mt-1 text-[14.5px] text-warm-meta">
+          <p className="mt-1 text-[15px] text-warm-meta">
             {loading
               ? 'Loading teachers…'
               : hasZeroResults
@@ -2125,7 +2125,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           </p>
         ) : subLineParts.length > 0 && (
           <p
-            className="mt-1 text-[14.5px] text-warm-meta"
+            className="mt-1 text-[15px] text-warm-meta"
             style={headerAccent ? { color: headerAccent } : undefined}
           >
             {subLineParts.join(' · ')}
@@ -2140,7 +2140,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
         <div className="mt-3 min-w-0 max-w-[820px]">
           {/* Handoff B-005: drop onDark — the panel is bone now, so the field
-              inherits Home's H-009 metrics (60px, rounded-[22px], bg-muted,
+              inherits Home's H-009 metrics (60px, rounded-[24px], bg-muted,
               46px submit disc) via heroDesk instead. */}
           {/* alwaysShowModeToggle: the Teachers/Past papers switch belongs here
               as much as on the home desk, and without it this page was the one
@@ -2217,7 +2217,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             <button
               type="button"
               onClick={() => setFilterSheetOpen(true)}
-              className="shikshaq-tap flex h-11 flex-none items-center gap-[7px] rounded-full bg-panel px-[16px] text-[13.5px] font-bold text-background transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
+              className="shikshaq-tap flex h-11 flex-none items-center gap-[8px] rounded-full bg-panel px-[16px] text-[14px] font-bold text-background transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
             >
               <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden />
               Filters
@@ -2240,7 +2240,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
 
       {suggestedChips.length > 0 && (
         <BentoPanel fill="card" className="px-4 py-3">
-          <div className="mb-2 text-[12.5px] font-semibold text-warm-secondary">
+          <div className="mb-2 text-[13px] font-semibold text-warm-secondary">
             Suggested for you
           </div>
           <div className="flex flex-wrap gap-2">

@@ -34,7 +34,7 @@ const chipVariants = cva(
         /* Handoff S-005: three legal sizes and nothing else. 34/40 removed —
            every former 40px interactive chip is now 44, every purely
            decorative one is 38. */
-        26: "h-[26px] px-[10px] text-[11.5px] font-bold",
+        26: "h-[26px] px-[10px] text-[12px] font-bold",
         38: "h-[38px] px-3.5 text-[13px] font-semibold",
         /* The default: meets the 44px floor. */
         44: "h-11 px-[18px] text-body-secondary",

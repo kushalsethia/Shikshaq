@@ -164,7 +164,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
                   type="button"
                   onClick={() => setActiveCategory(c.key)}
                   aria-pressed={on}
-                  className={`flex h-11 flex-none items-center whitespace-nowrap rounded-full px-[18px] text-[14.5px] transition-colors duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  className={`flex h-11 flex-none items-center whitespace-nowrap rounded-full px-[18px] text-[15px] transition-colors duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     on ? 'bg-panel font-bold text-background' : 'bg-muted font-semibold text-foreground'
                   }`}
                 >
@@ -206,7 +206,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
                 }`}
               >
                 <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                  <span className="text-[15.5px] font-bold tracking-[-0.02em] text-foreground">{q.question}</span>
+                  <span className="text-[16px] font-bold tracking-[-0.02em] text-foreground">{q.question}</span>
                   <ChevronDown className="mt-0.5 h-[18px] w-[18px] flex-none text-warm-secondary transition-transform duration-200 group-open:rotate-180" strokeWidth={2.25} aria-hidden="true" />
                 </summary>
                 <p className="mt-2.5 text-[14px] leading-[1.6] text-warm-prose">{q.answer}</p>
@@ -240,7 +240,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
             const cardClassName = `block w-full rounded-[18px] p-[16px_18px] text-left transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${tint}`;
             const content = (
               <>
-                <div className={`text-[15.5px] font-bold tracking-[-0.02em] ${ink}`}>{g.title}</div>
+                <div className={`text-[16px] font-bold tracking-[-0.02em] ${ink}`}>{g.title}</div>
                 <p className="mt-1.5 text-[14px] leading-[1.55] text-warm-prose">{g.body}</p>
               </>
             );
@@ -264,7 +264,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
         <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
           <Link
             to="/contact"
-            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-5 text-[14.5px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-5 text-[15px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
           >
             Contact us
             <ArrowRight className="h-[15px] w-[15px]" aria-hidden="true" />

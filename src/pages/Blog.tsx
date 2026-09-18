@@ -163,7 +163,7 @@ export default function Blog() {
                   key={s.label}
                   className="flex h-[92px] flex-col-reverse justify-center rounded-[18px] bg-white/10 p-[14px]"
                 >
-                  <dt className="mt-0.5 text-[12.5px] leading-[1.4] text-white/75">{s.label}</dt>
+                  <dt className="mt-0.5 text-[13px] leading-[1.4] text-white/75">{s.label}</dt>
                   <dd className="font-display text-[24px] font-black tabular-nums tracking-[-0.04em] text-white">
                     {s.value}
                   </dd>

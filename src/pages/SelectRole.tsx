@@ -18,7 +18,7 @@ import { BentoPanel } from '@/components/layout/PageContainer';
 
 const FIELD_CLASS = 'flex h-[52px] w-full items-center rounded-2xl bg-muted px-4 text-base text-foreground outline-none shikshaq-role-field';
 import { isSafeRedirect as isValidRedirect } from '@/lib/safe-redirect';
-const LABEL_CLASS = 'mb-1 block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label';
+const LABEL_CLASS = 'mb-1 block text-[12px] font-bold uppercase tracking-[0.07em] text-warm-label';
 
 
 export default function SelectRole() {
@@ -220,7 +220,7 @@ export default function SelectRole() {
           <h1 className="font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-foreground">
             Who's using Shikshaq?
           </h1>
-          <p className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-secondary">
+          <p className="mt-2.5 text-[15px] leading-[1.55] text-warm-secondary">
             This only changes what your account shows you. You can search either way.
           </p>
 
@@ -236,7 +236,7 @@ export default function SelectRole() {
                   role === 'guardian' ? 'shadow-[inset_0_0_0_2px_hsl(var(--brand))]' : ''
                 }`}
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-brand">
+                <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-brand">
                   <User className="h-[19px] w-[19px] text-foreground" strokeWidth={2} aria-hidden="true" />
                 </span>
                 <span className="mt-3.5 block font-display text-[21px] font-extrabold tracking-[-0.04em] text-brand-deep">Guardian</span>
@@ -253,7 +253,7 @@ export default function SelectRole() {
                   role === 'student' ? 'shadow-[inset_0_0_0_2px_hsl(var(--brand-blue))]' : ''
                 }`}
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-brand-blue">
+                <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-brand-blue">
                   <GraduationCap className="h-[19px] w-[19px] text-white" strokeWidth={2} aria-hidden="true" />
                 </span>
                 <span className="mt-3.5 block font-display text-[21px] font-extrabold tracking-[-0.04em] text-brand-blue-deep">Student</span>

@@ -411,7 +411,7 @@ export default function PaperReader() {
             <h1 className="truncate text-[14px] font-bold text-white">{paper.title}</h1>
             {/* Wraps rather than ellipsis-clipping: the mockup truncates this
                 line, but clipping would hide real metadata on a 390px screen. */}
-            <p className="text-[11.5px] tabular-nums text-white/60">
+            <p className="text-[12px] tabular-nums text-white/60">
               {paper.school} · {paper.board} Class {paper.class} · {paper.exam_type} · {paper.year}
             </p>
           </div>
@@ -445,7 +445,7 @@ export default function PaperReader() {
         {/* Only true once there IS an account to watermark with — this used to
             render for signed-out visitors too, where it was simply false. */}
         {signedIn && (
-          <div className="pr-hide-print mt-3 flex items-center gap-2 text-[11.5px] text-white/60">
+          <div className="pr-hide-print mt-3 flex items-center gap-2 text-[12px] text-white/60">
             <Lock size={14} strokeWidth={2} aria-hidden="true" />
             This page is watermarked with your account and the time you opened it.
           </div>
@@ -614,7 +614,7 @@ export default function PaperReader() {
                   to={`/past-papers/${prevPaper.id}`}
                   className={`flex min-h-11 flex-col justify-center rounded-[20px] bg-white/[.07] px-4 py-[14px] transition-colors duration-tap ease-tap hover:bg-white/10 ${FOCUS_DARK}`}
                 >
-                  <span className="block text-[11.5px] font-bold uppercase tracking-[.04em] text-white/50">← Previous</span>
+                  <span className="block text-[12px] font-bold uppercase tracking-[.04em] text-white/50">← Previous</span>
                   <span className="mt-1 block break-words text-[14px] font-semibold tabular-nums text-white">{prevPaper.title} ({prevPaper.year})</span>
                 </Link>
               )}
@@ -623,7 +623,7 @@ export default function PaperReader() {
                   to={`/past-papers/${nextPaper.id}`}
                   className={`flex min-h-11 flex-col justify-center rounded-[20px] bg-white/[.07] px-4 py-[14px] transition-colors duration-tap ease-tap hover:bg-white/10 ${FOCUS_DARK}`}
                 >
-                  <span className="block text-[11.5px] font-bold uppercase tracking-[.04em] text-white/50">Next →</span>
+                  <span className="block text-[12px] font-bold uppercase tracking-[.04em] text-white/50">Next →</span>
                   <span className="mt-1 block break-words text-[14px] font-semibold tabular-nums text-white">{nextPaper.title} ({nextPaper.year})</span>
                 </Link>
               )}
@@ -640,7 +640,7 @@ export default function PaperReader() {
           </p>
           <Link
             to={`/all-tuition-teachers-in-kolkata?filter_subjects=${encodeURIComponent(paper.subject)}`}
-            className={`mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[14.5px] font-bold text-[#FCFAF7] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] ${FOCUS_DARK}`}
+            className={`mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[15px] font-bold text-[#FCFAF7] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] ${FOCUS_DARK}`}
           >
             Browse {paper.subject} teachers
           </Link>

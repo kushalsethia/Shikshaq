@@ -99,7 +99,7 @@ function Pill({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[14.5px] transition-[background-color,color,transform] duration-150 active:scale-[0.97] ${
+      className={`inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] transition-[background-color,color,transform] duration-150 active:scale-[0.97] ${
         selected ? (dynamicTint ? 'font-bold' : `font-bold ${tintClass ?? 'bg-panel text-background'}`) : 'bg-muted font-semibold text-warm-secondary'
       }`}
       style={selected && dynamicTint ? { background: dynamicTint.bg, color: dynamicTint.color } : undefined}
@@ -690,13 +690,13 @@ export default function JoinApply() {
             </Link>
           )}
           <ProgressSteps steps={STEPS.length} current={step} label={currentStep.label} tone="dark" hideCaption className="flex-1" />
-          <span className="flex-none whitespace-nowrap text-[12.5px] font-bold text-background/60">
+          <span className="flex-none whitespace-nowrap text-[13px] font-bold text-background/60">
             Step {step + 1} of {STEPS.length}
           </span>
         </div>
-        <div className="mt-3 text-[11.5px] font-bold uppercase tracking-[0.04em] text-background/50">{currentStep.label}</div>
+        <div className="mt-3 text-[12px] font-bold uppercase tracking-[0.04em] text-background/50">{currentStep.label}</div>
         <h1 className="mt-1.5 font-display text-[30px] font-black leading-[1.02] tracking-[-0.04em] text-background">{currentStep.head}</h1>
-        <p className="mt-2 text-[14.5px] leading-[1.5] text-background/65">{currentStep.lede}</p>
+        <p className="mt-2 text-[15px] leading-[1.5] text-background/65">{currentStep.lede}</p>
       </BentoPanel>
 
       <BentoPanel fill="card" className="min-h-0 flex-1 overflow-y-auto p-5">

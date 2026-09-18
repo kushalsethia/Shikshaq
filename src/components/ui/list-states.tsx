@@ -166,7 +166,7 @@ function ListOverFiltered({
               key={opt.label}
               type="button"
               onClick={opt.onClick}
-              className="flex min-h-11 items-center rounded-full bg-card px-4 text-[13.5px] font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex min-h-11 items-center rounded-full bg-card px-4 text-[14px] font-semibold text-foreground shadow-border transition-colors duration-150 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {opt.label}
             </button>

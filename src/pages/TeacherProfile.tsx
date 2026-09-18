@@ -115,7 +115,7 @@ function SubjectPill({ label }: { label: string }) {
   const palette = getSubjectPalette(label);
   return (
     <span
-      className="animate-card-reveal motion-reduce:animate-none inline-flex h-[32px] items-center whitespace-nowrap rounded-full px-[14px] text-[13.5px] font-bold"
+      className="animate-card-reveal motion-reduce:animate-none inline-flex h-[32px] items-center whitespace-nowrap rounded-full px-[14px] text-[14px] font-bold"
       style={{ backgroundColor: palette.tint, color: palette.text }}
     >
       {label}
@@ -148,7 +148,7 @@ function SpeechChip({ children, accent = false }: { children: React.ReactNode; a
        reads as a pill while two lines read as a rounded block rather than a
        stretched lozenge. */
     <span
-      className={`animate-card-reveal motion-reduce:animate-none inline-flex min-h-[32px] max-w-full items-center rounded-[16px] px-[14px] py-[6px] text-[13.5px] font-bold leading-[1.35] backdrop-blur-sm ${
+      className={`animate-card-reveal motion-reduce:animate-none inline-flex min-h-[32px] max-w-full items-center rounded-[16px] px-[14px] py-[6px] text-[14px] font-bold leading-[1.35] backdrop-blur-sm ${
         accent ? 'bg-brand text-brand-foreground' : 'bg-card/90 text-foreground shadow-border'
       }`}
     >
@@ -162,7 +162,7 @@ function StatTile({ icon: Icon, label, value }: { icon: typeof Clock; label: str
   return (
     <BentoPanel fill="card" className="animate-card-reveal flex-1 px-[14px] py-4">
       <Icon size={18} className="text-warm-meta" strokeWidth={2} aria-hidden="true" />
-      <div className="mt-[10px] text-[11.5px] font-bold uppercase tracking-[0.04em] text-warm-label">
+      <div className="mt-[10px] text-[12px] font-bold uppercase tracking-[0.04em] text-warm-label">
         {label}
       </div>
       <div className="mt-[3px] font-display tabular-nums text-[16px] font-extrabold tracking-[-0.03em] text-foreground">{value}</div>
@@ -801,7 +801,7 @@ export default function TeacherProfile() {
                  before "Back to all teachers" — read as dead space, not
                  breathing room. A small top breather instead of the full
                  padding; bottom keeps its 28px. */
-              className="p-[14px] pb-5 lg:rounded-[30px] lg:border lg:border-border lg:bg-card lg:px-[30px] lg:pb-[28px] lg:pt-[14px] lg:shadow-none"
+              className="p-[14px] pb-5 lg:rounded-bento lg:border lg:border-border lg:bg-card lg:px-[30px] lg:pb-[28px] lg:pt-[14px] lg:shadow-none"
             >
               {/* S3 top row: 40x40 icon buttons, 18px icons, 8px gap, 16px margin-bottom.
                   Kept at a 44px hit area (padding) around the 40px visual per the
@@ -876,7 +876,7 @@ export default function TeacherProfile() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-[7px] gap-y-1">
+                  <div className="flex flex-wrap items-center gap-x-[8px] gap-y-1">
                     {/* Name is always the bold element; "Sir"/"Ma'am" is a
                         secondary courtesy label and reads small and light
                         next to it, never matching its weight. */}
@@ -907,7 +907,7 @@ export default function TeacherProfile() {
                   )}
 
                   {(teacher.area || teacher.experience_years || boardsList.length > 0) && (
-                    <div className="mt-[8px] hidden flex-wrap gap-[18px] text-[14.5px] text-warm-prose lg:flex">
+                    <div className="mt-[8px] hidden flex-wrap gap-[18px] text-[15px] text-warm-prose lg:flex">
                       {teacher.area && <span className="inline-flex items-center gap-2">{teacher.area}</span>}
                       {teacher.experience_years && (
                         <span className="inline-flex items-center gap-2">{teacher.experience_years}+ years experience</span>
@@ -985,7 +985,7 @@ export default function TeacherProfile() {
                       key={label}
                       className={['Subjects', 'Boards', 'Areas'].includes(label) ? 'lg:hidden' : ''}
                     >
-                      <dt className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">
+                      <dt className="text-[12px] font-bold uppercase tracking-[0.07em] text-warm-label">
                         {label}
                       </dt>
                       <dd className="mt-1 text-[15px] leading-[1.5] text-foreground">{value}</dd>
@@ -999,7 +999,7 @@ export default function TeacherProfile() {
                 the sticky right column below. Green WhatsApp CTA (design.md §4).
                 Handoff P-008: bg-muted -> bg-mint, radius 20 -> 30. */}
             <BentoPanel ref={primaryCtaRef} fill="mint" className="flex flex-col p-4 lg:hidden">
-              <p className="mb-[12px] text-[13.5px] leading-[1.55] text-[#3E6F53]">
+              <p className="mb-[12px] text-[14px] leading-[1.55] text-[#3E6F53]">
                 Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
               </p>
               <Button variant="whatsapp" size={52} onClick={handleWhatsAppClick} className="whatsapp-pulse-once rounded-[16px]">
@@ -1153,7 +1153,7 @@ export default function TeacherProfile() {
               column and needs no ring. */}
           <aside className="mt-8 hidden lg:mt-0 lg:block">
             <div className="lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-[16px]">
-              <div className="rounded-[30px] bg-panel p-[26px] text-background">
+              <div className="rounded-bento bg-panel p-[26px] text-background">
                 {feesValue && (
                   <p className="flex items-baseline gap-2">
                     <span className="font-display tabular-nums text-[36px] font-black tracking-[-0.03em] text-background">{feesValue}</span>
@@ -1164,7 +1164,7 @@ export default function TeacherProfile() {
                   variant="whatsapp"
                   size={54}
                   onClick={handleWhatsAppClick}
-                  className="whatsapp-pulse-once mt-[16px] w-full rounded-[15px]"
+                  className="whatsapp-pulse-once mt-[16px] w-full rounded-[16px]"
                 >
                   <WhatsAppIcon className="h-[20px] w-[20px]" />
                   Message on WhatsApp
@@ -1174,7 +1174,7 @@ export default function TeacherProfile() {
                     variant="ghost"
                     size={44}
                     onClick={handleHeartClick}
-                    className="h-[46px] flex-1 rounded-[13px] text-background hover:bg-background/10"
+                    className="h-[46px] flex-1 rounded-[14px] text-background hover:bg-background/10"
                   >
                     <Heart size={16} className={liked ? 'fill-destructive text-destructive' : ''} aria-hidden="true" />
                     Save
@@ -1183,7 +1183,7 @@ export default function TeacherProfile() {
                     variant="ghost"
                     size={44}
                     onClick={handleShareClick}
-                    className="h-[46px] flex-1 rounded-[13px] text-background hover:bg-background/10"
+                    className="h-[46px] flex-1 rounded-[14px] text-background hover:bg-background/10"
                   >
                     <Share2 size={15} aria-hidden="true" />
                     Share

@@ -112,7 +112,7 @@ export function ReviewCard({ review, index, fan = false, fullWidth = false, clas
         {/* mt-auto pins the author to the bottom, so in a grid of equal-height
             cards every attribution lines up instead of floating wherever its
             quote happened to end. */}
-        <div className="mt-auto flex items-center gap-[9px] pt-[12px]">
+        <div className="mt-auto flex items-center gap-[10px] pt-[12px]">
           {teacherImageUrl ? (
             <img
               src={validateImageSrc(teacherImageUrl)}
@@ -124,10 +124,10 @@ export function ReviewCard({ review, index, fan = false, fullWidth = false, clas
             <StripePlaceholder name={teacherName ?? review.who} initialSize={13} className="h-[26px] w-[26px] flex-none rounded-full" />
           )}
           <div className="min-w-0">
-            <p className="truncate text-[12.5px] font-semibold text-foreground">
+            <p className="truncate text-[13px] font-semibold text-foreground">
               {review.who}
             </p>
-            <p className="text-[12.5px] text-warm-meta">{review.when}</p>
+            <p className="text-[13px] text-warm-meta">{review.when}</p>
           </div>
         </div>
       </div>

@@ -456,14 +456,14 @@ export default function AdminPapersPage() {
 
         {filteredPapers.length === 0 ? (
           <div className="rounded-2xl bg-muted p-12 text-center">
-            <p className="text-[14.5px] text-warm-meta">
+            <p className="text-[15px] text-warm-meta">
               {searchQuery.trim() ? `No papers match "${searchQuery.trim()}".` : 'No papers yet.'}
             </p>
             {searchQuery.trim() ? (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="mt-3 text-[14.5px] font-semibold text-brand underline-offset-2 hover:underline"
+                className="mt-3 text-[15px] font-semibold text-brand underline-offset-2 hover:underline"
               >
                 Clear search
               </button>
@@ -483,11 +483,11 @@ export default function AdminPapersPage() {
           <DialogTitle className="text-xl font-bold text-foreground">
             Take down “{takedownTarget?.title}”?
           </DialogTitle>
-          <p className="mt-1.5 text-[13.5px] text-warm-secondary">
+          <p className="mt-1.5 text-[14px] text-warm-secondary">
             The paper stops being readable straight away. This is reversible with Restore.
           </p>
           <div className="mt-4">
-            <Label htmlFor="takedown-reason" className="mb-1.5 block text-[13.5px] font-semibold text-foreground">
+            <Label htmlFor="takedown-reason" className="mb-1.5 block text-[14px] font-semibold text-foreground">
               Reason <span className="font-normal text-warm-meta">(required, the reported party can read this)</span>
             </Label>
             <Textarea
@@ -546,10 +546,10 @@ export default function AdminPapersPage() {
                 ) : (
                   <Upload className="mx-auto mb-2 h-5 w-5 text-warm-meta" />
                 )}
-                <div className="text-[14.5px] font-semibold text-foreground">
+                <div className="text-[15px] font-semibold text-foreground">
                   {uploadingFile ? 'Uploading…' : 'Drop a paper PDF here'}
                 </div>
-                <div className="mt-1 text-[12.5px] text-warm-meta">One file, or click to browse</div>
+                <div className="mt-1 text-[13px] text-warm-meta">One file, or click to browse</div>
                 <input
                   type="file"
                   accept="application/pdf"
@@ -563,7 +563,7 @@ export default function AdminPapersPage() {
 
           <div className="mt-4 space-y-4">
             <div>
-              <Label htmlFor="u-title" className="mb-1.5 block text-[13.5px] font-semibold text-foreground">Title</Label>
+              <Label htmlFor="u-title" className="mb-1.5 block text-[14px] font-semibold text-foreground">Title</Label>
               <input
                 id="u-title"
                 value={formData.title || ''}
@@ -573,7 +573,7 @@ export default function AdminPapersPage() {
               />
             </div>
             <div>
-              <Label htmlFor="u-school" className="mb-1.5 block text-[13.5px] font-semibold text-foreground">School</Label>
+              <Label htmlFor="u-school" className="mb-1.5 block text-[14px] font-semibold text-foreground">School</Label>
               <input
                 id="u-school"
                 value={formData.school || ''}
@@ -584,7 +584,7 @@ export default function AdminPapersPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="mb-1.5 block text-[13.5px] font-semibold text-foreground">Subject</Label>
+                <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Subject</Label>
                 <Select value={formData.subject} onValueChange={(v) => handleChange('subject', v)}>
                   <SelectTrigger className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -593,7 +593,7 @@ export default function AdminPapersPage() {
                 </Select>
               </div>
               <div>
-                <Label className="mb-1.5 block text-[13.5px] font-semibold text-foreground">Class</Label>
+                <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Class</Label>
                 <Select value={formData.class} onValueChange={(v) => handleChange('class', v)}>
                   <SelectTrigger className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -602,7 +602,7 @@ export default function AdminPapersPage() {
                 </Select>
               </div>
               <div>
-                <Label className="mb-1.5 block text-[13.5px] font-semibold text-foreground">Board</Label>
+                <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Board</Label>
                 <Select value={formData.board} onValueChange={(v) => handleChange('board', v)}>
                   <SelectTrigger className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -611,7 +611,7 @@ export default function AdminPapersPage() {
                 </Select>
               </div>
               <div>
-                <Label className="mb-1.5 block text-[13.5px] font-semibold text-foreground">Exam type</Label>
+                <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Exam type</Label>
                 <Select value={formData.exam_type} onValueChange={(v) => handleChange('exam_type', v)}>
                   <SelectTrigger className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -621,7 +621,7 @@ export default function AdminPapersPage() {
               </div>
             </div>
             <div>
-              <Label htmlFor="u-year" className="mb-1.5 block text-[13.5px] font-semibold text-foreground">Year</Label>
+              <Label htmlFor="u-year" className="mb-1.5 block text-[14px] font-semibold text-foreground">Year</Label>
               <input
                 id="u-year"
                 type="number"
@@ -638,7 +638,7 @@ export default function AdminPapersPage() {
                 onChange={(e) => handleChange('is_published', e.target.checked)}
                 className="w-4 h-4"
               />
-              <Label htmlFor="u-is-published" className="!mb-0 text-[13.5px] text-warm-prose">
+              <Label htmlFor="u-is-published" className="!mb-0 text-[14px] text-warm-prose">
                 Publish immediately (uncheck to save as draft)
               </Label>
             </div>

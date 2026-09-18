@@ -120,7 +120,7 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
             {metaLines.map((line) => (
               <span
                 key={line}
-                className="block truncate text-[10.5px] font-semibold leading-[1.35]"
+                className="block truncate text-[11px] font-semibold leading-[1.35]"
                 style={{ color: palette.text, opacity: 0.85 }}
               >
                 {line}

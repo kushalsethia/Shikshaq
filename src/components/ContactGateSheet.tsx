@@ -144,7 +144,7 @@ export function ContactGateSheet({
         <SheetTitle className={`${teacherName ? 'mt-[18px]' : ''} font-display text-[26px] font-normal leading-[1.1] tracking-[-0.045em] text-foreground`}>
           {gateHeading(intent, firstName)}
         </SheetTitle>
-        <SheetDescription className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-prose">
+        <SheetDescription className="mt-2.5 text-[15px] leading-[1.55] text-warm-prose">
           One tap with Google. We&rsquo;ll take you straight to {intent === 'review' ? 'the review form' : intent === 'save' ? 'your shortlist' : 'the chat'}.
         </SheetDescription>
 
@@ -152,7 +152,7 @@ export function ContactGateSheet({
           type="button"
           disabled={googleBusy}
           onClick={handleGoogle}
-          className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-panel text-[15.5px] font-extrabold text-background transition-transform duration-tap active:scale-[0.98] disabled:opacity-70"
+          className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-panel text-[16px] font-extrabold text-background transition-transform duration-tap active:scale-[0.98] disabled:opacity-70"
         >
           <GoogleIcon size={20} />
           {googleBusy ? 'Signing in…' : 'Continue with Google'}

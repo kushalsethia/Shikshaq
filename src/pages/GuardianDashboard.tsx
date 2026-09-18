@@ -486,7 +486,7 @@ export default function GuardianDashboard() {
                 <div className="font-display text-[24px] font-black tracking-[-0.04em] text-foreground tabular-nums">
                   {st.value}
                 </div>
-                <div className="mt-0.5 whitespace-nowrap text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-secondary">
+                <div className="mt-0.5 whitespace-nowrap text-[12px] font-bold uppercase tracking-[.04em] text-warm-secondary">
                   teachers {st.label}
                 </div>
               </BentoPanel>
@@ -508,7 +508,7 @@ export default function GuardianDashboard() {
               />
             </div>
             {missingLabels.length > 0 && (
-              <p className="mt-2.5 text-[13.5px] leading-[1.5] text-muted-foreground">
+              <p className="mt-2.5 text-[14px] leading-[1.5] text-muted-foreground">
                 Missing: {missingLabels.join(', ')}.
               </p>
             )}
@@ -525,7 +525,7 @@ export default function GuardianDashboard() {
                       <IconDisc tone="muted" size={36} shape="square">
                         <Lock className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
                       </IconDisc>
-                      <span className="text-[14.5px] font-semibold text-foreground">Account information</span>
+                      <span className="text-[15px] font-semibold text-foreground">Account information</span>
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
@@ -551,7 +551,7 @@ export default function GuardianDashboard() {
                       <IconDisc tone="muted" size={36} shape="square">
                         <UserCog className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
                       </IconDisc>
-                      <span className="text-[14.5px] font-semibold text-foreground">Guardian information</span>
+                      <span className="text-[15px] font-semibold text-foreground">Guardian information</span>
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
@@ -630,7 +630,7 @@ export default function GuardianDashboard() {
                       <IconDisc tone="muted" size={36} shape="square">
                         <GraduationCap className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
                       </IconDisc>
-                      <span className="text-[14.5px] font-semibold text-foreground">Student details &amp; subjects</span>
+                      <span className="text-[15px] font-semibold text-foreground">Student details &amp; subjects</span>
                     </span>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">

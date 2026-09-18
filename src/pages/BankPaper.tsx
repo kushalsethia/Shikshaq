@@ -107,7 +107,7 @@ function QuestionReport({
          know the report was filed. */
       <p
         role="status"
-        className="mt-2 rounded-[12px] bg-mint px-3 py-2 text-[12.5px] font-semibold text-foreground"
+        className="mt-2 rounded-[12px] bg-mint px-3 py-2 text-[13px] font-semibold text-foreground"
       >
         Thanks. We will take a look at this one.
       </p>
@@ -133,14 +133,14 @@ function QuestionReport({
           type="button"
           onClick={submit}
           disabled={state === 'sending'}
-          className="inline-flex min-h-11 items-center rounded-full bg-brand px-4 text-[12.5px] font-bold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="inline-flex min-h-11 items-center rounded-full bg-brand px-4 text-[13px] font-bold text-brand-foreground transition-colors duration-150 hover:bg-brand-hover disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           {state === 'sending' ? 'Sending…' : 'Send report'}
         </button>
         <button
           type="button"
           onClick={onDone}
-          className="inline-flex min-h-11 items-center px-2 text-[12.5px] font-semibold text-warm-secondary transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex min-h-11 items-center px-2 text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Cancel
         </button>
@@ -358,17 +358,17 @@ export default function BankPaper() {
           </span>
         )}
         {row.m !== null && !marksShownInText(row) && (
-          <span className="rounded-full bg-card px-2 py-0.5 text-[11.5px] font-bold tabular-nums text-foreground shadow-border">
+          <span className="rounded-full bg-card px-2 py-0.5 text-[12px] font-bold tabular-nums text-foreground shadow-border">
             {row.m} {row.m === 1 ? 'mark' : 'marks'}
           </span>
         )}
         {row.ty && (
-          <span className="rounded-full bg-card px-2 py-0.5 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-warm-secondary shadow-border">
+          <span className="rounded-full bg-card px-2 py-0.5 text-[12px] font-semibold uppercase tracking-[0.03em] text-warm-secondary shadow-border">
             {row.ty}
           </span>
         )}
         {row.c && (
-          <span className="rounded-full bg-brand-blue-subtle px-2 py-0.5 text-[11.5px] font-semibold text-brand-blue-deep">
+          <span className="rounded-full bg-brand-blue-subtle px-2 py-0.5 text-[12px] font-semibold text-brand-blue-deep">
             {row.c}
           </span>
         )}
@@ -399,7 +399,7 @@ export default function BankPaper() {
             /* min-h-11/min-w-11 keeps the real tap target at the 44px
                floor while the painted chip stays chip-sized, the same
                trick ui/chip.tsx uses. */
-            className={`relative ml-auto inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full px-2 text-[11.5px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+            className={`relative ml-auto inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full px-2 text-[12px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
               reportFor === row.i
                 ? 'bg-brand-subtle text-brand-deep'
                 : 'text-warm-label hover:bg-card hover:text-foreground'
@@ -534,7 +534,7 @@ export default function BankPaper() {
               {paper ? `${paper.school} · Class ${paper.cls} ${paper.subject}` : 'Past paper'}
             </h1>
             {facts.length > 0 && (
-              <p className="truncate text-[11.5px] tabular-nums text-white/60" title={facts.join(' · ')}>
+              <p className="truncate text-[12px] tabular-nums text-white/60" title={facts.join(' · ')}>
                 {facts.join(' · ')}
               </p>
             )}
@@ -635,7 +635,7 @@ export default function BankPaper() {
                 <span>{paper.questionCount} question{paper.questionCount === 1 ? '' : 's'}</span>
                 {paper.marks > 0 && <span>Total: {paper.marks} marks</span>}
               </div>
-              <p className="mt-2 text-[12.5px] uppercase tracking-[0.04em] text-muted-foreground">
+              <p className="mt-2 text-[13px] uppercase tracking-[0.04em] text-muted-foreground">
                 Answer all questions
               </p>
             </div>
@@ -666,7 +666,7 @@ export default function BankPaper() {
               <p className="text-[17px] font-extrabold tracking-[-0.03em] text-foreground">
                 {withheld} more {withheld === 1 ? 'question' : 'questions'} in this paper
               </p>
-              <p className="mx-auto mt-1 max-w-[34ch] text-[13.5px] leading-[1.5] text-warm-prose">
+              <p className="mx-auto mt-1 max-w-[34ch] text-[14px] leading-[1.5] text-warm-prose">
                 Reading the rest is free. It just needs an account, so we can
                 keep your place across papers.
               </p>

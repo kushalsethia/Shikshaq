@@ -445,7 +445,7 @@ export default function SchoolPage() {
                   <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground">
                     No papers here yet
                   </h2>
-                  <p className="mt-2.5 text-[14.5px] leading-[1.6] text-warm-prose">
+                  <p className="mt-2.5 text-[15px] leading-[1.6] text-warm-prose">
                     {resolvedName
                       ? `Nobody has sent us a paper from ${resolvedName} yet. If you have one sitting in a drawer, it takes a minute to send and the next batch revises from it.`
                       : 'We have no papers filed under this school. It may not be on Shikshaq yet, or the link may be out of date.'}
@@ -516,7 +516,7 @@ export default function SchoolPage() {
                             <Link
                               key={subject}
                               to={`${PAST_PAPERS_PATH}/results?filter_subjects=${encodeURIComponent(subject)}`}
-                              className="tap-44 flex h-10 flex-none items-center whitespace-nowrap rounded-full px-4 text-[13.5px] font-bold transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                              className="tap-44 flex h-10 flex-none items-center whitespace-nowrap rounded-full px-4 text-[14px] font-bold transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                               style={{ backgroundColor: palette.tint, color: palette.text }}
                             >
                               {subject}
@@ -553,7 +553,7 @@ export default function SchoolPage() {
                           style={{ backgroundColor: palette.tint }}
                         >
                           <span
-                            className="flex h-[38px] w-[30px] flex-none items-center justify-center rounded-[7px]"
+                            className="flex h-[38px] w-[30px] flex-none items-center justify-center rounded-[6px]"
                             style={{ backgroundColor: palette.text }}
                           >
                             <FileText className="h-[15px] w-[15px]" style={{ color: palette.tint }} aria-hidden="true" />

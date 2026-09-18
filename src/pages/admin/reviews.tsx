@@ -73,8 +73,8 @@ function AdminQueueCard({ card }: { card: QueueCardData }) {
     <div className="rounded-2xl bg-muted px-[18px] py-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-[14.5px] leading-[1.55] text-warm-prose">{card.quote}</p>
-          <div className="mt-2 text-[12.5px] text-warm-meta">{card.attribution}</div>
+          <p className="text-[15px] leading-[1.55] text-warm-prose">{card.quote}</p>
+          <div className="mt-2 text-[13px] text-warm-meta">{card.attribution}</div>
           <div className="mt-2.5">{card.badge}</div>
         </div>
         <div className="shrink-0">
@@ -694,7 +694,7 @@ export default function AdminReviews() {
     quote: stat.teacher_name,
     attribution: `#${index + 1} by upvote count`,
     badge: (
-      <span className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full bg-mint px-[10px] text-[11.5px] font-bold text-[#24603D] tabular-nums">
+      <span className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full bg-mint px-[10px] text-[12px] font-bold text-[#24603D] tabular-nums">
         <ThumbsUp className="h-3 w-3" aria-hidden="true" />
         {stat.upvote_count}
       </span>
@@ -743,7 +743,7 @@ export default function AdminReviews() {
       <BentoPanel fill="card" className="px-5 py-[18px] lg:px-5 lg:py-[18px]">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-[18px]">
           <h2 className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">Reported reviews</h2>
-          <span className="text-[12.5px] tabular-nums text-warm-meta">
+          <span className="text-[13px] tabular-nums text-warm-meta">
             {pendingReviewsCount + pendingRecsCount > 0 ? `${pendingReviewsCount + pendingRecsCount} waiting` : 'Nothing waiting'}
           </span>
         </div>

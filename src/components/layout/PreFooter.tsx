@@ -196,7 +196,7 @@ function B2({ counts }: { counts?: B2Counts }) {
             key={it.label}
             className="flex h-[104px] flex-col-reverse justify-center rounded-[18px] bg-card p-[14px]"
           >
-            <dt className="mt-0.5 text-[12.5px] leading-[1.4] text-warm-label">{it.label}</dt>
+            <dt className="mt-0.5 text-[13px] leading-[1.4] text-warm-label">{it.label}</dt>
             <dd className="font-display text-[24px] font-black tabular-nums tracking-[-0.04em] text-foreground">
               {it.value}
             </dd>
@@ -205,7 +205,7 @@ function B2({ counts }: { counts?: B2Counts }) {
       </dl>
       {/* Was /80 — 3.21:1 on this fill, and this is body copy making the
           product's central promise about money. */}
-      <p className="mt-4 max-w-prose text-[13.5px] leading-[1.6] text-brand-deep">
+      <p className="mt-4 max-w-prose text-[14px] leading-[1.6] text-brand-deep">
         Teachers keep every rupee of their fee. We never take a cut, and we never sell your
         number.
       </p>

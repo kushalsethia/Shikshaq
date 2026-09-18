@@ -144,13 +144,13 @@ export function PaperShareLock({ paperTitle }: { paperTitle?: string }) {
             {t?.title ?? 'Share it instead'}
           </DialogTitle>
         </DialogHeader>
-        <p id="paper-share-lock-body" className="mb-4 text-[14.5px] leading-[1.6] text-warm-prose">
+        <p id="paper-share-lock-body" className="mb-4 text-[15px] leading-[1.6] text-warm-prose">
           {t?.body}
         </p>
 
         {/* The link, shown as text and selectable, so the offer is real even if
             the clipboard API is blocked. */}
-        <p className="mb-4 select-all break-all rounded-[14px] bg-muted px-3 py-2 text-[12.5px] leading-[1.5] text-warm-meta">
+        <p className="mb-4 select-all break-all rounded-[14px] bg-muted px-3 py-2 text-[13px] leading-[1.5] text-warm-meta">
           {url}
         </p>
 

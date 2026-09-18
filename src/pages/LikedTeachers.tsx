@@ -136,7 +136,7 @@ export default function LikedTeachers() {
         <BentoStack>
           {/* Handoff LT-001: header states the count in words. */}
           <BentoPanel fill="card" edge="top" className="pt-[14px] pb-5">
-            <p className="text-[12.5px] font-medium text-warm-secondary">Your shortlist</p>
+            <p className="text-[13px] font-medium text-warm-secondary">Your shortlist</p>
             <h1 className="mt-1 font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-foreground">
               {count > 0 ? (
                 <>
@@ -148,7 +148,7 @@ export default function LikedTeachers() {
                 </>
               )}
             </h1>
-            <p className="mt-1 text-[14.5px] text-warm-secondary">
+            <p className="mt-1 text-[15px] text-warm-secondary">
               Saved teachers stay here until you remove them. Tap the heart on any profile to add one.
             </p>
           </BentoPanel>
@@ -171,7 +171,7 @@ export default function LikedTeachers() {
               <p className="mt-[18px] font-display text-[23px] font-extrabold tracking-[-0.04em] text-brand-deep">
                 Tap the heart on any teacher
               </p>
-              <p className="mt-1.5 text-[14.5px] leading-[1.55] text-warm-prose">
+              <p className="mt-1.5 text-[15px] leading-[1.55] text-warm-prose">
                 Save a teacher's profile and it shows up here.
               </p>
               <Button asChild variant="primary" size={52} className="mt-4">

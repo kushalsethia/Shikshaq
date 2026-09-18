@@ -102,7 +102,7 @@ interface SearchControlProps {
   /** Notified whenever the mode changes, so a page can morph copy (headline, placeholder text) alongside it. */
   onModeChange?: (mode: SearchMode) => void;
   /**
-   * Handoff H-009: the home hero's field grows to 60px / rounded-[22px] /
+   * Handoff H-009: the home hero's field grows to 60px / rounded-[24px] /
    * bg-muted with a dedicated 46px round submit disc, instead of the shared
    * h-14/rounded-2xl/shadow-border bar Browse and PastPapers still use. Opt-in
    * so this session's Home work doesn't reach into those other pages' own
@@ -785,12 +785,12 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
         <div className="relative">
           {/* The search field. §11 hero spec: full width, h-14, rounded-2xl,
               shadow-border, leading icon, text-base (16px so iOS never zooms).
-              Handoff H-009 overrides this to a 60px/rounded-[22px]/bg-muted
+              Handoff H-009 overrides this to a 60px/rounded-[24px]/bg-muted
               field with its own 46px round submit disc when heroDesk is set. */}
           <div
             className={
               heroDesk
-                ? 'flex h-[60px] items-center gap-[10px] rounded-[22px] bg-muted pl-[18px] pr-2 transition-shadow duration-150 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background'
+                ? 'flex h-[60px] items-center gap-[10px] rounded-[24px] bg-muted pl-[18px] pr-2 transition-shadow duration-150 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background'
                 : `flex h-14 items-center gap-2 rounded-2xl pl-4 pr-2 transition-shadow duration-150 ${
                     onDark
                       ? 'bg-white/10 focus-within:bg-white/[0.14]'
@@ -839,7 +839,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                  `:not([class*="focus-visible:outline-"])`, so a plain
                  `outline-none` does not exclude an element — the field was
                  getting the global 2px outline plus its 4px white halo, drawn
-                 as a hard RECTANGLE inside a rounded-[22px] pill. The
+                 as a hard RECTANGLE inside a rounded-[24px] pill. The
                  indicator now lives on the pill itself as a focus-within
                  ring, so focus is still clearly shown, in the field's own
                  shape. */

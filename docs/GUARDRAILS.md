@@ -342,6 +342,27 @@ This is the weakest area and the one with the least attention on it.
       reporting 200px of phantom overflow, once reporting a collapsed viewport.
       One session on a real mid-range Android would be worth more than another
       emulated pass.
+- [x] ~~Half-pixel type and near-duplicate radii~~ **Consolidated, 268 call
+      sites plus the tokens themselves.** The measured cause of the site
+      reading as "vibe coded": one page used **39 distinct font sizes** (615
+      usages), fifteen of them between 10 and 17.5px including eight inside a
+      3.5px range, plus 15 border radii (30 *and* 32, 18 *and* 20, 22 *and*
+      24), 13 paddings and 17 gaps.
+      Every half-pixel size now snaps to the nearest whole pixel, rounding up
+      so text never gets smaller. The two half-pixels that survived the first
+      pass lived in the tokens rather than the call sites — `meta` was 13.5px
+      and `label` was 11.5px — and were fixed there, which also makes `label`
+      the one merge that is an accessibility gain: uppercase at 11.5px was the
+      smallest type on the site. The dead `12.5`/`14.5`/`15.5` rungs were
+      removed, because a scale offering 14 *and* 14.5 invites the drift it
+      exists to stop.
+      Radii merge only into a neighbour 1–2px away that is clearly more used.
+      One merge went the wrong way at first — `rounded-[30px]` became 32 when
+      30px is the named `bento` token with real call sites — so those moved to
+      the token instead.
+      **Resulting radius scale: 2, 6, 10, 12, 14, 16, 18, 20, 24, 30, 32.**
+      Zero half-pixel font sizes render anywhere. Verified on 7 routes at 375px
+      and 1280px: no overflow, no new clipping, no visual change.
 - [ ] **`P2` ~376 `text-[Npx]` sizes, zero rem** — browser text scaling does
       nothing. Gated as "top 20 components, measure, decide".
 - [ ] **`P2` The capture shield fires on every alt-tab**, blanking text for

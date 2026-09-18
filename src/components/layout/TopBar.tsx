@@ -122,7 +122,7 @@ export function TopBar({ className }: { className?: string }) {
                     // area at the pointer-input floor (40px at lg, per the
                     // utility's own responsive rule) without changing its
                     // visible size.
-                    "tap-44 inline-flex items-center text-[14.5px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel",
+                    "tap-44 inline-flex items-center text-[15px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel",
                     active ? "text-background" : "text-background/70 hover:text-background",
                   )}
                 >

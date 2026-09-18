@@ -25,7 +25,7 @@ function DisclaimerStrip({ school, reportHref, tone = "bone" }: DisclaimerStripP
   return (
     <div
       className={cn(
-        "flex items-start gap-[9px]",
+        "flex items-start gap-[10px]",
         dark
           ? "border-b border-white/10 bg-white/5 px-4 py-[11px]"
           : "flex-wrap items-center gap-2 rounded-lg bg-muted px-4 py-3",
@@ -40,7 +40,7 @@ function DisclaimerStrip({ school, reportHref, tone = "bone" }: DisclaimerStripP
       <span
         className={cn(
           "break-words",
-          dark ? "text-[11.5px] leading-[1.5] text-white/60" : "text-body-secondary text-warm-prose",
+          dark ? "text-[12px] leading-[1.5] text-white/60" : "text-body-secondary text-warm-prose",
         )}
       >
         This paper is the property of{" "}

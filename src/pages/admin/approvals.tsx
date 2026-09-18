@@ -401,7 +401,7 @@ export default function AdminApprovals() {
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <h3 className="mb-2 text-sm font-semibold text-foreground">Basic Information</h3>
-                  <div className="space-y-1.5 text-[13.5px] text-warm-prose">
+                  <div className="space-y-1.5 text-[14px] text-warm-prose">
                     <div><strong className="text-foreground">Name:</strong> {selectedApplication.name}</div>
                     <div><strong className="text-foreground">Email:</strong> {selectedApplication.email}</div>
                     <div><strong className="text-foreground">Phone:</strong> +91 {selectedApplication.phone_number}</div>
@@ -417,7 +417,7 @@ export default function AdminApprovals() {
 
                 <div>
                   <h3 className="mb-2 text-sm font-semibold text-foreground">Teaching Details</h3>
-                  <div className="space-y-1.5 text-[13.5px] text-warm-prose">
+                  <div className="space-y-1.5 text-[14px] text-warm-prose">
                     <div><strong className="text-foreground">Subjects:</strong> {selectedApplication.subjects || 'N/A'}</div>
                     <div><strong className="text-foreground">Classes:</strong> {selectedApplication.classes_taught_for_backend || 'N/A'}</div>
                     <div><strong className="text-foreground">Boards:</strong> {selectedApplication.school_boards_catered || 'N/A'}</div>
@@ -429,14 +429,14 @@ export default function AdminApprovals() {
                 {selectedApplication.description && (
                   <div className="md:col-span-2">
                     <h3 className="mb-2 text-sm font-semibold text-foreground">Description</h3>
-                    <p className="text-[13.5px] text-warm-prose">{selectedApplication.description}</p>
+                    <p className="text-[14px] text-warm-prose">{selectedApplication.description}</p>
                   </div>
                 )}
 
                 {selectedApplication.qualifications_etc && (
                   <div className="md:col-span-2">
                     <h3 className="mb-2 text-sm font-semibold text-foreground">Qualifications</h3>
-                    <p className="text-[13.5px] text-warm-prose">{selectedApplication.qualifications_etc}</p>
+                    <p className="text-[14px] text-warm-prose">{selectedApplication.qualifications_etc}</p>
                   </div>
                 )}
 
@@ -453,7 +453,7 @@ export default function AdminApprovals() {
 
                 <div className="md:col-span-2">
                   <h3 className="mb-2 text-sm font-semibold text-foreground">Status</h3>
-                  <div className="space-y-1 text-[13.5px] text-warm-prose">
+                  <div className="space-y-1 text-[14px] text-warm-prose">
                     <div><strong className="text-foreground">Status:</strong> {selectedApplication.status}</div>
                     <div><strong className="text-foreground">Applied:</strong> {new Date(selectedApplication.created_at).toLocaleString()}</div>
                     {selectedApplication.reviewed_at && (

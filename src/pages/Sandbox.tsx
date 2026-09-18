@@ -82,7 +82,7 @@ function StatCard({ label, value, caption }: { label: string; value: string; cap
     <div className="rounded-2xl bg-card p-[18px] shadow-border">
       <div className="text-[11px] font-bold uppercase tracking-[.07em] text-warm-label">{label}</div>
       <div className="mt-2 font-display text-[34px] font-black leading-none text-foreground">{value}</div>
-      <div className="mt-2 text-[12.5px] text-warm-prose">{caption}</div>
+      <div className="mt-2 text-[13px] text-warm-prose">{caption}</div>
     </div>
   );
 }
@@ -174,7 +174,7 @@ export default function Sandbox() {
               data-gated-page={g.page}
               data-gated-note={g.note}
             >
-              <span className="text-[12.5px] font-semibold text-warm-secondary">
+              <span className="text-[13px] font-semibold text-warm-secondary">
                 {g.page} · {g.note}
               </span>
             </BentoPanel>

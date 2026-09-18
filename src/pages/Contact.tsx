@@ -115,7 +115,7 @@ export default function Contact() {
               travels with it (as the mailto subject line), so a takedown
               request and a tutoring question no longer look identical. */}
           <BentoPanel fill="card" className="p-[22px]">
-            <span className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-warm-label">
+            <span className="text-[12px] font-bold uppercase tracking-[0.04em] text-warm-label">
               What is it about
             </span>
             {/* Same "flex-col stack never got a desktop treatment" gap as
@@ -130,7 +130,7 @@ export default function Contact() {
                     type="button"
                     onClick={() => setReason(r.id)}
                     aria-pressed={on}
-                    className={`flex h-[52px] items-center gap-2.5 rounded-[18px] px-4 text-[14.5px] transition-colors duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                    className={`flex h-[52px] items-center gap-2.5 rounded-[18px] px-4 text-[15px] transition-colors duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                       on ? 'bg-panel font-bold text-background' : 'bg-muted font-semibold text-foreground'
                     }`}
                   >
@@ -218,7 +218,7 @@ export default function Contact() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[16px] font-bold text-[#24603D]">or just WhatsApp</p>
-                <p className="mt-0.5 text-[13.5px] text-[#3E6F53]">+91 82409 80312</p>
+                <p className="mt-0.5 text-[14px] text-[#3E6F53]">+91 82409 80312</p>
               </div>
             </a>
           </BentoPanel>

@@ -129,31 +129,31 @@ export function OnboardingModal() {
           {([
             c?.maths != null && c.maths > 0 && {
               key: 'maths',
-              cls: 'absolute left-[6%] top-[18%] h-[34px] rotate-[7deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
+              cls: 'absolute left-[6%] top-[18%] h-[34px] rotate-[7deg] items-center whitespace-nowrap rounded-full px-[15px] text-[14px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
               style: { backgroundColor: maths.tint, color: maths.text, display: 'inline-flex' } as React.CSSProperties,
               body: `Maths · ${c.maths}`,
             },
             c?.icse != null && c.icse > 0 && {
               key: 'icse',
-              cls: 'absolute right-[8%] top-[30%] h-[34px] rotate-[-6deg] items-center whitespace-nowrap rounded-full bg-panel px-[15px] text-[13.5px] font-extrabold text-background shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
+              cls: 'absolute right-[8%] top-[30%] h-[34px] rotate-[-6deg] items-center whitespace-nowrap rounded-full bg-panel px-[15px] text-[14px] font-extrabold text-background shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
               style: { display: 'inline-flex' } as React.CSSProperties,
               body: `ICSE · ${c.icse}`,
             },
             c?.ballygunge != null && c.ballygunge > 0 && {
               key: 'ballygunge',
-              cls: 'absolute left-[10%] bottom-[26%] h-[34px] rotate-[5deg] items-center whitespace-nowrap rounded-full bg-card px-[15px] text-[13.5px] font-extrabold text-foreground shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
+              cls: 'absolute left-[10%] bottom-[26%] h-[34px] rotate-[5deg] items-center whitespace-nowrap rounded-full bg-card px-[15px] text-[14px] font-extrabold text-foreground shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
               style: { display: 'inline-flex' } as React.CSSProperties,
               body: `Ballygunge · ${c.ballygunge}`,
             },
             c?.class10 != null && c.class10 > 0 && {
               key: 'class10',
-              cls: 'absolute right-[6%] bottom-[12%] h-[34px] rotate-[-4deg] items-center whitespace-nowrap rounded-full px-[15px] text-[13.5px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
+              cls: 'absolute right-[6%] bottom-[12%] h-[34px] rotate-[-4deg] items-center whitespace-nowrap rounded-full px-[15px] text-[14px] font-extrabold shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
               style: { backgroundColor: science.tint, color: science.text, display: 'inline-flex' } as React.CSSProperties,
               body: `Class 10 · ${c.class10}`,
             },
             c?.papers != null && c.papers > 0 && {
               key: 'papers',
-              cls: 'absolute left-[22%] top-[46%] h-[34px] rotate-[6deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-[15px] text-[13.5px] font-extrabold text-brand-blue-deep shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
+              cls: 'absolute left-[22%] top-[46%] h-[34px] rotate-[6deg] items-center whitespace-nowrap rounded-full bg-brand-blue-subtle px-[15px] text-[14px] font-extrabold text-brand-blue-deep shadow-[0_8px_22px_rgba(0,0,0,.14)] motion-reduce:rotate-0 lg:rotate-0',
               style: { display: 'inline-flex' } as React.CSSProperties,
               body: `${c.papers} free papers`,
             },
@@ -177,7 +177,7 @@ export function OnboardingModal() {
 
       <div className="px-5 pb-8">
         {c?.teachers != null && c.teachers > 0 && (
-          <p className="mb-4 text-center text-[14.5px] leading-[1.5] text-[rgba(31,31,31,.7)]">
+          <p className="mb-4 text-center text-[15px] leading-[1.5] text-[rgba(31,31,31,.7)]">
             {c.teachers} verified tutors in Kolkata. Free to search, free to contact.
           </p>
         )}

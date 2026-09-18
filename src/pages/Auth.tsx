@@ -534,7 +534,7 @@ export default function Auth() {
           ) : (
             <>
               {/* Handoff AU-004: eyebrow on the hero block. */}
-              <p className={`mt-5 text-[11.5px] font-bold uppercase tracking-[0.08em] ${hero.ink.quiet}`}>
+              <p className={`mt-5 text-[12px] font-bold uppercase tracking-[0.08em] ${hero.ink.quiet}`}>
                 {hero.eyebrow}
               </p>
               {/* h1 46px/.92/-0.055em/400 with the highlighted span at 900 on
@@ -586,7 +586,7 @@ export default function Auth() {
                   create-account and reset-password wordings still win when
                   the visitor has switched into one of those modes — the
                   intent describes why they arrived, not which form is open. */}
-              <p className="text-[14.5px] leading-[1.6] text-[rgba(249,245,241,.7)]">
+              <p className="text-[15px] leading-[1.6] text-[rgba(249,245,241,.7)]">
                 {showResetPassword
                   ? 'Enter your new password below'
                   : isLogin
@@ -740,7 +740,7 @@ export default function Auth() {
                         type="button"
                         onClick={toggleMagicLinkMode}
                         disabled={magicLoading}
-                        className="shikshaq-tap mt-2 inline-flex min-h-11 items-center gap-1.5 text-[13.5px] font-semibold text-indigo-link-on-dark disabled:cursor-not-allowed disabled:opacity-60"
+                        className="shikshaq-tap mt-2 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-semibold text-indigo-link-on-dark disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {magicLinkMode ? 'Or sign in with a password instead' : 'Or email me a sign-in link instead'}
                         <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -863,7 +863,7 @@ export default function Auth() {
                 textual rather than a competing full-weight control. Only
                 shown once the email form is actually open. */}
             {showEmailForm && !showForgotPassword && !magicLinkMode && (
-              <p className="text-center text-[13.5px] text-background/60">
+              <p className="text-center text-[14px] text-background/60">
                 {isLogin ? 'New here? ' : 'Already have an account? '}
                 <button
                   type="button"
@@ -887,7 +887,7 @@ export default function Auth() {
                  of the same reassurance under one repeated label. This names
                  the three things an account actually does and stops. */
               <div className="rounded-[20px] bg-white/[0.06] p-4">
-                <p className="text-[11.5px] font-bold uppercase tracking-[0.04em] text-[rgba(249,245,241,.5)]">
+                <p className="text-[12px] font-bold uppercase tracking-[0.04em] text-[rgba(249,245,241,.5)]">
                   Why sign in
                 </p>
                 <p className="mt-1.5 text-[14px] leading-[1.55] text-[rgba(249,245,241,.75)]">

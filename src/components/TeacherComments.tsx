@@ -332,7 +332,7 @@ export function TeacherComments({ teacherId, subject, teacherSlug, teacherName, 
         </div>
         <Button
           size={44}
-          className="rounded-full bg-brand text-[13.5px] font-bold text-brand-foreground hover:bg-brand-hover"
+          className="rounded-full bg-brand text-[14px] font-bold text-brand-foreground hover:bg-brand-hover"
           onClick={handleWriteReviewClick}
         >
           Add your review

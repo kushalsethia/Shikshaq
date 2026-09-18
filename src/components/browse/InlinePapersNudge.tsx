@@ -192,7 +192,7 @@ export function InlinePapersNudge({
         <span className="mt-1 block font-display text-[17px] font-extrabold leading-[1.15] tracking-[-0.03em] text-foreground">
           {headline}
         </span>
-        <span className="mt-1 block text-[12.5px] leading-[1.45] text-warm-prose">
+        <span className="mt-1 block text-[13px] leading-[1.45] text-warm-prose">
           Free to read. First {FREE_PREVIEW_WORD} questions need no account.
         </span>
         {/* Only past two subjects: one alone just repeats the headline in

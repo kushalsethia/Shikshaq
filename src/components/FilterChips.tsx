@@ -67,7 +67,7 @@ export function FilterChips({
   if (!hasRow) return null;
 
   /* Handoff B-009: h44, px-[14px], 13.5px trailing X; Clear all bg-muted/text-warm-secondary. */
-  const pillBase = `flex h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-[14px] text-[13.5px] font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${FOCUS}`;
+  const pillBase = `flex h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-[14px] text-[14px] font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${FOCUS}`;
 
   return (
     <div className={className} style={style}>

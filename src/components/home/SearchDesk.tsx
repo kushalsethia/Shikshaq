@@ -81,7 +81,7 @@ export function SearchDesk({ onModeChange, className = '' }: SearchDeskProps) {
               key={c.label}
               tone="facet"
               size={44}
-              className={`flex-none whitespace-nowrap px-[18px] text-[14.5px] font-semibold ${
+              className={`flex-none whitespace-nowrap px-[18px] text-[15px] font-semibold ${
                 /* -deep is index.css's documented text-on-tint ink (6.79:1);
                    the solid accent gives 4.74:1 with no margin. */
                 mode === 'papers' ? '!bg-brand-blue-subtle !text-brand-blue-deep' : ''

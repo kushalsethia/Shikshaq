@@ -163,7 +163,7 @@ export default function SchoolsPage() {
                       {school.charAt(0).toUpperCase()}
                     </IconDisc>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14.5px] font-bold text-foreground">{school}</span>
+                      <span className="block truncate text-[15px] font-bold text-foreground">{school}</span>
                       <span className="mt-px block text-[12px] tabular-nums text-muted-foreground">
                         {board ? `${board} · ` : ''}{count} paper{count === 1 ? '' : 's'}
                         {otherBoardCount > 0 ? ` + ${otherBoardCount} more` : ''}

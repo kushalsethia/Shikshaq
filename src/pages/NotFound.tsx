@@ -64,7 +64,7 @@ const NotFound = () => {
             <h1 className="mt-[18px] font-display text-[26px] font-black leading-[1.1] tracking-[-0.04em] text-foreground sm:text-[34px]">
               This page isn&rsquo;t on the timetable.
             </h1>
-            <p className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-secondary">
+            <p className="mt-2.5 text-[15px] leading-[1.55] text-warm-secondary">
               The link may be old. Try a subject, or start a new search.
             </p>
 

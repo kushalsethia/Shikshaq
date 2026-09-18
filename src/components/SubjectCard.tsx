@@ -186,7 +186,7 @@ function SubjectCardComponent({
       >
         {name}
       </h3>
-      <p className="mt-0.5 truncate text-[12.5px] tabular-nums" style={{ color: palette.meta }}>
+      <p className="mt-0.5 truncate text-[13px] tabular-nums" style={{ color: palette.meta }}>
         {meta}
       </p>
     </Link>

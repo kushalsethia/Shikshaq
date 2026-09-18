@@ -73,7 +73,7 @@ export default function SignUpSuccess() {
             {hasIntent ? 'Account ready.' : "You're in."}
           </h1>
           <h2 className="mt-3.5 text-[16px] font-bold text-foreground">Verify your email</h2>
-          <p className="mt-1.5 text-[14.5px] leading-[1.55] text-[#3E6F53]">
+          <p className="mt-1.5 text-[15px] leading-[1.55] text-[#3E6F53]">
             We sent a link to <strong className="text-foreground">{user.email}</strong>. Open it
             once and your account is confirmed. You can keep browsing in the meantime.
           </p>

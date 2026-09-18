@@ -554,7 +554,7 @@ export default function PastPapers() {
                 or fragile-looking numbers, matching the tone of the B3
                 pre-footer's "Real school papers, shared by students, free to
                 read." headline just below on this same page. */}
-            <p className="mt-3 max-w-[62ch] text-[15px] leading-[1.55] text-white/[.82] sm:mt-4 sm:text-[17.5px]">
+            <p className="mt-3 max-w-[62ch] text-[15px] leading-[1.55] text-white/[.82] sm:mt-4 sm:text-[18px]">
               {/* Not "from Kolkata schools" any more: the question bank added
                   193 ICSE and CBSE papers, and while some are Kolkata ones
                   (La Martiniere, Bhavan's, DPS Joka, Don Bosco Park Circus)
@@ -731,13 +731,13 @@ export default function PastPapers() {
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-blue text-brand-blue-foreground transition-transform duration-hover ease-settle group-hover:translate-x-0.5">
                       <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" />
                     </span>
-                    <span className="text-[13.5px] font-bold leading-[1.3] tracking-[-0.01em] text-foreground">
+                    <span className="text-[14px] font-bold leading-[1.3] tracking-[-0.01em] text-foreground">
                       {/* totalPapers, not this shelf's own length: the headline
                           above counts the whole library and the two must not
                           disagree on the same screen. */}
                       All {totalPapers ?? recentPapers.length} papers
                     </span>
-                    <span className="text-[11.5px] leading-[1.35] text-warm-secondary">
+                    <span className="text-[12px] leading-[1.35] text-warm-secondary">
                       Filter by subject, board or class
                     </span>
                   </Link>
@@ -823,7 +823,7 @@ export default function PastPapers() {
                       {i + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14.5px] font-bold text-foreground">{paper.title}</span>
+                      <span className="block truncate text-[15px] font-bold text-foreground">{paper.title}</span>
                       <span className="block truncate text-meta text-warm-meta">{paper.school}</span>
                     </span>
                     <span className="flex-none text-meta tabular-nums text-warm-meta">
@@ -882,7 +882,7 @@ export default function PastPapers() {
                     {school.charAt(0).toUpperCase()}
                   </IconDisc>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14.5px] font-bold text-foreground">{school}</span>
+                    <span className="block truncate text-[15px] font-bold text-foreground">{school}</span>
                     <span className="mt-px block text-[12px] tabular-nums text-muted-foreground">
                       {board} · {count} paper{count === 1 ? '' : 's'}
                       {otherBoardCount > 0 ? ` + ${otherBoardCount} more` : ''}
@@ -914,7 +914,7 @@ export default function PastPapers() {
                     role="tab"
                     aria-selected={groupMode === mode}
                     onClick={() => setGroupMode(mode)}
-                    className={`tap-44 flex h-9 items-center rounded-full px-[14px] text-[13.5px] font-bold capitalize transition-colors duration-tap ease-tap ${FOCUS} ${
+                    className={`tap-44 flex h-9 items-center rounded-full px-[14px] text-[14px] font-bold capitalize transition-colors duration-tap ease-tap ${FOCUS} ${
                       groupMode === mode ? 'bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -966,7 +966,7 @@ export default function PastPapers() {
                             never a literal zero, since featuredSubjects already
                             filters those out (DESIGN_SYSTEM §13). Base:
                             plain right-aligned text; sm+: the badge pill. */}
-                        <span className="flex-none text-[12.5px] font-semibold tabular-nums sm:hidden" style={{ color: palette.meta }}>
+                        <span className="flex-none text-[13px] font-semibold tabular-nums sm:hidden" style={{ color: palette.meta }}>
                           {count} paper{count === 1 ? '' : 's'}
                         </span>
                         <span
@@ -995,7 +995,7 @@ export default function PastPapers() {
                       </span>
                       <span className="flex min-w-0 flex-1 items-center justify-between gap-3 sm:block">
                         <span className="block break-words text-[19px] font-extrabold tracking-[-0.03em] text-brand-blue-deep sm:text-card-title-lg sm:font-bold sm:tracking-normal">{b}</span>
-                        <span className="flex-none text-[12.5px] font-semibold tabular-nums text-brand-blue-deep sm:hidden">
+                        <span className="flex-none text-[13px] font-semibold tabular-nums text-brand-blue-deep sm:hidden">
                           {count} paper{count === 1 ? '' : 's'}
                         </span>
                         <span className="mt-2 hidden items-center rounded-full bg-brand-blue px-3 py-1 text-label font-bold uppercase tabular-nums text-white sm:inline-flex">
@@ -1109,15 +1109,15 @@ export default function PastPapers() {
             Who owns these papers
           </h2>
           <div className="space-y-3">
-            <p className="text-[13.5px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
+            <p className="text-[14px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
               Every paper here is the property of the school that set it. Shikshaq claims no ownership over any paper, derives no revenue from any paper, and hosts these materials solely as a free community resource for students.
             </p>
-            <p className="text-[13.5px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
+            <p className="text-[14px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
               Any school that wishes a paper removed can have it removed on request, without argument.
             </p>
             <Link
               to={BROWSE_PATH}
-              className="inline-flex h-12 items-center rounded-full bg-brand px-5 text-[14.5px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+              className="inline-flex h-12 items-center rounded-full bg-brand px-5 text-[15px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
             >
               Find a teacher
             </Link>

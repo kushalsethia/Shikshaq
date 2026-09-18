@@ -187,7 +187,7 @@ export function LegalReader({
           {h1}
         </h1>
         <p className="mt-2 max-w-[62ch] text-[15px] leading-[1.6] text-warm-prose">{lede}</p>
-        <span className="mt-[10px] block text-[13.5px] text-warm-meta">{updated}</span>
+        <span className="mt-[10px] block text-[14px] text-warm-meta">{updated}</span>
       </BentoPanel>
 
       {/* Four-card summary strip — real authored content, kept from the
@@ -204,7 +204,7 @@ export function LegalReader({
               >
                 {s.head}
               </span>
-              <span className={`text-[13.5px] leading-[1.5] ${SUMMARY_BODY_CLASS[s.tone]}`}>{s.text}</span>
+              <span className={`text-[14px] leading-[1.5] ${SUMMARY_BODY_CLASS[s.tone]}`}>{s.text}</span>
             </div>
           ))}
         </div>
@@ -214,7 +214,7 @@ export function LegalReader({
           hairline after the last row. Derived from `sections`, never
           hardcoded, so every h2 in the document gets a jump-to row. */}
       <BentoPanel fill="card" className="p-[18px]">
-        <span className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">
+        <span className="text-[12px] font-bold uppercase tracking-[.04em] text-warm-label">
           On this page
         </span>
         <div className="relative mt-[10px]">
@@ -247,11 +247,11 @@ export function LegalReader({
               <a
                 key={s.n}
                 href={`#legal-section-${s.n}`}
-                className={`flex min-h-11 items-center gap-3 py-[9px] text-[14.5px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                className={`flex min-h-11 items-center gap-3 py-[9px] text-[15px] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   isLast ? '' : 'shadow-[inset_0_-1px_0_#F0EAE2]'
                 } ${matches ? '' : 'hidden'}`}
               >
-                <span className="w-[18px] flex-none text-[12.5px] font-bold tabular-nums text-warm-label">
+                <span className="w-[18px] flex-none text-[13px] font-bold tabular-nums text-warm-label">
                   {i + 1}
                 </span>
                 <span className={`flex-1 truncate font-semibold text-brand-blue ${isActive ? 'text-brand-blue-deep' : ''}`}>
@@ -262,7 +262,7 @@ export function LegalReader({
           })}
         </nav>
         {searching && !sections.some(sectionMatches) && (
-          <p className="mt-2 text-[13.5px] text-warm-secondary">No section matches "{query}".</p>
+          <p className="mt-2 text-[14px] text-warm-secondary">No section matches "{query}".</p>
         )}
       </BentoPanel>
 
@@ -295,7 +295,7 @@ export function LegalReader({
               {s.bullets && s.bullets.length > 0 && (
                 <div className="mt-3.5 flex flex-col gap-2">
                   {s.bullets.map((b) => (
-                    <div key={b} className="flex items-start gap-[11px]">
+                    <div key={b} className="flex items-start gap-[10px]">
                       <span className={`mt-[9px] h-[6px] w-[6px] flex-none rounded-full ${accentDotClass}`} />
                       <span className="text-[15px] leading-[1.6] text-warm-prose">{b}</span>
                     </div>
@@ -337,7 +337,7 @@ export function LegalReader({
             href={removalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 inline-flex h-12 items-center rounded-full bg-brand-blue px-5 text-[14.5px] font-extrabold text-white transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
+            className="mt-4 inline-flex h-12 items-center rounded-full bg-brand-blue px-5 text-[15px] font-extrabold text-white transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
           >
             Request a removal
           </a>
@@ -349,7 +349,7 @@ export function LegalReader({
         <BentoPanel fill="card" className="p-[18px_22px]">
           <a
             href={crossLink.href}
-            className="flex min-h-11 items-center gap-3 text-[14.5px] font-semibold text-foreground transition-colors duration-150 hover:text-brand-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex min-h-11 items-center gap-3 text-[15px] font-semibold text-foreground transition-colors duration-150 hover:text-brand-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <span className="flex-1">{crossLink.label}</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-none text-warm-label">
@@ -366,7 +366,7 @@ export function LegalReader({
           and dropping a real contact channel would be exactly the kind of
           silent functionality loss the migration rules warn against. */}
       <BentoPanel fill="dark" className="p-[22px]">
-        <span className="mb-3 inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-warm-card px-[11px] text-[11.5px] font-bold text-foreground">
+        <span className="mb-3 inline-flex h-[26px] items-center whitespace-nowrap rounded-full bg-warm-card px-[11px] text-[12px] font-bold text-foreground">
           questions
         </span>
         <h2 className="m-0 mb-2 font-display text-[20px] font-extrabold leading-[1.15] tracking-[-0.03em] sm:text-[23px]">
@@ -378,14 +378,14 @@ export function LegalReader({
             href={getWhatsAppLink('8240980312')}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-[13px] bg-whatsapp px-[18px] text-[14.5px] font-extrabold text-whatsapp-text transition-transform duration-150 active:scale-[0.97] sm:w-auto"
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-[14px] bg-whatsapp px-[18px] text-[15px] font-extrabold text-whatsapp-text transition-transform duration-150 active:scale-[0.97] sm:w-auto"
           >
             <WhatsAppIcon className="h-[17px] w-[17px]" />
             WhatsApp us
           </a>
           <a
             href="mailto:ngo.aquaterra@gmail.com"
-            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[13px] bg-white/10 px-[18px] text-[14.5px] font-bold text-white transition-colors duration-150 hover:bg-white/15 sm:w-auto"
+            className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[14px] bg-white/10 px-[18px] text-[15px] font-bold text-white transition-colors duration-150 hover:bg-white/15 sm:w-auto"
           >
             ngo.aquaterra@gmail.com
           </a>

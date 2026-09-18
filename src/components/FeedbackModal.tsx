@@ -156,11 +156,11 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                 How was that?
               </DialogTitle>
             </DialogHeader>
-            <p className="mb-5 text-[14.5px] leading-[1.55] text-warm-prose">
+            <p className="mb-5 text-[15px] leading-[1.55] text-warm-prose">
               Goes straight to the two people who run this. No ticket number, no bot.
             </p>
 
-            <div role="radiogroup" aria-label="How was that?" className="mb-[18px] flex gap-[9px]">
+            <div role="radiogroup" aria-label="How was that?" className="mb-[18px] flex gap-[10px]">
               {MOODS.map(({ rating, mood, label, highlight }) => {
                 const isSelected = selectedRating === rating;
                 return (
@@ -174,7 +174,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                        keeps showing what you said while you type the comment.
                        Before a choice they all sit at full strength — nothing is
                        being de-emphasised yet. */
-                    className={`flex min-h-11 flex-1 flex-col items-center gap-[11px] rounded-[20px] px-2 py-[16px] pb-[13px] transition-[background-color,opacity] duration-150 active:scale-[0.97] ${
+                    className={`flex min-h-11 flex-1 flex-col items-center gap-[10px] rounded-[20px] px-2 py-[16px] pb-[13px] transition-[background-color,opacity] duration-150 active:scale-[0.97] ${
                       isSelected
                         ? highlight
                           ? 'bg-brand-subtle ring-2 ring-brand'
@@ -186,7 +186,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                   >
                     <Blob mood={mood} size={64} label={label} />
                     <span
-                      className={`text-[13.5px] font-extrabold ${
+                      className={`text-[14px] font-extrabold ${
                         isSelected ? (highlight ? 'text-brand-deep' : 'text-foreground') : 'text-warm-prose'
                       }`}
                     >
@@ -201,7 +201,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
               <div className="mb-[14px]">
                 <label
                   htmlFor="feedback-guest-email"
-                  className="mb-[7px] block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label"
+                  className="mb-[7px] block text-[12px] font-bold uppercase tracking-[0.07em] text-warm-label"
                 >
                   Email (optional)
                 </label>
@@ -211,14 +211,14 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
                   placeholder="your.email@example.com"
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
-                  className="h-14 w-full rounded-[15px] bg-card px-4 text-base text-foreground shadow-border outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+                  className="h-14 w-full rounded-[16px] bg-card px-4 text-base text-foreground shadow-border outline-none transition-shadow duration-150 placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
                 />
               </div>
             )}
 
             <label
               htmlFor="feedback-comment"
-              className="mb-[7px] block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label"
+              className="mb-[7px] block text-[12px] font-bold uppercase tracking-[0.07em] text-warm-label"
             >
               Anything you want to add?
             </label>

@@ -194,7 +194,7 @@ export default function TeacherTermsAgreement() {
             <h1 className="font-display text-[27px] font-extrabold tracking-[-0.04em] text-foreground">
               Verify your consent
             </h1>
-            <p className="mt-2 text-[14.5px] leading-[1.5] text-warm-secondary">
+            <p className="mt-2 text-[15px] leading-[1.5] text-warm-secondary">
               We&rsquo;ve detected that you&rsquo;re a teacher on our platform. Please verify your consent to continue.
             </p>
           </BentoPanel>

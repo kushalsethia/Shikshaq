@@ -73,7 +73,7 @@ function GateSheet({ open, onOpenChange, redirectTo, paperTitle, paperSubject }:
         {paperTitle ? (
           <div className="flex items-center gap-3">
             <div
-              className="flex h-10 w-[52px] flex-none items-center justify-center rounded-[7px]"
+              className="flex h-10 w-[52px] flex-none items-center justify-center rounded-[6px]"
               style={{ backgroundColor: palette?.tint ?? "hsl(var(--muted))" }}
             >
               <FileText className="h-4 w-4" style={{ color: palette?.text }} aria-hidden="true" />
@@ -85,7 +85,7 @@ function GateSheet({ open, onOpenChange, redirectTo, paperTitle, paperSubject }:
         <SheetTitle className={`${paperTitle ? 'mt-[18px]' : ''} font-display text-[26px] font-normal leading-[1.1] tracking-[-0.045em] text-foreground`}>
           Sign in to <b className="font-extrabold">open {paperTitle || 'this paper'}</b>.
         </SheetTitle>
-        <SheetDescription className="mt-2.5 text-[14.5px] leading-[1.55] text-warm-prose">
+        <SheetDescription className="mt-2.5 text-[15px] leading-[1.55] text-warm-prose">
           One tap with Google. Free, and it takes one tap to keep reading.
         </SheetDescription>
 
@@ -93,7 +93,7 @@ function GateSheet({ open, onOpenChange, redirectTo, paperTitle, paperSubject }:
           type="button"
           disabled={busy}
           onClick={handleGoogle}
-          className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-panel text-[15.5px] font-extrabold text-background transition-transform duration-tap active:scale-[0.98] disabled:opacity-70"
+          className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-panel text-[16px] font-extrabold text-background transition-transform duration-tap active:scale-[0.98] disabled:opacity-70"
         >
           {busy ? 'Signing in…' : 'Continue with Google'}
         </button>

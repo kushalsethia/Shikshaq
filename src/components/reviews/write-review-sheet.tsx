@@ -129,7 +129,7 @@ export function WriteReviewSheet({ open, onOpenChange, submitting, error, onSubm
           </fieldset>
 
           <div>
-            <label htmlFor="write-review-comment" className="mb-1 block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">
+            <label htmlFor="write-review-comment" className="mb-1 block text-[12px] font-bold uppercase tracking-[0.07em] text-warm-label">
               Review
             </label>
             <Textarea
@@ -146,7 +146,7 @@ export function WriteReviewSheet({ open, onOpenChange, submitting, error, onSubm
             {/* "Your name (optional)" per O-006 is a free-text field this
                 app's account-tied review model doesn't have (see file header
                 comment) — the real equivalent is this anonymous toggle. */}
-            <label htmlFor="write-review-anonymous" className="mb-1 block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label">
+            <label htmlFor="write-review-anonymous" className="mb-1 block text-[12px] font-bold uppercase tracking-[0.07em] text-warm-label">
               Your name <span className="font-medium normal-case tracking-normal text-warm-meta">(optional)</span>
             </label>
             <div className="flex items-center gap-2">
@@ -172,7 +172,7 @@ export function WriteReviewSheet({ open, onOpenChange, submitting, error, onSubm
               checked={confirmed}
               onCheckedChange={(checked) => setConfirmed(checked === true)}
               disabled={submitting}
-              className="mt-0.5 h-5 w-5 rounded-[7px]"
+              className="mt-0.5 h-5 w-5 rounded-[6px]"
             />
             <label htmlFor="write-review-confirm" className="cursor-pointer text-sm leading-relaxed text-foreground">
               I actually took classes with this teacher
@@ -185,7 +185,7 @@ export function WriteReviewSheet({ open, onOpenChange, submitting, error, onSubm
             type="submit"
             variant="primary"
             size={54}
-            className="rounded-full text-[15.5px] font-extrabold"
+            className="rounded-full text-[16px] font-extrabold"
             disabled={!comment.trim() || !confirmed || submitting}
             busy={submitting}
           >

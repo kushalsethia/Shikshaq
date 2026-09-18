@@ -125,7 +125,7 @@ export default function MyTeachers() {
             >
               {'←'} Back to dashboard
             </Link>
-            <p className="text-[12.5px] font-medium text-warm-secondary">Teachers you study with</p>
+            <p className="text-[13px] font-medium text-warm-secondary">Teachers you study with</p>
             <h1 className="mt-1 font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-foreground">
               {count > 0 ? (
                 <>
@@ -137,7 +137,7 @@ export default function MyTeachers() {
                 </>
               )}
             </h1>
-            <p className="mt-1 text-[14.5px] text-warm-secondary">
+            <p className="mt-1 text-[15px] text-warm-secondary">
               Mark a teacher as "studies with" from their profile and they turn up here.
             </p>
           </BentoPanel>
@@ -156,7 +156,7 @@ export default function MyTeachers() {
               <p className="font-display text-[23px] font-extrabold tracking-[-0.04em] text-brand-deep">
                 No teachers yet
               </p>
-              <p className="mt-1.5 text-[14.5px] leading-[1.55] text-warm-prose">
+              <p className="mt-1.5 text-[15px] leading-[1.55] text-warm-prose">
                 No saved teachers yet. Tap the mark on any card and they wait for you here.
               </p>
               <Button asChild variant="primary" size={52} className="mt-4">
@@ -219,7 +219,7 @@ export default function MyTeachers() {
               >
                 <span>
                   <span className="block text-[15px] font-bold text-foreground">How did it go?</span>
-                  <span className="mt-0.5 block text-[13.5px] text-warm-secondary">
+                  <span className="mt-0.5 block text-[14px] text-warm-secondary">
                     Leave a review so the next parent knows.
                   </span>
                 </span>

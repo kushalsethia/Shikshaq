@@ -684,7 +684,7 @@ export default function Index() {
                 changing its mind rather than two lines crossfading. */}
             <p
               key={`eyebrow-${heroMode}`}
-              className={`animate-blur-swap text-[12.5px] font-semibold ${heroAccent} motion-reduce:animate-none`}
+              className={`animate-blur-swap text-[13px] font-semibold ${heroAccent} motion-reduce:animate-none`}
             >
               {heroCopy.eyebrow}
             </p>
@@ -719,7 +719,7 @@ export default function Index() {
                   {subjects.slice(0, 3).map((s) => (
                     <span
                       key={s.id}
-                      className="flex h-[38px] shrink-0 items-center gap-[7px] whitespace-nowrap rounded-full bg-muted px-3.5 text-[13px] font-semibold text-foreground"
+                      className="flex h-[38px] shrink-0 items-center gap-[8px] whitespace-nowrap rounded-full bg-muted px-3.5 text-[13px] font-semibold text-foreground"
                     >
                       <span
                         aria-hidden
@@ -739,7 +739,7 @@ export default function Index() {
                     <Link
                       key={b}
                       to={`/past-papers/results?filter_boards=${encodeURIComponent(b)}`}
-                      className="flex h-[38px] shrink-0 items-center gap-[7px] whitespace-nowrap rounded-full bg-brand-blue-subtle px-3.5 text-[13px] font-semibold text-brand-blue-deep transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
+                      className="flex h-[38px] shrink-0 items-center gap-[8px] whitespace-nowrap rounded-full bg-brand-blue-subtle px-3.5 text-[13px] font-semibold text-brand-blue-deep transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
                     >
                       <span aria-hidden className="h-2 w-2 rounded-[2px] bg-brand-blue" />
                       {b} · {paperBoardCounts[b]}
@@ -776,7 +776,7 @@ export default function Index() {
                     bare grey text sitting beside a row of avatars, which read
                     as a caption someone forgot to style rather than as part of
                     the same family as the facet pills directly above it. */}
-                <span className="flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-full bg-muted px-3.5 text-[13px] font-semibold text-foreground">
+                <span className="flex h-[34px] items-center gap-[8px] whitespace-nowrap rounded-full bg-muted px-3.5 text-[13px] font-semibold text-foreground">
                   <ShieldCheck className="h-[15px] w-[15px] flex-none text-brand-deep" strokeWidth={2.25} aria-hidden="true" />
                   {stats.teachers} verified tutors in Kolkata
                 </span>
@@ -850,7 +850,7 @@ export default function Index() {
               to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
               className="group mt-[14px] block rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
             >
-              <p className="text-[12.5px] font-medium text-warm-secondary">{teachersCta?.label ?? 'Find a teacher'}</p>
+              <p className="text-[13px] font-medium text-warm-secondary">{teachersCta?.label ?? 'Find a teacher'}</p>
               <p className="mt-[2px] font-display text-[25px] font-extrabold leading-[1.05] tracking-[-0.045em]">
                 <span className="text-brand-deep decoration-2 underline-offset-4 group-hover:underline">Message them</span>{' '}
                 <span className="font-normal text-foreground">yourself, free</span>
@@ -875,7 +875,7 @@ export default function Index() {
               className="group mt-[14px] flex items-center justify-between gap-3 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
             >
               <div>
-                <p className="text-[12.5px] font-medium text-warm-secondary">Past papers</p>
+                <p className="text-[13px] font-medium text-warm-secondary">Past papers</p>
                 <p className="mt-[2px] font-display text-[22px] font-extrabold tracking-[-0.04em]">
                   <span className="text-brand-blue-deep">Revise</span>{' '}
                   <span className="font-normal text-foreground">for free</span>
@@ -1101,7 +1101,7 @@ export default function Index() {
             <div className="relative lg:flex lg:items-center lg:gap-12">
               <div className="lg:flex-1">
                 {/* Was /70 (3.47:1 on --brand-blue). An 11.5px eyebrow is small text. */}
-                <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white">04</p>
+                <p className="text-[12px] font-bold uppercase tracking-[.04em] text-white">04</p>
                 <h2 className="font-display text-[23px] font-extrabold text-white lg:text-[30px]">the boards set</h2>
                 {/* Was /80 (4.06:1). */}
                 <p className="mt-3 max-w-prose text-[14px] leading-[1.5] text-white/90 lg:text-[15px]">
@@ -1180,7 +1180,7 @@ export default function Index() {
                 2.52:1 and the /75 opacity variant 1.56:1 — the exact pair
                 index.css:112-123 documents as failing AA. The token is
                 near-black at 6.46:1. */}
-            <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-brand-foreground/75">
+            <p className="text-[12px] font-bold uppercase tracking-[.04em] text-brand-foreground/75">
               02 · Two minutes, start to finish
             </p>
             <h2 className="mt-2 font-display text-[28px] font-extrabold tracking-[-0.045em] text-brand-foreground">
@@ -1241,7 +1241,7 @@ export default function Index() {
                   <IconDisc tone="muted" size={44} className="text-brand-deep"><span className="[&_svg]:h-5 [&_svg]:w-5">{row.icon}</span></IconDisc>
                   <div>
                     <p className="text-[17px] font-semibold text-brand-deep">{row.title}</p>
-                    <p className="mt-1 text-[14.5px] leading-[1.6] text-warm-prose">{row.body}</p>
+                    <p className="mt-1 text-[15px] leading-[1.6] text-warm-prose">{row.body}</p>
                   </div>
                 </li>
               ))}
@@ -1356,7 +1356,7 @@ export default function Index() {
                         {q.teacherName && q.teacherSlug && (
                           <Link
                             to={`/tuition-teachers/${q.teacherSlug}`}
-                            className="mt-2.5 flex min-h-11 items-center gap-1.5 text-[12.5px] text-warm-secondary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            className="mt-2.5 flex min-h-11 items-center gap-1.5 text-[13px] text-warm-secondary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           >
                             <span aria-hidden="true" className="h-1.5 w-1.5 flex-none rounded-full bg-brand" />
                             <span className="min-w-0 truncate">View {q.teacherName}&rsquo;s profile</span>

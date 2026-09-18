@@ -123,7 +123,7 @@ type ShikshaqmineUpdateWithPause = ShikshaqmineUpdate & { is_paused: boolean };
 const FIELD_CLASSNAME =
   'h-[52px] rounded-2xl border-0 bg-muted px-4 text-base focus-visible:ring-0 focus-visible:ring-offset-0';
 const LOCKED_FIELD_CLASSNAME = `${FIELD_CLASSNAME} cursor-not-allowed opacity-70`;
-const LABEL_CLASSNAME = 'mb-1.5 block text-[11.5px] font-bold uppercase tracking-[.07em] text-warm-label';
+const LABEL_CLASSNAME = 'mb-1.5 block text-[12px] font-bold uppercase tracking-[.07em] text-warm-label';
 const HELP_TEXT_CLASSNAME = 'text-xs text-muted-foreground';
 /* The three option groups that use this (subjects, boards, classes) are
    wrapping checkbox chips -- 33 subjects alone, which is 12+ rows on a phone
@@ -1137,12 +1137,12 @@ export default function TeacherDashboard() {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-white/50">Your listing</p>
+                <p className="text-[12px] font-bold uppercase tracking-[.04em] text-white/50">Your listing</p>
                 <h1 className="mt-[3px] truncate font-display text-[24px] font-extrabold tracking-[-0.04em] text-background">
                   {displayName}
                 </h1>
                 <div
-                  className={`mt-1.5 inline-flex h-7 items-center gap-[7px] rounded-full px-3 text-[12px] font-extrabold ${
+                  className={`mt-1.5 inline-flex h-7 items-center gap-[8px] rounded-full px-3 text-[12px] font-extrabold ${
                     isPaused ? 'bg-muted text-warm-secondary' : 'bg-[#34B268] text-[#08301D]'
                   }`}
                 >
@@ -1160,7 +1160,7 @@ export default function TeacherDashboard() {
                 <div className="font-display text-[26px] font-black tracking-[-0.04em] text-foreground tabular-nums">
                   {st.value}
                 </div>
-                <div className="mt-0.5 text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">
+                <div className="mt-0.5 text-[12px] font-bold uppercase tracking-[.04em] text-warm-label">
                   {st.label}
                 </div>
               </BentoPanel>
@@ -1209,8 +1209,8 @@ export default function TeacherDashboard() {
                   <PencilLine className="h-5 w-5" aria-hidden="true" />
                 </IconDisc>
                 <span>
-                  <span className="block text-[14.5px] font-semibold text-foreground">Edit your profile</span>
-                  <span className="mt-1 block text-[12.5px] text-warm-secondary">
+                  <span className="block text-[15px] font-semibold text-foreground">Edit your profile</span>
+                  <span className="mt-1 block text-[13px] text-warm-secondary">
                     Subjects, classes, boards, areas and fee range.
                   </span>
                 </span>
@@ -1225,10 +1225,10 @@ export default function TeacherDashboard() {
                   {isPaused ? <PlayCircle className="h-5 w-5" aria-hidden="true" /> : <PauseCircle className="h-5 w-5" aria-hidden="true" />}
                 </IconDisc>
                 <span>
-                  <span className="block text-[14.5px] font-semibold text-foreground">
+                  <span className="block text-[15px] font-semibold text-foreground">
                     {isPaused ? 'Resume your listing' : 'Pause your listing'}
                   </span>
-                  <span className="mt-1 block text-[12.5px] text-warm-secondary">
+                  <span className="mt-1 block text-[13px] text-warm-secondary">
                     {isPaused
                       ? 'Your profile is hidden from students until you resume it.'
                       : 'Hide your profile from results while your batches are full.'}
@@ -1244,8 +1244,8 @@ export default function TeacherDashboard() {
                   <Link2 className="h-5 w-5" aria-hidden="true" />
                 </IconDisc>
                 <span>
-                  <span className="block text-[14.5px] font-semibold text-foreground">Request a review</span>
-                  <span className="mt-1 block text-[12.5px] text-warm-secondary">
+                  <span className="block text-[15px] font-semibold text-foreground">Request a review</span>
+                  <span className="mt-1 block text-[13px] text-warm-secondary">
                     Send a link to a current student asking them to review you.
                   </span>
                 </span>
@@ -1272,7 +1272,7 @@ export default function TeacherDashboard() {
                   className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted p-4"
                 >
                   <div>
-                    <p className="text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-label">{row.label}</p>
+                    <p className="text-[12px] font-bold uppercase tracking-[.04em] text-warm-label">{row.label}</p>
                     <div className="mt-1 text-base font-semibold text-foreground">
                       {row.value || '-'}
                     </div>
@@ -1301,7 +1301,7 @@ export default function TeacherDashboard() {
               />
             </div>
             {missingLabels.length > 0 && (
-              <p className="mt-2.5 text-[13.5px] leading-[1.5] text-muted-foreground">
+              <p className="mt-2.5 text-[14px] leading-[1.5] text-muted-foreground">
                 Missing: {missingLabels.join(', ')}.
               </p>
             )}
@@ -1783,7 +1783,7 @@ export default function TeacherDashboard() {
                 reviews.map((review) => (
                   <div key={review.id} className="rounded-[20px] bg-card p-4">
                     <p className="text-[14px] leading-[1.55] text-warm-prose">{review.quote}</p>
-                    <p className="mt-2.5 text-[12.5px] text-warm-meta">
+                    <p className="mt-2.5 text-[13px] text-warm-meta">
                       {[review.who, review.when].filter(Boolean).join(' · ')}
                     </p>
                   </div>

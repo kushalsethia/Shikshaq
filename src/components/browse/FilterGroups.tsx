@@ -177,7 +177,7 @@ function groupItem(
           </span>
           <span className="truncate font-display text-[16px] font-bold tracking-[-0.02em] text-foreground">{label}</span>
           {selectedCount > 0 && (
-            <span className="ml-auto flex-none text-[12.5px] font-bold tabular-nums text-brand-deep">
+            <span className="ml-auto flex-none text-[13px] font-bold tabular-nums text-brand-deep">
               {selectedCount}
             </span>
           )}
@@ -642,7 +642,7 @@ export function FilterSheet({
               <button
                 type="button"
                 onClick={() => onFilterChange(EMPTY_FILTERS)}
-                className="flex h-11 flex-none items-center rounded-full bg-muted px-[14px] text-[13.5px] font-semibold text-warm-secondary transition-colors duration-tap hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex h-11 flex-none items-center rounded-full bg-muted px-[14px] text-[14px] font-semibold text-warm-secondary transition-colors duration-tap hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Clear all
               </button>

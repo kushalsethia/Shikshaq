@@ -58,7 +58,7 @@ export function PaperDisclaimerDialog() {
             Before you open this paper
           </DialogTitle>
         </DialogHeader>
-        <p id="paper-disclaimer-body" className="mb-5 text-[14.5px] leading-[1.6] text-warm-prose">
+        <p id="paper-disclaimer-body" className="mb-5 text-[15px] leading-[1.6] text-warm-prose">
           Every paper on Shikshaq is the property of the school that set it. Shikshaq claims no
           ownership over any paper, and these were all contributed by students. They are shared
           here solely to assist with exam preparation.

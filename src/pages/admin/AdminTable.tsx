@@ -29,7 +29,7 @@ export function AdminStatusPill({ status, label, className }: { status: AdminSta
   return (
     <span
       className={cn(
-        'inline-flex h-[26px] w-fit shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-[10px] text-[11.5px] font-bold',
+        'inline-flex h-[26px] w-fit shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-[10px] text-[12px] font-bold',
         cfg.fillClass,
         cfg.inkClass,
         className,
@@ -71,7 +71,7 @@ export function AdminRowActions({ actions }: { actions: AdminRowAction[] }) {
           onClick={action.onClick}
           disabled={action.disabled}
           className={cn(
-            'relative inline-flex h-9 items-center justify-center whitespace-nowrap rounded-full px-[14px] text-[12.5px] font-bold before:absolute before:-inset-[4px] before:content-[""] transition-colors duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'relative inline-flex h-9 items-center justify-center whitespace-nowrap rounded-full px-[14px] text-[13px] font-bold before:absolute before:-inset-[4px] before:content-[""] transition-colors duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             ACTION_TONE_CLASS[action.tone],
           )}
         >
@@ -159,7 +159,7 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
                 role="cell"
                 key={i}
                 className={cn(
-                  'min-w-0 truncate text-[13.5px] leading-[1.45]',
+                  'min-w-0 truncate text-[14px] leading-[1.45]',
                   i === 0 ? 'font-bold text-foreground' : 'text-warm-prose',
                 )}
               >
@@ -180,18 +180,18 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
       <div className="divide-y divide-warm-hairline lg:hidden">
         {rows.map((row) => (
           <div key={row.id} className="flex flex-col gap-3 px-[14px] py-4">
-            <div className="min-w-0 text-[14.5px] font-bold leading-[1.35] text-foreground">{row.cells[0]}</div>
+            <div className="min-w-0 text-[15px] font-bold leading-[1.35] text-foreground">{row.cells[0]}</div>
 
             {row.cells.length > 1 ? (
               <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
                 {row.cells.slice(1).map((cell, i) => (
                   <div key={i} className="min-w-0">
                     {columns[i + 1] ? (
-                      <dt className="text-[10.5px] font-bold uppercase tracking-[.06em] text-warm-label">
+                      <dt className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
                         {columns[i + 1].label}
                       </dt>
                     ) : null}
-                    <dd className="truncate text-[13.5px] leading-[1.45] text-warm-prose">{cell}</dd>
+                    <dd className="truncate text-[14px] leading-[1.45] text-warm-prose">{cell}</dd>
                   </div>
                 ))}
               </dl>
@@ -211,7 +211,7 @@ export function AdminPanelHeader({ title, meta }: { title: string; meta?: ReactN
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 px-[18px] pb-3">
       <h2 className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">{title}</h2>
-      {meta ? <span className="text-[12.5px] tabular-nums text-warm-meta">{meta}</span> : null}
+      {meta ? <span className="text-[13px] tabular-nums text-warm-meta">{meta}</span> : null}
     </div>
   );
 }

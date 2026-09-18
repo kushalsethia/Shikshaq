@@ -78,7 +78,7 @@ export default function Join() {
               We list local tuition teachers, students contact you directly on WhatsApp, and we take nothing from what you charge. There is no listing fee either.
             </p>
             {/* Handoff D-007 (JN-002): flatten at lg. */}
-            <div className="mt-3.5 inline-flex h-8 -rotate-2 items-center gap-2 rounded-full bg-card px-[13px] text-[12.5px] font-bold text-foreground shadow-border motion-reduce:rotate-0 lg:rotate-0">
+            <div className="mt-3.5 inline-flex h-8 -rotate-2 items-center gap-2 rounded-full bg-card px-[13px] text-[13px] font-bold text-foreground shadow-border motion-reduce:rotate-0 lg:rotate-0">
               <span className="h-[7px] w-[7px] flex-none rounded-full bg-brand" />
               Reviewed in ~3 working days
             </div>
@@ -105,11 +105,11 @@ export default function Join() {
                 const Icon = b.icon;
                 return (
                   <div key={b.title} className={`rounded-[20px] p-4 ${b.cardTint}`}>
-                    <div className={`flex h-[34px] w-[34px] items-center justify-center rounded-[11px] ${b.iconTile}`}>
+                    <div className={`flex h-[34px] w-[34px] items-center justify-center rounded-[12px] ${b.iconTile}`}>
                       <Icon className="h-[17px] w-[17px] text-white" strokeWidth={2} aria-hidden="true" />
                     </div>
                     <div className={`mt-3 text-[17px] font-extrabold tracking-[-0.03em] ${b.titleInk}`}>{b.title}</div>
-                    <p className={`mt-1 text-[13.5px] leading-[1.5] ${b.bodyInk}`}>{b.body}</p>
+                    <p className={`mt-1 text-[14px] leading-[1.5] ${b.bodyInk}`}>{b.body}</p>
                   </div>
                 );
               })}

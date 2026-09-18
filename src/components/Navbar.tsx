@@ -258,7 +258,7 @@ export function Navbar() {
                       <User className="h-[19px] w-[19px] text-foreground" strokeWidth={2} aria-hidden="true" />
                     </span>
                     <span className="mt-3 block font-display text-[19px] font-extrabold tracking-[-0.04em] text-brand-deep">Teachers</span>
-                    <span className="mt-0.5 block text-[12.5px] text-warm-secondary">
+                    <span className="mt-0.5 block text-[13px] text-warm-secondary">
                       {teachersCount != null ? `${teachersCount} in Kolkata` : 'In Kolkata'}
                     </span>
                   </Link>
@@ -269,7 +269,7 @@ export function Navbar() {
                       <FileText className="h-[19px] w-[19px] text-white" strokeWidth={2} aria-hidden="true" />
                     </span>
                     <span className="mt-3 block font-display text-[19px] font-extrabold tracking-[-0.04em] text-brand-blue-deep">Past papers</span>
-                    <span className="mt-0.5 block text-[12.5px] text-warm-secondary">
+                    <span className="mt-0.5 block text-[13px] text-warm-secondary">
                       {papersCount != null ? `${papersCount}, free to read` : 'Free to read'}
                     </span>
                   </Link>
@@ -299,7 +299,7 @@ export function Navbar() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-bold">{user.email}</span>
-                      <span className="mt-px block text-[12.5px] text-background/60">
+                      <span className="mt-px block text-[13px] text-background/60">
                         {[
                           `${likedTeacherIds.size} saved`,
                           papersReadCount != null ? `${papersReadCount} papers` : null,
@@ -365,7 +365,7 @@ function SheetMenuRow({ to, icon: Icon, label, hairline = false }: { to: string;
         className={`flex min-h-[52px] items-center gap-3 px-3 text-foreground ${hairline ? 'shadow-[inset_0_-1px_0_hsl(var(--border))]' : ''} ${FOCUS_RING}`}
       >
         <Icon className="h-[18px] w-[18px] text-warm-secondary" strokeWidth={2} aria-hidden="true" />
-        <span className="flex-1 text-[15.5px] font-semibold">{label}</span>
+        <span className="flex-1 text-[16px] font-semibold">{label}</span>
         <ArrowIcon />
       </Link>
     </SheetClose>

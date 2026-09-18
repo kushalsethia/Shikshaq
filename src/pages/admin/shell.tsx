@@ -41,7 +41,7 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Logo size="sm" className="tap-44" />
-          <span className="inline-flex h-6 items-center rounded-lg bg-muted px-[9px] text-[11.5px] font-bold uppercase tracking-[.04em] text-warm-secondary">
+          <span className="inline-flex h-6 items-center rounded-lg bg-muted px-[9px] text-[12px] font-bold uppercase tracking-[.04em] text-warm-secondary">
             Admin
           </span>
         </div>
@@ -58,7 +58,7 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
             to={item.path}
             aria-current={item.active ? 'page' : undefined}
             className={cn(
-              'inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[13.5px] lg:h-10 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[14px] lg:h-10 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               item.active
                 ? 'bg-panel font-bold text-background'
                 : 'bg-muted font-semibold text-warm-secondary hover:bg-warm-hairline',
@@ -112,10 +112,10 @@ export function AdminAuditNote({ className }: { className?: string }) {
       edge="bottom"
       className={cn('flex flex-wrap items-center justify-between gap-2 px-6 py-4 lg:px-6 lg:py-4', className)}
     >
-      <span className="text-[12.5px] text-warm-secondary">
+      <span className="text-[13px] text-warm-secondary">
         Every action is written to the audit log with your account and a timestamp.
       </span>
-      <Link to="/admin/audit" className="tap-44 text-[12.5px] font-bold text-brand-blue hover:text-brand-blue-deep">
+      <Link to="/admin/audit" className="tap-44 text-[13px] font-bold text-brand-blue hover:text-brand-blue-deep">
         Open audit log
       </Link>
     </BentoPanel>

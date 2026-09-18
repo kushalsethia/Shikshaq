@@ -81,7 +81,7 @@ export function RegionNotice({
     return (
       <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[16px] bg-muted px-4 py-3 ${className}`}>
         <MapPin className="h-4 w-4 flex-none text-warm-label" aria-hidden="true" />
-        <p className="min-w-0 flex-1 text-[13.5px] leading-[1.5] text-warm-secondary">
+        <p className="min-w-0 flex-1 text-[14px] leading-[1.5] text-warm-secondary">
           These teachers all teach in and around Kolkata.
         </p>
         <button
@@ -136,10 +136,10 @@ export function RegionNotice({
           <MapPin className="h-4 w-4" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="text-[14.5px] font-bold text-brand-deep">
+          <p className="text-[15px] font-bold text-brand-deep">
             {PREVIEW_TOOLS ? 'We do not have teachers in your area yet' : 'You are outside West Bengal'}
           </p>
-          <p className="mt-1 text-[13.5px] leading-[1.55] text-brand-deep/85">
+          <p className="mt-1 text-[14px] leading-[1.55] text-brand-deep/85">
             Every teacher listed here teaches in and around Kolkata, so in-person classes will not
             reach you yet, and more cities are coming. Plenty of these teachers do take online
             classes, though{PREVIEW_TOOLS ? '.' : ', and you can ask any of them directly.'}
@@ -153,7 +153,7 @@ export function RegionNotice({
               <button
                 type="button"
                 onClick={dismiss}
-                className="inline-flex min-h-11 items-center rounded-full bg-card px-4 text-[13.5px] font-bold text-brand-deep shadow-border transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex min-h-11 items-center rounded-full bg-card px-4 text-[14px] font-bold text-brand-deep shadow-border transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 I'm looking for teachers in Kolkata
               </button>
@@ -161,7 +161,7 @@ export function RegionNotice({
                 <button
                   type="button"
                   onClick={() => { onWantRemote(); dismiss(); }}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[13.5px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[14px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   I'm fine with a remote teacher
                 </button>
@@ -169,7 +169,7 @@ export function RegionNotice({
                 <Link
                   to={`${BROWSE_PATH}?filter_modeOfTeaching=Online`}
                   onClick={dismiss}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[13.5px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[14px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   I'm fine with a remote teacher
                 </Link>
@@ -181,8 +181,8 @@ export function RegionNotice({
             target="_blank"
             rel="noopener noreferrer"
             className={PREVIEW_TOOLS
-              ? 'mt-2 inline-flex min-h-11 items-center gap-2 text-[12.5px] font-semibold text-brand-deep underline underline-offset-2'
-              : 'mt-2.5 inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[13.5px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
+              ? 'mt-2 inline-flex min-h-11 items-center gap-2 text-[13px] font-semibold text-brand-deep underline underline-offset-2'
+              : 'mt-2.5 inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-4 text-[14px] font-bold text-whatsapp-text transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'}
           >
             <WhatsAppIcon className={PREVIEW_TOOLS ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden={PREVIEW_TOOLS || undefined} />
             {PREVIEW_TOOLS ? 'Or ask a teacher directly on WhatsApp' : 'Ask about online classes'}

@@ -431,7 +431,7 @@ function EyesPanel({
                 aria-selected={mode === m}
                 onClick={() => onModeChange(m)}
                 className={cn(
-                  'tap-44 flex h-9 items-center justify-center rounded-full px-4 text-[13.5px] font-bold transition-colors duration-500',
+                  'tap-44 flex h-9 items-center justify-center rounded-full px-4 text-[14px] font-bold transition-colors duration-500',
                   /* This pair sits on the panel's own tinted fill, so the
                      ring needs an offset in that fill rather than the page
                      background, or it reads as a halo with a gap. */
@@ -468,7 +468,7 @@ function EyesPanel({
                ratio it was picked for. */
             <p
               className={cn(
-                'mt-3 text-[11.5px] font-bold uppercase tracking-wide',
+                'mt-3 text-[12px] font-bold uppercase tracking-wide',
                 mode === 'papers' ? 'text-white' : 'text-brand-foreground',
               )}
             >

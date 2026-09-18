@@ -567,7 +567,7 @@ export function Footer({ expandedContent, seamFill = 'background' }: FooterProps
                        `ring-2`, and a base `ring-inset` would turn that focus
                        ring inward where it reads as a tint, not a focus state
                        (C-014). Same technique HelpFaqStack uses. */
-                    'text-[13.5px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.16)]',
+                    'text-[14px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.16)]',
                     'focus-visible:ring-background focus-visible:ring-offset-panel',
                   )}
                 >
@@ -588,7 +588,7 @@ export function Footer({ expandedContent, seamFill = 'background' }: FooterProps
                        `ring-2`, and a base `ring-inset` would turn that focus
                        ring inward where it reads as a tint, not a focus state
                        (C-014). Same technique HelpFaqStack uses. */
-                    'text-[13.5px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.16)]',
+                    'text-[14px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.16)]',
                     'focus-visible:ring-background focus-visible:ring-offset-panel',
                   )}
               >
