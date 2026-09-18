@@ -57,6 +57,37 @@ bookkeeping are unreadable over REST, which is the point. The retention
 trigger being armed, `read_events` logging, and whether `ip_hash` carries real
 values all need the one query at the end of the runbook.
 
+## 0.5 Confirmed by the post-run query
+
+`retention_trigger 1 · pg_cron 1 · events_logged 1 · events_with_real_ip 1 ·
+quotas_enforcing false · anon_callable_functions 19`
+
+- **Retention runs, twice over.** Both the trigger and `pg_cron` installed, so
+  the 90 days the privacy policy promises is now performed rather than hoped
+  for.
+- **`ip_hash` is real.** It is not the hash of an empty string, so
+  `request.headers` IS exposed on this project and the network-based bot
+  signals in `read_suspicion` work. Better than expected.
+- **Logging works.** The signed-in read used to test the gate was recorded.
+- **Quotas off**, as intended.
+
+- [ ] **`P1` 19 anon-executable functions, and that number is a FLOOR.** I
+      predicted about five. Worse, the query that produced 19 undercounts:
+      it matched the ACL as a string for `anon=X`, and a **NULL `proacl` means
+      the default applies, which for a function is `EXECUTE TO PUBLIC`** — so
+      every function that has never had an explicit GRANT or REVOKE is
+      anon-executable and matches no string at all.
+      Six are accounted for: `site_counts`, `bank_paper_questions`,
+      `teacher_whatsapp_link` (the gates), plus `is_admin`,
+      `check_user_exists`, `check_user_has_password` (needed pre-auth). **At
+      least 13 more have never been audited**, and `get_public_profile_data`
+      is proof that an unaudited orphan can be handing out 206 children's
+      profiles.
+      Query **4b** in `RUN_THIS_ONE.sql` is corrected to use
+      `has_function_privilege`, which resolves NULL ACLs the way Postgres
+      actually will. Run it, and every SECURITY DEFINER function on that list
+      needs a reason to be there.
+
 ## 1. Open now
 
 - [x] ~~Anonymous callers could read 206 children's profiles and delete the
