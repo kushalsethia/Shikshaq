@@ -10,6 +10,10 @@ number appears it was measured. Where something is unverified it says so.
 **Priority key:** `P0` before launch · `P1` first weeks after · `P2` when it
 earns attention · `ACCEPTED` known and deliberately not doing
 
+**`[~]` means done on our side and waiting on
+[`supabase/RUN_THIS_ONE.sql`](../supabase/RUN_THIS_ONE.sql) being run.** That one
+file is the only remaining dependency for everything marked that way.
+
 ---
 
 ## 1. Open now
@@ -44,13 +48,18 @@ earns attention · `ACCEPTED` known and deliberately not doing
       seven copy sites read from, so the page no longer promises five and
       delivers two. Checked in the browser: the paper page now reads "the first
       two questions ... no account needed".
-- [ ] **`P1` Schedule `purge_read_events()`.** 90-day retention is written but
-      nothing runs it. `pg_cron` is not installed. Retention that starts late is
-      retention that did not happen, and this table records what minors read.
-- [ ] **`P1` Confirm `request.headers` populates `read_events.ip_hash`.** If
-      every row is the hash of an empty string
-      (`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`), the
-      network-based bot signals are blind. Account-based ones still work.
+- [~] **Retention is written and queued to run.** `RUN_THIS_ONE.sql` installs
+      two mechanisms, because the reliable one may not be available: `pg_cron`
+      if this project can enable it, and an insert trigger on `read_events`
+      that purges at most hourly and needs no scheduler and no extension. The
+      trigger only runs when someone reads something, but a table nobody is
+      writing to is not growing, so the case it misses is the case that does
+      not matter. **Pending the SQL file being run.**
+- [~] **`ip_hash` health is now a query rather than a question.** Section 3a
+      of `RUN_THIS_ONE.sql` prints its own verdict: blind, working, or no data
+      yet. If blind, the network-based bot signals do not work and the
+      account-based ones still do — and the account is the real threat.
+      **Pending the SQL file being run.**
 - [x] ~~11 production dependency vulnerabilities, untriaged~~ **Triaged and
       down to 3.** `npm audit fix` (no `--force`, so no majors) took production
       from 11 to 3 and from 4 high to **zero high**. What remains, and why:
@@ -75,10 +84,11 @@ earns attention · `ACCEPTED` known and deliberately not doing
       is correct by construction rather than by having guessed the tricks.
       37 tests, every published bypass among them. Verified live: `/%5Cevil.com`
       stores nothing, `/faq` still works.
-- [ ] **`P2` `check_user_exists` / `check_user_has_password` are
-      user-enumeration shaped** and must stay anon-callable because sign-in uses
-      them pre-auth. Both return `false` for a known-real address, so they are
-      either inert or broken — establish which before anyone relies on them.
+- [~] **`check_user_exists` assessed by query, not by guess.** Section 3b of
+      `RUN_THIS_ONE.sql` tests a real address against a fake one and prints
+      which of three states it is in: a working enumeration oracle worth rate
+      limiting, inert/broken, or always-true. It stays anon-callable either way
+      because sign-in calls it pre-auth. **Pending the SQL file being run.**
 
 ## 2. Security and data
 
@@ -226,8 +236,11 @@ This is the weakest area and the one with the least attention on it.
       turn. 40 packages out of `node_modules`.
 - [ ] **`P2` Six caching layers** with different lifetimes. Works; hard to reason
       about.
-- [ ] **`P2` CLAUDE.md is stale** — says 193 papers and 70 school pages; it is
-      1,282 and 259.
+- [x] ~~CLAUDE.md is stale~~ **Corrected.** It said 193 papers, 70 school
+      pages, five free questions and a working branch of `redesign/handoff-v1`.
+      Now: 1,282 papers, 273 schools, 1,258 and 259 prerendered, two free
+      questions, `shikshaq-2.0`. It is what every future session reads first,
+      so a stale number there propagates.
 
 ## 8. Data integrity
 
@@ -269,9 +282,14 @@ This is the weakest area and the one with the least attention on it.
 - [ ] **`P1` No teacher-side view.** 148 teachers are the supply, 31 have
       accounts. Nobody knows which listings get seen or contacted, which is the
       single most useful thing to tell a teacher to keep them engaged.
-- [ ] **`P1` Privacy policy has not been updated for `read_events`.** It records
-      which papers each account opens, and many account holders are minors.
-      This must land before the table fills, not after.
+- [x] ~~Privacy policy silent on `read_events`~~ **Written and deployed.**
+      Says what is recorded (that a paper or contact was opened, the account, a
+      one-way hash of the network address), what is not (dwell time, anything
+      typed), why it exists (telling a student working through past papers
+      apart from a script taking all of them), that it is never sold or shared,
+      and that it is deleted after 90 days. The 90 days is why the retention
+      item above had to stop being aspirational — a policy must not promise a
+      deletion that nothing performs.
 - [ ] **`P2` No consent mechanism** for analytics. Worth checking against Indian
       DPDP Act obligations for minors' data specifically.
 - [ ] **`P2` 553 accounts, ~50 active in 90 days.** Nobody is measuring

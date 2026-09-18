@@ -1,90 +1,69 @@
 # Supabase runbook
 
-Everything that does not touch the database is done and deployed. This is what
-is left: **one migration, then one two-line code change.**
+Everything that does not touch the database is done, tested and deployed.
 
-## Before you run it
+**There is exactly one thing left to run:**
+[`supabase/RUN_THIS_ONE.sql`](../supabase/RUN_THIS_ONE.sql)
+
+Paste the whole file into the Supabase SQL editor. It is idempotent, each
+section is wrapped so a failure applies nothing, and every rollback is written
+inline beside the thing it undoes.
 
 **There is no test database.** Both deployments share `uvtifolnsneitetzohtn`, so
-this is a production change the moment it runs. The rollback is at the bottom of
-the migration file. Apply during Kolkata off-hours.
+this is production the moment it runs. Prefer Kolkata off-hours.
 
-**The deployed code already handles both sides of it.** `src/lib/teacher-contact.ts`
-and `src/hooks/useSiteCounts.ts` call the new functions and fall back to the old
-direct selects while those functions do not exist. So today you will see a 404 on
-`/rest/v1/rpc/site_counts` in the console and the fallback serving the footer
-counts; after the migration the function answers and the 404 stops. Nothing
-breaks in either direction, and the order does not matter.
+---
 
-## Step 1 — run the migration
+## Why it is urgent
 
-`supabase/migrations/20260918100000_lock_down_bulk_reads_and_meter_them.sql`
+Verified by curl against production on 2026-09-18, as an anonymous caller
+holding only the publishable key that ships inside the JS bundle:
 
-```bash
-npx supabase db push          # needs the DB password
-```
-
-Or paste the file into the SQL editor. It is idempotent.
-
-It does seven things: revokes `authenticated`'s bulk read on `bank_questions`
-and on Shikshaqmine's contact columns; adds `read_events`; adds
-`teacher_own_contact()` and `admin_teacher_contacts()`; adds `site_counts()`;
-adds read logging to the two existing gates; drops the signed-out preview from
-five questions to two; and installs the quota machinery **switched off**.
-
-### Pre-flight, already checked against the live database
-
-| | |
+| Endpoint | Response |
 |---|---|
-| `pgcrypto` | installed, in the `extensions` schema — which is why `digest()` is qualified. Unqualified it fails at apply time |
-| `is_admin()` | exists |
-| `profiles.id/email/role` | all present |
-| `Shikshaqmine.id` | `bigint`, matching the functions' `RETURNS TABLE` |
-| `read_events`, `read_quota_config` | do not exist yet, so this is a clean apply |
-| `site_counts()` body | returns 148 / 1282 / 283, matching the footer exactly |
-| `teacher_own_contact()` join | resolves all 31 teacher profiles, every one with a phone number |
-| `read_suspicion` view SQL | runs, and scores a metronomic 60s gap pattern correctly |
+| `POST /rpc/get_public_profile_data` | **200, 52,753 bytes, 206 rows** |
+| `POST /rpc/purge_read_events` | **200** |
 
-### Verify after
+The first returns every profile with `full_name`, `school_college`, `grade` and
+`avatar_url`. Many are school students at named Kolkata schools, downloadable as
+one list by anyone. It has **no call sites** in `src/` — the app reads commenter
+names through a join on `teacher_comments.profiles` — so closing it breaks
+nothing.
 
-```sql
-select has_column_privilege('anon','public."Shikshaqmine"','Link','SELECT');           -- f
-select has_column_privilege('authenticated','public."Shikshaqmine"','Link','SELECT');  -- f  <- the point
-select has_column_privilege('authenticated','public.bank_questions','body','SELECT');  -- f
-```
+The second is an unauthenticated DELETE against the audit table.
 
-Anonymous preview should now be two:
+Neither was introduced by the redesign. The cause is that
+`revoke ... from public` does not remove Supabase's **direct** `anon` grant, so
+`20260918100000` left them open. Section 1 of the file closes both.
 
-```bash
-curl -s -X POST "$URL/rest/v1/rpc/bank_paper_questions" -H "apikey: $KEY" \
-  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"p_paper_id":"0c9771"}' | grep -o '"paper_id"' | wc -l
-```
+## What the file does
 
-Then in the app: **a teacher opens their dashboard, sees their own number, and
+1. **Security.** Revokes EXECUTE by role name, not just from `PUBLIC`, and
+   re-grants explicitly to the three functions that are meant to be public, so
+   the intent is chosen rather than inherited from a default nobody picked.
+2. **Retention.** The 90-day purge existed but nothing ever called it, so real
+   retention was "forever" on a table recording what minors read. Installs two
+   mechanisms: `pg_cron` if this project can enable it, and an insert trigger
+   that needs no scheduler and no extension. The privacy policy now states 90
+   days, so this had to become true.
+3. **Diagnostics.** Read-only. Prints its own verdict on three things nobody had
+   established: whether `ip_hash` is real, whether `check_user_exists` is inert
+   or broken, and whether `question_count` matches the actual question rows.
+
+## After it runs
+
+Section 4 of the file is the verification, with the expected answer written
+beside each query. The two that matter most:
+
+- Query **4b** lists every function `anon` can still execute. Read it and agree
+  with each line. Only the three gates belong there.
+- Query **4d** must show `enforcing = false`.
+
+Then in the app: a teacher opens their dashboard, sees their own number, **and
 saves successfully** — that is the regression that matters, because the failure
-mode here is silent rather than loud. Admin's teacher table shows contacts. A
-paper opens signed in and signed out. `select count(*) from public.read_events;`
-rises as you browse.
-
-**Check `ip_hash` is not the hash of an empty string**
-(`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`). If it is,
-`request.headers` is not exposed on this project and the network-based signals in
-`read_suspicion` go blind. Account-based ones still work, and the account is the
-real threat.
-
-## Step 2 — deploy the copy change
-
-The migration drops the preview to two. Seven places promise the reader a
-number, and they all read from one constant:
-
-```ts
-// src/lib/free-preview.ts
-export const FREE_PREVIEW_QUESTIONS = 2;
-export const FREE_PREVIEW_WORD = 'two';
-```
-
-Until this ships, the page promises five and hands over two.
+mode is silent rather than loud. Admin's teacher table shows contacts. A paper
+opens signed in and signed out. `select count(*) from public.read_events;` rises
+as you browse.
 
 ## Then leave the quotas alone
 
@@ -109,35 +88,18 @@ select limit_hit, count(distinct user_id) from public.read_quota_breaches group 
 select * from public.read_suspicion order by score desc limit 20;
 ```
 
-Set the limits above the observed p99, then `update public.read_quota_config set
-enforcing = true;`.
-
-**Schedule the 90-day purge before launch traffic arrives**, not after —
-retention that starts late is retention that did not happen. `pg_cron` is **not**
-installed here, so either enable it:
-
-```sql
-select cron.schedule('purge-read-events', '0 3 * * *', 'select public.purge_read_events()');
-```
-
-…or call `select public.purge_read_events();` from any scheduler. It is idempotent.
+Set the limits above the observed p99, then
+`update public.read_quota_config set enforcing = true;`.
 
 ---
 
-## Not a migration
+## Not a migration, and deliberately left to you
 
 **Google-only sign-in.** Disable the Email provider in Authentication →
 Providers, and drop the email/password branch from `src/pages/Auth.tsx`. Contact
-the 9 password accounts first — 545 of 553 are already on Google:
-
-```sql
-select u.email from auth.identities i join auth.users u on u.id = i.user_id
-where i.provider = 'email'
-  and not exists (select 1 from auth.identities g where g.user_id = i.user_id and g.provider = 'google');
-```
-
-Do this **after** quotas are enforced; its whole value is making per-account
-limits expensive to evade.
+the 9 password accounts first — 545 of 553 are already on Google. The query is at
+the bottom of `RUN_THIS_ONE.sql`. Do this **after** quotas are enforced; its
+whole value is making per-account limits expensive to evade.
 
 **Canary teacher rows.** `teachers_list` is anon-readable in bulk, so a decoy row
 with a number you control is picked up by any directory scrape, and `read_events`
@@ -158,6 +120,6 @@ never in the text.
 | | |
 |---|---|
 | Paper figures not resized | 25 MB, largest 312 kB, painted at 300px. Dimensions are set so there is no layout shift, but real resizing needs `sharp` or a CDN and someone able to watch the build |
-| ~376 `text-[Npx]` sizes | browser text scaling is inert. Gated in the plan as "top 20, measure, decide" |
+| ~376 `text-[Npx]` sizes | browser text scaling is inert. Gated as "top 20, measure, decide" |
 | Footer `page_content` fallback | three sequential queries per new route; collapsible, but the specificity ordering is subtle and it is already cached per route |
 | Teacher reviews not copy-protected | they are other people's words; your call whether they should be |

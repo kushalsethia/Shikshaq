@@ -12,7 +12,7 @@ origin    kushalsethia/Shikshaq        public,  LIVE      -> real users
 kanitest  kaxx4/shikshaqkanitest       private, TEST      -> Vercel preview
 ```
 
-Working branch: `redesign/handoff-v1`. Both remotes get **the same commits**.
+Working branch: `shikshaq-2.0`. Both remotes get **the same commits**.
 
 ```bash
 npm run push:all          # commits -> origin, then mirrors to kanitest/main
@@ -95,10 +95,17 @@ These have been decided. Do not relitigate them, and do not quietly undo them.
   bios were normalised on 2026-08-31 (`supabase/normalise-bio-dashes.sql`,
   originals in `public._dash_backup`). Teacher reviews and question text are
   deliberately exempt — those are other people's words.
-- **Papers are soft-gated, not locked.** Five questions read free, the rest
-  blur behind sign-in. Every question still renders into the DOM so the 193
-  paper pages and 70 school pages stay crawlable. Making the gate real means
-  revoking anon `SELECT`, which removes them all from Google.
+- **Papers are soft-gated, not locked.** **Two** questions read free (it was
+  five until 20260918100000; the number lives in `src/lib/free-preview.ts` and
+  a test asserts the word matches the digit). The rest blur behind sign-in.
+  The catalogue is **1,282 papers and 273 schools**, of which **1,258 paper
+  pages and 259 school pages** are prerendered -- 24 papers are excluded for
+  placeholder question text. Crawlability no longer depends on the questions
+  being in the DOM: `scripts/prerender.ts` emits metadata for 1,700 routes and
+  asserts, as a hard build failure, that no question text reaches `dist/`.
+  Anon `SELECT` on `bank_questions` is already revoked; the gate is the
+  `bank_paper_questions()` function, which decides from `auth.uid()`
+  server-side.
 - **Submit-a-paper is a real upload and review flow**, not a WhatsApp handoff.
 
 ## Architecture worth knowing

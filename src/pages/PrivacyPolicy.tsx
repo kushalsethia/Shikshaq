@@ -99,7 +99,20 @@ const SECTIONS: LegalSection[] = [
             <strong>Device information:</strong> We may collect information about your device, including
             browser type, operating system, and device identifiers.
           </li>
+          <li>
+            <strong>Which papers and contacts you open:</strong> When you open a past paper or reveal a
+            teacher's contact details, we record that it happened, tied to your account, along with a
+            one-way hash of your network address. We record that you opened a paper. We do not record how
+            long you spent on it, what you wrote, or anything you did inside it.
+          </li>
         </ul>
+        <p className={pMtClass}>
+          That last record exists for one reason, and we would rather say it plainly than bury it. The
+          question papers and the teacher listings took years to gather, and people do try to copy them in
+          bulk. Keeping a short log of what was opened is how we tell a student working through past papers
+          apart from a script downloading all of them. It is not used to profile you, it is not sold, it is
+          not shared with advertisers, and it is deleted after 90 days.
+        </p>
       </>
     ),
   },
@@ -357,6 +370,10 @@ const SECTIONS: LegalSection[] = [
           <li>
             <strong>Authentication data:</strong> Session tokens are automatically deleted when you log out
             or after a period of inactivity.
+          </li>
+          <li>
+            <strong>Records of papers and contacts opened:</strong> Deleted after 90 days, whether or not
+            your account is still open. Deleting your account removes the link to you immediately.
           </li>
         </ul>
         <p className={pMtClass}>
