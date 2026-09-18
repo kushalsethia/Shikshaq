@@ -11,6 +11,7 @@ import {
 } from '@/utils/searchFacets';
 import { useSearchIndex, type TeacherHit, type PaperHit } from '@/hooks/useSearchIndex';
 import { useExitPresence } from '@/hooks/useExitPresence';
+import { useMediaQuery } from '@/hooks/use-mobile';
 import { useIntent } from '@/lib/intent-context';
 import { recordSignal } from '@/lib/intent/signals';
 import { suggestedSearches } from '@/lib/intent/copy';
@@ -164,6 +165,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     mq.addEventListener('change', onMq);
     return () => mq.removeEventListener('change', onMq);
   }, []);
+
+  /* 430px, not the 768px mobile breakpoint: the placeholder fits fine on a
+
+     large phone and a small tablet, and this should only shorten the copy
+
+     where it genuinely does not fit. */
+
+  const isNarrow = useMediaQuery('(max-width: 430px)');
+
 
   const [q, setQ] = useState('');
   const [field, setField] = useState<FacetKey | 'q' | null>(null);
@@ -800,11 +810,24 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               onFocus={expandBar}
               onKeyDown={(e) => { if (e.key === 'Enter') runSearch(); }}
               aria-label={mode === 'teachers' ? 'Search teachers' : 'Search past papers'}
-              /* "Subject, class or area" — the placeholder in Home concepts 2a.
-                 The "e.g. maths near Ballygunge" wording was invented here; the
-                 spec's version says what the field accepts rather than showing
-                 one example, which matters because the field takes all three. */
-              placeholder={mode === 'teachers' ? 'Subject, class or area' : 'Board, class, subject or school'}
+              /* The placeholder says what the field accepts rather than
+                 showing one example, because the field really does take all of
+                 them. That copy does not fit a phone, and it was not failing
+                 gracefully: at 375px the input is 152px wide while "Subject,
+                 class or area" needs 161px and "Board, class, subject or
+                 school" needs 227px, so the first rendered as "Subject, class
+                 or are" -- cut mid-word, which reads as a broken page rather
+                 than a long label.
+                 Measured, not guessed: the row is 331px and the Search button
+                 alone takes 115px of it, so no amount of rewording fits the
+                 papers copy on a narrow phone. Below 431px it uses a shorter
+                 form that still names what the field takes; above that the
+                 full wording returns. */
+              placeholder={
+                mode === 'teachers'
+                  ? isNarrow ? 'Subject, class, area' : 'Subject, class or area'
+                  : isNarrow ? 'Board, class, subject' : 'Board, class, subject or school'
+              }
               /* h-full, not the intrinsic 24px line box: the field reads as a
                  60px (or 56px) row, so the whole row has to be focusable —
                  otherwise the 18px above and below the text is a dead zone and

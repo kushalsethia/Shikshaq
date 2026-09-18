@@ -708,7 +708,19 @@ export default function TeacherProfile() {
   const hasStats = statTileCount >= 2;
 
   /* The six facts pages.md §3 names, in its order. Built as a list so a missing
-     value drops its row instead of rendering a label with nothing under it. */
+     value drops its row instead of rendering a label with nothing under it.
+
+     Fee and class size are dropped when the stat tiles above are showing them.
+     They were appearing TWICE within one screen -- "FEES / MONTH ₹3,000 -
+     ₹5,000" in the tile strip and "FEE ₹3,000 - ₹5,000" again in this grid, a
+     few hundred pixels below. The comment on statTileCount already knew the
+     two overlap, but it only suppressed the tile in the one-value case; with
+     both fees and class size present the tiles render AND the grid repeats
+     them.
+     Repeating a fact does not reinforce it, it makes the reader check whether
+     the second one says something different. The tiles win because they are
+     the scannable form and they come first. */
+  const shownInTiles = new Set(hasStats ? ['Fee', 'Class size'] : []);
   const teachingDetails = [
     { label: 'Subjects', value: subjectsList.join(', ') },
     { label: 'Classes', value: classesList.join(', ') },
@@ -717,7 +729,9 @@ export default function TeacherProfile() {
     { label: 'Fee', value: feesValue },
     { label: 'Class size', value: classSizeValue },
     { label: 'Areas', value: taughtAreas.join(', ') },
-  ].filter((row): row is { label: string; value: string } => Boolean(row.value));
+  ]
+    .filter((row) => !(shownInTiles.has(row.label) && Boolean(row.value)))
+    .filter((row): row is { label: string; value: string } => Boolean(row.value));
 
   const firstName = teacher.name.trim().split(/\s+/)[0] || teacher.name;
   const honorific = getHonorific(teacher.sir_maam);
