@@ -129,8 +129,17 @@ This is the weakest area and the one with the least attention on it.
       the sitemap generator's row counts, and the prerenderer's
       no-question-text assertion. Each needs either live credentials or a
       fixture layer, which is why they did not come first.
-- [ ] **`P1` 855 lint errors.** Not triaged, so nobody knows how many are real.
-      Until this is cleared, lint cannot be a gate.
+- [x] ~~855 lint errors~~ **There were 108, and now there are none.**
+      Correcting my own number: eslint was linting `.claude/worktrees`, seven
+      stale copies of this whole codebase, so every finding was counted about
+      seven times. They are gitignored and are now lint-ignored too.
+      Of the real 108, **103 were `no-explicit-any`**, now a warning — the
+      compiler already runs with `strict: false` and `noImplicitAny: false`, so
+      erroring on the explicit annotation while permitting the silent implicit
+      one punishes the honest form. The other five were fixed, including a
+      `return` inside a `finally` in `Browse.tsx` that swallows nothing today
+      but would eat an exception the moment that `catch` started rethrowing.
+      **Lint now blocks in CI.**
 - [x] Error boundaries in place — see section 1
 - [ ] **`P1` No alerting on the errors that are reported** — see section 1
 - [ ] **`P1` No uptime check.** Nobody is told if the site stops serving.
@@ -212,8 +221,9 @@ This is the weakest area and the one with the least attention on it.
 - [x] CI runs typecheck and tests on every push — see section 3
 - [ ] **`P2` `src/pages/` has four unrouted pages** (~95 KB) kept deliberately.
       Not shipped, but they confuse a reader.
-- [ ] **`P2` Three unused dependencies** (`recharts`, `cmdk`,
-      `embla-carousel-react`) — tree-shaken out, but they cost install time.
+- [x] ~~Three unused dependencies~~ **Removed**, with the three shadcn
+      components that were their only importers and that nothing imported in
+      turn. 40 packages out of `node_modules`.
 - [ ] **`P2` Six caching layers** with different lifetimes. Works; hard to reason
       about.
 - [ ] **`P2` CLAUDE.md is stale** — says 193 papers and 70 school pages; it is

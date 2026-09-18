@@ -1553,15 +1553,24 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         }
         if (!isStale()) setFetchError(true);
       } finally {
-        // Only the most recent fetch owns the loading indicator; a stale fetch finishing
-        // later must not flip loading back off underneath the active one.
-        if (isStale()) return;
-        // Clear loading timeout and set loading to false
-        if (loadingTimeoutRef.current) {
-          clearTimeout(loadingTimeoutRef.current);
-          loadingTimeoutRef.current = null;
+        /* Only the most recent fetch owns the loading indicator; a stale fetch
+           finishing later must not flip loading back off underneath the active
+           one.
+
+           Written as a positive condition rather than an early `return`,
+           because a return inside finally discards anything propagating out of
+           try/catch. It swallows nothing today -- the catch above handles its
+           error and does not rethrow -- but it would silently eat an exception
+           the moment that catch started rethrowing, and that is exactly the
+           kind of change nobody would connect to this block. Same behaviour,
+           no hazard. */
+        if (!isStale()) {
+          if (loadingTimeoutRef.current) {
+            clearTimeout(loadingTimeoutRef.current);
+            loadingTimeoutRef.current = null;
+          }
+          setLoading(false);
         }
-        setLoading(false);
       }
     }
 

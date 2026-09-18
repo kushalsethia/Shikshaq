@@ -548,5 +548,8 @@ export default {
       },
     },
   },
+  /* Tailwind loads this config through its own CJS pipeline, so require()
+     is the working form here and an ESM import is not a safe swap. */
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

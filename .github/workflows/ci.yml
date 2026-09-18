@@ -3,11 +3,15 @@ name: CI
 # Until now nothing checked anything. Every regression this session was caught
 # by hand, which does not scale and does not survive anyone being busy.
 #
-# WHY THIS IS SMALL. It gates on the two things that pass cleanly today --
-# typecheck and tests -- and reports lint without failing on it. There are 855
-# pre-existing lint errors; a gate that is red on arrival gets ignored within a
-# week, and an ignored gate is worse than none because it looks like coverage.
-# Fix the lint backlog, then flip lint to blocking.
+# WHAT IT GATES ON: typecheck, tests and lint, all three blocking.
+#
+# Lint became gateable rather than being declared so. The backlog looked like
+# 855 errors; eslint was linting .claude/worktrees -- seven stale copies of this
+# codebase -- and the real number was 108. Of those, 103 were no-explicit-any,
+# which is now a warning because tsconfig already sets strict:false and
+# noImplicitAny:false and erroring on the honest annotation while permitting the
+# silent one is incoherent. The remaining five were fixed. Zero errors, so the
+# gate is real rather than decorative.
 #
 # WHY NO BUILD STEP. `npm run build` runs prebuild (sitemap generation) and
 # postbuild (prerendering 1,700 routes), both of which need live Supabase
@@ -57,6 +61,7 @@ jobs:
       - name: Tests
         run: npm test
 
-      - name: Lint (reported, not enforced)
+      # Errors block. Warnings do not, and there are ~153 of them (mostly
+      # no-explicit-any) -- visible in the log, not a wall.
+      - name: Lint
         run: npx eslint .
-        continue-on-error: true

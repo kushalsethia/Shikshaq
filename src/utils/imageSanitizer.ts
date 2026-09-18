@@ -81,7 +81,7 @@ function validateImageSrcUncached(url: string): string {
     // Validate blob URL format: blob:origin/uuid
     // Blob URLs from URL.createObjectURL have format: blob:http://origin/uuid or blob:null/uuid
     // Pattern matches: blob: followed by origin (http/https URL or null) followed by / and UUID
-    const blobUrlPattern = /^blob:(https?:\/\/[^\/\s]+|null)\/[a-f0-9-]+$/i;
+    const blobUrlPattern = /^blob:(https?:\/\/[^/\s]+|null)\/[a-f0-9-]+$/i;
     if (blobUrlPattern.test(url)) {
       // Create a new string from the validated blob URL to break taint flow
       // CodeQL recognizes String() constructor as creating a new sanitized value
@@ -118,7 +118,7 @@ function validateImageSrcUncached(url: string): string {
     // Validate it's a simple path with image extension
     // Allow paths starting with /, ./, or just a filename/path
     // Pattern: optional ./ or /, then alphanumeric/slashes/dots/hyphens/underscores, then image extension
-    const pathPattern = /^(\.?\/)?[a-zA-Z0-9\/._-]+\.(png|jpg|jpeg|gif|webp|svg|ico)$/i;
+    const pathPattern = /^(\.?\/)?[a-zA-Z0-9/._-]+\.(png|jpg|jpeg|gif|webp|svg|ico)$/i;
     if (pathPattern.test(pathWithoutQuery)) {
       return String(url);
     }
