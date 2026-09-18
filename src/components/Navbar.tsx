@@ -133,6 +133,8 @@ export function Navbar() {
   const { teachersCount, papersCount, papersReadCount } = useNavMenuCounts(menuOpen, user?.id);
   /* Only listens while the menu is open. */
   const glass = useGlassReflection(menuOpen);
+  /* The header pill is always on screen, so its reflection always listens. */
+  const headerGlass = useGlassReflection(true);
 
   // Close the mobile sheet on route change
   useEffect(() => {
@@ -172,6 +174,8 @@ export function Navbar() {
 
   return (
     <header
+      ref={headerGlass.ref as React.Ref<HTMLElement>}
+      style={headerGlass.style}
       /* On home, 2a draws the logo and Sign in INSIDE the dark control block
          rather than in a separate bone bar above it. Rendering it as a
          transparent overlay achieves that without moving the markup into
@@ -180,17 +184,20 @@ export function Navbar() {
          scrolled past the block it becomes the normal opaque bar, because
          white-on-bone would be unreadable. */
       className={`fixed inset-x-3 top-3 rounded-full shadow-pill transition-colors duration-tap lg:hidden ${
+        /* The same glass as the sheet, tinted for what it is sitting over.
+           `bg-background/95` used to be the scrolled state and emitted NO
+           declaration at all -- a token colour cannot take an /opacity
+           modifier here -- so the scrolled header has been rendering with no
+           background of its own. */
         scrolled
-          ? 'ring-1 ring-border bg-background/95 backdrop-blur'
-          : topFill === 'dark'
-            /* Translucent white over the near-black panel now genuinely
-               beneath it — the same "lifted off a saturated block" reading
-               Browse's bg-white/10 search field uses. */
-            ? 'ring-1 ring-white/15 bg-white/10 backdrop-blur'
-            : topFill === 'indigo'
-              ? 'ring-1 ring-white/15 bg-white/10 backdrop-blur'
-              /* T-009: bone on the bone hero, dark logo. */
-              : 'ring-1 ring-border bg-card'
+          ? 'glass glass-light'
+          : topFill === 'dark' || topFill === 'indigo'
+            /* Over the near-black panel or the indigo block: the dark body,
+               so the pill reads as glass over a saturated surface rather than
+               a milky rectangle on top of it. */
+            ? 'glass glass-dark'
+            /* T-009: bone on the bone hero, dark logo. */
+            : 'glass glass-light'
       } ${
         /* pointer-events-none, not just a lower z-index: with SearchControl's
            mobile-pinned scroll lock (`document.body.style.position = 'fixed'`
@@ -274,50 +281,15 @@ export function Navbar() {
                  frosted, it reads as a rendering fault. */
               overlayClassName="backdrop-blur-[8px] backdrop-saturate-[130%]"
               className={[
-                'max-h-[60vh] overflow-y-auto border-0 px-4',
+                /* Sized by its content. max-h is a guard, not a layout: the
+                   rows come to about 71% of an 812px screen, so nothing
+                   scrolls in normal use. It was capped at 60vh, which turned a
+                   menu of eight items into a scrolling one for no reason. The
+                   cap still earns its place on a short screen, a landscape
+                   phone, or when a reader has set large text. */
+                'max-h-[88svh] overflow-y-auto overscroll-contain border-0 px-4',
                 'pb-[calc(env(safe-area-inset-bottom)+1.625rem)]',
-
-                /* ---- the material -------------------------------------
-                   saturate(200%) is the part that separates glass from fog.
-                   Blur alone greys whatever sits behind it; real glass keeps
-                   the colour and pushes it, so the orange and indigo of the
-                   page below stay orange and indigo through the panel.
-                   brightness(1.06) is the faint lift a lit pane has over the
-                   thing behind it. */
-                'backdrop-blur-[40px] backdrop-saturate-[200%] backdrop-brightness-[1.06]',
-
-                /* ---- the tint -----------------------------------------
-                   Low enough to be genuinely see-through, high enough that
-                   14px row labels keep their contrast over a busy page. This
-                   is the number that trades looks against legibility and it
-                   is deliberately not lower. */
-                'bg-[hsl(var(--card)/0.55)]',
-
-                /* ---- the moving highlight ------------------------------
-                   Two layers, both painted against the border box so they
-                   stay put while the rows scroll under them -- an absolutely
-                   positioned sheen would slide away with the content.
-
-                   First the broad specular bloom under the light source.
-                   Then a tight rim light that rides the top lip: on real
-                   glass the edge catches far more light than the face, and
-                   without it the panel is a flat translucent rectangle rather
-                   than something with a thickness.
-
-                   --gx/--gy are written straight onto the node by
-                   useGlassReflection, never through React state, so moving a
-                   pointer does not re-render the sheet. */
-                'bg-[radial-gradient(130%_90%_at_var(--gx)_var(--gy),rgba(255,255,255,0.62)_0%,rgba(255,255,255,0.16)_34%,transparent_62%),radial-gradient(60%_18px_at_var(--gx)_0%,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0.25)_40%,transparent_75%)]',
-
-                /* ---- thickness -----------------------------------------
-                   A bright hairline along the top lip, a dimmer one inside
-                   the bottom where light wraps the far edge, a soft inner
-                   bloom just under the surface, and a lift shadow so the
-                   panel sits above the page rather than on it.
-                   Literal white/black take an alpha natively; the theme
-                   tokens do not, which is the trap three earlier attempts at
-                   this panel fell into. */
-                'shadow-[inset_0_1.5px_0_0_rgba(255,255,255,0.8),inset_0_0_0_1px_rgba(255,255,255,0.22),inset_0_-1px_0_0_rgba(255,255,255,0.2),inset_0_26px_44px_-30px_rgba(255,255,255,0.55),0_-14px_48px_-10px_rgba(27,26,24,0.32)]',
+                'glass glass-light',
               ].join(' ')}
             >
               <SheetGrabHandle />

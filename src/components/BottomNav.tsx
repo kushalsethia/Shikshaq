@@ -1,3 +1,4 @@
+import { useGlassReflection } from '@/hooks/use-glass-reflection';
 import { useLocation } from 'react-router-dom';
 import { Home, Search, FileText, User } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -51,8 +52,16 @@ export function BottomNav() {
     },
   ];
 
+  const glass = useGlassReflection(true);
+
   return (
     <nav
+      /* The reflection is driven from here, not from the pill.
+         CSS custom properties inherit, so writing --gx/--gy on this
+         wrapper reaches the .glass child without threading a ref
+         through ExpandableTabs. */
+      ref={glass.ref as React.Ref<HTMLElement>}
+      style={glass.style}
       aria-label="Primary"
       /* Same fix as Navbar.tsx's top pill: while SearchControl's mobile-pinned
          popup is open, its "Past papers" tab sits directly under where the
@@ -70,7 +79,10 @@ export function BottomNav() {
         tabs={tabs}
         pathname={location.pathname}
         theme="dark"
-        className="mx-auto max-w-sm rounded-full bg-panel px-2.5 shadow-pill"
+        /* Same liquid glass, dark body. This is the one that benefits most:
+             it floats over whatever the reader is scrolling, so the page
+             genuinely moving and colouring underneath is the whole effect. */
+        className="glass glass-dark mx-auto max-w-sm rounded-full px-2.5 shadow-pill"
       />
     </nav>
   );

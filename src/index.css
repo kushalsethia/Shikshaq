@@ -356,6 +356,88 @@
 }
 
 @layer components {
+  /* ---------------------------------------------------------------- glass
+     One liquid-glass material, used by the nav menu sheet, the mobile header
+     pill, the desktop top bar and the bottom nav.
+
+     Written here rather than as four copies of a long arbitrary-value class
+     string, because the gradients and the five-layer rim shadow are the same
+     every time and only the tint changes. A change to how the material reads
+     should be one edit.
+
+     WHY THESE PARTS:
+       saturate(200%)  is what separates glass from fog. Blur alone greys
+                       whatever is behind it; real glass keeps the colour and
+                       pushes it, so the orange and indigo of the page stay
+                       orange and indigo through the surface.
+       the gradients   a broad specular bloom under the light source, plus a
+                       tight rim light on the leading edge -- on real glass the
+                       edge catches far more light than the face, and without
+                       it the surface is a flat translucent rectangle with no
+                       thickness. Painted as background layers, not positioned
+                       elements, so they stay put while content scrolls under.
+       --gx / --gy     written straight onto the node by useGlassReflection, so
+                       the highlight follows tilt or pointer. They default to a
+                       sensible lit position, so a surface works untouched.
+
+     Literal white/black take an alpha natively. The theme tokens do NOT --
+     none of them declares <alpha-value> -- which is why nothing here uses a
+     `bg-card/60`-style class. */
+  .glass {
+    --gx: 50%;
+    --gy: 0%;
+    -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.06);
+    backdrop-filter: blur(40px) saturate(200%) brightness(1.06);
+    background-image:
+      radial-gradient(130% 90% at var(--gx) var(--gy),
+        rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.15) 34%, transparent 62%),
+      radial-gradient(60% 18px at var(--gx) 0%,
+        rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.25) 40%, transparent 75%);
+  }
+
+  /* Over the cream page. */
+  .glass-light {
+    background-color: hsl(var(--card) / 0.55);
+    box-shadow:
+      inset 0 1.5px 0 0 rgba(255, 255, 255, 0.8),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 0 rgba(255, 255, 255, 0.2),
+      inset 0 26px 44px -30px rgba(255, 255, 255, 0.55),
+      0 -14px 48px -10px rgba(27, 26, 24, 0.32);
+  }
+
+  /* Over a saturated or dark block: the near-black pills. Same material, a
+     darker body and a brighter rim, because a dark pane shows its edge light
+     far more than its face. */
+  .glass-dark {
+    background-color: rgba(27, 26, 24, 0.62);
+    color: hsl(var(--background));
+    box-shadow:
+      inset 0 1.5px 0 0 rgba(255, 255, 255, 0.34),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 0 rgba(255, 255, 255, 0.08),
+      0 10px 34px -8px rgba(27, 26, 24, 0.55);
+  }
+
+  /* The bloom is tuned for a light body; over the dark one it would blow out. */
+  .glass-dark {
+    background-image:
+      radial-gradient(130% 90% at var(--gx) var(--gy),
+        rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.06) 36%, transparent 64%),
+      radial-gradient(60% 14px at var(--gx) 0%,
+        rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.12) 45%, transparent 78%);
+  }
+
+  /* A moving highlight is motion. Reduced motion keeps the material and the
+     static rim, and stops the tracking -- useGlassReflection also detaches its
+     listeners, this is the belt to that braces. */
+  @media (prefers-reduced-motion: reduce) {
+    .glass {
+      --gx: 50%;
+      --gy: 0%;
+    }
+  }
+
   .nav-link {
     @apply flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-[color,background-color,box-shadow] duration-200;
   }

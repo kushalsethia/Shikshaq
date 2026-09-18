@@ -457,7 +457,19 @@ This is the weakest area and the one with the least attention on it.
       and 1280px: no overflow, no new clipping, no visual change.
 - [ ] **`P2` ~376 `text-[Npx]` sizes, zero rem** — browser text scaling does
       nothing. Gated as "top 20 components, measure, decide".
-- [ ] **`P2` The nav menu's liquid glass is not verified on a real device.**
+- [ ] **`P2` The liquid glass is not verified on a real device.** It is now on
+      four surfaces — the menu sheet, the mobile header pill, the desktop top
+      bar and the bottom nav — sharing one `.glass` material in `index.css`
+      with a light and a dark body.
+      **Contrast is the thing to watch.** A translucent bar over arbitrary
+      content is a legibility trade; the bodies sit at 0.55 and 0.62 with a
+      40px blur, which held up over the busiest part of the home page here, but
+      "held up in my emulator" is not the same as a parent reading it outdoors.
+      **Cost is unmeasured.** Four simultaneous `backdrop-filter: blur(40px)
+      saturate(200%)` surfaces, two of them fixed over a scrolling page, is now
+      the most expensive paint in the product by some distance. It is fine on
+      this machine. A mid-range Android is the case that matters and it has not
+      been tried.
       `useGlassReflection` drives the highlight from `deviceorientation` where
       it is free (Android, desktop sensors) and from pointer everywhere else. It
       **deliberately never calls `DeviceOrientationEvent.requestPermission()`**:

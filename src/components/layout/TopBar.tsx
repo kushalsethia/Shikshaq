@@ -1,3 +1,4 @@
+import { useGlassReflection } from '@/hooks/use-glass-reflection';
 import * as React from "react";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -85,10 +86,19 @@ export function TopBar({ className }: { className?: string }) {
     setMenuOpen(false);
   }, [location.pathname]);
 
+  const glass = useGlassReflection(true);
+
   return (
     <header
+      ref={glass.ref as React.Ref<HTMLElement>}
+      style={glass.style}
       className={cn(
-        "fixed inset-x-3 top-3 z-40 hidden h-[60px] rounded-full bg-panel text-background shadow-pill ring-1 ring-white/10 lg:block",
+        /* The same liquid glass as the sheet and the mobile pill, dark body.
+           Was an opaque bg-panel slab; now the page scrolls visibly beneath it
+           with its colour intact, which is the point of the material. The
+           ring is gone because .glass-dark draws its own rim -- keeping both
+           gave the pill two edges. */
+        "fixed inset-x-3 top-3 z-40 hidden h-[60px] rounded-full glass glass-dark shadow-pill lg:block",
         className,
       )}
       /* One <nav> per bar; the links inside are the primary desktop navigation.
