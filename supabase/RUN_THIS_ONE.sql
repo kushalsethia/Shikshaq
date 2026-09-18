@@ -20,6 +20,24 @@
 --      and whether question_count matches reality.
 --
 -- Everything outside the database is already done and deployed.
+--
+-- -------------------------------------------------------------------------
+-- THE SQL EDITOR WILL WARN YOU ABOUT THIS FILE. All three are expected:
+--
+--   "destructive operations"  -- yes. Every destructive statement that runs at
+--                                install time is a REVOKE, which is the whole
+--                                point of section 1, plus one
+--                                `drop trigger if exists`, which is how the
+--                                file stays idempotent. The DELETEs are inside
+--                                a function body and do not run now.
+--   "UPDATE without a WHERE"  -- no longer true; fixed. Both updates in
+--                                section 2 are now qualified.
+--   "table without RLS"       -- no longer true; fixed. RLS is enabled on
+--                                read_events_retention with no policies.
+--
+-- Either button is now equivalent. "Run without RLS" is accurate, because the
+-- file enables it itself.
+-- -------------------------------------------------------------------------
 -- =========================================================================
 
 
@@ -164,6 +182,16 @@ insert into public.read_events_retention (id) values (true) on conflict (id) do 
 
 revoke all on table public.read_events_retention from public, anon, authenticated;
 
+/* Belt and braces, and consistent with 20260918100000, which enables RLS on
+   all four of its tables. The revoke above already puts this out of
+   PostgREST's reach, so RLS with no policies is the second lock rather than
+   the first. It does not get in the trigger's way: read_events_retention_tick
+   is SECURITY DEFINER and runs as this table's owner, and a table's owner is
+   exempt from its own RLS unless FORCE ROW LEVEL SECURITY is set, which it is
+   not. No policies are created deliberately -- nothing outside a definer
+   function has any business reading this. */
+alter table public.read_events_retention enable row level security;
+
 comment on table public.read_events_retention is
   'Single-row bookkeeping for the opportunistic 90-day purge of read_events. '
   'Not readable over REST; only the trigger function touches it.';
@@ -208,7 +236,12 @@ begin
       limit 5000
    );
 
-  update public.read_events_retention set last_deleted = v_deleted;
+  /* `where id` is redundant -- the primary key is a boolean with a
+     `check (id)`, so exactly one row can ever exist -- but an UPDATE with no
+     WHERE is worth never writing. It reads as "every row" to a linter, to a
+     reviewer, and to whoever copies this statement somewhere the table is not
+     single-row. */
+  update public.read_events_retention set last_deleted = v_deleted where id;
 
   return null;
 exception when others then
