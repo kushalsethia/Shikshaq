@@ -27,6 +27,7 @@ import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell'
 import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 
+import { fetchAdminContacts } from '@/lib/teacher-contact';
 /* Handoff 09i AD-005 "Teachers" — one of the 5 sections of the admin
    console redesign. Renders AdminHeader (pill tab row) directly, not the
    superseded AdminRail/AdminToolbar sidebar, plus its own BentoPanel body.
@@ -151,10 +152,18 @@ export default function AdminTeachersPage() {
   async function fetchTeachers() {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('Shikshaqmine')
-        .select('*')
-        .order('Title', { ascending: true });
+      /* The contact columns come separately, because migration
+         20260917120000 revokes them from `authenticated` and PostgREST
+         expands select('*') to what a role MAY read rather than erroring --
+         so without this the admin table would quietly show blank phone and
+         WhatsApp fields with no error anywhere. fetchAdminContacts uses
+         admin_teacher_contacts() once that migration has run and falls back
+         to the direct select until then. */
+      const [rowsResult, contacts] = await Promise.all([
+        supabase.from('Shikshaqmine').select('*').order('Title', { ascending: true }),
+        fetchAdminContacts().catch(() => new Map()),
+      ]);
+      const { data, error } = rowsResult;
 
       if (error) {
         if (import.meta.env.DEV) console.error('Error fetching teachers:', error);
@@ -162,8 +171,15 @@ export default function AdminTeachersPage() {
         return;
       }
 
-      setTeachers(data || []);
-      setFilteredTeachers(data || []);
+      const merged = (data || []).map((row: Record<string, unknown>) => {
+        const c = contacts.get(row.id as number);
+        return c
+          ? { ...row, 'Phone Number': c.phoneNumber ?? row['Phone Number'] ?? null, Link: c.link ?? row.Link ?? null, 'Email ID': c.emailId ?? row['Email ID'] ?? null }
+          : row;
+      });
+
+      setTeachers(merged as typeof data);
+      setFilteredTeachers(merged as typeof data);
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error:', error);
       sonnerToast.error('Failed to load teachers');

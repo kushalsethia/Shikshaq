@@ -36,6 +36,7 @@ import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
 
+import { fetchOwnContact } from '@/lib/teacher-contact';
 const AREAS = [
   // Group 1
   'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba',
@@ -214,13 +215,32 @@ export default function TeacherDashboard() {
   const shikshaqmineQuery = useQuery({
     queryKey: ['shikshaqmineByEmail', authProfileQuery.data?.email],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('Shikshaqmine')
-        .select('*')
-        .eq('Email ID', authProfileQuery.data!.email!)
-        .maybeSingle();
+      /* Two reads, not one. The non-contact columns still come from the table;
+         the contact columns come through fetchOwnContact, which uses
+         teacher_own_contact() once migration 20260917120000 has run and falls
+         back to the direct select until then.
+         This has to be split because that migration revokes "Link",
+         "Phone Number" and "Email ID" from `authenticated`, and PostgREST
+         expands select('*') to the columns a role MAY read rather than
+         erroring -- so a single select would keep succeeding while silently
+         dropping the teacher's own phone number. */
+      const [rowResult, contact] = await Promise.all([
+        supabase
+          .from('Shikshaqmine')
+          .select('*')
+          .eq('Email ID', authProfileQuery.data!.email!)
+          .maybeSingle(),
+        fetchOwnContact(authProfileQuery.data!.email!),
+      ]);
+      const { data, error } = rowResult;
       if (error) throw error;
-      return data ? normalizeTeacherRow(data as ShikshaqmineRowWithPause) : null;
+      if (!data) return null;
+      const merged = {
+        ...(data as Record<string, unknown>),
+        'Phone Number': contact?.phoneNumber ?? (data as Record<string, unknown>)['Phone Number'] ?? null,
+        Link: contact?.link ?? (data as Record<string, unknown>).Link ?? null,
+      };
+      return normalizeTeacherRow(merged as ShikshaqmineRowWithPause);
     },
     enabled: isTeacherWithEmail,
   });
@@ -410,7 +430,11 @@ export default function TeacherDashboard() {
       const { error } = await supabase
         .from('Shikshaqmine')
         .update({ is_paused: nextPaused } as ShikshaqmineUpdateWithPause)
-        .eq('Email ID', email);
+        /* Filtered by id, not by "Email ID". Postgres requires SELECT on any
+           column named in a WHERE clause, and migration 20260917120000 revokes
+           that column -- so this filter would start failing while the UPDATE
+           privilege itself was untouched. "Slug" stays granted either side. */
+        .eq('Slug', teacherData!.Slug!);
 
       if (error) throw error;
 
@@ -907,7 +931,8 @@ export default function TeacherDashboard() {
       const { error } = await supabase
         .from('Shikshaqmine')
         .update(updateData)
-        .eq('Email ID', profile.email);
+        // "Slug", not "Email ID" -- see the pause toggle above for why.
+        .eq('Slug', teacherData!.Slug!);
 
       if (error) {
         if (import.meta.env.DEV) {

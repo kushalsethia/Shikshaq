@@ -31,15 +31,36 @@ export function useSiteCounts() {
        shows them is chrome rather than the page's subject. */
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
+      /* One RPC where this used to be three round trips, the third of which
+         paged every row of bank_papers -- all 1,282 of them, ~100KB -- purely
+         to count distinct schools, on every page load, because the Footer
+         renders everywhere and there is no distinct-count over REST.
+         Falls back to the old path while migration 20260917120002 has not been
+         applied, so this is safe to deploy before or after it. Once applied,
+         the fallback and fetchBankSchoolValues' other callers can go. */
+      const { data, error } = await supabase.rpc('site_counts' as never);
+      const missingFn = error && (error.code === 'PGRST202' || /does not exist/i.test(error.message ?? ''));
+
+      if (!missingFn && !error) {
+        const rows = (data ?? []) as unknown;
+        const row = (Array.isArray(rows) ? rows[0] : rows) as
+          | { teachers: number; papers: number; schools: number }
+          | undefined;
+        if (row) {
+          return {
+            teachers: Number(row.teachers) || null,
+            papers: Number(row.papers) || null,
+            schools: Number(row.schools) || null,
+          };
+        }
+      }
+
       const [teachers, papers, schools] = await Promise.all([
         supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
         supabase
           .from('bank_papers')
           .select('id', { count: 'exact', head: true })
           .eq('is_published', true),
-        /* Distinct schools has no head-count equivalent, so this reads the
-           column and counts uniques. `school` is resolved at import time and
-           stored on the row, so this is a single narrow column, not a join. */
         fetchBankSchoolValues(),
       ]);
 
