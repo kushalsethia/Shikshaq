@@ -20,15 +20,17 @@ earns attention · `ACCEPTED` known and deliberately not doing
       anonymous `POST` with HTTP 200 — an unauthenticated DELETE against the
       audit table. Also closes `get_public_profile_data()`, which returns 206
       profiles with names, schools and grades to anyone.
-- [ ] **`P0` No error boundary anywhere in the app.** A render error in one
-      component blanks the entire page, with no recovery and no report. This
-      already happened once in testing and looked like a server outage. One
-      `<ErrorBoundary>` around `<Routes>` with a "something broke, reload"
-      panel is an afternoon.
-- [ ] **`P0` No error monitoring.** No Sentry, no equivalent, `logger.ts` is
-      five `console` calls. Today the only way anyone learns the site is broken
-      is a user telling you. Combined with the missing error boundary, a
-      white-screen bug could run for days.
+- [x] ~~No error boundary~~ **Done.** Two boundaries: one outermost for a
+      provider failing at boot, one around `<Routes>` so a broken page keeps the
+      chrome. Verified by injecting a real render-time throw into `/faq` — the
+      recovery panel rendered, the bottom nav survived, the page was not blank.
+      Deliberately styled with inline CSS and a plain `<a>`, because anything it
+      depended on could be the thing that broke.
+- [ ] **`P1` Error reporting is weaker than it looks.** Correcting my own
+      earlier note: `logger.error` *does* forward to Microsoft Clarity in
+      production, so it is not zero. But there are no stack traces, no alerting
+      and no search by message, so nobody finds out unless they go looking. The
+      `ErrorBoundary` is where a real service plugs in.
 - [ ] **`P0` Deploy the free-preview copy change.** `src/lib/free-preview.ts`
       → `2` / `'two'`. The gate now hands over two questions; seven places still
       promise five.
@@ -88,7 +90,8 @@ This is the weakest area and the one with the least attention on it.
       `bank_paper_questions` gate returning the right count per auth state, the
       sitemap generator's row counts, and the prerenderer's no-question-text
       assertion.
-- [ ] **`P0` No error boundary / no monitoring** — see section 1.
+- [x] Error boundaries in place — see section 1
+- [ ] **`P1` No alerting on the errors that are reported** — see section 1
 - [ ] **`P1` No uptime check.** Nobody is told if the site stops serving.
 - [ ] **`P1` Nobody can read the live Vercel build logs.** A failed deploy is
       diagnosed by guessing. This shaped real decisions here: the sitemap

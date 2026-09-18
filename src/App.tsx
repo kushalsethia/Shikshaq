@@ -31,6 +31,7 @@ const PapersLiveAnnouncement = lazy(() => import("@/components/papers/papers-liv
    add a round trip before first paint. Everything else is lazy - an /impeccable
    audit flagged a 474KB main chunk with 10 pages bundled in eagerly. */
 import Index from "./pages/Index";
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 /* SchoolPage (618 lines) had no comment claiming a reason to be eager like
    Index's above it, and /school/:slug is a secondary route nobody lands on
    as often as Home — no reason for every visitor to pay for it upfront.
@@ -188,6 +189,14 @@ const RoutePrefetch = () => {
 };
 
 const App = () => (
+  /* Two boundaries, not one, because they fail differently.
+     The outer one catches a provider blowing up during boot -- auth, the query
+     client, the intent store -- where there is no working app left to salvage
+     and a reload is genuinely the only move.
+     The inner one, around <Routes>, catches a single page throwing while the
+     providers are healthy. That is the common case, and keeping the chrome
+     alive means the reader still has navigation instead of a blank screen. */
+  <ErrorBoundary context="root">
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
@@ -266,6 +275,7 @@ const App = () => (
                 that were eager until now are lazy, and each would otherwise
                 need its own wrapper; the per-route boundaries below still work
                 and are left alone. */}
+            <ErrorBoundary context="route">
             <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Dev-only design sandbox for the admin shell, which is otherwise
@@ -619,6 +629,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
             </Suspense>
+            </ErrorBoundary>
             </RouteTransition>
             </AppShell>
             </IntentProvider>
@@ -629,6 +640,7 @@ const App = () => (
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
