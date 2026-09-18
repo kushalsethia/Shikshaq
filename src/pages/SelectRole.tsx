@@ -17,11 +17,9 @@ import { invalidateUserProfileCache } from '@/utils/cache';
 import { BentoPanel } from '@/components/layout/PageContainer';
 
 const FIELD_CLASS = 'flex h-[52px] w-full items-center rounded-2xl bg-muted px-4 text-base text-foreground outline-none shikshaq-role-field';
+import { isSafeRedirect as isValidRedirect } from '@/lib/safe-redirect';
 const LABEL_CLASS = 'mb-1 block text-[11.5px] font-bold uppercase tracking-[0.07em] text-warm-label';
 
-function isValidRedirect(path: string | null): path is string {
-  return !!path && path.startsWith('/') && !path.startsWith('//');
-}
 
 export default function SelectRole() {
   const { user, loading: authLoading } = useAuth();

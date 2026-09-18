@@ -70,6 +70,7 @@ function subjectOrBoardImport(pathname: string): [string, Importer] | null {
     : ['subject-page', () => import('@/pages/SubjectPage')];
 }
 
+import { isSafeRedirect } from '@/lib/safe-redirect';
 import { isMeteredConnection } from '@/lib/net-conditions';
 
 const done = new Set<string>();
@@ -96,7 +97,12 @@ export function installRoutePrefetch(): () => void {
     const el = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
     if (!el) return;
     const href = el.getAttribute('href');
-    if (!href || !href.startsWith('/') || href.startsWith('//')) return;
+    /* Same parser-backed check the auth redirects use. Not exploitable here
+       today -- prefetchRoute maps a path to a lazy import rather than fetching
+       an arbitrary origin -- but teacher bios render sanitised HTML that can
+       contain anchors, so this listener does see attacker-influenced hrefs and
+       should not rely on the mapping staying harmless. */
+    if (!isSafeRedirect(href)) return;
     if (el.target && el.target !== '_self') return;
     prefetchRoute(href.split('?')[0].split('#')[0]);
   };

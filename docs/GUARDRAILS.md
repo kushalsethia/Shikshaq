@@ -51,9 +51,30 @@ earns attention · `ACCEPTED` known and deliberately not doing
       every row is the hash of an empty string
       (`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`), the
       network-based bot signals are blind. Account-based ones still work.
-- [ ] **`P1` 11 production dependency vulnerabilities** (4 high, 6 moderate,
-      1 low; GitHub counts 51 including dev). Nobody has triaged which are
-      reachable. `npm audit --omit=dev` is the real list.
+- [x] ~~11 production dependency vulnerabilities, untriaged~~ **Triaged and
+      down to 3.** `npm audit fix` (no `--force`, so no majors) took production
+      from 11 to 3 and from 4 high to **zero high**. What remains, and why:
+      `dompurify` (moderate, **no fix published**, and it is pinned to a git SHA
+      rather than a release); `react-router` / `react-router-dom` (moderate,
+      open redirect, fix requires the v7 major — not a bump to make in launch
+      week). The critical and high that `npm audit` now reports are `vitest` and
+      `vite`, both **dev-only and never shipped**: the vitest advisory concerns
+      its UI server, which is never started here.
+- [x] ~~Router open redirect treated as a library problem~~ **It was our code,
+      and it was reachable.** Chasing the advisory found the same hand-written
+      check in four places —
+      `!!path && path.startsWith('/') && !path.startsWith('//')` — guarding the
+      `redirect` query parameter on `/auth`, `/select-role` and
+      `/teacher-terms-agreement`. A backslash defeats it: `/\evil.com` starts
+      with one slash, is not `//`, and the browser normalises it into a
+      protocol-relative URL. Working chain: send a parent a genuine
+      `shikshaq.in/auth?redirect=…` link, they sign in with Google on the real
+      site, and land somewhere that is not ours still believing it is.
+      Replaced with `src/lib/safe-redirect.ts`, which resolves the candidate
+      against our own origin using the same parser the browser will use, so it
+      is correct by construction rather than by having guessed the tricks.
+      37 tests, every published bypass among them. Verified live: `/%5Cevil.com`
+      stores nothing, `/faq` still works.
 - [ ] **`P2` `check_user_exists` / `check_user_has_password` are
       user-enumeration shaped** and must stay anon-callable because sign-in uses
       them pre-auth. Both return `false` for a known-real address, so they are

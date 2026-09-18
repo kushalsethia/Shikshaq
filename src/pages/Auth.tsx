@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { z } from 'zod';
+import { isSafeRedirect } from '@/lib/safe-redirect';
 import { saveAuthRedirect, getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
 import { Logo } from '@/components/Logo';
 import { WhatsAppIcon } from '@/components/BrandIcons';
@@ -142,7 +143,10 @@ export default function Auth() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const redirect = urlParams.get('redirect');
-    if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
+    /* saveAuthRedirect validates too; this guard is kept so an unsafe value is
+       never even offered to it. Both now go through the same parser-backed
+       check rather than a startsWith pair a backslash defeats. */
+    if (isSafeRedirect(redirect)) {
       saveAuthRedirect(redirect);
     }
   }, []);

@@ -7,11 +7,9 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
+import { isSafeRedirect as isValidRedirect } from '@/lib/safe-redirect';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 
-function isValidRedirect(path: string | null): path is string {
-  return !!path && path.startsWith('/') && !path.startsWith('//');
-}
 
 export default function TeacherTermsAgreement() {
   const { user, loading: authLoading } = useAuth();
