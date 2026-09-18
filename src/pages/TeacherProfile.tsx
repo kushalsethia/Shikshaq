@@ -721,16 +721,41 @@ export default function TeacherProfile() {
      the second one says something different. The tiles win because they are
      the scannable form and they come first. */
   const shownInTiles = new Set(hasStats ? ['Fee', 'Class size'] : []);
+
+  /* BOARDS is dropped outright. Both headers already print the full list --
+     the desktop row at lg and the SpeechChip below the photo on mobile -- so
+     it was being said twice at every width. The existing `lg:hidden` on this
+     row only fixed desktop, on the stated belief that "mobile's header doesn't
+     show them". It does; that comment was describing the subject pills, which
+     really are desktop-only, and boards got swept along with them.
+
+     SUBJECTS is desktop-duplicated for the same reason, but on mobile the
+     header shows only the PRIMARY subject. So it is a repeat there only when
+     the teacher has exactly one, and a teacher with three subjects still needs
+     this row on a phone. */
+  const subjectsAreRepeatedOnMobile = subjectsList.length <= 1;
+
+  /* AREAS earns its row only when it says something the area chip does not.
+     taughtAreas is where the teacher will travel to; teacher.area is where
+     they are based. Usually those differ and the row answers "will they come
+     to us?". When the travel list is just their own area it answers nothing,
+     and printing "AREAS Ballygunge" under a header chip that already says
+     Ballygunge is the same repetition this pass exists to remove. */
+  const travelAreasSayMore =
+    taughtAreas.length > 0 &&
+    !(taughtAreas.length === 1 && teacher.area && taughtAreas[0].toLowerCase() === teacher.area.toLowerCase());
+
   const teachingDetails = [
     { label: 'Subjects', value: subjectsList.join(', ') },
     { label: 'Classes', value: classesList.join(', ') },
-    { label: 'Boards', value: boardsList.join(', ') },
     { label: 'Mode', value: modeList.join(', ') },
     { label: 'Fee', value: feesValue },
     { label: 'Class size', value: classSizeValue },
     { label: 'Areas', value: taughtAreas.join(', ') },
   ]
     .filter((row) => !(shownInTiles.has(row.label) && Boolean(row.value)))
+    .filter((row) => !(row.label === 'Subjects' && subjectsAreRepeatedOnMobile))
+    .filter((row) => !(row.label === 'Areas' && !travelAreasSayMore))
     .filter((row): row is { label: string; value: string } => Boolean(row.value));
 
   const firstName = teacher.name.trim().split(/\s+/)[0] || teacher.name;
@@ -975,16 +1000,21 @@ export default function TeacherProfile() {
                 <SectionHeading>Teaching details</SectionHeading>
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
                   {teachingDetails.map(({ label, value }) => (
-                    /* Subjects/Boards/Areas repeat the profile card's own
-                       desktop header (subject pills, boardsList, area) —
-                       "area, board and subjects is there, and then it's
-                       again there in teaching details." Dropped from this
-                       list at lg only; mobile's header doesn't show them so
-                       this stays their only home there. */
-                    <div
-                      key={label}
-                      className={['Subjects', 'Boards', 'Areas'].includes(label) ? 'lg:hidden' : ''}
-                    >
+                    /* Only SUBJECTS is width-dependent now. The desktop
+                       header renders the full pill list, so the row would
+                       repeat it; the mobile header shows only the primary
+                       subject, so a teacher with several still needs the row
+                       there (and one with a single subject is filtered out
+                       above).
+
+                       AREAS is no longer hidden at lg. It holds the areas the
+                       teacher travels to, from students_home_areas and
+                       tutors_home_areas, which is a different fact from
+                       `teacher.area` -- their base -- and `teacher.area` is
+                       the only one either header shows. Hiding this row on
+                       desktop did not remove a repeat, it removed the answer
+                       to "will they come to us?" for every desktop reader. */
+                    <div key={label} className={label === 'Subjects' ? 'lg:hidden' : ''}>
                       <dt className="text-[12px] font-bold uppercase tracking-[0.07em] text-warm-label">
                         {label}
                       </dt>
