@@ -588,17 +588,6 @@ export default function TeacherProfile() {
     );
     setSignInIntent(intent);
     setSignInSheetOpen(true);
-
-    /* Reaching for the contact or save action is the clearest "I have decided"
-       the site gets, and it is worth recording whether or not the sign-in that
-       follows succeeds. Someone who opened the gate and backed out has still
-       told us where they are in the journey. */
-    recordSignal('contact_started', {
-      id: teacher.slug,
-      name: teacher.name,
-      subject: primarySubject ?? null,
-      area: areaLabel,
-    });
   };
 
   const handleHeartClick = async (e: React.MouseEvent) => {
@@ -622,6 +611,26 @@ export default function TeacherProfile() {
   };
 
   const handleWhatsAppClick = async () => {
+    /* Reaching for the contact action is the clearest "I have decided" the
+       site gets, and it is worth recording whether or not the sign-in that
+       follows succeeds. Someone who opened the gate and backed out has still
+       told us where they are in the journey.
+
+       Recorded HERE, at the top, rather than inside openSignInSheet where it
+       used to live. That placement had it firing on the two wrong conditions:
+       a signed-out reader pressing SAVE recorded a contact they never
+       started, and a SIGNED-IN reader pressing Message recorded nothing at
+       all -- so the middle of the funnel was missing for exactly the people
+       most likely to complete it, while being inflated by people who only
+       bookmarked someone. Both are invisible until you try to read the
+       numbers. */
+    recordSignal('contact_started', {
+      id: teacher.slug,
+      name: teacher.name,
+      subject: primarySubject ?? null,
+      area: areaLabel,
+    });
+
     // Checked BEFORE resolving anything, not after: teacher.whatsapp_link no
     // longer exists (Shikshaqmine.Link isn't fetched by the profile query at
     // all any more — see teachers.ts). Resolving it earlier and gating only

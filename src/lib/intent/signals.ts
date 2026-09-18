@@ -20,6 +20,7 @@
  * backwards never overwrites anything.
  */
 
+import { mirrorSignal } from './analytics-mirror';
 import {
   EMPTY_BUDGET,
   EMPTY_SLOT,
@@ -206,6 +207,14 @@ function clearFacets(store: IntentStore): void {
  * click while they are still making it.
  */
 export function recordSignal(kind: SignalKind, payload: SignalPayload = {}): void {
+  /* Mirror the business-meaningful subset to GA4 and Clarity before anything
+     else happens. This function is the single chokepoint every meaningful
+     action already passes through, and until now all of it stopped at the
+     device -- the whole contact funnel was being measured and thrown away.
+     The mirror keeps its own allowlist, swallows every error, and must never
+     be able to affect what follows. */
+  mirrorSignal(kind, payload);
+
   const strength = SIGNAL_STRENGTH[kind];
 
   /* Weak signals are observed and stored for the debug panel, and go no

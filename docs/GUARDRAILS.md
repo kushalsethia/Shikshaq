@@ -188,8 +188,7 @@ This is the weakest area and the one with the least attention on it.
 - [x] eslint clean on everything added this session
 - [x] Seven queries naming revoked columns found and fixed — a whole class of
       silent failure
-- [ ] **`P1` No CI.** Nothing runs typecheck, lint or build on push. Every
-      guarantee in this file is enforced by whoever remembers.
+- [x] CI runs typecheck and tests on every push — see section 3
 - [ ] **`P2` `src/pages/` has four unrouted pages** (~95 KB) kept deliberately.
       Not shipped, but they confuse a reader.
 - [ ] **`P2` Three unused dependencies** (`recharts`, `cmdk`,
@@ -217,11 +216,25 @@ This is the weakest area and the one with the least attention on it.
 
 - [x] GA4 and Microsoft Clarity are live
 - [x] WhatsApp contact clicks are tracked per teacher
-- [ ] **`P0` Nothing measures the funnel that matters.** The product's purpose
-      is a parent reaching a teacher. Nobody can currently answer: how many
-      visitors reach a profile, how many reveal a number, how many message.
-      `read_events` will answer the middle step once it fills — the rest needs
-      deliberate events.
+- [x] ~~Nothing measures the funnel that matters~~ **Done, and it was not
+      missing instrumentation.** Every step was already recorded — exactly once
+      each — through `recordSignal`, and all of it stopped at the device in
+      localStorage. The funnel was being measured and thrown away.
+      `src/lib/intent/analytics-mirror.ts` forwards a curated allowlist to GA4
+      and Clarity from that one chokepoint: `search_submitted`,
+      `filters_applied`, `builder_submitted`, `teacher_viewed`, `paper_viewed`,
+      `teacher_saved`, `contact_started`, `contact_completed`. Weak, high-volume
+      signals are deliberately excluded, and no query text, name, path or image
+      URL is ever sent.
+      **Two defects in the funnel itself, found while wiring it up and fixed:**
+      `contact_started` lived inside `openSignInSheet`, so a signed-out reader
+      pressing **Save** recorded a contact they never started, and a
+      **signed-in** reader pressing Message recorded nothing at all — the middle
+      of the funnel was missing for exactly the people most likely to complete
+      it, while being inflated by people who only bookmarked someone.
+      Verified in a real browser: `teacher_viewed` and `contact_started` both
+      fire with `teacher_slug`, `subject` and `area`; pressing Save now fires
+      nothing.
 - [ ] **`P1` No teacher-side view.** 148 teachers are the supply, 31 have
       accounts. Nobody knows which listings get seen or contacted, which is the
       single most useful thing to tell a teacher to keep them engaged.
