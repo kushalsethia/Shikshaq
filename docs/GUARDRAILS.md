@@ -18,20 +18,26 @@ file is the only remaining dependency for everything marked that way.
 
 ## 1. Open now
 
-- [ ] **`P0` Run `20260918140000_revoke_execute_by_role_name.sql`. STILL OPEN,
-      RE-CONFIRMED LIVE 2026-09-18.** Not theory and not stale: curled against
-      production today, as an anonymous caller holding only the publishable key
-      that ships in the bundle.
-      - `POST /rpc/get_public_profile_data` → **200, 52,753 bytes, 206 rows**,
-        each with `full_name`, `school_college`, `grade`, `role` and
-        `avatar_url`. Real named children at named Kolkata schools, in one
-        request, by anyone. This is the single most serious item on this page.
-      - `POST /rpc/purge_read_events` → **200**. An unauthenticated DELETE
-        against the audit table, so a scraper can trim the record of their own
-        scraping.
-      `revoke … from public` does not remove Supabase's direct `anon` grant, so
-      the previous migration did not close these. The corrective file is written
-      and ready; it has not been applied.
+- [x] ~~Anonymous callers could read 206 children's profiles and delete the
+      audit log~~ **CLOSED AND VERIFIED 2026-09-18.** `RUN_THIS_ONE.sql` was
+      applied. Re-curled production afterwards as an anonymous caller holding
+      only the publishable key:
+      `get_public_profile_data`, `purge_read_events`, `teacher_own_contact`,
+      `admin_teacher_contacts` and `is_teacher` all return **42501 permission
+      denied** — 110 bytes of error where there used to be 52,753 bytes of
+      names, schools and grades. `read_quota_exceeded` and
+      `reset_approval_on_edit` return 404.
+      Note for next time: the refusal code is **401/42501, not the 404 I
+      predicted**. PostgREST hides some things and refuses others; read the
+      body, not the status.
+      No regressions, checked with a real signed-in token rather than assumed:
+      a signed-in student gets the **full 40-question paper** while anon gets
+      2; `teacher_own_contact` answers 200 so the teacher dashboard still
+      loads; a direct `bank_questions` select returns 403 so the bulk dump
+      stays shut; and `admin_teacher_contacts` refuses a non-admin from its
+      **own body** rather than its grant — the two-layer pattern doing exactly
+      what it exists for, since the grant alone would have handed a student 148
+      phone numbers.
 - [x] ~~No error boundary~~ **Done.** Two boundaries: one outermost for a
       provider failing at boot, one around `<Routes>` so a broken page keeps the
       chrome. Verified by injecting a real render-time throw into `/faq` — the
