@@ -332,10 +332,29 @@ This is the weakest area and the one with the least attention on it.
 - [x] KaTeX memoised — was re-parsing every formula on every keystroke
 - [x] Search index no longer speculatively downloads ~550 kB on metered
       connections
-- [ ] **`P1` Paper figures are unresized.** 25 MB across 1,023 files, largest
-      312 kB, every one painted at most 300px tall. Dimensions are set so there
-      is no layout shift, but the bytes are unchanged. Needs `sharp` at build
-      time or an image CDN — and someone able to watch the build.
+- [x] ~~Paper figures are unresized~~ **Done, and the framing was wrong.**
+      "25 MB across 1,023 files" sounds library-wide and is not: a reader opens
+      ONE paper, and the **median paper carries 58 kB** of figures. The real
+      finding was the distribution — **one paper shipped 4.3 MB on its own**, a
+      fifth of the whole directory, from 21 scans of 250–312 kB.
+      So `scripts/resize-paper-figures.ts` caps height at 600px (2× the
+      `max-h-[300px]` render) and re-encodes at WebP q82, but **only above
+      40 kB**. Measured: touching 87 files captures 20% of the bytes, touching
+      all 1,023 captures 25%, and that last 5% costs a lossy re-encode of 936
+      images that are already fine. **21.9 MB → 17.5 MB; the worst paper
+      4,395 kB → 2,284 kB.**
+      Quality checked on the hardest case before applying — the largest file, a
+      graph-paper scan — rendered at the size a reader sees. Indistinguishable:
+      scale text, axis numbers and grid all equally legible.
+      **`sharp` is deliberately NOT in `package.json`.** Vercel installs
+      devDependencies, so an entry there would put a native build in the deploy
+      path of a site whose build logs nobody here can read. Install it ad hoc,
+      run the script, let it go. The script is excluded from `tsconfig.node.json`
+      for the same reason, so the CI gate does not fail on a module that is
+      correctly absent.
+      `figure-dimensions.ts` was regenerated and **all 1,023 entries verified to
+      match their files** — a resize without that would have reinstated the
+      layout shift those numbers exist to prevent.
 - [ ] **`P2` Teacher photos are served at full resolution**, including into
       30px avatar circles. No Supabase image transform anywhere.
 - [ ] **`P2` No real-user performance data.** All measurements here are local.
