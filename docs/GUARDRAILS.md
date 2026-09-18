@@ -505,8 +505,13 @@ This is the weakest area and the one with the least attention on it.
       deploy hooks, or configure the firewall. This is the single largest
       constraint on everything above and should be resolved as an access
       question, not engineered around indefinitely.
-- [ ] **`P1` Launch is a manual merge** to `origin/main` with no rehearsal and
-      no rollback plan beyond `git revert`.
+- [x] ~~Launch is a manual merge with no rehearsal or rollback~~ **Both done.**
+      Rehearsed: `origin/main` is an **ancestor** of `shikshaq-2.0`, so the
+      launch is a fast-forward with zero conflict risk, and the dry run prints
+      `593c447..ef862f8`. Rolling back is one command against a tag rather than
+      a SHA hunted out of scrollback:
+      `git push --force-with-lease origin pre-2.0-live:main`.
+      Full sequence, failure modes and post-launch checks in `docs/LAUNCH.md`.
 - [ ] **`P2` `SUPABASE_SERVICE_ROLE_KEY` is in a local `.env`.** Correct that it
       is unprefixed and never reaches Vercel; worth confirming nobody has copied
       it anywhere it could leak.
