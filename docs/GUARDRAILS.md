@@ -598,8 +598,23 @@ This is the weakest area and the one with the least attention on it.
       survives rather than greying, a static sheen and rim light on the top lip,
       and layered inset shadows for thickness. It reads as glass; it does not
       refract, and chasing that with motion was tried and reverted.
-- [ ] **`P2` The capture shield fires on every alt-tab**, blanking text for
-      2.2s. Correct mechanism, possibly intrusive in real use. One constant.
+- [x] ~~`P2` The capture shield fires on every alt-tab, blanking text for
+      2.2s~~ **Fixed 2026-09-19, at the other end than planned.** The note here
+      proposed a grace period before blanking. That would have been the wrong
+      end: nobody is looking at the page during a grace period either, so it
+      only hands the capture tools a window. The 2.2s timer was wrong in BOTH
+      directions at once -- a Win+Shift+S selection or a screen share lasting
+      longer than 2.2s got the questions back while the page was still out of
+      sight, and a reader who alt-tabbed to check something came back to a
+      blanked page and had to wait out a timer that was not counting anything.
+      Focus loss now holds the shield for exactly as long as the page is away
+      and drops it the instant it returns; the timer governs only the capture
+      chords, where the page keeps focus and the reader is watching. More
+      protective and less intrusive, with no trade between them.
+      Verified in the browser on `/past-papers/0c9771`: shield up on blur,
+      still up at 3s and 6s where the old code dropped at 2.2s, down within
+      50ms of focus returning. The chord path still self-clears at 2.2s, and a
+      chord fired while away is not taken down by its timer.
 - [ ] **`P2` No dark mode** despite tokens existing for it.
 
 ## 7. Codebase health

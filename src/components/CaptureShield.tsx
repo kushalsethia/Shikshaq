@@ -29,9 +29,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  *
  *   3. HIDE ON FOCUS LOSS. Snipping Tool, Win+Shift+S, macOS Cmd+Shift+5 and
  *      every screen-sharing tool take focus from the page first. Protected
- *      text hides while the page is not focused, so a capture composed after
- *      that point gets the shield instead of the questions. This is the most
- *      effective of the three and the only one that covers the tools that
+ *      text hides for AS LONG AS the page is away and comes back the instant
+ *      it returns, so a capture composed after that point gets the shield
+ *      instead of the questions however long it takes to compose. This is the
+ *      most effective of the three and the only one that covers the tools that
  *      never send a key event at all.
  *
  * What none of it touches: a phone camera pointed at the monitor, a second
@@ -46,6 +47,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * matters. Genuinely blocking mobile screenshots requires a native app.
  */
 
+/* How long the shield stays up after a CAPTURE CHORD. It does not govern focus
+   loss any more -- that is held for the duration of the absence, because a
+   timer there was expiring while the page was still out of sight. */
 const SHIELD_MS = 2200;
 
 export function CaptureShield({
@@ -55,11 +59,49 @@ export function CaptureShield({
 }) {
   const [shielded, setShielded] = useState(false);
   const timer = useRef<number | null>(null);
+  /* True while the page is unfocused or hidden. The shield is then held open
+     rather than timed, so the timer must not take it down underneath us. */
+  const away = useRef(false);
 
-  const raise = useCallback(() => {
-    setShielded(true);
+  const clearTimer = () => {
     if (timer.current) window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setShielded(false), SHIELD_MS);
+    timer.current = null;
+  };
+
+  /* For the key chords, where the page KEEPS focus and so the reader is
+     watching: up now, down shortly after. */
+  const raiseBriefly = useCallback(() => {
+    setShielded(true);
+    clearTimer();
+    timer.current = window.setTimeout(() => {
+      if (!away.current) setShielded(false);
+    }, SHIELD_MS);
+  }, []);
+
+  /* For focus loss, where the reader CANNOT SEE THE PAGE, which changes the
+     whole calculation. This used to raise on a 2,200ms timer like the chords,
+     which was wrong in both directions at once: a Win+Shift+S selection or a
+     screen-share that ran longer than 2.2s got the questions back while the
+     page was still not in front of anyone, and a reader who simply alt-tabbed
+     to check something returned to a blanked page and had to wait out the
+     remainder of a timer that was never counting anything meaningful.
+
+     The noted fix for this was "a short grace period before blanking". That
+     would have been the wrong end: nobody is looking at the page during the
+     grace period either, so it only gives the capture tools a window. Holding
+     for exactly as long as the page is away, and dropping the instant it
+     returns, is both more protective and the thing the reader actually
+     noticed. */
+  const holdWhileAway = useCallback(() => {
+    away.current = true;
+    clearTimer();
+    setShielded(true);
+  }, []);
+
+  const releaseOnReturn = useCallback(() => {
+    away.current = false;
+    clearTimer();
+    setShielded(false);
   }, []);
 
   /* Toggled on <html> rather than passed down, so any [data-protected] region
@@ -85,40 +127,46 @@ export function CaptureShield({
       // PrintScreen: Windows reports it on keyup far more reliably than on
       // keydown, so both are watched.
       if (e.key === 'PrintScreen') {
-        raise();
+        raiseBriefly();
         overwriteClipboard();
         return;
       }
       // macOS capture chords.
       if (e.metaKey && e.shiftKey && ['3', '4', '5', '6'].includes(e.key)) {
-        raise();
+        raiseBriefly();
         return;
       }
       // Windows Snipping Tool. Usually swallowed by the shell before the page
       // sees it, so this is opportunistic rather than dependable.
       if (e.shiftKey && (e.metaKey || e.getModifierState?.('Meta')) && e.key.toLowerCase() === 's') {
-        raise();
+        raiseBriefly();
       }
     };
 
     /* The important one. Every capture tool that does not send a key event
        still has to take focus first. */
-    const onBlur = () => raise();
-    const onVisibility = () => { if (document.hidden) raise(); };
+    const onBlur = () => holdWhileAway();
+    const onFocus = () => releaseOnReturn();
+    /* Both events are watched in both directions because neither fires
+       everywhere: switching browser tabs changes visibility without always
+       firing focus, and clicking another window blurs without hiding. */
+    const onVisibility = () => (document.hidden ? holdWhileAway() : releaseOnReturn());
 
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKey);
     window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup', onKey);
       window.removeEventListener('blur', onBlur);
+      window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibility);
       if (timer.current) window.clearTimeout(timer.current);
     };
-  }, [raise, label]);
+  }, [raiseBriefly, holdWhileAway, releaseOnReturn, label]);
 
   if (!shielded) return null;
 
