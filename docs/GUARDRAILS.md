@@ -499,8 +499,34 @@ This is the weakest area and the one with the least attention on it.
       30px avatar circles. No Supabase image transform anywhere.
 - [ ] **`P2` No real-user performance data.** All measurements here are local.
       Core Web Vitals from actual Kolkata connections would change priorities.
-- [ ] **`P2` Browse accumulates unboundedly** while scrolling — up to 3,000
-      cards in the DOM, no virtualisation.
+- [x] ~~`P2` Browse accumulates unboundedly while scrolling — up to 3,000
+      cards in the DOM~~ **Measured 2026-09-19 and ACCEPTED. The 3,000 was
+      wrong**, and it was the number that made this look like a day of work.
+
+      | | per card | ceiling | DOM at the ceiling |
+      |---|---|---|---|
+      | Teachers | 21 nodes | **147** — the entire directory | ~4,300 nodes |
+      | Papers | 10 nodes | 1,282 | ~13,600 nodes |
+
+      There is no route by which 3,000 teacher cards exist, because there are
+      only 147 teachers. Rendering every one of them costs about 4,300 nodes,
+      which is an ordinary page. The papers list can reach ~13,600 nodes, but
+      only by scrolling through 53 consecutive batches of 24 without
+      filtering; the filters exist precisely so nobody does that.
+
+      Virtualisation would add windowing, scroll restoration and measurement
+      to the product's main surface to solve a number that is not a problem.
+      **Revisit if the directory passes ~500 teachers**, where the teacher
+      ceiling reaches ~11,000 nodes and the calculation changes.
+
+      Honest about the method: the per-card cost is measured from the live
+      DOM, the ceilings are arithmetic on it. Infinite scroll could not be
+      exercised here — the browser pane was hidden, so `requestAnimationFrame`
+      and `IntersectionObserver` never fire and the sentinel never triggers.
+      That is also why the page appeared stuck at 24 of 147 teachers during
+      this check, which is a measuring artifact and not a defect; it is worth
+      confirming on a visible window before trusting any scroll-driven
+      behaviour measured from this environment.
 
 ## 5. SEO and discovery
 
