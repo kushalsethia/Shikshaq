@@ -71,6 +71,40 @@ export default defineConfig(({ mode }) => {
     port: Number(process.env.PORT) || 8080,
   },
   plugins: [react(), vercelApiDevPlugin()],
+  optimizeDeps: {
+    esbuildOptions: {
+      /* WITHOUT THIS THE DEV SERVER DOES NOT START AT ALL. It dies during
+         dependency prebundling with 919 copies of
+
+           Transforming destructuring to the configured target environment
+           ("chrome87", "edge88", "es2020", "firefox78", "safari14" + 2
+           overrides) is not supported yet
+
+         and exits 1, so `npm run dev` prints "ready in 591 ms" and then the
+         port answers ERR_CONNECTION_REFUSED. The misleading "ready" line is
+         why this survived: every other gate -- tsc, eslint, vitest, and the
+         production build -- passes, because none of them use the optimizer.
+
+         The single offending entry is `safari14`. Probed against the esbuild
+         actually installed: es2020, chrome87, es2015 and esnext all transform
+         destructuring happily; safari14 alone refuses. esbuild learned about
+         a real Safari 14 destructuring bug and, having no lowering for it,
+         errors rather than emitting something wrong.
+
+         It is our own `overrides` block that puts us here: `"esbuild":
+         ">=0.25.0"` was added in f06fef6 to clear a Dependabot alert, and
+         being open-ended it now resolves to 0.28.2 while vite 5.4 asks for
+         ^0.21.3. So the break arrived on an ordinary `npm install`, with no
+         commit to blame it on.
+
+         Fixing it HERE rather than by pinning esbuild down keeps that
+         security override intact and touches nothing outside dev: this target
+         governs prebundled dependencies only, and those only ever run in the
+         browser of whoever is running the dev server. `build.target` is
+         'es2015' and is set separately below, so what ships is unchanged. */
+      target: 'es2020',
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
