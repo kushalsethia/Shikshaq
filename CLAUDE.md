@@ -10,7 +10,7 @@ engine that brings them. Every decision below reads better with that in mind.
 
 | | |
 |---|---|
-| `docs/GUARDRAILS.md` | the living checklist: what protects this product, what does not yet, what is deliberately accepted. Every claim there was measured, not inferred. |
+| `docs/GUARDRAILS.md` | the living checklist: what protects this product, what does not yet, what is deliberately accepted. Every claim there was measured, not inferred. **Section 11 is the short list of things blocked on a login, a phone or real traffic rather than on work** -- start there if you have account access. |
 | `docs/LAUNCH.md` | merging to `main` IS the public launch. The rehearsal, the rollback, the post-launch checks. |
 | `docs/SUPABASE_RUNBOOK.md` | what is left to run against the database, and what is deliberately not a migration. |
 

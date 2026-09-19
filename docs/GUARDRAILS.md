@@ -727,9 +727,9 @@ This is the weakest area and the one with the least attention on it.
 - [x] `push:all` targets the launch branch rather than a stale hardcoded name
 - [x] Repo cleaned: 23 branches → 2, with unique work preserved as tags
 - [ ] **`P0` Live Vercel is inaccessible.** Cannot read logs, set env vars, use
-      deploy hooks, or configure the firewall. This is the single largest
-      constraint on everything above and should be resolved as an access
-      question, not engineered around indefinitely.
+      deploy hooks, or configure the firewall. The single largest constraint on
+      everything above, and an access question rather than an engineering one.
+      **See section 11**, which sets out what it costs and what ends it.
 - [x] ~~Launch is a manual merge with no rehearsal or rollback~~ **Both done.**
       Rehearsed: `origin/main` is an **ancestor** of `shikshaq-2.0`, so the
       launch is a fast-forward with zero conflict risk, and the dry run prints
@@ -740,6 +740,64 @@ This is the weakest area and the one with the least attention on it.
 - [ ] **`P2` `SUPABASE_SERVICE_ROLE_KEY` is in a local `.env`.** Correct that it
       is unprefixed and never reaches Vercel; worth confirming nobody has copied
       it anywhere it could leak.
+
+---
+
+## 11. Blocked on access, not on engineering
+
+Everything below is finished as far as the code is concerned. What is left in
+each case is a login, a console, a phone, or real traffic. They are gathered
+here so they stop reading as open engineering work when they are not, and so
+that the ones that genuinely need doing can be done in one sitting.
+
+Ordered by what it costs to keep not doing it.
+
+### Needs the Vercel account
+
+The live site deploys from an account nobody here can open. This is the `P0`,
+and it is upstream of four other items: no build logs, no environment
+variables, no deploy hooks, no firewall, no image optimisation.
+
+| | |
+|---|---|
+| **What it costs today** | A failed deploy is diagnosed by guessing. `scripts/generate-sitemap.ts` and `scripts/prerender.ts` both had to be rewritten to **fail loudly and exit non-zero**, because a `console.warn` in a log nobody can read reaches no one. That is a real design constraint being paid for permanently. |
+| **What to do** | Get added to the Vercel team, or move the project to an account you hold. Either ends the constraint. |
+| **Then** | Set a deploy hook, so publishing a paper stops needing a manual redeploy to appear in the prerendered HTML and the sitemap. |
+
+### Needs a Google account you control
+
+| | what | why it matters | effort |
+|---|---|---|---|
+| `P1` | **Search Console: submit the sitemap** | 1,830 URLs, 1,258 of them paper pages, and none of them are being told to Google deliberately. The papers are the traffic engine; this is the single highest-value thing on this page. `lastmod` is now honest per page (section 4), so the crawl signal is worth spending. | 20 min |
+| `P1` | **Error alerting** | `logger.error` reaches Microsoft Clarity, so it is not zero, but there are no stack traces, no alerting and no search by message. Nobody finds out unless they go looking. `ErrorBoundary` is where a service plugs in. | ~1 h |
+| `P1` | **Uptime check** | Nobody is told if the site stops serving. Any free monitor on `/` and one paper URL. | 15 min |
+| `P2` | **Real-user performance data** | Every measurement in section 4 is local, on a fast machine, over a fast connection. The audience is mid-range Android phones in Kolkata. | 30 min |
+
+### Needs the Supabase dashboard
+
+| | what | notes |
+|---|---|---|
+| `P1` | **Run the two pending SQL files** | `20260919120000_restore_public_profiles_view.sql` first -- it is the one with a live symptom, 218 reviews showing as "Anonymous". Then `20260919090000_fix_definer_guards_for_anon.sql`. Both are in `docs/SUPABASE_RUNBOOK.md`. |
+| `P1` | **Google-only sign-in** | Disable the Email provider, then drop the password branch from `Auth.tsx`. 545 of 553 accounts are already on Google; contact the 9 first. Do it **after** quotas are enforced -- its whole value is making per-account limits expensive to evade. |
+| `P2` | **Backup/restore drill** | Supabase takes backups. Nobody has ever restored one, so "we have backups" is untested. |
+| `P2` | **79 teacher photos are plan-gated** | They sit in Supabase storage, whose `/render/image/` transform endpoint answers **403** on this plan -- verified against a real image, not assumed. The 64 on Cloudinary are already sized. Either move these to Cloudinary or raise the plan; no amount of frontend work reaches them. |
+
+### Needs real traffic first
+
+| | what | notes |
+|---|---|---|
+| `P1` | **Quota thresholds** | `enforcing = false` and should stay false at launch. Every threshold was guessed against 3 rows of telemetry. The first person a bad guess stops is a Class 10 student the week before boards. Revisit after 2-4 weeks; the percentile queries are written out in the runbook. |
+| `P2` | **Measure the 5 to 2 preview cut** | Signup conversion from paper pages, before and after. Currently a change made on judgement with no read on whether it worked. |
+
+### Needs a physical phone
+
+`P1` **Nothing has been tested on a real device.** Everything here was measured
+in an emulated viewport, which gets layout right and tells you nothing about
+touch latency, scroll behaviour under a real GPU, Android WebView quirks, or
+what `backdrop-filter: blur(40px)` costs a mid-range phone -- and the frosted
+glass is now on three surfaces that are on screen at all times. Half an hour
+with one mid-range Android on a real connection would settle several entries in
+section 6 that are currently marked as unverified.
 
 ---
 
