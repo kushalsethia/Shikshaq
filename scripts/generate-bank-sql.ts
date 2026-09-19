@@ -139,9 +139,21 @@ create policy "admins write questions"
 revoke all on public.bank_papers    from anon, authenticated;
 revoke all on public.bank_questions from anon, authenticated;
 grant select on public.bank_papers    to anon, authenticated;
--- bank_questions: authenticated only. See the policy comment above --
--- the gate (bank_paper_questions RPC) is the sole anon-reachable path.
-grant select on public.bank_questions to authenticated;
+-- bank_questions: NO direct SELECT for any client role, anon or authenticated.
+-- bank_paper_questions() -- SECURITY DEFINER, decides from auth.uid() -- is the
+-- sole read path, and every call it serves is written to read_events.
+--
+-- This line used to read "grant select on public.bank_questions to
+-- authenticated", which was the correct shape on 2026-09-09 when it was
+-- written. 20260918100000 then revoked exactly that, because a signed-in
+-- account could page all 46,873 question bodies straight off the table in
+-- about 47 requests -- around the RPC gate and around the audit trail that
+-- exists to make bulk reading attributable.
+--
+-- Nothing was exposed by the drift: the generated file is gitignored, is not a
+-- migration, and only reaches the database if someone pastes it into the SQL
+-- editor by hand. But this script is regenerated rather than read, so a stale
+-- grant sitting in it is a loaded footgun for whoever next runs the import.
 grant insert, update, delete on public.bank_papers    to authenticated;
 grant insert, update, delete on public.bank_questions to authenticated;
 `;

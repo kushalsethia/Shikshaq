@@ -2,8 +2,24 @@
 
 Everything that does not touch the database is done, tested and deployed.
 
-**There is exactly one thing left to run:**
-[`supabase/RUN_THIS_ONE.sql`](../supabase/RUN_THIS_ONE.sql)
+**`supabase/RUN_THIS_ONE.sql` has been applied and verified.** What remains is
+one small follow-up from the security review:
+
+[`supabase/migrations/20260919090000_fix_definer_guards_for_anon.sql`](../supabase/migrations/20260919090000_fix_definer_guards_for_anon.sql)
+
+It corrects two in-body guards written as
+`IF auth.uid() IS NOT NULL AND NOT is_admin()`, which **passes for an anonymous
+caller** because `auth.uid()` is NULL there. Both functions are closed today —
+EXECUTE is revoked from every client role and granted only to `service_role` —
+so nothing is exposed. The reason to fix it is that `20260818120000` describes
+those guards as a layer "a future GRANT cannot silently reopen", and for anon
+that is not true; the next person restoring a grant would be relying on a
+protection that is not there. One of the two functions returns every account's
+id and email.
+
+It does not retype either function body. The larger one is renamed aside and
+wrapped, which is the technique `20260818120000` itself used and for the reason
+it gives: less risk of a transcription error than restating a 50-line merge.
 
 Paste the whole file into the Supabase SQL editor. It is idempotent, each
 section is wrapped so a failure applies nothing, and every rollback is written

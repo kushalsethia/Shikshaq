@@ -209,6 +209,42 @@ too, because none of them carry `<alpha-value>` either.
       help those; they would have to be stored as channels. Use an explicit
       literal-hex class or an arbitrary `hsl(var(--x)/0.75)` value instead.
 
+## 0.95 Security review follow-ups, 2026-09-19
+
+A `/security-review` pass over the branch found **no HIGH or MEDIUM
+vulnerabilities**. The two items below came out of it and are fixed.
+
+- [x] **The in-body guards did not stop `anon`.** `20260818120000` wrote them as
+      `IF auth.uid() IS NOT NULL AND NOT is_admin()`. For an anonymous caller
+      `auth.uid()` is NULL, so the condition is false and **no exception is
+      raised** — it caught a signed-in non-admin and waved through anon, the
+      opposite order to the one you would pick. Not exploitable: EXECUTE is
+      revoked from every client role and granted only to `service_role`. It
+      still mattered, because that file calls these a layer "a future GRANT
+      cannot silently reopen", and the next person restoring a grant would have
+      been relying on a protection that was not there. One of the two returns
+      every account's id and email.
+      Fixed in `20260919090000` — **pending a run**. It does not retype either
+      body: the larger one is renamed aside and wrapped, the technique
+      `20260818120000` itself used, because restating a 50-line
+      `INSERT ... ON CONFLICT` merge is how you introduce a worse bug than the
+      one you set out to fix. (I tried retyping it first and got three details
+      wrong before checking.)
+- [x] **A stale grant in `scripts/generate-bank-sql.ts`.** It emitted
+      `grant select on public.bank_questions to authenticated`, which
+      `20260918100000` revoked nine days after that line was written. Nothing
+      was exposed — the output is gitignored, is not a migration, and only
+      reaches the database if a human pastes it — but the file is regenerated
+      rather than read, so it was a footgun aimed at whoever next runs an
+      import. Removed, and `src/lib/bank-sql-grants.test.ts` now fails if it
+      returns. The test was checked by reintroducing the grant and watching it
+      fail, because a guard nobody has seen fail is not yet a guard.
+
+**Noted, not fixed:** `home_facet_counts` is called from `Index.tsx` but has no
+migration in the repo, so it was created outside the migration history and its
+body cannot be reviewed here. Worth capturing into a migration so the schema is
+reproducible from this repo alone.
+
 ## 1. Open now
 
 - [x] ~~Anonymous callers could read 206 children's profiles and delete the
