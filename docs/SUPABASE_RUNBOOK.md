@@ -14,9 +14,9 @@ statements to run.
 | section | what | risk |
 |---|---|---|
 | 1 | ~~Gives 218 reviews their authors back.~~ **APPLIED AND VERIFIED 2026-09-19.** 206 = 206, anonymity intact, `/rpc/get_public_profile_data` still 42501, and the named review renders as a name signed in and signed out. | done |
-| 2 | Makes two admin-only guards reject anon. Both functions are already closed, so this is correctness, not exposure. | Renames one function aside and wraps it, behind a check so a second run is safe. |
-| 3 | Three read-only diagnostics. They ran once inside `RUN_THIS_ONE.sql` and printed their verdicts, but the output was never read back, so the answers are still unknown. | None. Changes nothing. |
-| 4 | Verification, with the expected answer written beside each query. | None. |
+| 2 | ~~Makes two admin-only guards reject anon.~~ **APPLIED AND VERIFIED 2026-09-19.** | done |
+| 3 | Three read-only diagnostics. **Ran, but the verdicts were still not read back**, so the three questions remain open. Section 3 changes nothing and can be re-run on its own at any time. | none |
+| 4 | Verification. | done |
 
 Each writing section is its own transaction, so a failure applies none of that
 section rather than half of it. Every rollback is inline beside the thing it
@@ -27,6 +27,30 @@ The two migration files it consolidates
 `20260919090000_fix_definer_guards_for_anon.sql`) are now marked **superseded**
 and should not be run separately -- the second one's `alter function ... rename
 to` is not repeatable, so running it after `RUN_THIS_LAST.sql` would fail.
+
+**STATE, 2026-09-19: `RUN_THIS_LAST.sql` has been applied. There is no pending
+SQL.** Sections 1 and 2 were verified from outside the database, against
+production, using the app's own anon client:
+
+- Section 1: the view returns 206 rows, equal to the 206 distinct named review
+  authors; no anonymous-only profile is exposed; `/rpc/get_public_profile_data`
+  still answers 42501, so the bulk dump did not reopen; and a named review
+  renders as a name both signed in and signed out while the anonymous one
+  beside it still reads "Anonymous".
+- Section 2: `check_existing_users_for_teacher_role_unguarded` now answers
+  42501 rather than PostgREST's PGRST202 "could not find the function". That
+  name only comes into existence through section 2's rename, so its existence
+  is the proof the section ran. A deliberately fake function name was probed in
+  the same call as a control, and returned PGRST202 as expected -- without that
+  control, 42501 alone would not have distinguished "exists and is closed" from
+  "does not exist".
+
+**Still unanswered: the three section 3 diagnostics.** They print as NOTICE
+messages rather than result rows, which is easy to miss. Re-run section 3 alone
+and read the Messages pane to settle whether `ip_hash` carries real values,
+whether `check_user_exists` is a working enumeration oracle or simply broken
+(sign-in depends on the answer), and which papers claim a `question_count` that
+does not match their rows.
 
 **There is no test database.** Both deployments share `uvtifolnsneitetzohtn`, so
 this is production the moment it runs. Prefer Kolkata off-hours.
