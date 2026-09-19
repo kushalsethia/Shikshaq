@@ -1,3 +1,13 @@
+-- =========================================================================
+-- SUPERSEDED. Do not run this file on its own.
+--
+-- Its contents are section 1 of `supabase/RUN_THIS_LAST.sql`, which is the
+-- single file to paste into the SQL editor. Running that file and then this
+-- one would simply repeat the work -- harmless, but pointless.
+--
+-- Kept because it is the migration of record for what changed and why.
+-- =========================================================================
+
 -- Give 218 reviews their authors back.
 --
 -- WHAT BROKE. 20260918140000 (shipped inside RUN_THIS_ONE.sql) revoked

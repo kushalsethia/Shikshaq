@@ -2,33 +2,31 @@
 
 Everything that does not touch the database is done, tested and deployed.
 
-**`supabase/RUN_THIS_ONE.sql` has been applied and verified.** Two files are
-queued behind it.
+**`supabase/RUN_THIS_ONE.sql` has been applied and verified.** Everything still
+owed to the database is now in ONE file:
 
-**1. `20260919120000_restore_public_profiles_view.sql` — run this one first.**
-It is the only item here with a user-visible symptom on the live site right
-now: 218 of 376 reviews are showing as "Anonymous" when their authors chose to
-be named. See "Why it is urgent" below for how the lockdown caused it.
+### [`supabase/RUN_THIS_LAST.sql`](../supabase/RUN_THIS_LAST.sql)
 
-**2. [`20260919090000_fix_definer_guards_for_anon.sql`](../supabase/migrations/20260919090000_fix_definer_guards_for_anon.sql)** — the smaller follow-up from the security review.
+Paste the whole thing into the SQL editor. After it there is no pending SQL,
+and the only database items left on this page are decisions for you rather than
+statements to run.
 
-It corrects two in-body guards written as
-`IF auth.uid() IS NOT NULL AND NOT is_admin()`, which **passes for an anonymous
-caller** because `auth.uid()` is NULL there. Both functions are closed today —
-EXECUTE is revoked from every client role and granted only to `service_role` —
-so nothing is exposed. The reason to fix it is that `20260818120000` describes
-those guards as a layer "a future GRANT cannot silently reopen", and for anon
-that is not true; the next person restoring a grant would be relying on a
-protection that is not there. One of the two functions returns every account's
-id and email.
+| section | what | risk |
+|---|---|---|
+| 1 | **Gives 218 reviews their authors back.** The only item with a symptom on the live site today. | Recreates one view. |
+| 2 | Makes two admin-only guards reject anon. Both functions are already closed, so this is correctness, not exposure. | Renames one function aside and wraps it, behind a check so a second run is safe. |
+| 3 | Three read-only diagnostics. They ran once inside `RUN_THIS_ONE.sql` and printed their verdicts, but the output was never read back, so the answers are still unknown. | None. Changes nothing. |
+| 4 | Verification, with the expected answer written beside each query. | None. |
 
-It does not retype either function body. The larger one is renamed aside and
-wrapped, which is the technique `20260818120000` itself used and for the reason
-it gives: less risk of a transcription error than restating a 50-line merge.
+Each writing section is its own transaction, so a failure applies none of that
+section rather than half of it. Every rollback is inline beside the thing it
+undoes. Re-running the whole file is safe.
 
-Paste the whole file into the Supabase SQL editor. It is idempotent, each
-section is wrapped so a failure applies nothing, and every rollback is written
-inline beside the thing it undoes.
+The two migration files it consolidates
+(`20260919120000_restore_public_profiles_view.sql` and
+`20260919090000_fix_definer_guards_for_anon.sql`) are now marked **superseded**
+and should not be run separately -- the second one's `alter function ... rename
+to` is not repeatable, so running it after `RUN_THIS_LAST.sql` would fail.
 
 **There is no test database.** Both deployments share `uvtifolnsneitetzohtn`, so
 this is production the moment it runs. Prefer Kolkata off-hours.

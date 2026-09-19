@@ -1,3 +1,14 @@
+-- =========================================================================
+-- SUPERSEDED. Do not run this file on its own.
+--
+-- Its contents are section 2 of `supabase/RUN_THIS_LAST.sql`, which is the
+-- single file to paste into the SQL editor. Running that file and then this
+-- one would FAIL: the `alter function ... rename to` here is not repeatable, and
+-- RUN_THIS_LAST.sql has already done it behind a check.
+--
+-- Kept because it is the migration of record for what changed and why.
+-- =========================================================================
+
 -- Make the in-body guards actually stop an anonymous caller.
 --
 -- 20260818120000 added two SECURITY DEFINER functions with this guard:
