@@ -1,3 +1,20 @@
+/**
+ * NOT ROUTED. Nothing imports this file, so it has no URL and Rollup leaves it
+ * out of the bundle entirely -- verified by taking prose strings that appear in
+ * this file and nowhere else in src/, then searching every built chunk for
+ * them: none are present.
+ *
+ * It is kept on purpose, as a guardian-facing dashboard that may be wanted later, not
+ * as something half-deleted. The banner exists because the absence of a route
+ * is invisible from inside the file: it reads like a live page, and more than
+ * one reader has assumed it was one.
+ *
+ * If you route it, expect real work rather than a line in App.tsx -- it has not
+ * been exercised against the current data layer, and the table grants moved
+ * underneath it (see docs/GUARDRAILS.md on select('*') and column revokes).
+ * If you delete it, delete the whole file; there is nothing here anything else
+ * depends on.
+ */
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';

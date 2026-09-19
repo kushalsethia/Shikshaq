@@ -624,8 +624,18 @@ This is the weakest area and the one with the least attention on it.
 - [x] Seven queries naming revoked columns found and fixed — a whole class of
       silent failure
 - [x] CI runs typecheck and tests on every push — see section 3
-- [ ] **`P2` `src/pages/` has four unrouted pages** (~95 KB) kept deliberately.
-      Not shipped, but they confuse a reader.
+- [x] ~~`P2` `src/pages/` has four unrouted pages (~95 KB) that confuse a
+      reader~~ **Closed 2026-09-19 as ACCEPTED, with the confusion removed
+      rather than the files.** `GuardianDashboard`, `StudentDashboard`,
+      `LikedTeachers` and `MyTeachers` have no importer, so they have no URL.
+      "Not shipped" is now proven rather than assumed: 22 prose strings that
+      occur in these files and nowhere else in `src/` were searched for across
+      every built chunk, and none appear. Function names alone would not have
+      shown this, since minification renames them.
+      Each file now opens with a banner saying it is unrouted, that it is kept
+      on purpose, and what routing it would actually cost -- the point being
+      that the absence of a route is invisible from inside a file that
+      otherwise reads like a live page, which is exactly why it misled people.
 - [x] ~~Three unused dependencies~~ **Removed**, with the three shadcn
       components that were their only importers and that nothing imported in
       turn. 40 packages out of `node_modules`.
