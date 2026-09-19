@@ -2,10 +2,15 @@
 
 Everything that does not touch the database is done, tested and deployed.
 
-**`supabase/RUN_THIS_ONE.sql` has been applied and verified.** What remains is
-one small follow-up from the security review:
+**`supabase/RUN_THIS_ONE.sql` has been applied and verified.** Two files are
+queued behind it.
 
-[`supabase/migrations/20260919090000_fix_definer_guards_for_anon.sql`](../supabase/migrations/20260919090000_fix_definer_guards_for_anon.sql)
+**1. `20260919120000_restore_public_profiles_view.sql` — run this one first.**
+It is the only item here with a user-visible symptom on the live site right
+now: 218 of 376 reviews are showing as "Anonymous" when their authors chose to
+be named. See "Why it is urgent" below for how the lockdown caused it.
+
+**2. [`20260919090000_fix_definer_guards_for_anon.sql`](../supabase/migrations/20260919090000_fix_definer_guards_for_anon.sql)** — the smaller follow-up from the security review.
 
 It corrects two in-body guards written as
 `IF auth.uid() IS NOT NULL AND NOT is_admin()`, which **passes for an anonymous
@@ -42,9 +47,20 @@ holding only the publishable key that ships inside the JS bundle:
 
 The first returns every profile with `full_name`, `school_college`, `grade` and
 `avatar_url`. Many are school students at named Kolkata schools, downloadable as
-one list by anyone. It has **no call sites** in `src/` — the app reads commenter
-names through a join on `teacher_comments.profiles` — so closing it breaks
-nothing.
+one list by anyone.
+
+**The claim that used to sit here was wrong, and it cost the site 218 reviews.**
+It read: "It has no call sites in `src/` ... so closing it breaks nothing." It
+has three, all of them indirect. `public_profiles` is a view declared
+`security_invoker = on` over `select * from get_public_profile_data()`, so the
+caller needs EXECUTE on the function to read the view at all. Revoking it
+turned every read into 42501 and rendered 218 of 376 approved reviews as
+"Anonymous" — on teacher profiles, the homepage quote rail and the teacher's
+own dashboard — for signed-in visitors as well as anonymous ones, because the
+revoke covered `authenticated` too. Grepping for the function name was not
+enough; the dependency was in the database, not the code. Fixed by
+[`20260919120000_restore_public_profiles_view.sql`](../supabase/migrations/20260919120000_restore_public_profiles_view.sql),
+which rebuilds the view directly over `profiles` so the function stays shut.
 
 The second is an unauthenticated DELETE against the audit table.
 

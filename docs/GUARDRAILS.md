@@ -247,6 +247,42 @@ reproducible from this repo alone.
 
 ## 1. Open now
 
+- [ ] **`P0` 218 of 376 reviews render as "Anonymous" on the live site.** A
+      regression from the lockdown, found on 2026-09-19 by reading the 401s on
+      a page that was otherwise working. `public_profiles` is a view declared
+      `security_invoker = on` over `select * from get_public_profile_data()`,
+      so revoking EXECUTE on that function — correctly, it was dumping 206
+      named children — made every read of the view return 42501. **The note I
+      wrote beside that revoke, that the function had "no call sites in `src/`
+      so closing it breaks nothing", was wrong**: it has three, all reached
+      through the view. Grepping the code could not see a dependency that
+      lived in the database. Signed-in visitors are affected too, since the
+      revoke covered `authenticated`. Verified on
+      `/tuition-teachers/supriya-jana`: a review with `is_anonymous = false`
+      and a real `user_id` renders as "Anonymous", while the genuinely
+      anonymous one beside it correctly does the same.
+      Fix written and pending a run:
+      `supabase/migrations/20260919120000_restore_public_profiles_view.sql`.
+      It rebuilds the view straight over `profiles`, so the function stays
+      revoked and `/rpc/get_public_profile_data` stays shut. All five display
+      columns are restored — the owner's call, made with the alternative in
+      front of them, so a signed-out visitor can again read name, school and
+      grade in bulk. `src/lib/public-profiles-columns.test.ts` now pins the
+      view's columns against the three `.select()` calls, because trimming
+      either side alone re-breaks all 218.
+- [x] ~~`npm run dev` did not start~~ **Fixed 2026-09-19 (`dafef23`).** It
+      printed "ready in 591 ms", exited 1, and left the port answering
+      ERR_CONNECTION_REFUSED. tsc, eslint, 126 tests and the production build
+      all passed throughout, because none of them use the dependency
+      optimizer — which was the only broken thing. One word did it: esbuild
+      0.28 refuses `safari14` (a real Safari 14 destructuring bug it has no
+      lowering for), and vite 5's default optimizer target contains it. Our
+      own open-ended `overrides.esbuild: ">=0.25.0"`, added in f06fef6 for a
+      Dependabot alert, floated us onto 0.28 while vite 5.4 asks for ^0.21.3 —
+      so it broke on an `npm install`, with no commit to blame. Pinned the dev
+      target in `vite.config.ts` instead of the dependency, so the override
+      stands and nothing that ships moved.
+
 - [x] ~~Anonymous callers could read 206 children's profiles and delete the
       audit log~~ **CLOSED AND VERIFIED 2026-09-18.** `RUN_THIS_ONE.sql` was
       applied. Re-curled production afterwards as an anonymous caller holding
@@ -289,12 +325,12 @@ reproducible from this repo alone.
       that purges at most hourly and needs no scheduler and no extension. The
       trigger only runs when someone reads something, but a table nobody is
       writing to is not growing, so the case it misses is the case that does
-      not matter. **Pending the SQL file being run.**
+      not matter. **The file has since been applied (section 0), so this printed its verdict in the SQL editor — but that output was never read back here, so the answer remains unknown. Re-run just this section to get it.**
 - [~] **`ip_hash` health is now a query rather than a question.** Section 3a
       of `RUN_THIS_ONE.sql` prints its own verdict: blind, working, or no data
       yet. If blind, the network-based bot signals do not work and the
       account-based ones still do — and the account is the real threat.
-      **Pending the SQL file being run.**
+      **The file has since been applied (section 0), so this printed its verdict in the SQL editor — but that output was never read back here, so the answer remains unknown. Re-run just this section to get it.**
 - [x] ~~11 production dependency vulnerabilities, untriaged~~ **Triaged and
       down to 3.** `npm audit fix` (no `--force`, so no majors) took production
       from 11 to 3 and from 4 high to **zero high**. What remains, and why:
@@ -323,7 +359,7 @@ reproducible from this repo alone.
       `RUN_THIS_ONE.sql` tests a real address against a fake one and prints
       which of three states it is in: a working enumeration oracle worth rate
       limiting, inert/broken, or always-true. It stays anon-callable either way
-      because sign-in calls it pre-auth. **Pending the SQL file being run.**
+      because sign-in calls it pre-auth. **The file has since been applied (section 0), so this printed its verdict in the SQL editor — but that output was never read back here, so the answer remains unknown. Re-run just this section to get it.**
 
 ## 2. Security and data
 
