@@ -14,7 +14,6 @@ import { logger } from '@/utils/logger';
 import { useSearchExpanded } from '@/hooks/useSearchExpanded';
 import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
 import { useSiteCounts } from '@/hooks/useSiteCounts';
-import { useGlassReflection } from '@/hooks/use-glass-reflection';
 import {
   Sheet, SheetClose, SheetContent, SheetGrabHandle, SheetTitle,
   SheetTrigger,
@@ -131,10 +130,6 @@ export function Navbar() {
   const userRole = (profile?.role as UserRole) || null;
   const dashboardLink = getDashboardLink(userRole);
   const { teachersCount, papersCount, papersReadCount } = useNavMenuCounts(menuOpen, user?.id);
-  /* Only listens while the menu is open. */
-  const glass = useGlassReflection(menuOpen);
-  /* The header pill is always on screen, so its reflection always listens. */
-  const headerGlass = useGlassReflection(true);
 
   // Close the mobile sheet on route change
   useEffect(() => {
@@ -174,8 +169,6 @@ export function Navbar() {
 
   return (
     <header
-      ref={headerGlass.ref as React.Ref<HTMLElement>}
-      style={headerGlass.style}
       /* On home, 2a draws the logo and Sign in INSIDE the dark control block
          rather than in a separate bone bar above it. Rendering it as a
          transparent overlay achieves that without moving the markup into
@@ -256,8 +249,6 @@ export function Navbar() {
             </SheetTrigger>
 
             <SheetContent
-              ref={glass.ref}
-              style={glass.style}
               side="bottom"
               aria-describedby={undefined}
               /* A half-height frosted sheet rather than the opaque near-full

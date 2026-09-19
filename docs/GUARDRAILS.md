@@ -493,7 +493,14 @@ This is the weakest area and the one with the least attention on it.
       and 1280px: no overflow, no new clipping, no visual change.
 - [ ] **`P2` ~376 `text-[Npx]` sizes, zero rem** — browser text scaling does
       nothing. Gated as "top 20 components, measure, decide".
-- [ ] **`P2` The liquid glass is not verified on a real device.** It is now on
+- [x] ~~The glass tracked the pointer and the gyroscope~~ **Removed.** It read
+      as a fault rather than as glass: a specular that chases the cursor keeps
+      announcing itself, so the eye goes to the panel instead of through it,
+      and on chrome rather than content that is exactly backwards. The hook and
+      both listeners are gone. What remains is lit from above, which is the one
+      direction that needs no explanation, and it also removes the whole
+      reduced-motion and iOS-permission surface that tracking dragged in.
+- [ ] **`P2` The frosted glass is not verified on a real device.** It is now on
       four surfaces — the menu sheet, the mobile header pill, the desktop top
       bar and the bottom nav — sharing one `.glass` material in `index.css`
       with a light and a dark body.
@@ -518,13 +525,13 @@ This is the weakest area and the one with the least attention on it.
       Also unmeasured: a 40px `backdrop-blur` with `saturate(200%)` on a
       scrolling panel is the most expensive paint in the product. It is fine on
       this machine; a mid-range Android is the case that matters.
-- [ ] **`P2` True Liquid Glass refraction is not implemented**, because CSS
-      cannot do it. Apple's material bends the content at the rim like a lens;
-      that needs an SVG displacement filter applied to the backdrop, which is
-      not reliably supported. What is here is the rest of the material — heavy
-      blur, a 200% saturation lift so colour survives rather than greying, a
-      moving specular bloom, a rim light on the top lip, and layered inset
-      shadows for thickness. It reads as glass; it does not refract.
+- `ACCEPTED` **True Liquid Glass refraction is not implemented**, because CSS
+      cannot do it. Apple's material bends content at the rim like a lens, which
+      needs an SVG displacement filter on the backdrop and is not reliably
+      supported. What is here is heavy blur, a 200% saturation lift so colour
+      survives rather than greying, a static sheen and rim light on the top lip,
+      and layered inset shadows for thickness. It reads as glass; it does not
+      refract, and chasing that with motion was tried and reverted.
 - [ ] **`P2` The capture shield fires on every alt-tab**, blanking text for
       2.2s. Correct mechanism, possibly intrusive in real use. One constant.
 - [ ] **`P2` No dark mode** despite tokens existing for it.

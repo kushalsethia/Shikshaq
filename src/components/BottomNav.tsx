@@ -1,4 +1,3 @@
-import { useGlassReflection } from '@/hooks/use-glass-reflection';
 import { useLocation } from 'react-router-dom';
 import { Home, Search, FileText, User } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -52,16 +51,8 @@ export function BottomNav() {
     },
   ];
 
-  const glass = useGlassReflection(true);
-
   return (
     <nav
-      /* The reflection is driven from here, not from the pill.
-         CSS custom properties inherit, so writing --gx/--gy on this
-         wrapper reaches the .glass child without threading a ref
-         through ExpandableTabs. */
-      ref={glass.ref as React.Ref<HTMLElement>}
-      style={glass.style}
       aria-label="Primary"
       /* Same fix as Navbar.tsx's top pill: while SearchControl's mobile-pinned
          popup is open, its "Past papers" tab sits directly under where the

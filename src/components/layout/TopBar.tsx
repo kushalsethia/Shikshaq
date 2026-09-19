@@ -1,4 +1,3 @@
-import { useGlassReflection } from '@/hooks/use-glass-reflection';
 import * as React from "react";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -86,12 +85,8 @@ export function TopBar({ className }: { className?: string }) {
     setMenuOpen(false);
   }, [location.pathname]);
 
-  const glass = useGlassReflection(true);
-
   return (
     <header
-      ref={glass.ref as React.Ref<HTMLElement>}
-      style={glass.style}
       className={cn(
         /* The same liquid glass as the sheet and the mobile pill, dark body.
            Was an opaque bg-panel slab; now the page scrolls visibly beneath it
