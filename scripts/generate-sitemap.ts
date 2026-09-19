@@ -76,6 +76,36 @@ const PAGE = 1000;
 
 type Query = { range: (from: number, to: number) => Promise<{ data: unknown[] | null; error: { message: string } | null }> };
 
+/* EVERY URL USED TO CARRY lastmod = TODAY.
+   None of the queries even selected a date column; the build stamped its own
+   run date onto all 1,830 entries. That tells Google the entire site changed
+   on every deploy, which is not true and is not harmless: Google states it
+   ignores lastmod values it finds unreliable, so the signal was being spent
+   rather than used -- on a 1,830-page site whose pages freeze at build time
+   and whose deploys are manual, which is exactly the situation the signal
+   exists for. It also made the committed sitemap churn 3,660 lines on every
+   build, which is noise in every diff and a hazard around `git add -A`.
+
+   Now each entity page carries its row's own date. Neither table has an
+   `updated_at`, so this is `created_at`: right for the many pages that have
+   not changed since import, and understating for a teacher who later edits
+   their profile. Understating is the safer error -- a date that is wrong in
+   one direction for a few rows still leaves the field trustworthy, whereas
+   "everything changed today" makes it worthless for all of them. Adding a real
+   `updated_at` with a trigger is the proper fix and needs SQL; see
+   docs/SUPABASE_RUNBOOK.md. */
+function toDay(timestamp: string | null | undefined): string | null {
+  if (!timestamp) return null;
+  const day = String(timestamp).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+}
+
+/** The newest date among a set of rows, for a hub page that lists them. */
+function newestDay(days: (string | null)[], fallback: string): string {
+  const real = days.filter((d): d is string => Boolean(d));
+  return real.length ? real.reduce((a, b) => (a > b ? a : b)) : fallback;
+}
+
 async function fetchAllRows<T>(build: () => Query, label: string): Promise<T[]> {
   const rows: T[] = [];
   for (let from = 0; ; from += PAGE) {
@@ -201,24 +231,30 @@ async function fetchSchoolSlugs(): Promise<SitemapURL[]> {
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   {
     console.log('Fetching school data from Supabase...');
-    const data = await fetchAllRows<{ school: string | null }>(
-      () => supabase.from('papers').select('school').eq('is_published', true) as unknown as Query,
+    const data = await fetchAllRows<{ school: string | null; created_at: string | null }>(
+      () => supabase.from('papers').select('school, created_at').eq('is_published', true) as unknown as Query,
       'papers.school',
     );
     const currentDate = new Date().toISOString().split('T')[0];
-    const counts = new Map<string, number>();
+    /* Dates collected per slug, not per source name: a hub page's real last
+       change is the newest paper on it, and two spellings of one school are
+       one page. */
+    const daysBySlug = new Map<string, (string | null)[]>();
     for (const row of data || []) {
-      const name = (row as { school: string | null }).school;
+      const name = row.school;
       if (!name || !name.trim()) continue;
-      counts.set(name, (counts.get(name) || 0) + 1);
-    }
-    const seen = new Set<string>();
-    const urls: SitemapURL[] = [];
-    for (const [name] of counts) {
       const slug = schoolSlug(name);
-      if (!slug || seen.has(slug)) continue;
-      seen.add(slug);
-      urls.push({ loc: `/school/${slug}`, changefreq: 'weekly', priority: 0.5, lastmod: currentDate });
+      if (!slug) continue;
+      daysBySlug.set(slug, [...(daysBySlug.get(slug) ?? []), toDay(row.created_at)]);
+    }
+    const urls: SitemapURL[] = [];
+    for (const [slug, days] of daysBySlug) {
+      urls.push({
+        loc: `/school/${slug}`,
+        changefreq: 'weekly',
+        priority: 0.5,
+        lastmod: newestDay(days, currentDate),
+      });
     }
     console.log(`Found ${urls.length} schools`);
     return urls;
@@ -235,8 +271,8 @@ async function fetchTeacherSlugs(): Promise<SitemapURL[]> {
   {
     console.log('Fetching teacher data from Supabase...');
 
-    const teachers = await fetchAllRows<{ slug: string }>(
-      () => supabase.from('teachers_list').select('slug').order('name') as unknown as Query,
+    const teachers = await fetchAllRows<{ slug: string; created_at: string | null }>(
+      () => supabase.from('teachers_list').select('slug, created_at').order('name') as unknown as Query,
       'teachers_list',
     );
 
@@ -250,7 +286,7 @@ async function fetchTeacherSlugs(): Promise<SitemapURL[]> {
 
     return teachers.map((teacher) => ({
       loc: `/tuition-teachers/${teacher.slug}`,
-      lastmod: today,
+      lastmod: toDay(teacher.created_at) ?? today,
       changefreq: 'weekly' as const,
       priority: 0.7,
     }));
@@ -303,8 +339,8 @@ async function readBankURLs(currentDate: string): Promise<{ schools: SitemapURL[
 
   {
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    const allRows = await fetchAllRows<{ id: string; school: string; has_school: boolean }>(
-      () => supabase.from('bank_papers').select('id, school, has_school').eq('is_published', true) as unknown as Query,
+    const allRows = await fetchAllRows<{ id: string; school: string; has_school: boolean; created_at: string | null }>(
+      () => supabase.from('bank_papers').select('id, school, has_school, created_at').eq('is_published', true) as unknown as Query,
       'bank_papers',
     );
 
@@ -318,20 +354,25 @@ async function readBankURLs(currentDate: string): Promise<{ schools: SitemapURL[
     if (skipped > 0) console.log(`   Skipped ${skipped} papers with placeholder question text`);
     // Deduped on the slug, because two source spellings that resolve to the
     // same school are one page, not two.
-    const slugs = new Set<string>();
-    rows.forEach((r) => { if (r.has_school) slugs.add(schoolSlug(r.school)); });
+    const daysBySlug = new Map<string, (string | null)[]>();
+    rows.forEach((r) => {
+      if (!r.has_school) return;
+      const slug = schoolSlug(r.school);
+      daysBySlug.set(slug, [...(daysBySlug.get(slug) ?? []), toDay(r.created_at)]);
+    });
 
-    const schools: SitemapURL[] = [...slugs].map((slug) => ({
+    const schools: SitemapURL[] = [...daysBySlug].map(([slug, days]) => ({
       loc: `/school/${slug}`,
       changefreq: 'weekly',
       priority: 0.5,
-      lastmod: currentDate,
+      // A school hub last changed when its newest paper arrived.
+      lastmod: newestDay(days, currentDate),
     }));
     const papers: SitemapURL[] = rows.map((r) => ({
       loc: `/past-papers/${r.id}`,
       changefreq: 'yearly',
       priority: 0.6,
-      lastmod: currentDate,
+      lastmod: toDay(r.created_at) ?? currentDate,
     }));
     return { schools, papers };
   }
@@ -362,10 +403,19 @@ async function main() {
 
   // Combine all URLs. Deduped because a school with papers in both the table
   // and the bank is one page and must be listed once.
+  /* Index and landing pages are assembled from the rows above, so the honest
+     answer for "when did this last change" is when the newest of those rows
+     arrived -- not when this script happened to run. On a build that adds no
+     content, every date in the file now stays exactly where it was. */
+  const contentDate = newestDay(
+    [...teacherPages, ...schoolPages, ...bankURLs.schools, ...bankURLs.papers].map((u) => u.lastmod),
+    currentDate,
+  );
+
   const allURLs: SitemapURL[] = dedupeByLoc([
-    ...STATIC_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
-    ...SUBJECT_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
-    ...BOARD_PAGES.map((url) => ({ ...url, lastmod: currentDate })),
+    ...STATIC_PAGES.map((url) => ({ ...url, lastmod: contentDate })),
+    ...SUBJECT_PAGES.map((url) => ({ ...url, lastmod: contentDate })),
+    ...BOARD_PAGES.map((url) => ({ ...url, lastmod: contentDate })),
     ...teacherPages,
     ...schoolPages,
     ...bankURLs.schools,

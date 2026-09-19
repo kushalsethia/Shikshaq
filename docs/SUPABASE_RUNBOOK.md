@@ -133,6 +133,22 @@ the 9 password accounts first — 545 of 553 are already on Google. The query is
 the bottom of `RUN_THIS_ONE.sql`. Do this **after** quotas are enforced; its
 whole value is making per-account limits expensive to evade.
 
+**An `updated_at` column on `teachers_list` and `bank_papers`.** The sitemap
+now sends each page its row's own `created_at` as `lastmod`, instead of
+stamping all 1,830 with the build date. That is a large improvement -- the
+field was previously being ignored by Google, since a site that claims every
+page changed on every deploy is not telling the truth -- but `created_at` is
+not `last modified`. It understates for a teacher who later edits their
+profile: the page changed and the date did not move.
+
+Neither table has an `updated_at`. Adding one with a `before update` trigger
+would make the field exactly right. It is left as a decision rather than
+written as a migration because it is a schema change on two live tables for an
+SEO signal that is already most of the way fixed, and the failure mode of
+getting it wrong (a trigger that fires on the bulk importer) is worse than the
+understatement it cures. `scripts/generate-sitemap.ts` reads `created_at` by
+name, so switching it over is a one-line change once the column exists.
+
 **Canary teacher rows.** `teachers_list` is anon-readable in bulk, so a decoy row
 with a number you control is picked up by any directory scrape, and `read_events`
 says which account pulled it. Set `is_paused = true` so it stays out of Browse.
