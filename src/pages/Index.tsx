@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { EmptyResults } from '@/components/EmptyResults';
 import { supabase } from '@/integrations/supabase/client';
-import { validateImageSrc } from '@/utils/imageSanitizer';
+import { imageAtWidth, validateImageSrc } from '@/utils/imageSanitizer';
 import { logger } from '@/utils/logger';
 import { TeacherCard } from '@/components/TeacherCard';
 import { SubjectCard } from '@/components/SubjectCard';
@@ -761,7 +761,7 @@ export default function Index() {
                   {featuredWithPhotos.slice(0, 5).map((t) => (
                     <img
                       key={t.id}
-                      src={validateImageSrc(t.image_url)}
+                      src={imageAtWidth(t.image_url, 400)}
                       alt=""
                       aria-hidden="true"
                       loading="lazy"
@@ -821,7 +821,7 @@ export default function Index() {
                     {featuredWithPhotos.slice(0, 3).map((t) => (
                       <img
                         key={t.id}
-                        src={validateImageSrc(t.image_url)}
+                        src={imageAtWidth(t.image_url, 400)}
                         alt=""
                         aria-hidden
                         loading="lazy"

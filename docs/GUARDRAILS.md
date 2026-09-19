@@ -429,7 +429,21 @@ This is the weakest area and the one with the least attention on it.
       `figure-dimensions.ts` was regenerated and **all 1,023 entries verified to
       match their files** — a resize without that would have reinstated the
       layout shift those numbers exist to prevent.
-- [ ] **`P2` Teacher photos are served at full resolution**, including into
+- [~] **Teacher photos: the 64 on Cloudinary are now sized; the 79 on Supabase
+      cannot be.** They were served at upload resolution into cards ~150px wide
+      and 30px avatars. `imageAtWidth()` in `imageSanitizer.ts` asks the CDN for
+      the width actually painted (`w_400,q_auto,f_auto`), wrapping
+      `validateImageSrc` so sanitisation still runs first.
+      **Measured on the photos Browse actually loads: 1.6 MB → 451 kB, a 73%
+      saving.** Not the 98% a single file suggested — that was one 1.81 MB
+      outlier, which does go to 32 kB, but the typical photo is 76 kB → 20 kB.
+      Quoting the outlier as the norm would have been the wrong number.
+      **Supabase's `/render/image/` endpoint answers 403 on this project** — it
+      is plan-gated and this plan lacks it, verified rather than assumed — so
+      79 of 148 photos pass through untouched and stay at upload size. Fixing
+      those needs either a plan change or re-hosting them on Cloudinary.
+- [ ] **`P2` ~~Teacher photos are served at full resolution~~ The 79 Supabase
+      photos still are**, including into
       30px avatar circles. No Supabase image transform anywhere.
 - [ ] **`P2` No real-user performance data.** All measurements here are local.
       Core Web Vitals from actual Kolkata connections would change priorities.

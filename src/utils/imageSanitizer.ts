@@ -128,3 +128,56 @@ function validateImageSrcUncached(url: string): string {
   return '';
 }
 
+
+/* ---------------------------------------------------------------- sizing */
+
+/**
+ * The same validated URL, asking the CDN for the size actually being painted.
+ *
+ * WHY THIS EXISTS. Teacher photos are served at their upload resolution. One
+ * of them is **1.81 MB**, and Browse loads up to 500 teachers, into cards
+ * about 150px wide and avatar circles of 30px. Measured against the live CDN:
+ *
+ *   original                1,811,039 bytes
+ *   w_400,q_auto,f_auto        31,961 bytes   (98.2% smaller)
+ *   w_200,q_auto,f_auto        10,728 bytes
+ *   w_96,q_auto,f_auto          3,290 bytes
+ *
+ * `q_auto` lets Cloudinary pick the quality it can get away with per image,
+ * and `f_auto` serves WebP or AVIF to browsers that accept it and the original
+ * format to those that do not.
+ *
+ * ONLY CLOUDINARY, AND THAT IS NOT AN OVERSIGHT. The 148 teacher photos are
+ * split across hosts: 64 on Cloudinary, 79 on Supabase storage, 2 elsewhere.
+ * Supabase's own `/render/image/` transform endpoint answers **403** on this
+ * project -- it is plan-gated and this plan does not have it, verified rather
+ * than assumed -- so those 79 cannot be resized at the edge at all and are
+ * passed through untouched. Anything that is not a recognised Cloudinary
+ * upload URL is returned exactly as `validateImageSrc` produced it.
+ *
+ * SANITISATION STILL RUNS FIRST. This wraps `validateImageSrc` rather than
+ * replacing it, so the protocol allowlist and blob-URL checks happen before
+ * any rewriting, and a URL that fails them returns '' without ever reaching
+ * the transform. A hostile URL cannot smuggle itself through by looking like
+ * a Cloudinary path.
+ */
+export function imageAtWidth(url: string | null | undefined, width: number): string {
+  const safe = validateImageSrc(url);
+  if (!safe) return '';
+
+  /* Cloudinary delivery URLs look like
+       https://res.cloudinary.com/<cloud>/image/upload/<version>/<path>
+     and transformations are a path segment inserted after `/upload/`. The
+     host check matters: `/image/upload/` is a common enough path that
+     matching on it alone would rewrite URLs on hosts that would then 404. */
+  if (!safe.startsWith('https://res.cloudinary.com/')) return safe;
+  if (!safe.includes('/image/upload/')) return safe;
+
+  /* Already carries a transformation -- someone stored a sized URL. Leave it:
+     stacking a second transform changes the result in ways the caller did not
+     ask for, and a stored size is a decision someone made deliberately. */
+  if (/\/image\/upload\/[^/]*[,_](?:w|h|c|q|f)_/.test(safe)) return safe;
+
+  const w = Math.max(16, Math.min(2000, Math.round(width)));
+  return safe.replace('/image/upload/', `/image/upload/w_${w},q_auto,f_auto/`);
+}

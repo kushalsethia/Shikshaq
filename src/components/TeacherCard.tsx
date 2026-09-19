@@ -5,7 +5,7 @@ import { useLikes } from '@/lib/likes-context';
 import { useUpvotes } from '@/lib/upvotes-context';
 import { useAuth } from '@/lib/auth-context';
 import { memo, useState } from 'react';
-import { validateImageSrc } from '@/utils/imageSanitizer';
+import { imageAtWidth, validateImageSrc } from '@/utils/imageSanitizer';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { Chip } from '@/components/ui/chip';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
@@ -210,7 +210,11 @@ function TeacherCardComponent({
 
   const photo = imageUrl ? (
     <img
-      src={validateImageSrc(imageUrl)}
+      /* 400, not the upload resolution. The card paints ~150-170px wide in
+         the grid and 80px in the row variant, so 400 is comfortably 2x on a
+         retina phone. One of these photos is 1.81 MB at source and 32 kB at
+         w_400 -- and Browse renders up to 500 of them. */
+      src={imageAtWidth(imageUrl, 400)}
       alt={area ? `${name}, ${subject} tutor in ${area}, Kolkata` : `${name}, ${subject} tutor in Kolkata`}
       loading="lazy"
       decoding="async"

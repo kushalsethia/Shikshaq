@@ -22,7 +22,7 @@ import { protectedClass } from '@/lib/copy-guard';
 import { substituteGlyphs, substituteGlyphsInHtml } from '@/lib/glyph-substitution';
 import { TeacherCard } from '@/components/TeacherCard';
 import DOMPurify from 'dompurify';
-import { validateImageSrc } from '@/utils/imageSanitizer';
+import { imageAtWidth, validateImageSrc } from '@/utils/imageSanitizer';
 import { recordVisit } from '@/lib/recently-visited';
 import { TeacherComments } from '@/components/TeacherComments';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
@@ -880,7 +880,7 @@ export default function TeacherProfile() {
                 <div className="relative h-[166px] w-[132px] shrink-0 overflow-hidden rounded-[20px] outline outline-1 -outline-offset-1 outline-black/10 lg:h-[280px] lg:w-[224px]">
                   {teacher.image_url ? (
                     <img
-                      src={validateImageSrc(teacher.image_url)}
+                      src={imageAtWidth(teacher.image_url, 800)}
                       alt={`${teacher.name}, ${subjectsForTitle(metaSubjects)} tutor in ${areaForTitle(metaArea)}, Kolkata`}
                       width={224}
                       height={280}
