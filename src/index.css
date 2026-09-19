@@ -386,9 +386,16 @@
                          positioned elements, so they stay put while content
                          scrolls under.
 
-     Literal white/black take an alpha natively. The theme tokens do NOT --
-     none declares <alpha-value> -- which is why nothing here uses a
-     `bg-card/60`-style class. */
+     On alpha, correcting what this note used to say. It claimed the theme
+     tokens cannot take an `/opacity` modifier because none declares
+     `<alpha-value>`. That is wrong: Tailwind rewrites `hsl(var(--card))` to
+     `hsl(var(--card) / .6)` by itself, and `.text-background\/70` and friends
+     are in the built CSS. The tokens that genuinely cannot take one are the
+     literal `var(--x)` hex holders -- `panel`, `mint`, the whole `warm-*`
+     block -- where Tailwind has never seen the value and emits nothing at all.
+     This block uses raw colours anyway, because a glass body is tuned per
+     surface rather than taken from a token. See
+     src/lib/opacity-modifiers.test.ts, which now fails on either mistake. */
   .glass {
     -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.06);
     backdrop-filter: blur(40px) saturate(200%) brightness(1.06);

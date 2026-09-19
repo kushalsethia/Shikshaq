@@ -17,7 +17,14 @@ const AlertDialogOverlay = React.forwardRef<
     /* Handoff O-013: flat bg-panel/45, no blur — every other overlay in
        this redesign (Sheet, Dialog) is the same flat tint, never a blur. */
     className={cn(
-      "fixed inset-0 z-50 bg-panel/45 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      /* bg-[#1B1A18]/45, NOT bg-panel/45 -- the same defect sheet.tsx carries a
+         long note about, missed here when that one was fixed. `panel` is
+         var(--panel-dark), a literal hex, and Tailwind cannot compute an alpha
+         from a var(): it emits no declaration at all, so this scrim computed to
+         rgba(0, 0, 0, 0). Alert dialogs are the ones that ask "delete this
+         review?" -- the destructive confirmations -- and they have been opening
+         over a fully undimmed page. */
+      "fixed inset-0 z-50 bg-[#1B1A18]/45 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}

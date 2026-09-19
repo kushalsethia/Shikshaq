@@ -285,7 +285,7 @@ export function resolveAuthHero(intent: AuthIntent, counts: AuthHeroCounts): Aut
           <Well h={120}>
             <span className="absolute left-0 top-0"><Pill className={`-rotate-2 bg-brand text-[#1F1F1F] ${TILT}`}>No listing fee</Pill></span>
             <span className="absolute right-[4%] top-[46px]"><Pill className={`rotate-[3deg] bg-card text-foreground ${TILT}`}>No commission</Pill></span>
-            <span className="absolute bottom-0 left-[8%]"><Pill className={`-rotate-1 bg-white/12 text-[#FCFAF7] ${TILT}`}>~3 days to review</Pill></span>
+            <span className="absolute bottom-0 left-[8%]"><Pill className={`-rotate-1 bg-white/10 text-[#FCFAF7] ${TILT}`}>~3 days to review</Pill></span>
           </Well>
         ),
         subline: 'Sign in to start your application',

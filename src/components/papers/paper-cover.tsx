@@ -90,7 +90,11 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
           <IconDisc
             tone="dark"
             size={32}
-            className="absolute right-2.5 top-2.5 z-10 bg-panel/85"
+            /* Literal hex, not bg-panel/85: `panel` is var(--panel-dark) and
+               Tailwind emits nothing when asked for an alpha on a var(), so
+               this padlock was sitting on whatever the cover art happened to
+               be behind it. See the note in sheet.tsx. */
+            className="absolute right-2.5 top-2.5 z-10 bg-[#1B1A18]/85"
             label="Sign in to read"
           >
             <Lock size={13} strokeWidth={2.25} aria-hidden="true" />

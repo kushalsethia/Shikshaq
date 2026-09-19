@@ -171,43 +171,59 @@ re-reported: `truncate` ellipsising long school and teacher names is that class
 working, and `11px` labels are a deliberate scale rung (the 11.5px one became
 12px in the token pass).
 
-## 0.9 Every `/opacity` on a theme colour is dead. All 40 of them.
+## 0.9 The `/opacity` audit, corrected: 6 dead, not 40
 
-Found while frosting the nav menu, and it is the most widespread defect on this
-page.
+**This section previously said "all 40 of them" were dead and blamed the
+missing `<alpha-value>` placeholder. Both halves were wrong.** Re-measured on
+2026-09-19 against the built CSS, properly this time.
 
-**Tailwind can only inject an alpha channel into a CSS-variable colour when the
-theme defines it with the `<alpha-value>` placeholder.** Nothing in
-`tailwind.config.ts` does — `card` is `hsl(var(--card))`, not
-`hsl(var(--card) / <alpha-value>)`. When the placeholder is missing Tailwind
-**emits no declaration at all** rather than erroring, so the class silently does
-nothing and the element falls back to transparent or to an inherited colour.
+**Tailwind does not need `<alpha-value>` for an `hsl(var(--x))` token.** It
+rewrites the value itself. `.text-background/70` is in the shipped CSS as
+`color:hsl(var(--background) / .7)`, and so are 87 others. The proposed P1 --
+add `<alpha-value>` to 37 tokens and watch 38 classes "come alive" -- would
+have changed nothing, because they were already alive.
 
-Measured against the built CSS: **40 distinct classes written, 0 generated.**
-Among them `bg-panel/45` (the shared sheet/dialog scrim — so **no modal on the
-site has ever dimmed its background**), `text-background/70` ×14,
-`text-background/60` ×10, `bg-muted/80` ×7, `bg-foreground/10` ×6,
-`bg-card/90`, `bg-brand/25`, `bg-brand-blue/85`.
+**The original audit anchored its search on a leading dot.** Tailwind emits a
+variant as `.hover:bg-muted/80:hover`, so every `hover:`, `md:` and `dark:`
+class looked absent. That single mistake produced the "0 generated" figure.
+`hover:bg-muted/80` in FilterPanel.tsx, counted as dead seven times over, works
+and always has.
 
-This is the same failure that shipped the capture shield invisible, and the
-`warm-*` block already carries a "literal-hex vars, so no `/opacity`" warning —
-but the rule is broader than that comment says: it applies to the `hsl()` tokens
-too, because none of them carry `<alpha-value>` either.
+The corrected numbers: **94 distinct classes written, 88 live, 6 dead.** The
+six had two real causes, neither of them `<alpha-value>`, and all six are now
+fixed:
 
-- [x] The sheet/dialog scrim is fixed — `bg-[#1B1A18]/45`, a literal hex, which
-      takes the modifier. Verified: `rgba(27, 26, 24, 0.45)`. Every modal in the
-      product now dims its background, which is what the spec always said.
-- [ ] **`P1` Fix the root cause: add `<alpha-value>` to the `hsl()` tokens.**
-      One line per token (`hsl(var(--card) / <alpha-value>)`), after which
-      `bg-card/75` works everywhere and the remaining ~38 classes come alive.
-      **They come alive all at once**, which is 38 places that currently render
-      with no colour declaration suddenly rendering translucent — an improvement
-      per the authors' intent, but a broad visual change that needs a pass over
-      the site. Do it as its own piece of work, not folded into something else.
-- [ ] **`P2` The literal-hex tokens still cannot take `/opacity` at all**
-      (`panel`, and everything in the `warm-*` block). `<alpha-value>` cannot
-      help those; they would have to be stored as channels. Use an explicit
-      literal-hex class or an arbitrary `hsl(var(--x)/0.75)` value instead.
+| what | where | why it emitted nothing |
+|---|---|---|
+| `bg-panel/45` | `ui/alert-dialog.tsx` | `panel` is `var(--panel-dark)`, a literal hex Tailwind has never seen, so it cannot compute an alpha. **The destructive confirmations -- "delete this review?" -- were opening over an undimmed page.** sheet.tsx was fixed for this in the same pass that missed alert-dialog.tsx. |
+| `bg-panel/85` | `papers/paper-cover.tsx` | same. The locked-paper padlock sat on bare cover art with no disc behind it. |
+| `bg-white/12` x3 | `auth/AuthHero.tsx`, `JoinApply.tsx` | 12 is not a step. The scale runs 0-100 in fives. Snapped to `/10`. |
+| `text-white/78` | `legal/reader.tsx` | 78 is not a step. Snapped to `/80`. |
+
+- [x] ~~`P1` Add `<alpha-value>` to the `hsl()` tokens~~ **Not a defect. Closed
+      2026-09-19 without the change**, because the premise did not survive
+      measurement. Nothing to fix and nothing to re-verify across the site.
+- [x] ~~The six genuinely dead classes~~ **Fixed 2026-09-19.** Verified in the
+      rebuilt CSS: `.bg-[#1B1A18]/45` emits `#1b1a1873` and `.bg-[#1B1A18]/85`
+      emits `#1b1a18d9`. Re-running the audit leaves zero dead classes outside
+      comments.
+- [x] ~~`P2` The literal-hex tokens cannot take `/opacity` at all~~ **Still
+      true, and now enforced rather than remembered.**
+      `src/lib/opacity-modifiers.test.ts` fails on an `/opacity` applied to any
+      of the 23 literal `var()` colour tokens, and on any value off the scale.
+      Both rules are decidable from source, so it is a test rather than a
+      script and runs in CI. It strips comments first -- the fixes all carry
+      notes naming the broken class, and the first version failed on its own
+      documentation. Mutation-checked: a file containing `bg-panel/45` and
+      `text-white/78` fails both rules by name. A third test counts the
+      literal-var tokens in `tailwind.config.ts`, so adding one forces the
+      denylist to be updated with it.
+
+**The lesson worth keeping is about the measurement, not the CSS.** The wrong
+number was confident, specific and repeated in three documents, and it was
+produced by a regex that was subtly wrong in a way no amount of re-reading the
+conclusion would have surfaced. What found it was running the check again from
+scratch and being surprised that 70 classes came back live.
 
 ## 0.95 Security review follow-ups, 2026-09-19
 

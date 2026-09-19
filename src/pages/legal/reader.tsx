@@ -372,7 +372,7 @@ export function LegalReader({
         <h2 className="m-0 mb-2 font-display text-[20px] font-extrabold leading-[1.15] tracking-[-0.03em] sm:text-[23px]">
           {footHead}
         </h2>
-        <p className="m-0 mb-4 max-w-[62ch] text-[14px] leading-[1.65] text-white/78 sm:text-[15px]">{footBody}</p>
+        <p className="m-0 mb-4 max-w-[62ch] text-[14px] leading-[1.65] text-white/80 sm:text-[15px]">{footBody}</p>
         <div className="flex flex-wrap gap-[10px]">
           <a
             href={getWhatsAppLink('8240980312')}
