@@ -13,7 +13,7 @@ statements to run.
 
 | section | what | risk |
 |---|---|---|
-| 1 | **Gives 218 reviews their authors back.** The only item with a symptom on the live site today. | Recreates one view. |
+| 1 | ~~Gives 218 reviews their authors back.~~ **APPLIED AND VERIFIED 2026-09-19.** 206 = 206, anonymity intact, `/rpc/get_public_profile_data` still 42501, and the named review renders as a name signed in and signed out. | done |
 | 2 | Makes two admin-only guards reject anon. Both functions are already closed, so this is correctness, not exposure. | Renames one function aside and wraps it, behind a check so a second run is safe. |
 | 3 | Three read-only diagnostics. They ran once inside `RUN_THIS_ONE.sql` and printed their verdicts, but the output was never read back, so the answers are still unknown. | None. Changes nothing. |
 | 4 | Verification, with the expected answer written beside each query. | None. |

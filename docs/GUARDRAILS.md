@@ -263,29 +263,34 @@ reproducible from this repo alone.
 
 ## 1. Open now
 
-- [ ] **`P0` 218 of 376 reviews render as "Anonymous" on the live site.** A
-      regression from the lockdown, found on 2026-09-19 by reading the 401s on
-      a page that was otherwise working. `public_profiles` is a view declared
-      `security_invoker = on` over `select * from get_public_profile_data()`,
-      so revoking EXECUTE on that function — correctly, it was dumping 206
-      named children — made every read of the view return 42501. **The note I
-      wrote beside that revoke, that the function had "no call sites in `src/`
-      so closing it breaks nothing", was wrong**: it has three, all reached
-      through the view. Grepping the code could not see a dependency that
-      lived in the database. Signed-in visitors are affected too, since the
-      revoke covered `authenticated`. Verified on
-      `/tuition-teachers/supriya-jana`: a review with `is_anonymous = false`
-      and a real `user_id` renders as "Anonymous", while the genuinely
-      anonymous one beside it correctly does the same.
-      Fix written and pending a run:
-      `supabase/migrations/20260919120000_restore_public_profiles_view.sql`.
-      It rebuilds the view straight over `profiles`, so the function stays
-      revoked and `/rpc/get_public_profile_data` stays shut. All five display
-      columns are restored — the owner's call, made with the alternative in
-      front of them, so a signed-out visitor can again read name, school and
-      grade in bulk. `src/lib/public-profiles-columns.test.ts` now pins the
-      view's columns against the three `.select()` calls, because trimming
-      either side alone re-breaks all 218.
+- [x] ~~`P0` 218 of 376 reviews render as "Anonymous" on the live site~~
+      **FIXED AND VERIFIED 2026-09-19.** Section 1 of `RUN_THIS_LAST.sql` was
+      applied. Verified against production from the app's own client rather
+      than from the SQL editor:
+
+      | check | expected | got |
+      |---|---|---|
+      | `public_profiles` readable | yes | yes |
+      | 4a rows in the view | 206 | **206** |
+      | 4b distinct named review authors | = 4a | **206, equal** |
+      | 4c anonymous-only profiles exposed | 0 | **0** |
+      | `/rpc/get_public_profile_data` | still 42501 | **still 42501** |
+
+      End to end on `/tuition-teachers/supriya-jana`, which is the page this was
+      found on: the named review now reads **"Priyanka Bhowmick · Guardian"**
+      where it read "Anonymous", and the genuinely anonymous review beside it
+      **still reads "Anonymous"**. Both halves, because restoring the names by
+      breaking anonymity would have been worse than the bug.
+      Checked signed IN as well as out, since the original revoke covered
+      `authenticated` too and testing only the signed-out case would have
+      missed half of it.
+
+      The cause is worth keeping: I recorded that the revoked function had "no
+      call sites in `src/`, so closing it breaks nothing". It had three, all
+      through a view declared `security_invoker = on` over that function.
+      Grepping the code could not see it, because the dependency lived in the
+      database. The fix rebuilds the view straight over `profiles`, so the
+      bulk-dump endpoint stays shut -- confirmed above, not assumed.
 - [x] ~~`npm run dev` did not start~~ **Fixed 2026-09-19 (`dafef23`).** It
       printed "ready in 591 ms", exited 1, and left the port answering
       ERR_CONNECTION_REFUSED. tsc, eslint, 126 tests and the production build
