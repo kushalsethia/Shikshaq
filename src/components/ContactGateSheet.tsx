@@ -127,7 +127,7 @@ export function ContactGateSheet({
           <div className="flex items-center gap-3">
             <div className="h-[52px] w-[52px] flex-none overflow-hidden rounded-full">
               {safeImage ? (
-                <img src={safeImage} alt="" className="h-full w-full object-cover" />
+                <img src={safeImage} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <StripePlaceholder name={teacherName} initialSize={20} />
               )}

@@ -305,6 +305,8 @@ function B4() {
         aria-hidden
         width={252}
         height={92}
+        loading="lazy"
+        decoding="async"
         className="h-10 w-auto shrink-0"
       />
       {/* prefooter-04-one-liner.png sets this in two tones: the claim in full

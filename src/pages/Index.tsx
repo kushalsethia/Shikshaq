@@ -1323,6 +1323,8 @@ export default function Index() {
                                 src={validateImageSrc(q.teacherImageUrl)}
                                 alt=""
                                 aria-hidden
+                                loading="lazy"
+                                decoding="async"
                                 className="h-[30px] w-[30px] flex-none rounded-full object-cover"
                               />
                             ) : (

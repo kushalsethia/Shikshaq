@@ -118,6 +118,8 @@ export function ReviewCard({ review, index, fan = false, fullWidth = false, clas
               src={validateImageSrc(teacherImageUrl)}
               alt=""
               aria-hidden
+              loading="lazy"
+              decoding="async"
               className="h-[26px] w-[26px] flex-none rounded-full object-cover"
             />
           ) : (
