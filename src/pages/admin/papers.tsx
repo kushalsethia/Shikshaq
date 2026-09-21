@@ -260,6 +260,18 @@ export default function AdminPapersPage() {
       closeUpload();
     } catch (error) {
       if (import.meta.env.DEV) console.error('Save error:', error);
+      /* The PDF, if any, already made it to storage in handleFileUpload
+         before this insert ran -- clean it up so a failed publish doesn't
+         leave an orphaned file nothing in `papers` will ever reference
+         (the same class of bug already fixed in SubmitPaper.tsx). */
+      if (formData.file_url) {
+        const marker = '/paper-files/';
+        const idx = formData.file_url.indexOf(marker);
+        if (idx !== -1) {
+          const path = formData.file_url.slice(idx + marker.length);
+          void supabase.storage.from('paper-files').remove([path]).catch(() => {});
+        }
+      }
       adminToast('Failed to save paper');
     } finally {
       setSaving(false);
@@ -488,7 +500,7 @@ export default function AdminPapersPage() {
           </p>
           <div className="mt-4">
             <Label htmlFor="takedown-reason" className="mb-1.5 block text-[14px] font-semibold text-foreground">
-              Reason <span className="font-normal text-warm-meta">(required, the reported party can read this)</span>
+              Reason <span className="font-normal text-warm-meta">(required, kept in the admin audit log)</span>
             </Label>
             <Textarea
               id="takedown-reason"
