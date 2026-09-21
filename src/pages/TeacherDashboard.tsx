@@ -215,30 +215,31 @@ export default function TeacherDashboard() {
   const shikshaqmineQuery = useQuery({
     queryKey: ['shikshaqmineByEmail', authProfileQuery.data?.email],
     queryFn: async () => {
-      /* Two reads, not one. The non-contact columns still come from the table;
-         the contact columns come through fetchOwnContact, which uses
-         teacher_own_contact() once migration 20260917120000 has run and falls
-         back to the direct select until then.
-         This has to be split because that migration revokes "Link",
-         "Phone Number" and "Email ID" from `authenticated`, and PostgREST
-         expands select('*') to the columns a role MAY read rather than
-         erroring -- so a single select would keep succeeding while silently
-         dropping the teacher's own phone number. */
-      const [rowResult, contact] = await Promise.all([
-        supabase
-          .from('Shikshaqmine')
-          .select('*')
-          .eq('Email ID', authProfileQuery.data!.email!)
-          .maybeSingle(),
-        fetchOwnContact(authProfileQuery.data!.email!),
-      ]);
-      const { data, error } = rowResult;
+      /* Two reads, not one. The contact columns AND this row's own id come
+         through fetchOwnContact first, via teacher_own_contact() -- a
+         SECURITY DEFINER function that resolves the caller from auth.uid()
+         internally, so it can still read "Email ID" even though
+         `authenticated` cannot. The bulk of the row is then fetched by id,
+         never by "Email ID": Postgres requires SELECT on any column named in
+         a WHERE clause, not just returned ones, so filtering this select on
+         the revoked "Email ID" column would 42501 for every teacher now that
+         migration 20260917120000 has run. (It has -- confirmed live via
+         has_column_privilege('authenticated', 'Shikshaqmine', 'Email ID',
+         'SELECT') = false.) The two reads can no longer run in parallel: the
+         id the second one filters on comes from the first. */
+      const contact = await fetchOwnContact(authProfileQuery.data!.email!);
+      if (!contact?.id) return null;
+      const { data, error } = await supabase
+        .from('Shikshaqmine')
+        .select('*')
+        .eq('id', contact.id)
+        .maybeSingle();
       if (error) throw error;
       if (!data) return null;
       const merged = {
         ...(data as Record<string, unknown>),
-        'Phone Number': contact?.phoneNumber ?? (data as Record<string, unknown>)['Phone Number'] ?? null,
-        Link: contact?.link ?? (data as Record<string, unknown>).Link ?? null,
+        'Phone Number': contact.phoneNumber ?? (data as Record<string, unknown>)['Phone Number'] ?? null,
+        Link: contact.link ?? (data as Record<string, unknown>).Link ?? null,
       };
       return normalizeTeacherRow(merged as ShikshaqmineRowWithPause);
     },
@@ -911,23 +912,11 @@ export default function TeacherDashboard() {
         "Max Fees": teacherData["Max Fees"] || null,
       };
 
-      // Get the teacher's slug before updating (for cache invalidation)
-      const { data: teacherRecord } = await supabase
-        .from('Shikshaqmine')
-        .select('Slug')
-        .eq('Email ID', profile.email)
-        .maybeSingle();
-
-      // No matching "Email ID" row to update — same email-match fragility as the initial fetch.
-      // Surface it with a concrete next step instead of a silent no-op save.
-      if (!teacherRecord) {
-        toast.error(
-          `We couldn't find a listing matching ${profile.email}. Contact ngo.aquaterra@gmail.com with this email so we can fix the mismatch.`
-        );
-        setSaving(false);
-        return;
-      }
-
+      // teacherData is the already-loaded row this form is editing, so its
+      // Slug is already known -- no need for a second round trip to fetch it
+      // again, and no need to filter that round trip by the revoked
+      // "Email ID" column the way this used to (see shikshaqmineQuery above
+      // for why that 42501s for every teacher now).
       const { error } = await supabase
         .from('Shikshaqmine')
         .update(updateData)
@@ -944,8 +933,8 @@ export default function TeacherDashboard() {
       }
 
       // Invalidate cache for this teacher's profile
-      if (teacherRecord?.Slug) {
-        invalidateTeacherCache(teacherRecord.Slug);
+      if (teacherData!.Slug) {
+        invalidateTeacherCache(teacherData!.Slug);
       }
 
       // Invalidate featured teachers cache (they might appear on browse/home)
