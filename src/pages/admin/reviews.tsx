@@ -683,6 +683,12 @@ export default function AdminReviews() {
       attribution: `${rec.recommender_name} · on ${rec.teacher_name} · ${reviewedMeta}`,
       badge: <AdminStatusPill status={recStatus(rec.status)} label={rec.status.charAt(0).toUpperCase() + rec.status.slice(1)} />,
       actions: [
+        ...(rec.status === 'pending'
+          ? [
+              { label: 'Mark as contacted', tone: 'mint' as const, onClick: () => handleQuickStatus(rec.id, 'contacted') },
+              { label: 'Dismiss', tone: 'muted' as const, onClick: () => handleQuickStatus(rec.id, 'rejected') },
+            ]
+          : []),
         { label: 'Edit', tone: 'muted', onClick: () => handleEditRecommendation(rec) },
         { label: 'Convert to application', tone: 'mint', onClick: () => handleConvertToApplication(rec) },
       ],
