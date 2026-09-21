@@ -82,21 +82,28 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
   );
 }
 
-export type AdminSectionKey = 'approvals' | 'teachers' | 'papers' | 'reviews' | 'audit';
+export type AdminSectionKey = 'approvals' | 'teachers' | 'papers' | 'reviews' | 'feedback' | 'audit';
 
-/** AD-002a: the fixed five-tab set and order — Approvals · Teachers ·
- *  Papers · Reviews · Audit — with badges only on the two queues
+/** AD-002a: the fixed tab set and order — Approvals · Teachers · Papers ·
+ *  Reviews · Feedback · Audit — with badges only on the two queues
  *  (Approvals, Reviews). Every section page builds its nav through this
  *  one function so the label text and tab order can't drift between
  *  pages. `approvalsCount`/`reviewsCount` are the two real counts callers
  *  already fetch (or already have in memory); omit or pass 0 for "no
- *  badge" — this never renders a `0` badge either way. */
+ *  badge" — this never renders a `0` badge either way.
+ *
+ *  Feedback added after AD-007: site NPS/star-rating feedback was
+ *  deliberately kept out of the Reviews merge (no teacher column, no
+ *  publish/convert action -- see admin/reviews.tsx's own header comment),
+ *  which left it with no admin surface at all. Its own tab, no count badge
+ *  (not a moderation queue to clear, just browsable history). */
 export function buildAdminNav(active: AdminSectionKey, counts: { approvals?: number; reviews?: number }): AdminNavItem[] {
   return [
     { key: 'approvals', label: 'Approvals', path: '/admin/approvals', count: counts.approvals, active: active === 'approvals' },
     { key: 'teachers', label: 'Teachers', path: '/admin/teachers', active: active === 'teachers' },
     { key: 'papers', label: 'Papers', path: '/admin/papers', active: active === 'papers' },
     { key: 'reviews', label: 'Reviews', path: '/admin/reviews', count: counts.reviews, active: active === 'reviews' },
+    { key: 'feedback', label: 'Feedback', path: '/admin/feedback', active: active === 'feedback' },
     { key: 'audit', label: 'Audit', path: '/admin/audit', active: active === 'audit' },
   ];
 }

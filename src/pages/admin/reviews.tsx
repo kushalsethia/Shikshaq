@@ -33,8 +33,11 @@ import { ThumbsUp } from 'lucide-react';
    review-adjacent admin routes (AdminComments, AdminRecommendations,
    AdminUpvotes), switched by a segmented source control. AdminFeedback.tsx
    (site NPS/star-rating feedback, unrelated to teacher reviews — no teacher
-   column, no publish/convert action) is deliberately left out; see the
-   report for the reasoning.
+   column, no publish/convert action) is deliberately left out of THIS
+   merge; see the report for the reasoning. It has its own tab and page
+   again at admin/feedback.tsx (a plain table, not this queue-card shape),
+   because leaving it out of the merge had left it with no admin surface
+   anywhere -- not the intended outcome of "doesn't belong in this merge".
 
    AD-007 ⚠: this screen is "not a table — a queue of cards" and "reported
    reviews only" (a moderator clears a queue, they do not browse all

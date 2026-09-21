@@ -71,6 +71,7 @@ const AdminApprovals = lazy(() => import("./pages/admin/approvals"));
 const AdminTeachersPage = lazy(() => import("./pages/admin/teachers"));
 const AdminPapersPage = lazy(() => import("./pages/admin/papers"));
 const AdminReviews = lazy(() => import("./pages/admin/reviews"));
+const AdminFeedbackPage = lazy(() => import("./pages/admin/feedback"));
 const AdminAuditLog = lazy(() => import("./pages/admin/audit"));
 /* LikedTeachers / MyTeachers are NOT lazy-imported here any more. Their two
    routes redirect into /account (see the O-05 note below) and neither
@@ -405,17 +406,21 @@ const App = () => (
                   <AdminReviews />
                 </Suspense>
               } />
+              <Route path="/admin/feedback" element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminFeedbackPage />
+                </Suspense>
+              } />
               <Route path="/admin/audit" element={
                 <Suspense fallback={<PageLoader />}>
                   <AdminAuditLog />
                 </Suspense>
               } />
-              {/* Legacy admin URLs redirect into the 5-section console (pages.md §15). */}
+              {/* Legacy admin URLs redirect into the console (pages.md §15). */}
               <Route path="/admin/applications" element={<Navigate to="/admin/approvals" replace />} />
               <Route path="/admin/recommendations" element={<Navigate to="/admin/reviews" replace />} />
               <Route path="/admin/comments" element={<Navigate to="/admin/reviews" replace />} />
               <Route path="/admin/upvotes" element={<Navigate to="/admin/reviews" replace />} />
-              <Route path="/admin/feedback" element={<Navigate to="/admin/reviews" replace />} />
               <Route path="/select-role" element={
                 <Suspense fallback={<PageLoader />}>
                   <SelectRole />

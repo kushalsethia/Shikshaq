@@ -49,6 +49,7 @@ const ACTION_META: Record<string, { verb: string; result: string; status: AdminS
   'edit:recommendation': { verb: 'Updated recommendation', result: 'Updated', status: 'paused' },
   'reject:recommendation': { verb: 'Dismissed recommendation', result: 'Dismissed', status: 'hidden' },
   'delete:upvotes': { verb: 'Cleared upvotes', result: 'Cleared', status: 'paused' },
+  'delete:feedback': { verb: 'Deleted feedback', result: 'Removed', status: 'hidden' },
 };
 
 function describeAction(row: AuditRow): { verb: string; result: string; status: AdminStatus } {
