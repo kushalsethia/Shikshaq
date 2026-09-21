@@ -785,13 +785,6 @@ export function extractFiltersFromQuery(query: string, subjects?: { name: string
       if (!extractedFilters.areas!.includes(area)) extractedFilters.areas!.push(area);
       continue;
     }
-
-    const fuzzyArea = fuzzyVocabMatch(word, AREAS.map(a => a.toLowerCase()));
-    if (fuzzyArea) {
-      const area = AREAS.find(a => a.toLowerCase() === fuzzyArea);
-      if (area && !extractedFilters.areas!.includes(area)) extractedFilters.areas!.push(area);
-      continue;
-    }
   }
 
   // --- STEP 3: Cleanup ---
