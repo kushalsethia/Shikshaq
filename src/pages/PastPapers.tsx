@@ -632,7 +632,20 @@ export default function PastPapers() {
               <div
                 ref={coverRailRef}
                 onScroll={onCoverRailScroll}
-                className="scrollbar-hide flex items-end justify-start gap-3 overflow-x-auto overflow-y-visible pb-0 sm:justify-center sm:gap-[18px] sm:overflow-visible"
+                /* sm:overflow-visible assumed the 5 covers + the "All N
+                   papers" card always fit from sm: up, verified (per the
+                   comment above) at the usual round breakpoints. They don't
+                   at 1024px specifically -- the lg boundary, an easy width to
+                   skip by hand -- where the row is ~163px wider than the
+                   viewport and overflow-visible lets that bleed straight
+                   into the page instead of clipping or scrolling it.
+                   overflow-x-auto is visually identical whenever the row
+                   does fit (scrollbar-hide already hides the bar, and
+                   nothing scrolls if there's nothing to scroll), so this
+                   keeps the "fits and centres" look everywhere it already
+                   held while turning the case where it doesn't into a
+                   contained scroll instead of a page-wide layout break. */
+                className="scrollbar-hide flex items-end justify-start gap-3 overflow-x-auto overflow-y-visible pb-0 sm:justify-center sm:gap-[18px]"
               >
                 {recentPapers.slice(0, 5).map((p, i) => (
                   <PaperCover
