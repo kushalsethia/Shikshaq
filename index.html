@@ -70,6 +70,17 @@
     <!-- Resource hints for better performance -->
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    <!-- Every page on the site fetches from Supabase before it can render
+         anything real, and this origin previously had no resource hint at
+         all -- only the fonts did. %VITE_SUPABASE_URL% is Vite's built-in
+         HTML env substitution, resolved at build time from the same env var
+         the client already reads, so this can never point at a different
+         host than the one actually used. Preconnect (not just dns-prefetch)
+         because the payoff is real here: DNS + TCP + TLS for the first API
+         call, done in parallel with the JS bundle downloading instead of
+         serially after it. -->
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
+    <link rel="dns-prefetch" href="%VITE_SUPABASE_URL%" />
     <title>Shikshaq - Find Tuition Teachers in Kolkata</title>
     <meta name="description" content="Find verified tuition teachers in Kolkata for free. Search by subject, class, or board. Connect directly with local tutors. No commission, no middlemen." />
     <meta name="author" content="Shikshaq" />
