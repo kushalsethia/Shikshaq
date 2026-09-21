@@ -92,9 +92,11 @@ export default function SubmitPaper() {
     if (!ready) return;
     setStage('sending');
     setError(null);
+    // Declared outside the try so the catch block can still see which
+    // uploads (if any) succeeded before a later step failed.
+    const paths: string[] = [];
     try {
       const stamp = Date.now();
-      const paths: string[] = [];
       for (const [i, file] of files.entries()) {
         const safe = file.name.replace(/[^\w.-]+/g, '_').slice(-80);
         const path = `${stamp}-${i}-${safe}`;
@@ -123,7 +125,14 @@ export default function SubmitPaper() {
       setStage('done');
     } catch (err) {
       /* Not provisioned yet, or the reader is offline. Either way they should
-         not lose what they typed, so hand them the WhatsApp route with it. */
+         not lose what they typed, so hand them the WhatsApp route with it.
+         Any files that made it to storage before the failure are now
+         orphaned -- no paper_submissions row will ever reference them, so
+         they'd sit there unreviewed and unbilled forever. Best-effort
+         cleanup; a delete failure here must never block the fallback UI. */
+      if (paths.length > 0) {
+        void supabase.storage.from(BUCKET).remove(paths).catch(() => {});
+      }
       logger.error('SubmitPaper.submit', err);
       setStage('fallback');
     }
