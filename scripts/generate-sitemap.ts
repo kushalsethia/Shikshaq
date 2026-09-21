@@ -31,7 +31,7 @@ import { config } from 'dotenv';
    the sitemap under a slug SchoolPage.tsx cannot resolve — a submitted URL
    that 404s, which is the exact bug already fixed once for /cbse-ncert-. */
 import { schoolSlug } from '../src/lib/school-slug';
-import { isExcludedPaper } from './excluded-papers';
+import { buildBankURLs, dedupeByLoc, type SitemapURL } from './sitemap-bank-urls';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,13 +43,6 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const SITE_URL = 'https://www.shikshaq.in';
 const OUTPUT_PATH = path.join(__dirname, '..', 'public', 'sitemap.xml');
-
-interface SitemapURL {
-  loc: string;
-  lastmod: string;
-  changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
-  priority: number;
-}
 
 /* This script used to fail open. Every credential check and every query error
    returned [], main() carried on, and a perfectly valid ~50-URL sitemap was
@@ -337,55 +330,19 @@ async function readBankURLs(currentDate: string): Promise<{ schools: SitemapURL[
     fail('Missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY (question bank)');
   }
 
-  {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    const allRows = await fetchAllRows<{ id: string; school: string; has_school: boolean; created_at: string | null }>(
-      () => supabase.from('bank_papers').select('id, school, has_school, created_at').eq('is_published', true) as unknown as Query,
-      'bank_papers',
-    );
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const allRows = await fetchAllRows<{ id: string; school: string; has_school: boolean; created_at: string | null }>(
+    () => supabase.from('bank_papers').select('id, school, has_school, created_at').eq('is_published', true) as unknown as Query,
+    'bank_papers',
+  );
 
-    /* Papers whose question bodies are extraction placeholders rather than
-       questions. Submitting them would point Google at pages that promise a
-       question count and contain nothing readable. Filtered before the school
-       slugs are derived below, so a school with nothing but excluded papers
-       drops out rather than getting an empty hub. See ./excluded-papers.ts. */
-    const rows = allRows.filter((r) => !isExcludedPaper(r.id));
-    const skipped = allRows.length - rows.length;
-    if (skipped > 0) console.log(`   Skipped ${skipped} papers with placeholder question text`);
-    // Deduped on the slug, because two source spellings that resolve to the
-    // same school are one page, not two.
-    const daysBySlug = new Map<string, (string | null)[]>();
-    rows.forEach((r) => {
-      if (!r.has_school) return;
-      const slug = schoolSlug(r.school);
-      daysBySlug.set(slug, [...(daysBySlug.get(slug) ?? []), toDay(r.created_at)]);
-    });
-
-    const schools: SitemapURL[] = [...daysBySlug].map(([slug, days]) => ({
-      loc: `/school/${slug}`,
-      changefreq: 'weekly',
-      priority: 0.5,
-      // A school hub last changed when its newest paper arrived.
-      lastmod: newestDay(days, currentDate),
-    }));
-    const papers: SitemapURL[] = rows.map((r) => ({
-      loc: `/past-papers/${r.id}`,
-      changefreq: 'yearly',
-      priority: 0.6,
-      lastmod: toDay(r.created_at) ?? currentDate,
-    }));
-    return { schools, papers };
-  }
-}
-
-/** First occurrence wins, so a school in both sources is one URL, not two. */
-function dedupeByLoc(urls: SitemapURL[]): SitemapURL[] {
-  const seen = new Set<string>();
-  return urls.filter((url) => {
-    if (seen.has(url.loc)) return false;
-    seen.add(url.loc);
-    return true;
-  });
+  /* Row -> URL transformation (exclusion filtering, per-school slug dedup,
+     paper/school counts) lives in ./sitemap-bank-urls.ts, tested directly
+     against fixture rows in sitemap-bank-urls.test.ts. This function's own
+     job is just the network fetch above. */
+  const { schools, papers, skipped } = buildBankURLs(allRows, currentDate);
+  if (skipped > 0) console.log(`   Skipped ${skipped} papers with placeholder question text`);
+  return { schools, papers };
 }
 
 /**

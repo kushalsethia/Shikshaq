@@ -40,6 +40,7 @@ import { createClient } from '@supabase/supabase-js';
 import { canonicalPathFor } from '../src/lib/canonical';
 import { schoolSlug } from '../src/lib/school-slug';
 import { isExcludedPaper } from './excluded-papers';
+import { extractLeakNeedles, findLeak } from './prerender-leak-check';
 import { SUBJECT_CONTENT, BOARD_CONTENT, type SubjectContent } from '../src/content/subject-seo';
 import {
   generateBreadcrumbSchema,
@@ -599,26 +600,18 @@ async function assertNoQuestionText(paperId: string, emitted: string[]): Promise
     return;
   }
 
-  /* A distinctive run of words, not the whole body: templates wrap and
-     truncate, so an exact full-string match would miss a partial leak. */
-  const needles = (data as Array<{ body: string }>)
-    .map((q) => (q.body || '').trim().split(/\s+/).slice(0, 8).join(' '))
-    .filter((s) => s.length > 30);
-
+  const needles = extractLeakNeedles((data as Array<{ body: string }>).map((q) => q.body));
   if (needles.length === 0) return;
 
-  for (const file of emitted) {
-    const html = fs.readFileSync(file, 'utf8');
-    for (const needle of needles) {
-      if (html.includes(needle)) {
-        fail(
-          `Question body text found in ${path.relative(DIST, file)}.\n`
-          + `  Matched: "${needle}"\n`
-          + '  Prerendered HTML is served to anyone over plain HTTP, with no account and no rate limit.\n'
-          + '  Question text belongs behind bank_paper_questions(), never in a static file.',
-        );
-      }
-    }
+  const files = emitted.map((file) => ({ path: file, html: fs.readFileSync(file, 'utf8') }));
+  const leak = findLeak(needles, files);
+  if (leak) {
+    fail(
+      `Question body text found in ${path.relative(DIST, leak.path)}.\n`
+      + `  Matched: "${leak.needle}"\n`
+      + '  Prerendered HTML is served to anyone over plain HTTP, with no account and no rate limit.\n'
+      + '  Question text belongs behind bank_paper_questions(), never in a static file.',
+    );
   }
   console.log(`   Leak assertion passed (${needles.length} samples vs ${emitted.length} files)`);
 }
