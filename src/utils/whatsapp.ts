@@ -75,7 +75,12 @@ export function getWhatsAppLink(
  * @param whatsappLink - The teacher's raw "Link" value, if any.
  */
 export function resolveTeacherWhatsAppUrl(whatsappLink: string | null | undefined): string {
-  if (!whatsappLink) return getWhatsAppLink(null, '8240980312');
+  /* '8240980312' here (10 digits, no country code) skipped
+     sanitizeWhatsAppNumber's normalization entirely -- its `if (!number)
+     return defaultNumber` early-return returns this literal verbatim,
+     producing wa.me/8240980312 instead of wa.me/918240980312. Fixed by
+     passing the already-correct 12-digit form. */
+  if (!whatsappLink) return getWhatsAppLink(null, '918240980312');
   return whatsappLink.startsWith('http') ? whatsappLink : getWhatsAppLink(whatsappLink);
 }
 
