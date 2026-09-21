@@ -299,9 +299,13 @@ export default function TeacherProfile() {
     enabled: Boolean(teacher?.subjects?.slug && teacher?.id),
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
+      /* Only id (and subjects.slug, needed for the filter below to resolve)
+         -- same reason as recommendedTeachersQuery above: the row data is
+         discarded and refetched by getTeachersByIds, which returns the
+         enriched shape this rail actually renders. */
       const { data, error } = await supabase
         .from('teachers_list')
-        .select('id, name, slug, image_url, subjects!inner(name, slug)')
+        .select('id, subjects!inner(slug)')
         .eq('subjects.slug', teacher!.subjects!.slug)
         .neq('id', teacher!.id)
         .order('is_featured', { ascending: false })
