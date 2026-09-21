@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getCache, setCache, CACHE_TTL } from '@/utils/cache';
 
 /**
  * Shared behaviour extracted from likes-context.tsx, upvotes-context.tsx and
@@ -15,8 +16,6 @@ import { toast } from 'sonner';
  * its own context/hook with its exact original public shape — this only
  * factors out the plumbing underneath.
  */
-
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export function isDuplicateError(error: any): boolean {
   return (
@@ -37,31 +36,12 @@ export function isPermissionError(error: any): boolean {
 }
 
 export function getCachedIds(cacheKey: string): Set<string> | null {
-  try {
-    const cached = localStorage.getItem(cacheKey);
-    const timestamp = localStorage.getItem(`${cacheKey}_timestamp`);
-    if (!cached || !timestamp) return null;
-
-    const age = Date.now() - parseInt(timestamp, 10);
-    if (age > CACHE_DURATION) {
-      localStorage.removeItem(cacheKey);
-      localStorage.removeItem(`${cacheKey}_timestamp`);
-      return null;
-    }
-    return new Set(JSON.parse(cached) as string[]);
-  } catch (error) {
-    if (import.meta.env.DEV) console.warn(`Error reading ${cacheKey} from cache:`, error);
-    return null;
-  }
+  const ids = getCache<string[]>(cacheKey);
+  return ids ? new Set(ids) : null;
 }
 
 export function setCachedIds(cacheKey: string, ids: Set<string>) {
-  try {
-    localStorage.setItem(cacheKey, JSON.stringify(Array.from(ids)));
-    localStorage.setItem(`${cacheKey}_timestamp`, Date.now().toString());
-  } catch (error) {
-    if (import.meta.env.DEV) console.warn(`Error writing ${cacheKey} to cache:`, error);
-  }
+  setCache(cacheKey, Array.from(ids), CACHE_TTL.RELATION_IDS);
 }
 
 // --- Shared focus bus -------------------------------------------------------

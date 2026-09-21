@@ -19,6 +19,7 @@ export const CACHE_TTL = {
   UPVOTES: 5 * 60 * 1000, // 5 minutes - upvote counts change frequently
   SHIKSHAQMINE_CHUNK: 30 * 60 * 1000, // 30 minutes - for chunked Shikshaqmine fetches
   USER_PROFILE: 10 * 60 * 1000, // 10 minutes - user profile data (role, name) changes infrequently
+  RELATION_IDS: 5 * 60 * 1000, // 5 minutes - a user's liked/upvoted/studies-with id sets
 } as const;
 
 const CACHE_PREFIX = 'shikshaq_cache_';

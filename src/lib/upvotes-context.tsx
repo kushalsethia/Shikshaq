@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
+import { getCache, setCache, CACHE_TTL } from '@/utils/cache';
 import {
   useToggleRelation,
   isDuplicateError,
@@ -22,44 +23,19 @@ interface UpvotesContextType {
 const UpvotesContext = createContext<UpvotesContextType | undefined>(undefined);
 
 // upvote_counts is public aggregate data (not per-user), so it keeps its own
-// cache key/shape distinct from the shared per-user relation cache.
-const getCountsCacheKey = () => `upvote_counts`;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+// cache key/shape distinct from the shared per-user relation cache. Same
+// TTL as before (5 min); the two calls this used to be (value + a separate
+// _timestamp key, both read and expiry-checked by hand) are now the shared
+// cache.ts helpers everything else on the site already uses.
+const COUNTS_CACHE_KEY = 'upvote_counts';
 
 const getCachedCounts = (): Map<string, number> | null => {
-  try {
-    const cached = localStorage.getItem(getCountsCacheKey());
-    const timestamp = localStorage.getItem(`${getCountsCacheKey()}_timestamp`);
-
-    if (!cached || !timestamp) return null;
-
-    const age = Date.now() - parseInt(timestamp, 10);
-    if (age > CACHE_DURATION) {
-      localStorage.removeItem(getCountsCacheKey());
-      localStorage.removeItem(`${getCountsCacheKey()}_timestamp`);
-      return null;
-    }
-
-    const counts = JSON.parse(cached) as Record<string, number>;
-    return new Map(Object.entries(counts));
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('Error reading upvote counts from cache:', error);
-    }
-    return null;
-  }
+  const counts = getCache<Record<string, number>>(COUNTS_CACHE_KEY);
+  return counts ? new Map(Object.entries(counts)) : null;
 };
 
 const setCachedCounts = (counts: Map<string, number>) => {
-  try {
-    const countsObj = Object.fromEntries(counts);
-    localStorage.setItem(getCountsCacheKey(), JSON.stringify(countsObj));
-    localStorage.setItem(`${getCountsCacheKey()}_timestamp`, Date.now().toString());
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn('Error writing upvote counts to cache:', error);
-    }
-  }
+  setCache(COUNTS_CACHE_KEY, Object.fromEntries(counts), CACHE_TTL.UPVOTES);
 };
 
 export function UpvotesProvider({ children }: { children: ReactNode }) {
