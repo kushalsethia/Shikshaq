@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { getWhatsAppLinkBySlug } from '@/lib/teachers';
 import { resolveTeacherWhatsAppUrl, isWhatsAppUrl } from '@/utils/whatsapp';
 import { trackWhatsAppClick } from '@/utils/clarityEvents';
-import { trackWhatsAppClickGA } from '@/utils/gaEvents';
 import { recordWhatsAppClick } from '@/utils/whatsappClickLog';
 import { recordContact } from '@/lib/contact-record';
 import { WhatsAppIcon } from '@/components/BrandIcons';
@@ -125,8 +124,7 @@ export default function WhatsAppRedirect() {
 
       if (!trackedRef.current) {
         trackedRef.current = true;
-        trackWhatsAppClick(slug);
-        trackWhatsAppClickGA(slug);
+        trackWhatsAppClick(slug); // already fires the GA4 whatsapp_click event itself
         recordWhatsAppClick(slug);
       }
 
