@@ -451,14 +451,28 @@ export default function AdminTeachersPage() {
 
       invalidateCachesFor(selectedTeacher);
 
-      const { data: updatedTeacher, error: fetchError } = await supabase
-        .from('Shikshaqmine')
-        .select('*')
-        .eq('id', selectedTeacher.id)
-        .single();
+      /* Contact columns merged back in the same way fetchTeachers() does
+         above: migration 20260917120000 revokes Email ID/Phone Number/Link
+         from `authenticated`, and select('*') silently drops what it can't
+         read rather than erroring, so without this an admin who reopens and
+         re-saves this same teacher (picking up the corrupted row from
+         filteredTeachers) would write null over their real contact info. */
+      const [{ data: updatedTeacher, error: fetchError }, contacts] = await Promise.all([
+        supabase.from('Shikshaqmine').select('*').eq('id', selectedTeacher.id).single(),
+        fetchAdminContacts().catch(() => new Map()),
+      ]);
 
       if (!fetchError && updatedTeacher) {
-        applyUpdatedTeacher(updatedTeacher);
+        const c = contacts.get(updatedTeacher.id as number);
+        const merged = c
+          ? {
+              ...updatedTeacher,
+              'Phone Number': c.phoneNumber ?? updatedTeacher['Phone Number'] ?? null,
+              Link: c.link ?? updatedTeacher.Link ?? null,
+              'Email ID': c.emailId ?? updatedTeacher['Email ID'] ?? null,
+            }
+          : updatedTeacher;
+        applyUpdatedTeacher(merged);
         setEditorOpen(false);
       } else {
         await fetchTeachers();
