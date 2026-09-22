@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/select';
 import {
   Save, Lock, Upload, X, PencilLine, PauseCircle, PlayCircle, Link2,
-  Info, Check, UserCircle2,
+  Info, Check, UserCircle2, Eye,
 } from 'lucide-react';
 import { type ReviewCardData } from '@/components/reviews/review-card';
 import { ListLoading, ListError } from '@/components/ui/list-states';
@@ -404,6 +404,23 @@ export default function TeacherDashboard() {
     enabled: !!teacherData?.Slug,
   });
   const whatsappClickCount = whatsappClicksQuery.data ?? null;
+
+  // Real profile-view count (Enquiries' sibling metric) -- see
+  // profileViewLog.ts. Same RLS shape as whatsapp_clicks: this can only ever
+  // return this teacher's own count, never another teacher's.
+  const profileViewsQuery = useQuery({
+    queryKey: ['profileViewCount', teacherData?.Slug],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('profile_views')
+        .select('id', { count: 'exact', head: true })
+        .eq('teacher_slug', teacherData!.Slug!);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!teacherData?.Slug,
+  });
+  const profileViewCount = profileViewsQuery.data ?? null;
 
   // "Pause your listing" — flips the self-service is_paused flag (see the TeacherData interface
   // note above), reverting on failure. Browse/search now filter on is_paused too (see Browse.tsx),
@@ -1155,6 +1172,29 @@ export default function TeacherDashboard() {
               </BentoPanel>
             ))}
           </div>
+
+          {/* Profile views: same real-number-or-say-why-not rule as Enquiries
+              below, and its funnel predecessor -- a view can happen with no
+              enquiry, so it gets its own panel rather than folding into the
+              two-stat-card row above (Handoff TD-002 is explicit: never a
+              third counter there). See profileViewLog.ts. */}
+          <BentoPanel fill="muted" className="px-[22px] py-5">
+            <div className="flex items-center gap-[10px]">
+              <IconDisc tone="muted" size={32} shape="square" className="bg-border">
+                <Eye className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+              </IconDisc>
+              <h2 className="text-[16px] font-bold tracking-[-0.02em] text-foreground">Profile views</h2>
+            </div>
+            <div className="mt-2.5 flex items-baseline gap-2">
+              <span className="font-display text-[26px] font-black tracking-[-0.04em] text-foreground tabular-nums">
+                {profileViewsQuery.isPending ? '-' : profileViewCount}
+              </span>
+              <span className="text-[13px] font-semibold text-warm-secondary">people looked at your listing</span>
+            </div>
+            <p className="mt-1.5 text-[13px] leading-[1.55] text-warm-secondary">
+              How many times your profile page has loaded, since your listing went live. Only you can see this number.
+            </p>
+          </BentoPanel>
 
           {/* Handoff TD-003 follow-up: real WhatsApp-tap count, same visual
               language as the Upvotes/Reviews cards above rather than a plain

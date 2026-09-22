@@ -24,6 +24,7 @@ import { TeacherCard } from '@/components/TeacherCard';
 import DOMPurify from 'dompurify';
 import { imageAtWidth, validateImageSrc } from '@/utils/imageSanitizer';
 import { recordVisit } from '@/lib/recently-visited';
+import { recordProfileView } from '@/utils/profileViewLog';
 import { TeacherComments } from '@/components/TeacherComments';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { Button } from '@/components/ui/button';
@@ -262,6 +263,10 @@ export default function TeacherProfile() {
       slug: teacher.slug,
       imageUrl: teacher.image_url,
     });
+    // Real, teacher-visible count (Enquiries' sibling metric) -- see
+    // profileViewLog.ts. Same trigger as recordViewedTeacher above: once per
+    // resolved profile, never on a slug that 404s.
+    if (teacher.slug) recordProfileView(teacher.slug);
   }, [teacher]);
 
   /* Owner call: reframed from "Similar teachers" (same subject only) to

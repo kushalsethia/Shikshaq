@@ -383,6 +383,24 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_views: {
+        Row: {
+          created_at: string
+          id: number
+          teacher_slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          teacher_slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          teacher_slug?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
