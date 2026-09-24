@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUp, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { PaperSheetCard } from '@/components/papers/paper-sheet-card';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 import { bankSubjectToSite, bankSubjectMatches } from '@/lib/subject-vocabulary';
+import { bankClassMatches } from '@/utils/romanNumerals';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -17,6 +18,7 @@ import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { ArrowLeft } from 'lucide-react';
+import { getSubjectPalette } from '@/lib/subject-palette';
 
 interface Paper {
   id: string;
@@ -112,7 +114,11 @@ export default function PaperResults() {
          keep working. */
       (subjectFilters.length === 0 ||
         subjectFilters.some((w) => bankSubjectMatches(w, p.subject))) &&
-      eq(classFilters, p.class) &&
+      /* bank_papers.cls stores numeric classes as Roman numerals ("X"), while
+         the filter chips and URL are Arabic ("10") -- see bankClassMatches.
+         The 18-row `papers` table below (runQuery) is untouched: its `class`
+         column is already Arabic-numeral native. */
+      (classFilters.length === 0 || classFilters.some((w) => bankClassMatches(w, p.class))) &&
       eq(boardFilters, p.board) &&
       eq(schoolFilters, p.school) &&
       (!needle ||
@@ -130,6 +136,19 @@ export default function PaperResults() {
   // about the WINDOW's own scroll position — it makes no claim about how much
   // of any paper has been read.
   const [showTop, setShowTop] = useState(false);
+
+  // Bumped exactly once per search settling (loading -> a real count), never
+  // on scroll or a re-render with the same result. Used as a `key` so the
+  // count's one-shot landing animation replays on a new search but never
+  // repeats while that search's result sits on screen.
+  const [revealKey, setRevealKey] = useState(0);
+  const wasLoadingRef = useRef(true);
+  useEffect(() => {
+    if (wasLoadingRef.current && !loading) {
+      setRevealKey((k) => k + 1);
+    }
+    wasLoadingRef.current = loading;
+  }, [loading]);
 
   // Every active value per facet (not just the first) so the heading doesn't
   // understate a multi-value filter the query is actually honouring via .in().
@@ -341,7 +360,24 @@ export default function PaperResults() {
             <h1 className="font-display text-[27px] font-normal leading-[1.05] tracking-[-0.035em] text-white lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]">
               {heading}
             </h1>
-            <span className="inline-flex h-8 flex-none items-center whitespace-nowrap rounded-full bg-white/15 px-[14px] text-[13px] font-bold text-white">
+            <span
+              key={loading ? 'counting' : revealKey}
+              /* Count-tag landing: a single scale/fade-in (card-reveal's own
+                 curve) plus a once-only glow pulse under the tag, in the
+                 first active subject filter's REAL palette color — the same
+                 `getSubjectPalette` used by every subject chip/card, no new
+                 color invented, and nothing fires without a real settled
+                 count. Re-keyed only on revealKey (search settling), so
+                 clicking through filters or scrolling never repeats it. */
+              className={`inline-flex h-8 flex-none items-center whitespace-nowrap rounded-full bg-white/15 px-[14px] text-[13px] font-bold text-white ${
+                loading ? '' : 'animate-card-reveal animate-count-glow motion-reduce:animate-none'
+              }`}
+              style={
+                !loading && subjectFilters[0]
+                  ? ({ '--count-glow-color': `${getSubjectPalette(subjectFilters[0]).solid}99` } as CSSProperties)
+                  : undefined
+              }
+            >
               {loading ? 'Counting…' : `${shownTotal.toLocaleString('en-IN')} paper${shownTotal === 1 ? '' : 's'} found`}
             </span>
           </div>

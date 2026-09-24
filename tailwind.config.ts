@@ -515,6 +515,15 @@ export default {
           from: { opacity: "0", transform: "translateY(-8px) scale(0.97)" },
           to: { opacity: "1", transform: "translateY(0) scale(1)" },
         },
+        /* PaperResults' result-count landing: a once-only glow under the
+           count tag in `--count-glow-color` (set inline from the active
+           subject's real palette solid, via getSubjectPalette — never a new
+           color). Rises and fully fades, no loop, so a page with a real
+           strong match count reads as a small win rather than inert text. */
+        countGlow: {
+          "0%, 100%": { boxShadow: "0 0 0 0 transparent" },
+          "35%": { boxShadow: "0 3px 10px -2px var(--count-glow-color, transparent)" },
+        },
       },
       animation: {
         "rail-nudge": "rail-nudge 0.9s cubic-bezier(0.16, 1, 0.3, 1) 1",
@@ -531,6 +540,7 @@ export default {
         "sticker-in": "stickerIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
         "panel-fade": "panelFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
         "card-reveal": "cardReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both",
+        "count-glow": "countGlow 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1",
         "card-blur-in": "cardBlurIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both",
         shimmer: "shimmer 1.5s ease-in-out infinite",
 

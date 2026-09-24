@@ -70,10 +70,10 @@ export function BottomNav() {
         tabs={tabs}
         pathname={location.pathname}
         theme="dark"
-        /* Same liquid glass, dark body. This is the one that benefits most:
-             it floats over whatever the reader is scrolling, so the page
-             genuinely moving and colouring underneath is the whole effect. */
-        className="glass glass-dark mx-auto max-w-sm rounded-full px-2.5 shadow-pill"
+        /* Solid opaque dark nav bar. Previously used glass with backdrop-filter
+             blur; now solid opaque with the same visual polish. This floats
+             over whatever the reader is scrolling. */
+        className="solid-dark mx-auto max-w-sm rounded-full px-2.5 shadow-pill"
       />
     </nav>
   );

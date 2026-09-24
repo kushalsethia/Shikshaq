@@ -1060,6 +1060,19 @@ export default function PastPapers() {
           </BentoPanel>
         )}
 
+        {/* ----------------------------------------------------- More coming soon */}
+        {/* Honest, low-key note rather than a fabricated count or date -- the
+            product does not track a pipeline of in-progress submissions, so
+            this says only what is true: students keep adding papers, and the
+            library grows because of it. papersTint (not the orange brand
+            token) per this page's indigo-only rule. */}
+        <BentoPanel fill="papersTint" className="p-[22px]">
+          <h2 className={`mb-2 ${SECTION_H2} text-foreground`}>More papers on the way</h2>
+          <p className="max-w-prose text-body-secondary text-muted-foreground">
+            Students across Kolkata are working hard to add more papers to this collection every week. If the one you need is not here yet, it is probably next.
+          </p>
+        </BentoPanel>
+
         {/* "Three steps" / "Who owns these papers" paired side by side at lg,
             like the Home page's how-it-works/guardian-trust pairing — both
             are "how this works" content and neither needed the full page

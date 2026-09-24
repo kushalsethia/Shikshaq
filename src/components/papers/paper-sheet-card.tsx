@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Download, Lock } from "lucide-react";
+import { Download, Lock, Check } from "lucide-react";
+import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { getSubjectPalette } from "@/lib/subject-palette";
@@ -33,6 +34,31 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
   const palette = getSubjectPalette(paper.subject);
   const navigate = useNavigate();
   const href = `/past-papers/${paper.id}`;
+  const [leaving, setLeaving] = React.useState(false);
+  const [justDownloaded, setJustDownloaded] = React.useState(false);
+
+  /* Reveal-on-open, matching PaperCover: a brief lift before the route
+     change fires, short enough (150ms, `duration-tap`) to read as
+     acknowledgment rather than a delay. Reduced-motion skips straight to
+     navigate. */
+  const openPaper = () => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      navigate(href);
+      return;
+    }
+    setLeaving(true);
+    window.setTimeout(() => navigate(href), 150);
+  };
+
+  /* Download micro-interaction: icon swap on click. Shows checkmark briefly
+     (700ms) then reverts. The download/new-tab still happens; this is purely
+     visual feedback. Respects prefers-reduced-motion by skipping the animation
+     but still showing the icon swap. */
+  const handleDownloadClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.stopPropagation();
+    setJustDownloaded(true);
+    window.setTimeout(() => setJustDownloaded(false), 700);
+  };
 
   return (
     <div className={cn("relative", className)}>
@@ -54,15 +80,18 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
       <div
         role="link"
         tabIndex={0}
-        onClick={() => navigate(href)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(href); } }}
+        onClick={openPaper}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPaper(); } }}
         /* Handoff PR-003/S-014: radius -> 22px (unambiguous — the rest of
            PR-003's card-interior description (badge/title/footer resizing,
            a "Paper © {school}" footer replacing this card's Read/Download
            actions) isn't applied: it would remove the only way to open or
            download a paper from this card, which crosses from restyling
            into removing working functionality. Flagged, not guessed. */
-        className="relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[24px] p-4 text-left transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-6"
+        className={cn(
+          "relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[24px] p-4 text-left transition-transform duration-150 ease-out hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none sm:p-6",
+          leaving && "-translate-y-2 scale-[0.96] -rotate-1",
+        )}
         style={{ backgroundColor: palette.tint }}
       >
         {/* Folded corner. */}
@@ -86,6 +115,13 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
             style={{ backgroundColor: palette.tint, color: palette.text, boxShadow: `inset 0 0 0 1px ${palette.meta}` }}
           >
             Class {paper.class}
+          </span>
+          <span
+            className="inline-flex min-h-6 items-center rounded-full px-3 py-1 text-label font-bold uppercase tabular-nums"
+            style={{ backgroundColor: palette.tint, color: palette.text, boxShadow: `inset 0 0 0 1px ${palette.meta}` }}
+            aria-label={`Year ${paper.year}`}
+          >
+            {paper.year}
           </span>
           {locked ? (
             <IconDisc tone="dark" size={32} className="ml-auto" label="Sign in to read">
@@ -134,13 +170,21 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
               href={paper.file_url}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+              onClick={handleDownloadClick}
               aria-label="Download"
-              /* Same C-013 treatment: 36px painted disc, 36 + 2×4 = 44 hit box. */
-              className="relative shrink-0 rounded-full before:absolute before:-inset-[4px] before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              /* Same C-013 treatment: 36px painted disc, 36 + 2×4 = 44 hit box.
+                 Press feedback via scale transform, matching the card's
+                 active:scale-[0.97]. */
+              className="relative shrink-0 transition-transform duration-tap ease-tap active:scale-[0.97] rounded-full before:absolute before:-inset-[4px] before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
             >
               <IconDisc as="span" tone="muted" size={36} shape="circle">
-                <Download size={16} strokeWidth={2} aria-hidden="true" />
+                <div className="transition-opacity duration-tap ease-tap motion-reduce:transition-none">
+                  {justDownloaded ? (
+                    <Check size={16} strokeWidth={2} aria-hidden="true" />
+                  ) : (
+                    <Download size={16} strokeWidth={2} aria-hidden="true" />
+                  )}
+                </div>
               </IconDisc>
             </a>
           ) : null}

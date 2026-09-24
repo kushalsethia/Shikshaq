@@ -33,6 +33,7 @@ import { getSubjectPalette } from '@/lib/subject-palette';
 import { deriveExperienceYears, pageAllTeachers, fetchShikshaqmineChunked } from '@/lib/teachers';
 import { PaperSheetCard, type PaperSheetCardPaper } from '@/components/papers/paper-sheet-card';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
+import { bankClassMatches } from '@/utils/romanNumerals';
 import { SEOHead } from '@/components/SEOHead';
 import { FAQSchema } from '@/components/FAQSchema';
 import { SEOContentBlock } from '@/components/seo/SEOContentBlock';
@@ -569,8 +570,20 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         const bank = await loadBankOnce();
         const eq = (want: string[], value: string) =>
           want.length === 0 || want.some((w) => w.toLowerCase() === value.toLowerCase());
+        // bank_papers.cls stores numeric classes as Roman numerals ("X"), while
+        // filters.classes is Arabic ("10") -- see bankClassMatches. The 18-row
+        // `papers` table query below is untouched: its `class` column is
+        // already Arabic-numeral native.
+        const eqClass = (want: string[], value: string) =>
+          want.length === 0 || want.some((w) => bankClassMatches(w, value));
+        // p.subject here is the RAW bank subject ("Mathematics"), while
+        // filters.subjects carries site-vocabulary labels ("Maths") -- same
+        // mismatch class as the Roman-numeral class bug above. bankSubjectMatches
+        // is the same helper PaperResults.tsx already uses for this comparison.
+        const eqSubject = (want: string[], value: string) =>
+          want.length === 0 || want.some((w) => bankSubjectMatches(w, value));
         const bankMatches = bank.filter((p) =>
-          eq(filters.subjects, p.subject) && eq(filters.classes, p.class) && eq(filters.boards, p.board)
+          eqSubject(filters.subjects, p.subject) && eqClass(filters.classes, p.class) && eq(filters.boards, p.board)
           && eq(filters.schools, p.school) && eq(filters.examTypes, p.exam_type));
 
         let query = supabase

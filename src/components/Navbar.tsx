@@ -177,20 +177,17 @@ export function Navbar() {
          scrolled past the block it becomes the normal opaque bar, because
          white-on-bone would be unreadable. */
       className={`fixed inset-x-3 top-3 rounded-full shadow-pill transition-colors duration-tap lg:hidden ${
-        /* The same glass as the sheet, tinted for what it is sitting over.
-           `bg-background/95` used to be the scrolled state and emitted NO
-           declaration at all -- a token colour cannot take an /opacity
-           modifier here -- so the scrolled header has been rendering with no
-           background of its own. */
+        /* Solid opaque nav bar, tinted for what it is sitting over.
+           Previously used glass with backdrop-filter blur; now solid opaque
+           with the same visual polish (gradient highlights and inset shadows). */
         scrolled
-          ? 'glass glass-light'
+          ? 'solid-light'
           : topFill === 'dark' || topFill === 'indigo'
             /* Over the near-black panel or the indigo block: the dark body,
-               so the pill reads as glass over a saturated surface rather than
-               a milky rectangle on top of it. */
-            ? 'glass glass-dark'
+               so the pill reads as a solid bar over a saturated surface. */
+            ? 'solid-dark'
             /* T-009: bone on the bone hero, dark logo. */
-            : 'glass glass-light'
+            : 'solid-light'
       } ${
         /* pointer-events-none, not just a lower z-index: with SearchControl's
            mobile-pinned scroll lock (`document.body.style.position = 'fixed'`
@@ -280,7 +277,7 @@ export function Navbar() {
                    phone, or when a reader has set large text. */
                 'max-h-[88svh] overflow-y-auto overscroll-contain border-0 px-4',
                 'pb-[calc(env(safe-area-inset-bottom)+1.625rem)]',
-                'glass glass-light',
+                'solid-light',
               ].join(' ')}
             >
               <SheetGrabHandle />

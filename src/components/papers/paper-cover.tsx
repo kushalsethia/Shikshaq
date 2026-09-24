@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -52,6 +52,25 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
   ({ className, paper, meta, tintKey, locked = false, size = "mobile", href, ...props }, ref) => {
     const palette = tintKey ? paletteFromKey(tintKey) : getSubjectPalette(paper.subject);
     const metaLines = (meta ?? []).map((m) => (m ?? '').trim()).filter(Boolean);
+    const navigate = useNavigate();
+    const [leaving, setLeaving] = React.useState(false);
+
+    /* Reveal-on-open: a brief "lift off the shelf" before the route change,
+       so the shelf metaphor pays off instead of an instant route jump. Kept
+       short (matches `duration-tap`, 150ms) so it reads as acknowledgment,
+       not a show — a student clicking to read wants the paper, not a
+       performance. `prefers-reduced-motion` skips it entirely: the click
+       navigates immediately rather than playing a stripped-down version. */
+    const handleActivate = (e: React.MouseEvent<HTMLAnchorElement>) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        navigate(href!);
+        return;
+      }
+      setLeaving(true);
+      window.setTimeout(() => navigate(href!), 150);
+    };
 
     const content = (
       <div
@@ -143,7 +162,11 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
       return (
         <Link
           to={href}
-          className="inline-flex rounded-[6px_16px_16px_6px] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          onClick={handleActivate}
+          className={cn(
+            "inline-flex rounded-[6px_16px_16px_6px] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none",
+            leaving && "-translate-y-2 scale-[0.96] -rotate-1",
+          )}
           aria-label={`${paper.subject}: ${paper.title}${locked ? " (sign in to read)" : ""}`}
         >
           {content}

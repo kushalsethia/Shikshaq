@@ -23,6 +23,25 @@ export function numberToRoman(num: number): string {
 }
 
 /**
+ * Whether an Arabic-numeral class filter value (e.g. "10", "UG", from the
+ * filter_classes chips in FilterGroups.tsx) matches a bank_papers.cls value.
+ *
+ * bank_papers.cls stores class as a ROMAN numeral for numeric classes ("X",
+ * "XII", ...) but keeps non-numeric values (like "UG") as-is. The filter UI
+ * only ever offers Arabic numerals, so a numeric filter value is converted to
+ * its Roman form before comparing; anything else falls back to a plain
+ * case-insensitive match. This does NOT apply to the `papers` (18-row) table,
+ * whose `class` column is already Arabic-numeral native.
+ */
+export function bankClassMatches(filterValue: string, bankClass: string): boolean {
+  const num = parseInt(filterValue, 10);
+  if (!Number.isNaN(num) && num >= 1 && num <= 12 && String(num) === filterValue.trim()) {
+    return bankClass.trim().toLowerCase() === numberToRoman(num).toLowerCase();
+  }
+  return filterValue.trim().toLowerCase() === bankClass.trim().toLowerCase();
+}
+
+/**
  * Convert a comma-separated string of numbers to Roman numerals with ranges
  * Example: "5,6,7" -> "V - VII"
  * Example: "11,12,UG" -> "XI - XII, UG"

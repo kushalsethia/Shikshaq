@@ -88,12 +88,10 @@ export function TopBar({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        /* The same liquid glass as the sheet and the mobile pill, dark body.
-           Was an opaque bg-panel slab; now the page scrolls visibly beneath it
-           with its colour intact, which is the point of the material. The
-           ring is gone because .glass-dark draws its own rim -- keeping both
-           gave the pill two edges. */
-        "fixed inset-x-3 top-3 z-40 hidden h-[60px] rounded-full glass glass-dark shadow-pill lg:block",
+        /* Solid opaque desktop nav bar, dark body. Previously used glass with
+           backdrop-filter blur; now solid opaque with the same visual polish
+           (gradient highlights and inset shadows). */
+        "fixed inset-x-3 top-3 z-40 hidden h-[60px] rounded-full solid-dark shadow-pill lg:block",
         className,
       )}
       /* One <nav> per bar; the links inside are the primary desktop navigation.
