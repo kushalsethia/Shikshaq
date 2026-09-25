@@ -186,6 +186,11 @@ function main() {
       num(p.questionCount),
       num(p.marks),
       bool(hasSchool(p.school)),
+      /* Explicit false, not omitted -- see the same comment in
+         scripts/import-bank.ts. Deliberately absent from the ON CONFLICT
+         UPDATE SET below: re-running this generator must never reset an
+         already-flagged paper's needs_review back to false on conflict. */
+      bool(false),
     ];
     return `  (${cols.join(', ')})`;
   });
@@ -194,7 +199,7 @@ function main() {
     `-- ${papers.length} papers\n` +
     `insert into public.bank_papers\n` +
     `  (id, school_raw, school, is_board_paper, year, exam, cls, subject, board,\n` +
-    `   question_count, marks, has_school)\n` +
+    `   question_count, marks, has_school, needs_review)\n` +
     `values\n${paperValues.join(',\n')}\n` +
     `on conflict (id) do update set\n` +
     `  school_raw = excluded.school_raw, school = excluded.school,\n` +

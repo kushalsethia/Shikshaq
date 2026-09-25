@@ -607,7 +607,7 @@ export default function BankPaper() {
       )}
 
       <main id="main-content" className={`flex-1 ${CONTAINER} pb-14 pt-4`}>
-        {paper && (
+        {paper && !paper.needsReview && (
           <>
             <PaperDisclaimerDialog />
             <PaperShareLock paperTitle={paperTitle(paper)} />
@@ -737,7 +737,7 @@ export default function BankPaper() {
           )}
         </div>
 
-        {paper && (
+        {paper && !paper.needsReview && (
           <div className="mt-4 rounded-[24px] bg-brand p-[18px]">
             <p className="text-[17px] font-extrabold tracking-[-0.03em] text-foreground">
               Stuck on one of these?

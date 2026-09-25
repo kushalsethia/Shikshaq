@@ -89,6 +89,12 @@ async function main() {
     marks: p.marks,
     has_school: hasSchool(p.school),
     is_published: true,
+    /* Explicit, not omitted -- an omitted column falls through to the
+       schema default (false) with no visible decision in this file. A
+       source that isn't ready for release needs a deliberate import path
+       (see the 2026-09-25 English gated-release import for the pattern),
+       not a silent default here. */
+    needs_review: false,
   }));
 
   for (let i = 0; i < paperRows.length; i += PAPER_BATCH) {

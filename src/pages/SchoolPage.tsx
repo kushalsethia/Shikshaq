@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { recordSignal } from '@/lib/intent/signals';
 import { schoolSlug } from '@/lib/school-slug';
 import { loadPaperIndex, schoolBySlug, hasYear } from '@/lib/question-bank';
+import { sanitizeForIlike } from '@/lib/ilike-sanitize';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useChromeConfig } from '@/components/layout/AppShell';
@@ -219,10 +220,14 @@ export default function SchoolPage() {
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       let q = (supabase.from('Shikshaqmine').select('"Slug","School Boards Catered","Subjects"') as any).limit(60);
+      // boards/subjects come from bank_papers metadata, not request-time user
+      // input, but escaped anyway for the same reason PaperResults.tsx's
+      // sanitizeForIlike exists -- an unescaped value in an .or() filter
+      // string is a filter-injection surface regardless of where it came from.
       if (boards.length > 0) {
-        q = q.or(boards.map((b) => `School Boards Catered.ilike.%${b}%`).join(','));
+        q = q.or(boards.map((b) => `School Boards Catered.ilike.%${sanitizeForIlike(b)}%`).join(','));
       } else {
-        q = q.or(subjects.map((s) => `Subjects.ilike.%${s}%`).join(','));
+        q = q.or(subjects.map((s) => `Subjects.ilike.%${sanitizeForIlike(s)}%`).join(','));
       }
       const { data, error } = await q;
       if (error || !data) return [];

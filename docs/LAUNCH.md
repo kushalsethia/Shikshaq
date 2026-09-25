@@ -23,27 +23,49 @@ git push --dry-run origin HEAD:main             # 593c447..ef862f8
 - `main` has not moved since **13 July 2026** (`593c447`). Everything a live
   user has ever seen is that build.
 
-`main` gains 406 commits: 271 files under `src/`, 20 migrations, and 1,028
-files under `public/`.
+`main` gains **449 commits** (re-verified 2026-09-26 via
+`git rev-list --count origin/main..shikshaq-2.0`; this number moves every
+session that adds commits, so treat it as a snapshot, not a constant): **279**
+files under `src/`, **24** migrations, and (after the 2026-09-26 figures
+migration to Supabase Storage removed `public/paper-figures/`) just **5**
+files under `public/` rather than the 1,028 an earlier snapshot of this doc
+claimed.
 
-## Before you push
+## Before you merge
 
-1. **The database is already done.** `RUN_THIS_ONE.sql` has been applied and
-   verified against production. There is no migration to run at launch, which
-   removes the usual worst-case: code and schema landing out of step.
+1. **The database is not a single pending step any more.** Earlier snapshots
+   of this session applied migrations directly to production as they were
+   written, verified each one, and confirmed with `git merge-base
+   --is-ancestor` that nothing on `main` conflicts — there is no batch of SQL
+   waiting to run at merge time. Confirm the same before you merge: every
+   migration under `supabase/migrations/` with a timestamp newer than the last
+   launch should already show as applied in the Supabase dashboard, not
+   pending.
 2. **Check the live Vercel env vars are unchanged.** The build needs
    `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, which live already
    has, and needs `VITE_PREVIEW_TOOLS` to stay **absent**.
 3. **Off-hours.** The first request after deploy is the slowest, and Kolkata
    evening is when students are reading.
 
-## The push
+## The merge
+
+`main` on `kushalsethia/Shikshaq` is a **GitHub-protected branch** — a direct
+`git push origin shikshaq-2.0:main` is rejected with "Protected branch update
+failed... Changes must be made through a pull request." (Confirmed the hard
+way on 2026-09-26; the command below is what actually failed.) The real flow:
 
 ```bash
-git push origin shikshaq-2.0:main
+git push origin shikshaq-2.0:shikshaq-2.0   # or npm run push:all, which also mirrors to kanitest
+gh pr create --repo kushalsethia/Shikshaq --base main --head shikshaq-2.0 --title "..." --body "..."
+# wait for the PR's required checks (CI, CodeQL, the Vercel preview build) to go green,
+# then:
+gh pr merge <number> --repo kushalsethia/Shikshaq --merge
 ```
 
-That is the whole launch.
+No review is required by the branch protection rule as configured today, only
+passing checks — but that's a repo setting, not a promise; re-check
+`gh pr view <number> --json mergeStateStatus,reviewDecision` before merging
+rather than assuming.
 
 ## If the build fails, nothing breaks
 
@@ -85,7 +107,12 @@ serves **two**, so a rollback reintroduces the mismatch this launch fixed.
 2. A paper page at its bare path — `/past-papers/<id>` — returns its **own**
    title and canonical, which proves the prerendered files are being served
    rather than the SPA catch-all.
-3. Signed out, a paper shows **two** questions and says "two" in the copy.
+3. Signed out, **a Maths paper** shows **two** questions and says "two" in the
+   copy. Deliberately not "a paper": as of 2026-09-26 the entire English
+   subject is flagged `needs_review` pending further audit, so an English
+   paper correctly shows a "Coming soon" notice and zero questions — that is
+   expected, not a regression. Picking a random paper for this check can land
+   on English and look like a false alarm.
 4. Sign in, and the same paper shows all of them.
 5. A teacher opens their dashboard, sees their own number, **and saves**. This
    is the regression that matters most, because its failure mode is silent.
