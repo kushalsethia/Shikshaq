@@ -39,6 +39,10 @@ export interface PaperCoverProps extends React.HTMLAttributes<HTMLDivElement> {
   tintKey?: string;
   /** Show the 26px lock disc — the reader is not signed in. */
   locked?: boolean;
+  /** Listed, but not openable yet -- shows a "Coming soon" badge instead of
+   *  the lock disc. The cover still links through; BankPaper.tsx is the
+   *  real gate and shows the audit notice there. */
+  comingSoon?: boolean;
   size?: "mobile" | "desktop";
   href?: string;
 }
@@ -49,7 +53,7 @@ const SIZE_CLASSES = {
 } as const;
 
 const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
-  ({ className, paper, meta, tintKey, locked = false, size = "mobile", href, ...props }, ref) => {
+  ({ className, paper, meta, tintKey, locked = false, comingSoon = false, size = "mobile", href, ...props }, ref) => {
     const palette = tintKey ? paletteFromKey(tintKey) : getSubjectPalette(paper.subject);
     const metaLines = (meta ?? []).map((m) => (m ?? '').trim()).filter(Boolean);
     const navigate = useNavigate();
@@ -105,7 +109,14 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
           style={{ backgroundColor: palette.meta, opacity: 0.18 }}
         />
 
-        {locked ? (
+        {comingSoon ? (
+          <span
+            aria-hidden="true"
+            className="absolute right-2 top-2 z-10 inline-flex min-h-5 items-center rounded-full bg-[#1B1A18]/85 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.04em] text-white"
+          >
+            Soon
+          </span>
+        ) : locked ? (
           <IconDisc
             tone="dark"
             size={32}
@@ -167,7 +178,7 @@ const PaperCover = React.forwardRef<HTMLDivElement, PaperCoverProps>(
             "inline-flex rounded-[6px_16px_16px_6px] transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none",
             leaving && "-translate-y-2 scale-[0.96] -rotate-1",
           )}
-          aria-label={`${paper.subject}: ${paper.title}${locked ? " (sign in to read)" : ""}`}
+          aria-label={`${paper.subject}: ${paper.title}${comingSoon ? " (coming soon)" : locked ? " (sign in to read)" : ""}`}
         >
           {content}
         </Link>

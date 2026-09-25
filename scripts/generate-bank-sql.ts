@@ -74,6 +74,10 @@ create table if not exists public.bank_papers (
   marks          integer     not null default 0,
   is_published   boolean     not null default true,
   has_school     boolean     not null default true,
+  /* "Coming soon": listed and searchable (is_published stays true), but the
+     reader shows an under-review notice instead of content. See
+     supabase/migrations/20260925120000_bank_papers_needs_review.sql. */
+  needs_review   boolean     not null default false,
   created_at     timestamptz not null default now()
 );
 

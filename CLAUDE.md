@@ -166,6 +166,13 @@ status.
   not in the repo. `data/question-bank.json` is a 6,912-question subset for
   re-imports, deliberately outside `public/` so it is never served. It is **not**
   the whole bank; do not audit data quality from it.
+- **Figures live in the `paper-figures` Storage bucket**, not the repo either
+  (as of 2026-09-25). `public/paper-figures/` is a local staging directory an
+  import batch populates temporarily — resize with `scripts/resize-paper-figures.ts`,
+  run `npm run generate-figure-dimensions` (reads local files one last time to
+  capture intrinsic sizes into the committed `src/content/figure-dimensions.ts`),
+  upload, then delete the local copies. `BankPaper.tsx` reads the bucket via
+  `supabase.storage.from('paper-figures').getPublicUrl(...)`, never a local path.
 - **`papers` and `bank_papers` are different tables.** `papers` has 18 rows and
   is the submit-a-paper flow; `bank_papers` has 1,282 and is the library.
   Counting the wrong one has now caused the same user-visible bug twice.

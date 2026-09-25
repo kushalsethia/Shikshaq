@@ -557,6 +557,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         exam_type: b.exam,
         year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
         file_url: null,
+        needsReview: b.needsReview,
       }));
       bankPapersRef.current = mapped;
       return mapped;

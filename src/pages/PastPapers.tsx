@@ -311,6 +311,7 @@ export default function PastPapers() {
         _bankYear: b.year,
         _questions: b.questionCount,
         _isBoard: b.isBoardPaper,
+        _needsReview: b.needsReview,
       })),
   });
   /* Memoised on the query data, not written as `?? []` inline: a fresh []
@@ -660,6 +661,7 @@ export default function PastPapers() {
                     /* Not auth-locked for now: reading is the point, and a
                        gate on a free library only stops people seeing it. */
                     locked={false}
+                    comingSoon={(p as { _needsReview?: boolean })._needsReview === true}
                     size="desktop"
                     className={`!h-[228px] !w-[152px] flex-none sm:!h-[236px] sm:!w-[150px] ${
                       i >= 3 ? 'hidden sm:block' : ''
@@ -727,6 +729,7 @@ export default function PastPapers() {
                     /* Not auth-locked for now: reading is the point, and a
                        gate on a free library only stops people seeing it. */
                     locked={false}
+                    comingSoon={(p as { _needsReview?: boolean })._needsReview === true}
                     size="desktop"
                     className="animate-card-reveal motion-reduce:animate-none !h-[228px] !w-[150px]"
                   />

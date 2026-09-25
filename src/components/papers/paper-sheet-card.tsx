@@ -22,6 +22,10 @@ export interface PaperSheetCardPaper {
   exam_type: string;
   year: number;
   file_url: string | null;
+  /** Bank papers only -- absent/false for the `papers` table, which has no
+   *  audit concept. True: still opens (BankPaper.tsx is the real gate), but
+   *  this card says so up front rather than looking like any other paper. */
+  needsReview?: boolean;
 }
 
 export interface PaperSheetCardProps {
@@ -36,11 +40,14 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
   const href = `/past-papers/${paper.id}`;
   const [leaving, setLeaving] = React.useState(false);
   const [justDownloaded, setJustDownloaded] = React.useState(false);
+  const comingSoon = Boolean(paper.needsReview);
 
   /* Reveal-on-open, matching PaperCover: a brief lift before the route
      change fires, short enough (150ms, `duration-tap`) to read as
      acknowledgment rather than a delay. Reduced-motion skips straight to
-     navigate. */
+     navigate. Still navigates when comingSoon -- BankPaper.tsx is the real
+     gate and shows the audit notice there, so this never has to duplicate
+     that message in a second place. */
   const openPaper = () => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       navigate(href);
@@ -123,7 +130,13 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
           >
             {paper.year}
           </span>
-          {locked ? (
+          {comingSoon ? (
+            <span
+              className="ml-auto inline-flex min-h-6 items-center rounded-full bg-[#1c1a18] px-3 py-1 text-label font-bold uppercase text-white"
+            >
+              Coming soon
+            </span>
+          ) : locked ? (
             <IconDisc tone="dark" size={32} className="ml-auto" label="Sign in to read">
               <Lock size={13} strokeWidth={2.25} aria-hidden="true" />
             </IconDisc>
@@ -163,9 +176,9 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
             className="relative inline-flex min-h-8 items-center rounded-full px-4 text-label font-bold uppercase before:absolute before:-inset-[6px] before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             style={{ backgroundColor: palette.solid, color: palette.badgeText }}
           >
-            {locked ? "Sign in to read" : "Read"}
+            {comingSoon ? "Coming soon" : locked ? "Sign in to read" : "Read"}
           </Link>
-          {!locked && paper.file_url ? (
+          {!locked && !comingSoon && paper.file_url ? (
             <a
               href={paper.file_url}
               target="_blank"

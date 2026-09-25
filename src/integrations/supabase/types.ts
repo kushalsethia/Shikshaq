@@ -76,6 +76,7 @@ export type Database = {
           is_board_paper: boolean
           is_published: boolean
           marks: number
+          needs_review: boolean
           question_count: number
           school: string
           school_raw: string | null
@@ -92,6 +93,7 @@ export type Database = {
           is_board_paper?: boolean
           is_published?: boolean
           marks?: number
+          needs_review?: boolean
           question_count?: number
           school: string
           school_raw?: string | null
@@ -108,6 +110,7 @@ export type Database = {
           is_board_paper?: boolean
           is_published?: boolean
           marks?: number
+          needs_review?: boolean
           question_count?: number
           school?: string
           school_raw?: string | null

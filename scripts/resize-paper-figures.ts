@@ -1,6 +1,12 @@
 /**
  * Shrink the paper figures that are actually too big, in place.
  *
+ * public/paper-figures/ is a local staging directory now, not a committed or
+ * served location -- figures live in the `paper-figures` Storage bucket
+ * (supabase/migrations/20260925130000_paper_figures_bucket.sql). Resize here,
+ * then npm run generate-figure-dimensions, then upload, then delete the local
+ * copies -- same order the 2026-09-25 Maths batch used.
+ *
  * RUN THIS LOCALLY, NEVER IN THE BUILD. It is deliberately not wired into
  * prebuild or postbuild. sharp is a native dependency, and a native dependency
  * that fails to install on Vercel produces a failed deploy that nobody here can

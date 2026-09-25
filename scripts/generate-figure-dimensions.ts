@@ -2,6 +2,19 @@
 /**
  * Record the intrinsic pixel size of every paper figure.
  *
+ * Figures themselves live in the `paper-figures` Storage bucket now, not in
+ * this repo (supabase/migrations/20260925130000_paper_figures_bucket.sql) --
+ * public/paper-figures/ is a LOCAL STAGING directory an import batch
+ * populates temporarily (resize, run this, upload, delete), not a served or
+ * committed location any more. This script still reads from it for exactly
+ * that reason: the moment a batch's webp files exist on disk is the cheapest
+ * moment to read their headers, before they are uploaded and the local
+ * copies go away. Skips (exit 0, output untouched) when the directory is
+ * absent -- which is the normal state between import batches -- so
+ * `npm run build`'s prebuild step never fails over it; the checked-in
+ * src/content/figure-dimensions.ts simply keeps whatever it was last
+ * generated to.
+ *
  * BankPaper renders these with `max-h-[300px] w-auto` and no width/height
  * attributes, so the browser cannot reserve space for them until the bytes
  * arrive. On a question-heavy maths paper that is dozens of images popping in

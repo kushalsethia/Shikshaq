@@ -30,6 +30,7 @@ interface Paper {
   exam_type: string;
   year: number;
   file_url: string | null;
+  needsReview?: boolean;
 }
 
 const PAGE_SIZE = 24;
@@ -99,6 +100,7 @@ export default function PaperResults() {
         exam_type: b.exam,
         year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
         file_url: null,
+        needsReview: b.needsReview,
       })) as Paper[],
   });
 

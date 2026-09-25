@@ -57,6 +57,9 @@ export interface BankPaper {
   board: string;
   questionCount: number;
   marks: number;
+  /** Listed and searchable (is_published is untouched), but not openable yet
+   *  -- the reader shows a "Coming soon" notice instead of content. */
+  needsReview: boolean;
 }
 
 /* Several papers carry no year at all. The column is null in those cases;
@@ -70,7 +73,7 @@ export const hasYear = (y: string | null | undefined): boolean =>
 --------------------------------------------------------------------------- */
 
 const PAPER_COLUMNS =
-  'id, school, school_raw, is_board_paper, has_school, year, exam, cls, subject, board, question_count, marks';
+  'id, school, school_raw, is_board_paper, has_school, year, exam, cls, subject, board, question_count, marks, needs_review';
 
 interface PaperRow {
   id: string;
@@ -85,6 +88,7 @@ interface PaperRow {
   board: string;
   question_count: number;
   marks: number;
+  needs_review: boolean;
 }
 
 const toPaper = (r: PaperRow): BankPaper => ({
@@ -106,6 +110,7 @@ const toPaper = (r: PaperRow): BankPaper => ({
      PostgREST serialises numeric as a STRING to preserve precision. Without
      this the declared `marks: number` would quietly be "82.5". */
   marks: Number(r.marks) || 0,
+  needsReview: r.needs_review,
 });
 
 let indexCache: Promise<BankPaper[]> | null = null;
