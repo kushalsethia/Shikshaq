@@ -76,3 +76,46 @@ describe('imageAtWidth', () => {
     });
   });
 });
+
+/**
+ * validateImageSrc's three non-http(s) branches (blob:, data:image, and a
+ * same-origin relative asset path) all now reconstruct their return value
+ * via `new URL(...).href` rather than `String()`, the same taint-breaking
+ * pattern the http/https branch already used -- a bare String() call still
+ * left CodeQL flagging every one of the five call sites as client-side XSS.
+ * These pin the byte-for-byte output so that reconstruction never quietly
+ * changes what actually gets rendered.
+ */
+describe('validateImageSrc', () => {
+  it('passes a blob URL through unchanged', () => {
+    const blob = 'blob:https://www.shikshaq.in/3fa85f64-5717-4562-b3fc-2c963f66afa6';
+    expect(validateImageSrc(blob)).toBe(blob);
+  });
+
+  it('rejects a malformed blob URL', () => {
+    expect(validateImageSrc('blob:not-a-real-blob-url')).toBe('');
+  });
+
+  it('passes a valid image data URI through unchanged', () => {
+    const dataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEA';
+    expect(validateImageSrc(dataUri)).toBe(dataUri);
+  });
+
+  it('rejects a data URI that is not an allowed image type', () => {
+    expect(validateImageSrc('data:text/html,<script>alert(1)</script>')).toBe('');
+  });
+
+  it('resolves a same-origin relative asset path to an absolute URL', () => {
+    // Same resource either way -- validateImageSrc reconstructs it as
+    // absolute now, which is the point (see the comment in imageSanitizer.ts).
+    // This test suite runs under Node, not jsdom, so `window` is undefined
+    // and the function falls back to its fixed base -- exercising the same
+    // branch a real page load would if the origin check is ever unavailable.
+    expect(validateImageSrc('/assets/logo.png')).toBe('https://www.shikshaq.in/assets/logo.png');
+    expect(validateImageSrc('assets/logo.png')).toBe('https://www.shikshaq.in/assets/logo.png');
+  });
+
+  it('rejects a protocol-relative URL', () => {
+    expect(validateImageSrc('//evil.example.com/x.png')).toBe('');
+  });
+});

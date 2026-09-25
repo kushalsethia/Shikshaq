@@ -4,6 +4,7 @@ import { ArrowUp, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { PaperSheetCard } from '@/components/papers/paper-sheet-card';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
+import { sanitizeForIlike } from '@/lib/ilike-sanitize';
 import { bankSubjectToSite, bankSubjectMatches } from '@/lib/subject-vocabulary';
 import { bankClassMatches } from '@/utils/romanNumerals';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
@@ -44,12 +45,8 @@ function parseArrayParam(param: string | null): string[] {
   return param.split(',').filter(Boolean);
 }
 
-// Escapes % and _ (ILIKE wildcards) plus the comma/backtick .or() uses as a
-// PostgREST filter separator, so free-text search can't be used to inject an
-// unintended filter clause.
-function sanitizeForIlike(value: string): string {
-  return value.replace(/[%_,]/g, '\\$&');
-}
+// See src/lib/ilike-sanitize.ts -- kept dependency-free there so it can be
+// unit tested without pulling in this page's Supabase client import.
 
 export default function PaperResults() {
   const navigate = useNavigate();
