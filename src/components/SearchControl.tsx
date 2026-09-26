@@ -669,7 +669,10 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                wrapping under the field, same as they already do below
                `lg`. */
             : `relative ${reveal ? 'z-[45]' : 'z-20'} ${expanded ? 'max-w-3xl' : 'max-w-2xl'} ${
-                inlineFacetsDesktop && !reveal ? 'xl:max-w-lg' : ''
+                /* flex-col below xl so the chip row can sit in flow under
+                   the field (order-last on the row) and give the parent card
+                   real height, instead of the card guessing it with padding. */
+                inlineFacetsDesktop && !reveal ? 'flex flex-col xl:block xl:max-w-lg' : ''
               }`
         } ${className}`}
       >
@@ -719,7 +722,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                previously this whole block was lg-only and mobile only ever
                saw facets after focusing the field. (xl, not lg — see the
                root className's own note on why.) */
-            className={`pointer-events-auto absolute left-0 right-0 top-[calc(100%+8px)] flex flex-wrap items-center gap-2 xl:left-[calc(100%+12px)] xl:right-auto xl:top-0 xl:flex-nowrap ${
+            className={`pointer-events-auto relative order-last mt-2 flex flex-wrap items-center gap-2 xl:absolute xl:left-[calc(100%+12px)] xl:right-auto xl:top-0 xl:mt-0 xl:flex-nowrap ${
               heroDesk ? 'xl:h-[60px]' : 'xl:h-14'
             }`}
           >
