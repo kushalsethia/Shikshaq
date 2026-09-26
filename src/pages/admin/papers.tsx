@@ -13,7 +13,7 @@ import {
   AdminStatTiles,
 } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
-import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
+import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow, type AdminStatus } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Plus, Save, Search, Upload, X } from 'lucide-react';
+import { Loader2, Plus, Save, Search, Upload, X, CheckCircle2, XCircle, FileText } from 'lucide-react';
 import { SUBJECTS, CLASSES, BOARDS, EXAM_TYPES } from '@/utils/searchFacets';
 import { cn } from '@/lib/utils';
 
@@ -59,6 +59,54 @@ interface PaperRow {
 }
 
 type FormState = Partial<PaperRow>;
+
+/* Not the same table as PaperRow above -- paper_submissions is the inbox a
+   real student's /submit-a-paper upload lands in (migration
+   20260829072445_paper_submissions.sql). "Review promotes it into `papers`;
+   this row stays as the audit trail" per that migration's own comment, but
+   nothing on the frontend ever did the promoting: no admin page read this
+   table at all until now, so a real submission had nowhere to be seen. */
+interface SubmissionRow {
+  id: string;
+  created_at: string;
+  school: string;
+  board: string | null;
+  class: string | null;
+  subject: string;
+  year: string | null;
+  exam_type: string | null;
+  submitter_name: string | null;
+  submitter_contact: string | null;
+  file_paths: string[];
+  status: 'pending' | 'approved' | 'rejected';
+  review_note: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+}
+
+/* SubmitPaper.tsx's own EXAM_TYPES ('Prelim / Pre-board', 'Half-yearly',
+   'Annual / Final', 'Unit test', 'Other') is a different, hand-written list
+   from this one (EXAM_TYPES below, from searchFacets.ts) -- and `papers`
+   has a CHECK constraint restricted to exactly this file's five values.
+   Caught by inserting a real test row before wiring this up: an unmapped
+   exam_type 23514-violated the constraint and would have failed to approve
+   every real submission, since the public form only ever offers its own
+   spelling. Approximate on open; the admin can still correct it via the
+   Select in the approve dialog before publishing. */
+function mapSubmittedExamType(raw: string | null): string {
+  const key = (raw ?? '').trim().toLowerCase();
+  if (key.startsWith('prelim')) return 'Prelims';
+  if (key.startsWith('half')) return 'Half-Yearly';
+  if (key.startsWith('annual') || key.startsWith('final')) return 'Final';
+  if (key.startsWith('unit')) return 'Unit Test';
+  return EXAM_TYPES[0];
+}
+
+function submissionStatusTone(status: SubmissionRow['status']): AdminStatus {
+  if (status === 'approved') return 'live';
+  if (status === 'rejected') return 'hidden';
+  return 'pending';
+}
 
 const BLANK_FORM: FormState = {
   title: '',
@@ -95,8 +143,32 @@ export default function AdminPapersPage() {
   const [takedownBusy, setTakedownBusy] = useState(false);
   const [restoreBusyId, setRestoreBusyId] = useState<string | null>(null);
 
+  // Same page, second view: "Published" (the table above) and "Submissions"
+  // (paper_submissions -- real uploads from /submit-a-paper, previously
+  // invisible to every admin).
+  const [view, setView] = useState<'published' | 'submissions'>('published');
+  const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(true);
+  const [reviewTarget, setReviewTarget] = useState<SubmissionRow | null>(null);
+  const [reviewFileUrls, setReviewFileUrls] = useState<{ path: string; url: string | null }[]>([]);
+  const [reviewFilesLoading, setReviewFilesLoading] = useState(false);
+  const [approveTitle, setApproveTitle] = useState('');
+  // Editable, pre-filled from the submission -- exam_type in particular is
+  // never trusted as-is (see mapSubmittedExamType's comment: the submitted
+  // spelling fails papers' own CHECK constraint outright).
+  const [approveBoard, setApproveBoard] = useState('');
+  const [approveClass, setApproveClass] = useState('');
+  const [approveExamType, setApproveExamType] = useState('');
+  const [approveYear, setApproveYear] = useState('');
+  const [showReject, setShowReject] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [reviewBusy, setReviewBusy] = useState(false);
+
   useEffect(() => {
-    if (isAdmin) fetchPapers();
+    if (isAdmin) {
+      fetchPapers();
+      fetchSubmissions();
+    }
   }, [isAdmin]);
 
   useEffect(() => {
@@ -140,6 +212,25 @@ export default function AdminPapersPage() {
     }
   }
 
+  async function fetchSubmissions() {
+    try {
+      setSubmissionsLoading(true);
+      const { data, error } = await supabase
+        .from('paper_submissions')
+        .select(
+          'id,created_at,school,board,class,subject,year,exam_type,submitter_name,submitter_contact,file_paths,status,review_note,reviewed_at,reviewed_by',
+        )
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setSubmissions((data as SubmissionRow[]) || []);
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Error fetching submissions:', error);
+      adminToast('Failed to load submissions');
+    } finally {
+      setSubmissionsLoading(false);
+    }
+  }
+
   const filteredPapers = useMemo(() => {
     return papers
       .filter((p) => {
@@ -156,6 +247,23 @@ export default function AdminPapersPage() {
         return sortOrder === 'newest' ? -diff : diff;
       });
   }, [papers, searchQuery, sortOrder]);
+
+  const filteredSubmissions = useMemo(() => {
+    return submissions
+      .filter((s) => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          s.school.toLowerCase().includes(q) ||
+          s.subject.toLowerCase().includes(q) ||
+          (s.submitter_name ?? '').toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        return sortOrder === 'newest' ? -diff : diff;
+      });
+  }, [submissions, searchQuery, sortOrder]);
 
   function handleChange<K extends keyof FormState>(field: K, value: FormState[K]) {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -347,6 +455,202 @@ export default function AdminPapersPage() {
     }
   }
 
+  /* Opens the review dialog and, for a pending submission, resolves signed
+     URLs for its files -- the `paper-submissions` bucket is private (an
+     unreviewed upload from a stranger, per that migration's own comment), so
+     a plain public URL would 404. Regenerated every open rather than cached:
+     signed URLs expire, and this dialog is not opened often enough for that
+     to matter. */
+  async function openReview(submission: SubmissionRow) {
+    setReviewTarget(submission);
+    setApproveTitle(`${submission.subject}${submission.exam_type ? ` ${submission.exam_type}` : ''}`.trim());
+    setApproveBoard(submission.board && BOARDS.includes(submission.board) ? submission.board : BOARDS[0]);
+    setApproveClass(submission.class && PAPER_CLASSES.includes(submission.class) ? submission.class : PAPER_CLASSES[0]);
+    setApproveExamType(mapSubmittedExamType(submission.exam_type));
+    const yearNum = Number(submission.year);
+    setApproveYear(String(Number.isFinite(yearNum) && yearNum >= 2000 && yearNum <= 2100 ? yearNum : new Date().getFullYear()));
+    setShowReject(false);
+    setRejectReason('');
+    setReviewFileUrls(submission.file_paths.map((path) => ({ path, url: null })));
+    if (submission.file_paths.length === 0) return;
+    setReviewFilesLoading(true);
+    try {
+      const results = await Promise.all(
+        submission.file_paths.map(async (path) => {
+          const { data, error } = await supabase.storage
+            .from('paper-submissions')
+            .createSignedUrl(path, 60 * 10);
+          return { path, url: error ? null : data?.signedUrl ?? null };
+        }),
+      );
+      setReviewFileUrls(results);
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Error signing submission files:', error);
+    } finally {
+      setReviewFilesLoading(false);
+    }
+  }
+
+  function closeReview() {
+    setReviewTarget(null);
+    setReviewFileUrls([]);
+    setApproveTitle('');
+    setApproveBoard('');
+    setApproveClass('');
+    setApproveExamType('');
+    setApproveYear('');
+    setShowReject(false);
+    setRejectReason('');
+  }
+
+  /* Approve: promotes the submission into the real `papers` table (the
+     table admin/papers.tsx's own upload form writes to) and marks the
+     submission reviewed. `papers.file_url` is a single column -- a
+     submission can carry several photographed pages, but there is nowhere
+     to put more than one, so only the first file is copied across; this is
+     an existing schema limitation, not something introduced here. The copy
+     goes through the client (download then re-upload) because the
+     `paper-submissions` bucket is private and `paper-files` is the bucket
+     admin/papers.tsx's own handleFileUpload already writes to -- same
+     bucket, same path convention, so an approved submission's paper opens
+     exactly like one uploaded directly through this page. */
+  async function handleApprove() {
+    if (!reviewTarget || !user) return;
+    if (!approveTitle.trim()) {
+      adminToast('A title is required to publish this paper');
+      return;
+    }
+    const target = reviewTarget;
+    try {
+      setReviewBusy(true);
+
+      let file_url: string | null = null;
+      const firstPath = target.file_paths[0];
+      if (firstPath) {
+        const { data: fileBlob, error: downloadError } = await supabase.storage
+          .from('paper-submissions')
+          .download(firstPath);
+        if (downloadError) throw downloadError;
+        const baseName = firstPath.split('/').pop() || 'submission';
+        const destPath = `papers/${Date.now()}-${baseName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const { error: uploadError } = await supabase.storage
+          .from('paper-files')
+          .upload(destPath, fileBlob, { cacheControl: '3600', upsert: false });
+        if (uploadError) throw uploadError;
+        file_url = supabase.storage.from('paper-files').getPublicUrl(destPath).data.publicUrl;
+      }
+
+      const yearNum = Number(approveYear);
+      const { data: inserted, error: insertError } = await supabase
+        .from('papers')
+        .insert({
+          title: approveTitle.trim(),
+          school: target.school,
+          subject: target.subject,
+          class: approveClass || PAPER_CLASSES[0],
+          board: approveBoard || BOARDS[0],
+          /* Must be one of EXAM_TYPES' exact spellings -- papers has a CHECK
+             constraint on this column and the submission's own exam_type
+             (a different vocabulary written by SubmitPaper.tsx) violates it
+             outright. approveExamType is seeded by mapSubmittedExamType()
+             and editable in the dialog, never the raw submission value. */
+          exam_type: EXAM_TYPES.includes(approveExamType) ? approveExamType : EXAM_TYPES[0],
+          year: Number.isFinite(yearNum) && yearNum >= 2000 && yearNum <= 2100 ? yearNum : new Date().getFullYear(),
+          file_url,
+          is_published: true,
+        })
+        .select('id')
+        .single();
+      if (insertError) throw insertError;
+
+      const { error: reviewError } = await supabase
+        .from('paper_submissions')
+        .update({ status: 'approved', reviewed_at: new Date().toISOString(), reviewed_by: user.id })
+        .eq('id', target.id);
+      if (reviewError) throw reviewError;
+
+      setSubmissions((prev) =>
+        prev.map((s) =>
+          s.id === target.id
+            ? { ...s, status: 'approved', reviewed_at: new Date().toISOString(), reviewed_by: user.id }
+            : s,
+        ),
+      );
+      adminToast('Submission approved and published');
+      void recordAdminAction({
+        actorId: user.id,
+        actorName,
+        action: 'approve',
+        targetType: 'paper_submission',
+        targetId: target.id,
+        targetLabel: `${target.school} - ${target.subject}`,
+      });
+      if (inserted?.id) {
+        void recordAdminAction({
+          actorId: user.id,
+          actorName,
+          action: 'publish',
+          targetType: 'paper',
+          targetId: inserted.id,
+          targetLabel: approveTitle.trim(),
+        });
+      }
+      await fetchPapers();
+      closeReview();
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Approve submission error:', error);
+      adminToast('Failed to approve this submission');
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+
+  async function handleRejectSubmission() {
+    if (!reviewTarget || !user) return;
+    const reason = rejectReason.trim();
+    if (!reason) {
+      adminToast('A reason is required to reject a submission');
+      return;
+    }
+    const target = reviewTarget;
+    try {
+      setReviewBusy(true);
+      const { error } = await supabase
+        .from('paper_submissions')
+        .update({
+          status: 'rejected',
+          review_note: reason,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user.id,
+        })
+        .eq('id', target.id);
+      if (error) throw error;
+      setSubmissions((prev) =>
+        prev.map((s) =>
+          s.id === target.id
+            ? { ...s, status: 'rejected', review_note: reason, reviewed_at: new Date().toISOString(), reviewed_by: user.id }
+            : s,
+        ),
+      );
+      adminToast('Submission rejected');
+      void recordAdminAction({
+        actorId: user.id,
+        actorName,
+        action: 'reject',
+        targetType: 'paper_submission',
+        targetId: target.id,
+        targetLabel: `${target.school} - ${target.subject}`,
+        reason,
+      });
+      closeReview();
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('Reject submission error:', error);
+      adminToast('Failed to reject this submission');
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+
   const nav = buildAdminNav('papers', { approvals: pendingCount });
 
   // AD-006 columns: Title · School · Board · Class · Year · Status. The real `papers` schema
@@ -381,6 +685,34 @@ export default function AdminPapersPage() {
       : [
           { label: restoreBusyId === p.id ? '…' : 'Restore', tone: 'mint', onClick: () => handleRestore(p), disabled: restoreBusyId === p.id },
         ],
+  }));
+
+  const submissionColumns: AdminTableColumn[] = [
+    { key: 'school', label: 'School', width: '1.6fr' },
+    { key: 'subject', label: 'Subject', width: '1fr' },
+    { key: 'board', label: 'Board', width: '0.8fr' },
+    { key: 'class', label: 'Class', width: '0.6fr' },
+    { key: 'submitter', label: 'Submitted by', width: '1.4fr' },
+    { key: 'status', label: 'Status', width: '0.9fr' },
+  ];
+
+  const submissionRows: AdminTableRow[] = filteredSubmissions.map((s) => ({
+    id: s.id,
+    cells: [
+      s.school,
+      s.subject,
+      s.board || '—',
+      s.class || '—',
+      s.submitter_name || 'Not given',
+      <AdminStatusPill
+        key="status"
+        status={submissionStatusTone(s.status)}
+        label={s.status.charAt(0).toUpperCase() + s.status.slice(1)}
+      />,
+    ],
+    actions: [
+      { label: s.status === 'pending' ? 'Review' : 'View', tone: 'primary', onClick: () => openReview(s) },
+    ],
   }));
 
   const searchSlot = (
@@ -441,32 +773,83 @@ export default function AdminPapersPage() {
     );
   }
 
+  const pendingSubmissionCount = submissions.filter((s) => s.status === 'pending').length;
+
+  const viewToggle = (
+    <div role="tablist" aria-label="Papers view" className="inline-flex h-11 shrink-0 items-center rounded-full bg-muted p-1">
+      {(['published', 'submissions'] as const).map((v) => (
+        <button
+          key={v}
+          role="tab"
+          aria-selected={view === v}
+          onClick={() => setView(v)}
+          className={cn(
+            'flex h-9 items-center gap-1.5 rounded-full px-[14px] text-[13px] font-bold capitalize transition-colors duration-150',
+            view === v ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground',
+          )}
+        >
+          {v === 'published' ? 'Published papers' : 'Submissions'}
+          {v === 'submissions' && pendingSubmissionCount > 0 ? (
+            <span className="inline-flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-brand px-[5px] text-[11px] font-bold tabular-nums text-foreground">
+              {pendingSubmissionCount}
+            </span>
+          ) : null}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-[18px]">
-          <AdminPanelHeader title="Uploaded papers" meta={`${papers.filter((p) => p.is_published).length} published · ${papers.filter((p) => !p.is_published).length} taken down`} />
-          <button onClick={openUpload} className={adminPrimaryBtnStyle}>
-            <Plus className="w-4 h-4" />
-            Upload paper
-          </button>
+          <AdminPanelHeader
+            title={view === 'published' ? 'Uploaded papers' : 'Submissions from students'}
+            meta={
+              view === 'published'
+                ? `${papers.filter((p) => p.is_published).length} published · ${papers.filter((p) => !p.is_published).length} taken down`
+                : `${submissions.length} total`
+            }
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            {viewToggle}
+            {view === 'published' ? (
+              <button onClick={openUpload} className={adminPrimaryBtnStyle}>
+                <Plus className="w-4 h-4" />
+                Upload paper
+              </button>
+            ) : null}
+          </div>
         </div>
 
-        <div className="mb-4 px-[18px]">
-          <AdminStatTiles
-            stats={[
-              { label: 'In the library', value: papers.length },
-              { label: 'Live', value: papers.filter((p) => p.is_published).length },
-              { label: 'Taken down', value: papers.filter((p) => !p.is_published).length },
-            ]}
-          />
-        </div>
+        {view === 'published' ? (
+          <div className="mb-4 px-[18px]">
+            <AdminStatTiles
+              stats={[
+                { label: 'In the library', value: papers.length },
+                { label: 'Live', value: papers.filter((p) => p.is_published).length },
+                { label: 'Taken down', value: papers.filter((p) => !p.is_published).length },
+              ]}
+            />
+          </div>
+        ) : (
+          <div className="mb-4 px-[18px]">
+            <AdminStatTiles
+              stats={[
+                { label: 'Pending review', value: submissions.filter((s) => s.status === 'pending').length },
+                { label: 'Approved', value: submissions.filter((s) => s.status === 'approved').length },
+                { label: 'Rejected', value: submissions.filter((s) => s.status === 'rejected').length },
+              ]}
+            />
+          </div>
+        )}
 
         <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">{searchSlot}{sortSlot}</div>
 
-        {filteredPapers.length === 0 ? (
+        {view === 'published' ? (
+        filteredPapers.length === 0 ? (
           <div className="rounded-2xl bg-muted p-12 text-center">
             <p className="text-[15px] text-warm-meta">
               {searchQuery.trim() ? `No papers match "${searchQuery.trim()}".` : 'No papers yet.'}
@@ -483,6 +866,30 @@ export default function AdminPapersPage() {
           </div>
         ) : (
           <AdminTable columns={columns} rows={rows} />
+        )
+        ) : submissionsLoading ? (
+          <div className="animate-pulse space-y-3 px-[18px]">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-14 rounded-2xl bg-muted" />
+            ))}
+          </div>
+        ) : filteredSubmissions.length === 0 ? (
+          <div className="rounded-2xl bg-muted p-12 text-center">
+            <p className="text-[15px] text-warm-meta">
+              {searchQuery.trim() ? `No submissions match "${searchQuery.trim()}".` : 'No papers submitted yet.'}
+            </p>
+            {searchQuery.trim() ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="mt-3 text-[15px] font-semibold text-brand underline-offset-2 hover:underline"
+              >
+                Clear search
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <AdminTable columns={submissionColumns} rows={submissionRows} />
         )}
       </BentoPanel>
 
@@ -669,6 +1076,180 @@ export default function AdminPapersPage() {
               Save as draft
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Submission review dialog — the screen paper_submissions never had
+          one of before. Pending gets the file list + Approve/Reject;
+          approved/rejected are read-only (already reviewed, shown for the
+          audit trail). */}
+      <Dialog open={!!reviewTarget} onOpenChange={(open) => { if (!open) closeReview(); }}>
+        <DialogContent aria-describedby={undefined} className={cn(adminPanelStyle, 'max-h-[90vh] w-full max-w-lg overflow-y-auto p-6')}>
+          {reviewTarget && (
+            <>
+              <DialogTitle className="text-xl font-bold text-foreground">
+                {reviewTarget.school} &middot; {reviewTarget.subject}
+              </DialogTitle>
+              <div className="mt-3 space-y-1.5 text-[14px] text-warm-prose">
+                <div><strong className="text-foreground">Board:</strong> {reviewTarget.board || 'Not given'}</div>
+                <div><strong className="text-foreground">Class:</strong> {reviewTarget.class || 'Not given'}</div>
+                <div><strong className="text-foreground">Year:</strong> {reviewTarget.year || 'Not given'}</div>
+                <div><strong className="text-foreground">Exam type:</strong> {reviewTarget.exam_type || 'Not given'}</div>
+                <div><strong className="text-foreground">Submitted by:</strong> {reviewTarget.submitter_name || 'Not given'}{reviewTarget.submitter_contact ? ` (${reviewTarget.submitter_contact})` : ''}</div>
+                <div><strong className="text-foreground">Submitted:</strong> {new Date(reviewTarget.created_at).toLocaleString()}</div>
+              </div>
+
+              <div className="mt-4">
+                <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">
+                  Files ({reviewTarget.file_paths.length})
+                </Label>
+                {reviewTarget.file_paths.length === 0 ? (
+                  <p className="text-[14px] text-warm-meta">No files were attached to this submission.</p>
+                ) : reviewFilesLoading ? (
+                  <p className="flex items-center gap-2 text-[14px] text-warm-meta">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Preparing files…
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {reviewFileUrls.map((f, i) => (
+                      <li key={f.path}>
+                        {f.url ? (
+                          <a
+                            href={f.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand-blue hover:text-brand-blue-deep"
+                          >
+                            <FileText className="h-4 w-4" /> File {i + 1}
+                          </a>
+                        ) : (
+                          <span className="text-[14px] text-warm-meta">File {i + 1} (couldn't be opened)</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {reviewTarget.status === 'pending' ? (
+                <div className="mt-5 flex flex-col gap-3 border-t border-warm-hairline pt-4">
+                  {showReject ? (
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="reject-note" className="text-[13px] font-semibold text-foreground">
+                        Reason <span className="font-normal text-warm-meta">(required, kept in the admin audit log)</span>
+                      </Label>
+                      <Textarea
+                        id="reject-note"
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        placeholder="e.g. Pages are unreadable, please resend clearer photos"
+                        rows={3}
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleRejectSubmission}
+                          disabled={reviewBusy || !rejectReason.trim()}
+                          className={`disabled:opacity-60 ${adminDestructiveBtnStyle}`}
+                        >
+                          {reviewBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                          Confirm rejection
+                        </button>
+                        <button onClick={() => { setShowReject(false); setRejectReason(''); }} className={adminSecondaryBtnStyle}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <Label htmlFor="approve-title" className="mb-1.5 block text-[14px] font-semibold text-foreground">
+                          Title (shown on the paper's page)
+                        </Label>
+                        <input
+                          id="approve-title"
+                          value={approveTitle}
+                          onChange={(e) => setApproveTitle(e.target.value)}
+                          placeholder="e.g. Prelims 2025"
+                          className={cn(adminFieldStyle, 'w-full px-3 text-foreground outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand')}
+                        />
+                        {reviewTarget.file_paths.length > 1 ? (
+                          <p className="mt-1.5 text-[12px] text-warm-meta">
+                            Only the first file is published — the papers table holds one file per paper.
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Board</Label>
+                          <Select value={approveBoard} onValueChange={setApproveBoard}>
+                            <SelectTrigger className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {BOARDS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">Class</Label>
+                          <Select value={approveClass} onValueChange={setApproveClass}>
+                            <SelectTrigger className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {PAPER_CLASSES.map((c) => <SelectItem key={c} value={c}>Class {c}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="approve-year" className="mb-1.5 block text-[14px] font-semibold text-foreground">Year</Label>
+                          <input
+                            id="approve-year"
+                            type="number"
+                            value={approveYear}
+                            onChange={(e) => setApproveYear(e.target.value)}
+                            className={cn(adminFieldStyle, 'w-full px-3 text-foreground outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-brand')}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="mb-1.5 block text-[14px] font-semibold text-foreground">
+                          Exam type <span className="font-normal text-warm-meta">(guessed from "{reviewTarget.exam_type || 'not given'}" — check it)</span>
+                        </Label>
+                        <Select value={approveExamType} onValueChange={setApproveExamType}>
+                          <SelectTrigger className={cn(adminFieldStyle, 'h-auto border-0')}><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {EXAM_TYPES.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleApprove}
+                          disabled={reviewBusy || !approveTitle.trim()}
+                          className={`disabled:opacity-60 ${adminPrimaryBtnStyle}`}
+                        >
+                          {reviewBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                          Approve &amp; publish
+                        </button>
+                        <button onClick={() => setShowReject(true)} className={adminSecondaryBtnStyle}>
+                          Reject
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-5 border-t border-warm-hairline pt-4 text-[14px] text-warm-prose">
+                  <div>
+                    <strong className="text-foreground">Status:</strong>{' '}
+                    {reviewTarget.status.charAt(0).toUpperCase() + reviewTarget.status.slice(1)}
+                    {reviewTarget.reviewed_at ? ` on ${new Date(reviewTarget.reviewed_at).toLocaleString()}` : ''}
+                  </div>
+                  {reviewTarget.review_note ? (
+                    <div className="mt-1"><strong className="text-foreground">Note:</strong> {reviewTarget.review_note}</div>
+                  ) : null}
+                </div>
+              )}
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </BentoStack>

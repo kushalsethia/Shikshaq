@@ -10,10 +10,133 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      _backup_english_bank_papers_20260925: {
+        Row: {
+          board: string | null
+          cls: string | null
+          created_at: string | null
+          exam: string | null
+          has_school: boolean | null
+          id: string | null
+          is_board_paper: boolean | null
+          is_published: boolean | null
+          marks: number | null
+          needs_review: boolean | null
+          question_count: number | null
+          school: string | null
+          school_raw: string | null
+          subject: string | null
+          year: string | null
+        }
+        Insert: {
+          board?: string | null
+          cls?: string | null
+          created_at?: string | null
+          exam?: string | null
+          has_school?: boolean | null
+          id?: string | null
+          is_board_paper?: boolean | null
+          is_published?: boolean | null
+          marks?: number | null
+          needs_review?: boolean | null
+          question_count?: number | null
+          school?: string | null
+          school_raw?: string | null
+          subject?: string | null
+          year?: string | null
+        }
+        Update: {
+          board?: string | null
+          cls?: string | null
+          created_at?: string | null
+          exam?: string | null
+          has_school?: boolean | null
+          id?: string | null
+          is_board_paper?: boolean | null
+          is_published?: boolean | null
+          marks?: number | null
+          needs_review?: boolean | null
+          question_count?: number | null
+          school?: string | null
+          school_raw?: string | null
+          subject?: string | null
+          year?: string | null
+        }
+        Relationships: []
+      }
+      _backup_english_bank_questions_20260925: {
+        Row: {
+          body: string | null
+          chapter: string | null
+          figure: string | null
+          id: string | null
+          marks: number | null
+          number: string | null
+          options: string[] | null
+          ord: number | null
+          page: number | null
+          paper_id: string | null
+          qtype: string | null
+        }
+        Insert: {
+          body?: string | null
+          chapter?: string | null
+          figure?: string | null
+          id?: string | null
+          marks?: number | null
+          number?: string | null
+          options?: string[] | null
+          ord?: number | null
+          page?: number | null
+          paper_id?: string | null
+          qtype?: string | null
+        }
+        Update: {
+          body?: string | null
+          chapter?: string | null
+          figure?: string | null
+          id?: string | null
+          marks?: number | null
+          number?: string | null
+          options?: string[] | null
+          ord?: number | null
+          page?: number | null
+          paper_id?: string | null
+          qtype?: string | null
+        }
+        Relationships: []
+      }
+      _dash_backup: {
+        Row: {
+          at: string
+          before_value: string | null
+          col: string
+          id: number
+          key: string | null
+          tbl: string
+        }
+        Insert: {
+          at?: string
+          before_value?: string | null
+          col: string
+          id?: number
+          key?: string | null
+          tbl: string
+        }
+        Update: {
+          at?: string
+          before_value?: string | null
+          col?: string
+          id?: number
+          key?: string | null
+          tbl?: string
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action: string
@@ -255,8 +378,22 @@ export type Database = {
             foreignKeyName: "liked_teachers_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
+            referencedRelation: "teacher_rating_stats"
+            referencedColumns: ["teacher_id"]
+          },
+          {
+            foreignKeyName: "liked_teachers_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
             referencedRelation: "teacher_upvote_stats"
             referencedColumns: ["teacher_id"]
+          },
+          {
+            foreignKeyName: "liked_teachers_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers_enriched"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "liked_teachers_teacher_id_fkey"
@@ -333,10 +470,71 @@ export type Database = {
             foreignKeyName: "paper_reads_paper_id_fkey"
             columns: ["paper_id"]
             isOneToOne: false
+            referencedRelation: "paper_read_stats"
+            referencedColumns: ["paper_id"]
+          },
+          {
+            foreignKeyName: "paper_reads_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
             referencedRelation: "papers"
             referencedColumns: ["id"]
           },
         ]
+      }
+      paper_submissions: {
+        Row: {
+          board: string | null
+          class: string | null
+          created_at: string
+          exam_type: string | null
+          file_paths: string[]
+          id: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          school: string
+          status: string
+          subject: string
+          submitter_contact: string | null
+          submitter_name: string | null
+          year: string | null
+        }
+        Insert: {
+          board?: string | null
+          class?: string | null
+          created_at?: string
+          exam_type?: string | null
+          file_paths?: string[]
+          id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school: string
+          status?: string
+          subject: string
+          submitter_contact?: string | null
+          submitter_name?: string | null
+          year?: string | null
+        }
+        Update: {
+          board?: string | null
+          class?: string | null
+          created_at?: string
+          exam_type?: string | null
+          file_paths?: string[]
+          id?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school?: string
+          status?: string
+          subject?: string
+          submitter_contact?: string | null
+          submitter_name?: string | null
+          year?: string | null
+        }
+        Relationships: []
       }
       papers: {
         Row: {
@@ -551,6 +749,132 @@ export type Database = {
         }
         Relationships: []
       }
+      read_events: {
+        Row: {
+          created_at: string
+          id: number
+          ip_hash: string | null
+          kind: string
+          target_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          ip_hash?: string | null
+          kind: string
+          target_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          ip_hash?: string | null
+          kind?: string
+          target_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      read_events_retention: {
+        Row: {
+          id: boolean
+          last_deleted: number
+          last_purge_at: string
+        }
+        Insert: {
+          id?: boolean
+          last_deleted?: number
+          last_purge_at?: string
+        }
+        Update: {
+          id?: boolean
+          last_deleted?: number
+          last_purge_at?: string
+        }
+        Relationships: []
+      }
+      read_quota_breaches: {
+        Row: {
+          created_at: string
+          enforced: boolean
+          id: number
+          kind: string
+          limit_hit: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          enforced: boolean
+          id?: number
+          kind: string
+          limit_hit: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          enforced?: boolean
+          id?: number
+          kind?: string
+          limit_hit?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      read_quota_config: {
+        Row: {
+          contacts_lifetime: number
+          contacts_per_day: number
+          contacts_per_week: number
+          enforcing: boolean
+          id: boolean
+          papers_first_24h: number
+          papers_per_day: number
+          papers_per_hour: number
+          updated_at: string
+        }
+        Insert: {
+          contacts_lifetime?: number
+          contacts_per_day?: number
+          contacts_per_week?: number
+          enforcing?: boolean
+          id?: boolean
+          papers_first_24h?: number
+          papers_per_day?: number
+          papers_per_hour?: number
+          updated_at?: string
+        }
+        Update: {
+          contacts_lifetime?: number
+          contacts_per_day?: number
+          contacts_per_week?: number
+          enforcing?: boolean
+          id?: boolean
+          papers_first_24h?: number
+          papers_per_day?: number
+          papers_per_hour?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      read_quota_exempt: {
+        Row: {
+          created_at: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       Shikshaqmine: {
         Row: {
           Area: string | null
@@ -719,11 +1043,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "student_teachers_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_teachers_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_rating_stats"
+            referencedColumns: ["teacher_id"]
+          },
+          {
             foreignKeyName: "student_teachers_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
             referencedRelation: "teacher_upvote_stats"
             referencedColumns: ["teacher_id"]
+          },
+          {
+            foreignKeyName: "student_teachers_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers_enriched"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "student_teachers_teacher_id_fkey"
@@ -900,7 +1245,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "teacher_comments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_rating_stats"
+            referencedColumns: ["teacher_id"]
+          },
+          {
+            foreignKeyName: "teacher_comments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_upvote_stats"
+            referencedColumns: ["teacher_id"]
+          },
+          {
+            foreignKeyName: "teacher_comments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_comments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers_list"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       teacher_recommendations: {
         Row: {
@@ -971,8 +1345,22 @@ export type Database = {
             foreignKeyName: "teacher_upvotes_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
+            referencedRelation: "teacher_rating_stats"
+            referencedColumns: ["teacher_id"]
+          },
+          {
+            foreignKeyName: "teacher_upvotes_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
             referencedRelation: "teacher_upvote_stats"
             referencedColumns: ["teacher_id"]
+          },
+          {
+            foreignKeyName: "teacher_upvotes_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers_enriched"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "teacher_upvotes_teacher_id_fkey"
@@ -1053,12 +1441,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          id?: number
+          id?: never
           teacher_slug: string
         }
         Update: {
           created_at?: string
-          id?: number
+          id?: never
           teacher_slug?: string
         }
         Relationships: []
@@ -1076,6 +1464,47 @@ export type Database = {
         }
         Relationships: []
       }
+      public_profiles: {
+        Row: {
+          avatar_url: string | null
+          full_name: string | null
+          grade: string | null
+          id: string | null
+          role: string | null
+          school_college: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          full_name?: string | null
+          grade?: string | null
+          id?: string | null
+          role?: string | null
+          school_college?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          full_name?: string | null
+          grade?: string | null
+          id?: string | null
+          role?: string | null
+          school_college?: string | null
+        }
+        Relationships: []
+      }
+      read_suspicion: {
+        Row: {
+          contacts: number | null
+          first_seen: string | null
+          gap_stddev_s: number | null
+          last_seen: string | null
+          max_burst_2min: number | null
+          networks: number | null
+          papers: number | null
+          score: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       teacher_comments_public: {
         Row: {
           approved: boolean | null
@@ -1088,7 +1517,58 @@ export type Database = {
           updated_at: string | null
           user_id: string | null
         }
-        Relationships: []
+        Insert: {
+          approved?: boolean | null
+          comment?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_anonymous?: boolean | null
+          rating?: number | null
+          teacher_id?: string | null
+          updated_at?: string | null
+          user_id?: never
+        }
+        Update: {
+          approved?: boolean | null
+          comment?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_anonymous?: boolean | null
+          rating?: number | null
+          teacher_id?: string | null
+          updated_at?: string | null
+          user_id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_comments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_rating_stats"
+            referencedColumns: ["teacher_id"]
+          },
+          {
+            foreignKeyName: "teacher_comments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_upvote_stats"
+            referencedColumns: ["teacher_id"]
+          },
+          {
+            foreignKeyName: "teacher_comments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_comments_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers_list"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       teacher_rating_stats: {
         Row: {
@@ -1096,17 +1576,6 @@ export type Database = {
           rating_count: number | null
           teacher_id: string | null
           teacher_slug: string | null
-        }
-        Relationships: []
-      }
-      public_profiles: {
-        Row: {
-          avatar_url: string | null
-          full_name: string | null
-          grade: string | null
-          id: string | null
-          role: string | null
-          school_college: string | null
         }
         Relationships: []
       }
@@ -1119,8 +1588,53 @@ export type Database = {
         }
         Relationships: []
       }
+      teachers_enriched: {
+        Row: {
+          bio: string | null
+          id: string | null
+          image_url: string | null
+          is_featured: boolean | null
+          location: string | null
+          mine_area: string | null
+          mine_boards: string | null
+          mine_class_size: string | null
+          mine_classes: string | null
+          mine_classes_backend: string | null
+          mine_is_paused: boolean | null
+          mine_link: string | null
+          mine_max_fees: number | null
+          mine_min_fees: number | null
+          mine_mode: string | null
+          mine_place: string | null
+          mine_sir_maam: string | null
+          mine_started: string | null
+          mine_subjects: string | null
+          name: string | null
+          slug: string | null
+          subject_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teachers_list_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      admin_teacher_contacts: {
+        Args: never
+        Returns: {
+          email_id: string
+          id: number
+          link: string
+          phone_number: string
+          slug: string
+        }[]
+      }
       approve_teacher_application: {
         Args: { admin_id: string; application_id: string }
         Returns: number
@@ -1129,7 +1643,31 @@ export type Database = {
         Args: { user_email: string }
         Returns: boolean
       }
+      bank_paper_questions: {
+        Args: { p_paper_id: string }
+        Returns: {
+          body: string
+          chapter: string
+          figure: string
+          id: string
+          marks: number
+          number: string
+          options: string[]
+          page: number
+          paper_id: string
+          qtype: string
+        }[]
+      }
       check_existing_users_for_teacher_role: {
+        Args: never
+        Returns: {
+          assigned_role: boolean
+          teacher_email: string
+          user_email: string
+          user_id: string
+        }[]
+      }
+      check_existing_users_for_teacher_role_unguarded: {
         Args: never
         Returns: {
           assigned_role: boolean
@@ -1175,38 +1713,26 @@ export type Database = {
         Args: { teacher_uuid: string }
         Returns: number
       }
-      /* The only read path to bank_questions: anon SELECT on that table is
-         revoked, and this returns five rows to a signed-out caller and the
-         whole paper to a signed-in one. Hand-added, like home_facet_counts
-         above, because these types are checked in rather than regenerated. */
-      bank_paper_questions: {
-        Args: { p_paper_id: string }
-        Returns: {
-          id: string
-          paper_id: string
-          number: string | null
-          body: string
-          marks: number | null
-          chapter: string | null
-          qtype: string | null
-          page: number | null
-          figure: string | null
-          options: string[] | null
-        }[]
-      }
-      /* Hand-added, same reason as bank_paper_questions above: the only
-         anon-reachable read of Shikshaqmine.Link, returning null unless
-         auth.uid() is set. */
-      teacher_whatsapp_link: { Args: { p_slug: string }; Returns: string | null }
-      /* Hand-added, same reason: the only anon-reachable read of
-         papers.file_url, returning null unless auth.uid() is set. */
-      paper_file_url: { Args: { p_paper_id: string }; Returns: string | null }
       home_facet_counts: { Args: never; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       is_teacher: { Args: never; Returns: boolean }
       normalize_phone_to_10_digits: {
         Args: { phone_text: string }
         Returns: string
+      }
+      paper_file_url: { Args: { p_paper_id: string }; Returns: string }
+      purge_read_events: { Args: never; Returns: number }
+      read_quota_exceeded: {
+        Args: { p_kind: string; p_uid: string }
+        Returns: string
+      }
+      site_counts: {
+        Args: never
+        Returns: {
+          papers: number
+          schools: number
+          teachers: number
+        }[]
       }
       sync_teachers_list_from_shikshaqmine: {
         Args: never
@@ -1216,6 +1742,25 @@ export type Database = {
           updated_count: number
         }[]
       }
+      sync_teachers_list_from_shikshaqmine_unguarded: {
+        Args: never
+        Returns: {
+          inserted_count: number
+          total_processed: number
+          updated_count: number
+        }[]
+      }
+      teacher_own_contact: {
+        Args: never
+        Returns: {
+          email_id: string
+          id: number
+          link: string
+          phone_number: string
+          slug: string
+        }[]
+      }
+      teacher_whatsapp_link: { Args: { p_slug: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
@@ -1234,12 +1779,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1263,11 +1808,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1288,11 +1833,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1313,11 +1858,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1330,11 +1875,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
