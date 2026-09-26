@@ -1,11 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { useState, useEffect, useRef } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -13,14 +8,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
+import { Eyebrow } from '@/components/ui/eyebrow';
+import { ProgressSteps } from '@/components/join/progress-bar';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 import { toast } from 'sonner';
-import { Loader2, Upload, X, CheckCircle2 } from 'lucide-react';
-import imageCompression from 'browser-image-compression';
+import { Loader2, Upload, X, CheckCircle2, Check, ArrowRight, ArrowLeft } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { sanitizeImageUrl, validateImageSrc } from '@/utils/imageSanitizer';
+import { getSubjectColors } from '@/utils/subjectColors';
+import { Link } from 'react-router-dom';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 
-// Constants matching AdminTeachers
+/* Redesign C-060 (changelog) — five-step teacher listing form (mockup J1–J5).
+   Rewritten on top of the shared Field/FieldInput/FieldTextarea/useBlurValidation
+   primitives and the new ProgressSteps segmented bar (C14). Every field this form
+   collected before is still collected here — the approve_teacher_application RPC
+   reads ~22 columns off teacher_applications, so nothing was dropped, only
+   regrouped into the J1–J5 step order. See the task report for the full field
+   inventory and the O-07 note on why no ID/degree upload was added. */
+
 const SUBJECTS = [
   'Accounts', 'ACT', 'AP', 'Bengali', 'Biology', 'Business Studies', 'CA', 'CAT', 'Chemistry',
   'CLAT', 'Commerce', 'Computers', 'Drawing & Painting', 'Economics', 'English', 'Environmental Science',
@@ -34,7 +43,7 @@ const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 
 const BOARDS = ['ICSE/ISC', 'CBSE', 'IGCSE', 'IB', 'State', 'N/A'];
 
 const AREAS = [
-  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba', 
+  'Alipore', 'Ballygunge', 'Behala', 'Bhowanipore', 'Gariahat', 'Garia', 'Jadavpur', 'Kasba',
   'New Alipore', 'Southern Avenue', 'Tollygunge', 'Hazra',
   'Baguihati', 'Belur', 'Howrah', 'Joka', 'Newtown', 'Rajarhat', 'Salt Lake', 'Science City',
   'Dum Dum', 'Entally', 'Girish Park', 'Nagarbazar', 'Sealdah', 'Shyam Bazar', 'Tangra',
@@ -49,6 +58,75 @@ const MODE_OF_TEACHING = ['Online', 'Offline'];
 const CLASS_SIZE = ['Group', 'Solo'];
 
 const SIR_MAAM = ['Sir', "Ma'am"];
+
+// J1–J5: head + lede, verbatim from copy.md §8.
+const STEPS = [
+  { label: 'Who you are', head: "Let's get you listed", lede: 'Free to list, free to stay. We never take a cut of your fee.' },
+  { label: 'What you teach', head: 'What do you teach?', lede: 'Pick everything you genuinely teach. Guardians filter on this, so be honest.' },
+  { label: 'Where you teach', head: 'Where do you teach?', lede: 'Travel radius matters more than an address. Nobody sees your exact address.' },
+  { label: 'Your fee, your terms', head: 'What do you charge?', lede: 'You set it, you keep it. Shikshaq takes nothing and never handles the money.' },
+  { label: 'Verify & consent', head: 'One quick check', lede: 'A student we can call to confirm you teach, then your consent to go live.' },
+];
+
+// J5 copy (copy.md §8) — belongs to the post-submission waiting-review screen,
+// not the pre-submission verify-and-consent step above. Was previously shown
+// prematurely on step 5's form (which still required two fields and a
+// checkbox before the actual submit), which read as if the application had
+// already been sent. Moved to the `submitted` view where it's actually true.
+const WAITING_ON_REVIEW = {
+  head: 'With us now',
+  lede: 'A person reads every application. Usually the same day, at worst two.',
+  note: 'Nothing goes live until a human has read it. If something is missing we message you on WhatsApp instead of rejecting you.',
+};
+
+// Handoff JA-004: multi-select chips — h44 px-4 r999, selected in the
+// subject tint/text with a trailing check, unselected bg-muted/text-warm-secondary.
+function Pill({
+  label,
+  selected,
+  onClick,
+  tintClass,
+  dynamicTint,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+  tintClass?: string;
+  dynamicTint?: { bg: string; color: string };
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] transition-[background-color,color,transform] duration-150 active:scale-[0.97] ${
+        selected ? (dynamicTint ? 'font-bold' : `font-bold ${tintClass ?? 'bg-panel text-background'}`) : 'bg-muted font-semibold text-warm-secondary'
+      }`}
+      style={selected && dynamicTint ? { background: dynamicTint.bg, color: dynamicTint.color } : undefined}
+    >
+      {label}
+      {selected ? <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" /> : null}
+    </button>
+  );
+}
+
+// Handoff JA-004: number grid (classes) — grid-cols-6 gap-2, h-11 rounded-[14px],
+// selected bg-panel/#FCFAF7, unselected bg-muted/text-foreground, numeral
+// 15px/800 tabular-nums.
+function NumberGridOption({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`flex h-11 items-center justify-center rounded-[14px] text-[15px] font-extrabold tabular-nums transition-colors duration-150 active:scale-[0.97] ${
+        selected ? 'bg-panel text-background' : 'bg-muted text-foreground'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
 
 interface FormData {
   name: string;
@@ -72,10 +150,12 @@ interface FormData {
   reference_number: string;
   min_fees: string;
   max_fees: string;
+  free_first_class: boolean;
   mou_consent: boolean;
 }
 
 export default function JoinApply() {
+  const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -98,6 +178,7 @@ export default function JoinApply() {
     reference_number: '',
     min_fees: '',
     max_fees: '',
+    free_first_class: false,
     mou_consent: false,
   });
 
@@ -107,24 +188,34 @@ export default function JoinApply() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // Helper function to check if a value exists in a comma-separated string (case-insensitive)
+  // Step content otherwise keeps whatever scroll offset the previous step left
+  // behind — a user who reads to the bottom of a long step (J4/J5) and taps
+  // "Save and continue" would land mid-way down the next, shorter step instead
+  // of at its heading. Reset both possible scroll owners: the window (desktop,
+  // where the step body scrolls with the page) and the internal container
+  // (mobile, where the step body is its own overflow-y-auto region). Instant,
+  // not smooth — matches ScrollToTop.tsx's convention for a screen change
+  // rather than a user-initiated scroll.
+  const stepScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    stepScrollRef.current?.scrollTo(0, 0);
+    window.scrollTo(0, 0);
+  }, [step]);
+
   const valueExistsInString = (str: string | null, value: string): boolean => {
     if (!str) return false;
-    const values = str.split(',').map(v => v.trim().toLowerCase());
+    const values = str.split(',').map((v) => v.trim().toLowerCase());
     return values.includes(value.trim().toLowerCase());
   };
 
   const handleInputChange = (field: keyof FormData, value: FormData[keyof FormData]) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleMultiSelectChange = (field: keyof FormData, value: string, checked: boolean) => {
     const currentValue = formData[field] as string;
     const currentArray = currentValue ? currentValue.split(',').map((v) => v.trim()) : [];
-    
+
     let newArray: string[];
     if (checked) {
       newArray = [...currentArray, value].filter((v) => v !== '');
@@ -143,7 +234,6 @@ export default function JoinApply() {
     handleInputChange(field, newValue);
   };
 
-  // Clean up object URL when component unmounts or file changes
   useEffect(() => {
     return () => {
       if (imagePreview && imagePreview.startsWith('blob:')) {
@@ -166,7 +256,6 @@ export default function JoinApply() {
       return;
     }
 
-    // Block HEIC/HEIF formats which most browsers can't display
     const lowerName = file.name.toLowerCase();
     const isHeicLike =
       lowerName.endsWith('.heic') ||
@@ -183,32 +272,26 @@ export default function JoinApply() {
       return;
     }
 
-    // Store the file for later upload
     setSelectedImageFile(file);
-
-    // Create preview using object URL (blob URLs are safe for image src)
     const previewUrl = URL.createObjectURL(file);
-    
-    // Validate that the blob URL is properly formed
+
     if (!previewUrl.startsWith('blob:')) {
       toast.error('Failed to create image preview');
       return;
     }
-    
-    // Clean up previous preview URL if it exists
+
     if (imagePreview && imagePreview.startsWith('blob:')) {
       URL.revokeObjectURL(imagePreview);
     }
-    
+
     setImagePreview(previewUrl);
-    // Don't set hero_image_url yet - will be set after upload on submit
   };
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
       setUploadingImage(true);
 
-      // Compress image
+      const { default: imageCompression } = await import('browser-image-compression');
       const compressedFile = await imageCompression(file, {
         maxSizeMB: 1,
         maxWidthOrHeight: 1920,
@@ -217,33 +300,25 @@ export default function JoinApply() {
       });
 
       if (import.meta.env.DEV) {
-        console.log(`Image compressed from ${file.size / 1024 / 1024} MB to ${compressedFile.size / 1024 / 1024} MB`);
+        logger.log(`Image compressed from ${file.size / 1024 / 1024} MB to ${compressedFile.size / 1024 / 1024} MB`);
       }
 
-      // Create a unique filename
-      // Note: Path is relative to bucket root (bucket is already specified in .from('hero-images'))
+      // Path is relative to bucket root — this is the storage location the app
+      // has always used for application photos. Unrelated to O-07 (verification
+      // documents); this bucket only ever holds the profile photo.
       const fileExt = compressedFile.name.split('.').pop();
       const fileName = `application-${Date.now()}.${fileExt}`;
 
-      // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from('hero-images')
-        .upload(fileName, compressedFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
+        .upload(fileName, compressedFile, { cacheControl: '3600', upsert: false });
 
       if (error) {
-        if (import.meta.env.DEV) {
-          console.error('Upload error:', error);
-        }
+        logger.error('JoinApply.uploadImage', error);
         throw new Error('Image upload failed');
       }
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('hero-images')
-        .getPublicUrl(data.path);
+      const { data: { publicUrl } } = supabase.storage.from('hero-images').getPublicUrl(data.path);
 
       const sanitizedUrl = sanitizeImageUrl(publicUrl);
       if (!sanitizedUrl) {
@@ -252,9 +327,7 @@ export default function JoinApply() {
 
       return sanitizedUrl;
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Error uploading image:', error);
-      }
+      logger.error('JoinApply.uploadImage.catch', error);
       throw error;
     } finally {
       setUploadingImage(false);
@@ -284,17 +357,16 @@ export default function JoinApply() {
       return false;
     }
     if (!formData.phone_number.trim()) {
-      toast.error('Please enter your phone number');
+      toast.error('Please enter your WhatsApp number');
       return false;
     }
-    // Validate phone number: must be exactly 10 digits
     const phoneDigits = formData.phone_number.replace(/\D/g, '');
     if (phoneDigits.length !== 10) {
-      toast.error('Phone number must be exactly 10 digits');
+      toast.error('WhatsApp number must be exactly 10 digits');
       return false;
     }
     if (!formData.sir_maam) {
-      toast.error('Please select Sir or Ma\'am');
+      toast.error("Please select Sir or Ma'am");
       return false;
     }
     if (!formData.subjects.trim()) {
@@ -321,29 +393,28 @@ export default function JoinApply() {
       toast.error('Please select a location option');
       return false;
     }
-    // Validate area fields based on location selection
     if (formData.location_v2 === "STUDENT'S HOME TUTORING ONLY") {
       if (!formData.students_home_areas.trim()) {
-        toast.error('Please select at least one area for Student\'s Home Tutoring');
+        toast.error("Please select at least one area for Student's Home Tutoring");
         return false;
       }
     } else if (formData.location_v2 === "TEACHER'S HOME TUTORING") {
       if (!formData.tutors_home_areas.trim()) {
-        toast.error('Please select at least one area for Teacher\'s Home Tutoring');
+        toast.error("Please select at least one area for Teacher's Home Tutoring");
         return false;
       }
-    } else if (formData.location_v2 === "BOTH OPTIONS LISTED") {
+    } else if (formData.location_v2 === 'BOTH OPTIONS LISTED') {
       if (!formData.students_home_areas.trim()) {
-        toast.error('Please select at least one area for Student\'s Home Tutoring');
+        toast.error("Please select at least one area for Student's Home Tutoring");
         return false;
       }
       if (!formData.tutors_home_areas.trim()) {
-        toast.error('Please select at least one area for Teacher\'s Home Tutoring');
+        toast.error("Please select at least one area for Teacher's Home Tutoring");
         return false;
       }
     }
     if (!formData.reference_name.trim()) {
-      toast.error('Please enter the reference student\'s name');
+      toast.error("Please enter the reference student's name");
       return false;
     }
     if (formData.reference_name.length > 200) {
@@ -351,29 +422,28 @@ export default function JoinApply() {
       return false;
     }
     if (!formData.reference_number.trim()) {
-      toast.error('Please enter the reference student\'s phone number');
+      toast.error("Please enter the reference student's phone number");
       return false;
     }
     if (formData.years_started_teaching.trim()) {
       const yearDigits = formData.years_started_teaching.replace(/\D/g, '');
       if (yearDigits.length > 4) {
-        toast.error('Year you started teaching must be at most 4 digits');
+        toast.error('Years of experience must be at most 4 digits');
         return false;
       }
       if (yearDigits.length > 0 && !/^\d{1,4}$/.test(yearDigits)) {
-        toast.error('Year you started teaching must contain only numbers');
+        toast.error('Years of experience must contain only numbers');
         return false;
       }
     }
-    // Validate reference number: must be exactly 10 digits
     const referenceDigits = formData.reference_number.replace(/\D/g, '');
     if (referenceDigits.length !== 10) {
       toast.error('Student number must be exactly 10 digits');
       return false;
     }
-    // Hero image is required: user must have selected a file to upload
-    if (!selectedImageFile) {
-      toast.error('Please upload a hero image');
+    const monthlyFee = parseInt(formData.min_fees.replace(/\D/g, ''), 10);
+    if (!formData.min_fees.trim() || Number.isNaN(monthlyFee) || monthlyFee <= 0) {
+      toast.error('Please enter a monthly fee greater than ₹0');
       return false;
     }
     if (formData.description.length > 1000) {
@@ -394,14 +464,11 @@ export default function JoinApply() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     try {
       setSubmitting(true);
 
-      // Upload image if one was selected
       let heroImageUrl = formData.hero_image_url;
       if (selectedImageFile) {
         try {
@@ -410,674 +477,739 @@ export default function JoinApply() {
             toast.error('Failed to upload image. Please try again.');
             return;
           }
-        } catch (error) {
+        } catch {
           toast.error('Failed to upload image. Please try again.');
           return;
         }
       }
 
-      const { error } = await supabase
-        .from('teacher_applications')
-        .insert({
-          name: formData.name.trim(),
-          email: formData.email.trim().toLowerCase(), // normalize for consistent lookup
-          phone_number: formData.phone_number.replace(/\D/g, ''), // Store only digits (10 digits)
-          sir_maam: formData.sir_maam,
-          subjects: formData.subjects.trim() || null,
-          classes_taught_for_backend: formData.classes_taught_for_backend.trim() || null,
-          school_boards_catered: formData.school_boards_catered.trim() || null,
-          location_v2: formData.location_v2 || null,
-          students_home_areas: formData.students_home_areas.trim() || null,
-          tutors_home_areas: formData.tutors_home_areas.trim() || null,
-          mode_of_teaching: formData.mode_of_teaching.trim() || null,
-          class_size: formData.class_size.trim() || null,
-          description: formData.description.trim() || null,
-          qualifications_etc: formData.qualifications_etc.trim() || null,
-          years_started_teaching: formData.years_started_teaching.trim() || null,
-          featured_subject: formData.featured_subject || null,
-          hero_image_url: heroImageUrl || null,
-          reference_name: formData.reference_name.trim() || null,
-          reference_number: formData.reference_number.replace(/\D/g, '') || null, // Store only digits
-          min_fees: formData.min_fees ? parseInt(formData.min_fees.replace(/\D/g, '')) || null : null,
-          max_fees: formData.max_fees ? parseInt(formData.max_fees.replace(/\D/g, '')) || null : null,
-          mou_consent: true,
-          mou_consent_timestamp: new Date().toISOString(),
-          status: 'pending',
-        });
+      const { error } = await supabase.from('teacher_applications').insert({
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone_number: formData.phone_number.replace(/\D/g, ''),
+        sir_maam: formData.sir_maam,
+        subjects: formData.subjects.trim() || null,
+        classes_taught_for_backend: formData.classes_taught_for_backend.trim() || null,
+        school_boards_catered: formData.school_boards_catered.trim() || null,
+        location_v2: formData.location_v2 || null,
+        students_home_areas: formData.students_home_areas.trim() || null,
+        tutors_home_areas: formData.tutors_home_areas.trim() || null,
+        mode_of_teaching: formData.mode_of_teaching.trim() || null,
+        class_size: formData.class_size.trim() || null,
+        description: formData.description.trim() || null,
+        qualifications_etc: formData.qualifications_etc.trim() || null,
+        years_started_teaching: formData.years_started_teaching.trim() || null,
+        featured_subject: formData.featured_subject || null,
+        hero_image_url: heroImageUrl || null,
+        reference_name: formData.reference_name.trim() || null,
+        reference_number: formData.reference_number.replace(/\D/g, '') || null,
+        min_fees: formData.min_fees ? parseInt(formData.min_fees.replace(/\D/g, '')) || null : null,
+        max_fees: formData.max_fees ? parseInt(formData.max_fees.replace(/\D/g, '')) || null : null,
+        mou_consent: true,
+        mou_consent_timestamp: new Date().toISOString(),
+        status: 'pending',
+      });
 
       if (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error submitting application:', error);
+        logger.error('JoinApply.submit', error);
+        if (error.message?.includes('DUPLICATE_PENDING_APPLICATION')) {
+          toast.error('You already have an application under review with this email. We will get back to you soon.');
+        } else {
+          toast.error('Failed to submit application. Please try again.');
         }
-        toast.error('Failed to submit application. Please try again.');
         return;
       }
 
       setSubmitted(true);
       toast.success('Application submitted successfully! We will review it and get back to you soon.');
     } catch (error) {
-      if (import.meta.env.DEV) {
-        console.error('Error:', error);
-      }
+      logger.error('JoinApply.submit.catch', error);
       toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Blur-only validators for the plain text fields (Field primitive contract).
+  const nameV = useBlurValidation(formData.name, (v) => (!v.trim() ? 'Enter your name.' : v.length > 200 ? 'Name must be at most 200 characters.' : undefined));
+  const emailV = useBlurValidation(formData.email, (v) =>
+    !v.trim() ? 'Enter your email.' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? 'That email address does not look right.' : undefined,
+  );
+  const phoneV = useBlurValidation(formData.phone_number, (v) => (v.replace(/\D/g, '').length !== 10 ? 'Enter a 10-digit WhatsApp number.' : undefined));
+  const refNameV = useBlurValidation(formData.reference_name, (v) => (!v.trim() ? "Enter the student's name." : undefined));
+  const refNumberV = useBlurValidation(formData.reference_number, (v) => (v.replace(/\D/g, '').length !== 10 ? 'Enter a 10-digit number.' : undefined));
+
   if (submitted) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
-          <div className="max-w-2xl mx-auto text-center">
-            <div className="bg-card rounded-3xl p-8 border border-border">
-              <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-4">
-                Application Submitted!
-              </h1>
-              <p className="text-lg text-muted-foreground mb-6">
-                Thank you for your interest in joining Shikshaq as a teacher. 
-                We have received your application and will review it shortly.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                You will be notified via email once your application has been reviewed.
-              </p>
+        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-16">
+          <div className="rounded-bento bg-card p-6 text-center sm:p-10">
+            <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-8 h-8 text-foreground" />
             </div>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground mb-3">
+              {WAITING_ON_REVIEW.head}
+            </h1>
+            <p className="text-base leading-relaxed text-muted-foreground mb-2">
+              {WAITING_ON_REVIEW.lede} {WAITING_ON_REVIEW.note}
+            </p>
+            <p className="text-sm text-warm-meta">
+              You will be notified via email once your application has been reviewed.
+            </p>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
+  const isLastStep = step === STEPS.length - 1;
+
+  const validateStep = (stepIndex: number): boolean => {
+    if (stepIndex === 0) {
+      if (!formData.name.trim()) {
+        toast.error('Please enter your name');
+        return false;
+      }
+      if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+        toast.error('Please enter a valid email address');
+        return false;
+      }
+      if (!formData.sir_maam) {
+        toast.error("Please select Sir or Ma'am");
+        return false;
+      }
+      if (formData.phone_number.replace(/\D/g, '').length !== 10) {
+        toast.error('WhatsApp number must be exactly 10 digits');
+        return false;
+      }
+      // Photo is encouraged (copy: "doubles replies"), not required — pages.md
+      // §13 J1 lists it as a field but the spec's validation column only
+      // requires name + phone. It used to hard-block here; it no longer does.
+      return true;
+    }
+    if (stepIndex === 1) {
+      if (!formData.subjects.trim()) {
+        toast.error('Please select at least one subject');
+        return false;
+      }
+      if (!formData.school_boards_catered.trim()) {
+        toast.error('Please select at least one school board');
+        return false;
+      }
+      if (!formData.classes_taught_for_backend.trim()) {
+        toast.error('Please select at least one class');
+        return false;
+      }
+      if (!formData.class_size.trim()) {
+        toast.error('Please select at least one structure of classes option');
+        return false;
+      }
+      return true;
+    }
+    if (stepIndex === 2) {
+      if (!formData.location_v2) {
+        toast.error('Please select a location option');
+        return false;
+      }
+      if (formData.location_v2 === "STUDENT'S HOME TUTORING ONLY" && !formData.students_home_areas.trim()) {
+        toast.error("Please select at least one area for Student's Home Tutoring");
+        return false;
+      }
+      if (formData.location_v2 === "TEACHER'S HOME TUTORING" && !formData.tutors_home_areas.trim()) {
+        toast.error("Please select at least one area for Teacher's Home Tutoring");
+        return false;
+      }
+      if (formData.location_v2 === 'BOTH OPTIONS LISTED') {
+        if (!formData.students_home_areas.trim()) {
+          toast.error("Please select at least one area for Student's Home Tutoring");
+          return false;
+        }
+        if (!formData.tutors_home_areas.trim()) {
+          toast.error("Please select at least one area for Teacher's Home Tutoring");
+          return false;
+        }
+      }
+      if (!formData.mode_of_teaching.trim()) {
+        toast.error('Please select at least one mode of teaching');
+        return false;
+      }
+      return true;
+    }
+    if (stepIndex === 3) {
+      const monthlyFee = parseInt(formData.min_fees.replace(/\D/g, ''), 10);
+      if (!formData.min_fees.trim() || Number.isNaN(monthlyFee) || monthlyFee <= 0) {
+        toast.error('Please enter a monthly fee greater than ₹0');
+        return false;
+      }
+      if (!formData.mou_consent) {
+        // MOU lives on the final step, but fee/terms is where we ask them to read it isn't blocking here.
+      }
+      return true;
+    }
+    return true;
+  };
+
+  const goNext = () => {
+    if (!validateStep(step)) return;
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
+  const goBack = () => setStep((s) => Math.max(s - 1, 0));
+
+  const showStudentAreas = formData.location_v2 === "STUDENT'S HOME TUTORING ONLY" || formData.location_v2 === 'BOTH OPTIONS LISTED';
+  const showTutorAreas = formData.location_v2 === "TEACHER'S HOME TUTORING" || formData.location_v2 === 'BOTH OPTIONS LISTED';
+
+  const currentStep = STEPS[step];
+
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
+    <div className="flex h-[100dvh] flex-col gap-seam bg-background">
+      {/* Handoff JA-001/002/003: fixed three-region shell — this route is
+          chromeless (App.tsx), so h-[100dvh] is the true viewport, not a
+          page that also has to fit a floating bottom nav underneath. */}
+      <BentoPanel fill="dark" edge="top" className="flex-none px-5 pt-1.5 pb-5">
+        <div className="flex h-12 items-center gap-3">
+          {step > 0 ? (
+            <button
+              type="button"
+              onClick={goBack}
+              aria-label="Back to the previous step"
+              /* C-013: a 40px painted disc carries `before:-inset-[2px]` so the
+                 hit box is 44×44 — the changelog names these discs explicitly. */
+              className="relative flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/10 text-background transition-colors before:absolute before:-inset-[2px] before:content-[''] hover:bg-white/20"
+            >
+              <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden="true" />
+            </button>
+          ) : (
+            <Link
+              to="/join"
+              aria-label="Back to why join Shikshaq"
+              /* C-013: a 40px painted disc carries `before:-inset-[2px]` so the
+                 hit box is 44×44 — the changelog names these discs explicitly. */
+              className="relative flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white/10 text-background transition-colors before:absolute before:-inset-[2px] before:content-[''] hover:bg-white/20"
+            >
+              <ArrowLeft className="h-[17px] w-[17px]" strokeWidth={2.4} aria-hidden="true" />
+            </Link>
+          )}
+          <ProgressSteps steps={STEPS.length} current={step} label={currentStep.label} tone="dark" hideCaption className="flex-1" />
+          <span className="flex-none whitespace-nowrap text-[13px] font-bold text-background/60">
+            Step {step + 1} of {STEPS.length}
+          </span>
+        </div>
+        <div className="mt-3 text-[12px] font-bold uppercase tracking-[0.04em] text-background/50">{currentStep.label}</div>
+        <h1 className="mt-1.5 font-display text-[30px] font-black leading-[1.02] tracking-[-0.04em] text-background">{currentStep.head}</h1>
+        <p className="mt-2 text-[15px] leading-[1.5] text-background/65">{currentStep.lede}</p>
+      </BentoPanel>
 
-      <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-5xl font-sans text-foreground mb-4">
-              Join Shikshaq as a Teacher
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Fill out the form below to apply. All fields marked with * are required.
-            </p>
-          </div>
+      <BentoPanel fill="card" className="min-h-0 flex-1 overflow-y-auto p-5">
+        <form
+          id="join-apply-form"
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            // pages.md §13: "`Enter` advances." On every step but the last,
+            // Enter in a text field should move to the next step rather than
+            // submit the (incomplete) form. On the last step, let the native
+            // submit happen. Textareas keep their own newline behaviour.
+            if (e.key === 'Enter' && !isLastStep && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+              e.preventDefault();
+              goNext();
+            }
+          }}
+        >
+          <div ref={stepScrollRef}>
+            {/* J1 — who you are */}
+            {step === 0 && (
+              <div className="animate-fade-slide-up">
+                <div className="grid gap-4">
+                  <Field label="Full name" required error={nameV.error}>
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        autoComplete="name"
+                        value={formData.name}
+                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        onBlur={nameV.onBlur}
+                        placeholder="e.g. Ananya Ghosh"
+                        maxLength={200}
+                      />
+                    )}
+                  </Field>
 
-          <form onSubmit={handleSubmit} className="bg-card rounded-3xl p-6 md:p-8 border border-border space-y-8">
-            {/* Basic Information */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
-                Basic Information
-              </h2>
+                  <Field label="Email" required error={emailV.error}>
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        onBlur={emailV.onBlur}
+                        placeholder="e.g. name@example.com"
+                        maxLength={254}
+                      />
+                    )}
+                  </Field>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Name */}
-                <div>
-                  <Label htmlFor="name">Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    maxLength={200}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Max 200 characters</p>
-                </div>
-
-                {/* Email */}
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    placeholder="e.g. name@example.com"
-                    maxLength={254}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Enter a valid email address</p>
-                </div>
-
-                {/* Phone Number */}
-                <div>
-                  <Label htmlFor="phone_number">Phone Number *</Label>
-                  <Input
-                    id="phone_number"
-                    type="tel"
-                    value={formData.phone_number}
-                    onChange={(e) => {
-                      // Only allow digits, limit to 10 digits
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      handleInputChange('phone_number', digits);
-                    }}
-                    placeholder="10 digit number"
-                    maxLength={10}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Enter 10 digit phone number (country code +91 will be added automatically)</p>
-                </div>
-
-                {/* Sir/Ma'am */}
-                <div>
-                  <Label htmlFor="sir_maam">Sir/Ma'am? *</Label>
-                  <Select
-                    value={formData.sir_maam || "__none__"}
-                    onValueChange={(value) => handleInputChange('sir_maam', value === "__none__" ? "" : value)}
-                  >
-                    <SelectTrigger id="sir_maam">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
+                  <div>
+                    <Eyebrow as="p" className="mb-2">Sir or Ma'am <span className="text-facet-destructive">*</span></Eyebrow>
+                    <div className="flex gap-2">
                       {SIR_MAAM.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
+                        <Pill key={option} label={option} selected={formData.sir_maam === option} onClick={() => handleInputChange('sir_maam', option)} />
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  </div>
+
+                  <Field label="WhatsApp number" required error={phoneV.error} hint="Shown only once a guardian taps WhatsApp. Never on the open page, never in search results.">
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        value={formData.phone_number}
+                        onChange={(e) => handleInputChange('phone_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        onBlur={phoneV.onBlur}
+                        placeholder="10-digit number"
+                        maxLength={10}
+                      />
+                    )}
+                  </Field>
+
+                  <Field label="Years of experience" hint="Optional">
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        value={formData.years_started_teaching}
+                        onChange={(e) => handleInputChange('years_started_teaching', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="e.g. 12"
+                        maxLength={4}
+                        inputMode="numeric"
+                      />
+                    )}
+                  </Field>
+
+                  {/* Photo — moved up from the old final-step location to match J1
+                      ("who you are: name, WhatsApp, years, photo"). */}
+                  <div>
+                    <Eyebrow as="p" className="mb-2">Photo</Eyebrow>
+                    <div className="grid gap-3">
+                      {imagePreview && (() => {
+                        const validatedUrl = validateImageSrc(imagePreview);
+                        if (!validatedUrl) return null;
+                        const safeSrc = DOMPurify.sanitize(validatedUrl, { ALLOWED_TAGS: [], ALLOWED_ATTR: [], KEEP_CONTENT: true });
+                        if (!safeSrc) return null;
+                        return (
+                          <div className="relative w-full max-w-[340px]">
+                            <img
+                              src={safeSrc}
+                              alt="Photo preview"
+                              className="w-full h-[190px] object-cover rounded-2xl ring-1 ring-inset ring-warm-hairline"
+                              onError={() => setImagePreview(null)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (imagePreview && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+                                setSelectedImageFile(null);
+                                setImagePreview(null);
+                                handleInputChange('hero_image_url', '');
+                              }}
+                              className="absolute top-2 right-2 flex items-center justify-center w-10 h-10 rounded-full bg-card/90 shadow-border"
+                            >
+                              <X className="w-4 h-4 text-foreground" />
+                            </button>
+                          </div>
+                        );
+                      })()}
+                      <label
+                        htmlFor="heroImageUpload"
+                        className="inline-flex items-center gap-2 w-fit min-h-11 px-4 rounded-lg text-sm font-semibold text-foreground ring-1 ring-inset ring-warm-hairline cursor-pointer"
+                      >
+                        <Upload className="w-4 h-4" />
+                        {selectedImageFile ? 'Change photo' : 'Select photo'}
+                        <input id="heroImageUpload" type="file" accept="image/*" className="hidden" onChange={handleImageFileChange} disabled={submitting} />
+                      </label>
+                      <p className="text-meta text-warm-meta">
+                        {selectedImageFile ? 'Uploaded when you submit the form. Max 5MB.' : 'Optional, but a photo doubles replies. Max 5MB.'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Teaching Details */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
-                Teaching Details
-              </h2>
+            {/* J2 — what you teach */}
+            {step === 1 && (
+              <div className="animate-fade-slide-up">
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Subjects */}
-                <div className="md:col-span-2">
-                  <Label>Subjects *</Label>
-                  <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4 border border-border rounded-lg">
+                <div className="mb-6">
+                  <Eyebrow as="p" className="mb-3">Subjects <span className="text-facet-destructive">*</span></Eyebrow>
+                  <div className="flex flex-wrap gap-2">
                     {SUBJECTS.map((subject) => {
                       const selected = valueExistsInString(formData.subjects, subject);
+                      const sc = getSubjectColors(subject);
                       return (
-                        <div key={subject} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`subject-${subject}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('subjects', subject, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`subject-${subject}`} className="cursor-pointer text-sm">
-                            {subject}
-                          </Label>
-                        </div>
+                        <Pill
+                          key={subject}
+                          label={subject}
+                          selected={selected}
+                          dynamicTint={{ bg: sc.tint, color: sc.titleText }}
+                          onClick={() => handleMultiSelectChange('subjects', subject, !selected)}
+                        />
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Classes Taught */}
-                <div className="md:col-span-2">
-                  <Label>Classes Taught *</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {CLASSES.map((cls) => {
-                      const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
-                      return (
-                        <div key={cls} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`class-${cls}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('classes_taught_for_backend', cls, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`class-${cls}`} className="cursor-pointer">
-                            {cls}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* School Boards Catered */}
-                <div className="md:col-span-2">
-                  <Label>School Boards Catered *</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                <div className="mb-6">
+                  <Eyebrow as="p" className="mb-3">Boards catered <span className="text-facet-destructive">*</span></Eyebrow>
+                  <div className="flex flex-wrap gap-2">
                     {BOARDS.map((board) => {
                       const selected = valueExistsInString(formData.school_boards_catered, board);
                       return (
-                        <div key={board} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`board-${board}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('school_boards_catered', board, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`board-${board}`} className="cursor-pointer">
-                            {board}
-                          </Label>
-                        </div>
+                        <Pill
+                          key={board}
+                          label={board}
+                          selected={selected}
+                          tintClass="bg-brand-blue-subtle text-brand-blue-deep"
+                          onClick={() => handleMultiSelectChange('school_boards_catered', board, !selected)}
+                        />
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Location V2 */}
-                <div>
-                  <Label htmlFor="location_v2">Location *</Label>
-                  <Select
-                    value={formData.location_v2 || "__none__"}
-                    onValueChange={(value) => handleInputChange('location_v2', value === "__none__" ? "" : value)}
-                  >
-                    <SelectTrigger id="location_v2">
-                      <SelectValue placeholder="Select location option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      <SelectItem value="TEACHER'S HOME TUTORING">Teacher's Home Tutoring Only</SelectItem>
-                      <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's Home Tutoring Only</SelectItem>
-                      <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Featured Subject - only from selected subjects */}
-                <div>
-                  <Label htmlFor="featured_subject">Featured Subject</Label>
-                  <Select
-                    value={(() => {
-                      const selectedSubjects = (formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
-                      const current = formData.featured_subject;
-                      return current && selectedSubjects.includes(current) ? current : 'none';
-                    })()}
-                    onValueChange={(value) => handleInputChange('featured_subject', value === "none" ? "" : value)}
-                  >
-                    <SelectTrigger id="featured_subject">
-                      <SelectValue placeholder="Select featured subject" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {(formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean).map((subject) => (
-                        <SelectItem key={subject} value={subject}>
-                          {subject}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Choose one of your selected subjects to feature on your profile
-                  </p>
-                </div>
-
-                {/* Mode of Teaching */}
-                <div>
-                  <Label>Mode of Teaching *</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {MODE_OF_TEACHING.map((mode) => {
-                      const selected = valueExistsInString(formData.mode_of_teaching, mode);
+                <div className="mb-6">
+                  <Eyebrow as="p" className="mb-3">Classes <span className="text-facet-destructive">*</span></Eyebrow>
+                  <div className="grid grid-cols-6 gap-2">
+                    {CLASSES.map((cls) => {
+                      const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
                       return (
-                        <div key={mode} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`mode-${mode}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('mode_of_teaching', mode, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`mode-${mode}`} className="cursor-pointer">
-                            {mode}
-                          </Label>
-                        </div>
+                        <NumberGridOption key={cls} label={cls} selected={selected} onClick={() => handleMultiSelectChange('classes_taught_for_backend', cls, !selected)} />
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Structure of classes (stored as class_size) */}
-                <div>
-                  <Label>Structure of classes *</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                <div className="mb-6">
+                  <Eyebrow as="p" className="mb-3">Structure of classes <span className="text-facet-destructive">*</span></Eyebrow>
+                  <div className="flex flex-wrap gap-2">
                     {CLASS_SIZE.map((size) => {
                       const selected = valueExistsInString(formData.class_size, size);
                       return (
-                        <div key={size} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`classSize-${size}`}
-                            checked={selected}
-                            onCheckedChange={(checked) =>
-                              handleMultiSelectChange('class_size', size, checked as boolean)
-                            }
-                          />
-                          <Label htmlFor={`classSize-${size}`} className="cursor-pointer">
-                            {size === 'Solo' ? 'One-on-one' : size}
-                          </Label>
-                        </div>
+                        <Pill
+                          key={size}
+                          label={size === 'Solo' ? 'One-on-one' : size}
+                          selected={selected}
+                          onClick={() => handleMultiSelectChange('class_size', size, !selected)}
+                        />
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Student's Home Areas - Show when Location is "STUDENT'S HOME TUTORING ONLY" or "BOTH OPTIONS LISTED" */}
-                {(formData.location_v2 === "STUDENT'S HOME TUTORING ONLY" || formData.location_v2 === "BOTH OPTIONS LISTED") && (
-                  <div className="md:col-span-2">
-                    <Label>Student's Home in These Areas *</Label>
-                    <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4 border border-border rounded-lg">
+                <Field label="Featured subject" hint="Choose one of your selected subjects to feature on your profile">
+                  {(p) => (
+                    <Select
+                      value={(() => {
+                        const selectedSubjects = (formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean);
+                        const current = formData.featured_subject;
+                        return current && selectedSubjects.includes(current) ? current : 'none';
+                      })()}
+                      onValueChange={(value) => handleInputChange('featured_subject', value === 'none' ? '' : value)}
+                    >
+                      <SelectTrigger id={p.id} className={p.className}>
+                        <SelectValue placeholder="Select featured subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {(formData.subjects || '').split(',').map((s) => s.trim()).filter(Boolean).map((subject) => (
+                          <SelectItem key={subject} value={subject}>
+                            {subject}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
+              </div>
+            )}
+
+            {/* J3 — where you teach */}
+            {step === 2 && (
+              <div className="animate-fade-slide-up">
+
+                <Field label="Location" required className="mb-6">
+                  {(p) => (
+                    <Select value={formData.location_v2 || '__none__'} onValueChange={(value) => handleInputChange('location_v2', value === '__none__' ? '' : value)}>
+                      <SelectTrigger id={p.id} className={p.className}>
+                        <SelectValue placeholder="Select location option" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None</SelectItem>
+                        <SelectItem value="TEACHER'S HOME TUTORING">Teacher's home tutoring only</SelectItem>
+                        <SelectItem value="STUDENT'S HOME TUTORING ONLY">Student's home tutoring only</SelectItem>
+                        <SelectItem value="BOTH OPTIONS LISTED">Both</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </Field>
+
+                {showStudentAreas && (
+                  <div className="mb-6">
+                    <Eyebrow as="p" className="mb-3">Areas you teach in (student's home) <span className="text-facet-destructive">*</span></Eyebrow>
+                    <div className="flex flex-wrap gap-2">
                       {AREAS.map((area) => {
                         const selected = valueExistsInString(formData.students_home_areas, area);
                         return (
-                          <div key={area} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`student-area-${area}`}
-                              checked={selected}
-                              onCheckedChange={(checked) =>
-                                handleMultiSelectChange('students_home_areas', area, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`student-area-${area}`} className="cursor-pointer text-sm">
-                              {area}
-                            </Label>
-                          </div>
+                          <Pill
+                            key={area}
+                            label={area}
+                            selected={selected}
+                            tintClass="bg-brand-subtle text-brand-deep"
+                            onClick={() => handleMultiSelectChange('students_home_areas', area, !selected)}
+                          />
                         );
                       })}
                     </div>
                   </div>
                 )}
 
-                {/* Tutor's Home Areas - Show when Location is "TEACHER'S HOME TUTORING" or "BOTH OPTIONS LISTED" */}
-                {(formData.location_v2 === "TEACHER'S HOME TUTORING" || formData.location_v2 === "BOTH OPTIONS LISTED") && (
-                  <div className="md:col-span-2">
-                    <Label>Tutor's Home in These Areas *</Label>
-                    <div className="flex flex-wrap gap-2 mt-2 max-h-48 overflow-y-auto p-4 border border-border rounded-lg">
+                {showTutorAreas && (
+                  <div className="mb-6">
+                    <Eyebrow as="p" className="mb-3">Areas you teach in (your home) <span className="text-facet-destructive">*</span></Eyebrow>
+                    <div className="flex flex-wrap gap-2">
                       {AREAS.map((area) => {
                         const selected = valueExistsInString(formData.tutors_home_areas, area);
                         return (
-                          <div key={area} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`tutor-area-${area}`}
-                              checked={selected}
-                              onCheckedChange={(checked) =>
-                                handleMultiSelectChange('tutors_home_areas', area, checked as boolean)
-                              }
-                            />
-                            <Label htmlFor={`tutor-area-${area}`} className="cursor-pointer text-sm">
-                              {area}
-                            </Label>
-                          </div>
+                          <Pill
+                            key={area}
+                            label={area}
+                            selected={selected}
+                            tintClass="bg-brand-subtle text-brand-deep"
+                            onClick={() => handleMultiSelectChange('tutors_home_areas', area, !selected)}
+                          />
                         );
                       })}
                     </div>
                   </div>
                 )}
+
+                <p className="mb-2 text-meta text-warm-meta">We show your locality and radius, like "Doranda, travels 5 km", and nothing more precise than that.</p>
+
+                <div className="mb-6">
+                  <Eyebrow as="p" className="mb-3">Mode of teaching <span className="text-facet-destructive">*</span></Eyebrow>
+                  <div className="flex flex-wrap gap-2">
+                    {MODE_OF_TEACHING.map((mode) => {
+                      const selected = valueExistsInString(formData.mode_of_teaching, mode);
+                      return (
+                        <Pill key={mode} label={mode} selected={selected} onClick={() => handleMultiSelectChange('mode_of_teaching', mode, !selected)} />
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Additional Information */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
-                Additional Information
-              </h2>
+            {/* J4 — your fee, your terms */}
+            {step === 3 && (
+              <div className="animate-fade-slide-up">
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Profile Introduction */}
-                <div className="md:col-span-2">
-                  <Label htmlFor="description">Profile Introduction</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    rows={5}
-                    placeholder="Tell us about yourself and your teaching approach..."
-                    maxLength={1000}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Max 1000 characters</p>
-                </div>
+                {/* pages.md §13 — required disclosure, verbatim. */}
+                <p className="mb-6 rounded-2xl bg-background p-4 text-sm leading-relaxed text-warm-prose ring-1 ring-inset ring-warm-hairline">
+                  Listing is free. We take no commission, ever. Guardians and teachers settle fees between themselves. We never invoice, never hold a deposit, and never show a "platform price".
+                </p>
 
-                {/* Educational Qualifications */}
-                <div className="md:col-span-2">
-                  <Label htmlFor="qualifications_etc">Educational Qualifications</Label>
-                  <Textarea
-                    id="qualifications_etc"
-                    value={formData.qualifications_etc}
-                    onChange={(e) => handleInputChange('qualifications_etc', e.target.value)}
-                    rows={3}
-                    placeholder="Your educational qualifications, certifications, etc."
-                    maxLength={500}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Max 500 characters</p>
-                </div>
-
-                {/* Year you started teaching */}
-                <div>
-                  <Label htmlFor="years_started_teaching">Year you started teaching</Label>
-                  <Input
-                    id="years_started_teaching"
-                    value={formData.years_started_teaching}
-                    onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
-                      handleInputChange('years_started_teaching', digits);
-                    }}
-                    placeholder="e.g. 2015"
-                    maxLength={4}
-                    inputMode="numeric"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Numbers only, up to 4 digits</p>
-                </div>
-
-                {/* Reference Name */}
-                <div>
-                  <Label htmlFor="reference_name">Student name (for verification) *</Label>
-                  <Input
-                    id="reference_name"
-                    value={formData.reference_name}
-                    onChange={(e) => handleInputChange('reference_name', e.target.value)}
-                    placeholder="Name of a student we can contact"
-                    maxLength={200}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Max 200 characters</p>
-                  <p className="text-xs text-muted-foreground mt-1">We will call them to verify you're a teacher</p>
-                </div>
-
-                {/* Student number for verification */}
-                <div>
-                  <Label htmlFor="reference_number">Student number (for verification) *</Label>
-                  <Input
-                    id="reference_number"
-                    type="tel"
-                    value={formData.reference_number}
-                    onChange={(e) => {
-                      // Only allow digits, limit to 10
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      handleInputChange('reference_number', digits);
-                    }}
-                    placeholder="10 digit number"
-                    maxLength={10}
-                    required
-                  />
-                </div>
-
-                {/* Monthly fee range */}
-                <div className="md:col-span-2 space-y-2">
-                  <Label className="text-base">Monthly fee range</Label>
-                  <div className="flex flex-row gap-3 sm:gap-4">
-                    <div className="flex-1 min-w-0">
-                      <Label htmlFor="min_fees" className="text-sm font-normal text-muted-foreground">Min (₹)</Label>
-                      <Input
-                        id="min_fees"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <Field label="Monthly fee ₹" required>
+                    {(p) => (
+                      <FieldInput
+                        {...p}
                         type="tel"
                         value={formData.min_fees}
-                        onChange={(e) => {
-                          const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                          handleInputChange('min_fees', digits);
-                        }}
-                        placeholder="e.g., 2000"
+                        onChange={(e) => handleInputChange('min_fees', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="₹3,000"
                         maxLength={6}
                         inputMode="numeric"
                       />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <Label htmlFor="max_fees" className="text-sm font-normal text-muted-foreground">Max (₹)</Label>
-                      <Input
-                        id="max_fees"
+                    )}
+                  </Field>
+                  <Field label="Maximum fee / month" hint="Optional">
+                    {(p) => (
+                      <FieldInput
+                        {...p}
                         type="tel"
                         value={formData.max_fees}
-                        onChange={(e) => {
-                          const digits = e.target.value.replace(/\D/g, '').slice(0, 6);
-                          handleInputChange('max_fees', digits);
-                        }}
-                        placeholder="e.g., 5000"
+                        onChange={(e) => handleInputChange('max_fees', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="₹5,000"
                         maxLength={6}
                         inputMode="numeric"
                       />
-                    </div>
+                    )}
+                  </Field>
+                </div>
+
+                {/* Free-first-class toggle — pages.md §13 J4 field list. No
+                    backend column exists yet for it (O-07 covers verification
+                    docs, not this), so it stays local UI state and is not part
+                    of the teacher_applications insert below. */}
+                <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl bg-background p-4 ring-1 ring-inset ring-warm-hairline">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Offer a free first class</p>
+                    <p className="mt-0.5 text-meta text-warm-meta">Shown on your profile. Helps guardians decide.</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">Optional</p>
-                </div>
-
-                {/* Profile Picture */}
-                <div className="md:col-span-2">
-                  <Label htmlFor="hero_image">Profile Picture *</Label>
-                  <div className="space-y-3">
-                    {(() => {
-                      // Early return if no preview
-                      if (!imagePreview) return null;
-                      
-                      // Sanitize user-controlled image URL to prevent XSS
-                      // validateImageSrc ensures only safe URLs (blob, http/https, data:image) are used
-                      const validatedUrl = validateImageSrc(imagePreview);
-                      
-                      // Only render if URL is validated and safe
-                      if (!validatedUrl || validatedUrl.length === 0) return null;
-                      
-                      // Apply DOMPurify.sanitize to break the taint chain — CodeQL recognises
-                      // DOMPurify as a known sanitizer, so this stops the
-                      // "DOM text reinterpreted as HTML" finding while adding defence-in-depth.
-                      // DOMPurify with ALLOWED_TAGS:[] strips any HTML but leaves the plain URL intact.
-                      const safeSrc = DOMPurify.sanitize(validatedUrl, {
-                        ALLOWED_TAGS: [],
-                        ALLOWED_ATTR: [],
-                        KEEP_CONTENT: true,
-                      });
-                      
-                      if (!safeSrc) return null;
-                      
-                      return (
-                        <div className="relative w-full max-w-md">
-                          <img
-                            src={safeSrc}
-                            alt="Profile picture preview"
-                            className="w-full h-48 object-cover rounded-lg border"
-                            onError={() => setImagePreview(null)}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute top-2 right-2"
-                            onClick={() => {
-                              // Clean up object URL if it's a blob URL
-                              if (imagePreview && imagePreview.startsWith('blob:')) {
-                                URL.revokeObjectURL(imagePreview);
-                              }
-                              setSelectedImageFile(null);
-                              setImagePreview(null);
-                              handleInputChange('hero_image_url', '');
-                            }}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      );
-                    })()}
-                    <label
-                      htmlFor="heroImageUpload"
-                      className="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer hover:bg-muted transition-colors w-fit"
-                    >
-                      <Upload className="w-4 h-4" />
-                      {selectedImageFile ? 'Change Image' : 'Select Image'}
-                      <input
-                        id="heroImageUpload"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleImageFileChange}
-                        disabled={submitting}
-                      />
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedImageFile 
-                        ? 'Image will be uploaded when you submit the form. Max file size: 5MB'
-                        : 'Select a professional photo. Image will be uploaded on form submission. Max file size: 5MB'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* MOU Consent */}
-            <div className="space-y-6">
-              <h2 className="text-2xl font-sans text-foreground border-b border-border pb-2">
-                Memorandum of Understanding *
-              </h2>
-
-              <div className="bg-muted/50 rounded-lg p-6 space-y-4">
-                <p className="text-sm text-foreground leading-relaxed">
-                  This Memorandum of Understanding confirms that you grant Shikshaq permission to display your submitted profile (name, locality, place of teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and enhancing their learning experience.
-                </p>
-
-                <p className="text-sm font-medium text-foreground">
-                  Please review the statement below and provide your consent in order to proceed.
-                </p>
-
-                <div className="space-y-2 text-sm text-foreground">
-                  <p><strong>I have read and understood the above Memorandum of Understanding and consent to:</strong></p>
-                  <ol className="list-decimal list-inside space-y-1 ml-2">
-                    <li>Shikshaq displaying my educator profile as previously submitted;</li>
-                    <li>The use of my Whatsapp link to let students land directly on my Whatsapp chat through Shikshaq for communication;</li>
-                    <li>The use of my provided information for student outreach and internal communication;</li>
-                    <li>This digital form serving as a legally binding agreement.</li>
-                  </ol>
-                </div>
-
-                <div className="flex items-start space-x-3 pt-4 border-t border-border">
-                  <Checkbox
-                    id="mou_consent"
-                    checked={formData.mou_consent}
-                    onCheckedChange={(checked) => handleInputChange('mou_consent', checked)}
-                    required
+                  <Switch
+                    checked={formData.free_first_class}
+                    onCheckedChange={(checked) => handleInputChange('free_first_class', checked)}
+                    aria-label="Offer a free first class"
                   />
-                  <Label htmlFor="mou_consent" className="cursor-pointer text-sm leading-relaxed">
-                    <span className="font-medium">I consent. *</span>
-                  </Label>
+                </div>
+
+                <div className="grid gap-6">
+                  <Field label="Profile introduction, in your own words" hint={`${formData.description.length}/1000`}>
+                    {(p) => (
+                      <FieldTextarea
+                        {...p}
+                        value={formData.description}
+                        onChange={(e) => handleInputChange('description', e.target.value)}
+                        rows={5}
+                        placeholder="Tell us about yourself and your teaching approach..."
+                        maxLength={1000}
+                      />
+                    )}
+                  </Field>
+
+                  <Field label="Educational qualifications" hint={`${formData.qualifications_etc.length}/500`}>
+                    {(p) => (
+                      <FieldTextarea
+                        {...p}
+                        value={formData.qualifications_etc}
+                        onChange={(e) => handleInputChange('qualifications_etc', e.target.value)}
+                        rows={3}
+                        placeholder="Your educational qualifications, certifications, etc."
+                        maxLength={500}
+                      />
+                    )}
+                  </Field>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Submit Button */}
-            <div className="pt-6 border-t border-border">
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full md:w-auto"
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit Application'
-                )}
-              </Button>
-            </div>
-          </form>
+            {/* Verify & consent — collects the two legacy verification fields
+                (reference_name/reference_number) and MOU consent that the J1–J5
+                mockup has no slot for. This is where the real "Send" happens,
+                so its copy must not borrow J5's post-submission "With us now"
+                language (see WAITING_ON_REVIEW above, used on the submitted
+                screen instead). */}
+            {step === 4 && (
+              <div className="animate-fade-slide-up">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <Field label="Student name (for verification)" required error={refNameV.error} hint="We will call them to verify you're a teacher">
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        value={formData.reference_name}
+                        onChange={(e) => handleInputChange('reference_name', e.target.value)}
+                        onBlur={refNameV.onBlur}
+                        placeholder="Name of a student we can contact"
+                        maxLength={200}
+                      />
+                    )}
+                  </Field>
+
+                  <Field label="Student number (for verification)" required error={refNumberV.error}>
+                    {(p) => (
+                      <FieldInput
+                        {...p}
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={formData.reference_number}
+                        onChange={(e) => handleInputChange('reference_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        onBlur={refNumberV.onBlur}
+                        placeholder="10-digit number"
+                        maxLength={10}
+                      />
+                    )}
+                  </Field>
+                </div>
+
+                <div className="rounded-2xl bg-background ring-1 ring-inset ring-warm-hairline p-4 grid gap-4">
+                  <p className="text-sm font-semibold text-foreground">Memorandum of Understanding</p>
+                  <p className="text-sm leading-relaxed text-warm-prose">
+                    This Memorandum of Understanding confirms that you grant Shikshaq permission to display your submitted profile (name, locality, place of
+                    teaching, subjects, boards, classes, photo, and WhatsApp link) on our platform for the sole purpose of connecting you with students and
+                    enhancing their learning experience.
+                  </p>
+                  <div className="text-sm text-warm-prose">
+                    <p className="font-semibold mb-2">I have read and understood the above Memorandum of Understanding and consent to:</p>
+                    <ol className="list-decimal list-inside grid gap-1.5 ml-2">
+                      <li>Shikshaq displaying my educator profile as previously submitted;</li>
+                      <li>The use of my WhatsApp link to let students land directly on my WhatsApp chat through Shikshaq for communication;</li>
+                      <li>The use of my provided information for student outreach and internal communication;</li>
+                      <li>This digital form serving as a legally binding agreement.</li>
+                    </ol>
+                  </div>
+                  <div className="flex items-start gap-3 pt-4 border-t border-warm-hairline">
+                    <Checkbox id="mou_consent" checked={formData.mou_consent} onCheckedChange={(checked) => handleInputChange('mou_consent', checked === true)} required />
+                    <label htmlFor="mou_consent" className="text-sm leading-relaxed cursor-pointer">
+                      <span className="font-semibold text-foreground">I consent. *</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </form>
+      </BentoPanel>
+
+      {/* Handoff JA-005: pinned action row — Back (omitted on step 1) then
+          Save and continue / Send for review, both h54. The primary button
+          targets the form by `id` so it submits correctly despite sitting
+          outside the <form> (JoinApply's action panel is a sibling of the
+          body panel, not a descendant). */}
+      <BentoPanel fill="card" edge="bottom" className="flex-none p-[16px_20px_26px]">
+        <div className="flex gap-2.5">
+          {step > 0 && (
+            <button
+              type="button"
+              onClick={goBack}
+              className="flex h-[54px] flex-none items-center rounded-full bg-muted px-[22px] text-[15px] font-bold text-foreground transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Back
+            </button>
+          )}
+          {!isLastStep ? (
+            <Button type="button" onClick={goNext} variant="primary" size={54} className="flex-1 text-[15px] font-extrabold">
+              Save and continue
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              form="join-apply-form"
+              disabled={submitting}
+              busy={submitting}
+              variant="primary"
+              size={54}
+              className="flex-1 text-[15px] font-extrabold"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Send for review'
+              )}
+            </Button>
+          )}
         </div>
-      </main>
-
-      <Footer />
+      </BentoPanel>
     </div>
   );
 }
-

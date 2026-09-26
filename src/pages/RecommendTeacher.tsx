@@ -3,58 +3,69 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { useRequireRole } from '@/hooks/use-require-role';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ArrowLeft, User, Phone, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { Link } from 'react-router-dom';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { logger } from '@/utils/logger';
+import { Button } from '@/components/ui/button';
+import { Field, FieldInput, FieldSelect, FieldTextarea, useBlurValidation } from '@/components/ui/field';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { Chip } from '@/components/ui/chip';
+import { SUBJECTS } from '@/utils/searchFacets';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
+import { useChromeConfig } from '@/components/layout/AppShell';
 
 const recommendSchema = z.object({
-  yourName: z.string().min(2, 'Name must be at least 2 characters'),
-  yourContact: z.string().min(10, 'Contact number must be at least 10 digits'),
-  teacherName: z.string().min(2, 'Teacher name must be at least 2 characters'),
-  teacherContact: z.string().min(10, 'Teacher contact number must be at least 10 digits'),
+  teacherName: z.string().trim().min(1, "Please enter the teacher's name").max(100, "Teacher's name is too long"),
+  subject: z.string().trim().max(100, 'Subject is too long').optional(),
+  area: z.string().trim().max(100, 'Area is too long').optional(),
+  contact: z.string().trim().max(50, 'Contact is too long').optional(),
+  reason: z.string().trim().max(1000, 'Please keep this under 1000 characters').optional(),
 });
 
 export default function RecommendTeacher() {
+  usePageMeta(
+    'Recommend a Tuition Teacher in Kolkata | Shikshaq',
+    'Know a great tuition teacher in Kolkata? Recommend them to Shikshaq so other students and parents can find them. Free to submit, takes under a minute.'
+  );
+
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
-    yourName: '',
-    yourContact: '',
     teacherName: '',
-    teacherContact: '',
+    subject: '',
+    area: '',
+    contact: '',
+    reason: '',
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   // Ensure user has selected a role
   useRequireRole();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handoff RC-001: this route renders its own eyes panel, replacing
+  // AppShell's default pre-footer.
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
+
+  const nameValidation = useBlurValidation(formData.teacherName, (v) =>
+    v.trim().length === 0 ? "Please enter the teacher's name" : undefined
+  );
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
-    // Handle phone number input - only allow digits
-    if (name === 'yourContact' || name === 'teacherContact') {
-      const digitsOnly = value.replace(/\D/g, '');
-      setFormData({ ...formData, [name]: digitsOnly });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
-    
-    // Clear error for this field
-    if (errors[name]) {
-      setErrors({ ...errors, [name]: '' });
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (error) setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Check if user is signed in
     if (!user) {
       toast.error('Please sign in to submit a recommendation');
@@ -62,59 +73,47 @@ export default function RecommendTeacher() {
       return;
     }
 
+    const result = recommendSchema.safeParse(formData);
+    if (!result.success) {
+      setError(result.error.errors[0]?.message || "Please enter the teacher's name");
+      return;
+    }
+
     setLoading(true);
-    setErrors({});
+    setError('');
 
     try {
-      const result = recommendSchema.safeParse(formData);
-      if (!result.success) {
-        const fieldErrors: Record<string, string> = {};
-        result.error.errors.forEach((err) => {
-          if (err.path[0]) {
-            fieldErrors[err.path[0] as string] = err.message;
-          }
-        });
-        setErrors(fieldErrors);
-        setLoading(false);
-        return;
-      }
+      const notesParts: string[] = [];
+      if (formData.subject.trim()) notesParts.push(`Subject: ${formData.subject.trim()}`);
+      if (formData.area.trim()) notesParts.push(`Area: ${formData.area.trim()}`);
+      if (formData.reason.trim()) notesParts.push(`Why: ${formData.reason.trim()}`);
 
-      // Submit to Supabase with user_id
-      const { error } = await supabase
+      // Submit to Supabase with user_id; recommender identity comes from the
+      // signed-in account since the form itself only collects details about
+      // the teacher being recommended.
+      const { error: submitError } = await supabase
         .from('teacher_recommendations')
         .insert({
           user_id: user.id,
-          recommender_name: formData.yourName,
-          recommender_contact: `+91${formData.yourContact}`,
-          teacher_name: formData.teacherName,
-          teacher_contact: `+91${formData.teacherContact}`,
+          recommender_name: profile?.full_name || user.email || 'Shikshaq user',
+          recommender_contact: user.email || user.phone || '',
+          teacher_name: formData.teacherName.trim(),
+          teacher_contact: formData.contact.trim(),
           status: 'pending',
+          notes: notesParts.length ? notesParts.join('\n') : null,
         });
 
-      if (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error submitting recommendation:', error);
+      if (submitError) {
+        logger.error('RecommendTeacher.submit', submitError);
+        if (submitError.message?.includes('RATE_LIMIT_EXCEEDED')) {
+          throw new Error("You've reached the daily limit for recommendations. Please try again tomorrow.");
         }
-        throw new Error(error.message || 'Failed to submit recommendation');
+        throw new Error(submitError.message || 'Failed to submit recommendation');
       }
-      
-      toast.success('Thank you! Your recommendation has been submitted.');
-      
-      // Reset form
-      setFormData({
-        yourName: '',
-        yourContact: '',
-        teacherName: '',
-        teacherContact: '',
-      });
-      
-      // Optionally navigate back or show success page
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
-      
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to submit recommendation');
+
+      setSubmitted(true);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit recommendation');
     } finally {
       setLoading(false);
     }
@@ -122,156 +121,164 @@ export default function RecommendTeacher() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-      
-      <main className="container pt-32 sm:pt-[120px] pb-8 md:pt-16 md:pb-16">
-        {/* Back Button */}
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to home
-        </Link>
+      <main>
+        <BentoStack>
+          {/* Handoff RC-001: dark header. The mockup's "Step 2 of 3" pill
+              assumes this route is part of a wizard shared with /join/apply
+              — it isn't (it's always been a standalone single-page form), so
+              rendering a step count here would fabricate progress that
+              doesn't exist. Copy is otherwise unchanged.
 
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-            {/* Left Side - Text */}
-            <div className="text-left">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-sans text-foreground leading-tight">
-                We'd love to have the best teachers out there, on-board with us
-              </h1>
+              The mockup measures this header 14px 22px 24px. The sides and
+              the bottom are taken; the top is not, because the 14px there is
+              clearance for the step pill this route deliberately omits — with
+              no pill, `pt-1.5` plus the h1's own `mt-3.5` gives the same 20px
+              above the headline. */}
+          <BentoPanel fill="dark" edge="top" className="px-[22px] pt-1.5 pb-[24px]">
+            <h1 className="mt-3.5 font-display text-[30px] font-black leading-[1.05] tracking-[-0.04em] text-background">
+              Know a teacher worth listing?
+            </h1>
+            <p className="mt-2.5 text-[15px] leading-[1.55] text-background/70">
+              Three fields. We verify before anything goes live.
+            </p>
+          </BentoPanel>
+
+          <BentoPanel fill="card" className="p-[22px]">
+          {submitted ? (
+            <div className="animate-fade-slide-up rounded-bento bg-brand p-6 text-center sm:p-8">
+              <p className="text-body font-semibold text-brand-foreground">
+                Thanks. We will reach out to them this week.
+              </p>
             </div>
-
-            {/* Right Side - Form Card - Dark theme like in the image */}
-            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-3xl p-8 md:p-12 border border-gray-700 shadow-xl relative overflow-hidden">
-            {/* Background blur effect */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none">
-              <div 
-                className="absolute top-0 right-0 w-96 h-96 bg-purple-500 rounded-full blur-3xl"
-                style={{
-                  transform: 'translate(30%, -30%)',
-                }}
-              />
-            </div>
-            
-            <div className="relative z-10">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Your Name */}
-              <div className="space-y-2">
-                <Label htmlFor="yourName" className="text-gray-200">Your Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="yourName"
-                    name="yourName"
-                    type="text"
-                    placeholder="FULL NAME"
-                    value={formData.yourName}
-                    onChange={handleInputChange}
-                    className={`pl-10 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-gray-600 ${errors.yourName ? 'border-red-500' : ''}`}
-                  />
-                </div>
-                {errors.yourName && (
-                  <p className="text-sm text-red-400">{errors.yourName}</p>
-                )}
-              </div>
-
-              {/* Your Contact Number */}
-              <div className="space-y-2">
-                <Label htmlFor="yourContact" className="text-gray-200">Your Contact Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <div className="absolute left-10 top-1/2 -translate-y-1/2 text-gray-400 font-medium">
-                    +91
-                  </div>
-                  <Input
-                    id="yourContact"
-                    name="yourContact"
-                    type="tel"
-                    placeholder=""
-                    value={formData.yourContact}
-                    onChange={handleInputChange}
-                    className={`pl-16 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-gray-600 ${errors.yourContact ? 'border-red-500' : ''}`}
-                    maxLength={10}
-                  />
-                </div>
-                {errors.yourContact && (
-                  <p className="text-sm text-red-400">{errors.yourContact}</p>
-                )}
-              </div>
-
-              {/* Teacher's Name */}
-              <div className="space-y-2">
-                <Label htmlFor="teacherName" className="text-gray-200">Teacher's Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    id="teacherName"
-                    name="teacherName"
-                    type="text"
-                    placeholder="FULL NAME"
-                    value={formData.teacherName}
-                    onChange={handleInputChange}
-                    className={`pl-10 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-gray-600 ${errors.teacherName ? 'border-red-500' : ''}`}
-                  />
-                </div>
-                {errors.teacherName && (
-                  <p className="text-sm text-red-400">{errors.teacherName}</p>
-                )}
-              </div>
-
-              {/* Teacher's Contact Number */}
-              <div className="space-y-2">
-                <Label htmlFor="teacherContact" className="text-gray-200">Teacher's Contact Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <div className="absolute left-10 top-1/2 -translate-y-1/2 text-gray-400 font-medium">
-                    +91
-                  </div>
-                  <Input
-                    id="teacherContact"
-                    name="teacherContact"
-                    type="tel"
-                    placeholder=""
-                    value={formData.teacherContact}
-                    onChange={handleInputChange}
-                    className={`pl-16 bg-gray-800/50 border-gray-700 text-white placeholder:text-gray-500 focus-visible:ring-gray-600 ${errors.teacherContact ? 'border-red-500' : ''}`}
-                    maxLength={10}
-                  />
-                </div>
-                {errors.teacherContact && (
-                  <p className="text-sm text-red-400">{errors.teacherContact}</p>
-                )}
-              </div>
-
-              {/* Sign-in reminder */}
-              {!user && (
-                <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-center gap-3">
-                  <Lock className="w-5 h-5 text-yellow-500" />
-                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                    You need to sign in to submit a recommendation. You'll be redirected to sign in when you click "Send Message".
-                  </p>
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <Button 
-                type="submit" 
-                className="w-full h-12 bg-black text-white hover:bg-gray-900" 
-                disabled={loading}
+          ) : (
+            <form onSubmit={handleSubmit} className="grid gap-3" noValidate>
+              <Field
+                label="Teacher's name"
+                required
+                error={nameValidation.error}
               >
-                {loading ? 'Sending...' : user ? 'Send Message' : 'Sign in to Submit'}
+                {(controlProps) => (
+                  <FieldInput
+                    {...controlProps}
+                    name="teacherName"
+                    placeholder="e.g. Ananya Ghosh"
+                    value={formData.teacherName}
+                    onChange={handleChange}
+                    onBlur={nameValidation.onBlur}
+                    maxLength={100}
+                    autoComplete="name"
+                  />
+                )}
+              </Field>
+
+              {/* A select, not the chip row. The chips were the right call on
+                  the vocabulary question — free text had admins reconciling
+                  "maths"/"Mathematics"/"Math" by hand — and this keeps that
+                  exactly: the options ARE the canonical SUBJECTS list the
+                  filters and hero search use. What changes is the shape. Thirty
+                  44px chips wrapped to a wall of colour that dominated a form
+                  whose required fields are two short text boxes, and the field
+                  is optional. One 56px control, same as the fields around it.
+                  Empty option kept so "not sure" stays reachable. */}
+              <Field label="Subject">
+                {(controlProps) => (
+                  <FieldSelect
+                    {...controlProps}
+                    name="subject"
+                    value={formData.subject}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))}
+                  >
+                    <option value="">Not sure / any subject</option>
+                    {SUBJECTS.map((subject) => (
+                      <option key={subject} value={subject}>
+                        {subject}
+                      </option>
+                    ))}
+                  </FieldSelect>
+                )}
+              </Field>
+
+              <Field label="Area they teach in">
+                {(controlProps) => (
+                  <FieldInput
+                    {...controlProps}
+                    name="area"
+                    placeholder="e.g. Ballygunge"
+                    value={formData.area}
+                    onChange={handleChange}
+                    maxLength={100}
+                  />
+                )}
+              </Field>
+
+              <Field label="Their contact, if you have it" hint="Phone or WhatsApp, we verify, we never publish it.">
+                {(controlProps) => (
+                  <FieldInput
+                    {...controlProps}
+                    type="tel"
+                    name="contact"
+                    placeholder="e.g. +91 98300 00000"
+                    value={formData.contact}
+                    onChange={handleChange}
+                    maxLength={50}
+                    autoComplete="tel"
+                  />
+                )}
+              </Field>
+
+              <Field label="Why you would recommend them">
+                {(controlProps) => (
+                  <FieldTextarea
+                    {...controlProps}
+                    name="reason"
+                    rows={4}
+                    placeholder="A line or two is enough."
+                    value={formData.reason}
+                    onChange={handleChange}
+                    maxLength={1000}
+                  />
+                )}
+              </Field>
+
+              {error ? (
+                <p role="alert" className="text-meta text-facet-destructive">
+                  {error}
+                </p>
+              ) : null}
+
+              <Button type="submit" variant="primary" size={54} busy={loading} className="mt-1 w-full">
+                Send recommendation
               </Button>
             </form>
-            </div>
-            </div>
-          </div>
-        </div>
-      </main>
+          )}
+          </BentoPanel>
 
-      <Footer />
+          {/* Handoff RC-001: the privacy note is load-bearing copy, not
+              decoration — it must render on the same screen as the phone
+              field, which the form panel above already satisfies. */}
+          <BentoPanel fill="brandTint" className="px-[22px] py-5">
+            <p className="text-[14px] leading-[1.55] text-warm-prose">
+              We never publish a teacher&rsquo;s details without their consent, and we do not tell
+              them who recommended them unless you ask us to.
+            </p>
+          </BentoPanel>
+
+          {/* Shared tail. */}
+          <EyesPanel
+            mode={builderMode}
+            onModeChange={setBuilderMode}
+            heading={(
+              <>
+                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+              </>
+            )}
+            subline="Fill in the blanks and we'll take you straight there."
+            slots={builderSlots}
+            onSlotChange={handleSlotChange}
+            onSubmit={handleBuilderSubmit}
+          />
+        </BentoStack>
+      </main>
     </div>
   );
 }
-

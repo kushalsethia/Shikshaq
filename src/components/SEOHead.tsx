@@ -20,13 +20,14 @@
  */
 
 import { useEffect } from 'react';
+import { canonicalPathFor } from '@/lib/canonical';
+import { SITE_URL, DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE } from '@/lib/seo-defaults';
 
-const SITE_URL = 'https://www.shikshaq.in';
+/* Defaults now come from lib/seo-defaults. This file used to carry its own
+   copy, with a different description from both index.html's and
+   usePageMeta's -- which decided what the document said after an unmount
+   depending on which component unmounted last. */
 const SITE_NAME = 'Shikshaq';
-const DEFAULT_TITLE = 'Shikshaq - Find Tuition Teachers in Kolkata';
-const DEFAULT_DESCRIPTION =
-  'Shikshaq connects students with real local tuition teachers for free. Find tutors for CBSE, ICSE, ISC, IGCSE, IB and State Board across subjects.';
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image-default.jpg`;
 
 export interface SEOHeadProps {
   /** Page title (will be appended with "| Shikshaq" if not included) */
@@ -100,7 +101,11 @@ export function SEOHead({
 
     // Build canonical URL
     const fullCanonicalURL =
-      canonicalURL || (canonical ? `${SITE_URL}${canonical}` : `${SITE_URL}${window.location.pathname}`);
+      /* Resolved through canonicalPathFor, so a page passing its own pathname
+         still gets duplicate-route aliasing. SEOHead runs after CanonicalTag
+         and overwrites it, so a rule applied only there would never survive. */
+      canonicalURL ||
+      `${SITE_URL}${canonicalPathFor(canonical ?? window.location.pathname)}`;
 
     // Build OG image
     const fullOGImage = ogImage || DEFAULT_OG_IMAGE;
@@ -154,12 +159,28 @@ export function SEOHead({
       updateStructuredData(schema);
     }
 
-    // Cleanup function
+    /* Restore the defaults on unmount, which this deliberately did not do.
+       The original reasoning -- "commented out to prevent flashing back to
+       defaults on navigation" -- describes a flash that does not happen: React
+       unmounts the old route and mounts the new one in the same commit, so a
+       route that sets its own meta overwrites these values before the browser
+       paints. usePageMeta has restored defaults on unmount all along and shows
+       no such flash.
+       What the missing cleanup DID cause is the opposite problem. Navigating
+       from a SEOHead route to one that manages no meta at all (/account,
+       /dashboard/teacher, the admin pages) left the previous page's title and
+       description in the document -- so a reader who opened a blog article and
+       then went to their account had "..." | Shikshaq sitting in the tab, and
+       any share from there carried the article's card. */
     return () => {
-      // Optionally restore defaults on unmount
-      // (commented out to prevent flashing back to defaults on navigation)
-      // document.title = DEFAULT_TITLE;
-      // updateMetaTag('description', DEFAULT_DESCRIPTION);
+      document.title = DEFAULT_TITLE;
+      updateMetaTag('description', DEFAULT_DESCRIPTION);
+      updateMetaTag('og:title', DEFAULT_TITLE, 'property');
+      updateMetaTag('og:description', DEFAULT_DESCRIPTION, 'property');
+      updateMetaTag('og:image', DEFAULT_OG_IMAGE, 'property');
+      updateMetaTag('twitter:title', DEFAULT_TITLE);
+      updateMetaTag('twitter:description', DEFAULT_DESCRIPTION);
+      updateMetaTag('twitter:image', DEFAULT_OG_IMAGE);
     };
   }, [
     title,
@@ -236,18 +257,6 @@ function updateStructuredData(schema: object | object[]) {
   script.type = 'application/ld+json';
   script.textContent = JSON.stringify(schema);
   document.head.appendChild(script);
-}
-
-/**
- * Hook for easy SEO management
- */
-export function useSEO(props: SEOHeadProps) {
-  useEffect(() => {
-    const seoHead = new SEOHead(props);
-    return () => {
-      // Cleanup if needed
-    };
-  }, [props]);
 }
 
 export default SEOHead;

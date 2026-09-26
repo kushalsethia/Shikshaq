@@ -1,18 +1,27 @@
-import { useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import { Mail, CheckCircle, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight } from 'lucide-react';
 import { Logo } from '@/components/Logo';
+import { Button } from '@/components/ui/button';
+import { getAuthRedirect, clearAuthRedirect } from '@/utils/authRedirect';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { logger } from '@/utils/logger';
+import { BentoPanel } from '@/components/layout/PageContainer';
 
+/* C-044 — "Success is an orange slab with a ghosted check, a 'You're in' sticker, and a green
+   button that resumes the exact message the user was about to send." The saved-intent handoff
+   (design.md §6.5 / gate-sheet.tsx) is what actually resumes the right destination: the primary
+   CTA reads getAuthRedirect() and, if the user tapped WhatsApp before signing in, that redirect
+   target IS /tuition-teachers/:slug/whatsapp-click — the interstitial that reopens WhatsApp with
+   the message already composed. Never drops back to a generic home page when an intent exists. */
 export default function SignUpSuccess() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
-    // If user is not authenticated, redirect to auth
     if (!user) {
       navigate('/auth', { replace: true });
     }
@@ -22,66 +31,69 @@ export default function SignUpSuccess() {
     return null;
   }
 
+  const redirectTo = getAuthRedirect();
+  const hasIntent = Boolean(redirectTo && redirectTo !== '/');
+
+  const handleContinue = () => {
+    clearAuthRedirect();
+    navigate(redirectTo || '/');
+  };
+
+  // Handoff SS-001: "Resend the email" is real functionality, not the
+  // mockup's decoration — Supabase's own resend endpoint, since nothing in
+  // this codebase already exposed one.
+  const handleResend = async () => {
+    if (!user.email || resending) return;
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email: user.email });
+      if (error) throw error;
+      toast.success(`Verification email resent to ${user.email}`);
+    } catch (error) {
+      logger.error('SignUpSuccess.resend', error);
+      toast.error("Couldn't resend the email. Try again in a moment.");
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      
-      <main className="flex-1 flex items-center justify-center py-16">
-        <div className="w-full max-w-md text-center">
-          <div className="mb-8">
-            <Logo size="lg" className="mx-auto mb-6" />
-            <div className="flex justify-center mb-6">
-              <div className="rounded-full bg-primary/10 p-4">
-                <CheckCircle className="w-12 h-12 text-primary" />
-              </div>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-3">
-              Account Created Successfully!
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              Welcome to Shikshaq
-            </p>
-          </div>
+    <div className="min-h-screen bg-background">
+      {/* Handoff SS-001: one full-height mint panel, content vertically
+          centred. Chromeless route (no navbar), so the brand mark that
+          every other page gets from the floating global nav has to be
+          drawn here instead. */}
+      <BentoPanel fill="mint" edge="top" className="flex min-h-screen flex-col px-5 pb-8 pt-1.5">
+        <Logo size="nav" />
+        <div className="flex flex-1 flex-col justify-center">
+          <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#34B268]">
+            <Check className="h-[34px] w-[34px] text-white" strokeWidth={2.5} aria-hidden="true" />
+          </span>
+          <h1 className="mt-[22px] font-display text-[34px] font-black leading-[1.02] tracking-[-0.045em] text-[#24603D]">
+            {hasIntent ? 'Account ready.' : "You're in."}
+          </h1>
+          <h2 className="mt-3.5 text-[16px] font-bold text-foreground">Verify your email</h2>
+          <p className="mt-1.5 text-[15px] leading-[1.55] text-[#3E6F53]">
+            We sent a link to <strong className="text-foreground">{user.email}</strong>. Open it
+            once and your account is confirmed. You can keep browsing in the meantime.
+          </p>
 
-          <div className="bg-card rounded-2xl p-6 md:p-8 border border-border space-y-6 mb-6">
-            <div className="flex items-start gap-4">
-              <div className="rounded-full bg-primary/10 p-3 mt-1">
-                <Mail className="w-5 h-5 text-primary" />
-              </div>
-              <div className="text-left flex-1">
-                <h2 className="font-semibold text-foreground mb-2">
-                  Verify Your Email
-                </h2>
-                <p className="text-sm text-muted-foreground mb-3">
-                  We've sent a verification email to <strong>{user.email}</strong>. Please check your inbox and click the verification link to activate your account.
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Didn't receive the email? Check your spam folder or try signing in again to resend.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <Button 
-              onClick={() => navigate('/')} 
-              className="w-full gap-2"
-              size="lg"
-            >
-              Continue to Home
-              <ArrowRight className="w-4 h-4" />
+          <div className="mt-[22px] flex flex-col gap-2">
+            <Button variant="primary" size={54} onClick={handleContinue} className="w-full !bg-panel !text-background">
+              {hasIntent ? 'Continue to WhatsApp' : 'Continue to home'}
+              <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
             </Button>
-            <Link to="/auth">
-              <Button variant="outline" className="w-full">
-                Back to Sign In
-              </Button>
-            </Link>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="flex h-11 w-full items-center justify-center text-[14px] font-semibold text-[#3E6F53] disabled:opacity-60"
+            >
+              {resending ? 'Resending…' : 'Resend the email'}
+            </button>
           </div>
         </div>
-      </main>
-
-      <Footer />
+      </BentoPanel>
     </div>
   );
 }
-

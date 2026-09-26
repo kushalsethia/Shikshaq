@@ -1,64 +1,137 @@
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getWhatsAppLink } from '@/utils/whatsapp';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { setAuthIntent } from '@/lib/auth-intent';
+import { IndianRupee, MessageCircle, Heart, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { AnnotatedHighlight } from '@/components/marketing/annotated-statement';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
+import { useChromeConfig } from '@/components/layout/AppShell';
+
+// Handoff JN-003: titles/bodies below are unchanged from the pre-redesign
+// array — only card tint, icon-tile fill and type scale changed.
+const BENEFITS: { title: string; body: string; icon: LucideIcon; cardTint: string; titleInk: string; bodyInk: string; iconTile: string }[] = [
+  {
+    title: 'No commission fees',
+    body: 'Fees are agreed between you and the family. We never sit in the middle of a payment.',
+    icon: IndianRupee,
+    cardTint: 'bg-brand-subtle',
+    titleInk: 'text-brand-deep',
+    bodyInk: 'text-warm-prose',
+    iconTile: 'bg-brand',
+  },
+  {
+    title: 'Direct student contact',
+    body: 'Enquiries reach you on WhatsApp. No lead credits, no bidding for students.',
+    icon: MessageCircle,
+    cardTint: 'bg-mint',
+    titleInk: 'text-[#24603D]',
+    bodyInk: 'text-[#3E6F53]',
+    iconTile: 'bg-[#34B268]',
+  },
+  {
+    title: 'Empathy',
+    body: 'We were students in this city. The platform is built for how tuition actually works in Kolkata.',
+    icon: Heart,
+    cardTint: 'bg-brand-blue-subtle',
+    titleInk: 'text-brand-blue-deep',
+    bodyInk: 'text-warm-prose',
+    iconTile: 'bg-brand-blue',
+  },
+  {
+    title: 'Values',
+    body: 'Real reviews from real students, and no paid placement in results. Ever.',
+    icon: ShieldCheck,
+    cardTint: 'bg-[#F0E4F6]',
+    titleInk: 'text-[#4C2460]',
+    bodyInk: 'text-[#5F3E6F]',
+    iconTile: 'bg-[#9F53C6]',
+  },
+];
 
 export default function Join() {
+  usePageMeta(
+    'Join as a Tuition Teacher in Kolkata | Shikshaq',
+    'List yourself as a tuition teacher in Kolkata for free. Reach students near you directly. No commission, no middlemen, no platform fees. Apply to join Shikshaq today.'
+  );
+
+  // Handoff JN-001: this route renders its own eyes panel, replacing
+  // AppShell's default pre-footer.
+  useChromeConfig({ preFooter: 'none' });
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
+
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-
-      <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
-        <div className="max-w-2xl mx-auto text-center space-y-4 md:space-y-6">
-          <span className="text-muted-foreground block">Free of charge, no commissions!</span>
-          
-          <h1 className="text-3xl md:text-5xl font-sans text-foreground">
-            Join Shikshaq as a teacher today!
-          </h1>
-          
-          <p className="text-lg text-muted-foreground">
-            We're simply a community of students who are trying to make tuition teacher discovery easier in Kolkata. Join as a teacher to help students find you and learn!
-          </p>
-
-          <div className="bg-card rounded-3xl p-8 border border-border space-y-4 md:space-y-6">
-            <h2 className="text-xl font-sans text-foreground">Why join Shikshaq?</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-x-6 md:gap-y-6 text-left">
-              <div className="order-1">
-                <h3 className="font-medium text-foreground">No commission fees</h3>
-                <p className="text-sm text-muted-foreground">Keep 100% of what you earn.</p>
-              </div>
-              <div className="order-2 md:order-3">
-                <h3 className="font-medium text-foreground">Direct student contact</h3>
-                <p className="text-sm text-muted-foreground">Students get in touch with you directly. No middlemen.</p>
-              </div>
-              <div className="order-3 md:order-2">
-                <h3 className="font-medium text-foreground">Empathy</h3>
-                <p className="text-sm text-muted-foreground">Who'd know students better than students themselves?</p>
-              </div>
-              <div className="order-4">
-                <h3 className="font-medium text-foreground">Values</h3>
-                <p className="text-sm text-muted-foreground">Shikshaq is built by NGO AquaTerra, with the aim of helping students learn.</p>
-              </div>
+      <main>
+        <BentoStack>
+          {/* Handoff JN-002: pitch panel. */}
+          <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[26px]">
+            <h1 className="mt-5 font-display text-[38px] font-normal leading-[.98] tracking-[-0.04em] text-foreground lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]">
+              Teach on Shikshaq.{' '}
+              <AnnotatedHighlight tone="block-brand" weight={800} tilt={-1.5}>
+                Keep every rupee.
+              </AnnotatedHighlight>
+            </h1>
+            <p className="mt-4 text-[16px] leading-[1.6] text-warm-secondary">
+              We list local tuition teachers, students contact you directly on WhatsApp, and we take nothing from what you charge. There is no listing fee either.
+            </p>
+            {/* Handoff D-007 (JN-002): flatten at lg. */}
+            <div className="mt-3.5 inline-flex h-8 -rotate-2 items-center gap-2 rounded-full bg-card px-[13px] text-[13px] font-bold text-foreground shadow-border motion-reduce:rotate-0 lg:rotate-0">
+              <span className="h-[7px] w-[7px] flex-none rounded-full bg-brand" />
+              Reviewed in ~3 working days
             </div>
-
-            <Link to="/join/apply" className="inline-block mt-6 md:mt-8">
-              <Button size="lg" className="gap-2">
-                Apply to Join
-                <ExternalLink className="w-4 h-4" />
-              </Button>
+            <Link
+              to="/join/apply"
+              /* Handoff AU-004a: variant G. /join/apply gates on sign-in, so
+                 record the intent as the visitor sets off rather than after
+                 the redirect has already lost the reason. */
+              onClick={() => setAuthIntent({ kind: 'teacher' })}
+              className="mt-[22px] flex h-[54px] items-center justify-center rounded-full bg-panel text-[15px] font-extrabold text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Apply to be listed
             </Link>
-          </div>
+          </BentoPanel>
 
-          <p className="text-sm text-muted-foreground">
-            Have questions? <a href={getWhatsAppLink('8240980312')} className="text-foreground hover:underline">Contact us on WhatsApp</a>
-          </p>
-        </div>
+          {/* Handoff JN-003: benefits panel. */}
+          <BentoPanel fill="card" className="p-[22px]">
+            <h2 className="sr-only">Why teach on Shikshaq</h2>
+            {/* lg:grid-cols-4: same fix as About's stat tiles — unconditional
+                grid-cols-2 gave these four short benefit cards a stretched
+                ~595px-wide cell on a real desktop panel. One row at lg. */}
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              {BENEFITS.map((b) => {
+                const Icon = b.icon;
+                return (
+                  <div key={b.title} className={`rounded-[20px] p-4 ${b.cardTint}`}>
+                    <div className={`flex h-[34px] w-[34px] items-center justify-center rounded-[12px] ${b.iconTile}`}>
+                      <Icon className="h-[17px] w-[17px] text-white" strokeWidth={2} aria-hidden="true" />
+                    </div>
+                    <div className={`mt-3 text-[17px] font-extrabold tracking-[-0.03em] ${b.titleInk}`}>{b.title}</div>
+                    <p className={`mt-1 text-[14px] leading-[1.5] ${b.bodyInk}`}>{b.body}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </BentoPanel>
+
+          {/* Shared tail. */}
+          <EyesPanel
+            mode={builderMode}
+            onModeChange={setBuilderMode}
+            heading={(
+              <>
+                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+              </>
+            )}
+            subline="Fill in the blanks and we'll take you straight there."
+            slots={builderSlots}
+            onSlotChange={handleSlotChange}
+            onSubmit={handleBuilderSubmit}
+          />
+        </BentoStack>
       </main>
-
-      <Footer />
     </div>
   );
 }

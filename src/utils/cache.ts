@@ -19,6 +19,7 @@ export const CACHE_TTL = {
   UPVOTES: 5 * 60 * 1000, // 5 minutes - upvote counts change frequently
   SHIKSHAQMINE_CHUNK: 30 * 60 * 1000, // 30 minutes - for chunked Shikshaqmine fetches
   USER_PROFILE: 10 * 60 * 1000, // 10 minutes - user profile data (role, name) changes infrequently
+  RELATION_IDS: 5 * 60 * 1000, // 5 minutes - a user's liked/upvoted/studies-with id sets
 } as const;
 
 const CACHE_PREFIX = 'shikshaq_cache_';
@@ -158,9 +159,11 @@ export function getTeachersListCacheKey(limit?: number): string {
  * Generate cache key for Shikshaqmine chunk query
  */
 export function getShikshaqmineChunkCacheKey(slugs: string[]): string {
-  // Sort slugs for consistent cache key
+  // Sort slugs for consistent cache key. v2: the query now selects a fixed
+  // column subset instead of '*' — versioned so old full-row cache entries
+  // don't get reused as if they matched the new shape.
   const sortedSlugs = [...slugs].sort().join(',');
-  return `shikshaqmine_chunk_${sortedSlugs}`;
+  return `shikshaqmine_chunk_v2_${sortedSlugs}`;
 }
 
 /**
@@ -208,12 +211,34 @@ export function invalidateUserProfileCache(userId: string): void {
 }
 
 /**
- * Run cleanup on module load
+ * Cleanup, deferred off the critical path.
+ *
+ * This used to call clearExpiredCache() synchronously during module
+ * evaluation. That function enumerates every localStorage key and JSON.parses
+ * each of ours, and ours hold 500-row teacher pages and 200-slug Shikshaqmine
+ * chunks -- so it was hundreds of KB of synchronous main-thread parsing while
+ * the browser was still trying to render first paint, on a module imported by
+ * the eager bundle.
+ *
+ * Nothing needs it to have happened by then. Expired entries are already
+ * checked on read (getCache returns null past the TTL), so this pass only
+ * reclaims space; doing it a moment later costs nothing and doing it during
+ * boot costs a visibly slower first paint on a low-end Android.
+ *
+ * Index.tsx and Browse.tsx also each called clearExpiredCache() on mount, so
+ * a single page load did this full scan three times. Those calls are gone;
+ * this is the one scheduler.
  */
 if (typeof window !== 'undefined') {
-  // Clean up expired cache entries on load
-  clearExpiredCache();
-  
-  // Set up periodic cleanup (every hour)
+  const w = window as Window & {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+  };
+  if (typeof w.requestIdleCallback === 'function') {
+    w.requestIdleCallback(() => clearExpiredCache(), { timeout: 5000 });
+  } else {
+    setTimeout(clearExpiredCache, 3000);
+  }
+
+  // Periodic cleanup for long sessions.
   setInterval(clearExpiredCache, 60 * 60 * 1000);
 }

@@ -1,432 +1,418 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, HelpCircle, Menu, X, LogIn, Heart, Shield, GraduationCap, Users, MessageSquare, ThumbsUp, Mail, ExternalLink, BookMarked, FileText, ClipboardList } from 'lucide-react';
-import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
-import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+  HelpCircle, MessageCircleQuestion, Menu, Shield, User,
+  FileText, BookOpen, School, type LucideIcon,
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/lib/auth-context';
+import { useLikes } from '@/lib/likes-context';
+import { supabase } from '@/integrations/supabase/client';
 import { Logo } from '@/components/Logo';
-import { getWhatsAppLink } from '@/utils/whatsapp';
-import { validateImageSrc } from '@/utils/imageSanitizer';
+import { openProductTour } from '@/components/ProductTour';
+import { logger } from '@/utils/logger';
+import { useSearchExpanded } from '@/hooks/useSearchExpanded';
+import { useIsAdminBadge } from '@/hooks/useIsAdminBadge';
+import { useSiteCounts } from '@/hooks/useSiteCounts';
+import {
+  Sheet, SheetClose, SheetContent, SheetGrabHandle, SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { getDashboardLink, type UserRole } from '@/lib/nav-config';
+import { Button } from '@/components/ui/button';
+
+const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2';
+
+/* Handoff O-007: real, live counts for the menu's two product-half cards
+ * and the signed-in account row — "counts are live or absent, never a
+ * placeholder." Gated on the sheet actually being open so this globally-
+ * rendered component doesn't fire four count queries on every page load
+ * whether or not anyone ever opens the menu. */
+function useNavMenuCounts(open: boolean, userId: string | undefined) {
+  /* The shared hook, not a fifth hand-rolled copy of this query.
+
+     This menu counted `papers`, which has 18 rows, while the footer, About and
+     the papers announcement all counted `bank_papers`, which has 1,282. The
+     same site told the same reader "18, free to read" here and "1,282" a
+     screen further down.
+
+     That exact bug was found and fixed on About, whose comment says the page
+     "was the only surface reading the old one". It was not -- this menu was
+     reading it too, and got missed, because the query existed in five places
+     and fixing one copy fixed one copy. Hence one hook.
+
+     No `enabled: open` gate any more and no extra request either: Footer
+     renders on every route and already holds ['site','counts'], so this shares
+     the cached result rather than issuing its own. */
+  const siteCounts = useSiteCounts();
+
+  const papersRead = useQuery({
+    queryKey: ['nav-menu', 'papers-read', userId],
+    enabled: open && !!userId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('paper_reads')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId!);
+      return count ?? null;
+    },
+  });
+
+  return {
+    teachersCount: siteCounts.data?.teachers ?? null,
+    papersCount: siteCounts.data?.papers ?? null,
+    papersReadCount: papersRead.data ?? null,
+  };
+}
+
+/**
+ * The logo does double duty (components.md C10): on the home page there is
+ * nowhere to navigate to, so tapping it opens the product tour; everywhere else
+ * it goes home, which is what people expect a wordmark to do.
+ *
+ * The tour itself is mounted by the page and listens for the event, so the
+ * trigger needs no prop path to it.
+ */
+function LogoOrTourTrigger({ onDark = false }: { onDark?: boolean }) {
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+
+  /* Logo renders its own <Link>, so this must NOT wrap it in another anchor or
+     a button — that produced nested interactive elements (invalid HTML, and a
+     real "<a> inside <a>" console warning). Instead the handler is passed down
+     and the navigation suppressed, keeping exactly one control. */
+  if (isHome) {
+    return (
+      <Logo
+        size="nav"
+        className="tap-44 flex-none"
+        onDark={onDark}
+        ariaLabel="How Shikshaq works"
+        priority
+        onClick={(e) => {
+          e.preventDefault();
+          openProductTour();
+        }}
+      />
+    );
+  }
+
+  return <Logo size="nav" className="tap-44 flex-none" onDark={onDark} priority />;
+}
+
+/* Which fill family the first (`edge="top"`) panel of a route uses. The pill
+   floats on that panel, so this decides whether it needs a light or an
+   on-dark treatment. Kept as an explicit map rather than read from the DOM:
+   the pill paints on the first frame, before any page effect could report it,
+   and a flash of the wrong fill is worse than a list to maintain. */
+type TopFill = 'light' | 'dark' | 'indigo';
+function topPanelFill(pathname: string): TopFill {
+  if (/^\/tuition-teachers\/[^/]+\/?$/.test(pathname)) return 'dark';
+  if (pathname === '/recommend-teacher' || pathname === '/dashboard/teacher') return 'dark';
+  if (pathname === '/past-papers' || pathname === '/past-papers/results') return 'indigo';
+  if (/^\/school\/[^/]+\/?$/.test(pathname)) return 'indigo';
+  return 'light';
+}
 
 export function Navbar() {
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const lastScrollY = useRef(0);
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
   const { user, signOut, profile } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const userRole = (profile?.role as 'student' | 'guardian' | 'teacher') || null;
+  const { likedTeacherIds } = useLikes();
+  /* Was this component's own `admins` select in a [user] effect. Footer ran
+     an identical one, and between them (StrictMode double-invoke, plus a
+     re-run when `user` settles) a single page load fired NINE copies of the
+     same request — see useIsAdminBadge for the measurement. One shared
+     react-query key now serves both. */
+  const isAdmin = useIsAdminBadge();
+  const userRole = (profile?.role as UserRole) || null;
+  const dashboardLink = getDashboardLink(userRole);
+  const { teachersCount, papersCount, papersReadCount } = useNavMenuCounts(menuOpen, user?.id);
 
-  // Check if user is an admin (profile/role now comes from auth context)
+  // Close the mobile sheet on route change
   useEffect(() => {
-    async function checkAdminStatus() {
-      if (!user) {
-        setIsAdmin(false);
-        return;
-      }
+    setMenuOpen(false);
+  }, [location.pathname]);
 
-      try {
-        const { data: adminData, error: adminError } = await supabase
-          .from('admins')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle();
+  const searchExpanded = useSearchExpanded();
+  const initial = (user?.email?.charAt(0) || '?').toUpperCase();
 
-        if (adminError) {
-          if (import.meta.env.DEV) {
-            console.log('Error checking admin status:', adminError.message);
-          }
-          setIsAdmin(false);
-        } else if (adminData && adminData.id === user.id) {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.error('Error:', error);
-        }
-        setIsAdmin(false);
-      }
-    }
+  // Nav track dissolve — VISUAL_LANGUAGE.md §9: the header's hairline/backdrop
+  // fades in once the page has scrolled past a small threshold, distinguishing
+  // "at top" from "scrolled" states. Was 48px, which read as sluggish on a
+  // mobile QA pass — the pill sat transparent-over-hero for nearly a full
+  // swipe before it caught up. 24px lets it react to the first flick of a
+  // scroll instead of waiting for a deliberate one. `prefers-reduced-motion`
+  // makes the transition instant via the global guard in index.css, so no
+  // separate branch is needed here.
+  const [scrolled, setScrolled] = useState(false);
+  /* T-010: "logo inversion follows the panel, not the route." Now that
+     `edge="top"` panels actually run underneath this pill (the nav reserve
+     moved inside BentoPanel), what sits behind the pill is that panel's fill —
+     so the treatment is keyed on the fill family, not on a hand-listed route.
 
-    checkAdminStatus();
-  }, [user]);
-
-  // Handle scroll detection for collapsing main navbar on mobile
+     Previously only `/` and `/past-papers` were special-cased, which left the
+     teacher profile — whose first panel is the near-black identity card — with
+     the default bone pill: a light grey slab sitting on black. */
+  const topFill = topPanelFill(location.pathname);
+  /* T-009: home's first panel is bone after the redesign, so the pill is
+     bone too and the logo is NOT inverted. */
+  const onTintBlock = topFill !== 'light' && !scrolled;
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollPosition = Math.max(0, window.scrollY); // Prevent negative values
-      const previousScrollY = lastScrollY.current;
-      
-      // Use hysteresis with smoother thresholds
-      // Scrolling down: trigger at 10px (slightly higher to prevent immediate jump)
-      // Scrolling up: hide when back at top (0px) but keep state until fully at top
-      if (scrollPosition > previousScrollY) {
-        // Scrolling down
-        setIsScrolled(scrollPosition > 10);
-      } else if (scrollPosition < previousScrollY) {
-        // Scrolling up - only hide when fully at top
-        setIsScrolled(scrollPosition > 0);
-      }
-      // If scrollPosition === previousScrollY, keep current state
-      
-      lastScrollY.current = scrollPosition;
-    };
-
-    // Check initial scroll position
-    lastScrollY.current = Math.max(0, window.scrollY);
-    handleScroll();
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const navItems = [
-    { path: '/', label: 'Home', icon: Home },
-    { path: '/all-tuition-teachers-in-kolkata', label: 'Browse', icon: Search },
-    { path: '/past-papers', label: 'PYQs', icon: FileText },
-  ];
-
-  const isActive = (path: string) => location.pathname === path;
-  const isBrowsePage = location.pathname === '/all-tuition-teachers-in-kolkata';
-  // Check if we're on a subject page (pattern: /{subject}-tuition-teachers-in-kolkata)
-  const isSubjectPage = /^\/[^\/]+-tuition-teachers-in-kolkata$/.test(location.pathname);
-
   return (
-    <>
-      <header className={`${isScrolled && !isBrowsePage && !isSubjectPage ? 'md:sticky fixed' : 'sticky'} top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50 transition-transform duration-300 ease-in-out ${
-        isScrolled && !isBrowsePage && !isSubjectPage ? 'md:translate-y-0 -translate-y-full' : ''
-      }`}>
-        <div className="container mx-auto px-4">
-          <nav className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Logo size="md" desktopSize="lg" />
+    <header
+      /* On home, 2a draws the logo and Sign in INSIDE the dark control block
+         rather than in a separate bone bar above it. Rendering it as a
+         transparent overlay achieves that without moving the markup into
+         Index.tsx and without dropping the sheet menu, which is the only
+         mobile route to Sign out, admin, favourites and My teachers. Once
+         scrolled past the block it becomes the normal opaque bar, because
+         white-on-bone would be unreadable. */
+      className={`fixed inset-x-3 top-3 rounded-full shadow-pill transition-colors duration-tap lg:hidden ${
+        /* Solid opaque nav bar, tinted for what it is sitting over.
+           Previously used glass with backdrop-filter blur; now solid opaque
+           with the same visual polish (gradient highlights and inset shadows). */
+        scrolled
+          ? 'solid-light'
+          : topFill === 'dark' || topFill === 'indigo'
+            /* Over the near-black panel or the indigo block: the dark body,
+               so the pill reads as a solid bar over a saturated surface. */
+            ? 'solid-dark'
+            /* T-009: bone on the bone hero, dark logo. */
+            : 'solid-light'
+      } ${
+        /* pointer-events-none, not just a lower z-index: with SearchControl's
+           mobile-pinned scroll lock (`document.body.style.position = 'fixed'`
+           while the popup is open — see useEffect in SearchControl.tsx), this
+           header's own `position: fixed` box stops losing hit-testing to the
+           popup's z-[70] the way a lower z-index alone implies. Verified in
+           the running app: with only the z-30 drop, taps on the pinned
+           popup's Teachers/Past papers toggle (which sits at the same
+           `top-3` corner as this bar) were landing on the navbar logo/menu
+           underneath instead of the toggle — the popup visually painted on
+           top, but the browser's hit-test still resolved to this header. That
+           silent misroute is what a rework brief described as the toggle
+           "taking me" somewhere else. Disabling pointer events here removes
+           the header from hit-testing outright, independent of whichever
+           element the compositor's paint order happens to favor. */
+        searchExpanded ? 'z-30 pointer-events-none' : 'z-50'
+      }`}
+      /* fixed (not sticky): a sticky element can't be inset from the side
+         edges and still read as a floating pill — its box still spans the
+         full flow width even with side margins — so this is `fixed` with a
+         `top-3` offset, same "pinned while scrolling" behaviour as before but
+         now genuinely detached from the viewport edges like BottomNav's own
+         floating pill. Being taken out of flow means the page needs an
+         explicit offset underneath it: see TopNavSpacer in
+         PageContainer.tsx, rendered once by AppShell right after this bar.
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-1 bg-muted/50 rounded-full p-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`nav-link relative ${isActive(item.path) ? 'nav-link-active' : 'hover:bg-muted'}`}
-              >
-                <item.icon className={`w-4 h-4 ${isActive(item.path) ? 'text-[#FF8B16]' : ''}`} />
-                {item.label}
-                {isActive(item.path) && (
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-1 rounded-full" style={{ backgroundColor: '#FF8B16' }} />
-                )}
-              </Link>
-            ))}
-          </div>
+         Desktop chrome now lives in <TopBar> (mounted globally, hidden below
+         lg). Navbar is retained purely for the mobile floating pill + sheet
+         menu — the hamburger's Sign out / admin / favourites / My teachers
+         items have no desktop equivalent elsewhere except TopBar's own
+         account dropdown, so this component must not disappear on mobile. */
+    >
+      {/* pr-1.5, not a symmetric px-4. The pill is 56px tall and the menu
+          trigger is a 44px circle, so it sits 6px off the top and bottom — but
+          16px of right padding pushed it 10px further in than that, and a
+          circle inset unevenly inside a rounded corner reads as off-centre.
+          6px on the right makes the trigger concentric with the pill's own
+          corner arc. The logo keeps the larger left inset because it is a
+          wordmark, not a circle — the same asymmetry D-004 specifies for the
+          desktop bar (`pl-6 pr-2.5`). */}
+      <div className="mx-auto w-full max-w-6xl pl-4 pr-1.5 sm:px-6 lg:px-8">
+        {/* Mobile: short bar — logo + a single action. The bottom tab bar carries navigation. */}
+        <div className="flex h-14 items-center justify-between gap-4">
+          <LogoOrTourTrigger onDark={onTintBlock} />
 
-          {/* Right Side - Mobile and Desktop */}
-          <div className="flex items-center gap-3">
-            <Link
-              to="/join"
-              className="hidden md:block text-sm font-medium text-foreground/60 hover:text-foreground"
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger
+              aria-label="Open menu"
+              className={`flex h-11 w-11 flex-none items-center justify-center rounded-full transition-colors duration-150 active:scale-[0.97] ${
+                onTintBlock
+                  ? 'text-background shadow-none hover:bg-white/10'
+                  : 'text-foreground shadow-border hover:bg-muted'
+              } ${FOCUS_RING}`}
             >
-              Join as a teacher
-            </Link>
+              <Menu className="h-5 w-5" aria-hidden />
+            </SheetTrigger>
 
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={user.user_metadata?.avatar_url ? validateImageSrc(user.user_metadata.avatar_url) : undefined} alt={user.email || ''} />
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {user.email?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem className="text-muted-foreground text-sm">
-                    {user.email}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {userRole === 'student' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard/student" className="flex items-center gap-2">
-                        <GraduationCap className="w-4 h-4" />
-                        Student Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {userRole === 'guardian' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard/guardian" className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        Guardian Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {userRole === 'teacher' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard/teacher" className="flex items-center gap-2">
-                        <GraduationCap className="w-4 h-4" />
-                        Teacher's Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem asChild>
-                    <Link to="/liked-teachers" className="flex items-center gap-2">
-                      <Heart className="w-4 h-4" />
-                      Favourite Teachers
-                    </Link>
-                  </DropdownMenuItem>
-                  {userRole === 'student' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/my-teachers" className="flex items-center gap-2">
-                        <BookMarked className="w-4 h-4" />
-                        My Teachers
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {isAdmin && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/recommendations" className="flex items-center gap-2">
-                          <Shield className="w-4 h-4" />
-                          Recommendations
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/comments" className="flex items-center gap-2">
-                          <MessageSquare className="w-4 h-4" />
-                          Comments
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/upvotes" className="flex items-center gap-2">
-                          <ThumbsUp className="w-4 h-4" />
-                          Upvotes
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/feedback" className="flex items-center gap-2">
-                          <MessageSquare className="w-4 h-4" />
-                          Feedback
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/teachers" className="flex items-center gap-2">
-                          <GraduationCap className="w-4 h-4" />
-                          Teachers
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/applications" className="flex items-center gap-2">
-                          <ClipboardList className="w-4 h-4" />
-                          Applications
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
+            <SheetContent
+              side="bottom"
+              aria-describedby={undefined}
+              /* A half-height frosted sheet rather than the opaque near-full
+                 one this was. Three parts, and each is doing something:
+
+                 max-h-[60vh] makes it a half modal. The menu was rendering at
+                 71% of the viewport, which reads as "the page has been
+                 replaced" rather than "something has opened over it". Capping
+                 it leaves the page visible above and makes the sheet feel
+                 dismissible. overflow-y-auto because the row count varies --
+                 an admin sees one more than a signed-out reader.
+
+                 bg-[hsl(var(--card)/0.75)] + backdrop-blur-2xl is the frosting. `card` is the
+                 hsl(var(--card)) token, so the /72 modifier actually computes
+                 here -- the raw-hex tokens in the warm-* block and `panel` do
+                 NOT, which is the bug that left this sheet's own scrim
+                 invisible.
+
+                 The overlay gets a light blur too, opted into per-sheet. A
+                 translucent panel over a perfectly sharp page does not read as
+                 frosted, it reads as a rendering fault. */
+              overlayClassName="backdrop-blur-[8px] backdrop-saturate-[130%]"
+              className={[
+                /* Sized by its content. max-h is a guard, not a layout: the
+                   rows come to about 71% of an 812px screen, so nothing
+                   scrolls in normal use. It was capped at 60vh, which turned a
+                   menu of eight items into a scrolling one for no reason. The
+                   cap still earns its place on a short screen, a landscape
+                   phone, or when a reader has set large text. */
+                'max-h-[88svh] overflow-y-auto overscroll-contain border-0 px-4',
+                'pb-[calc(env(safe-area-inset-bottom)+1.625rem)]',
+                'solid-light',
+              ].join(' ')}
+            >
+              <SheetGrabHandle />
+              <SheetTitle className="sr-only">Menu</SheetTitle>
+
+              {/* Handoff O-007: both halves of the product, always first, in
+                  this order, on every route (C-019). Counts are live or
+                  absent — never a placeholder. */}
+              <div className="grid grid-cols-2 gap-2">
+                <SheetClose asChild>
+                  <Link to="/all-tuition-teachers-in-kolkata" className={`rounded-[24px] bg-brand-subtle p-[18px_16px] ${FOCUS_RING}`}>
+                    <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand">
+                      <User className="h-[19px] w-[19px] text-foreground" strokeWidth={2} aria-hidden="true" />
+                    </span>
+                    <span className="mt-3 block font-display text-[19px] font-extrabold tracking-[-0.04em] text-brand-deep">Teachers</span>
+                    <span className="mt-0.5 block text-[13px] text-warm-secondary">
+                      {teachersCount != null ? `${teachersCount} in Kolkata` : 'In Kolkata'}
+                    </span>
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link to="/past-papers" className={`rounded-[24px] bg-brand-blue-subtle p-[18px_16px] ${FOCUS_RING}`}>
+                    <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand-blue">
+                      <FileText className="h-[19px] w-[19px] text-white" strokeWidth={2} aria-hidden="true" />
+                    </span>
+                    <span className="mt-3 block font-display text-[19px] font-extrabold tracking-[-0.04em] text-brand-blue-deep">Past papers</span>
+                    <span className="mt-0.5 block text-[13px] text-warm-secondary">
+                      {papersCount != null ? `${papersCount}, free to read` : 'Free to read'}
+                    </span>
+                  </Link>
+                </SheetClose>
+              </div>
+
+              <div className="mt-2 rounded-[24px] bg-muted p-1.5">
+                <SheetMenuRow to="/subjects" icon={BookOpen} label="Subjects" hairline />
+                <SheetMenuRow to="/schools" icon={School} label="Schools" hairline />
+                <SheetMenuRow to="/faq" icon={MessageCircleQuestion} label="FAQ" hairline />
+                <SheetMenuRow to="/more" icon={HelpCircle} label="Help" hairline={isAdmin} />
+                {isAdmin && <SheetMenuRow to="/admin" icon={Shield} label="Admin" />}
+              </div>
+
+              {/* Handoff O-007: account block — signed in gets a real "{n}
+                  saved · {m} papers" row (never a placeholder; each half
+                  omitted when its own count isn't loaded yet), signed out
+                  gets the one Sign in action in the same slot. */}
+              {user ? (
+                <SheetClose asChild>
+                  <Link
+                    to={dashboardLink?.to ?? '/account'}
+                    className={`mt-2 flex items-center gap-3 rounded-[24px] bg-panel p-[16px_18px] text-background ${FOCUS_RING}`}
+                  >
+                    <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-brand font-display text-[17px] font-black text-brand-foreground">
+                      {initial}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-bold">{user.email}</span>
+                      <span className="mt-px block text-[13px] text-background/60">
+                        {[
+                          `${likedTeacherIds.size} saved`,
+                          papersReadCount != null ? `${papersReadCount} papers` : null,
+                        ].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                    <ArrowIcon />
+                  </Link>
+                </SheetClose>
+              ) : (
+                <Button variant="primary" size={54} onClick={() => { setMenuOpen(false); navigate('/auth'); }} className="mt-2 w-full rounded-full">
+                  Sign in
+                </Button>
+              )}
+
+              {/* Handoff O-007: a centred row of quiet links. Sign out moved
+                  here from the old per-item list — it's real functionality,
+                  reachable one tap further via the account row above rather
+                  than a separate destructive item in this menu. */}
+              <div className="mt-3 flex min-h-11 flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[13px] text-warm-meta">
+                <SheetClose asChild>
+                  <Link to="/about" className={`tap-44 rounded ${FOCUS_RING}`}>About</Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link to="/contact" className={`tap-44 rounded ${FOCUS_RING}`}>Contact</Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Link to="/join" className={`tap-44 rounded ${FOCUS_RING}`}>Join as a teacher</Link>
+                </SheetClose>
+                {user && (
+                  <button
+                    type="button"
                     onClick={async () => {
                       try {
                         await signOut();
-                        // Small delay to ensure state is cleared before redirect
-                        setTimeout(() => {
-                          window.location.href = '/';
-                        }, 100);
-                      } catch (error) {
-                        // Even if signOut throws, redirect to home
+                      } finally {
                         window.location.href = '/';
                       }
-                    }} 
-                    className="text-destructive"
+                    }}
+                    className={`tap-44 rounded text-destructive ${FOCUS_RING}`}
                   >
                     Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Link to="/auth">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <LogIn className="w-4 h-4" />
-                  <span className="hidden sm:inline">Sign in</span>
-                </Button>
-              </Link>
-            )}
-
-            {/* Mobile Menu Button */}
-            <DropdownMenu open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden"
-                >
-                  {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 md:hidden">
-                <DropdownMenuItem asChild>
-                  <Link
-                    to="/"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-2 ${location.pathname === '/' ? 'bg-primary/10 text-primary font-semibold' : ''}`}
-                  >
-                    <Home className="w-4 h-4" />
-                    Home
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link
-                    to="/all-tuition-teachers-in-kolkata"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-2 ${location.pathname === '/all-tuition-teachers-in-kolkata' ? 'bg-primary/10 text-primary font-semibold' : ''}`}
-                  >
-                    <Search className="w-4 h-4" />
-                    Browse
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link
-                    to="/past-papers"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-2 ${location.pathname === '/past-papers' ? 'bg-primary/10 text-primary font-semibold' : ''}`}
-                  >
-                    <FileText className="w-4 h-4" />
-                    PYQs
-                  </Link>
-                </DropdownMenuItem>
-                {user && userRole === 'teacher' && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard/teacher" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 text-primary font-medium">
-                        <GraduationCap className="w-4 h-4" />
-                        View Profile
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
+                  </button>
                 )}
-                <DropdownMenuItem asChild>
-                  <Link to="/more" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
-                    <HelpCircle className="w-4 h-4" />
-                    Help
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/faq" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
-                    <HelpCircle className="w-4 h-4" />
-                    FAQ
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/join" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
-                    <ExternalLink className="w-4 h-4" />
-                    Join as a teacher
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <div className="px-2 py-1.5">
-                  <div className="flex items-center gap-3 justify-center">
-                    <a
-                      href="mailto:join.shikshaq@gmail.com"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="p-2 rounded-lg hover:bg-muted transition-colors"
-                      aria-label="Gmail"
-                    >
-                      <Mail className="w-5 h-5" />
-                    </a>
-                    <a
-                      href="https://instagram.com/shikshaq.in"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="p-2 rounded-lg hover:bg-muted transition-colors"
-                      aria-label="Instagram"
-                    >
-                      <InstagramIcon className="w-5 h-5" />
-                    </a>
-                    <a
-                      href={getWhatsAppLink('8240980312')}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="p-2 rounded-lg hover:bg-muted transition-colors"
-                      aria-label="WhatsApp"
-                    >
-                      <WhatsAppIcon className="w-5 h-5" />
-                    </a>
-                  </div>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </nav>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+
       </div>
     </header>
-
-    {/* Mobile Floating Navigation Bar - Below Main Navbar */}
-    {isBrowsePage || isSubjectPage ? (
-      <div className="md:hidden sticky top-16 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
-        <div className="container mx-auto px-4">
-          <nav className="flex items-center justify-around h-14">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`relative flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-                  isActive(item.path)
-                    ? 'text-[#FF8B16]'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{item.label}</span>
-                {isActive(item.path) && (
-                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-1 rounded-full" style={{ backgroundColor: '#FF8B16' }} />
-                )}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </div>
-    ) : (
-      <div className={`md:hidden fixed left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm transition-[top] duration-300 ease-in-out ${
-        isScrolled ? 'top-0' : 'top-16'
-      }`}>
-        <div className="container mx-auto px-4">
-          <nav className="flex items-center justify-around h-14">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`relative flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-                  isActive(item.path)
-                    ? 'text-[#FF8B16]'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{item.label}</span>
-                {isActive(item.path) && (
-                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-1 rounded-full" style={{ backgroundColor: '#FF8B16' }} />
-                )}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </div>
-    )}
-    </>
   );
 }
+
+/* Handoff O-007: secondary-row group inside the bg-muted p-1.5 wrapper —
+ * min-h-[52px], 18px leading glyph, 15.5px/600 label, 16px trailing arrow,
+ * hairlines between (not on the last row). */
+function SheetMenuRow({ to, icon: Icon, label, hairline = false }: { to: string; icon: LucideIcon; label: string; hairline?: boolean }) {
+  return (
+    <SheetClose asChild>
+      <Link
+        to={to}
+        className={`flex min-h-[52px] items-center gap-3 px-3 text-foreground ${hairline ? 'shadow-[inset_0_-1px_0_hsl(var(--border))]' : ''} ${FOCUS_RING}`}
+      >
+        <Icon className="h-[18px] w-[18px] text-warm-secondary" strokeWidth={2} aria-hidden="true" />
+        <span className="flex-1 text-[16px] font-semibold">{label}</span>
+        <ArrowIcon />
+      </Link>
+    </SheetClose>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="flex-none text-warm-quaternary" aria-hidden="true">
+      <path d="M5 12h14" />
+      <path d="m13 6 6 6-6 6" />
+    </svg>
+  );
+}
+

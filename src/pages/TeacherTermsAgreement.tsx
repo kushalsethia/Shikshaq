@@ -2,19 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { UserCheck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
+import { isSafeRedirect as isValidRedirect } from '@/lib/safe-redirect';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 
-function isValidRedirect(path: string | null): path is string {
-  return !!path && path.startsWith('/') && !path.startsWith('//');
-}
 
 export default function TeacherTermsAgreement() {
   const { user, loading: authLoading } = useAuth();
@@ -34,16 +29,16 @@ export default function TeacherTermsAgreement() {
   useEffect(() => {
     // Only check once
     if (hasCheckedRef.current) return;
-    
+
     let isMounted = true;
 
     const checkTeacherStatus = async () => {
       // Prevent multiple redirects
       if (hasRedirectedRef.current) return;
-      
+
       // Wait for auth to finish loading
       if (authLoading) return;
-      
+
       // If no user, redirect to auth (preserve return URL)
       if (!user) {
         if (isMounted && !hasRedirectedRef.current && location.pathname === '/teacher-terms-agreement') {
@@ -64,7 +59,7 @@ export default function TeacherTermsAgreement() {
 
         if (isMounted && !hasRedirectedRef.current && location.pathname === '/teacher-terms-agreement') {
           hasCheckedRef.current = true;
-          
+
           if (!profile) {
             // No profile - redirect to select role (preserve return URL)
             hasRedirectedRef.current = true;
@@ -139,7 +134,7 @@ export default function TeacherTermsAgreement() {
         .eq('id', user.id);
 
       if (error) {
-        console.error('Error updating profile:', error);
+        if (import.meta.env.DEV) console.error('Error updating profile:', error);
         toast.error('Failed to update profile. Please try again.');
         setLoading(false);
         return;
@@ -151,7 +146,7 @@ export default function TeacherTermsAgreement() {
       }
 
       toast.success('Thank you for verifying your consent!');
-      
+
       // Small delay to ensure cache is cleared, then redirect back or home
       const returnPath = isValidRedirect(redirectTo) ? redirectTo : '/';
       setTimeout(() => {
@@ -170,14 +165,12 @@ export default function TeacherTermsAgreement() {
   if (authLoading || checking) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-warm-hairline border-b-brand mx-auto mb-4" />
+            <p className="text-muted-foreground text-base">Loading...</p>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -188,67 +181,69 @@ export default function TeacherTermsAgreement() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      
-      <main className="flex-1 flex items-center justify-center py-16">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <Logo size="lg" className="mx-auto mb-4" />
-            <div className="flex justify-center mb-4">
-              <UserCheck className="w-12 h-12 text-primary" />
-            </div>
-            <h1 className="text-3xl font-sans text-foreground mb-2">
-              Verify Your Consent
+    <div className="min-h-screen bg-background">
+      <main>
+        <BentoStack>
+          {/* Handoff TT-001: header. No dated "last updated" line — unlike
+              the Terms of Service page this links to, this consent screen
+              isn't itself a versioned document, so there's no real date to
+              show for it. Chromeless route, so the brand mark that every
+              other page gets from the floating global nav is drawn here. */}
+          <BentoPanel fill="card" edge="top" className="pt-[14px] pb-[22px]">
+            <Logo size="nav" className="mb-5" />
+            <h1 className="font-display text-[27px] font-extrabold tracking-[-0.04em] text-foreground">
+              Verify your consent
             </h1>
-            <p className="text-muted-foreground">
-              We've detected that you're a teacher on our platform. Please verify your consent to continue.
+            <p className="mt-2 text-[15px] leading-[1.5] text-warm-secondary">
+              We&rsquo;ve detected that you&rsquo;re a teacher on our platform. Please verify your consent to continue.
             </p>
-          </div>
+          </BentoPanel>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-muted/50 p-4 rounded-lg border">
-              <p className="text-sm text-foreground mb-3">
-                As a teacher on Shikshaq, you agree to:
-              </p>
-              <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside">
-                <li>Provide accurate information about your qualifications and teaching experience</li>
-                <li>Maintain professional conduct when interacting with students and parents</li>
-                <li>Respect student privacy and confidentiality</li>
-                <li>Follow all applicable laws and regulations</li>
-              </ul>
-            </div>
+          {/* Handoff TT-001: prose panel — the real content here is a short
+              consent list, not multi-section legal prose, so that's what
+              renders (16px, max-w-[62ch]) rather than fabricated sections. */}
+          <BentoPanel fill="card" className="max-w-[62ch]">
+            <p className="text-[16px] font-semibold leading-[1.7] text-foreground">
+              As a teacher on Shikshaq, you agree to:
+            </p>
+            <ul className="mt-2 flex list-disc flex-col gap-2 pl-5 text-[16px] leading-[1.7] text-warm-prose">
+              <li>Provide accurate information about your qualifications and teaching experience</li>
+              <li>Maintain professional conduct when interacting with students and parents</li>
+              <li>Respect student privacy and confidentiality</li>
+              <li>Follow all applicable laws and regulations</li>
+            </ul>
+          </BentoPanel>
 
-            {/* Terms and Privacy Policy Checkbox */}
-            <div className="flex items-start space-x-2">
-              <Checkbox
-                id="terms"
-                checked={termsAgreed}
-                onCheckedChange={(checked) => setTermsAgreed(checked === true)}
-                className="mt-1"
-              />
-              <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
-                I agree to the{' '}
-                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline underline">
-                  Terms of Service
-                </a>
-                {' '}and{' '}
-                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline underline">
-                  Privacy Policy
-                </a>
-                {' '}and consent to be listed as a teacher on Shikshaq.
-              </Label>
-            </div>
+          {/* Handoff TT-001: accept panel. */}
+          <BentoPanel fill="card" edge="bottom" className="flex flex-col gap-5">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <div className="flex min-h-11 items-start gap-3">
+                <Checkbox
+                  id="terms"
+                  checked={termsAgreed}
+                  onCheckedChange={(checked) => setTermsAgreed(checked === true)}
+                  className="mt-0.5 h-5 w-5 rounded-[6px]"
+                />
+                <label htmlFor="terms" className="text-sm leading-relaxed text-warm-prose cursor-pointer">
+                  I agree to the{' '}
+                  <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
+                    Terms of Service
+                  </a>
+                  {' '}and{' '}
+                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-blue underline">
+                    Privacy Policy
+                  </a>
+                  {' '}and consent to be listed as a teacher on Shikshaq.
+                </label>
+              </div>
 
-            <Button type="submit" className="w-full h-12" disabled={loading || !termsAgreed}>
-              {loading ? 'Verifying...' : 'Verify Consent & Continue'}
-            </Button>
-          </form>
-        </div>
+              <Button type="submit" variant="primary" size={54} disabled={loading || !termsAgreed} className="w-full">
+                {loading ? 'Verifying...' : 'Verify consent & continue'}
+              </Button>
+            </form>
+          </BentoPanel>
+        </BentoStack>
       </main>
-
-      <Footer />
     </div>
   );
 }
-

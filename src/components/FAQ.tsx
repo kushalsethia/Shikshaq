@@ -1,11 +1,9 @@
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
+export interface FAQEntry {
+  question: string;
+  answer: string;
+}
 
-const faqs = [
+export const FAQ_ITEMS: FAQEntry[] = [
   {
     question: 'What is Shikshaq and how does it work?',
     answer: 'Shikshaq helps students find tuition teachers based on subject, class, board, and locality. You can compare teachers through past student reviews, teaching experience, and educational qualifications, then directly connect with the one that best fits your needs.',
@@ -36,41 +34,11 @@ const faqs = [
   },
 ];
 
-export function FAQ() {
-  return (
-    <section id="faq" className="py-12 sm:py-16 md:py-20 bg-[#FF8000] scroll-mt-20">
-      <div className="container max-w-3xl">
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-white text-center mb-2 md:mb-6">
-          Common <span className="text-white">Queries</span> Answered
-        </h2>
-
-        <Accordion type="single" collapsible className="space-y-2">
-          {faqs.map((faq, index) => (
-            <AccordionItem
-              key={index}
-              value={`item-${index}`}
-              className="rounded-xl px-6 border-none"
-              style={{ backgroundColor: '#fcfbf8' }}
-            >
-              <AccordionTrigger className="flex items-center justify-between w-full py-4 text-left text-base sm:text-lg md:text-xl font-sans font-semibold text-[#1F1F1F] hover:text-[#4351FF] transition-colors hover:no-underline">
-                {faq.question}
-              </AccordionTrigger>
-              <AccordionContent className="text-sm sm:text-base md:text-lg font-sans font-normal text-[#666666] pb-4 leading-relaxed text-pretty">
-                {faq.answer}
-                <p className="mt-4 pt-3 border-t border-[#1F1F1F]/10">
-                  <button
-                    type="button"
-                    onClick={() => window.dispatchEvent(new CustomEvent('shikshaq-open-chat'))}
-                    className="text-[#4351FF] font-medium hover:underline focus:outline-none focus:underline"
-                  >
-                    Not the answer you were looking for? Ask our AI assistant
-                  </button>
-                </p>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </div>
-    </section>
-  );
-}
+/* The `FAQ` accordion component that used to live here was deleted.
+ * It was never rendered: App.tsx's `<FAQ />` resolves to `pages/FAQ`, and
+ * the only import from this module anywhere is `FAQ_ITEMS` (pages/FAQ.tsx).
+ * It still carried pre-redesign chrome — `rounded-2xl bg-card shadow-border`
+ * cards, a rotating `+` glyph and an inline <style> keyframe block — none of
+ * which match the redesign's accordion (see HelpFaqStack, which is the real
+ * one). Dead code that can only drift further from the design. FAQ_ITEMS
+ * above is live and stays. */

@@ -1,142 +1,85 @@
-import { useEffect } from 'react';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { FAQ } from '@/components/FAQ';
-import { WaveDivider } from '@/components/WaveDivider';
-import { Mail } from 'lucide-react';
-import { getWhatsAppLink } from '@/utils/whatsapp';
-import { WhatsAppIcon, InstagramIcon } from '@/components/BrandIcons';
+import { useEffect, useState } from 'react';
+import { FeedbackModal } from '@/components/FeedbackModal';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { FAQSchema, type FAQItem } from '@/components/FAQSchema';
+import { HelpFaqStack, type HelpFaqQuestion } from '@/components/help/HelpFaqStack';
+import { useHelpTopics, topicToGuideBody } from '@/hooks/useHelpTopics';
+
+// FAQPage JSON-LD content for this page. `category` (display-only, used by
+// the HP-002 chip filter) is layered on top of this same question/answer
+// data rather than a second copy, so the JSON-LD stays byte-identical.
+const HELP_FAQS: HelpFaqQuestion[] = [
+  {
+    question: 'Is Shikshaq completely free?',
+    answer:
+      'Yes, Shikshaq is completely free for both students and tutors. There are no registration fees, subscription charges, or hidden costs.',
+    category: 'general',
+  },
+  {
+    question: 'How do I find a tutor on Shikshaq?',
+    answer:
+      'Simply visit shikshaq.in and use our search filters to find tutors by subject, board, class, location, and teaching mode. Browse verified tutor profiles and contact them directly.',
+    category: 'finding',
+  },
+  {
+    question: 'Does Shikshaq handle payments?',
+    answer:
+      'No, Shikshaq does not handle any payments. All fees are negotiated directly between students and tutors. We are a connection-only platform.',
+    category: 'general',
+  },
+  {
+    question: 'How are tutors verified on Shikshaq?',
+    answer:
+      'All tutors undergo a verification process that includes educational qualification verification and identity verification.',
+    category: 'teachers',
+  },
+  {
+    question: 'Which areas does Shikshaq serve?',
+    answer:
+      'Shikshaq currently serves Kolkata and surrounding areas including Howrah, Salt Lake, Jadavpur, Bhowanipore, Ballygunge, and many other localities.',
+    category: 'general',
+  },
+];
+
+const HELP_FAQS_SCHEMA: FAQItem[] = HELP_FAQS.map(({ question, answer }) => ({ question, answer }));
 
 export default function Help() {
-  // Add FAQPage JSON-LD structured data
+  usePageMeta(
+    'Help, Contact and Common Questions | Shikshaq',
+    'Need help finding a tuition teacher in Kolkata? Contact the Shikshaq team on WhatsApp or email, and learn how our free tutor matching works.'
+  );
+
+  const topics = useHelpTopics();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
   useEffect(() => {
-    const faqPageScript = document.createElement('script');
-    faqPageScript.type = 'application/ld+json';
-    faqPageScript.id = 'helppage-faqpage-schema';
-    faqPageScript.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "@id": "https://www.shikshaq.in/faq#faqpage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "Is Shikshaq completely free?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes, Shikshaq is completely free for both students and tutors. There are no registration fees, subscription charges, or hidden costs."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How do I find a tutor on Shikshaq?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Simply visit shikshaq.in and use our search filters to find tutors by subject, board, class, location, and teaching mode. Browse verified tutor profiles and contact them directly."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Does Shikshaq handle payments?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "No, Shikshaq does not handle any payments. All fees are negotiated directly between students and tutors. We are a connection-only platform."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How are tutors verified on Shikshaq?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "All tutors undergo a verification process that includes educational qualification verification and identity verification."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Which areas does Shikshaq serve?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Shikshaq currently serves Kolkata and surrounding areas including Howrah, Salt Lake, Jadavpur, Bhowanipore, Ballygunge, and many other localities."
-          }
-        }
-      ]
-    });
-
-    // Add script to head
-    document.head.appendChild(faqPageScript);
-
-    // Cleanup: remove script when component unmounts
-    return () => {
-      const existingFaqPage = document.getElementById('helppage-faqpage-schema');
-      if (existingFaqPage) existingFaqPage.remove();
-    };
+    window.scrollTo(0, 0);
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-
-      <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
-        <div className="max-w-3xl mx-auto text-center mb-12">
-          <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-4">
-            How can we help you?
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Find answers to common questions or reach out to our team directly.
+    <>
+      <FAQSchema faqs={HELP_FAQS_SCHEMA} url="/more" />
+      <HelpFaqStack
+        heading={{ line1: 'Help, and the', ordinal: '01', line2: 'questions we get' }}
+        questionsHeading="Common questions"
+        questions={HELP_FAQS}
+        guides={topics.map((t) => ({ title: t.title, body: topicToGuideBody(t.body) }))}
+        contactHeading="Still stuck?"
+        contactBody="Send us a note and a real person replies, usually the same day."
+        footerExtra={(
+          <p className="mt-3 text-[13px] text-background/60">
+            Got feedback instead of a question?{' '}
+            <button
+              type="button"
+              onClick={() => setFeedbackOpen(true)}
+              className="inline-flex min-h-11 items-center rounded align-middle text-[13px] text-background underline underline-offset-2 transition-opacity duration-tap hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+            >
+              Tell us here
+            </button>
           </p>
-        </div>
-
-        {/* Contact Cards */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto mb-16">
-          <a
-            href={getWhatsAppLink('8240980312')}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-[transform,box-shadow] hover:-translate-y-1 border border-border"
-          >
-            <div className="w-12 h-12 bg-badge-science/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <WhatsAppIcon className="w-6 h-6 text-badge-science" />
-            </div>
-            <h3 className="font-medium text-foreground mb-2">WhatsApp</h3>
-            <p className="text-sm text-muted-foreground">Quick responses on chat</p>
-          </a>
-
-          <a
-            href="mailto:join.shikshaq@gmail.com"
-            className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-[transform,box-shadow] hover:-translate-y-1 border border-border"
-          >
-            <div className="w-12 h-12 bg-badge-commerce/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-6 h-6 text-badge-commerce" />
-            </div>
-            <h3 className="font-medium text-foreground mb-2">Email</h3>
-            <p className="text-sm text-muted-foreground">join.shikshaq@gmail.com</p>
-          </a>
-
-          <a
-            href="https://instagram.com/shikshaq.in"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-card rounded-2xl p-6 text-center hover:shadow-lg transition-[transform,box-shadow] hover:-translate-y-1 border border-border"
-          >
-            <div className="w-12 h-12 bg-badge-hindi/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <InstagramIcon className="w-6 h-6 text-badge-hindi" />
-            </div>
-            <h3 className="font-medium text-foreground mb-2">Instagram</h3>
-            <p className="text-sm text-muted-foreground">@shikshaq.in</p>
-          </a>
-        </div>
-
-      </main>
-
-      {/* Wave: Page → Orange */}
-      <WaveDivider fillColor="#FF8000" bgColor="#ffffff" inverted={false} />
-
-      {/* FAQ — Orange */}
-      <FAQ />
-
-      {/* Wave: Orange → Footer */}
-      <WaveDivider fillColor="#fcfbf8" bgColor="#FF8000" inverted={false} />
-
-      <Footer />
-    </div>
+        )}
+      />
+      <FeedbackModal open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+    </>
   );
 }

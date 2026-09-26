@@ -1,35 +1,54 @@
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { FAQ } from '@/components/FAQ';
-import { WaveDivider } from '@/components/WaveDivider';
+import { useEffect } from 'react';
+import { FAQ_ITEMS } from '@/components/FAQ';
+import { FAQSchema } from '@/components/FAQSchema';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { HelpFaqStack, type HelpFaqCategory, type HelpFaqQuestion } from '@/components/help/HelpFaqStack';
+import { useHelpTopics, topicToGuideBody } from '@/hooks/useHelpTopics';
+
+// FAQ_ITEMS (components/FAQ.tsx) is shared with Index.tsx's teaser block, so
+// its question/answer strings stay the single source of truth for the JSON-LD
+// (byte-identical, unchanged) — `category` is layered on here, display-only,
+// for the HP-002 chip filter this page adds.
+const CATEGORY_BY_QUESTION: Record<string, HelpFaqCategory> = {
+  'What is Shikshaq and how does it work?': 'general',
+  'Which classes/grades and boards do you support?': 'teachers',
+  'Which cities or localities do you currently cater to?': 'general',
+  'How do I find the right tutor on Shikshaq?': 'finding',
+  'How do I contact a teacher through Shikshaq?': 'finding',
+  'Do I pay through Shikshaq or directly to the teacher?': 'general',
+  'Is my phone number and personal data safe on Shikshaq?': 'general',
+};
+
+const QUESTIONS: HelpFaqQuestion[] = FAQ_ITEMS.map((f) => ({
+  question: f.question,
+  answer: f.answer,
+  category: CATEGORY_BY_QUESTION[f.question] ?? 'general',
+}));
 
 export default function FAQPage() {
+  usePageMeta(
+    'Tuition FAQs for Students and Parents in Kolkata | Shikshaq',
+    // Was 164 chars, over the ~160 SERP-snippet guideline. 153 now.
+    'Common questions about finding a tuition teacher in Kolkata on Shikshaq: how matching works, fees, verification, and contacting tutors directly for free.'
+  );
+
+  const topics = useHelpTopics();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      
-      <main className="container pt-32 sm:pt-[120px] pb-16 md:pt-16">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl md:text-4xl font-sans text-foreground mb-4 text-center">
-            Frequently Asked Questions
-          </h1>
-          <p className="text-lg text-muted-foreground text-center mb-12 text-pretty">
-            Find answers to common questions about Shikshaq
-          </p>
-        </div>
-      </main>
-
-      {/* Wave: Page → Orange */}
-      <WaveDivider fillColor="#FF8000" bgColor="#ffffff" inverted={false} />
-
-      {/* FAQ — Orange */}
-      <FAQ />
-
-      {/* Wave: Orange → Footer */}
-      <WaveDivider fillColor="#fcfbf8" bgColor="#FF8000" inverted={false} />
-
-      <Footer />
-    </div>
+    <>
+      <FAQSchema faqs={FAQ_ITEMS} url="/faq" />
+      <HelpFaqStack
+        heading={{ line1: 'Questions people', ordinal: '01', line2: 'actually ask' }}
+        questionsHeading="Common questions"
+        questions={QUESTIONS}
+        guides={topics.map((t) => ({ title: t.title, body: topicToGuideBody(t.body) }))}
+        contactHeading="Still have a question?"
+        contactBody="Ask our assistant, or write to us on WhatsApp. We reply within a day."
+      />
+    </>
   );
 }
-

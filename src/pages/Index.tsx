@@ -1,633 +1,1428 @@
-import { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  FileText,
+  GraduationCap,
+  IndianRupee,
+  MessageCircle,
+  Search,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
+import { EmptyResults } from '@/components/EmptyResults';
 import { supabase } from '@/integrations/supabase/client';
-import { Navbar } from '@/components/Navbar';
-import { SearchBar } from '@/components/SearchBar';
+import { imageAtWidth, validateImageSrc } from '@/utils/imageSanitizer';
+import { logger } from '@/utils/logger';
 import { TeacherCard } from '@/components/TeacherCard';
 import { SubjectCard } from '@/components/SubjectCard';
-import { HowItWorks } from '@/components/HowItWorks';
-import { FAQ } from '@/components/FAQ';
-import { Footer } from '@/components/Footer';
-import { WaveDivider } from '@/components/WaveDivider';
-import { useLikes } from '@/lib/likes-context';
+import { HomeActivitySection } from '@/components/HomeActivitySection';
+import { SearchDesk } from '@/components/home/SearchDesk';
+import { RegionNotice } from '@/components/RegionNotice';
+import { EyesPanel } from '@/components/home/EyesPanel';
+import { CornerMascot } from '@/components/home/CornerMascot';
+import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { useChromeConfig } from '@/components/layout/AppShell';
+import { NumberedHeading } from '@/components/ui/numbered-heading';
+import { IconDisc } from '@/components/ui/icon-disc';
+import { PaperCover } from '@/components/papers/paper-cover';
+import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { useAuth } from '@/lib/auth-context';
+import { useLikes } from '@/lib/likes-context';
+import { resolveHeroCopy, papersHeroCopy } from '@/lib/hero-copy';
+import { getSubjectPalette } from '@/lib/subject-palette';
 import { useRequireRole } from '@/hooks/use-require-role';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-} from '@/components/ui/carousel';
-import { getCache, setCache, CACHE_TTL, clearExpiredCache } from '@/utils/cache';
-
-// Larger Unicode emoji for subject cards (free to use, rendered by user’s device)
-const EMOJI_WRAPPER = 'flex items-center justify-center min-w-[4rem] min-h-[4rem] text-5xl leading-none select-none';
-const subjectIconMap: Record<string, React.ReactNode> = {
-  Chemistry: <span className={EMOJI_WRAPPER} aria-hidden>🧪</span>,
-  Hindi: <span className={EMOJI_WRAPPER} aria-hidden>📖</span>,
-  English: <span className={EMOJI_WRAPPER} aria-hidden>📚</span>,
-  Maths: <span className={EMOJI_WRAPPER} aria-hidden>🔢</span>,
-  Mathematics: <span className={EMOJI_WRAPPER} aria-hidden>🔢</span>,
-  Psychology: <span className={EMOJI_WRAPPER} aria-hidden>🧠</span>,
-  Economics: <span className={EMOJI_WRAPPER} aria-hidden>💰</span>,
-  Biology: <span className={EMOJI_WRAPPER} aria-hidden>🧬</span>,
-  Computers: <span className={EMOJI_WRAPPER} aria-hidden>💻</span>,
-  Computer: <span className={EMOJI_WRAPPER} aria-hidden>💻</span>,
-  Accounts: <span className={EMOJI_WRAPPER} aria-hidden>📒</span>,
-};
-
+import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
+import { useIntent } from '@/lib/intent-context';
+import { intentCta } from '@/lib/intent/copy';
+import { getShikshaqmineBasicBySlugs } from '@/lib/teachers';
+import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
+import type { SearchMode } from '@/utils/searchFacets';
 
 interface Teacher {
   id: string;
   name: string;
   slug: string;
   image_url: string | null;
+  is_verified?: boolean | null;
   subjects: { name: string; slug: string } | null;
-  // Optional label for the green featured-subject tag on the homepage carousel
   featuredSubjectLabel?: string | null;
+  whatsappLink?: string | null;
+  experienceYears?: number | null;
+  sirMaam?: string | null;
+  minFees?: number | null;
+  maxFees?: number | null;
+  area?: string | null;
 }
 
 interface Subject {
   id: string;
   name: string;
   slug: string;
-  image_url: string | null;
+  teacherCount: number;
+  paperCount: number;
+}
+
+interface RecentPaper {
+  id: string;
+  title: string;
+  school: string;
+  subject: string;
+  board: string;
+  class: string;
+  year: number;
+}
+
+interface StudentQuote {
+  id: string;
+  comment: string;
+  authorName: string;
+  authorMeta: string;
+  /** Who the review is about. A quote like "Ashok sir explains clearly" is
+   *  unreadable on the home page without it — the reader has no idea who
+   *  "Ashok sir" is or how to reach them. */
+  teacherName: string | null;
+  teacherSlug: string | null;
+  teacherImageUrl: string | null;
+}
+
+const BOARD_ORDER = ['ICSE', 'CBSE', 'IGCSE', 'IB', 'State'] as const;
+const BOARD_FILLS: Record<string, string> = {
+  ICSE: 'bg-brand text-brand-foreground',
+  CBSE: 'bg-brand-blue-subtle text-brand-blue-deep',
+  IGCSE: 'bg-panel text-background',
+  IB: 'bg-muted text-foreground',
+  State: 'bg-warm-band text-foreground',
+};
+/* Tilt is a mobile-only flourish — the project owner flagged it as "too
+   crooked" on desktop, so each entry carries its own tilt below `lg` and
+   snaps flat at `lg` and up. Literal classes (not built from a template
+   string) so Tailwind's content scanner can see them. */
+const BOARD_TILT_CLASSES = [
+  'rotate-[-1deg] motion-reduce:rotate-0 lg:rotate-0',
+  'rotate-[0.8deg] motion-reduce:rotate-0 lg:rotate-0',
+  'rotate-[-0.6deg] motion-reduce:rotate-0 lg:rotate-0',
+  'rotate-[1deg] motion-reduce:rotate-0 lg:rotate-0',
+  'rotate-[-0.5deg] motion-reduce:rotate-0 lg:rotate-0',
+];
+
+// "9-12" / "9,10,11,12" / "Class 9 to 12" -> [9,10,11,12]. Real teacher data,
+// tokenized the same way the subjects tile counts already are (Index.tsx's
+// prior `subjects_text` pattern) rather than invented — design.md §0.10.
+function parseClassNumbers(raw: string | null | undefined): number[] {
+  if (!raw) return [];
+  const out = new Set<number>();
+  const rangeRe = /(\d{1,2})\s*(?:-|to|–)\s*(\d{1,2})/gi;
+  let stripped = raw;
+  let m: RegExpExecArray | null;
+  while ((m = rangeRe.exec(raw)) !== null) {
+    const a = parseInt(m[1], 10);
+    const b = parseInt(m[2], 10);
+    if (a && b && a <= b && b - a < 12) {
+      for (let n = a; n <= b; n++) out.add(n);
+    }
+    stripped = stripped.replace(m[0], ' ');
+  }
+  (stripped.match(/\d{1,2}/g) || []).forEach((n) => out.add(parseInt(n, 10)));
+  return Array.from(out);
 }
 
 export default function Index() {
-  const [featuredTeachers, setFeaturedTeachers] = useState<Teacher[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [isSearchBarScrolled, setIsSearchBarScrolled] = useState(false);
-  const [userFirstName, setUserFirstName] = useState<string | null>(null);
-  const searchBarRef = useRef<HTMLDivElement>(null);
-  const searchBarElementRef = useRef<HTMLDivElement>(null);
-  const { isLiked } = useLikes();
-  const { user, profile } = useAuth();
+
+  const navigate = useNavigate();
+  const { profile } = useAuth();
+  const { likedTeacherIds, likedCount } = useLikes();
+  const { intent, experience } = useIntent();
+  // Shared by the teachers-fork CTA and the featured-teachers footer link
+  // below — both fall back to their own existing copy/destination when this
+  // is null, which is most visitors (nothing subject-specific known yet).
+  const teachersCta = intentCta(intent);
 
   useRequireRole();
 
-  // Derive user's first name from centralized profile (no extra fetch needed)
-  useEffect(() => {
-    if (!user) {
-      setUserFirstName(null);
-      return;
-    }
-    const fullName = profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || null;
-    if (fullName) {
-      setUserFirstName(fullName.split(' ')[0]);
-    }
-  }, [user, profile]);
+  // Handoff H-023/S-015: Home renders its own eyes panel inline (with the
+  // real sentence-builder data this page already fetches), replacing
+  // AppShell's default pre-footer for this route only.
+  useChromeConfig({ preFooter: 'none' });
 
-  // Add homepage-specific JSON-LD structured data
+  // Homepage-specific JSON-LD structured data
   useEffect(() => {
-    // LocalBusiness schema
     const localBusinessScript = document.createElement('script');
     localBusinessScript.type = 'application/ld+json';
     localBusinessScript.id = 'homepage-localbusiness-schema';
-    localBusinessScript.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "LocalBusiness",
-      "@id": "https://www.shikshaq.in/#localbusiness",
-      "name": "Shikshaq",
-      "description": "Free online tutor-student matchmaking platform serving Kolkata and surrounding areas",
-      "url": "https://www.shikshaq.in",
-      "telephone": "+91-8240980312",
-      "email": "support@shikshaq.in",
-      "address": {
-        "@type": "PostalAddress",
-        "addressLocality": "Kolkata",
-        "addressRegion": "West Bengal",
-        "addressCountry": "IN"
-      },
-      "priceRange": "Free",
-      "openingHoursSpecification": {
-        "@type": "OpeningHoursSpecification",
-        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-        "opens": "08:00",
-        "closes": "22:00",
-        "timezone": "Asia/Kolkata"
-      },
-      "areaServed": [
-        "Kolkata",
-        "Howrah",
-        "Salt Lake",
-        "Jadavpur",
-        "Bhowanipore",
-        "Ballygunge",
-        "New Town",
-        "Garia",
-        "Tollygunge",
-        "Behala"
-      ],
-      "sameAs": [
-        "https://www.instagram.com/ngo.aquaterra/",
-        "https://www.facebook.com/shikshaqkolkata/"
-      ]
-    });
+    localBusinessScript.textContent = JSON.stringify(generateLocalBusinessSchema());
 
-    // Service schema
     const serviceScript = document.createElement('script');
     serviceScript.type = 'application/ld+json';
     serviceScript.id = 'homepage-service-schema';
-    serviceScript.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "Service",
-      "@id": "https://www.shikshaq.in/#service",
-      "name": "Free Tutor-Student Connection Service",
-      "description": "Connect with verified tutors for personalized tuition in your locality. Free platform for both students and educators.",
-      "serviceType": "Educational Tutoring Service",
-      "provider": {
-        "@type": "EducationalOrganization",
-        "name": "Shikshaq",
-        "url": "https://www.shikshaq.in"
-      },
-      "areaServed": "Kolkata",
-      "availableChannel": {
-        "@type": "ServiceChannel",
-        "serviceUrl": "https://www.shikshaq.in/all-tuition-teachers-in-kolkata",
-        "servicePhone": "+91-8240980312"
-      },
-      "offers": [
-        {
-          "@type": "Offer",
-          "name": "Subject-Based Tutor Search",
-          "description": "Find tutors for Mathematics, Physics, Chemistry, Biology, English, and more",
-          "price": "0",
-          "priceCurrency": "INR"
+    serviceScript.textContent = JSON.stringify(
+      generateServiceSchema({
+        id: 'https://www.shikshaq.in/#service',
+        name: 'Free Tutor-Student Connection Service',
+        description:
+          'Connect with verified tutors for personalized tuition in your locality. Free platform for both students and educators.',
+        serviceType: 'Educational Tutoring Service',
+        areaServed: 'Kolkata',
+        availableChannel: {
+          serviceUrl: 'https://www.shikshaq.in/all-tuition-teachers-in-kolkata',
+          servicePhone: '+91-8240980312',
         },
-        {
-          "@type": "Offer",
-          "name": "Online Tuition",
-          "description": "Connect with tutors offering online classes",
-          "price": "0",
-          "priceCurrency": "INR"
-        },
-        {
-          "@type": "Offer",
-          "name": "Offline/Home Tuition",
-          "description": "Find tutors offering offline/home tuition in your area",
-          "price": "0",
-          "priceCurrency": "INR"
-        }
-      ]
-    });
+        offers: [
+          { '@type': 'Offer', name: 'Subject-Based Tutor Search', description: 'Find tutors for Mathematics, Physics, Chemistry, Biology, English, and more', price: '0', priceCurrency: 'INR' },
+          { '@type': 'Offer', name: 'Online Tuition', description: 'Connect with tutors offering online classes', price: '0', priceCurrency: 'INR' },
+          { '@type': 'Offer', name: 'Offline/Home Tuition', description: 'Find tutors offering offline/home tuition in your area', price: '0', priceCurrency: 'INR' },
+        ],
+      })
+    );
 
-    // Add scripts to head
     document.head.appendChild(localBusinessScript);
     document.head.appendChild(serviceScript);
-
-    // Cleanup: remove scripts when component unmounts
     return () => {
-      const existingLocalBusiness = document.getElementById('homepage-localbusiness-schema');
-      const existingService = document.getElementById('homepage-service-schema');
-      if (existingLocalBusiness) existingLocalBusiness.remove();
-      if (existingService) existingService.remove();
+      document.getElementById('homepage-localbusiness-schema')?.remove();
+      document.getElementById('homepage-service-schema')?.remove();
     };
   }, []);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        // Check cache for featured teachers
-        const featuredCacheKey = 'featured_teachers_index';
-        const cachedFeatured = getCache<any[]>(featuredCacheKey);
-        
-        // Check cache for subjects (key bumped when home subject list changes, e.g. Chemistry/Hindi)
-        const subjectsCacheKey = 'subjects_index_v2';
-        const cachedSubjects = getCache<any[]>(subjectsCacheKey);
-        
-        // Only use cache when we have non-empty data (avoid showing stale "empty" from a past failed load)
-        if (cachedFeatured?.length && cachedSubjects?.length) {
-          setFeaturedTeachers(cachedFeatured);
-          setSubjects(cachedSubjects);
-          setLoading(false);
-          return;
-        }
-        
-        // Fetch subjects and upvotes in parallel (step 1)
+  /* Home data on react-query. Was a ~180-line useEffect owning its own loading
+     and error flags on top of a separate localStorage cache. The queries and
+     every derivation are unchanged.
+
+     One real improvement falls out of the move: the featured grid fills any
+     remainder with Math.random(), so under the old effect it reshuffled on
+     every mount. Inside a queryFn it is computed once per cache entry and
+     stays put while the entry is fresh. */
+  const home = useQuery({
+    queryKey: ['home', 'landing'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      let featured: Teacher[] = [];
+      let subjectList: Subject[] = [];
+      /* The localStorage warm-start that used to live here is gone: react-query
+         now owns caching for this data, and keeping a second cache in front of
+         it meant two sources of truth that could disagree. src/utils/cache.ts
+         stays for the call sites still using it. */
+
         const desiredSubjects = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
-        const [subjectsRes, upvotesRes] = await Promise.all([
-          cachedSubjects?.length ? Promise.resolve({ data: cachedSubjects, error: null }) :
+        const [subjectsRes, upvoteStatsRes, allTeachersRes, facetCountsRes] = await Promise.all([
+          supabase.from('subjects').select('*').in('name', desiredSubjects).limit(10),
+          // teacher_upvote_stats is a pre-aggregated view (teacher_id, upvote_count) —
+          // avoids pulling every teacher_upvotes row down and counting client-side.
+          // Was limit(6) — the featured rail showed at most 6 teachers no
+          // matter how many the site actually has, so "start with the
+          // teachers parents pick" read as a small, fixed set rather than a
+          // rail with real depth to scroll through. 24 is a real cap for
+          // page weight, not an arbitrary "still small" number — allTeachers
+          // below already pulls up to 200 for other purposes, so the fill
+          // logic has plenty to draw from without a second round trip.
+          supabase.from('teacher_upvote_stats').select('teacher_id, upvote_count').order('upvote_count', { ascending: false }).limit(24),
           supabase
-            .from('subjects')
-            .select('*')
-            .in('name', desiredSubjects)
-            .limit(10),
-          (supabase as any)
-            .from('teacher_upvotes')
-            .select('teacher_id'),
+            .from('teachers_list')
+            .select('id, name, slug, image_url, is_verified, subject_id, classes, subjects(name, slug), subjects_text:subjects')
+            .limit(200),
+          /* Both of these were whole-table transfers pulled purely to be
+             counted in the browser: every published paper's board/class, and
+             every teacher's "School Boards Catered" cell. They are now one
+             aggregate done in the database (migration home_facet_counts_rpc),
+             so the homepage carries the tallies instead of the rows.
+
+             The RPC also fixed a real bug in passing: splitting that column
+             on "/" turned "N/A" into boards named "N" and "A", which this
+             page's own tokenizer below would have counted too. It counts
+             only recognised boards now. */
+          supabase.rpc('home_facet_counts'),
         ]);
 
-        if (subjectsRes.error || upvotesRes.error) {
-          setLoadError(true);
-          setLoading(false);
-          return;
-        }
-
-        // Get top 16 teacher IDs by upvote count, then fetch those specific teachers
-        let teachersData: any[] = [];
-
-        if (upvotesRes.data && upvotesRes.data.length > 0) {
-          const upvoteCounts = new Map<string, number>();
-          upvotesRes.data.forEach((upvote: any) => {
-            const current = upvoteCounts.get(upvote.teacher_id) || 0;
-            upvoteCounts.set(upvote.teacher_id, current + 1);
-          });
-
-          const topTeacherIds = Array.from(upvoteCounts.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 16)
-            .map(([teacherId]) => teacherId);
-
-          if (topTeacherIds.length > 0) {
-            const { data: topTeachers } = await (supabase as any)
-              .from('teachers_list')
-              .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-              .in('id', topTeacherIds);
-
-            if (topTeachers) {
-              const teacherMap = new Map(topTeachers.map((t: any) => [t.id, t]));
-              teachersData = topTeacherIds
-                .map(id => teacherMap.get(id))
-                .filter(Boolean) as any[];
-            }
+        if (subjectsRes.error || upvoteStatsRes.error || allTeachersRes.error) {
+          if (import.meta.env.DEV) {
+            console.error('Index.fetchData error:', {
+              subjects: subjectsRes.error,
+              upvoteStats: upvoteStatsRes.error,
+              teachers: allTeachersRes.error,
+            });
           }
+          throw subjectsRes.error || upvoteStatsRes.error || allTeachersRes.error;
         }
 
-        // Fill remaining slots with random teachers if needed
-        if (teachersData.length < 16) {
-          const existingIds = new Set(teachersData.map((t: any) => t.id));
-          const { data: fillTeachers } = await (supabase as any)
-            .from('teachers_list')
-            .select('id, name, slug, image_url, subject_id, subjects(name, slug)')
-            .limit(100);
+        const allTeachers = allTeachersRes.data || [];
 
-          if (fillTeachers && fillTeachers.length > 0) {
-            const available = fillTeachers.filter((t: any) => !existingIds.has(t.id));
-            const shuffled = [...available].sort(() => Math.random() - 0.5);
-            teachersData = [...teachersData, ...shuffled.slice(0, 16 - teachersData.length)];
-          }
+        // Top upvoted teachers from teachers_list, limit 6. Fill any remainder
+        // randomly so the grid never renders fewer than 6 tiles when upvotes
+        // are sparse.
+        let teachersData: typeof allTeachers = [];
+        if (upvoteStatsRes.data && upvoteStatsRes.data.length > 0) {
+          const topIds = upvoteStatsRes.data.map((u) => u.teacher_id).filter(Boolean) as string[];
+          const teacherMap = new Map(allTeachers.map((t) => [t.id, t]));
+          teachersData = topIds.map((id) => teacherMap.get(id)).filter(Boolean) as typeof allTeachers;
+        }
+        const FEATURED_TARGET = 24;
+        if (teachersData.length < FEATURED_TARGET) {
+          const existingIds = new Set(teachersData.map((t) => t.id));
+          const shuffled = allTeachers.filter((t) => !existingIds.has(t.id)).sort(() => Math.random() - 0.5);
+          teachersData = [...teachersData, ...shuffled.slice(0, FEATURED_TARGET - teachersData.length)];
         }
 
-        // Fetch Shikshaqmine data for the selected teachers (single query)
-        const sirMaamMap = new Map();
-        const subjectsMap = new Map<string, string>();
-        const featuredSubjectMap = new Map<string, string>();
         if (teachersData.length > 0) {
-          const teacherSlugs = teachersData.map((t: any) => t.slug).filter(Boolean);
-          if (teacherSlugs.length > 0) {
-            const { data: shikshaqData } = await (supabase as any)
-              .from('Shikshaqmine')
-              .select('*')
-              .in('Slug', teacherSlugs);
-          
-            if (shikshaqData) {
-              shikshaqData.forEach((record: any) => {
-                const slug = record.Slug;
-                sirMaamMap.set(slug, record["Sir/Ma'am?"]);
-
-                const featured = record["Featured Subject"];
-                if (featured != null && String(featured).trim() !== '') {
-                  featuredSubjectMap.set(slug, String(featured).trim());
-                }
-
-                if (record.Subjects) {
-                  const firstSubject = record.Subjects.split(',')[0].trim();
-                  if (firstSubject) {
-                    subjectsMap.set(slug, firstSubject);
-                  }
-                }
-              });
-            }
-          }
-        }
-
-        // Process teachers data - if we have subject_id, look up the subject
-        if (teachersData.length > 0) {
-          const processedTeachers = teachersData.map((teacher: any) => {
-            // If relationship worked, use it
-            let teacherWithSubject = teacher;
-            if (!teacher.subjects) {
-              // Otherwise, look up subject manually
-              if (teacher.subject_id && subjectsRes.data) {
-                const subject = subjectsRes.data.find((s: any) => s.id === teacher.subject_id);
-                teacherWithSubject = {
-                  ...teacher,
-                  subjects: subject ? { name: subject.name, slug: subject.slug } : null
-                };
-              } else {
-                // If no subject_id, try to get first subject from Shikshaqmine
-                const firstSubjectName = subjectsMap.get(teacher.slug);
-                if (firstSubjectName && subjectsRes.data) {
-                  // Try to find matching subject in subjects table
-                  const matchingSubject = subjectsRes.data.find((s: any) => 
-                    s.name.toLowerCase() === firstSubjectName.toLowerCase()
-                  );
-                  if (matchingSubject) {
-                    teacherWithSubject = {
-                      ...teacher,
-                      subjects: { name: matchingSubject.name, slug: matchingSubject.slug }
-                    };
-                  } else {
-                    // If no match found, use the name from Shikshaqmine directly
-                    teacherWithSubject = {
-                      ...teacher,
-                      subjects: { name: firstSubjectName, slug: firstSubjectName.toLowerCase().replace(/\s+/g, '-') }
-                    };
-                  }
-                } else {
-                  teacherWithSubject = { ...teacher, subjects: null };
-                }
-              }
-            }
-
-            // Decide which subject label to show in the green featured badge:
-            // 1) Featured Subject from Shikshaqmine (if set)
-            // 2) First subject from Shikshaqmine.Subjects
-            // 3) Subject from subjects relationship / fallback
-            const slug = teacher.slug;
-            const featuredFromShikshaq = featuredSubjectMap.get(slug);
-            let featuredSubjectLabel: string | null = null;
-            if (featuredFromShikshaq && featuredFromShikshaq.trim() !== '') {
-              featuredSubjectLabel = featuredFromShikshaq;
-            } else {
-              const firstSubjectName = subjectsMap.get(slug);
-              if (firstSubjectName && firstSubjectName.trim() !== '') {
-                featuredSubjectLabel = firstSubjectName;
-              } else if (teacherWithSubject.subjects?.name) {
-                featuredSubjectLabel = teacherWithSubject.subjects.name;
-              } else {
-                featuredSubjectLabel = null;
-              }
-            }
-
-            // Add Sir/Ma'am data and the featured subject label for the homepage badge
+          // Card-level fields (WhatsApp link, experience, fees, area) come from the
+          // same Shikshaqmine-by-slug helper Liked/My Teachers already use — a lean,
+          // column-scoped fetch rather than a second select('*') round trip.
+          const basicMap = await getShikshaqmineBasicBySlugs(teachersData.map((t) => t.slug));
+          const processed: Teacher[] = teachersData.map((teacher) => {
+            const basic = basicMap.get(teacher.slug);
+            // Bug 5 fix: the query above already selects `subjects_text` — the
+            // raw comma-separated subject list from teachers_list (the same
+            // column Browse.tsx already tokenizes for its own subject counts,
+            // aliased `subjects_text:subjects` at the select above) — but this
+            // mapping used to read only `teacher.subjects?.name`, the FK-joined
+            // `subjects` relation. That relation is null for plenty of teacher
+            // rows that DO have real subject text, so the card fell through
+            // straight to TeacherCard's "Tuition Teacher" fallback even though
+            // the actual subject was sitting right there in `subjects_text`,
+            // unused. Same first-token extraction Browse.tsx already uses.
+            const rawSubjectsText = (teacher as { subjects_text?: string | null }).subjects_text;
+            const firstSubjectToken = rawSubjectsText
+              ? rawSubjectsText.split(',').map((s) => s.trim()).filter(Boolean)[0] ?? null
+              : null;
             return {
-              ...teacherWithSubject,
-              sir_maam: sirMaamMap.get(teacher.slug) || null,
-              featuredSubjectLabel,
+              id: teacher.id,
+              name: teacher.name,
+              slug: teacher.slug,
+              image_url: teacher.image_url,
+              is_verified: (teacher as { is_verified?: boolean | null }).is_verified,
+              subjects: teacher.subjects as { name: string; slug: string } | null,
+              featuredSubjectLabel: firstSubjectToken || teacher.subjects?.name || null,
+              whatsappLink: basic?.whatsappLink ?? null,
+              experienceYears: basic?.experienceYears ?? null,
+              minFees: basic?.minFees ?? null,
+              maxFees: basic?.maxFees ?? null,
+              area: basic?.area ?? null,
+              /* Owner: the featured rail showed bare names while Browse and
+                 the profile both render the honorific. basicMap is already
+                 fetched above for the fee/area fields, so this costs nothing. */
+              sirMaam: basic?.sirMaam ?? null,
             };
           });
-
-          setFeaturedTeachers(processedTeachers);
-          // Cache featured teachers
-          setCache(featuredCacheKey, processedTeachers, CACHE_TTL.FEATURED_TEACHERS);
+          featured = processed;
         }
 
         if (subjectsRes.data) {
-          // Order by desired sequence (include both naming variants for backward compatibility)
-          const desiredOrder = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
+          const desiredOrder = desiredSubjects;
           const seen = new Set<string>();
-          const filteredSubjects = subjectsRes.data
-            .filter((subject: any) => desiredOrder.includes(subject.name))
-            .filter((subject: any) => {
-              const normalized = subject.name.toLowerCase().replace('computers', 'computer');
+          const filtered = subjectsRes.data
+            .filter((s) => desiredOrder.includes(s.name))
+            .filter((s) => {
+              const normalized = s.name.toLowerCase().replace('computers', 'computer');
               if (seen.has(normalized)) return false;
               seen.add(normalized);
               return true;
             })
-            .sort((a: any, b: any) => {
-              const indexA = desiredOrder.indexOf(a.name);
-              const indexB = desiredOrder.indexOf(b.name);
-              // If both are in desired order, sort by index
-              if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-              // If only one is in desired order, prioritize it
-              if (indexA !== -1) return -1;
-              if (indexB !== -1) return 1;
-              // Otherwise maintain original order
-              return 0;
-            })
-            .slice(0, 9);
-          
-          setSubjects(filteredSubjects);
-          // Cache subjects
-          setCache(subjectsCacheKey, filteredSubjects, CACHE_TTL.SUBJECTS);
+            .sort((a, b) => desiredOrder.indexOf(a.name) - desiredOrder.indexOf(b.name));
+          // Spec: 8 tiles mobile, 12 on desktop. The fetch above already
+          // limits to 10 desired subjects, so this slice is a no-op past 10
+          // until more subjects are added — kept at 12 to match the spec'd
+          // ceiling rather than the current data size.
+
+          const subjectAliases: Record<string, string[]> = {
+            computer: ['computer', 'computers'],
+            computers: ['computer', 'computers'],
+            maths: ['maths', 'mathematics'],
+            mathematics: ['maths', 'mathematics'],
+          };
+          const matchesSubject = (teacherSubjectsText: string | null | undefined, tileName: string) => {
+            const tokens = (teacherSubjectsText || '').split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+            const tileKey = tileName.toLowerCase();
+            const aliases = subjectAliases[tileKey] || [tileKey];
+            return tokens.some((t) => aliases.includes(t));
+          };
+
+          const withCounts: Subject[] = filtered.map((s) => ({
+            id: s.id,
+            name: s.name,
+            slug: s.slug,
+            teacherCount: allTeachers.filter((t) => matchesSubject((t as { subjects_text?: string | null }).subjects_text, s.name)).length,
+            paperCount: 0,
+          }));
+
+          subjectList = withCounts;
         }
-      } catch (error) {
-        setLoadError(true);
-        if (import.meta.env.DEV) {
-          console.error('Error fetching data:', error);
+
+        // Board pill stack — real per-board TUTOR counts, which is what mockup
+        // 2a actually shows ("ICSE · 128 tutors"). An earlier pass counted
+        // published papers instead, on the assumption that no per-board teacher
+        // count existed; it does — Shikshaqmine."School Boards Catered" is the
+        // same column Browse already tokenizes for its board filter. Counting
+        // papers also meant the whole section vanished on a database with no
+        // papers in it, which is the state this one is in.
+        /* Tallies now arrive pre-aggregated. Mapped through BOARD_ORDER so
+           the display order and the key spellings stay this page's own,
+           rather than whatever order jsonb_object_agg returned. */
+        const facetCounts = (facetCountsRes.data ?? {}) as {
+          paper_boards?: Record<string, number>;
+          teacher_boards?: Record<string, number>;
+        };
+        if (facetCountsRes.error) {
+          logger.error('Board counts failed', facetCountsRes.error);
         }
-      } finally {
-        setLoading(false);
+        const tallyFrom = (src: Record<string, number> | undefined) => {
+          const out: Record<string, number> = {};
+          Object.entries(src ?? {}).forEach(([raw, n]) => {
+            const key = BOARD_ORDER.find((b) => b.toLowerCase() === raw.trim().toLowerCase());
+            if (key) out[key] = (out[key] || 0) + n;
+          });
+          return out;
+        };
+        const boardTally = tallyFrom(facetCounts.teacher_boards);
+
+        // By-class rail — real per-class teacher counts, tokenized from the
+        // teachers_list `classes` column (same pattern as the subject counts
+        // above), resolving O-01's "needs a query that doesn't exist" for the
+        // teacher side: the column already exists, it just wasn't parsed.
+        const classTally: Record<number, number> = {};
+        allTeachers.forEach((t) => {
+          const nums = parseClassNumbers((t as { classes?: string | null }).classes);
+          nums.forEach((n) => {
+            if (n >= 9 && n <= 12) classTally[n] = (classTally[n] || 0) + 1;
+          });
+        });
+
+
+        const paperBoardTally = tallyFrom(facetCounts.paper_boards);
+
+      return { featured, subjectList, boardTally, classTally, paperBoardTally };
+    },
+  });
+
+  /* `?? []` inline is a new array identity on every render, which invalidated
+     the useMemo downstream every time and re-derived its work for nothing.
+     Same fix as bankPapers and recentPapers on the papers page. */
+  const featuredTeachers = useMemo(() => home.data?.featured ?? [], [home.data]);
+  const subjects = home.data?.subjectList ?? [];
+  const boardCounts = home.data?.boardTally ?? {};
+  const classCounts = home.data?.classTally ?? {};
+  const paperBoardCounts = home.data?.paperBoardTally ?? {};
+  const loading = home.isPending;
+  const loadError = home.isError;
+  void classCounts;
+
+  /* clearExpiredCache() removed: utils/cache.ts schedules one idle pass per
+     page load. This, Browse's copy and the module-load call meant a single
+     visit scanned and JSON-parsed all of localStorage three times. */
+
+  /* The three remaining home fetches, moved off bare useEffect onto react-query
+     alongside the landing query above. They were the last of the ~180-line
+     effect era on this route: six requests fired on every single mount, with no
+     cache, no dedup and no shared staleness — so returning home from a teacher
+     profile re-ran all six.
+
+     The queries themselves are unchanged, character for character. What changes
+     is that they now answer from cache for five minutes like the landing data
+     does, and that three pieces of state and their setters disappear: the value
+     IS the query result rather than something an effect copies into a hook.
+
+     Kept as three keys rather than one, because they fail independently — an
+     empty papers table should not cost the page its stats or its quotes. */
+  const statsQuery = useQuery({
+    queryKey: ['home', 'stats'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const [teachersRes, papersRes, reviewsRes] = await Promise.all([
+        supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
+        supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+        supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('approved', true),
+      ]);
+      return {
+        teachers: teachersRes.count ?? null,
+        papers: papersRes.count ?? null,
+        reviews: reviewsRes.count ?? null,
+      };
+    },
+  });
+  const stats = statsQuery.data ?? { teachers: null, papers: null, reviews: null };
+
+  // New papers — the three most recently published, real order by created_at
+  // desc (C-007 / O-01). Limit matches what the tray actually renders (owner
+  // QA: show 3, not 5 — see the 04 Papers section below).
+  const recentPapersQuery = useQuery({
+    queryKey: ['home', 'recent-papers'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('papers')
+        .select('id, title, school, subject, board, class, year, created_at')
+        .eq('is_published', true)
+        .order('created_at', { ascending: false })
+        /* 10, not 3. The shelf is a carousel now, so three covers left it
+           half empty at desktop with nothing to scroll to. */
+        .limit(10);
+      return (data || []) as RecentPaper[];
+    },
+  });
+  const recentPapers = recentPapersQuery.data ?? [];
+
+  // Student quote rail (C-009) — real, approved teacher_comments only. Never
+  // ships placeholder quotes (design.md §0.10).
+  const quotesQuery = useQuery({
+    queryKey: ['home', 'quotes'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<StudentQuote[]> => {
+      const { data: comments } = await supabase
+        /* teacher_comments_public, not the base table: `anon` no longer holds
+           SELECT on teacher_comments.user_id, because that column plus an
+           unfiltered public_profiles made every anonymous review
+           de-anonymisable by a single join. The view nulls user_id on
+           anonymous rows and is the only read path a logged-out visitor has. */
+        .from('teacher_comments_public')
+        .select('id, comment, is_anonymous, user_id, created_at, teacher_id')
+        .eq('approved', true)
+        .order('created_at', { ascending: false })
+        /* Pull a wider slice than the six we show: the rail is deduplicated to
+           one quote per teacher below, and with one popular teacher holding a
+           dozen reviews a limit of 6 returned six cards about the same person. */
+        .limit(60);
+      if (!comments || comments.length === 0) return [];
+
+      const userIds = [...new Set(comments.filter((c) => !c.is_anonymous).map((c) => c.user_id))];
+      const profilesMap = new Map<string, { full_name: string | null; role: string | null; school_college: string | null; grade: string | null }>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('public_profiles')
+          .select('id, full_name, role, school_college, grade')
+          .in('id', userIds);
+        (profiles || []).forEach((pr) => {
+          if (pr.id) profilesMap.set(pr.id, pr);
+        });
       }
-    }
 
-    fetchData();
-    // Clean up expired cache on mount
-    clearExpiredCache();
-  }, []);
+      /* The teachers these quotes are about, in one batched read — same shape
+         as the profiles lookup above, no per-row query. */
+      const teacherIds = [...new Set(comments.map((c) => (c as { teacher_id?: string }).teacher_id).filter(Boolean))] as string[];
+      const teacherMap = new Map<string, { name: string | null; slug: string | null; imageUrl: string | null }>();
+      if (teacherIds.length > 0) {
+        const { data: tRows } = await supabase
+          .from('teachers_list')
+          .select('id, name, slug, image_url')
+          .in('id', teacherIds);
+        (tRows || []).forEach((t) => {
+          if (t.id) teacherMap.set(t.id, { name: t.name, slug: t.slug, imageUrl: (t as { image_url?: string | null }).image_url ?? null });
+        });
+      }
 
-  // Handle scroll detection for making search bar sticky
-  // Use the actual search bar element (not the hero section) so the sticky bar
-  // only appears once the original search bar has scrolled off-screen.
+      /* One quote per teacher, teachers with the most reviews first — six
+         cards all praising the same tutor says nothing about the site. */
+      const perTeacher = new Map<string, number>();
+      comments.forEach((c) => {
+        const id = (c as { teacher_id?: string }).teacher_id;
+        if (id) perTeacher.set(id, (perTeacher.get(id) ?? 0) + 1);
+      });
+      const seenTeacher = new Set<string>();
+      const picked = comments
+        .filter((c) => {
+          const id = (c as { teacher_id?: string }).teacher_id;
+          if (!id) return false;
+          if (seenTeacher.has(id)) return false;
+          seenTeacher.add(id);
+          return true;
+        })
+        .sort((a, b) => {
+          const ca = perTeacher.get((a as { teacher_id?: string }).teacher_id ?? '') ?? 0;
+          const cb = perTeacher.get((b as { teacher_id?: string }).teacher_id ?? '') ?? 0;
+          return cb - ca;
+        })
+        .slice(0, 6);
+
+      return picked.map((c) => {
+        const profile = c.is_anonymous ? null : profilesMap.get(c.user_id);
+        const teacher = teacherMap.get((c as { teacher_id?: string }).teacher_id ?? '');
+        const name = c.is_anonymous ? 'Anonymous' : profile?.full_name || 'A Shikshaq user';
+        const metaParts = c.is_anonymous
+          ? []
+          : profile?.role === 'guardian'
+            ? ['Guardian']
+            : [profile?.school_college, profile?.grade ? `Class ${profile.grade}` : null].filter(Boolean);
+        return {
+          id: c.id,
+          comment: c.comment,
+          authorName: name,
+          authorMeta: (metaParts as string[]).join(' · '),
+          teacherName: teacher?.name ?? null,
+          teacherSlug: teacher?.slug ?? null,
+          teacherImageUrl: teacher?.imageUrl ?? null,
+        };
+      });
+    },
+  });
+  const studentQuotes = quotesQuery.data ?? [];
+
+  // Handoff H-023: the sentence builder moved out of Footer.tsx, "move not
+  // copy" — same component, same slot logic and submit routes. Its state now
+  // lives in the shared useSentenceBuilder hook (P-014 needs the identical
+  // builder on TeacherProfile too), not duplicated per page.
+  const {
+    builderMode, setBuilderMode, slots: builderSlots, onSlotChange: handleSlotChange, onSubmit: handleBuilderSubmit,
+  } = useSentenceBuilder();
+
+  const [heroMode, setHeroMode] = useState<SearchMode>('teachers');
+
+  /* Only teachers who actually have a photo. The stack is a row of faces; an
+     initial placeholder in it would read as a missing image rather than a
+     person. */
+  const featuredWithPhotos = featuredTeachers.filter((t) => Boolean(t.image_url));
+
+  // H-005 branch 1b needs the single liked teacher's name. H-005 adds no new
+  // query, so this only resolves when that teacher is already in the
+  // featured list this page already fetched — otherwise 1b falls through to 2.
+  const likedSingleTeacher = useMemo(() => {
+    if (likedCount !== 1) return null;
+    const [onlyId] = Array.from(likedTeacherIds);
+    return featuredTeachers.find((t) => t.id === onlyId) ?? null;
+  }, [likedCount, likedTeacherIds, featuredTeachers]);
+  const likedSingleTeacherName = likedSingleTeacher?.name ?? null;
+
+  const baseHeroCopy = useMemo(
+    () => resolveHeroCopy({
+      profile,
+      likedCount,
+      likedSingleTeacherName,
+      likedSingleTeacherImageUrl: likedSingleTeacher?.image_url ?? null,
+      /* Same gate InlinePapersNudge and every other adaptive surface reads —
+         below it, the trail-based candidates (branches 3-5) fall through to
+         the generic pool instead of personalising off a signal the rest of
+         the page would not yet act on. */
+      trailAdaptationAllowed: experience.level !== 'none',
+    }),
+    [profile, likedCount, likedSingleTeacherName, likedSingleTeacher, experience.level],
+  );
+  const heroCopy = useMemo(
+    () => (heroMode === 'papers' ? papersHeroCopy(baseHeroCopy, profile) : baseHeroCopy),
+    [heroMode, baseHeroCopy, profile],
+  );
+  /* Teachers are orange, papers are blue — the same two accents the search
+     desk, the fork panels and the results rows already use. Carrying it up
+     into the greeting is what makes the switch read as the whole page
+     changing subject rather than one control changing state. */
+  const heroAccent = heroMode === 'papers' ? 'text-brand-blue' : 'text-brand';
+  /* H-005a rule 3: three lines maximum at 375px, measured against the LONGEST
+     REAL value — not a short sample. Six lines failed it: two pool lines, the
+     handoff's own "No agent in between." line at four, and branches 3-5 once
+     they carry a real 25-character name or "WBCHSE Environmental Science".
+     The branch copy is specified verbatim, so the size steps down instead of
+     the words being cut — every branch stays inside three lines at any real
+     value, and short lines keep the full 34px. */
+  const heroLength = (heroCopy.before + heroCopy.bold + heroCopy.after).length;
+  const heroSize =
+    heroLength > 74
+      ? 'text-[26px] leading-[1.16] lg:text-[44px] lg:leading-[1.06]'
+      : heroLength > 54
+        ? 'text-[29px] leading-[1.15] lg:text-[50px] lg:leading-[1.04]'
+        : 'text-[34px] leading-[1.14] lg:text-[58px] lg:leading-[1.02]';
+  // The hero's own mode (from the copy resolver) drives the search desk's
+  // initial mode too, the same way the old two-line headline used to swap
+  // with SearchDesk's onModeChange — except now the direction of truth runs
+  // the other way for the papers branch: H-005's branch 5 both names the
+  // hero copy AND wants the desk in papers mode from first paint.
   useEffect(() => {
-    const handleScroll = () => {
-      if (!searchBarElementRef.current) return;
-      
-      const rect = searchBarElementRef.current.getBoundingClientRect();
-      // Show sticky just before the original search bar fully disappears
-      setIsSearchBarScrolled(rect.bottom < 40);
-    };
+    if (baseHeroCopy.mode === 'papers') setHeroMode('papers');
+  }, [baseHeroCopy.mode]);
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    const initialCheck = () => {
-      if (!searchBarElementRef.current) return;
-      const rect = searchBarElementRef.current.getBoundingClientRect();
-      setIsSearchBarScrolled(rect.bottom < 40);
-    };
-    initialCheck();
-    
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  /* chip 'stripe' means the line names ONE specific teacher (heroCopy.bold) —
+     that chip must be that teacher's own photo or nothing, never a
+     different, unrelated teacher's face next to their name. Only the
+     generic 'avatar' branches (no specific person named) borrow
+     featuredTeachers[0] as decoration. */
+  const namesSpecificTeacher = heroCopy.chip === 'stripe';
+  const chipImageUrl = namesSpecificTeacher ? heroCopy.imageUrl : featuredTeachers[0]?.image_url;
+  const chipPlaceholderName = namesSpecificTeacher ? heroCopy.bold : featuredTeachers[0]?.name;
+  const heroAvatarChip = heroCopy.chip === null ? null : (
+    <span
+      aria-hidden
+      className={`relative inline-block h-[28px] w-[28px] shrink-0 overflow-hidden rounded-full align-[-6px] ${
+        chipImageUrl ? '' : 'ring-1 ring-warm-hairline'
+      }`}
+    >
+      {chipImageUrl ? (
+        <img src={validateImageSrc(chipImageUrl)} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <StripePlaceholder name={chipPlaceholderName} initialSize={14} className="h-full w-full" />
+      )}
+    </span>
+  );
+
+  const leadTeacher = featuredTeachers[0];
 
   return (
-    <div className="min-h-screen bg-[#F9F5F1]">
-      <Navbar />
-      
-      {/* Hero Section — Beige */}
-      <section ref={searchBarRef} className="pt-[100px] pb-[80px] bg-[#F9F5F1]">
-        <div className="container">
-          <div className="flex flex-col items-center px-4 sm:px-0">
-            <div className="text-center w-full max-w-3xl mb-4 sm:mb-6">
-              <p className="text-sm sm:text-base md:text-lg font-medium mb-2 sm:mb-3 opacity-0 animate-fade-slide-up text-[#FF8000]" style={{ animationDelay: '100ms' }}>
-                Welcome to Shikshaq{user && userFirstName ? `, ${userFirstName}` : ''}! 👋
-              </p>
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-sans font-bold text-[#1F1F1F] leading-none tracking-tight text-center opacity-0 animate-fade-slide-up" style={{ animationDelay: '200ms' }}>
-                Your ideal teacher,
-                <br />
-                one search away.
-              </h1>
-            </div>
-            <div ref={searchBarElementRef} className="w-full max-w-2xl sm:max-w-3xl mx-auto mt-3 sm:mt-10 md:mt-6 opacity-0 animate-scale-pop" style={{ animationDelay: '300ms' }}>
-              <SearchBar />
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="min-h-screen bg-background">
+      {/* Owner correction: edge-to-edge is the intended pattern for
+          BentoStack pages — panels stretch left to right with 0 gap to
+          the viewport, not inset behind a page-level gutter. An earlier
+          pass here wrapped this in PageContainer/max-w-6xl to match
+          PastPapers/TeacherProfile's own hand-rolled centred column, on
+          the theory that THOSE were the correct reference — backwards:
+          this page's original bare `<main>` was the one actually
+          matching the handoff, and PastPapers/TeacherProfile are the
+          pages that need fixing to match it, not the other way round. */}
+      <main id="main-content">
+        <BentoStack>
+          {/* --------------------------------------------- 1-4 · Hero grid (D-005)
+              Mobile: greeting, then search, then the two fork panels — a plain
+              flex-col stack, touching (gap-0), same as BentoStack's own rule.
+              `lg`: grid-cols-[1.15fr_1fr] — greeting+search left, forks stacked
+              right — per the 34-desktop.md D-005 "Home hero" row. */}
+          {/* No lg:items-start. Pinned to the top, the right column ended
+              wherever its two fork panels ended and left a tall band of page
+              ground beside the search desk — the hero read as half-finished at
+              desktop. The columns are equal height now and the forks divide it
+              between them. */}
+          <div className="flex flex-col gap-0 lg:grid lg:grid-cols-[1.15fr_1fr] lg:gap-0">
+            <div className="flex flex-col gap-0">
+          {/* -------------------------------------------------------- 1 · Greeting */}
+          <BentoPanel fill="card" edge="top" className="relative overflow-hidden pt-[14px] px-[22px]">
+            {/* Both lines are keyed on the mode so a toggle flip remounts them
+                and re-runs the entrance. animate-blur-swap defocuses the old
+                wording out and the new wording in, which reads as one line
+                changing its mind rather than two lines crossfading. */}
+            <p
+              key={`eyebrow-${heroMode}`}
+              className={`animate-blur-swap text-[13px] font-semibold ${heroAccent} motion-reduce:animate-none`}
+            >
+              {heroCopy.eyebrow}
+            </p>
+            <h1
+              key={`${heroMode}-${heroCopy.before}${heroCopy.bold}`}
+              className={`animate-blur-swap mt-[6px] font-display font-normal tracking-[-0.045em] text-foreground motion-reduce:animate-none lg:tracking-[-0.05em] ${heroSize}`}
+            >
+              {heroAvatarChip}
+              {heroAvatarChip ? ' ' : null}
+              {heroCopy.before}
+              {/* When the line names something reachable, the name IS the way
+                  there. It used to be inert text: the hero told you it knew
+                  which teacher you were considering and then made you go and
+                  find them again. */}
+              {heroCopy.href ? (
+                <Link
+                  to={heroCopy.href}
+                  className={`animate-hero-blink font-extrabold motion-reduce:animate-none ${heroAccent} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
+                >
+                  {heroCopy.bold}
+                </Link>
+              ) : (
+                <span className={`font-extrabold ${heroAccent}`}>{heroCopy.bold}</span>
+              )}
+              {heroCopy.after}
+            </h1>
 
-      {/* Sticky Search Bar - Only visible when scrolled past original */}
-      {isSearchBarScrolled && (
-        <div className="md:hidden fixed top-14 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-b border-border/50 py-2 transition-[opacity] duration-300 ease-in-out">
-          <div className="container mx-auto px-4">
-            <div className="w-full max-w-3xl mx-auto">
-              <SearchBar sticky={true} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Featured Teachers — Beige */}
-      <section className="pt-2 sm:pt-4 md:pt-6 pb-12 sm:pb-16 md:pb-20 bg-[#F9F5F1]">
-        <div className="container">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-[#1F1F1F] mb-2 sm:mb-4 md:mb-6">
-            Featured <span className="text-[#FF8000]">tuition teachers</span> on Shikshaq
-          </h2>
-
-          {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {[...Array(16)].map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="aspect-[4/5] bg-muted rounded-2xl" />
-                  <div className="mt-3 h-4 bg-muted rounded w-3/4" />
-                </div>
-              ))}
-            </div>
-          ) : featuredTeachers.length > 0 ? (
-            <div className="relative">
-              {/* Carousel for both mobile and desktop */}
-              <Carousel
-                opts={{
-                  align: "start",
-                  loop: false,
-                  dragFree: true,
-                  containScroll: "trimSnaps",
-                  slidesToScroll: "auto",
-                  watchDrag: true,
-                }}
-                className="w-full overflow-visible"
-              >
-                <CarouselContent className="-ml-2 md:-ml-4 pr-2 md:pr-0">
-                  {featuredTeachers.map((teacher, index) => (
-                    <CarouselItem
-                      key={teacher.id}
-                      className="pl-2 md:pl-4 basis-[45vw] md:basis-1/3 lg:basis-1/4 xl:basis-1/6 flex-shrink-0 opacity-0 animate-fade-slide-up"
-                      style={{ animationDelay: `${350 + index * 50}ms` }}
+            {/* H-007: live facet-count pills replace the old stat-pill pair. */}
+            {heroMode === 'teachers' && subjects.length > 0 && (
+              <div key="pills-teachers" className="-mx-[22px] mt-4 animate-blur-swap overflow-x-auto px-[22px] scrollbar-hide motion-reduce:animate-none">
+                <div className="flex w-max items-center gap-2">
+                  {subjects.slice(0, 3).map((s) => (
+                    <span
+                      key={s.id}
+                      className="flex h-[38px] shrink-0 items-center gap-[8px] whitespace-nowrap rounded-full bg-muted px-3.5 text-[13px] font-semibold text-foreground"
                     >
-                      <TeacherCard
-                        id={teacher.id}
-                        name={teacher.name}
-                        slug={teacher.slug}
-                        // For featured carousel: use Featured Subject from Shikshaqmine, or fall back to first subject / relationship
-                        subject={(teacher as any).featuredSubjectLabel || teacher.subjects?.name || 'Tuition Teacher'}
-                        subjectSlug={teacher.subjects?.slug}
-                        imageUrl={teacher.image_url}
-                        isFeatured={true}
-                        showShareOnMobile={false}
-                        sirMaam={(teacher as any).sir_maam}
-                        isLiked={isLiked(teacher.id)}
-                        hideFavourite={true}
-                        hideShare={true}
+                      <span
+                        aria-hidden
+                        className="h-2 w-2 rounded-[2px]"
+                        style={{ backgroundColor: getSubjectPalette(s.name).solid }}
                       />
-                    </CarouselItem>
+                      {s.name} · {s.teacherCount}
+                    </span>
                   ))}
-                </CarouselContent>
-              </Carousel>
-              {/* View more button below carousel */}
-              <div className="flex justify-end mt-4 sm:mt-5 md:mt-6">
-                <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-black hover:opacity-80 transition-opacity flex items-center gap-2">
-                  View more teachers
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
-          ) : loadError ? (
-            <div className="text-center py-8 text-[#999999]">
-              <p>Unable to load teachers. Please check your connection and refresh the page.</p>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-[#999999]">
-              <p>No teachers found. Please add teachers to your Supabase database.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Wave: Beige → Orange */}
-      <WaveDivider fillColor="#FF8000" bgColor="#F9F5F1" inverted={false} />
-
-      {/* Subjects — Orange */}
-      <section className="py-12 sm:py-16 md:py-20 bg-[#FF8000]">
-        <div className="container">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-sans font-bold text-white mb-2 sm:mb-4 md:mb-6">
-            Explore tuition teachers via <span className="text-white">subjects</span>
-          </h2>
-
-          {loading ? (
-            <div className="grid grid-cols-3 gap-3">
-              {[...Array(9)].map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="aspect-square bg-muted rounded-2xl" />
                 </div>
-              ))}
+              </div>
+            )}
+            {heroMode === 'papers' && Object.keys(paperBoardCounts).length > 0 && (
+              <div key="pills-papers" className="-mx-[22px] mt-4 animate-blur-swap overflow-x-auto px-[22px] scrollbar-hide motion-reduce:animate-none">
+                <div className="flex w-max items-center gap-2">
+                  {BOARD_ORDER.filter((b) => paperBoardCounts[b]).slice(0, 3).map((b) => (
+                    <Link
+                      key={b}
+                      to={`/past-papers/results?filter_boards=${encodeURIComponent(b)}`}
+                      className="flex h-[38px] shrink-0 items-center gap-[8px] whitespace-nowrap rounded-full bg-brand-blue-subtle px-3.5 text-[13px] font-semibold text-brand-blue-deep transition-transform duration-tap ease-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
+                    >
+                      <span aria-hidden className="h-2 w-2 rounded-[2px] bg-brand-blue" />
+                      {b} · {paperBoardCounts[b]}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* D1's overlapping face stack. Desktop only — the mobile drawing
+                has no equivalent and the facet pills already carry the count
+                there. The faces are the real featured teachers rendered
+                further down this same page, not stock or invented portraits,
+                and it draws nothing at all until at least three of them have
+                a photo. */}
+            {featuredWithPhotos.length >= 3 && (stats.teachers ?? 0) > 0 && (
+              <div className="mt-4 hidden items-center gap-3 lg:flex">
+                <div className="flex -space-x-3">
+                  {featuredWithPhotos.slice(0, 5).map((t) => (
+                    <img
+                      key={t.id}
+                      src={imageAtWidth(t.image_url, 400)}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      decoding="async"
+                      width={44}
+                      height={44}
+                      className="h-11 w-11 rounded-full border-2 border-card object-cover"
+                    />
+                  ))}
+                </div>
+                {/* A pill, like every other small fact on this page. It was
+                    bare grey text sitting beside a row of avatars, which read
+                    as a caption someone forgot to style rather than as part of
+                    the same family as the facet pills directly above it. */}
+                <span className="flex h-[34px] items-center gap-[8px] whitespace-nowrap rounded-full bg-muted px-3.5 text-[13px] font-semibold text-foreground">
+                  <ShieldCheck className="h-[15px] w-[15px] flex-none text-brand-deep" strokeWidth={2.25} aria-hidden="true" />
+                  {stats.teachers} verified tutors in Kolkata
+                </span>
+              </div>
+            )}
+          </BentoPanel>
+
+          {/* ---------------------------------------------------------- 2 · Search */}
+          <SearchDesk onModeChange={setHeroMode} />
+
+          {/* Compact form of the same notice Browse carries. Sits under the
+              search rather than above it: the point is to catch someone as
+              they go to search, not to greet them with a caveat. It renders
+              nothing at all unless location is already known AND outside West
+              Bengal — it never prompts from here. */}
+          <RegionNotice variant="inline" />
             </div>
-          ) : subjects.length > 0 ? (
-            <>
-            <div className="grid grid-cols-3 md:grid-cols-9 gap-3">
-              {subjects.map((subject, index) => (
-                <SubjectCard
-                  key={subject.id}
-                  name={subject.name}
-                  slug={subject.slug}
-                  iconComponent={subjectIconMap[subject.name] ?? <span className={EMOJI_WRAPPER} aria-hidden>📚</span>}
-                  index={index}
-                  isVisible={true}
+
+            {/* lg:pt-[72px] matches the nav reserve the greeting panel gets from
+                `edge="top"`. At lg this column is the RIGHT half of D-005's
+                `grid-cols-[1.15fr_1fr]` hero, so it starts at y=0 like the
+                left one — but it holds no `edge="top"` panel, so nothing was
+                clearing the floating top bar and the first fork's heading sat
+                underneath it. The left column's reserve only offsets its own
+                cell. */}
+            <div className="flex flex-col gap-0 lg:pt-[72px] [&>*]:lg:flex-1 [&>*]:lg:flex [&>*]:lg:flex-col [&>*]:lg:justify-between">
+          {/* --------------------------------------------------- 3 · Teachers fork */}
+          <BentoPanel fill="brandTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
+            {/* Owner call, reworked: the mascot was a tiny corner badge —
+                "make them bigger, take up half the panel, circular." Now a
+                real side-by-side split at lg: text content on the left,
+                a big circular tracking face on the right. */}
+            <div className="lg:flex lg:h-full lg:items-center lg:gap-6">
+            <div className="min-w-0 lg:flex-1">
+            <div className="flex items-center justify-between">
+              <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand text-brand-foreground">
+                <Users className="h-[19px] w-[19px]" strokeWidth={2.25} aria-hidden />
+              </span>
+              {featuredWithPhotos.length > 0 && (
+                <div className="flex items-center">
+                  <div className="flex -space-x-2.5">
+                    {featuredWithPhotos.slice(0, 3).map((t) => (
+                      <img
+                        key={t.id}
+                        src={imageAtWidth(t.image_url, 400)}
+                        alt=""
+                        aria-hidden
+                        loading="lazy"
+                        width={30}
+                        height={30}
+                        className="h-[30px] w-[30px] rounded-full object-cover ring-2 ring-brand-subtle"
+                      />
+                    ))}
+                  </div>
+                  <Link
+                    to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
+                    aria-label="Find a teacher"
+                    className="tap-44 ml-2 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-panel text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
+                  >
+                    <ArrowUpRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </div>
+              )}
+            </div>
+            {/* The eyebrow line is the one piece of this block that follows
+                intent ("Find a teacher" -> "Find Maths teachers"); the
+                stylised "Message them yourself, free" line under it is brand
+                voice, not a CTA label, and stays fixed so the block does not
+                read as unstable every time the subject changes. */}
+            <Link
+              to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
+              className="group mt-[14px] block rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
+            >
+              <p className="text-[13px] font-medium text-warm-secondary">{teachersCta?.label ?? 'Find a teacher'}</p>
+              <p className="mt-[2px] font-display text-[25px] font-extrabold leading-[1.05] tracking-[-0.045em]">
+                <span className="text-brand-deep decoration-2 underline-offset-4 group-hover:underline">Message them</span>{' '}
+                <span className="font-normal text-foreground">yourself, free</span>
+              </p>
+            </Link>
+            </div>
+            <CornerMascot tone="teachers" />
+            </div>
+          </BentoPanel>
+
+          {/* ----------------------------------------------------- 4 · Papers fork */}
+          <BentoPanel fill="papersTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
+            <div className="lg:flex lg:h-full lg:items-center lg:gap-6">
+            <div className="min-w-0 lg:flex-1">
+            {/* Same top-left icon-badge treatment as the teachers fork above
+                (Users, bg-brand) — this panel had no equivalent icon at all. */}
+            <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand-blue text-white">
+              <BookOpen className="h-[19px] w-[19px]" strokeWidth={2.25} aria-hidden />
+            </span>
+            <Link
+              to="/past-papers"
+              className="group mt-[14px] flex items-center justify-between gap-3 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
+            >
+              <div>
+                <p className="text-[13px] font-medium text-warm-secondary">Past papers</p>
+                <p className="mt-[2px] font-display text-[22px] font-extrabold tracking-[-0.04em]">
+                  <span className="text-brand-blue-deep">Revise</span>{' '}
+                  <span className="font-normal text-foreground">for free</span>
+                </p>
+              </div>
+              <span
+                aria-hidden
+                className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-brand-blue text-white transition-transform duration-hover ease-settle group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:group-hover:transform-none"
+              >
+                <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={2.5} />
+              </span>
+            </Link>
+            </div>
+            <CornerMascot tone="papers" />
+            </div>
+          </BentoPanel>
+            </div>
+          </div>
+
+          {/* --------------------------------------------- 5 · 01 Featured teachers */}
+          <BentoPanel fill="card" className="!px-0 !py-[22px] lg:!py-8">
+            <div className="px-[22px]">
+              <NumberedHeading
+                size="compact"
+                line1="Start with the"
+                ordinal="01"
+                line2="teachers parents pick"
+              />
+            </div>
+
+            {loading ? (
+              <div className="mt-4 grid grid-cols-2 gap-4 px-[22px] sm:grid-cols-3 lg:grid-cols-4">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="aspect-[4/5] rounded-2xl bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer" />
+                ))}
+              </div>
+            ) : leadTeacher ? (
+              /* A carousel at every width. D-005 called for a grid-cols-4 at
+                 lg on the reasoning that a wide column should not hide cards
+                 behind a drag gesture — but at 1900px that grid gave each card
+                 a ~450px portrait, so the row read as a photo gallery and
+                 pushed the rest of the page off the fold. Fixed-width cards
+                 keep the photo small AND let the row show that more teachers
+                 exist than fit, which is what a featured rail is for. */
+              /* overflow-y-visible here was a no-op: per spec, once one axis
+                 is non-visible (overflow-x-auto, needed for the horizontal
+                 scroll), 'visible' on the other axis computes to 'auto'
+                 instead — confirmed live via getComputedStyle. So the
+                 hover-lift shadow (shadow-border-hover, -translate-y-0.5 on
+                 TeacherCard) was getting clipped at the row's top/bottom
+                 edge on hover. True vertical overflow can't coexist with
+                 horizontal auto-scroll, so the real fix is padding room for
+                 the shadow instead of an overflow value that was never
+                 doing anything. */
+              <div className="mt-4 overflow-x-auto overflow-y-hidden px-[22px] pb-3 pt-3 scrollbar-hide">
+                <ul className="flex w-max snap-x snap-mandatory gap-3 stagger-children">
+                  {featuredTeachers.map((t) => (
+                    <li key={t.id} className="w-[168px] flex-none snap-start animate-card-blur-in lg:w-[196px]">
+                      <TeacherCard
+                        id={t.id}
+                        name={t.name}
+                        slug={t.slug}
+                        subject={t.featuredSubjectLabel || t.subjects?.name || 'Tuition Teacher'}
+                        subjectSlug={t.subjects?.slug}
+                        imageUrl={t.image_url ?? undefined}
+                        verified={t.is_verified ?? undefined}
+                        variant="grid-compact"
+                        sirMaam={t.sirMaam ?? null}
+                        /* No fees on this rail. Owner call. It also only ever
+                           rendered on the subset of teachers who have both
+                           figures recorded, so the row showed a price under
+                           some cards and nothing under others — the cards
+                           without one read as free rather than as unrecorded.
+                           Fees still show on Browse and the profile, where
+                           they are a filter and a fact respectively.
+                           formatFeeLabel() returns null for absent values, so
+                           omitting the props is all this takes. */
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="px-[22px] pt-3">
+                <EmptyResults
+                  icon={<Users className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+                  heading={loadError ? 'We could not load teachers just now' : 'Refreshing our featured teachers'}
+                  message={
+                    loadError
+                      ? 'Check your connection and try again. The full list is still there.'
+                      : 'The full list of verified tutors is still searchable in the meantime.'
+                  }
+                  action={{ label: 'Browse all teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
                 />
+              </div>
+            )}
+
+            <Link
+              to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
+              className="flex h-11 items-center gap-2 whitespace-nowrap px-[22px] pt-[18px] text-body-secondary font-medium text-brand-blue transition-colors duration-tap hover:text-brand-blue-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            >
+              {/* teachersCta drops the global stats.teachers count rather than
+                  keep it beside a subject-specific label — "All 350 Maths
+                  teachers" would put a real number next to a filtered
+                  destination it does not describe, which is exactly the kind
+                  of invented-looking claim the copy guardrails forbid. */}
+              {teachersCta
+                ? teachersCta.label
+                : (stats.teachers ?? 0) > 0
+                  ? `All ${stats.teachers} teachers`
+                  : 'All teachers'}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </BentoPanel>
+
+          {/* Subjects (6) / Board (7) / Class (9) back to three full-width
+              panels stacked vertically. The one-row-at-lg version (weighted
+              grid-cols, each section's internal grid squeezed to fit a
+              third of the page) read as cramped columns rather than three
+              real sections — reverted per owner review; each panel gets the
+              full page width again and its own internal grid back at the
+              wider count it had for that width. */}
+          {/* --------------------------------------------------------- 6 · Subjects */}
+          <BentoPanel fill="card" className="p-[22px]">
+            <NumberedHeading
+              size="compact"
+              line1="Or go straight"
+              ordinal="02"
+              line2="to the subject"
+              support="Every board, classes 9 to 12."
+            />
+
+            {loading && subjects.length === 0 ? (
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="h-28 rounded-2xl bg-gradient-to-r from-muted via-background to-muted bg-[length:200%_100%] animate-shimmer" />
+                ))}
+              </div>
+            ) : subjects.length > 0 ? (
+              <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                {subjects.slice(0, 8).map((s) => (
+                  <SubjectCard key={s.id} name={s.name} slug={s.slug} context="teachers" teacherCount={s.teacherCount} paperCount={s.paperCount} />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4">
+                <EmptyResults
+                  icon={<BookOpen className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+                  heading="Subjects are being updated"
+                  message="Please check back shortly. You can still search for any subject directly."
+                  action={{ label: 'Browse all teachers', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }}
+                />
+              </div>
+            )}
+          </BentoPanel>
+
+          {/* ---------------------------------------------------- 7 · Your board */}
+          {Object.keys(boardCounts).length > 0 && (
+            <BentoPanel fill="card" className="p-[22px]">
+              <h2 className="font-display text-[21px] font-extrabold tracking-[-0.03em] text-foreground lg:text-[26px]">
+                Your board
+              </h2>
+              {/* Back to a full page width, so a 5-across row at lg has real
+                  room for "141 tutors" instead of truncating inside a
+                  cramped third-of-the-page column. */}
+              <div className="stagger-children mt-[14px] grid grid-cols-1 gap-2 lg:grid-cols-5">
+                {BOARD_ORDER.filter((b) => boardCounts[b]).map((b, i) => (
+                  <Link
+                    key={b}
+                    to={`/all-tuition-teachers-in-kolkata?filter_boards=${encodeURIComponent(b)}`}
+                    className={`flex h-[52px] min-h-[44px] items-center justify-between gap-2 rounded-full px-[18px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-card-reveal ${BOARD_FILLS[b] ?? 'bg-muted text-foreground'} ${BOARD_TILT_CLASSES[i % BOARD_TILT_CLASSES.length]}`}
+                  >
+                    <span className="font-display text-[17px] font-bold">{b}</span>
+                    <span className="text-[14px] tabular-nums opacity-80">
+                      {boardCounts[b]} {boardCounts[b] === 1 ? 'tutor' : 'tutors'}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </BentoPanel>
+          )}
+
+          {/* --------------------------------------------------------- 9 · By class */}
+          <BentoPanel fill="card" className="p-[22px]">
+            <NumberedHeading
+              size="compact"
+              line1="Or by the class"
+              ordinal="03"
+              line2="they are sitting"
+              support="Classes 1 through 12."
+            />
+
+            {/* 02a §9: `grid-cols-6 gap-2 sm:grid-cols-8 lg:grid-cols-12`,
+                which is exactly what runs from 360px up now that this panel
+                has the full page width again. Below 360 the six columns work
+                out to 39px each, under the C-013 44px floor — a width the
+                handoff never draws, so the sub-360 sliver falls back to four
+                columns of the same chip at the same gap. */}
+            <ul className="mt-4 grid grid-cols-4 gap-2 min-[360px]:grid-cols-6 sm:grid-cols-8 lg:grid-cols-12">
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                <li key={n}>
+                  <Link
+                    to={`/all-tuition-teachers-in-kolkata?filter_classes=${n}`}
+                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-muted transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <span className="font-display text-[16px] font-extrabold tabular-nums">{n}</span>
+                  </Link>
+                </li>
               ))}
-            </div>
-              {/* View more button below grid */}
-              <div className="flex justify-end mt-4 sm:mt-5 md:mt-6">
-                <Link to="/all-tuition-teachers-in-kolkata" className="text-sm md:text-base font-semibold text-white hover:opacity-80 transition-opacity flex items-center gap-2">
-                  View more subjects
-                  <ArrowRight className="w-4 h-4" />
+            </ul>
+          </BentoPanel>
+
+          {/* ------------------------------------------------------- 10 · New papers */}
+          <BentoPanel fill="papers" className="relative overflow-hidden px-[22px] pb-[26px] pt-[22px]">
+            <span aria-hidden className="pointer-events-none absolute -left-10 top-0 h-[160px] w-[160px] rounded-full bg-white/[.06]" />
+            <span aria-hidden className="pointer-events-none absolute -right-10 top-10 h-[190px] w-[190px] rounded-full bg-white/[.06]" />
+
+            {/* Two columns from lg. As one centred stack the tray was capped
+                at 420px, so on a 1900px screen this panel was mostly empty
+                blue with a small huddle of covers in the middle. Copy and CTA
+                on one side, the shelf on the other, and the shelf shows five
+                covers instead of three because there is now room for them. */}
+            <div className="relative lg:flex lg:items-center lg:gap-12">
+              <div className="lg:flex-1">
+                {/* Was /70 (3.47:1 on --brand-blue). An 11.5px eyebrow is small text. */}
+                <p className="text-[12px] font-bold uppercase tracking-[.04em] text-white">04</p>
+                <h2 className="font-display text-[23px] font-extrabold text-white lg:text-[30px]">the boards set</h2>
+                {/* Was /80 (4.06:1). */}
+                <p className="mt-3 max-w-prose text-[14px] leading-[1.5] text-white/90 lg:text-[15px]">
+                  {/* Not "from Kolkata schools": the question bank added 193 ICSE
+                      and CBSE papers from schools across India, and a handful of
+                      the covers beside this line are from Mumbai and Bengaluru. */}
+                  Free past papers: ICSE, CBSE and ISC, classes 9 to 12, read as questions with
+                  marks, chapters and figures.
+                </p>
+                <Link
+                  to="/past-papers"
+                  className="mt-4 inline-flex h-[46px] items-center gap-2 whitespace-nowrap rounded-full bg-warm-card px-6 text-[14px] font-extrabold text-brand-blue-deep transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue"
+                >
+                  Browse past papers
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </div>
-            </>
-          ) : loadError ? (
-            <div className="text-center py-8 text-[#999999]">
-              <p>Unable to load subjects. Please check your connection and refresh the page.</p>
+
+              {recentPapers.length > 0 ? (
+                <div className="mx-auto mt-6 w-full max-w-[420px] rounded-t-[24px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pb-3 pt-4 lg:mx-0 lg:mt-0 lg:max-w-none lg:flex-[1.2]">
+                  {/* justify-start, not center: a centred flex row whose content
+                      overflows is clipped at BOTH ends, and the part past the
+                      start edge cannot be scrolled back to. With ten covers in
+                      here that would strand the first few. */}
+                  <div className="scrollbar-hide flex items-end justify-start gap-3 overflow-x-auto overflow-y-visible">
+                    {recentPapers.slice(0, 10).map((p, i) => (
+                      <PaperCover
+                        key={p.id}
+                        paper={p}
+                        href={`/past-papers/${p.id}`}
+                        size="mobile"
+                        /* Three fit a phone; the rest are there to scroll to. */
+                        className="flex-none" 
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-5 lg:flex-1">
+                  <EmptyResults
+                    icon={<FileText className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
+                    heading="Papers are being added"
+                    message="Free ICSE, CBSE and ISC papers. Check back shortly."
+                    action={{ label: 'Browse past papers', onClick: () => navigate('/past-papers') }}
+                  />
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="text-center py-8 text-[#999999]">
-              <p>No subjects found. Please add subjects to your Supabase database.</p>
+          </BentoPanel>
+
+          {/* "Then talk to them yourself" (how-it-works, moved here from
+              between Board/Class above) paired in line with "Why guardians
+              use Shikshaq" — both are "why trust this" content, and neither
+              needed the full page width it was taking stacked alone. */}
+          {/* items-stretch, not items-start: with unequal content, items-start
+             let the shorter panel (guardian trust) stop where its content
+             ended, leaving flat blank canvas below it while the taller panel
+             kept going — a visible gap on the right. Stretched, both panels'
+             own fill colour runs the full shared height instead.
+             Equal grid-cols-2 still read unbalanced even stretched: at 708px
+             each, "Talk to them" (3 icon-stacked steps + a closing line)
+             filled ~94% of the shared height while "Why guardians" (3
+             shorter inline rows) filled ~50%, measured live — same panel,
+             same colour, visibly more empty fill. Narrowing guardians'
+             column reflows its short row text onto more lines, closing
+             most of that gap, same fix as the Subjects/Board/Class row
+             above. */}
+          <div className="lg:grid lg:grid-cols-[1.15fr_0.85fr] lg:items-stretch lg:gap-0">
+          {/* --------------------------------------------------- 8 · How it works */}
+          {/* No mt, no lg:gap. BentoStack already owns zero gap between every
+              pair of panels; adding one here stacked on top of it and made
+              this the only visible gap on the page — the "extra padding
+              between the rounded sections" report. */}
+          <BentoPanel fill="brand" className="relative overflow-visible px-[22px] pb-6 pt-[26px]">
+            {/* brand-foreground, not white: white on #FF8000 measures
+                2.52:1 and the /75 opacity variant 1.56:1 — the exact pair
+                index.css:112-123 documents as failing AA. The token is
+                near-black at 6.46:1. */}
+            <p className="text-[12px] font-bold uppercase tracking-[.04em] text-brand-foreground/75">
+              02 · Two minutes, start to finish
+            </p>
+            <h2 className="mt-2 font-display text-[28px] font-extrabold tracking-[-0.045em] text-brand-foreground">
+              Then talk to them yourself
+            </h2>
+
+            {/* D-005 "Home how-it-works": 3 steps stacked below `lg`. Was 3
+                columns from `lg` too, but this panel is now half the row's
+                width there (paired with Guardian trust beside it), so 3
+                columns squeezed each step's text under its own icon —
+                kept a single column at every width instead. */}
+            <ol className="mt-[22px] flex flex-col gap-[18px]">
+              {[
+                { icon: <Search />, title: 'Tell us the subject', body: 'Subject, class and your area. Three taps, no account needed.' },
+                { icon: <Users />, title: 'Compare real profiles', body: 'Rates, boards, reviews and travel radius, all on one card.' },
+                { icon: <MessageCircle />, title: 'Message on WhatsApp', body: 'Talk to the teacher directly. Shikshaq never sits in the middle.' },
+              ].map((step) => (
+                /* brand-foreground, not white. This panel is fill="brand", and
+                   white on #FF8000 measures 2.52:1 (the /85 and /80 variants
+                   below were worse still, at 2.19:1 and 2.09:1). The fix was
+                   applied to this panel's eyebrow and h2 when it was first
+                   raised; the three step cards inside the same panel were
+                   missed, so the documented failure survived in the place with
+                   the most words on it. */
+                <li key={step.title} className="flex flex-col">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-foreground/15 text-brand-foreground [&_svg]:size-5">
+                    {step.icon}
+                  </span>
+                  <h3 className="mt-[10px] font-display text-[17px] font-bold text-brand-foreground">{step.title}</h3>
+                  <p className="mt-1 text-[14px] leading-[1.5] text-brand-foreground/80">{step.body}</p>
+                </li>
+              ))}
+            </ol>
+
+            <p className="mt-[22px] text-[14px] text-brand-foreground/80">
+              No fees, no middleman, no commission, ever.
+            </p>
+          </BentoPanel>
+
+          {/* --------------------------------------------------- 11 · Guardian trust */}
+          <BentoPanel fill="brandTint" className="p-[22px]">
+            <div className="flex items-center gap-3">
+              <IconDisc tone="brand" size={38} shape="square"><ShieldCheck className="h-[19px] w-[19px]" /></IconDisc>
+              <h2 className="font-display text-[22px] font-extrabold tracking-[-0.04em] text-brand-deep lg:text-[28px]">Why guardians use Shikshaq</h2>
             </div>
+            {/* mt-8/gap-7/size-44, up from mt-[18px]/gap-4/size-36: this list
+               was the shorter of the paired columns even after the fr-weight
+               above narrowed its column (its three lines were already short
+               enough not to reflow at the narrower width) — more room per
+               real row, not new copy, closes most of the remaining gap. */}
+            <ul className="mt-8 flex flex-col gap-7">
+              {[
+                { icon: <ShieldCheck />, title: 'Verified, every one', body: 'ID and degree checked by a human before a profile goes live.' },
+                { icon: <IndianRupee />, title: 'No commission, ever', body: 'Teachers keep every rupee of their fee. We never invoice anyone.' },
+                { icon: <Users />, title: 'Reviews you can trust', body: 'Every review comes from a student who actually messaged the teacher.' },
+              ].map((row) => (
+                <li key={row.title} className="flex items-start gap-3.5">
+                  <IconDisc tone="muted" size={44} className="text-brand-deep"><span className="[&_svg]:h-5 [&_svg]:w-5">{row.icon}</span></IconDisc>
+                  <div>
+                    <p className="text-[17px] font-semibold text-brand-deep">{row.title}</p>
+                    <p className="mt-1 text-[15px] leading-[1.6] text-warm-prose">{row.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </BentoPanel>
+          </div>
+
+          {/* ------------------------------------------------------ 12 · From students */}
+          {studentQuotes.length > 0 && (
+            <BentoPanel fill="card" className="!px-0 !py-[22px] lg:!py-8">
+              <div className="px-[22px]">
+                <div className="flex items-center gap-3">
+                  <IconDisc tone="muted" size={32} shape="square" className="!rounded-xl"><MessageCircle /></IconDisc>
+                  <h2 className="font-display text-[22px] font-extrabold lg:text-[28px]">From students</h2>
+                </div>
+                {/* Without this line the rail is a wall of praise for people
+                    the reader has never heard of — "Ashok sir explains
+                    clearly" means nothing until you know Ashok sir is on this
+                    site and one tap away. */}
+                <p className="mt-1.5 text-[14px] leading-[1.5] text-warm-secondary">
+                  Every one of them found their teacher here. Tap a name to see that teacher.
+                </p>
+              </div>
+
+              {/* D-005 doesn't itemize this rail by name, but its own
+                  "rails become grids, they do not become wider rails"
+                  warning applies here exactly as it does to the featured
+                  rail it does name — at 1280px this stayed a flex-nowrap
+                  scroller (scrollWidth > clientWidth), hiding quotes past
+                  the third behind an edge nobody drags. */}
+              <div className="mt-4 overflow-x-auto overflow-y-visible px-[22px] scrollbar-hide lg:overflow-x-visible">
+                <ul className="flex w-max gap-3 lg:grid lg:w-auto lg:grid-cols-3">
+                  {studentQuotes.map((q) => (
+                    <li
+                      key={q.id}
+                      className="relative flex w-[268px] flex-none flex-col rounded-[20px] bg-muted p-[18px] pt-[22px] lg:w-auto"
+                    >
+                      {/* A real quote mark, set large and low-contrast behind
+                          the opening line. The card was three stacked blocks of
+                          near-identical grey; this gives it a top and tells you
+                          at a glance that the thing you are reading is somebody
+                          speaking. aria-hidden because the quotation is already
+                          punctuated in the text. */}
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-4 top-1 select-none font-display text-[54px] leading-none text-foreground/[0.07]"
+                      >
+                        &rdquo;
+                      </span>
+
+                      <p className="relative line-clamp-5 text-[15px] leading-[1.55] text-warm-prose">
+                        {q.comment}
+                      </p>
+
+                      <div className="mt-auto pt-4">
+                        {/* Owner call: the card's headline identity — photo
+                           AND name — is the TEACHER being quoted about, not
+                           the student/parent who wrote it. Was photo=
+                           teacher, name=reviewer, which paired a
+                           recognisable face with a name it didn't belong
+                           to. Falls back to the same initials stripe, keyed
+                           off the teacher's name, never the reviewer's.
+
+                           Wrapped in the same profile link the "View X's
+                           profile" row below points to when there's a
+                           teacherSlug to send it to: a recognisable face
+                           sitting right next to that teacher's own name
+                           read as a card about them, so it should behave
+                           like one and go straight to their profile,
+                           instead of the tiny text row underneath being the
+                           only thing on the whole card that actually is. */}
+                        {q.teacherName && q.teacherSlug ? (
+                          <Link
+                            to={`/tuition-teachers/${q.teacherSlug}`}
+                            className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >
+                            {q.teacherImageUrl ? (
+                              <img
+                                src={validateImageSrc(q.teacherImageUrl)}
+                                alt=""
+                                aria-hidden
+                                loading="lazy"
+                                decoding="async"
+                                className="h-[30px] w-[30px] flex-none rounded-full object-cover"
+                              />
+                            ) : (
+                              <StripePlaceholder
+                                name={q.teacherName}
+                                initialSize={14}
+                                className="h-[30px] w-[30px] flex-none rounded-full"
+                              />
+                            )}
+                            <div className="min-w-0">
+                              <p className="truncate text-[13px] font-bold text-foreground">{q.teacherName}</p>
+                              <p className="truncate text-[12px] text-warm-meta">
+                                {q.authorName}{q.authorMeta ? `, ${q.authorMeta}` : ''}
+                              </p>
+                            </div>
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-2.5">
+                            <StripePlaceholder
+                              name={q.authorName}
+                              initialSize={14}
+                              className="h-[30px] w-[30px] flex-none rounded-full"
+                            />
+                            <div className="min-w-0">
+                              <p className="truncate text-[13px] font-bold text-foreground">{q.authorName}</p>
+                              {q.authorMeta && <p className="truncate text-[12px] text-warm-meta">{q.authorMeta}</p>}
+                            </div>
+                          </div>
+                        )}
+
+                        {q.teacherName && q.teacherSlug && (
+                          <Link
+                            to={`/tuition-teachers/${q.teacherSlug}`}
+                            className="mt-2.5 flex min-h-11 items-center gap-1.5 text-[13px] text-warm-secondary transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >
+                            <span aria-hidden="true" className="h-1.5 w-1.5 flex-none rounded-full bg-brand" />
+                            <span className="min-w-0 truncate">View {q.teacherName}&rsquo;s profile</span>
+                          </Link>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </BentoPanel>
           )}
-        </div>
-      </section>
 
-      {/* Wave: Orange → Beige */}
-      <WaveDivider fillColor="#FF8000" bgColor="#F9F5F1" inverted={true} />
+          {/* ------------------------------------------------------- 13 · Recommend */}
+          <BentoPanel fill="card" className="!px-[22px] !py-[18px] lg:!px-8 lg:!py-8">
+            <Link
+              to="/recommend-teacher"
+              className="flex items-center gap-[14px] transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <IconDisc tone="muted" size={44}>
+                <GraduationCap />
+              </IconDisc>
+              <div className="min-w-0 flex-1">
+                <p className="text-[16px] font-semibold text-foreground">Know a good teacher?</p>
+                <p className="mt-0.5 text-[14px] leading-[1.45] text-warm-secondary">Recommend them and we'll reach out and get them listed, free.</p>
+              </div>
+              <ArrowRight className="h-5 w-5 flex-none text-warm-label" aria-hidden="true" />
+            </Link>
+          </BentoPanel>
 
-      {/* How It Works — Beige */}
-      <div className="bg-[#F9F5F1]">
-        <HowItWorks />
-      </div>
+          {/* HomeActivitySection (Favourites, Recently visited) is a real,
+              localStorage/likes-backed feature with no home in the mockup's own
+              section order. Kept, below the mockup's sections, above the eyes
+              panel. p-[22px] like every other card panel on this page.
 
-      {/* Wave: Beige → Orange */}
-      <WaveDivider fillColor="#FF8000" bgColor="#F9F5F1" inverted={false} />
+              HomeGreeting was removed (owner call). It was a saturated orange
+              "Hello, {firstName} 👋 / Here is where you left off" slab shown
+              only to signed-in readers, restating counts that the Favourites
+              and Recently-visited lists directly below it already show. */}
+          <BentoPanel fill="card" className="p-[22px]">
+            <HomeActivitySection />
+          </BentoPanel>
 
-      {/* FAQ — Orange */}
-      <div className="bg-[#FF8000]">
-        <FAQ />
-      </div>
+          {/* ---------------------------------------- 14 · Eyes + sentence builder */}
+          <EyesPanel
+            mode={builderMode}
+            onModeChange={setBuilderMode}
+            heading={(
+              <>
+                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+              </>
+            )}
+            subline="Fill in the blanks and we'll take you straight there."
+            slots={builderSlots}
+            onSlotChange={handleSlotChange}
+            onSubmit={handleBuilderSubmit}
+            count={builderMode === 'teachers' ? (stats.teachers || undefined) : (stats.papers || undefined)}
+          />
+        </BentoStack>
+      </main>
 
-      {/* Wave: FAQ (Orange) → Footer */}
-      <WaveDivider fillColor="#fcfbf8" bgColor="#FF8000" inverted={false} />
-
-      {/* Footer */}
-      <Footer />
+      {/* The tour is mounted once in App.tsx (ProductTourHost), not here: it
+          now opens on a first visit from any route, and two mounts would both
+          answer the logo-tap event and stack two dialogs. */}
     </div>
   );
 }

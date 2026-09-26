@@ -1,6 +1,28 @@
-# ShikshAq
+# Shikshaq
 
 A platform to find quality tuition teachers in Kolkata. Pick your subject, grade and location. Read real student reviews. Reach out directly.
+
+> ## Read this before you push
+>
+> **This folder pushes to TWO GitHub repositories.** They are not forks and
+> they must never hold different code.
+>
+> | remote | repository | what it is |
+> |---|---|---|
+> | `origin` | `kushalsethia/Shikshaq` | **LIVE.** Real users. Source of truth. |
+> | `kanitest` | `kaxx4/shikshaqkanitest` | **TEST.** Vercel preview deploy. |
+>
+> Commit once, then `npm run push:all` sends the same commit to both.
+> A fresh clone only has `origin` - run `npm run remotes:setup` to add the other.
+>
+> The test site differs from the live site **only by environment variables**,
+> never by different code. Do not branch them apart: two repos with different
+> code is two codebases, and every change would have to be merged twice.
+>
+> Both deployments share **one live Supabase project**, so anything the test
+> site writes is written to production.
+>
+> Full working rules, standing constraints and gotchas: **[CLAUDE.md](CLAUDE.md)**.
 
 ## Getting Started
 

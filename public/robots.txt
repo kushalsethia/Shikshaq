@@ -4,25 +4,57 @@
 # Default crawler rules
 User-agent: *
 Allow: /
-Crawl-delay: 1
 
 # Block private/authenticated pages
 Disallow: /auth
 Disallow: /auth/*
 Disallow: /admin
 Disallow: /admin/*
+# /dashboard/teacher is the real auth-gated dashboard and stays blocked, but
+# /dashboard/student and /dashboard/guardian are live redirects to /account —
+# same reasoning as /teacher/ below: a disallowed URL is never fetched, so
+# blocking a redirect stops Google from ever following it and consolidating
+# rankings onto the current URL.
 Disallow: /dashboard
 Disallow: /dashboard/*
+Allow: /dashboard/student
+Allow: /dashboard/guardian
 Disallow: /select-role
 Disallow: /teacher-terms-agreement
 Disallow: /signup-success
-Disallow: /liked-teachers
-Disallow: /my-teachers
 
-# Block deprecated/redirect routes
-Disallow: /help
-Disallow: /teacher/
-Disallow: /404
+# Block the application form itself (no unique searchable content, thin/duplicate
+# risk vs. /join which already ranks for "join as tuition teacher" intent) —
+# still reachable and crawlable via /join's link, just not indexed standalone.
+Disallow: /join/apply
+
+# /help, /liked-teachers and /my-teachers are NOT blocked, for the same
+# reason as /teacher/ and the two /dashboard/* redirects above: each is a
+# live redirect (to /more and /account?tab=... respectively), not a dead or
+# deprecated page, so blocking it would stop Google from ever following it.
+
+# /teacher/ is NOT blocked. It is a live redirect to /tuition-teachers/*, and a
+# disallowed URL is never fetched — so Googlebot would never see the redirect
+# and never consolidate historical links or rankings onto the current URLs.
+# Blocking a redirect is the one case where Disallow destroys value instead of
+# saving crawl budget.
+
+# /404 is NOT blocked either. It carries `noindex, follow`, and a page that
+# cannot be fetched cannot have its noindex read.
+
+# Filter-results URLs: unbounded query-string variants, one shared title and
+# one shared description. The existing /*?*filter_* rules below do not match
+# this route's params.
+#
+# Only the parameterised variants, though. Blocking the bare path took the main
+# browse-and-filter surface for 1,282 papers out of the crawl graph, and those
+# paper pages have few other internal links -- most were reachable only via
+# /schools -> /school/:slug. The unbounded-variant problem is real; the bare
+# URL is not part of it.
+Disallow: /past-papers/results?*
+
+# Block click-tracking interstitials
+Disallow: /*/whatsapp-click
 
 # Block API endpoints
 Disallow: /api/

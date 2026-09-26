@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef, ReactNode } fro
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getCache, setCache, CACHE_TTL, getUserProfileCacheKey } from '@/utils/cache';
+import { logger } from '@/utils/logger';
 
 export interface UserProfile {
   role: string | null;
@@ -19,6 +20,8 @@ interface AuthContextType {
   signUpWithEmail: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   resetPasswordForEmail: (email: string) => Promise<{ error: Error | null }>;
+  /** Magic link — the sign-in the design specifies ("Send me a link"). */
+  sendMagicLink: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   checkUserHasPassword: (email: string) => Promise<{ hasPassword: boolean; error: Error | null }>;
   checkUserExists: (email: string) => Promise<{ exists: boolean; error: Error | null }>;
@@ -56,11 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setProfileLoading(true);
-    supabase
-      .from('profiles')
-      .select('role, full_name, terms_agreement')
-      .eq('id', user.id)
-      .maybeSingle()
+    Promise.resolve(
+      supabase
+        .from('profiles')
+        .select('role, full_name, terms_agreement')
+        .eq('id', user.id)
+        .maybeSingle()
+    )
       .then(({ data }) => {
         if (data) {
           const p: UserProfile = { role: data.role, full_name: data.full_name, terms_agreement: data.terms_agreement };
@@ -248,7 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The trigger handle_new_user() will create the profile automatically when user confirms email
       // We don't need to do anything here - attempting to upsert would fail with 401
       if (import.meta.env.DEV) {
-        console.log('User created but not authenticated yet. Profile will be created by trigger after email confirmation.');
+        logger.log('User created but not authenticated yet. Profile will be created by trigger after email confirmation.');
       }
     }
 
@@ -335,6 +340,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resetPasswordForEmail = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth?type=reset-password`,
+    });
+    return { error: error as Error | null };
+  };
+
+  /* account-01-sign-in.png draws a passwordless form: Google, then an email
+     field, then "Send me a link". Password sign-in stays alongside it rather
+     than being replaced — eight existing accounts have passwords, and swapping
+     the method outright would lock them out if mail delivery is not configured.
+
+     shouldCreateUser is left at its default so a link works for a new address
+     as well as an existing one, matching the single-field flow the mockup
+     draws: one field, one button, no separate sign-up. */
+  const sendMagicLink = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth` },
     });
     return { error: error as Error | null };
   };
@@ -428,6 +449,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle, 
       signUpWithEmail, 
       signInWithEmail,
+      sendMagicLink,
       resetPasswordForEmail,
       updatePassword,
       checkUserHasPassword,

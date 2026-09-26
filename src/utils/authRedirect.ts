@@ -1,9 +1,14 @@
+import { isSafeRedirect } from '@/lib/safe-redirect';
+
 const REDIRECT_KEY = 'auth_redirect_path';
 const TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-function isValid(path: string | null): path is string {
-  return !!path && path.startsWith('/') && !path.startsWith('//');
-}
+/* Was a local `startsWith('/') && !startsWith('//')`, which a backslash walks
+   straight through -- see src/lib/safe-redirect.ts. Checked on the way in AND
+   on the way out, because localStorage is writable by anything running on the
+   origin and a value that was safe when stored is not automatically safe when
+   read back. */
+const isValid = isSafeRedirect;
 
 export function saveAuthRedirect(path: string) {
   if (!isValid(path)) return;
