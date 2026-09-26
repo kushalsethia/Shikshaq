@@ -56,6 +56,13 @@ supabase/bank/
 # root while working. Hundreds of MB between them; never part of the app.
 *.zip
 
+# /brag (latent-spaces/brag) skill install + its generated output -- a
+# personal deliverable (a launch video), never part of the app.
+/.agents/
+/.claude/skills/
+/skills-lock.json
+/brag-output/
+
 # Scratch output from scripts/convert-subject-bank.ts (--reserve id list, etc.)
 tmp/
 
