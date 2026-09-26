@@ -125,21 +125,51 @@ const PAGE = 1000;
    was landing past row 1000 and vanishing from every page reading this
    index. Paged explicitly so growth past any future page boundary fails
    the same way growth past this one didn't: not at all. */
+function pageQuery(from: number) {
+  return supabase
+    .from('bank_papers')
+    .select(PAPER_COLUMNS)
+    .eq('is_published', true)
+    .order('year', { ascending: false, nullsFirst: false })
+    .order('school', { ascending: true })
+    .range(from, from + PAGE - 1);
+}
+
+/* Was a `for` loop awaiting one page at a time -- page 2 did not even start
+   until page 1's response had fully downloaded and parsed, turning what
+   could be one round trip's worth of wall-clock time into two back to back,
+   on every visitor's first load of any page that reads the bank (past
+   papers, school pages, browse, search). The table's size is one cheap
+   HEAD request away, so every page range is now requested in parallel
+   instead. Falls back to the original sequential walk if the count for any
+   reason does not come back a usable number -- correctness over speed. */
 async function fetchAllPages(): Promise<PaperRow[]> {
-  const rows: PaperRow[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from('bank_papers')
-      .select(PAPER_COLUMNS)
-      .eq('is_published', true)
-      .order('year', { ascending: false, nullsFirst: false })
-      .order('school', { ascending: true })
-      .range(from, from + PAGE - 1);
-    if (error) throw new Error(`bank papers: ${error.message}`);
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE) break;
+  const { count, error: countError } = await supabase
+    .from('bank_papers')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_published', true);
+
+  if (countError || typeof count !== 'number') {
+    const rows: PaperRow[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await pageQuery(from);
+      if (error) throw new Error(`bank papers: ${error.message}`);
+      rows.push(...(data ?? []));
+      if (!data || data.length < PAGE) break;
+    }
+    return rows;
   }
-  return rows;
+
+  const starts: number[] = [];
+  for (let from = 0; from < count || from === 0; from += PAGE) starts.push(from);
+  const pages = await Promise.all(
+    starts.map(async (from) => {
+      const { data, error } = await pageQuery(from);
+      if (error) throw new Error(`bank papers: ${error.message}`);
+      return data ?? [];
+    }),
+  );
+  return pages.flat();
 }
 
 /* Three call sites (useSiteCounts, About, the live-papers banner) each count
