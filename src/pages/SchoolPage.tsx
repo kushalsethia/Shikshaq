@@ -9,6 +9,7 @@ import { schoolSlug } from '@/lib/school-slug';
 import { loadPaperIndex, schoolBySlug, hasYear } from '@/lib/question-bank';
 import { sanitizeForIlike } from '@/lib/ilike-sanitize';
 import { bankSubjectToSite } from '@/lib/subject-vocabulary';
+import { numberToRoman, romanToNumber } from '@/utils/romanNumerals';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useChromeConfig } from '@/components/layout/AppShell';
@@ -165,8 +166,19 @@ export default function SchoolPage() {
   // drive the year chips below, and boards+subjects drive the teacher
   // cross-sell query further down.
   const boards = useMemo(() => [...new Set(papers.map((p) => p.board).filter(Boolean))], [papers]);
+  /* p.class is Arabic-numeral native for `papers`-table rows but a Roman
+     numeral ("IX", "X"...) for bank rows (see the `fromBank` mapping above,
+     which keeps b.cls as-is) -- Number() alone silently dropped every bank
+     class, so a bank-only school (most of the top schools by paper count,
+     e.g. La Martiniere for Boys) never showed a class range at all. Kept
+     numeric here for sorting/range math; displayed back via numberToRoman
+     below, consistent with the Roman numerals this same page already shows
+     on each bank paper's own card. */
   const classes = useMemo(
-    () => [...new Set(papers.map((p) => Number(p.class)).filter((n) => !Number.isNaN(n)))].sort((a, b) => a - b),
+    () => [...new Set(papers.map((p) => {
+      const n = Number(p.class);
+      return Number.isNaN(n) ? romanToNumber(p.class) : n;
+    }).filter((n) => !Number.isNaN(n)))].sort((a, b) => a - b),
     [papers],
   );
   const years = useMemo(
@@ -193,8 +205,8 @@ export default function SchoolPage() {
     if (classes.length) {
       parts.push(
         classes.length === 1
-          ? `Class ${classes[0]}`
-          : `Classes ${classes[0]} to ${classes[classes.length - 1]}`,
+          ? `Class ${numberToRoman(classes[0])}`
+          : `Classes ${numberToRoman(classes[0])} to ${numberToRoman(classes[classes.length - 1])}`,
       );
     }
     if (years.length) {
@@ -348,8 +360,8 @@ export default function SchoolPage() {
     if (classes.length) {
       clauses.push(
         classes.length === 1
-          ? `class ${classes[0]}`
-          : `classes ${classes[0]} to ${classes[classes.length - 1]}`,
+          ? `class ${numberToRoman(classes[0])}`
+          : `classes ${numberToRoman(classes[0])} to ${numberToRoman(classes[classes.length - 1])}`,
       );
     }
     if (years.length) {
