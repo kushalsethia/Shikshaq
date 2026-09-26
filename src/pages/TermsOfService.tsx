@@ -1,11 +1,3 @@
-/**
- * TODO(O-06, legal review required before ship): the copy below combines the
- * plain-English summary transcribed from the redesign handoff mockup
- * ("Redesign Legal pages.dc.html", frame L1) with the FULL original operative
- * legal text it was drafted to summarize. Neither has been reviewed by a
- * lawyer. Do not treat this as final legal text — see handoff\a-to-z.md open
- * question O-06.
- */
 import { useEffect } from 'react';
 import { LegalReader, type LegalSection } from '@/pages/legal/reader';
 import { usePageMeta } from '@/hooks/usePageMeta';
