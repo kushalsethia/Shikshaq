@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { BentoStack, BentoPanel, PageContainer } from '@/components/layout/PageContainer';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { useAuth } from '@/lib/auth-context';
@@ -185,6 +186,11 @@ function normalizeTeacherRow(data: ShikshaqmineRowWithPause): TeacherData {
 }
 
 export default function TeacherDashboard() {
+  usePageMeta(
+    'Your Teacher Dashboard | Shikshaq',
+    'Edit your profile, pause your listing and see how many students have reached out.',
+  );
+
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -1168,7 +1174,7 @@ export default function TeacherDashboard() {
                 </h1>
                 <div
                   className={`mt-1.5 inline-flex h-7 items-center gap-[8px] rounded-full px-3 text-[12px] font-extrabold ${
-                    isPaused ? 'bg-muted text-warm-secondary' : 'bg-[#34B268] text-[#08301D]'
+                    isPaused ? 'bg-muted text-warm-secondary' : 'bg-mint-solid text-[#0B3D1F]'
                   }`}
                 >
                   <Check className="h-[13px] w-[13px]" strokeWidth={2.5} aria-hidden="true" />
@@ -1251,7 +1257,7 @@ export default function TeacherDashboard() {
               <button
                 type="button"
                 onClick={scrollToProfileForm}
-                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
                 <IconDisc tone="brand-subtle" size={40}>
                   <PencilLine className="h-5 w-5" aria-hidden="true" />
@@ -1267,7 +1273,7 @@ export default function TeacherDashboard() {
                 type="button"
                 onClick={handlePauseToggle}
                 disabled={pausing}
-                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60"
+                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0 disabled:opacity-60"
               >
                 <IconDisc tone="brand-subtle" size={40}>
                   {isPaused ? <PlayCircle className="h-5 w-5" aria-hidden="true" /> : <PauseCircle className="h-5 w-5" aria-hidden="true" />}
@@ -1286,7 +1292,7 @@ export default function TeacherDashboard() {
               <button
                 type="button"
                 onClick={handleRequestReview}
-                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="flex min-h-11 w-full items-start gap-3 rounded-2xl bg-muted p-4 text-left transition-transform duration-hover hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
                 <IconDisc tone="brand-subtle" size={40}>
                   <Link2 className="h-5 w-5" aria-hidden="true" />

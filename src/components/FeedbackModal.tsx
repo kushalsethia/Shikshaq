@@ -131,7 +131,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
               <DialogTitle>Feedback sent</DialogTitle>
             </DialogHeader>
             <Blob mood="great" size={104} label="A happy face" className="mb-[26px]" />
-            <h2 className="mb-[10px] font-display text-[30px] font-black leading-[1.02] tracking-[-0.04em] sm:text-[34px]">
+            <h2 className="mb-[10px] font-display text-[30px] font-black leading-[1.02] tracking-[-0.04em] sm:text-[34px] text-balance">
               Got it, thank you.
             </h2>
             <p className="mb-[26px] max-w-[30ch] text-[15px] leading-[1.55] text-brand-foreground/90 sm:text-[16px]">
@@ -152,7 +152,7 @@ export function FeedbackModal({ open, onOpenChange }: FeedbackModalProps) {
           // F6b — picking a face
           <div className="p-5 sm:p-6">
             <DialogHeader className="items-start text-left">
-              <DialogTitle className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.04em] text-foreground">
+              <DialogTitle className="font-display text-[27px] font-black leading-[1.05] tracking-[-0.04em] text-foreground text-balance">
                 How was that?
               </DialogTitle>
             </DialogHeader>

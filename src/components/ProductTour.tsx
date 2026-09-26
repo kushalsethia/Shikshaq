@@ -380,16 +380,23 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
             className="mb-[clamp(12px,2.4vh,24px)] h-[clamp(64px,15vh,150px)] w-[clamp(64px,15vh,150px)] flex-none motion-safe:animate-panel-fade short:h-[clamp(60px,11vh,96px)] short:w-[clamp(60px,11vh,96px)] short-landscape:mb-0 short-landscape:h-[clamp(84px,34vh,132px)] short-landscape:w-[clamp(84px,34vh,132px)]"
           />
 
-          <div className="flex min-w-0 flex-col items-center short-landscape:items-start">
+          <div key={step.key} className="flex min-w-0 flex-col items-center short-landscape:items-start">
             {/* text-balance so a three-line headline does not leave one orphan
                 word on the last line at an awkward width. */}
+            {/* M32: headline/body/chips now enter together with the step —
+                keyed on step.key so each step change remounts (and replays)
+                this block, staggered 0/50/100ms so the three read as one
+                choreographed beat rather than the background alone moving
+                while the copy just swaps in place. tourStepIn is the
+                keyframe already used for this same "step change" motion
+                elsewhere. */}
             <h2
               className={cn(
                 /* The width steps stay exactly as designed (40px, 54px from sm);
                    what is new is the height ceiling. Driving display size off
                    vw as well pulled a 360px phone down to 30px, which is not a
                    display headline -- width was never the axis that ran out. */
-                'text-balance text-center font-display text-[max(28px,min(40px,7.2vh))] font-black leading-[0.94] tracking-[-0.055em] sm:text-[max(30px,min(54px,7.2vh))] short-landscape:text-left short-landscape:text-[clamp(28px,4.6vw,40px)]',
+                'text-balance text-center font-display text-[max(28px,min(40px,7.2vh))] font-black leading-[0.94] tracking-[-0.055em] sm:text-[max(30px,min(54px,7.2vh))] short-landscape:text-left short-landscape:text-[clamp(28px,4.6vw,40px)] motion-safe:animate-tour-step-in',
                 step.ink,
               )}
             >
@@ -398,14 +405,18 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
 
             <p
               className={cn(
-                'mt-[clamp(10px,2vh,16px)] max-w-[38ch] text-pretty text-center text-[15px] leading-[1.55] short:text-[14px] short:leading-[1.5] short-landscape:mt-2.5 short-landscape:text-left short-landscape:text-[14px]',
+                'mt-[clamp(10px,2vh,16px)] max-w-[38ch] text-pretty text-center text-[15px] leading-[1.55] short:text-[14px] short:leading-[1.5] short-landscape:mt-2.5 short-landscape:text-left short-landscape:text-[14px] motion-safe:animate-tour-step-in',
                 step.inkSoft,
               )}
+              style={{ animationDelay: '50ms' }}
             >
               {step.body}
             </p>
 
-            <div className="mt-[clamp(14px,2.8vh,24px)] flex flex-wrap justify-center gap-2 short-landscape:mt-3 short-landscape:justify-start">
+            <div
+              className="mt-[clamp(14px,2.8vh,24px)] flex flex-wrap justify-center gap-2 short-landscape:mt-3 short-landscape:justify-start motion-safe:animate-tour-step-in"
+              style={{ animationDelay: '100ms' }}
+            >
               {chips.map((label) => (
                 <span
                   key={label}
@@ -438,7 +449,10 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
               >
                 <span
                   className={cn(
-                    'block h-2.5 rounded-full transition-all duration-300 ease-snap',
+                    // M1/D4.1: explicit properties, not `transition-all` —
+                    // width/opacity/background-color are the only three
+                    // this dot ever changes.
+                    'block h-2.5 rounded-full transition-[width,opacity,background-color] duration-300 ease-snap',
                     step.ink.replace('text-', 'bg-'),
                     n === i ? 'w-7 opacity-100' : 'w-2.5 opacity-35',
                   )}
@@ -451,7 +465,7 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
             type="button"
             onClick={advance}
             className={cn(
-              'flex h-[clamp(48px,7.5vh,56px)] w-full items-center justify-center gap-2 rounded-full text-[16px] font-extrabold transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+              'flex h-[clamp(48px,7.5vh,56px)] w-full items-center justify-center gap-2 rounded-full text-[16px] font-extrabold transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
               step.chipBg,
               step.chipInk,
             )}

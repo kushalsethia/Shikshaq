@@ -148,6 +148,8 @@ function TeacherCardComponent({
   const { getUpvoteCount } = useUpvotes();
   const liked = isLiked(id);
   const upvoteCount = getUpvoteCount(id);
+  // One-shot "pop" on a successful save — see handleHeartClick/heartButton below.
+  const [justLiked, setJustLiked] = useState(false);
 
   const showFavourite = !hideFavourite && resolvedVariant !== 'grid-compact';
   const showUpvotes = (showUpvotesProp ?? !isFeatured) && !isSm;
@@ -204,8 +206,15 @@ function TeacherCardComponent({
       return;
     }
 
+    const wasLiked = liked;
     // Optimistic update happens in the hook - UI updates instantly
     await toggleLike(id);
+    // Owner's ask: delight on the save moment, not the un-save — see the pop
+    // comment on the Heart icon below.
+    if (!wasLiked) {
+      setJustLiked(true);
+      window.setTimeout(() => setJustLiked(false), 400);
+    }
   };
 
   const photo = imageUrl ? (
@@ -261,7 +270,13 @@ function TeacherCardComponent({
          the longest names. items-start now — the split makes every card's
          name block genuinely the same two-line height, so centring is no
          longer needed to hide a short one-liner. */
-      className={`flex items-start gap-1 font-display font-extrabold tracking-[-0.03em] text-foreground ${isSm || isRow ? 'min-w-0 min-h-[2.4em] text-body-secondary leading-[1.3]' : 'min-w-0 min-h-[2.6em] text-body-secondary leading-[1.3] sm:text-card-title sm:leading-[1.35]'}`}
+      /* D6.1: text-balance per CRAFT.md §3 ("Headings text-wrap: balance").
+         Has no visible effect on the single-name-in-a-span case below (the
+         first-word split above already forces the exact two-line break the
+         owner asked for, so there's nothing left for the browser to balance)
+         but costs nothing and keeps this h3 consistent with the rest of the
+         site's headings. */
+      className={`flex items-start gap-1 text-balance font-display font-extrabold tracking-[-0.03em] text-foreground ${isSm || isRow ? 'min-w-0 min-h-[2.4em] text-body-secondary leading-[1.3]' : 'min-w-0 min-h-[2.6em] text-body-secondary leading-[1.3] sm:text-card-title sm:leading-[1.35]'}`}
       title={displayName}
     >
       <span className="min-w-0 break-words">
@@ -423,14 +438,36 @@ function TeacherCardComponent({
          Button primitive) uses 0.97 as the floor, with a comment explaining
          anything smaller "feels exaggerated". This was the one outlier,
          nearly 3x past that floor, so the heart visibly overshot compared to
-         its neighbours (the card link, the WhatsApp button) on the same tap. */
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform duration-tap ease-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
+         its neighbours (the card link, the WhatsApp button) on the same tap.
+         M23: standardised to 0.96 (CRAFT.md §2 "Press: scale(0.96)"), scoped
+         to this file only — the rest of the site still reads 0.97 elsewhere,
+         which is a separate, wider cleanup this stream doesn't own. */
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform duration-tap ease-tap active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none motion-reduce:active:scale-100"
     >
       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted transition-colors duration-hover hover:bg-accent">
+        {/* Owner's ask: a little delight at the save moment. No new keyframe —
+            tailwind.config.ts's own comment says every keyframe beyond the
+            permitted list was removed after a grep found no callers and
+            "do not re-add" — so this reaches for the `pop`
+            duration/easing tokens already on the theme (transitionDuration.pop
+            = 400ms, transitionTimingFunction.pop = the overshoot cubic-bezier)
+            and drives a plain scale transition from JS: `justLiked` flips true
+            for one tick on a successful save, scale-125 kicks in, and removing
+            the class 400ms later lets the same bouncy curve settle it back to
+            1 — a one-shot pop with no loop and no new CSS. Unliking (the
+            reverse toggle) gets no pop: the delight belongs to the "yes, keep
+            this teacher" moment, not its undo. */}
         <Heart
-          className={`h-4 w-4 transition-colors duration-tap ${
+          className={`h-4 w-4 ${justLiked ? 'scale-125' : 'scale-100'} ${
             liked ? 'fill-destructive text-destructive' : 'text-muted-foreground'
-          }`}
+          } motion-reduce:transition-none motion-reduce:scale-100`}
+          /* Two properties, two different feels: colour is the existing
+             150ms ease-out tap transition (duration-tap's own value), scale
+             is the theme's `pop` duration (400ms) and its overshoot
+             cubic-bezier — an inline `transition` shorthand is the only way
+             to give each property its own timing without a new Tailwind
+             utility. */
+          style={{ transition: 'color 150ms ease-out, transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1)' }}
         />
       </span>
     </button>
@@ -452,7 +489,7 @@ function TeacherCardComponent({
           /* Handoff S-001: `row` is the only variant that always sits inside
              a bg-card panel, so it separates by fill (bg-muted) instead of
              a shadow — no shadow-border, no shadow-border-hover on hover. */
-          className="group flex items-start gap-3 rounded-[24px] bg-muted p-2.5 outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+          className="group flex items-start gap-3 rounded-[24px] bg-muted p-2.5 outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.96] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
         >
           <div className="relative h-[104px] w-20 shrink-0 overflow-hidden rounded-[14px] bg-muted outline outline-1 -outline-offset-1 outline-black/10">
             {photo}
@@ -503,7 +540,7 @@ function TeacherCardComponent({
            self-clips via its own overflow-hidden wrapper below, and every
            overlay (badge, heart, upvote pill) is a child of that wrapper,
            not of this Link. */
-        className="group flex h-full flex-col rounded-[32px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.97] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:p-2.5"
+        className="group flex h-full flex-col rounded-[32px] bg-card p-2 shadow-border outline-none transition-transform duration-hover ease-settle hover:-translate-y-0.5 hover:shadow-border-hover active:scale-[0.96] active:duration-tap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 sm:p-2.5"
       >
         {/* §2.5 compact grid card (mockup "01 Start with the teachers parents pick"):
             shorter photo than the old 4/5 portrait, tighter body, so four cards read

@@ -42,7 +42,12 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      // M34: Radix unmounts the previous panel and mounts the next on
+      // switch, so a real cross-fade is just an opacity-only entrance on
+      // that mount — tailwindcss-animate's animate-in/fade-in-0 utilities
+      // (plugin already registered below), not a new keyframe. Opacity
+      // only, per CRAFT §2; motion-reduce drops it entirely.
+      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:duration-200 motion-reduce:data-[state=active]:animate-none",
       className,
     )}
     {...props}

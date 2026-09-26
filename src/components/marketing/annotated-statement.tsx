@@ -173,7 +173,7 @@ const AnnotatedStatement = React.forwardRef<HTMLDivElement, AnnotatedStatementPr
       >
         <Statement
           className={cn(
-            "font-display font-normal text-foreground",
+            "font-display font-normal text-foreground text-balance",
             statementClassName,
             align === "center" ? "text-center" : "text-left",
           )}

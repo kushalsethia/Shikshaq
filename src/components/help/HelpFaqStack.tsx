@@ -206,7 +206,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
                 }`}
               >
                 <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
-                  <span className="text-[16px] font-bold tracking-[-0.02em] text-foreground">{q.question}</span>
+                  <span className="text-balance text-[16px] font-bold tracking-[-0.02em] text-foreground">{q.question}</span>
                   <ChevronDown className="mt-0.5 h-[18px] w-[18px] flex-none text-warm-secondary transition-transform duration-200 group-open:rotate-180" strokeWidth={2.25} aria-hidden="true" />
                 </summary>
                 <p className="mt-2.5 text-[14px] leading-[1.6] text-warm-prose">{q.answer}</p>
@@ -237,10 +237,16 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
           {guides.map((g, i) => {
             const { tint, ink } = GUIDE_TINT_BY_TITLE[g.title] ?? GUIDE_TINTS[i % GUIDE_TINTS.length];
             const link = GUIDE_LINK_BY_TITLE[g.title] ?? GUIDE_LINK_FALLBACK;
-            const cardClassName = `block w-full rounded-[18px] p-[16px_18px] text-left transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${tint}`;
+            /* M26: the focus ring is a box-shadow-based utility, which was
+               left out of `transition-transform` — tabbing to a card made
+               the ring snap in instantly while the hover-lift transform was
+               still animating over duration-tap, two motion paths finishing
+               at different times on the same gesture. Both now transition
+               together. */
+            const cardClassName = `block w-full rounded-[18px] p-[16px_18px] text-left transition-[transform,box-shadow] duration-tap hover:-translate-y-0.5 active:scale-[0.96] motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${tint}`;
             const content = (
               <>
-                <div className={`text-[16px] font-bold tracking-[-0.02em] ${ink}`}>{g.title}</div>
+                <div className={`text-balance text-[16px] font-bold tracking-[-0.02em] ${ink}`}>{g.title}</div>
                 <p className="mt-1.5 text-[14px] leading-[1.55] text-warm-prose">{g.body}</p>
               </>
             );
@@ -264,7 +270,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
         <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
           <Link
             to="/contact"
-            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-5 text-[15px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-5 text-[15px] font-extrabold text-brand-foreground transition-[transform,box-shadow] duration-tap hover:-translate-y-0.5 active:scale-[0.96] motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
           >
             Contact us
             <ArrowRight className="h-[15px] w-[15px]" aria-hidden="true" />
@@ -274,7 +280,7 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Shikshaq on WhatsApp"
-            className={cn(iconDiscVariants({ tone: 'whatsapp', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+            className={cn(iconDiscVariants({ tone: 'whatsapp', size: 44 }), 'active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
           >
             <WhatsAppIcon />
           </a>
@@ -283,14 +289,14 @@ export function HelpFaqStack({ heading, questionsHeading, questions, guides, con
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Shikshaq on Instagram"
-            className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+            className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
           >
             <InstagramIcon />
           </a>
           <a
             href="mailto:ngo.aquaterra@gmail.com"
             aria-label="Email Shikshaq"
-            className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+            className={cn(iconDiscVariants({ tone: 'on-dark', size: 44 }), 'active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
           >
             <Mail strokeWidth={1.8} aria-hidden />
           </a>

@@ -144,13 +144,18 @@ export default function SubmitPaper() {
         <main id="main-content">
           <BentoStack>
             <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[26px]">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue-subtle">
+              {/* Success-moment delight (CRAFT §2: "delight sits at moments of
+                  success"). animate-pop is the existing sticker/badge overshoot
+                  keyframe; card-reveal is the existing settle-in for the
+                  heading and body. motion-reduce drops the movement per
+                  tailwind.config.ts's own convention, keeping the fade. */}
+              <span className="flex h-12 w-12 animate-pop items-center justify-center rounded-full bg-brand-blue-subtle motion-reduce:animate-none">
                 <CheckCircle2 className="h-6 w-6 text-brand-blue" aria-hidden="true" />
               </span>
-              <h1 className="mt-3 font-display text-[30px] font-normal leading-[1.08] tracking-[-0.045em] text-foreground">
+              <h1 className="mt-3 animate-card-reveal font-display text-[30px] font-normal leading-[1.08] tracking-[-0.045em] text-foreground motion-reduce:animate-none">
                 Got it. <span className="font-extrabold text-brand-blue">Thank you.</span>
               </h1>
-              <p className="mt-3 max-w-prose text-[15px] leading-[1.6] text-warm-prose">
+              <p className="mt-3 max-w-prose animate-card-reveal text-[15px] leading-[1.6] text-warm-prose motion-reduce:animate-none">
                 A person reads every submission before it goes up, so it will not appear straight
                 away. We check the pages are legible, tag the school, board and year, and credit
                 the school that set it. If something is unclear we will come back to you.
@@ -233,8 +238,12 @@ export default function SubmitPaper() {
             </div>
 
             {files.length > 0 && (
-              <ul className="mt-3 grid gap-2">
-                {files.map((f, i) => (
+              <>
+                <p className="mt-3 text-[12px] font-semibold tabular-nums text-warm-meta">
+                  {files.length} of 10 files
+                </p>
+                <ul className="mt-1 grid gap-2">
+                  {files.map((f, i) => (
                   <li
                     key={`${f.name}-${i}`}
                     className="flex items-center gap-3 rounded-[14px] bg-muted px-3.5 py-2.5"
@@ -253,11 +262,16 @@ export default function SubmitPaper() {
                       <X className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </li>
-                ))}
-              </ul>
+                  ))}
+                </ul>
+              </>
             )}
 
-            {error && <p className="mt-2 text-[13px] font-medium text-destructive">{error}</p>}
+            {error && (
+              <p role="alert" className="mt-2 text-[13px] font-medium text-destructive">
+                {error}
+              </p>
+            )}
           </BentoPanel>
 
           {/* -------------------------------------------------------- metadata */}

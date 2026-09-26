@@ -93,7 +93,7 @@ function GateSheet({ open, onOpenChange, redirectTo, paperTitle, paperSubject }:
           type="button"
           disabled={busy}
           onClick={handleGoogle}
-          className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-panel text-[16px] font-extrabold text-background transition-transform duration-tap active:scale-[0.98] disabled:opacity-70"
+          className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 rounded-[18px] bg-panel text-[16px] font-extrabold text-background transition-transform duration-tap active:scale-[0.98] disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           {busy ? 'Signing in…' : 'Continue with Google'}
         </button>
@@ -104,7 +104,7 @@ function GateSheet({ open, onOpenChange, redirectTo, paperTitle, paperSubject }:
         <button
           type="button"
           onClick={goAuth}
-          className="mt-2 flex h-11 w-full items-center justify-center text-[14px] font-semibold text-warm-prose"
+          className="mt-2 flex h-11 w-full items-center justify-center rounded-[10px] text-[14px] font-semibold text-warm-prose focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           Other ways to sign in
         </button>

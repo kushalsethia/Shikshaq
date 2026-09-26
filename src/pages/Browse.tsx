@@ -466,14 +466,52 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       displayedTeachers.map((teacher) => {
         const allSubjects = teacher.subjects_from_shikshaq || teacher.subjects?.name || '';
         const subjectList = allSubjects ? allSubjects.split(',').map((s) => s.trim()).filter(Boolean) : [];
-        const firstSubject = subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
+        /* F1.2 — the badge always showed the teacher's first/primary subject,
+           even when a subject filter was active and the card matched on a
+           DIFFERENT subject (a multi-subject teacher filtered on "Maths"
+           could show "Commerce" or "History & Civics" instead, if that
+           happened to be listed first in their Subjects column). Confirmed
+           live at /all-tuition-teachers-in-kolkata?filter_subjects=Maths&
+           filter_classes=10&filter_areas=Salt+Lake.
+
+           When a subject filter is active, show the first FILTER value that
+           actually appears among this teacher's subject tokens — the same
+           whole-token-boundary + synonym rules filterShikshaqRecords already
+           uses to decide the teacher matched in the first place (accountancy/
+           accounts, computers/computer, drawing variants, social studies =
+           history & civics/geography), reimplemented here rather than
+           imported from teacher-facet-match.ts because that file is outside
+           this stream's owned files. Falls back to the old behaviour
+           (first subject, then the joined subjects relation, then the
+           generic label) whenever no filter subject actually matches —
+           a teacher can match on class/area/etc. while genuinely not
+           teaching the filtered subject via a different pathway is not
+           possible here (subject is itself part of the match), so this
+           fallback path is effectively "no subject filter is active". */
+        const matchedFilterSubject = filters.subjects.find((fs) => {
+          const fsLower = fs.toLowerCase();
+          const tokenMatchesAny = (tokens: string[]) =>
+            subjectList.some((t) => tokens.includes(t.toLowerCase()));
+          if (fsLower === 'accountancy') return tokenMatchesAny(['accountancy', 'accounts']);
+          if (fsLower === 'computers') return tokenMatchesAny(['computers', 'computer']);
+          if (fsLower === 'computer') return tokenMatchesAny(['computer']);
+          if (fsLower === 'drawing & painting' || fsLower === 'drawing and painting') {
+            return tokenMatchesAny(['drawing & painting', 'drawing and painting', 'drawing']);
+          }
+          if (fsLower === 'drawing') return tokenMatchesAny(['drawing']);
+          if (fsLower === 'social studies') {
+            return tokenMatchesAny(['history & civics', 'geography', 'social studies']);
+          }
+          return tokenMatchesAny([fsLower]);
+        });
+        const firstSubject = matchedFilterSubject || subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
         const area = (teacher as { area?: string | null }).area ?? null;
         const firstArea = area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null;
         const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
         const experienceYears = deriveExperienceYears((teacher as { _yearStarted?: number | null })._yearStarted);
         return { teacher, firstSubject, firstArea, meta, experienceYears };
       }),
-    [displayedTeachers],
+    [displayedTeachers, filters.subjects],
   );
   const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -970,9 +1008,22 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         return;
       }
 
-      // Reset infinite scroll when filters/search change
-      setDisplayedTeachers([]);
-      setAllTeachersData([]);
+      /* P1-2/P2-5: previous results now stay on screen while this fetch
+         resolves, hand-rolling the same shape a `useQuery({ placeholderData:
+         keepPreviousData })` migration would give for free — this file's own
+         fetch orchestration (server prefilter, chunked slug lookups, the
+         relax pool, the sort-only-change cache short-circuit above) is too
+         interwoven with plain useState to safely rehost on react-query in
+         this pass, so the fix is scoped to the actual symptom instead: this
+         used to blank displayedTeachers/allTeachersData to [] the INSTANT a
+         filter changed, which is what produced the empty-state or skeleton
+         flash CRAFT.md's speed budget forbids (the loading flag below often
+         does not flip true for another 150ms, so for that window loading was
+         false AND the list was empty). Both arrays are left untouched here
+         and only overwritten once new data actually lands (or the fetch
+         throws) — see setAllTeachersData/setDisplayedTeachers near the end of
+         this effect. hasMore still resets so a stale "load more" sentinel
+         doesn't linger past a filter change that shrinks the result set. */
       setHasMore(true);
 
       // Clear any existing loading timeout
@@ -1792,7 +1843,11 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
      emptiness — rendering "0 tuition teachers in Kolkata" as the loudest
      element on the page states the opposite of what this hub is for. The
      count itself stays real wherever there IS one. */
-  const resultCountLabel = loading ? '…' : teachers.length;
+  /* Only '…' on a genuine first load (nothing counted yet) — a filter-driven
+     refetch keeps showing the PREVIOUS real count instead of blanking to an
+     ellipsis, matching the "previous results stay visible" fix above rather
+     than fighting it with a header that still flickers. */
+  const resultCountLabel = loading && teachers.length === 0 ? '…' : teachers.length;
   const hasZeroResults = !loading && teachers.length === 0;
   const sortPills: { value: string; label: string }[] = [
     { value: 'upvotes', label: 'Most upvoted' },
@@ -2127,10 +2182,20 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             </div>
           ) : fetchError ? (
             <ListError onRetry={handleRetry} />
-          ) : loading ? (
+          ) : loading && displayedTeachers.length === 0 ? (
+            // Only a genuinely first load (nothing to show yet) gets the full
+            // skeleton. A filter/search-driven refetch with previous results
+            // already on screen falls through to the branch below instead —
+            // see the "previous results stay on screen" comment in the fetch
+            // effect above for why displayedTeachers isn't cleared first.
             <ListLoading count={8} media={96} lines={2} />
           ) : displayedTeachers.length > 0 ? (
-            <div>
+            <div
+              // A subtle dim, not a re-skeleton, while a filter-driven refetch
+              // is in flight over the results already on screen (P1-2/P2-5).
+              className={loading ? 'opacity-60 transition-opacity duration-hover' : 'transition-opacity duration-hover'}
+              aria-busy={loading || undefined}
+            >
               {/* Each result card titles itself with an h3. Without a section
                   heading above them the page ran h1 -> h3. The h1 already states
                   the count visibly, so this level is supplied to assistive tech

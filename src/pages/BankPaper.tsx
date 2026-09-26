@@ -9,7 +9,6 @@ import { PaperShareLock, paperLockClass } from '@/components/papers/paper-share-
 import { CaptureShield } from '@/components/CaptureShield';
 import { MorePapers } from '@/components/papers/more-papers';
 import { MathText } from '@/components/papers/math-text';
-import { FIGURE_DIMENSIONS } from '@/content/figure-dimensions';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useAuth } from '@/lib/auth-context';
 import { GateSheet } from '@/components/auth/gate-sheet';
@@ -149,6 +148,32 @@ function QuestionReport({
   );
 }
 
+/**
+ * M8: the report chip's "Report" label used to be conditionally mounted
+ * (`{reportFor === row.i && <span>Report</span>}`), so switching which
+ * question's report is open -- or closing one -- removed the old label in
+ * the same frame the new state applied, with no exit transition. Keeping the
+ * label mounted for one more tick and fading its opacity down over 150ms
+ * (CRAFT's motion budget for exits) means the old chip's label settles out
+ * instead of just vanishing. Opacity only, per CRAFT §2 -- this never
+ * touches layout/width, so it does not fight the chip's own icon-only
+ * collapsed state.
+ */
+function FadeLabel({ show, children }: { show: boolean; children: import('react').ReactNode }) {
+  const [mounted, setMounted] = useState(show);
+  useEffect(() => {
+    if (show) { setMounted(true); return; }
+    const t = window.setTimeout(() => setMounted(false), 150);
+    return () => window.clearTimeout(t);
+  }, [show]);
+  if (!mounted) return null;
+  return (
+    <span className={`transition-opacity duration-[150ms] motion-reduce:transition-none ${show ? 'opacity-100' : 'opacity-0'}`}>
+      {children}
+    </span>
+  );
+}
+
 export default function BankPaper() {
   const { id } = useParams<{ id: string }>();
   const [paper, setPaper] = useState<BankPaperMeta | null>(null);
@@ -160,6 +185,26 @@ export default function BankPaper() {
   const [reportFor, setReportFor] = useState('');
   const [gateOpen, setGateOpen] = useState(false);
   const { user } = useAuth();
+
+  /* P2-2: figure-dimensions.ts is a ~114KB generated source file (intrinsic
+     width/height for every figure in the whole bank, not just this paper's),
+     and was the single largest thing riding inside BankPaper's own page
+     chunk -- bigger than Browse, TeacherProfile and TeacherDashboard
+     combined per the audit. Most papers carry no figures at all, so most
+     visits to this route paid for it without ever reading a value out of it.
+     A dynamic import splits it into its own chunk that only downloads once
+     this route actually mounts, in parallel with (not blocking) the question
+     text this page exists to show. `row.f` figures already carry
+     `loading="lazy"`, so there is no visible cost: by the time any image is
+     near the viewport this has long since resolved. */
+  const [figureDims, setFigureDims] = useState<Record<string, [number, number]> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    import('@/content/figure-dimensions').then((m) => {
+      if (!cancelled) setFigureDims(m.FIGURE_DIMENSIONS);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   /* bank_papers.subject stores the raw bank spelling ("Mathematics"); every
      other site-facing surface (title, header, CTA, meta) uses the site's own
@@ -361,7 +406,7 @@ export default function BankPaper() {
     <li
       key={row.i}
       id={`q-${row.i}`}
-      className="min-w-0 rounded-[18px] bg-muted p-[16px]"
+      className="min-w-0 animate-card-blur-in rounded-[18px] bg-muted p-[16px] motion-reduce:animate-none"
     >
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         {row.n && (
@@ -418,7 +463,7 @@ export default function BankPaper() {
             }`}
           >
             <Flag className="h-3.5 w-3.5" aria-hidden="true" />
-            {reportFor === row.i && <span>Report</span>}
+            <FadeLabel show={reportFor === row.i}>Report</FadeLabel>
           </button>
           );
         })()}
@@ -489,8 +534,8 @@ export default function BankPaper() {
           <img
             src={supabase.storage.from('paper-figures').getPublicUrl(row.f).data.publicUrl}
             alt={`Figure for question ${displayNumbers.get(row.i) ?? row.n ?? ''}`}
-            {...(FIGURE_DIMENSIONS[row.f]
-              ? { width: FIGURE_DIMENSIONS[row.f][0], height: FIGURE_DIMENSIONS[row.f][1] }
+            {...(figureDims?.[row.f]
+              ? { width: figureDims[row.f][0], height: figureDims[row.f][1] }
               : {})}
             loading="lazy"
             decoding="async"
@@ -663,7 +708,12 @@ export default function BankPaper() {
               questions" instruction, like the top of an actual printed
               paper, instead of the questions just starting cold. */}
           {paper && !paper.needsReview && (
-            <div className="mb-5 border-b border-border pb-4 text-center">
+            /* Owner's ask: a small settle moment at "first paper read" --
+               the header and the question list below both mount once, the
+               moment loading finishes, so a one-shot entrance here reads as
+               the paper arriving rather than as decoration on every render
+               (CRAFT §2: delight at success, not on every element). */
+            <div className="mb-5 animate-card-blur-in border-b border-border pb-4 text-center motion-reduce:animate-none">
               <p className="text-[13px] italic text-muted-foreground">{paper.school}</p>
               <h2 className="mt-1 font-display text-[20px] font-extrabold tracking-[-0.02em] text-foreground sm:text-[23px]">
                 {/* Middle dot, not an em dash -- CLAUDE.md bans em/en dashes in
@@ -689,7 +739,7 @@ export default function BankPaper() {
                "Save as PDF" render the page without the questions, so printing
                is not a way around the gate. Selection is off here and nowhere
                else on the page -- see paperLockClass. */
-            <ol data-paper-locked data-protected className={`grid grid-cols-1 gap-3 ${paperLockClass}`}>
+            <ol data-paper-locked data-protected className={`grid grid-cols-1 gap-3 stagger-children ${paperLockClass}`}>
               {visible.map((row) => questionCard(row))}
             </ol>
           )}

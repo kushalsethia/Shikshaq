@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { CheckCircle, XCircle, Search, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Search, Loader2, ImageOff } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { recordAdminAction } from '@/lib/audit';
 import { formatDistanceToNow } from 'date-fns';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import {
   Select,
   SelectContent,
@@ -73,6 +74,10 @@ interface TeacherApplication {
 }
 
 export default function AdminApprovals() {
+  usePageMeta(
+    'Teacher Approvals | Shikshaq Admin',
+    'Review pending teacher applications, approve or reject, and manage the queue.'
+  );
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
   const signedInName = actorName;
@@ -85,6 +90,7 @@ export default function AdminApprovals() {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState(false);
+  const [heroImageError, setHeroImageError] = useState(false);
 
   const { isAdmin, checkingAdmin, error: adminGuardError, retry: retryAdminGuard } = useAdminGuard(user, {
     onGranted: fetchApplications,
@@ -313,7 +319,10 @@ export default function AdminApprovals() {
         {
           label: application.status === 'pending' ? 'Review' : 'View docs',
           tone: 'primary',
-          onClick: () => setSelectedApplication(application),
+          onClick: () => {
+            setHeroImageError(false);
+            setSelectedApplication(application);
+          },
         },
       ],
     };
@@ -350,7 +359,9 @@ export default function AdminApprovals() {
       <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
-        <AdminPanelHeader title="Applications" meta={`${pendingCount} waiting`} />
+        <div aria-live="polite" aria-atomic="true">
+          <AdminPanelHeader title="Applications" meta={`${pendingCount} waiting`} />
+        </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">
           {searchSlot}
@@ -388,6 +399,7 @@ export default function AdminApprovals() {
             setSelectedApplication(null);
             setShowReject(false);
             setRejectReason('');
+            setHeroImageError(false);
           }
         }}
       >
@@ -443,11 +455,19 @@ export default function AdminApprovals() {
                 {selectedApplication.hero_image_url && (
                   <div className="md:col-span-2">
                     <h3 className="mb-2 text-sm font-semibold text-foreground">Hero Image / Docs</h3>
-                    <img
-                      src={validateImageSrc(selectedApplication.hero_image_url)}
-                      alt="Hero"
-                      className="h-48 w-full max-w-md rounded-2xl object-cover shadow-border"
-                    />
+                    {heroImageError ? (
+                      <div className="flex h-48 w-full max-w-md flex-col items-center justify-center gap-2 rounded-2xl bg-muted text-warm-label shadow-border">
+                        <ImageOff className="h-6 w-6" aria-hidden />
+                        <span className="text-[13px]">Image couldn't be loaded</span>
+                      </div>
+                    ) : (
+                      <img
+                        src={validateImageSrc(selectedApplication.hero_image_url)}
+                        alt="Hero"
+                        onError={() => setHeroImageError(true)}
+                        className="h-48 w-full max-w-md rounded-2xl object-cover shadow-border"
+                      />
+                    )}
                   </div>
                 )}
 

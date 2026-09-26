@@ -535,7 +535,7 @@ export default function Auth() {
           </header>
 
           {showResetPassword ? (
-            <h1 className={`mt-5 font-display text-[34px] font-black leading-[1.02] tracking-[-0.04em] ${hero.ink.text}`}>
+            <h1 className={`mt-5 font-display text-[34px] font-black leading-[1.02] tracking-[-0.04em] text-balance ${hero.ink.text}`}>
               Reset your password
             </h1>
           ) : (
@@ -552,7 +552,7 @@ export default function Auth() {
                   leaves both in the class list at equal specificity, and the
                   stylesheet's own order decides — which resolved to 400. */}
               <h1
-                className={`mt-1 font-display leading-[.92] tracking-[-0.055em] ${
+                className={`mt-1 font-display leading-[.92] tracking-[-0.055em] text-balance ${
                   hero.compact ? 'text-[36px] font-black' : 'text-[46px] font-normal'
                 } ${hero.ink.text}`}
               >

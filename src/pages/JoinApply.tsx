@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Field, FieldInput, FieldTextarea, useBlurValidation } from '@/components/ui/field';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import { ProgressSteps } from '@/components/join/progress-bar';
 import { Button } from '@/components/ui/button';
@@ -155,6 +156,11 @@ interface FormData {
 }
 
 export default function JoinApply() {
+  usePageMeta(
+    'Teacher Application Form | Shikshaq',
+    'Complete your tuition teacher profile in five steps. Name, subjects, location and fees, then a quick verification.',
+  );
+
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -752,7 +758,7 @@ export default function JoinApply() {
                   </Field>
 
                   <div>
-                    <Eyebrow as="p" className="mb-2">Sir or Ma'am <span className="text-facet-destructive">*</span></Eyebrow>
+                    <Eyebrow as="p" className="mb-2">Sir or Ma'am <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
                     <div className="flex gap-2">
                       {SIR_MAAM.map((option) => (
                         <Pill key={option} label={option} selected={formData.sir_maam === option} onClick={() => handleInputChange('sir_maam', option)} />
@@ -830,7 +836,15 @@ export default function JoinApply() {
                       >
                         <Upload className="w-4 h-4" />
                         {selectedImageFile ? 'Change photo' : 'Select photo'}
-                        <input id="heroImageUpload" type="file" accept="image/*" className="hidden" onChange={handleImageFileChange} disabled={submitting} />
+                        <input
+                          id="heroImageUpload"
+                          type="file"
+                          accept="image/*"
+                          aria-label="Upload profile photo, optional, up to 5MB"
+                          className="hidden"
+                          onChange={handleImageFileChange}
+                          disabled={submitting}
+                        />
                       </label>
                       <p className="text-meta text-warm-meta">
                         {selectedImageFile ? 'Uploaded when you submit the form. Max 5MB.' : 'Optional, but a photo doubles replies. Max 5MB.'}
@@ -846,7 +860,7 @@ export default function JoinApply() {
               <div className="animate-fade-slide-up">
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Subjects <span className="text-facet-destructive">*</span></Eyebrow>
+                  <Eyebrow as="p" className="mb-3">Subjects <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
                   <div className="flex flex-wrap gap-2">
                     {SUBJECTS.map((subject) => {
                       const selected = valueExistsInString(formData.subjects, subject);
@@ -865,7 +879,7 @@ export default function JoinApply() {
                 </div>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Boards catered <span className="text-facet-destructive">*</span></Eyebrow>
+                  <Eyebrow as="p" className="mb-3">Boards catered <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
                   <div className="flex flex-wrap gap-2">
                     {BOARDS.map((board) => {
                       const selected = valueExistsInString(formData.school_boards_catered, board);
@@ -883,7 +897,7 @@ export default function JoinApply() {
                 </div>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Classes <span className="text-facet-destructive">*</span></Eyebrow>
+                  <Eyebrow as="p" className="mb-3">Classes <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
                   <div className="grid grid-cols-6 gap-2">
                     {CLASSES.map((cls) => {
                       const selected = valueExistsInString(formData.classes_taught_for_backend, cls);
@@ -895,7 +909,7 @@ export default function JoinApply() {
                 </div>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Structure of classes <span className="text-facet-destructive">*</span></Eyebrow>
+                  <Eyebrow as="p" className="mb-3">Structure of classes <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
                   <div className="flex flex-wrap gap-2">
                     {CLASS_SIZE.map((size) => {
                       const selected = valueExistsInString(formData.class_size, size);
@@ -960,7 +974,7 @@ export default function JoinApply() {
 
                 {showStudentAreas && (
                   <div className="mb-6">
-                    <Eyebrow as="p" className="mb-3">Areas you teach in (student's home) <span className="text-facet-destructive">*</span></Eyebrow>
+                    <Eyebrow as="p" className="mb-3">Areas you teach in (student's home) <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
                     <div className="flex flex-wrap gap-2">
                       {AREAS.map((area) => {
                         const selected = valueExistsInString(formData.students_home_areas, area);
@@ -980,7 +994,7 @@ export default function JoinApply() {
 
                 {showTutorAreas && (
                   <div className="mb-6">
-                    <Eyebrow as="p" className="mb-3">Areas you teach in (your home) <span className="text-facet-destructive">*</span></Eyebrow>
+                    <Eyebrow as="p" className="mb-3">Areas you teach in (your home) <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
                     <div className="flex flex-wrap gap-2">
                       {AREAS.map((area) => {
                         const selected = valueExistsInString(formData.tutors_home_areas, area);
@@ -1001,7 +1015,7 @@ export default function JoinApply() {
                 <p className="mb-2 text-meta text-warm-meta">We show your locality and radius, like "Doranda, travels 5 km", and nothing more precise than that.</p>
 
                 <div className="mb-6">
-                  <Eyebrow as="p" className="mb-3">Mode of teaching <span className="text-facet-destructive">*</span></Eyebrow>
+                  <Eyebrow as="p" className="mb-3">Mode of teaching <span aria-hidden="true" className="text-facet-destructive">*</span><span className="sr-only"> required</span></Eyebrow>
                   <div className="flex flex-wrap gap-2">
                     {MODE_OF_TEACHING.map((mode) => {
                       const selected = valueExistsInString(formData.mode_of_teaching, mode);

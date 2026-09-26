@@ -518,7 +518,7 @@ export default function PastPapers() {
                 fabricated/empty row" logic doesn't apply, it was real, but
                 it's still a distraction stacked right above the headline
                 whose whole job is to be the one thing said at a glance). */}
-            <h1 className="font-display text-[34px] font-normal leading-[.98] tracking-[-0.03em] text-white sm:text-[52px] lg:text-[74px] lg:leading-[.94]">
+            <h1 className="font-display text-[34px] font-normal leading-[.98] tracking-[-0.03em] text-white sm:text-[52px] lg:text-[74px] lg:leading-[.94] text-balance">
               {/* "You have N new papers waiting on your shelf" (pages.md §4.1)
                   when there genuinely are new ones for THIS reader — published
                   since the last paper they opened. Falls back to a wording

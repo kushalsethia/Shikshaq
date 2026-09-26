@@ -421,7 +421,14 @@ function EyesPanel({
                segment to its own label, so "Teachers" (92px) and "Past
                papers" (111px) were visibly different pills. */
             className="grid h-11 grid-cols-2 items-center gap-1 rounded-full p-1"
-            style={{ backgroundColor: 'rgba(31,31,31,.14)' }}
+            /* D1.1: was a hard-coded rgba(31,31,31,.14). --foreground is
+               defined as bare HSL components (0 0% 12.2%, i.e. #1F1F1F), so
+               hsl(var(--foreground) / alpha) is the token-backed equivalent
+               rather than a second, independent near-black. Not a Tailwind
+               `/opacity` class -- tailwind.config.ts's `foreground` entry has
+               no `<alpha-value>` placeholder, so that modifier silently emits
+               nothing here (CLAUDE.md's documented gotcha). */
+            style={{ backgroundColor: 'hsl(var(--foreground) / 0.14)' }}
           >
             {(['teachers', 'papers'] as const).map((m) => (
               <button
@@ -434,8 +441,16 @@ function EyesPanel({
                   'tap-44 flex h-9 items-center justify-center rounded-full px-4 text-[14px] font-bold transition-colors duration-500',
                   /* This pair sits on the panel's own tinted fill, so the
                      ring needs an offset in that fill rather than the page
-                     background, or it reads as a halo with a gap. */
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+                     background, or it reads as a halo with a gap. D11.3: a
+                     fixed brand-blue ring read fine on the orange (teachers)
+                     dome but was blue-on-blue -- close to invisible -- on the
+                     papers dome. White-on-blue is the same pairing Index.tsx's
+                     own "Browse past papers" CTA already uses on the same
+                     bg-brand-blue fill. */
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+                  mode === 'papers'
+                    ? 'focus-visible:ring-white focus-visible:ring-offset-brand-blue'
+                    : 'focus-visible:ring-brand-blue focus-visible:ring-offset-transparent',
                   /* Inactive labels carry no alpha. text-[rgba(31,31,31,.7)]
                      on the orange fill measured 3.29:1, and this is a real
                      role="tab" control label, not decoration. The active tab

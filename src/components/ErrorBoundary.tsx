@@ -171,7 +171,7 @@ export class ErrorBoundary extends Component<Props, State> {
             textAlign: 'center',
           }}
         >
-          <p style={{ fontSize: '15px', lineHeight: 1.6, color: '#5A524A' }}>
+          <p style={{ fontSize: '15px', lineHeight: 1.6, color: 'var(--error-secondary-text, #5A524A)' }}>
             Loading the latest version…
           </p>
         </div>
@@ -202,7 +202,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <h1 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 10px', lineHeight: 1.25 }}>
             Something went wrong on this page
           </h1>
-          <p style={{ fontSize: '15px', lineHeight: 1.6, margin: '0 0 20px', color: '#5A524A' }}>
+          <p style={{ fontSize: '15px', lineHeight: 1.6, margin: '0 0 20px', color: 'var(--error-secondary-text, #5A524A)' }}>
             Not your fault, and nothing you did is lost. Reloading usually fixes
             it. If it keeps happening, tell us and we will look.
           </p>

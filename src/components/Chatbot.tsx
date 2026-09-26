@@ -389,7 +389,7 @@ export function Chatbot() {
           ring on orange is not a ring. */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed ${chromeless ? 'bottom-[calc(24px_+_env(safe-area-inset-bottom))]' : 'bottom-[calc(88px_+_env(safe-area-inset-bottom))]'} lg:bottom-[calc(24px_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-brand-foreground shadow-[0_10px_26px_rgba(0,0,0,.22)] hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-[transform,box-shadow,opacity] duration-200 ${
+        className={`fixed ${chromeless ? 'bottom-[calc(24px_+_env(safe-area-inset-bottom))]' : 'bottom-[calc(88px_+_env(safe-area-inset-bottom))]'} lg:bottom-[calc(24px_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-brand-foreground shadow-[0_10px_26px_rgba(0,0,0,.22)] hover:-translate-y-0.5 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-[transform,box-shadow,opacity] duration-200 ${
           launcherVisible
             ? isScrolling && !isOpen
               ? 'opacity-30 scale-90 pointer-events-none'

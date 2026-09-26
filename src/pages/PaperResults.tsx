@@ -427,7 +427,13 @@ export default function PaperResults() {
               {heading}
             </h1>
             <span
-              key={loading ? 'counting' : revealKey}
+              /* P1-2/P2-5: a filter-driven refetch that already has a real
+                 count on screen keeps showing it (and keeps its settled key)
+                 instead of resetting to "Counting…" — that reset was its own
+                 small skeleton-flash, on the count tag rather than the grid,
+                 every time a filter changed. Only a genuine first load (no
+                 papers, no total yet) gets the "Counting…" placeholder. */
+              key={loading && shownTotal === 0 && shownPapers.length === 0 ? 'counting' : revealKey}
               /* Count-tag landing: a single scale/fade-in (card-reveal's own
                  curve) plus a once-only glow pulse under the tag, in the
                  first active subject filter's REAL palette color — the same
@@ -436,15 +442,17 @@ export default function PaperResults() {
                  count. Re-keyed only on revealKey (search settling), so
                  clicking through filters or scrolling never repeats it. */
               className={`inline-flex h-8 flex-none items-center whitespace-nowrap rounded-full bg-white/15 px-[14px] text-[13px] font-bold text-white ${
-                loading ? '' : 'animate-card-reveal animate-count-glow motion-reduce:animate-none'
+                loading && shownTotal === 0 && shownPapers.length === 0 ? '' : 'animate-card-reveal animate-count-glow motion-reduce:animate-none'
               }`}
               style={
-                !loading && subjectFilters[0]
+                !(loading && shownTotal === 0 && shownPapers.length === 0) && subjectFilters[0]
                   ? ({ '--count-glow-color': `${getSubjectPalette(subjectFilters[0]).solid}99` } as CSSProperties)
                   : undefined
               }
             >
-              {loading ? 'Counting…' : `${shownTotal.toLocaleString('en-IN')} paper${shownTotal === 1 ? '' : 's'} found`}
+              {loading && shownTotal === 0 && shownPapers.length === 0
+                ? 'Counting…'
+                : `${shownTotal.toLocaleString('en-IN')} paper${shownTotal === 1 ? '' : 's'} found`}
             </span>
           </div>
         </BentoPanel>
@@ -473,8 +481,11 @@ export default function PaperResults() {
         {/* Handoff PR-003/PR-004: results live inside one BentoPanel; base
             grid is a single column at gap-[10px] (sm:/lg: unchanged). */}
         <BentoPanel fill="card" className="px-4 py-[18px]">
-          {loading ? (
+          {loading && shownPapers.length === 0 ? (
             // One coherent skeleton in the real grid's shape, not a spinner.
+            // Only for a genuine first load — see the dimmed-in-place branch
+            // below for a filter/search-driven refetch with results already
+            // on screen (P1-2/P2-5: no re-skeleton-on-filter-tap).
             <div className="grid grid-cols-1 gap-[10px] sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className={`h-48 rounded-2xl ${SKELETON}`} />
@@ -495,7 +506,14 @@ export default function PaperResults() {
                  carry it; correcting the bank's subjects surfaced it for all 302
                  History & Civics and 124 Economics papers. */
             shownPapers.length > 0 ? (
-            <>
+            <div
+              // A subtle dim, not a re-skeleton, while a filter/search-driven
+              // refetch is in flight over results already on screen — see the
+              // `loading && shownPapers.length === 0` gate above for why this
+              // branch (not the skeleton one) is what a filter tap now hits.
+              className={loading ? 'opacity-60 transition-opacity duration-hover' : 'transition-opacity duration-hover'}
+              aria-busy={loading || undefined}
+            >
               <div className="stagger-children grid grid-cols-1 gap-[10px] sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                 {shownPapers.map((p) => (
                   <div key={p.id} className="animate-card-reveal motion-reduce:animate-none">
@@ -527,7 +545,7 @@ export default function PaperResults() {
                   <p className="text-meta text-muted-foreground">That's every paper matching these filters.</p>
                 )}
               </div>
-            </>
+            </div>
           ) : (
             <EmptyResults
               heading="No papers match all of those filters yet"

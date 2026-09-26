@@ -28,6 +28,7 @@ import {
 import { Loader2, Plus, Save, Search, Upload, X, CheckCircle2, XCircle, FileText } from 'lucide-react';
 import { SUBJECTS, CLASSES, BOARDS, EXAM_TYPES } from '@/utils/searchFacets';
 import { cn } from '@/lib/utils';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 /* A3 "Papers & takedowns" — one of five sections in the redesigned admin
    console (S7). Renders AdminRail + AdminToolbar directly (no AdminConsole
@@ -120,6 +121,10 @@ const BLANK_FORM: FormState = {
 };
 
 export default function AdminPapersPage() {
+  usePageMeta(
+    'Papers & Submissions | Shikshaq Admin',
+    'Publish, take down and review past papers submitted by students.'
+  );
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
   const { isAdmin, checkingAdmin, error: adminGuardError, retry: retryAdminGuard } = useAdminGuard(user, { redirectOnDenied: true });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -19,10 +19,8 @@ import { imageAtWidth, validateImageSrc } from '@/utils/imageSanitizer';
 import { logger } from '@/utils/logger';
 import { TeacherCard } from '@/components/TeacherCard';
 import { SubjectCard } from '@/components/SubjectCard';
-import { HomeActivitySection } from '@/components/HomeActivitySection';
 import { SearchDesk } from '@/components/home/SearchDesk';
 import { RegionNotice } from '@/components/RegionNotice';
-import { EyesPanel } from '@/components/home/EyesPanel';
 import { CornerMascot } from '@/components/home/CornerMascot';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { useChromeConfig } from '@/components/layout/AppShell';
@@ -44,6 +42,24 @@ import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { coverPaper, coverMeta, pickVariedRecent, type CoverSourcePaper } from '@/lib/paper-cover-mapping';
 import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
 import type { SearchMode } from '@/utils/searchFacets';
+
+/* P1-3/P1-7: neither of these renders anywhere near the top of the page --
+   HomeActivitySection is section 13 (Favourites/Recently visited) and
+   EyesPanel is the last section, the sentence-builder at the very bottom.
+   Both are Home-only (no other route imports them) and both were previously
+   static imports, so every cold/direct load of ANY route paid for their code
+   inside the shared entry chunk before that route's own chunk even started
+   downloading (confirmed via dist/assets/index-*.js). Lazy here keeps Index
+   itself eager (it's still a static import in App.tsx) while letting these
+   two below-the-fold children load in their own chunk. SearchDesk and
+   CornerMascot are NOT lazy-loaded: both render inside the hero (sections
+   2-4), which is above the fold on every viewport this page is tested at. */
+const HomeActivitySection = lazy(() =>
+  import('@/components/HomeActivitySection').then((m) => ({ default: m.HomeActivitySection })),
+);
+const EyesPanel = lazy(() =>
+  import('@/components/home/EyesPanel').then((m) => ({ default: m.EyesPanel })),
+);
 
 interface Teacher {
   id: string;
@@ -756,7 +772,7 @@ export default function Index() {
             </p>
             <h1
               key={`${heroMode}-${heroCopy.before}${heroCopy.bold}`}
-              className={`animate-blur-swap mt-[6px] font-display font-normal tracking-[-0.045em] text-foreground motion-reduce:animate-none lg:tracking-[-0.05em] ${heroSize}`}
+              className={`animate-blur-swap mt-[6px] text-balance font-display font-normal tracking-[-0.045em] text-foreground motion-reduce:animate-none lg:tracking-[-0.05em] ${heroSize}`}
             >
               {heroAvatarChip}
               {heroAvatarChip ? ' ' : null}
@@ -1468,24 +1484,34 @@ export default function Index() {
               only to signed-in readers, restating counts that the Favourites
               and Recently-visited lists directly below it already show. */}
           <BentoPanel fill="card" className="p-[22px]">
-            <HomeActivitySection />
+            {/* fallback={null}: this section is below the fold and additive
+                (Favourites/Recently visited) -- an empty panel for one extra
+                tick reads as nothing rather than as a layout jump, and the
+                panel around it already reserves the padding. */}
+            <Suspense fallback={null}>
+              <HomeActivitySection />
+            </Suspense>
           </BentoPanel>
 
           {/* ---------------------------------------- 14 · Eyes + sentence builder */}
-          <EyesPanel
-            mode={builderMode}
-            onModeChange={setBuilderMode}
-            heading={(
-              <>
-                Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
-              </>
-            )}
-            subline="Fill in the blanks and we'll take you straight there."
-            slots={builderSlots}
-            onSlotChange={handleSlotChange}
-            onSubmit={handleBuilderSubmit}
-            count={builderMode === 'teachers' ? (stats.teachers || undefined) : (stats.papers || undefined)}
-          />
+          {/* Same reasoning as above: last section on the page, chunk-split
+              so its ~480 lines don't ride in every route's shared entry. */}
+          <Suspense fallback={null}>
+            <EyesPanel
+              mode={builderMode}
+              onModeChange={setBuilderMode}
+              heading={(
+                <>
+                  Still deciding? <span className="font-extrabold">We&rsquo;re watching out for you.</span>
+                </>
+              )}
+              subline="Fill in the blanks and we'll take you straight there."
+              slots={builderSlots}
+              onSlotChange={handleSlotChange}
+              onSubmit={handleBuilderSubmit}
+              count={builderMode === 'teachers' ? (stats.teachers || undefined) : (stats.papers || undefined)}
+            />
+          </Suspense>
         </BentoStack>
       </main>
 

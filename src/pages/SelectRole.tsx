@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
 import { BentoPanel } from '@/components/layout/PageContainer';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 const FIELD_CLASS = 'flex h-[52px] w-full items-center rounded-2xl bg-muted px-4 text-base text-foreground outline-none shikshaq-role-field';
 import { isSafeRedirect as isValidRedirect } from '@/lib/safe-redirect';
@@ -22,6 +23,11 @@ const LABEL_CLASS = 'mb-1 block text-[12px] font-bold uppercase tracking-[0.07em
 
 
 export default function SelectRole() {
+  usePageMeta(
+    'Choose Your Role | Shikshaq',
+    'Tell us whether you are a student or a guardian, so Shikshaq can show you the right home.',
+  );
+
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -196,7 +202,7 @@ export default function SelectRole() {
           <h1 className="mb-4 text-page-title text-foreground">You must be signed in to continue.</h1>
           <button
             onClick={() => navigate(isValidRedirect(redirectTo) ? `/auth?redirect=${encodeURIComponent(redirectTo)}` : '/auth')}
-            className="min-h-12 rounded-lg bg-foreground px-6 text-base font-bold text-background transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.98]"
+            className="min-h-12 rounded-lg bg-foreground px-6 text-base font-bold text-background transition-transform duration-150 hover:-translate-y-0.5 active:scale-[0.96]"
           >
             Sign In
           </button>
@@ -232,7 +238,7 @@ export default function SelectRole() {
                 type="button"
                 onClick={() => setRole('guardian')}
                 aria-pressed={role === 'guardian'}
-                className={`rounded-[24px] bg-brand-subtle p-5 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.98] ${
+                className={`rounded-[24px] bg-brand-subtle p-5 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.96] ${
                   role === 'guardian' ? 'shadow-[inset_0_0_0_2px_hsl(var(--brand))]' : ''
                 }`}
               >
@@ -249,7 +255,7 @@ export default function SelectRole() {
                 type="button"
                 onClick={() => setRole('student')}
                 aria-pressed={role === 'student'}
-                className={`rounded-[24px] bg-brand-blue-subtle p-5 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.98] ${
+                className={`rounded-[24px] bg-brand-blue-subtle p-5 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.96] ${
                   role === 'student' ? 'shadow-[inset_0_0_0_2px_hsl(var(--brand-blue))]' : ''
                 }`}
               >
@@ -269,7 +275,7 @@ export default function SelectRole() {
               <button
                 type="button"
                 onClick={() => navigate('/join')}
-                className="flex min-h-[64px] items-center gap-[14px] rounded-[24px] bg-muted p-[18px] text-left text-foreground transition-[transform,background-color] duration-hover ease-settle hover:-translate-y-0.5 hover:bg-accent active:scale-[0.98]"
+                className="flex min-h-[64px] items-center gap-[14px] rounded-[24px] bg-muted p-[18px] text-left text-foreground transition-[transform,background-color] duration-hover ease-settle hover:-translate-y-0.5 hover:bg-accent active:scale-[0.96]"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background">
                   <BookOpen className="h-[18px] w-[18px]" strokeWidth={2.1} />
@@ -355,7 +361,7 @@ export default function SelectRole() {
               <button
                 type="submit"
                 disabled={loading || !role}
-                className="flex h-[54px] w-full items-center justify-center rounded-full bg-brand text-[15px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-50 disabled:hover:translate-y-0"
+                className="flex h-[54px] w-full items-center justify-center rounded-full bg-brand text-[15px] font-extrabold text-brand-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.96] disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 {loading ? 'Creating profile...' : 'Continue'}
               </button>

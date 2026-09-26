@@ -503,6 +503,24 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   const showEmptyBanner = overlayTyping && searchActive && !indexLoading && currentCount === 0;
   const totalCount = teacherCount + paperCount;
 
+  /* Owner's "search that finds results" delight moment (CRAFT §2): the result
+     rows should settle in the first time a query actually returns something,
+     not replay their entrance on every keystroke — each keystroke swaps in a
+     different set of teacher/paper ids, so without this guard the mapped
+     buttons below (new keys every time) remounted and re-played
+     animate-card-blur-in on every character typed, which reads as flicker,
+     not delight. Resets once the overlay closes, so the next open earns its
+     own first-results moment again. */
+  const [resultsIntroduced, setResultsIntroduced] = useState(false);
+  useEffect(() => {
+    if (!overlayOpen) {
+      setResultsIntroduced(false);
+      return;
+    }
+    if (totalCount > 0) setResultsIntroduced(true);
+  }, [overlayOpen, totalCount]);
+  const resultCardEntranceClass = resultsIntroduced ? '' : 'animate-card-blur-in';
+
   // Shared by the popup's facet panel and the inline chips' own dropdown —
   // both list the same option set for a given facet key.
   const optionsForFacet = useCallback((key: FacetKey | null): string[] => {
@@ -538,10 +556,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   }, [facetKeys]);
 
   /* Dropdown surface: one shared shell for the facet panel and the suggestions
-     overlay. §5 — shadow-border only, never border + shadow. */
+     overlay. §5 — shadow-border only, never border + shadow.
+
+     M21: was one 200ms duration both ways. CRAFT §2 wants an entrance in the
+     200-300ms band and an exit shorter/softer than that — bumped the open to
+     300ms and the close now uses the `exit` token (130ms) instead of sharing
+     the entrance's timing. */
   const dropdownShell = (closing: boolean) =>
-    `absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 rounded-2xl bg-card text-left shadow-border-hover transition-[opacity,translate] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-      closing ? 'opacity-0 -translate-y-1' : 'opacity-100 translate-y-0'
+    `absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 rounded-2xl bg-card text-left shadow-border-hover transition-[opacity,translate] ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+      closing ? 'duration-exit opacity-0 -translate-y-1' : 'duration-300 opacity-100 translate-y-0'
     } ${pinned ? 'max-h-[max(220px,calc(100vh-240px))] overflow-y-auto' : ''}`;
 
   const sectionLabel = 'text-xs font-medium uppercase tracking-wide text-muted-foreground';
@@ -688,7 +711,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
             type="button"
             onClick={closeControl}
             aria-label="Close search"
-            className={`absolute -bottom-2 -right-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-card text-foreground shadow-border-hover transition-colors duration-150 hover:bg-muted active:scale-[0.97] ${FOCUS} focus-visible:ring-ring`}
+            className={`absolute -bottom-2 -right-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-card text-foreground shadow-border-hover transition-colors duration-150 hover:bg-muted active:scale-[0.96] ${FOCUS} focus-visible:ring-ring`}
           >
             <X className="h-5 w-5" strokeWidth={2.25} aria-hidden="true" />
           </button>
@@ -737,7 +760,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                     type="button"
                     onClick={() => setInlineOpenFacet((cur) => (cur === key ? null : key))}
                     aria-expanded={open}
-                    className={`flex h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${
+                    className={`flex h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${
                       selected ? accent.solid : `${accent.subtle} hover:opacity-90`
                     }`}
                   >
@@ -753,7 +776,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                         <button
                           type="button"
                           onClick={() => setInlineOpenFacet(nextFacetAfter(key))}
-                          className={`flex h-9 flex-none items-center gap-1.5 rounded-full pl-4 pr-3 text-sm font-bold transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${accent.solid}`}
+                          className={`flex h-9 flex-none items-center gap-1.5 rounded-full pl-4 pr-3 text-sm font-bold transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${accent.solid}`}
                         >
                           {nextFacetAfter(key) ? 'Next' : 'Done'}
                           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -764,7 +787,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                           {key === 'school' ? 'No schools yet. Check back once papers are added.' : 'No options available yet.'}
                         </p>
                       ) : (
-                        <div className="scrollbar-slim -mr-1 flex max-h-[160px] flex-wrap gap-2 overflow-y-auto overscroll-contain pr-2">
+                        <div className="scrollbar-slim -mr-1 flex max-h-[160px] flex-wrap gap-2 overflow-y-auto overscroll-contain pr-2 stagger-children">
                           {options.map((opt) => {
                             const picked = selections[key].includes(opt);
                             return (
@@ -773,7 +796,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                                 type="button"
                                 aria-pressed={picked}
                                 onClick={() => setSelections((s) => ({ ...s, [key]: toggleValue(s[key], opt) }))}
-                                className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${
+                                className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] motion-safe:animate-pop ${FOCUS} focus-visible:ring-ring ${
                                   picked ? accent.solid : 'bg-muted text-foreground hover:bg-accent'
                                 }`}
                               >
@@ -800,7 +823,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
             <button
               type="button"
               onClick={runSearch}
-              className={`hidden h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.97] xl:flex ${FOCUS} ${accent.solid} ${accent.ring}`}
+              className={`hidden h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.96] xl:flex ${FOCUS} ${accent.solid} ${accent.ring}`}
             >
               Search
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
@@ -810,7 +833,12 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
         {stackedToggle && (
           <div
-            className={`flex overflow-hidden transition-[margin,max-height,opacity] duration-300 ease-out ${
+            /* M22: `margin` is layout-affecting (non-composited) alongside
+               max-height/opacity, which already carry the disclosure
+               animation on their own — dropped from the transitioned
+               property list so the margin snaps with the state change
+               instead of forcing an extra reflow every frame. */
+            className={`flex overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
               align === 'center' ? 'justify-center' : 'justify-start'
             } ${stackedToggleVisible ? 'mb-3 max-h-16 opacity-100' : 'mb-0 max-h-0 opacity-0'}`}
           >
@@ -903,8 +931,8 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                  itself is hidden. */
               className={`${inlineFacetsDesktop && !reveal ? 'xl:hidden' : ''} ${
                 heroDesk
-                  ? `flex h-[46px] flex-none items-center justify-center gap-2 rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.97] ${FOCUS} ${accent.solid} ${accent.ring}`
-                  : `flex h-11 flex-none items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} ${accent.solid} ${accent.ring} ${
+                  ? `flex h-[46px] flex-none items-center justify-center gap-2 rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.96] ${FOCUS} ${accent.solid} ${accent.ring}`
+                  : `flex h-11 flex-none items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} ${accent.solid} ${accent.ring} ${
                       narrow ? 'w-11' : 'px-4'
                     }`
               }`}
@@ -924,7 +952,10 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
           {/* Facet row — horizontal snap-scroll on mobile, never ragged wrapped rows (§11). */}
           <div
-            className={`overflow-hidden transition-[margin,max-height,opacity] duration-300 ease-out ${
+            /* M22: same fix as the stacked-toggle wrapper above — margin
+               dropped from the transitioned properties, max-height/opacity
+               carry the animation alone. */
+            className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
               reveal && !hideFacets ? 'mt-3 max-h-48 opacity-100' : 'invisible mt-0 max-h-0 opacity-0'
             }`}
           >
@@ -958,7 +989,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                     type="button"
                     onClick={() => setField(open ? 'q' : key)}
                     aria-expanded={open}
-                    className={`flex min-h-11 flex-none snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${
+                    className={`flex min-h-11 flex-none snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${
                       /* accent.subtle (idle) → accent.solid (has a value):
                          one mode-matched hue applied to the whole facet
                          cluster, not a per-chip neutral gray — same "exactly
@@ -1006,7 +1037,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                 <button
                   type="button"
                   onClick={() => setField(nextFacetAfter(displayField) ?? 'q')}
-                  className={`flex h-9 flex-none items-center gap-1.5 rounded-full pl-4 pr-3 text-sm font-bold transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${accent.solid}`}
+                  className={`flex h-9 flex-none items-center gap-1.5 rounded-full pl-4 pr-3 text-sm font-bold transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${accent.solid}`}
                 >
                   {nextFacetAfter(displayField) ? 'Next' : 'Done'}
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1017,7 +1048,11 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                   {displayField === 'school' ? 'No schools yet. Check back once papers are added.' : 'No options available yet.'}
                 </p>
               ) : (
-                <div className="scrollbar-slim -mr-1 flex max-h-[130px] flex-wrap gap-2 overflow-y-auto overscroll-contain pr-2">
+                // M11: a small entrance stagger on the first render of this facet's
+                // option set (a facet switch remounts every button, since the
+                // option list itself changes) — reads as the panel presenting its
+                // choices rather than the whole list just appearing at once.
+                <div className="scrollbar-slim -mr-1 flex max-h-[130px] flex-wrap gap-2 overflow-y-auto overscroll-contain pr-2 stagger-children">
                   {facetPanelOptions.map((opt) => {
                     const picked = selections[displayField].includes(opt);
                     return (
@@ -1026,7 +1061,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                         type="button"
                         aria-pressed={picked}
                         onClick={() => setSelections((s) => ({ ...s, [displayField]: toggleValue(s[displayField], opt) }))}
-                        className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${
+                        className={`flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] motion-safe:animate-pop ${FOCUS} focus-visible:ring-ring ${
                           picked ? accent.solid : 'bg-muted text-foreground hover:bg-accent'
                         }`}
                       >
@@ -1057,7 +1092,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                         key={label}
                         type="button"
                         onClick={() => pickPopular(label)}
-                        className={`flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring ${accent.subtle}`}
+                        className={`flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${accent.subtle}`}
                       >
                         {label}
                       </button>
@@ -1184,7 +1219,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                           <button
                             type="button"
                             onClick={() => changeMode(mode === 'teachers' ? 'papers' : 'teachers')}
-                            className={`mt-4 flex min-h-11 items-center rounded-lg px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} focus-visible:ring-ring bg-muted text-foreground hover:bg-accent`}
+                            className={`mt-4 flex min-h-11 items-center rounded-lg px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring bg-muted text-foreground hover:bg-accent`}
                           >
                             Search {MODE_LABEL[mode === 'teachers' ? 'papers' : 'teachers']} instead
                           </button>
@@ -1219,7 +1254,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                           </div>
                           <div className="grid gap-2 stagger-children sm:grid-cols-2 lg:grid-cols-3">
                             {results.teachers.map((t) => (
-                              <button key={t.id} type="button" onClick={() => openTeacher(t)} className={`${rowBase} animate-card-blur-in`}>
+                              <button key={t.id} type="button" onClick={() => openTeacher(t)} className={`${rowBase} ${resultCardEntranceClass}`}>
                                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
                                   {initial(t.name)}
                                 </span>
@@ -1252,7 +1287,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                           </div>
                           <div className="grid gap-2 stagger-children sm:grid-cols-2 lg:grid-cols-3">
                             {results.papers.map((p) => (
-                              <button key={p.id} type="button" onClick={() => openPaper(p)} className={`${rowBase} animate-card-blur-in`}>
+                              <button key={p.id} type="button" onClick={() => openPaper(p)} className={`${rowBase} ${resultCardEntranceClass}`}>
                                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
                                   {initial(p.school)}
                                 </span>

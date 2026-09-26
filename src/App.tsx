@@ -14,6 +14,7 @@ import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
 import { StudiesWithProvider } from "@/lib/studies-with-context";
 import { ScrollManager } from "@/components/ScrollManager";
+import { DelayedFallback } from "@/components/DelayedFallback";
 import { CanonicalTag } from "@/components/CanonicalTag";
 import { AppShell } from "@/components/layout/AppShell";
 import { BentoStack, BentoPanel } from "@/components/layout/PageContainer";
@@ -275,9 +276,16 @@ const App = () => (
             {/* One Suspense boundary around the whole route table. The routes
                 that were eager until now are lazy, and each would otherwise
                 need its own wrapper; the per-route boundaries below still work
-                and are left alone. */}
+                and are left alone.
+                The ~28 identical inner `<Suspense fallback={<PageLoader />}>`
+                wraps this comment used to describe as "leftover and
+                harmless-but-redundant" are gone now, not just left in place —
+                they cost nothing to keep but were also one more place to
+                update every time a route's fallback changed, and grep found
+                zero remaining callers relying on a route having its OWN
+                boundary rather than this shared one. */}
             <ErrorBoundary context="route">
-            <Suspense fallback={<PageLoader />}>
+            <Suspense fallback={<DelayedFallback delayMs={150}><PageLoader /></DelayedFallback>}>
             <Routes>
               {/* Dev-only design sandbox for the admin shell, which is otherwise
                   unreachable without an admin login. Renders mock props only —
@@ -286,23 +294,11 @@ const App = () => (
                   route does not exist in a production bundle. */}
               {import.meta.env.DEV && <Route path="/__sandbox" element={<Sandbox />} />}
               <Route path="/" element={<Index />} />
-              <Route path="/all-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Browse />
-                </Suspense>
-              } />
+              <Route path="/all-tuition-teachers-in-kolkata" element={<Browse />} />
               <Route path="/browse" element={<Navigate to="/all-tuition-teachers-in-kolkata" replace />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/tuition-teachers/:slug" element={
-                <Suspense fallback={<PageLoader />}>
-                  <TeacherProfile />
-                </Suspense>
-              } />
-              <Route path="/tuition-teachers/:slug/whatsapp-click" element={
-                <Suspense fallback={<PageLoader />}>
-                  <WhatsAppRedirect />
-                </Suspense>
-              } />
+              <Route path="/tuition-teachers/:slug" element={<TeacherProfile />} />
+              <Route path="/tuition-teachers/:slug/whatsapp-click" element={<WhatsAppRedirect />} />
               <Route path="/teacher/:slug" element={<TeacherRedirect />} />
               {/* pages.md §11 O-05: "/liked-teachers" and "/my-teachers" become deep
                   links into the unified /account screen rather than 301s — the
@@ -311,320 +307,100 @@ const App = () => (
                   option the spec leaves open if the owner wants that instead. */}
               <Route path="/liked-teachers" element={<Navigate to="/account?tab=saved" replace />} />
               <Route path="/my-teachers" element={<Navigate to="/account?tab=contacted" replace />} />
-              <Route path="/account" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Account />
-                </Suspense>
-              } />
+              <Route path="/account" element={<Account />} />
               <Route path="/more" element={<Help />} />
               <Route path="/help" element={<Navigate to="/more" replace />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/join" element={<Join />} />
               <Route path="/submit-a-paper" element={<SubmitPaper />} />
-              <Route path="/join/apply" element={
-                <Suspense fallback={<PageLoader />}>
-                  <JoinApply />
-                </Suspense>
-              } />
+              <Route path="/join/apply" element={<JoinApply />} />
               <Route path="/past-papers" element={<PastPapers />} />
-              <Route path="/past-papers/results" element={
-                <Suspense fallback={<PageLoader />}>
-                  <PaperResults />
-                </Suspense>
-              } />
+              <Route path="/past-papers/results" element={<PaperResults />} />
               {/* One address space for every paper. The question-bank papers
                   are papers like any other and live at /past-papers/:id too —
                   they just read as questions instead of an embedded scan. The
                   bank's ids are 6 hex characters and the database's are UUIDs,
                   so the route can pick a reader without fetching anything. */}
-              <Route path="/past-papers/:id" element={
-                <Suspense fallback={<PageLoader />}>
-                  <PaperRoute />
-                </Suspense>
-              } />
+              <Route path="/past-papers/:id" element={<PaperRoute />} />
               {/* S16. a-to-z.md marks this the one route that is `new` — the
                   by-school rows on /past-papers previously went nowhere. */}
               <Route path="/school/:slug" element={<SchoolPage />} />
               {/* TopBar's "Subjects" and "Schools" nav links used to fall back to
                   BROWSE_PATH/PAST_PAPERS_PATH with `match: () => false` because
                   neither index existed. These are their real destinations. */}
-              <Route path="/subjects" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectsPage />
-                </Suspense>
-              } />
-              <Route path="/schools" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SchoolsPage />
-                </Suspense>
-              } />
+              <Route path="/subjects" element={<SubjectsPage />} />
+              <Route path="/schools" element={<SchoolsPage />} />
               {/* Reading. One index and one article route: every article is
                   generated from the question bank's own chapter statistics
                   (src/content/blog.ts), so there is no per-article route to
                   add when the bank grows. */}
-              <Route path="/blog" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Blog />
-                </Suspense>
-              } />
-              <Route path="/blog/:slug" element={
-                <Suspense fallback={<PageLoader />}>
-                  <BlogPost />
-                </Suspense>
-              } />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<BlogPost />} />
               <Route path="/about" element={<About />} />
-              <Route path="/contact" element={
-                <Suspense fallback={<PageLoader />}>
-                  <Contact />
-                </Suspense>
-              } />
+              <Route path="/contact" element={<Contact />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/terms-of-service" element={<TermsOfService />} />
-              <Route path="/recommend-teacher" element={
-                <Suspense fallback={<PageLoader />}>
-                  <RecommendTeacher />
-                </Suspense>
-              } />
+              <Route path="/recommend-teacher" element={<RecommendTeacher />} />
               <Route path="/admin" element={<Navigate to="/admin/approvals" replace />} />
-              <Route path="/admin/approvals" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminApprovals />
-                </Suspense>
-              } />
-              <Route path="/admin/teachers" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminTeachersPage />
-                </Suspense>
-              } />
-              <Route path="/admin/papers" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminPapersPage />
-                </Suspense>
-              } />
-              <Route path="/admin/reviews" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminReviews />
-                </Suspense>
-              } />
-              <Route path="/admin/feedback" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminFeedbackPage />
-                </Suspense>
-              } />
-              <Route path="/admin/audit" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminAuditLog />
-                </Suspense>
-              } />
+              <Route path="/admin/approvals" element={<AdminApprovals />} />
+              <Route path="/admin/teachers" element={<AdminTeachersPage />} />
+              <Route path="/admin/papers" element={<AdminPapersPage />} />
+              <Route path="/admin/reviews" element={<AdminReviews />} />
+              <Route path="/admin/feedback" element={<AdminFeedbackPage />} />
+              <Route path="/admin/audit" element={<AdminAuditLog />} />
               {/* Legacy admin URLs redirect into the console (pages.md §15). */}
               <Route path="/admin/applications" element={<Navigate to="/admin/approvals" replace />} />
               <Route path="/admin/recommendations" element={<Navigate to="/admin/reviews" replace />} />
               <Route path="/admin/comments" element={<Navigate to="/admin/reviews" replace />} />
               <Route path="/admin/upvotes" element={<Navigate to="/admin/reviews" replace />} />
-              <Route path="/select-role" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SelectRole />
-                </Suspense>
-              } />
-              <Route path="/teacher-terms-agreement" element={
-                <Suspense fallback={<PageLoader />}>
-                  <TeacherTermsAgreement />
-                </Suspense>
-              } />
-              <Route path="/signup-success" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SignUpSuccess />
-                </Suspense>
-              } />
+              <Route path="/select-role" element={<SelectRole />} />
+              <Route path="/teacher-terms-agreement" element={<TeacherTermsAgreement />} />
+              <Route path="/signup-success" element={<SignUpSuccess />} />
               {/* StudentDashboard.tsx / GuardianDashboard.tsx are folded into
                   /account (pages.md §11) — these two routes now redirect there
                   instead of rendering the old pages directly. The files are
                   kept, unrouted, in case anything still imports a piece of them. */}
               <Route path="/dashboard/student" element={<Navigate to="/account?tab=saved" replace />} />
               <Route path="/dashboard/guardian" element={<Navigate to="/account?tab=contacted" replace />} />
-              <Route path="/dashboard/teacher" element={
-                <Suspense fallback={<PageLoader />}>
-                  <TeacherDashboard />
-                </Suspense>
-              } />
+              <Route path="/dashboard/teacher" element={<TeacherDashboard />} />
               <Route path="/teacher-dashboard" element={<Navigate to="/dashboard/teacher" replace />} />
               {/* Subject-specific pages */}
-              <Route path="/maths-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/english-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/science-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/commercial-studies-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/physics-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/chemistry-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/biology-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/computer-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/hindi-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/history-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/geography-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/economics-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/accounts-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/business-studies-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/commerce-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/psychology-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/sociology-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/political-science-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/environmental-science-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/bengali-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/drawing-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/sat-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/act-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/cat-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/nmat-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/gmat-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/ca-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/cfa-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/clat-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
-              <Route path="/social-studies-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <SubjectPage />
-                </Suspense>
-              } />
+              <Route path="/maths-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/english-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/science-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/commercial-studies-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/physics-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/chemistry-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/biology-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/computer-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/hindi-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/history-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/geography-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/economics-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/accounts-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/business-studies-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/commerce-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/psychology-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/sociology-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/political-science-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/environmental-science-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/bengali-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/drawing-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/sat-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/act-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/cat-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/nmat-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/gmat-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/ca-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/cfa-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/clat-tuition-teachers-in-kolkata" element={<SubjectPage />} />
+              <Route path="/social-studies-tuition-teachers-in-kolkata" element={<SubjectPage />} />
               {/* Board-specific pages */}
-              <Route path="/cbse-ncert-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <BoardPage />
-                </Suspense>
-              } />
-              <Route path="/icse-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <BoardPage />
-                </Suspense>
-              } />
-              <Route path="/igcse-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <BoardPage />
-                </Suspense>
-              } />
-              <Route path="/international-board-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <BoardPage />
-                </Suspense>
-              } />
-              <Route path="/state-board-tuition-teachers-in-kolkata" element={
-                <Suspense fallback={<PageLoader />}>
-                  <BoardPage />
-                </Suspense>
-              } />
+              <Route path="/cbse-ncert-tuition-teachers-in-kolkata" element={<BoardPage />} />
+              <Route path="/icse-tuition-teachers-in-kolkata" element={<BoardPage />} />
+              <Route path="/igcse-tuition-teachers-in-kolkata" element={<BoardPage />} />
+              <Route path="/international-board-tuition-teachers-in-kolkata" element={<BoardPage />} />
+              <Route path="/state-board-tuition-teachers-in-kolkata" element={<BoardPage />} />
               <Route path="/404" element={<NotFound />} />
               {/* Render in place rather than Navigate to /404: redirecting
                   rewrote the address bar and destroyed the URL that actually
