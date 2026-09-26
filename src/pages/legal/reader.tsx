@@ -65,12 +65,6 @@ export interface LegalReaderProps {
    * for a document with no such section (Privacy has none today).
    */
   copyrightSectionN?: string;
-  /**
-   * WhatsApp link for the copyright section's "Request a removal" action.
-   * Required together with `copyrightSectionN` — the callout does not
-   * render without both (S16/LG-003: never a dead-end action).
-   */
-  removalUrl?: string;
   /** LG-001 geometry appendix: the privacy/terms cross-link row. Omit to skip it. */
   crossLink?: { label: string; href: string };
 }
@@ -116,7 +110,6 @@ export function LegalReader({
   footBody,
   footerExtra,
   copyrightSectionN,
-  removalUrl,
   crossLink,
 }: LegalReaderProps) {
   // This route renders its own eyes panel below, replacing AppShell's
@@ -308,10 +301,8 @@ export function LegalReader({
       </BentoPanel>
 
       {/* LG-003 — the papers/copyright section is called out in indigo,
-          because it is the clause people arrive at this page for. Only
-          renders when the caller supplies both the section and a removal
-          link — never a dead "Request a removal" action. */}
-      {copyrightSection && removalUrl && (
+          because it is the clause people arrive at this page for. */}
+      {copyrightSection && (
         <BentoPanel
           fill="papersTint"
           id={`legal-section-${copyrightSection.n}`}
@@ -333,14 +324,6 @@ export function LegalReader({
             {copyrightSection.short}
           </p>
           <div className="mt-4 max-w-[62ch] text-[15px] leading-[1.65] text-warm-prose">{copyrightSection.body}</div>
-          <a
-            href={removalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-flex h-12 items-center rounded-full bg-brand-blue px-5 text-[15px] font-extrabold text-white transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2"
-          >
-            Request a removal
-          </a>
         </BentoPanel>
       )}
 

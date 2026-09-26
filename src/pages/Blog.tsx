@@ -40,7 +40,7 @@ function SubjectSection({ subject, lead, others, topics }: {
       </h2>
       {totals && (
         <p className="mt-1.5 text-body-secondary text-warm-prose">
-          {fmt(totals.papers)} papers, {fmt(totals.questions)} questions, {fmt(totals.schools)} Kolkata schools.
+          {fmt(totals.papers)} papers, {fmt(totals.questions)} questions, {fmt(totals.schools)} schools.
         </p>
       )}
 

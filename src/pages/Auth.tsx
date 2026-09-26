@@ -13,29 +13,34 @@ import { getSubjectPalette } from '@/lib/subject-palette';
 import { readAuthIntent, clearAuthIntent } from '@/lib/auth-intent';
 import { resolveAuthHero } from '@/components/auth/AuthHero';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { useSiteCounts } from '@/hooks/useSiteCounts';
 
 /* C-032 / handoff AU-003a — proof counts above the fold. Counts are real
    (Supabase), never hardcoded; the sticker that needs one simply doesn't
    render until it arrives. Maths/Science added for the sticker cluster's
-   two subject pills. */
+   two subject pills.
+
+   The paper count itself is NOT fetched here any more: it used to count the
+   `papers` table (18 rows, the submit-a-paper flow), which undercounted the
+   real library by two orders of magnitude. useSiteCounts() is the canonical
+   figure (bank_papers, the ~2,000-row library) and is called separately by
+   the component so it shares the app-wide React Query cache instead of
+   re-fetching on every visit to this page. */
 function useAuthProofCounts() {
   const [teacherCount, setTeacherCount] = useState<number | null>(null);
-  const [paperCount, setPaperCount] = useState<number | null>(null);
   const [mathsCount, setMathsCount] = useState<number | null>(null);
   const [scienceCount, setScienceCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [{ count: teachers }, { count: papers }, { count: maths }, { count: science }] = await Promise.all([
+        const [{ count: teachers }, { count: maths }, { count: science }] = await Promise.all([
           supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
-          supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
           supabase.from('teachers_list').select('id', { count: 'exact', head: true }).ilike('subjects', '%Maths%'),
           supabase.from('teachers_list').select('id', { count: 'exact', head: true }).ilike('subjects', '%Science%'),
         ]);
         if (!cancelled) {
           if (typeof teachers === 'number') setTeacherCount(teachers);
-          if (typeof papers === 'number') setPaperCount(papers);
           if (typeof maths === 'number') setMathsCount(maths);
           if (typeof science === 'number') setScienceCount(science);
         }
@@ -47,7 +52,7 @@ function useAuthProofCounts() {
       cancelled = true;
     };
   }, []);
-  return { teacherCount, paperCount, mathsCount, scienceCount };
+  return { teacherCount, mathsCount, scienceCount };
 }
 
 const emailSchema = z.string().email('Please enter a valid email');
@@ -116,7 +121,9 @@ export default function Auth() {
   } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { paperCount, mathsCount, scienceCount } = useAuthProofCounts();
+  const { mathsCount, scienceCount } = useAuthProofCounts();
+  const { data: siteCounts } = useSiteCounts();
+  const paperCount = siteCounts?.papers ?? null;
 
   /* Handoff AU-004a: the hero follows the intent that opened the gate. Read
      once per arrival here — the intent is cleared when the post-sign-in

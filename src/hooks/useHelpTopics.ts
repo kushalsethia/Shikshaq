@@ -18,7 +18,6 @@ const FALLBACK_TOPICS: HelpTopic[] = [
   { title: 'Contacting a teacher', body: 'Open a profile and use Contact via WhatsApp.|Your number is never shared with the teacher until you message them yourself.' },
   { title: 'Reading past papers', body: 'Switch the search to Papers mode, or open Past Papers from the navigation.|Papers open in a reader on Shikshaq, and the page is watermarked to your account.' },
   { title: 'Contributing a paper', body: 'Send us the paper through the contribute link on the Past Papers page.|Nothing publishes until an admin has reviewed and published it deliberately.' },
-  { title: 'Getting a paper removed', body: 'Schools can use the removal link on any paper or in the reader header.|We unpublish first, which is immediate and reversible.' },
   { title: 'Joining as a teacher', body: 'Apply through Join as a teacher.|It is a four-step form and there is no listing fee, ever.' },
 ];
 

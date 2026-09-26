@@ -52,7 +52,7 @@ function usePapersCounts(_enabled: boolean) {
   const counts = useSiteCounts();
   return {
     ...counts,
-    data: counts.data ? { papers: counts.data.papers, schools: counts.data.schools } : undefined,
+    data: counts.data ? { papers: counts.data.papers } : undefined,
   };
 }
 
@@ -120,8 +120,11 @@ export function PapersLiveAnnouncement() {
           </DialogHeader>
 
           <p id="papers-live-body" className="mt-2 text-center text-[15px] leading-[1.55] text-white/90">
-            {c?.papers && c?.schools
-              ? `${c.papers} real question papers from ${c.schools} schools, typed out with their marks and chapters.`
+            {/* 2026-09-26: dropped the schools clause -- not defensible as
+                genuinely Kolkata, see the coordinator's audit (~38 of 190 raw
+                values). */}
+            {c?.papers
+              ? `${c.papers} real question papers, typed out with their marks and chapters.`
               : 'Real question papers, typed out with their marks and chapters.'}
           </p>
         </div>

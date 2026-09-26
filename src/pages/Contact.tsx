@@ -34,7 +34,7 @@ import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 // export is not authoritative over the person who owns the inbox.
 const REASONS = [
   { id: 'teacher', label: 'Finding a teacher', icon: GraduationCap },
-  { id: 'paper', label: 'A paper or takedown', icon: FileText },
+  { id: 'paper', label: 'A paper', icon: FileText },
   { id: 'list', label: 'I teach, list me', icon: Users },
   { id: 'wrong', label: 'Something is wrong', icon: ShieldAlert },
 ] as const;
@@ -52,7 +52,7 @@ export default function Contact() {
   usePageMeta(
     'Contact Shikshaq | Talk to a real person',
     // Was 178 chars, truncated in the SERP snippet. 149 now.
-    'Reach the two people who run Shikshaq directly for teacher search, paper takedowns, or listing yourself. A real person replies, usually the same day.'
+    'Reach the two people who run Shikshaq directly for teacher search, past papers, or listing yourself. A real person replies, usually the same day.'
   );
 
   // Handoff CT-003: one topic is always selected (defaults to the first) —

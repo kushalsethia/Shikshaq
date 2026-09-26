@@ -250,7 +250,7 @@ function B3() {
           {
             icon: <FileText />,
             head: "Schools stay the owners.",
-            text: "We host for reading only, and remove anything on request.",
+            text: "We host for reading only.",
           },
         ].map((p) => (
           <li key={p.head} className="flex items-start gap-3">
