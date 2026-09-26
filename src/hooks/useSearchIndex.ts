@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import Fuse from 'fuse.js';
 import { supabase } from '@/integrations/supabase/client';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
+import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 
 export interface TeacherHit {
   id: string;
@@ -108,16 +109,22 @@ async function loadIndex(): Promise<void> {
 
   /* Mapped exactly as PastPapers maps them, so a paper found by search and the
      same paper found by browsing read identically. */
-  const bankHits: PaperHit[] = (bankRes ?? []).map((b) => ({
-    id: b.id,
-    title: `Class ${b.cls} ${b.subject}`,
-    school: b.school,
-    subject: b.subject,
-    class: b.cls,
-    board: b.board,
-    exam_type: b.exam,
-    year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
-  }));
+  const bankHits: PaperHit[] = (bankRes ?? []).map((b) => {
+    // b.subject is the raw bank spelling ("Mathematics"); the site's own
+    // vocabulary ("Maths") is what every other subject-facing surface uses
+    // -- see src/lib/subject-vocabulary.ts for the full history of this bug.
+    const subject = bankSubjectToSite(b.subject);
+    return {
+      id: b.id,
+      title: `Class ${b.cls} ${subject}`,
+      school: b.school,
+      subject,
+      class: b.cls,
+      board: b.board,
+      exam_type: b.exam,
+      year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+    };
+  });
   papersCache = [...(papersRes.data ?? []), ...bankHits];
 }
 

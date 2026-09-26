@@ -19,7 +19,7 @@ import { IconDisc } from '@/components/ui/icon-disc';
 import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { ScrollRail } from '@/components/ui/scroll-rail';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
-import { bankSubjectMatches } from '@/lib/subject-vocabulary';
+import { bankSubjectMatches, bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { InlinePapersNudge } from '@/components/browse/InlinePapersNudge';
 import { cn } from '@/lib/utils';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
@@ -545,20 +545,24 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     async function loadBankOnce(): Promise<PaperSheetCardPaper[]> {
       if (bankPapersRef.current) return bankPapersRef.current;
       const rows = await loadPaperIndex();
-      const mapped: PaperSheetCardPaper[] = rows.map((b) => ({
-        id: b.id,
-        // Was hardcoded Mathematics/Maths, true only while the bank held
-        // nothing else. It now also carries History & Civics and Economics.
-        title: `Class ${b.cls} ${b.subject}`,
-        school: b.school,
-        subject: b.subject,
-        class: b.cls,
-        board: b.board,
-        exam_type: b.exam,
-        year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
-        file_url: null,
-        needsReview: b.needsReview,
-      }));
+      const mapped: PaperSheetCardPaper[] = rows.map((b) => {
+        // b.subject is the raw bank spelling ("Mathematics"); the site's own
+        // vocabulary ("Maths") is what title/subject need to read as, same
+        // as every other subject-facing surface -- see subject-vocabulary.ts.
+        const subject = bankSubjectToSite(b.subject);
+        return {
+          id: b.id,
+          title: `Class ${b.cls} ${subject}`,
+          school: b.school,
+          subject,
+          class: b.cls,
+          board: b.board,
+          exam_type: b.exam,
+          year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+          file_url: null,
+          needsReview: b.needsReview,
+        };
+      });
       bankPapersRef.current = mapped;
       return mapped;
     }

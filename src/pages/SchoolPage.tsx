@@ -8,6 +8,7 @@ import { recordSignal } from '@/lib/intent/signals';
 import { schoolSlug } from '@/lib/school-slug';
 import { loadPaperIndex, schoolBySlug, hasYear } from '@/lib/question-bank';
 import { sanitizeForIlike } from '@/lib/ilike-sanitize';
+import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useChromeConfig } from '@/components/layout/AppShell';
@@ -128,21 +129,28 @@ export default function SchoolPage() {
   const bankSchool = bankQuery.data ?? null;
 
   const papers = useMemo<SchoolPaper[]>(() => {
-    const fromBank = (bankSchool?.papers ?? []).map((b): SchoolPaper => ({
-      id: b.id,
-      title: `Class ${b.cls} ${b.subject}`,
-      subject: b.subject,
-      class: b.cls,
-      board: b.board,
-      year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : null,
-      /* Says what this row actually knows. The school is the page, and the
-         subject is in the title, so neither is repeated here. */
-      meta: [
-        b.board,
-        hasYear(b.year) ? b.year : 'Year not recorded',
-        `${b.questionCount} question${b.questionCount === 1 ? '' : 's'}`,
-      ].join(' · '),
-    }));
+    const fromBank = (bankSchool?.papers ?? []).map((b): SchoolPaper => {
+      // b.subject is the raw bank spelling ("Mathematics"); every subject-
+      // facing surface on the site (title, chips, cross-sell filter links)
+      // uses the site's own vocabulary ("Maths") -- see PastPapers.tsx's
+      // subjectCounts fix for the same underlying mismatch.
+      const subject = bankSubjectToSite(b.subject) || b.subject;
+      return {
+        id: b.id,
+        title: `Class ${b.cls} ${subject}`,
+        subject,
+        class: b.cls,
+        board: b.board,
+        year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : null,
+        /* Says what this row actually knows. The school is the page, and the
+           subject is in the title, so neither is repeated here. */
+        meta: [
+          b.board,
+          hasYear(b.year) ? b.year : 'Year not recorded',
+          `${b.questionCount} question${b.questionCount === 1 ? '' : 's'}`,
+        ].join(' · '),
+      };
+    });
 
     return [...(query.data?.papers ?? []), ...fromBank].sort((a, b) => {
       // Undated papers go last rather than sorting as year zero.

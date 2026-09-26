@@ -87,18 +87,25 @@ export default function PaperResults() {
          one of them rendered as "Class X Mathematics". Subject is mapped into
          the SITE vocabulary here so it matches the filter chips, the facets and
          the subject pages. */
-      (await loadPaperIndex()).map((b) => ({
-        id: b.id,
-        title: `Class ${b.cls} ${b.subject}`,
-        school: b.school,
-        subject: bankSubjectToSite(b.subject),
-        class: b.cls,
-        board: b.board,
-        exam_type: b.exam,
-        year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
-        file_url: null,
-        needsReview: b.needsReview,
-      })) as Paper[],
+      (await loadPaperIndex()).map((b) => {
+        // Both fields share one computed value now -- title used to read the
+        // raw b.subject directly, which is exactly the "Class X Mathematics"
+        // bug the comment above describes; only the `subject` field (used
+        // for filtering, not for what a reader actually sees) was mapped.
+        const site = bankSubjectToSite(b.subject);
+        return {
+          id: b.id,
+          title: `Class ${b.cls} ${site}`,
+          school: b.school,
+          subject: site,
+          class: b.cls,
+          board: b.board,
+          exam_type: b.exam,
+          year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+          file_url: null,
+          needsReview: b.needsReview,
+        };
+      }) as Paper[],
   });
 
   const bankMatches = useMemo(() => {

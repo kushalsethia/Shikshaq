@@ -292,28 +292,33 @@ export default function PastPapers() {
     staleTime: Infinity,
     gcTime: Infinity,
     queryFn: async (): Promise<Paper[]> =>
-      /* Kept TRUTHFUL — board is the board, subject is the subject, year is a
-         year — because these rows feed the board/subject/school facets and the
-         results filter, not just the shelf. The cover's own display mapping is
-         built at the call site (coverPaper below), so presentation never
-         corrupts the data it is drawn from. */
-      (await loadPaperIndex()).map((b) => ({
-        id: b.id,
-        // Was hardcoded Mathematics/Maths -- the bank is multi-subject now.
-        title: `Class ${b.cls} ${b.subject}`,
-        school: b.school,
-        subject: b.subject,
-        class: b.cls,
-        board: b.board,
-        exam_type: b.exam,
-        year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
-        file_url: null,
-        created_at: '',
-        _bankYear: b.year,
-        _questions: b.questionCount,
-        _isBoard: b.isBoardPaper,
-        _needsReview: b.needsReview,
-      })),
+      /* board is the board, year is a year -- subject is mapped to the SITE
+         vocabulary ("Maths"), not the raw bank spelling ("Mathematics"): it
+         feeds coverMeta()'s displayed meta line directly (not just the
+         title), and every other subject-facing surface on the site already
+         reads "Maths" -- see subject-vocabulary.ts for the full history of
+         this exact bug. The cover's own display mapping is built at the call
+         site (coverPaper below), so presentation never corrupts the data
+         it is drawn from. */
+      (await loadPaperIndex()).map((b) => {
+        const subject = bankSubjectToSite(b.subject);
+        return {
+          id: b.id,
+          title: `Class ${b.cls} ${subject}`,
+          school: b.school,
+          subject,
+          class: b.cls,
+          board: b.board,
+          exam_type: b.exam,
+          year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+          file_url: null,
+          created_at: '',
+          _bankYear: b.year,
+          _questions: b.questionCount,
+          _isBoard: b.isBoardPaper,
+          _needsReview: b.needsReview,
+        };
+      }),
   });
   /* Memoised on the query data, not written as `?? []` inline: a fresh []
      every render is a new identity, which invalidated all three useMemos
