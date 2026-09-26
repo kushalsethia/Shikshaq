@@ -14,6 +14,7 @@ import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { useAuth } from '@/lib/auth-context';
 import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
+import { MoreComingSoonTip } from '@/components/papers/more-coming-soon-tip';
 import { IconDisc } from '@/components/ui/icon-disc';
 import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { schoolSlug } from '@/lib/school-slug';
@@ -404,13 +405,16 @@ export default function PastPapers() {
      sentence around the one real totalPapers count already fetched — gets
      the same "the page feels alive" effect without inventing any data. */
   const genericHeadline = useMemo(() => {
-    const pool: ((n: string) => ReactNode)[] = [
+    const pool: ((n: ReactNode) => ReactNode)[] = [
       (n) => (<>{n} past papers,<br /><span className="font-black">free to read</span></>),
       (n) => (<>{n} papers,<br /><span className="font-black">yours to read free</span></>),
       (n) => (<>Free access to<br /><span className="font-black">{n} real past papers</span></>),
       (n) => (<>{n} papers shared<br /><span className="font-black">by students, for students</span></>),
     ];
-    return pool[Math.floor(Math.random() * pool.length)];
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    /* Every wording wraps the one real count in the looping "More coming
+       soon" tooltip (owner request 2026-09-26). */
+    return (n: string) => pick(<MoreComingSoonTip>{n}</MoreComingSoonTip>);
   }, []);
   /* Was `!hasFilters && landing.isPending` alone — totalPapers sums TWO
      independent queries (landing's DB count + bankQuery's 193 static
@@ -619,7 +623,14 @@ export default function PastPapers() {
               wrapping under the field through lg per the breakpoint change
               above, so it needs the same bottom padding as below lg all
               the way to xl. */}
-          <div className="relative mx-auto mt-6 w-full rounded-[14px] bg-card px-0 pt-4 pb-24 sm:mt-8 sm:px-4 sm:pt-6 xl:pb-6">
+          {/* 2026-09-26 mobile overflow fix: px-0 left the field's 24px
+              corners flush against this card's 14px ones, and pb-24 was a
+              guess at the absolutely-positioned chip rows' height that lost
+              once they wrapped to two rows. The chip row is now in flow below
+              xl (SearchControl), so plain p-2 fits it, and 24 + 8 = 32 keeps
+              the corners concentric. -mx-1 below sm buys back the width the
+              padding costs so "Board, class, subject" still fits at 375. */}
+          <div className="relative -mx-1 mt-6 rounded-[32px] bg-card p-2 sm:mx-auto sm:mt-8 sm:w-full">
             <SearchControl align="flex-start" stackedToggle heroDesk initialMode="papers" onModeChange={handleSearchModeChange} inlineFacetsDesktop />
           </div>
         </BentoPanel>
