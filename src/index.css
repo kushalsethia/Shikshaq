@@ -195,6 +195,7 @@
     --success: #228B22;
     --success-subtle-bg: #E6F4E6;   /* "settled" badge background */
     --success-subtle-text: #1B5E20; /* "settled" badge text */
+    --error-secondary-text: #5A524A; /* secondary text in error UI (ErrorBoundary) */
     --whatsapp: #25D366;            /* WhatsApp brand green */
     --whatsapp-text: #0B3D1F;       /* text/icon color on the WhatsApp CTA */
     --indigo-link-on-dark: #8B93FF; /* Papers-mode link color on dark surfaces */

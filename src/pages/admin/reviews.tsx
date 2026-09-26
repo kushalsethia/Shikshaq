@@ -27,6 +27,7 @@ import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell'
 import { AdminStatusPill, AdminRowActions, type AdminStatus, type AdminRowAction } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useConfirm } from '@/components/ui/use-confirm';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import { ThumbsUp } from 'lucide-react';
 
 /* Handoff 09i AD-007 "Reviews" — the single-page merge of the three legacy
@@ -144,6 +145,10 @@ interface UpvoteStat {
 const REVIEWS_PAGE_SIZE = 50;
 
 export default function AdminReviews() {
+  usePageMeta(
+    'Reviews & Recommendations | Shikshaq Admin',
+    'Moderate teacher reviews, recommendations and upvotes waiting on the admin queue.'
+  );
   const { confirm, confirmDialog } = useConfirm();
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
@@ -752,7 +757,7 @@ export default function AdminReviews() {
       <BentoPanel fill="card" className="px-5 py-[18px] lg:px-5 lg:py-[18px]">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-[18px]">
           <h2 className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">Reported reviews</h2>
-          <span className="text-[13px] tabular-nums text-warm-meta">
+          <span aria-live="polite" aria-atomic="true" className="text-[13px] tabular-nums text-warm-meta">
             {pendingReviewsCount + pendingRecsCount > 0 ? `${pendingReviewsCount + pendingRecsCount} waiting` : 'Nothing waiting'}
           </span>
         </div>

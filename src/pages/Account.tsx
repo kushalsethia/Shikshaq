@@ -30,6 +30,7 @@ import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import { setAuthIntent } from '@/lib/auth-intent';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 type TabKey = 'saved' | 'contacted' | 'papers';
 const TABS: { key: TabKey; label: string }[] = [
@@ -148,6 +149,11 @@ interface FullProfile {
 }
 
 export default function Account() {
+  usePageMeta(
+    'Your Account | Shikshaq',
+    'Your saved teachers, contacted teachers and papers you have read, all in one place.',
+  );
+
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();

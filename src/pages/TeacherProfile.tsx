@@ -191,6 +191,16 @@ export default function TeacherProfile() {
   const location = useLocation();
   const [primaryCtaVisible, setPrimaryCtaVisible] = useState(true);
   const primaryCtaRef = useRef<HTMLDivElement>(null);
+  // M36 — the floating CTA's fade/slide must only ever play in response to a
+  // real open/close (IntersectionObserver) state change, never as a side
+  // effect of the element simply mounting. The transition classes are held
+  // off until one paint after mount, so whatever visibility the very first
+  // render settles on (before the observer has taken its first reading)
+  // never animates; only a later, genuine flip does.
+  const [ctaMotionReady, setCtaMotionReady] = useState(false);
+  useEffect(() => {
+    setCtaMotionReady(true);
+  }, []);
   // design.md §3 — WhatsApp / save taps while signed out open a soft sheet,
   // never a route change; after auth the visitor continues to what they tapped.
   const [signInSheetOpen, setSignInSheetOpen] = useState(false);
@@ -530,19 +540,77 @@ export default function TeacherProfile() {
   const backHref = (location.state as { fromBrowse?: string })?.fromBrowse ?? BROWSE_PATH;
 
   if (loading) {
+    /* F3.9 — was three loose, mismatched boxes (full-width 280px band, a
+       rounded-lg title, rounded-full chips) that didn't share the real
+       layout's boxes or radii, so content visibly jumped into place instead
+       of settling. Rebuilt from the same BentoStack/BentoPanel primitives
+       the loaded page uses below, at the same heights and roundings, so the
+       skeleton IS the final layout with placeholders in it. Also restores
+       `bg-[length:200%_100%]`, without which `animate-shimmer` has nothing
+       to sweep across (see BankPaper.tsx's skeleton for the same pairing). */
     return (
       <div className="min-h-screen bg-background">
-        <div className="h-[280px] w-full animate-shimmer bg-muted" />
-        <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-10 sm:px-6 sm:py-8 lg:pb-16 lg:px-8">
-          <div className="h-8 w-2/3 animate-shimmer rounded-lg bg-muted" />
-          <div className="mt-4 flex gap-2">
-            <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
-            <div className="h-6 w-24 animate-shimmer rounded-full bg-muted" />
-          </div>
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
-            <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
-            <div className="h-[72px] animate-shimmer rounded-2xl bg-muted" />
+        <main className="pb-10 sm:pb-8 lg:pb-16">
+          <div className="lg:grid lg:grid-cols-[1fr_384px] lg:gap-[40px]">
+            <BentoStack className="min-w-0">
+              <BentoPanel
+                fill="dark"
+                edge="top"
+                className="p-[14px] pb-5 lg:rounded-bento lg:border lg:border-border lg:bg-card lg:px-[30px] lg:pb-[28px] lg:pt-[14px] lg:shadow-none"
+              >
+                <div className="flex items-end gap-[14px] lg:items-start lg:gap-[28px]">
+                  <div className="h-[166px] w-[132px] shrink-0 animate-shimmer rounded-[20px] bg-background/10 bg-[length:200%_100%] lg:h-[280px] lg:w-[224px] lg:bg-muted" />
+                  <div className="min-w-0 flex-1">
+                    <div className="h-[27px] w-3/4 animate-shimmer rounded-[8px] bg-background/10 bg-[length:200%_100%] lg:h-[44px] lg:w-1/2 lg:bg-muted" />
+                    <div className="mt-[10px] h-[18px] w-2/5 animate-shimmer rounded-[8px] bg-background/10 bg-[length:200%_100%] lg:hidden" />
+                    <div className="mt-[10px] hidden gap-[18px] lg:flex">
+                      <div className="h-[18px] w-20 animate-shimmer rounded-[6px] bg-muted bg-[length:200%_100%]" />
+                      <div className="h-[18px] w-28 animate-shimmer rounded-[6px] bg-muted bg-[length:200%_100%]" />
+                    </div>
+                    <div className="stagger-children mt-[20px] hidden gap-2 lg:flex">
+                      <div className="h-[32px] w-24 animate-card-reveal motion-reduce:animate-none rounded-full bg-muted" />
+                      <div className="h-[32px] w-28 animate-card-reveal motion-reduce:animate-none rounded-full bg-muted" />
+                    </div>
+                  </div>
+                </div>
+                <div className="stagger-children mt-[14px] flex flex-wrap gap-1.5 lg:hidden">
+                  <div className="h-[32px] w-28 animate-card-reveal motion-reduce:animate-none rounded-[16px] bg-background/10" />
+                  <div className="h-[32px] w-20 animate-card-reveal motion-reduce:animate-none rounded-[16px] bg-background/10" />
+                  <div className="h-[32px] w-24 animate-card-reveal motion-reduce:animate-none rounded-[16px] bg-background/10" />
+                </div>
+              </BentoPanel>
+
+              <div className="stagger-children flex gap-seam">
+                {[0, 1, 2].map((i) => (
+                  <BentoPanel key={i} fill="card" className="animate-card-reveal motion-reduce:animate-none flex-1 px-[14px] py-4">
+                    <div className="h-[18px] w-[18px] animate-shimmer rounded-[4px] bg-muted bg-[length:200%_100%]" />
+                    <div className="mt-[10px] h-[10px] w-14 animate-shimmer rounded-[4px] bg-muted bg-[length:200%_100%]" />
+                    <div className="mt-[6px] h-[16px] w-16 animate-shimmer rounded-[4px] bg-muted bg-[length:200%_100%]" />
+                  </BentoPanel>
+                ))}
+              </div>
+
+              <BentoPanel fill="card" className="p-[22px]">
+                <div className="mb-[10px] h-[18px] w-40 animate-shimmer rounded-[6px] bg-muted bg-[length:200%_100%] lg:mb-[12px] lg:h-[26px]" />
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i}>
+                      <div className="h-[11px] w-16 animate-shimmer rounded-[4px] bg-muted bg-[length:200%_100%]" />
+                      <div className="mt-2 h-[15px] w-24 animate-shimmer rounded-[4px] bg-muted bg-[length:200%_100%]" />
+                    </div>
+                  ))}
+                </div>
+              </BentoPanel>
+            </BentoStack>
+
+            <aside className="mt-8 hidden lg:mt-0 lg:block">
+              <div className="lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-[16px]">
+                <div className="rounded-bento bg-panel p-[26px]">
+                  <div className="h-[36px] w-2/3 animate-shimmer rounded-[8px] bg-background/10 bg-[length:200%_100%]" />
+                  <div className="mt-[16px] h-[54px] w-full animate-shimmer rounded-[16px] bg-background/10 bg-[length:200%_100%]" />
+                </div>
+              </div>
+            </aside>
           </div>
         </main>
       </div>
@@ -792,6 +860,23 @@ export default function TeacherProfile() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* M15 — whatsapp-pulse-once (index.css) starts 1s after mount, so
+          there's a silent gap before the CTA does anything, in which it just
+          appears. A brief scale/opacity entrance fills that gap so the button
+          arrives, THEN pulses, instead of popping into an already-idle pulse
+          cycle. Scoped here (not index.css/tailwind.config — those belong to
+          another stream) since this keyframe has no other consumer yet. */}
+      <style>{`
+        @keyframes whatsapp-cta-pop {
+          0% { opacity: 0; transform: scale(0.88); }
+          60% { opacity: 1; transform: scale(1.02); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        .whatsapp-cta-pop { animation: whatsapp-cta-pop 320ms cubic-bezier(0.2, 0, 0, 1) both; }
+        @media (prefers-reduced-motion: reduce) {
+          .whatsapp-cta-pop { animation: none; }
+        }
+      `}</style>
 
       {/* Bug fix, mobile QA: pb-10 not the old pb-[104px]. That 104px was
           reserving clearance for the fixed bottom nav a second time —
@@ -1041,7 +1126,12 @@ export default function TeacherProfile() {
               <p className="mb-[12px] text-[14px] leading-[1.55] text-[#3E6F53]">
                 Fees and arrangements are settled directly between you and the teacher. Shikshaq takes no commission.
               </p>
-              <Button variant="whatsapp" size={52} onClick={handleWhatsAppClick} className="whatsapp-pulse-once rounded-[16px]">
+              <Button
+                variant="whatsapp"
+                size={52}
+                onClick={handleWhatsAppClick}
+                className="whatsapp-cta-pop whatsapp-pulse-once rounded-[16px]"
+              >
                 <WhatsAppIcon className="h-[19px] w-[19px]" />
                 Message on WhatsApp
               </Button>
@@ -1203,7 +1293,7 @@ export default function TeacherProfile() {
                   variant="whatsapp"
                   size={54}
                   onClick={handleWhatsAppClick}
-                  className="whatsapp-pulse-once mt-[16px] w-full rounded-[16px]"
+                  className="whatsapp-cta-pop whatsapp-pulse-once mt-[16px] w-full rounded-[16px]"
                 >
                   <WhatsAppIcon className="h-[20px] w-[20px]" />
                   Message on WhatsApp
@@ -1270,7 +1360,10 @@ export default function TeacherProfile() {
           hidden state from swallowing taps meant for the page. */}
       <div
         aria-hidden={primaryCtaVisible}
-        className={`fixed inset-x-4 z-50 transition-[opacity,transform] duration-500 ease-snap lg:hidden motion-reduce:transition-none ${
+        data-state={primaryCtaVisible ? 'closed' : 'open'}
+        className={`fixed inset-x-4 z-50 lg:hidden motion-reduce:transition-none ${
+          ctaMotionReady ? 'transition-[opacity,transform] duration-500 ease-snap' : ''
+        } ${
           primaryCtaVisible ? 'pointer-events-none translate-y-2 opacity-0' : 'translate-y-0 opacity-100'
         }`}
         style={{ bottom: 'calc(84px + env(safe-area-inset-bottom))' }}

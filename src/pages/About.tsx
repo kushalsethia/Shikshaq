@@ -26,7 +26,7 @@ function Reveal({ children, delayMs = 0 }: { children: ReactNode; delayMs?: numb
   return (
     <div
       ref={ref}
-      className={`transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none motion-reduce:!opacity-100 motion-reduce:!translate-y-0 ${
+      className={`transition-[opacity,transform] duration-pop ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none motion-reduce:!opacity-100 motion-reduce:!translate-y-0 ${
         revealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`}
       style={{ transitionDelay: revealed ? `${delayMs}ms` : '0ms' }}
@@ -286,7 +286,7 @@ export default function About() {
                 ].map((c) => (
                   <div
                     key={c.title}
-                    className={`animate-card-reveal rounded-[18px] p-5 transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${c.tint}`}
+                    className={`animate-card-reveal rounded-[18px] p-5 transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:animate-none motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${c.tint}`}
                   >
                     <IconDisc tone={c.tone} size={40} className="mb-3">
                       {c.icon}
@@ -322,7 +322,7 @@ export default function About() {
                 {statTiles.map((st) => (
                   <div
                     key={st.label}
-                    className={`flex h-[120px] animate-card-reveal flex-col justify-center rounded-[18px] p-[14px] transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${st.tint}`}
+                    className={`flex h-[120px] animate-card-reveal flex-col justify-center rounded-[18px] p-[14px] transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:animate-none motion-reduce:transition-none motion-reduce:hover:translate-y-0 ${st.tint}`}
                   >
                     <div className={`font-display text-[24px] font-black tracking-[-0.04em] tabular-nums ${st.ink}`}>
                       {st.value}
@@ -386,7 +386,7 @@ export default function About() {
                   the full mechanics (fee, verification, WhatsApp) are the
                   next two panels, this is just "which of these two are you". */}
               <div className="stagger-children mt-4 grid gap-4 sm:grid-cols-2">
-                <div className="animate-card-reveal rounded-[18px] bg-brand-blue-subtle p-4 transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+                <div className="animate-card-reveal rounded-[18px] bg-brand-blue-subtle p-4 transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:animate-none motion-reduce:transition-none motion-reduce:hover:translate-y-0">
                   <IconDisc tone="papers" size={40} className="mb-2.5">
                     <Search />
                   </IconDisc>
@@ -396,7 +396,7 @@ export default function About() {
                     yourself. You never pay us, never in the middle.
                   </p>
                 </div>
-                <div className="animate-card-reveal rounded-[18px] bg-brand-subtle p-4 transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+                <div className="animate-card-reveal rounded-[18px] bg-brand-subtle p-4 transition-transform duration-tap ease-tap hover:-translate-y-1 motion-reduce:animate-none motion-reduce:transition-none motion-reduce:hover:translate-y-0">
                   <IconDisc tone="brand" size={40} className="mb-2.5">
                     <GraduationCap />
                   </IconDisc>
@@ -508,7 +508,7 @@ export default function About() {
                 <p className="text-[14px] font-bold text-foreground">Where we draw the line</p>
                 <p className="mt-1 text-[14px] leading-[1.6] text-warm-secondary">
                   The questions belong to the schools that set them. Free to read, not to download
-                  or repost. Every one names its school, and any school can ask for theirs down.
+                  or repost. Every one names the school that set it.
                 </p>
               </div>
               <div className="mt-4 flex flex-wrap gap-2.5">

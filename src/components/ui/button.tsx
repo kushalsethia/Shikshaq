@@ -96,13 +96,13 @@ export interface ButtonProps
   busy?: boolean;
 }
 
-// Tactile press feedback. 0.97 is the floor — anything smaller feels exaggerated.
+// Tactile press feedback. CRAFT.md §2 fixes press at scale(0.96) sitewide.
 // Disabled buttons already have pointer-events-none, so :active can't fire on them.
 /* motion-reduce:active:scale-100 — button.tsx was the one component still
    animating without a reduced-motion escape. TeacherCard, Index, PastPapers
    and expandable-tabs all carry the guard already, so a reader who asked the
    OS for less motion got a still page with jumping buttons on it. */
-const tapScale = "active:scale-[0.97] motion-reduce:active:scale-100";
+const tapScale = "active:scale-[0.96] motion-reduce:active:scale-100";
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (

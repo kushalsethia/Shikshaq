@@ -326,7 +326,15 @@ export function FilterGroupsBody({
                 onClick={() => toggle('classes', c)}
                 aria-pressed={selected}
                 aria-label={c === 'UG' ? 'UG' : `Class ${c}`}
-                className={`flex h-11 items-center justify-center rounded-[14px] text-[14px] font-extrabold tabular-nums transition-colors duration-tap ${
+                /* M14/D8.4: this grid is a raw <button>, not the Chip
+                   primitive (whose "no active:scale" is a documented,
+                   intentional spec exception elsewhere) — it had neither a
+                   pressed state nor a visible focus ring, so a keyboard
+                   user got no feedback at all and a tap only ever showed
+                   the *toggled* colour, never a distinct "registering the
+                   tap" state. motion-reduce drops the scale, keeping the
+                   colour change. */
+                className={`flex h-11 items-center justify-center rounded-[14px] text-[14px] font-extrabold tabular-nums transition-[background-color,color,transform] duration-tap active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   selected ? 'bg-brand-subtle text-brand-deep' : 'bg-muted text-foreground'
                 }`}
               >

@@ -136,7 +136,7 @@ export default function PastPapers() {
   usePageMeta(
     // 58 chars. Was 74, so ~14 characters were truncated out of the SERP.
     'Free Past Year Question Papers - CBSE, ICSE, ISC | Shikshaq',
-    'Download free past year question papers and previous year solved papers for CBSE, ICSE, ISC and West Bengal State Board exams. Practice PYQs by subject and class.'
+    'Read free past year question papers for CBSE, ICSE, ISC and West Bengal State Board exams. Practice previous year questions (PYQs) by subject, class and school.'
   );
 
   const navigate = useNavigate();
@@ -518,7 +518,7 @@ export default function PastPapers() {
                 fabricated/empty row" logic doesn't apply, it was real, but
                 it's still a distraction stacked right above the headline
                 whose whole job is to be the one thing said at a glance). */}
-            <h1 className="font-display text-[34px] font-normal leading-[.98] tracking-[-0.03em] text-white sm:text-[52px] lg:text-[74px] lg:leading-[.94]">
+            <h1 className="font-display text-[34px] font-normal leading-[.98] tracking-[-0.03em] text-white sm:text-[52px] lg:text-[74px] lg:leading-[.94] text-balance">
               {/* "You have N new papers waiting on your shelf" (pages.md §4.1)
                   when there genuinely are new ones for THIS reader — published
                   since the last paper they opened. Falls back to a wording

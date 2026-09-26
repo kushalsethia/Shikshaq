@@ -77,7 +77,14 @@ export function ExpandableTabs({
         return (
           <li
             key={tab.label}
-            className={`flex items-stretch transition-[flex-grow] duration-300 ease-out ${
+            /* M33: flex-grow is layout-affecting (every frame reflows the
+               whole row, not just this tab), which is unavoidable for a
+               nav where the expanding tab genuinely takes space from its
+               siblings — a transform-only approach can't redistribute that
+               space without a JS-measured rewrite. motion-reduce drops the
+               movement per CRAFT §2 while keeping the (non-animated) width
+               change itself, same as every other motion path in this file. */
+            className={`flex items-stretch transition-[flex-grow] duration-300 ease-out motion-reduce:transition-none ${
               expanded ? 'flex-[1.6]' : 'flex-1'
             } ${isDark ? 'py-2' : ''}`}
           >
@@ -89,7 +96,7 @@ export function ExpandableTabs({
               onMouseLeave={() => setPeekIndex((v) => (v === index ? null : v))}
               onFocus={() => !active && setPeekIndex(index)}
               onBlur={() => setPeekIndex((v) => (v === index ? null : v))}
-              className={`relative flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-full transition-[background-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 ${accentRing} focus-visible:ring-offset-2 active:scale-[0.94] ${
+              className={`relative flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-full transition-[background-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 ${accentRing} focus-visible:ring-offset-2 active:scale-[0.96] ${
                 /* Handoff T-008: active pill grows to 46px with 20px side
                    padding; inactive tabs keep the 44px hit target. */
                 active ? 'h-[46px] px-5' : 'h-11'

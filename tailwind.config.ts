@@ -356,6 +356,12 @@ export default {
         lift: "300ms",
         pop: "400ms",
         entrance: "500ms",
+        /* CRAFT.md §2: "exits are softer and shorter than enters" — every
+           `duration-entrance` (500ms) an element enters with should exit
+           faster than it arrived. 130ms sits under `tap` (150ms), the
+           shortest duration already in use, so an exit never reads as
+           slower than a press. */
+        exit: "130ms",
       },
       transitionTimingFunction: {
         /* Handoff M-001: the same curve as `settle` above, under the name

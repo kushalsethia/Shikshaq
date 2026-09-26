@@ -115,8 +115,13 @@ function FavouritesStack({ favourites }: { favourites: FavouriteTeacher[] }) {
               onClick={() => setFrontIndex(i)}
               aria-label={`Show ${t.name} in favourites preview`}
               aria-current={ordered[0].id === t.id}
-              className={`h-1.5 rounded-full transition-[width,background-color] duration-150 ${
-                ordered[0].id === t.id ? 'w-4 bg-brand' : 'w-1.5 bg-hairline'
+              /* M28: was transition-[width,background-color] -- width is not
+                 composited, so this pill-grow animated on the main thread on
+                 every tap. Fixed w-4 box + scale-x gets the same visual grow
+                 from the compositor instead; origin-left keeps it anchored to
+                 the same edge width used to. */
+              className={`h-1.5 w-4 origin-left rounded-full transition-[transform,background-color] duration-150 motion-reduce:transition-colors ${
+                ordered[0].id === t.id ? 'scale-x-100 bg-brand' : 'scale-x-[0.375] bg-hairline'
               }`}
             />
           ))}

@@ -283,7 +283,7 @@ export function LegalReader({
                 {s.title}
               </h2>
               <p className="m-0 mt-3.5 font-bold text-foreground">{s.short}</p>
-              <div className="mt-3.5">{s.body}</div>
+              <div className="mt-3.5" style={{textWrap:'pretty'}}>{s.body}</div>
 
               {s.bullets && s.bullets.length > 0 && (
                 <div className="mt-3.5 flex flex-col gap-2">
@@ -323,7 +323,7 @@ export function LegalReader({
           <p className="m-0 mt-3 max-w-[62ch] text-[15px] leading-[1.65] text-warm-prose">
             {copyrightSection.short}
           </p>
-          <div className="mt-4 max-w-[62ch] text-[15px] leading-[1.65] text-warm-prose">{copyrightSection.body}</div>
+          <div className="mt-4 max-w-[62ch] text-[15px] leading-[1.65] text-warm-prose" style={{textWrap:'pretty'}}>{copyrightSection.body}</div>
         </BentoPanel>
       )}
 

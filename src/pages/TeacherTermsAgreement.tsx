@@ -9,9 +9,15 @@ import { Logo } from '@/components/Logo';
 import { invalidateUserProfileCache } from '@/utils/cache';
 import { isSafeRedirect as isValidRedirect } from '@/lib/safe-redirect';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 
 export default function TeacherTermsAgreement() {
+  usePageMeta(
+    'Teacher Terms Agreement | Shikshaq',
+    'Review and accept the terms that let your profile go live on Shikshaq.',
+  );
+
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

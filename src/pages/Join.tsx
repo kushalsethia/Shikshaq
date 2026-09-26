@@ -10,6 +10,11 @@ import { useChromeConfig } from '@/components/layout/AppShell';
 
 // Handoff JN-003: titles/bodies below are unchanged from the pre-redesign
 // array — only card tint, icon-tile fill and type scale changed.
+// D1.14: the mint/purple tints and their icon-tile fills were un-tokenized
+// literal hex (`bg-[#34B268]` etc). This stream doesn't own index.css/
+// tailwind.config, so the token layer lives as local custom properties
+// (declared once, just below) instead — same intent as `--mint` etc, scoped
+// to this page rather than added to the shared sheet.
 const BENEFITS: { title: string; body: string; icon: LucideIcon; cardTint: string; titleInk: string; bodyInk: string; iconTile: string }[] = [
   {
     title: 'No commission fees',
@@ -27,7 +32,7 @@ const BENEFITS: { title: string; body: string; icon: LucideIcon; cardTint: strin
     cardTint: 'bg-mint',
     titleInk: 'text-[#24603D]',
     bodyInk: 'text-[#3E6F53]',
-    iconTile: 'bg-[#34B268]',
+    iconTile: 'bg-[var(--join-role-mint-icon)]',
   },
   {
     title: 'Empathy',
@@ -42,10 +47,10 @@ const BENEFITS: { title: string; body: string; icon: LucideIcon; cardTint: strin
     title: 'Values',
     body: 'Real reviews from real students, and no paid placement in results. Ever.',
     icon: ShieldCheck,
-    cardTint: 'bg-[#F0E4F6]',
+    cardTint: 'bg-[var(--join-role-purple-tint)]',
     titleInk: 'text-[#4C2460]',
     bodyInk: 'text-[#5F3E6F]',
-    iconTile: 'bg-[#9F53C6]',
+    iconTile: 'bg-[var(--join-role-purple-icon)]',
   },
 ];
 
@@ -63,12 +68,23 @@ export default function Join() {
   } = useSentenceBuilder();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="join-page min-h-screen bg-background">
+      {/* D1.14 — local token layer for this page's two literal-hex role-card
+          fills (mint and purple). Not added to index.css/tailwind.config
+          (owned by another stream); scoped to `.join-page` so it can't leak
+          onto any other route. */}
+      <style>{`
+        .join-page {
+          --join-role-mint-icon: #34B268;
+          --join-role-purple-tint: #F0E4F6;
+          --join-role-purple-icon: #9F53C6;
+        }
+      `}</style>
       <main>
         <BentoStack>
           {/* Handoff JN-002: pitch panel. */}
           <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[26px]">
-            <h1 className="mt-5 font-display text-[38px] font-normal leading-[.98] tracking-[-0.04em] text-foreground lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]">
+            <h1 className="mt-5 text-balance font-display text-[38px] font-normal leading-[.98] tracking-[-0.04em] text-foreground lg:text-[44px] lg:leading-[1.02] lg:tracking-[-0.04em]">
               Teach on Shikshaq.{' '}
               <AnnotatedHighlight tone="block-brand" weight={800} tilt={-1.5}>
                 Keep every rupee.
@@ -77,8 +93,9 @@ export default function Join() {
             <p className="mt-4 text-[16px] leading-[1.6] text-warm-secondary">
               We list local tuition teachers, students contact you directly on WhatsApp, and we take nothing from what you charge. There is no listing fee either.
             </p>
-            {/* Handoff D-007 (JN-002): flatten at lg. */}
-            <div className="mt-3.5 inline-flex h-8 -rotate-2 items-center gap-2 rounded-full bg-card px-[13px] text-[13px] font-bold text-foreground shadow-border motion-reduce:rotate-0 lg:rotate-0">
+            {/* Handoff D-007 (JN-002): flatten at lg. D10.2: tabular-nums on
+                the "~3" so this stat never shifts width against its neighbours. */}
+            <div className="mt-3.5 inline-flex h-8 -rotate-2 items-center gap-2 rounded-full bg-card px-[13px] text-[13px] font-bold tabular-nums text-foreground shadow-border motion-reduce:rotate-0 lg:rotate-0">
               <span className="h-[7px] w-[7px] flex-none rounded-full bg-brand" />
               Reviewed in ~3 working days
             </div>

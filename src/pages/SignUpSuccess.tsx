@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { BentoPanel } from '@/components/layout/PageContainer';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
 /* C-044 — "Success is an orange slab with a ghosted check, a 'You're in' sticker, and a green
    button that resumes the exact message the user was about to send." The saved-intent handoff
@@ -17,6 +18,11 @@ import { BentoPanel } from '@/components/layout/PageContainer';
    target IS /tuition-teachers/:slug/whatsapp-click — the interstitial that reopens WhatsApp with
    the message already composed. Never drops back to a generic home page when an intent exists. */
 export default function SignUpSuccess() {
+  usePageMeta(
+    'Welcome to Shikshaq | Shikshaq',
+    'Your account is ready. Verify your email to continue.',
+  );
+
   const { user } = useAuth();
   const navigate = useNavigate();
   const [resending, setResending] = useState(false);

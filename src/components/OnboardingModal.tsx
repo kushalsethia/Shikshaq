@@ -87,7 +87,12 @@ export function OnboardingModal() {
           type="button"
           onClick={dismiss}
           aria-label="Skip"
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgba(31,31,31,.14)] text-[#1F1F1F]"
+          /* M3/D1.9: had no hover/focus/pressed state at all, and the fill
+             was a raw rgba() literal rather than a token. brand-foreground
+             is the same #1F1F1F ink used elsewhere on this screen — it's
+             hsl()-wrapped, so the /opacity modifier works on it (unlike the
+             raw-hex `warm` tokens CLAUDE.md warns about). */
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-foreground/15 text-brand-foreground transition-[background-color,transform] duration-tap hover:bg-brand-foreground/20 active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-brand"
         >
           <X className="h-4 w-4" strokeWidth={2.25} aria-hidden />
         </button>
@@ -177,22 +182,24 @@ export function OnboardingModal() {
 
       <div className="px-5 pb-8">
         {c?.teachers != null && c.teachers > 0 && (
-          <p className="mb-4 text-center text-[15px] leading-[1.5] text-[rgba(31,31,31,.7)]">
+          <p className="mb-4 text-center text-[15px] leading-[1.5] text-brand-foreground/70">
             {c.teachers} verified tutors in Kolkata. Free to search, free to contact.
           </p>
         )}
         <button
           type="button"
           onClick={dismiss}
-          className="flex h-[58px] w-full items-center justify-center gap-2 rounded-full bg-card text-[16px] font-extrabold text-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97]"
+          className="flex h-[58px] w-full items-center justify-center gap-2 rounded-full bg-card text-[16px] font-extrabold text-foreground transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.96] motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-brand"
         >
           Get started
           <ArrowRight className="h-[18px] w-[18px]" aria-hidden />
         </button>
+        {/* M4/D1.9: this had no press/hover/focus feedback at all — a
+            skippable dismiss control that gave no sign it was interactive. */}
         <button
           type="button"
           onClick={dismiss}
-          className="mt-2 flex h-11 w-full items-center justify-center text-[14px] font-semibold text-[rgba(31,31,31,.6)]"
+          className="mt-2 flex h-11 w-full items-center justify-center rounded-full text-[14px] font-semibold text-brand-foreground/60 transition-[color,transform] duration-tap hover:text-brand-foreground active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-brand"
         >
           Skip for now
         </button>

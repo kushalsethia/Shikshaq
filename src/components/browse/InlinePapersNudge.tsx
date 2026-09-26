@@ -161,8 +161,13 @@ export function InlinePapersNudge({
       className={cn(
         /* papersTint, not the solid indigo: this sits among teacher cards and
            has to read as a peer offering something else, not as an advert
-           shouting over the results. */
-        'group flex items-center gap-3 rounded-[18px] bg-brand-blue-subtle p-4 transition-transform duration-tap hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0',
+           shouting over the results.
+           D12.1: the lift on hover had nothing making it read as "raised" —
+           every other lift-on-hover card in this file's neighbourhood
+           (TeacherCard's grid variant) pairs the translate with a shadow that
+           deepens, so this gets the same shadow-border/shadow-border-hover
+           pairing rather than a translate alone. */
+        'group flex items-center gap-3 rounded-[18px] bg-brand-blue-subtle p-4 shadow-border transition-transform duration-tap hover:-translate-y-0.5 hover:shadow-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0',
         /* justify-start, not -center: with the subject breakdown below,
            content height varies row to row, and a tall grid cell (matched to
            its taller photo-card neighbours) centering a variable-height block

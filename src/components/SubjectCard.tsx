@@ -180,7 +180,7 @@ function SubjectCardComponent({
         {iconComponent ?? <Icon className="h-4 w-4" strokeWidth={2} aria-hidden="true" />}
       </span>
       <h3
-        className="truncate font-display text-[19px] font-extrabold tracking-[-0.03em]"
+        className="truncate font-display text-[19px] font-extrabold tracking-[-0.03em] text-balance"
         style={{ color: palette.text }}
         title={name}
       >

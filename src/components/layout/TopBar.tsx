@@ -165,7 +165,19 @@ export function TopBar({ className }: { className?: string }) {
                 </button>
                 {menuPresence.mounted && (
                   <>
-                    <div onClick={() => setMenuOpen(false)} className="fixed inset-0 z-50" />
+                    <button
+                      type="button"
+                      onClick={() => setMenuOpen(false)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setMenuOpen(false);
+                        }
+                      }}
+                      aria-label="Close menu"
+                      className="fixed inset-0 z-50"
+                      style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'auto' }}
+                    />
                     <div
                       className={cn(
                         "absolute right-0 top-full z-[51] mt-2 grid min-w-[220px] gap-1 rounded-2xl bg-card p-2 text-foreground shadow-border-hover",

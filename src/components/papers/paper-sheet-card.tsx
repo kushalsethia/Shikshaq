@@ -132,7 +132,7 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
           </span>
           {comingSoon ? (
             <span
-              className="ml-auto inline-flex min-h-6 items-center rounded-full bg-[#1c1a18] px-3 py-1 text-label font-bold uppercase text-white"
+              className="ml-auto inline-flex min-h-6 items-center rounded-full bg-panel px-3 py-1 text-label font-bold uppercase text-white"
             >
               Coming soon
             </span>
