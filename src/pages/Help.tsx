@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { FeedbackModal } from '@/components/FeedbackModal';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { FAQSchema, type FAQItem } from '@/components/FAQSchema';
@@ -51,10 +51,6 @@ export default function Help() {
 
   const topics = useHelpTopics();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
 
   return (
     <>

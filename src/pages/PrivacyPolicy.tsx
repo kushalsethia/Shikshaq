@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { LegalReader, type LegalSection } from '@/pages/legal/reader';
 import { usePageMeta } from '@/hooks/usePageMeta';
 
@@ -583,10 +582,6 @@ export default function PrivacyPolicy() {
     'Privacy Policy | Shikshaq',
     'How Shikshaq collects, uses, and protects your personal data when you search for or list as a tuition teacher in Kolkata.'
   );
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
 
   return (
     <LegalReader

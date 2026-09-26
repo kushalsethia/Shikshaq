@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { FAQ_ITEMS } from '@/components/FAQ';
 import { FAQSchema } from '@/components/FAQSchema';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -33,10 +32,6 @@ export default function FAQPage() {
   );
 
   const topics = useHelpTopics();
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
 
   return (
     <>
