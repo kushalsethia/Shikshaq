@@ -57,10 +57,14 @@ export function useSiteCounts() {
 
       const [teachers, papers, schools] = await Promise.all([
         supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
+        /* needs_review papers are listed but show "Coming soon", not actually
+           free to read -- every caller of this hook pairs the count with a
+           "free to read"-style claim, so a gated paper must not inflate it. */
         supabase
           .from('bank_papers')
           .select('id', { count: 'exact', head: true })
-          .eq('is_published', true),
+          .eq('is_published', true)
+          .eq('needs_review', false),
         fetchBankSchoolValues(),
       ]);
 

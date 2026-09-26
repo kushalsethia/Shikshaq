@@ -8,6 +8,7 @@ import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
+import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { useAuth } from '@/lib/auth-context';
@@ -291,28 +292,33 @@ export default function PastPapers() {
     staleTime: Infinity,
     gcTime: Infinity,
     queryFn: async (): Promise<Paper[]> =>
-      /* Kept TRUTHFUL — board is the board, subject is the subject, year is a
-         year — because these rows feed the board/subject/school facets and the
-         results filter, not just the shelf. The cover's own display mapping is
-         built at the call site (coverPaper below), so presentation never
-         corrupts the data it is drawn from. */
-      (await loadPaperIndex()).map((b) => ({
-        id: b.id,
-        // Was hardcoded Mathematics/Maths -- the bank is multi-subject now.
-        title: `Class ${b.cls} ${b.subject}`,
-        school: b.school,
-        subject: b.subject,
-        class: b.cls,
-        board: b.board,
-        exam_type: b.exam,
-        year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
-        file_url: null,
-        created_at: '',
-        _bankYear: b.year,
-        _questions: b.questionCount,
-        _isBoard: b.isBoardPaper,
-        _needsReview: b.needsReview,
-      })),
+      /* board is the board, year is a year -- subject is mapped to the SITE
+         vocabulary ("Maths"), not the raw bank spelling ("Mathematics"): it
+         feeds coverMeta()'s displayed meta line directly (not just the
+         title), and every other subject-facing surface on the site already
+         reads "Maths" -- see subject-vocabulary.ts for the full history of
+         this exact bug. The cover's own display mapping is built at the call
+         site (coverPaper below), so presentation never corrupts the data
+         it is drawn from. */
+      (await loadPaperIndex()).map((b) => {
+        const subject = bankSubjectToSite(b.subject);
+        return {
+          id: b.id,
+          title: `Class ${b.cls} ${subject}`,
+          school: b.school,
+          subject,
+          class: b.cls,
+          board: b.board,
+          exam_type: b.exam,
+          year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+          file_url: null,
+          created_at: '',
+          _bankYear: b.year,
+          _questions: b.questionCount,
+          _isBoard: b.isBoardPaper,
+          _needsReview: b.needsReview,
+        };
+      }),
   });
   /* Memoised on the query data, not written as `?? []` inline: a fresh []
      every render is a new identity, which invalidated all three useMemos
@@ -418,7 +424,14 @@ export default function PastPapers() {
   const shelfPapers = useMemo(() => recentPapers.slice(0, SHELF_LIMIT), [recentPapers]);
   const subjectCounts = useMemo(() => {
     const out: Record<string, number> = { ...(landing.data?.subjectCounts ?? {}) };
-    bankPapers.forEach((p) => { out[p.subject] = (out[p.subject] ?? 0) + 1; });
+    // p.subject is the raw bank spelling ("Mathematics"); SUBJECTS/
+    // featuredSubjects below key on the SITE spelling ("Maths"). Every other
+    // bank subject happens to spell identically in both vocabularies, so
+    // this was the one row invisible in "By subject" despite having papers.
+    bankPapers.forEach((p) => {
+      const site = bankSubjectToSite(p.subject) || p.subject;
+      out[site] = (out[site] ?? 0) + 1;
+    });
     return out;
   }, [landing.data, bankPapers]);
   const boardCounts = useMemo(() => {
@@ -427,6 +440,15 @@ export default function PastPapers() {
     return out;
   }, [landing.data, bankPapers]);
   const totalPapers = (landing.data?.totalPapers ?? 0) + bankPapers.length || null;
+  /* totalPapers counts every LISTED paper, including ones gated behind
+     needs_review ("coming soon" -- searchable, not yet readable). Copy that
+     pairs a count with an actual "free to read" promise needs this smaller
+     number instead, or it overstates by exactly the gated batch (914 English
+     + 427 new-class Maths as of the 2026-09-25 imports). The `papers` table
+     has no needs_review concept, so only the bank side needs filtering. */
+  const totalFreePapers =
+    (landing.data?.totalPapers ?? 0) +
+      bankPapers.filter((p) => !(p as { _needsReview?: boolean })._needsReview).length || null;
   /* Same idea as home's adaptive hero (resolveHeroCopy) and the footer's
      sign-off pool: the signed-in "N new papers waiting" branch below
      already varies per reader, but a first-time/signed-out visitor always
@@ -462,7 +484,18 @@ export default function PastPapers() {
   };
 
   const featuredSubjects = SUBJECTS.filter((s) => subjectCounts[s]).slice(0, 8);
-  const featuredBoards = BOARDS.filter((b) => boardCounts[b]);
+  /* BOARDS is the known, curated list (also used by the public submit-a-paper
+     form and admin dropdowns, so it can't just gain a literal "Board" entry
+     there). bank_papers legitimately has board values outside it -- 297 rows
+     store the literal string "Board" (boardOf() in scripts/bank-source.ts,
+     for papers it could not attribute to a specific board) -- and those were
+     silently invisible in this facet despite outnumbering CBSE. Anything in
+     boardCounts that isn't one of the known boards is appended, so a real,
+     non-zero board value is never dropped just because it wasn't anticipated. */
+  const featuredBoards = [
+    ...BOARDS.filter((b) => boardCounts[b]),
+    ...Object.keys(boardCounts).filter((b) => boardCounts[b] > 0 && !BOARDS.includes(b)).sort(),
+  ];
   const subjectsCovered = Object.keys(subjectCounts).length;
   const isEmptyCatalogue = !loading && !loadError && totalPapers === 0;
 
@@ -476,7 +509,7 @@ export default function PastPapers() {
       generateCollectionPageSchema({
         url: 'https://www.shikshaq.in/past-papers',
         name: 'Free past year question papers',
-        description: `${totalPapers.toLocaleString('en-IN')} free past year question papers for CBSE, ICSE, ISC and West Bengal State Board exams.`,
+        description: `${(totalFreePapers ?? 0).toLocaleString('en-IN')} free past year question papers for CBSE, ICSE, ISC and West Bengal State Board exams.`,
         about: 'Past year question papers',
         numberOfItems: totalPapers,
       }),
@@ -485,7 +518,7 @@ export default function PastPapers() {
       const existing = document.getElementById('page-schemas');
       if (existing) existing.remove();
     };
-  }, [loading, totalPapers]);
+  }, [loading, totalPapers, totalFreePapers]);
 
   const requestPaperUrl = `${getWhatsAppLink('8240980312')}?text=${encodeURIComponent(
     "Hi! I'm looking for a past paper on Shikshaq, could you add it?"
@@ -542,8 +575,8 @@ export default function PastPapers() {
                   You have {newPaperCount.toLocaleString('en-IN')} new paper
                   {newPaperCount === 1 ? '' : 's'},<br /><span className="font-black">waiting on your shelf</span>
                 </>
-              ) : !loading && !loadError && totalPapers != null && totalPapers > 0 ? (
-                genericHeadline(totalPapers.toLocaleString('en-IN'))
+              ) : !loading && !loadError && totalFreePapers != null && totalFreePapers > 0 ? (
+                genericHeadline(totalFreePapers.toLocaleString('en-IN'))
               ) : (
                 <>Past papers from{' '}<br /><span className="font-black">Kolkata schools</span></>
               )}

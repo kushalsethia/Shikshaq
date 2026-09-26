@@ -16,21 +16,14 @@ import { GateSheet } from '@/components/auth/gate-sheet';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
+import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
-/* The bank and the site name the same subject differently: bank_papers
-   says "Mathematics", every facet, route and filter on the site says
-   "Maths". Without this alias the maths papers — the entire original bank —
-   would link to ?filter_subjects=Mathematics, a filter no teacher matches. */
-const BANK_SUBJECT_ALIASES: Record<string, string> = {
-  mathematics: 'Maths',
-};
 
 /** The teachers route for a bank paper's subject, or the filtered browse
  *  when that subject has no page of its own. Never an invented slug. */
 function subjectTeacherPath(subject: string): string {
-  const key = subject.trim().toLowerCase();
-  const siteName = BANK_SUBJECT_ALIASES[key] ?? subject.trim();
+  const siteName = bankSubjectToSite(subject);
   const hit = Object.entries(SUBJECT_PATH_TO_FILTER).find(
     ([, name]) => name.toLowerCase() === siteName.toLowerCase(),
   );
@@ -168,6 +161,12 @@ export default function BankPaper() {
   const [gateOpen, setGateOpen] = useState(false);
   const { user } = useAuth();
 
+  /* bank_papers.subject stores the raw bank spelling ("Mathematics"); every
+     other site-facing surface (title, header, CTA, meta) uses the site's own
+     vocabulary ("Maths") -- see src/lib/subject-vocabulary.ts. Every display
+     site below reads this, never paper.subject directly. */
+  const displaySubject = paper ? bankSubjectToSite(paper.subject) : '';
+
   /* This paper's own row and this paper's own questions, and nothing else.
      It used to fetch the entire bank — 6,912 questions — to read one of them. */
   useEffect(() => {
@@ -222,7 +221,7 @@ export default function BankPaper() {
       .limit(50)
       .then(({ data }) => {
         if (cancelled || !data) return;
-        setSiblings(data.map((r) => ({ id: r.id, title: `${r.school} Class ${r.cls} ${r.subject}`, year: hasYear(r.year) ? r.year : null })));
+        setSiblings(data.map((r) => ({ id: r.id, title: `${r.school} Class ${r.cls} ${bankSubjectToSite(r.subject)}`, year: hasYear(r.year) ? r.year : null })));
       });
     return () => { cancelled = true; };
   }, [paper]);
@@ -315,12 +314,12 @@ export default function BankPaper() {
 
   usePageMeta(
     paper
-      ? `${paper.school} Class ${paper.cls} ${paper.subject} ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
+      ? `${paper.school} Class ${paper.cls} ${displaySubject} ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
       : 'Past paper | Shikshaq',
     paper
       ? paper.needsReview
-        ? `${paper.school} Class ${paper.cls} ${paper.subject} ${paper.exam}. This paper is being audited and is not open to read yet.`
-        : `${paper.questionCount} questions from the ${paper.school} Class ${paper.cls} ${paper.subject} ${paper.exam}, with marks, chapters and figures. First ${FREE_PREVIEW_WORD} free, the rest with a free account.`
+        ? `${paper.school} Class ${paper.cls} ${displaySubject} ${paper.exam}. This paper is being audited and is not open to read yet.`
+        : `${paper.questionCount} questions from the ${paper.school} Class ${paper.cls} ${displaySubject} ${paper.exam}, with marks, chapters and figures. First ${FREE_PREVIEW_WORD} free, the rest with a free account.`
       : 'Read a free past year question paper on Shikshaq.',
   );
 
@@ -546,9 +545,9 @@ export default function BankPaper() {
           <div className="min-w-0 flex-1">
             <h1
               className="truncate text-[14px] font-bold text-white"
-              title={paper ? `${paper.school} · Class ${paper.cls} ${paper.subject}` : undefined}
+              title={paper ? `${paper.school} · Class ${paper.cls} ${displaySubject}` : undefined}
             >
-              {paper ? `${paper.school} · Class ${paper.cls} ${paper.subject}` : 'Past paper'}
+              {paper ? `${paper.school} · Class ${paper.cls} ${displaySubject}` : 'Past paper'}
             </h1>
             {facts.length > 0 && (
               <p className="truncate text-[12px] tabular-nums text-white/60" title={facts.join(' · ')}>
@@ -670,7 +669,7 @@ export default function BankPaper() {
                 {/* Middle dot, not an em dash -- CLAUDE.md bans em/en dashes in
                    site copy; · is this codebase's own standing separator
                    convention (used throughout the badge line right below). */}
-                Class {paper.cls} {paper.subject} {paper.exam ? `· ${paper.exam}` : ''}
+                Class {paper.cls} {displaySubject} {paper.exam ? `· ${paper.exam}` : ''}
               </h2>
               {hasYear(paper.year) && (
                 <p className="mt-0.5 text-[13px] tabular-nums text-muted-foreground">{paper.year}</p>
@@ -752,7 +751,7 @@ export default function BankPaper() {
               to={subjectTeacherPath(paper.subject)}
               className="mt-3 inline-flex h-[46px] items-center rounded-full bg-panel px-5 text-[14px] font-bold text-card transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              Find a {paper.subject} teacher
+              Find a {displaySubject} teacher
             </Link>
           </div>
         )}
@@ -768,8 +767,8 @@ export default function BankPaper() {
         onOpenChange={setGateOpen}
         flavor="papers"
         redirectTo={`/past-papers/${id ?? ''}`}
-        paperTitle={paper ? `${paper.school} Class ${paper.cls} ${paper.subject}` : null}
-        paperSubject={paper?.subject ?? "Mathematics"}
+        paperTitle={paper ? `${paper.school} Class ${paper.cls} ${displaySubject}` : null}
+        paperSubject={displaySubject || "Maths"}
       />
 
       <Footer seamFill="panel" />

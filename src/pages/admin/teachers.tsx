@@ -62,6 +62,23 @@ const MODE_OF_TEACHING = ['Online', 'Offline'];
 const CLASS_SIZE = ['Group', 'Solo'];
 const SIR_MAAM = ['Sir', "Ma'am"];
 
+/* Exactly the column subset migration 20260918100000 grants `authenticated`
+   on Shikshaqmine -- everything except the contact columns (Email ID, Phone
+   Number, Link), which come from admin_teacher_contacts() instead. Not
+   select('*'): that 401s the WHOLE request here (verified directly against
+   the REST endpoint -- table-level SELECT was revoked outright, then
+   re-granted per-column, which is the one shape where PostgREST does not
+   silently narrow a wildcard select), which is exactly the "Failed to load
+   teachers" bug this replaced. Cast to `any` on use, matching Browse.tsx's
+   own SHIKSHAQ_COLUMNS pattern: supabase-js's compile-time select-string
+   parser does not resolve a column list this long into a usable row type. */
+const SHIKSHAQMINE_ADMIN_COLUMNS =
+  '"Area","Class Size (Group/ Solo)","Classes Taught","Classes Taught for Backend","Description",' +
+  '"EXPANDED","Featured","Featured Subject","Hero Image","LOCATION V2","MOU","Max Fees","Min Fees",' +
+  '"Mode of Teaching","Place of Teaching","Qualifications etc","Review 1","Review 2","Review 3",' +
+  '"STUDENT\'S HOME IN THESE AREAS","School Boards Catered","Sir/Ma\'am?","Slug","Subjects",' +
+  '"TUTOR\'S HOME IN THESE AREAS","Title","Video","Video Link","Years they started teaching",id,is_paused';
+
 interface TeacherData {
   id: number;
   Slug: string | null;
@@ -152,15 +169,20 @@ export default function AdminTeachersPage() {
   async function fetchTeachers() {
     try {
       setLoading(true);
-      /* The contact columns come separately, because migration
-         20260917120000 revokes them from `authenticated` and PostgREST
-         expands select('*') to what a role MAY read rather than erroring --
-         so without this the admin table would quietly show blank phone and
-         WhatsApp fields with no error anywhere. fetchAdminContacts uses
-         admin_teacher_contacts() once that migration has run and falls back
-         to the direct select until then. */
+      /* The contact columns come separately: migration 20260918100000
+         revoked table-level SELECT on Shikshaqmine from `authenticated`
+         outright and re-granted it on a named column subset only (contact
+         columns excluded on purpose). That is the opposite shape from "full
+         grant, specific columns revoked" -- here select('*') does not
+         silently narrow, it 401s the WHOLE request (verified directly
+         against the REST endpoint: 42501 permission denied), which is
+         exactly the "Failed to load teachers" bug this replaced. Naming
+         only the granted columns is the fix, not a defensive extra --
+         fetchAdminContacts's admin_teacher_contacts() RPC is still what
+         supplies Phone Number/Link/Email ID. */
       const [rowsResult, contacts] = await Promise.all([
-        supabase.from('Shikshaqmine').select('*').order('Title', { ascending: true }),
+        (supabase.from('Shikshaqmine').select(SHIKSHAQMINE_ADMIN_COLUMNS) as any)
+          .order('Title', { ascending: true }),
         fetchAdminContacts().catch(() => new Map()),
       ]);
       const { data, error } = rowsResult;
@@ -452,13 +474,15 @@ export default function AdminTeachersPage() {
       invalidateCachesFor(selectedTeacher);
 
       /* Contact columns merged back in the same way fetchTeachers() does
-         above: migration 20260917120000 revokes Email ID/Phone Number/Link
-         from `authenticated`, and select('*') silently drops what it can't
-         read rather than erroring, so without this an admin who reopens and
-         re-saves this same teacher (picking up the corrupted row from
-         filteredTeachers) would write null over their real contact info. */
+         above. Same select('*') 401 this file's other query had (see there
+         for the verified root cause) -- this one degraded silently instead
+         of erroring visibly, because the `else` branch below falls back to
+         a full fetchTeachers() re-fetch on any fetchError, so the editor
+         still closed and the list still refreshed; it was just doing a full
+         re-fetch every single save instead of updating the one row. */
       const [{ data: updatedTeacher, error: fetchError }, contacts] = await Promise.all([
-        supabase.from('Shikshaqmine').select('*').eq('id', selectedTeacher.id).single(),
+        (supabase.from('Shikshaqmine').select(SHIKSHAQMINE_ADMIN_COLUMNS) as any)
+          .eq('id', selectedTeacher.id).single(),
         fetchAdminContacts().catch(() => new Map()),
       ]);
 

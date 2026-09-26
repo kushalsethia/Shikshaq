@@ -229,9 +229,28 @@ export default function TeacherDashboard() {
          id the second one filters on comes from the first. */
       const contact = await fetchOwnContact(authProfileQuery.data!.email!);
       if (!contact?.id) return null;
-      const { data, error } = await supabase
+      /* Not select('*'): migration 20260918100000 revoked table-level SELECT
+         on Shikshaqmine from `authenticated` outright and re-granted it on
+         a named column subset only (contact columns excluded on purpose,
+         supplied by fetchOwnContact above instead). That is the opposite
+         shape from "full grant, columns individually revoked" -- here
+         select('*') does not silently drop what it can't read, it 401s the
+         WHOLE request (verified directly against the REST endpoint: 42501
+         permission denied), which `if (error) throw error` below then threw
+         for every teacher opening their own dashboard. */
+      /* Cast to `any`: this column list is too long for supabase-js's
+         compile-time select-string parser to resolve into a usable row type
+         (same as Browse.tsx's own SHIKSHAQ_COLUMNS pattern). */
+      const { data, error } = await (supabase
         .from('Shikshaqmine')
-        .select('*')
+        .select(
+          '"Area","Class Size (Group/ Solo)","Classes Taught","Classes Taught for Backend",' +
+          '"Description","EXPANDED","Featured","Featured Subject","Hero Image","LOCATION V2",' +
+          '"MOU","Max Fees","Min Fees","Mode of Teaching","Place of Teaching","Qualifications etc",' +
+          '"Review 1","Review 2","Review 3","STUDENT\'S HOME IN THESE AREAS","School Boards Catered",' +
+          '"Sir/Ma\'am?","Slug","Subjects","TUTOR\'S HOME IN THESE AREAS","Title","Video","Video Link",' +
+          '"Years they started teaching",id,is_paused'
+        ) as any)
         .eq('id', contact.id)
         .maybeSingle();
       if (error) throw error;

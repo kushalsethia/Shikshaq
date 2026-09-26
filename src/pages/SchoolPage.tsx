@@ -8,6 +8,8 @@ import { recordSignal } from '@/lib/intent/signals';
 import { schoolSlug } from '@/lib/school-slug';
 import { loadPaperIndex, schoolBySlug, hasYear } from '@/lib/question-bank';
 import { sanitizeForIlike } from '@/lib/ilike-sanitize';
+import { bankSubjectToSite } from '@/lib/subject-vocabulary';
+import { numberToRoman, romanToNumber } from '@/utils/romanNumerals';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useChromeConfig } from '@/components/layout/AppShell';
@@ -128,21 +130,28 @@ export default function SchoolPage() {
   const bankSchool = bankQuery.data ?? null;
 
   const papers = useMemo<SchoolPaper[]>(() => {
-    const fromBank = (bankSchool?.papers ?? []).map((b): SchoolPaper => ({
-      id: b.id,
-      title: `Class ${b.cls} ${b.subject}`,
-      subject: b.subject,
-      class: b.cls,
-      board: b.board,
-      year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : null,
-      /* Says what this row actually knows. The school is the page, and the
-         subject is in the title, so neither is repeated here. */
-      meta: [
-        b.board,
-        hasYear(b.year) ? b.year : 'Year not recorded',
-        `${b.questionCount} question${b.questionCount === 1 ? '' : 's'}`,
-      ].join(' · '),
-    }));
+    const fromBank = (bankSchool?.papers ?? []).map((b): SchoolPaper => {
+      // b.subject is the raw bank spelling ("Mathematics"); every subject-
+      // facing surface on the site (title, chips, cross-sell filter links)
+      // uses the site's own vocabulary ("Maths") -- see PastPapers.tsx's
+      // subjectCounts fix for the same underlying mismatch.
+      const subject = bankSubjectToSite(b.subject) || b.subject;
+      return {
+        id: b.id,
+        title: `Class ${b.cls} ${subject}`,
+        subject,
+        class: b.cls,
+        board: b.board,
+        year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : null,
+        /* Says what this row actually knows. The school is the page, and the
+           subject is in the title, so neither is repeated here. */
+        meta: [
+          b.board,
+          hasYear(b.year) ? b.year : 'Year not recorded',
+          `${b.questionCount} question${b.questionCount === 1 ? '' : 's'}`,
+        ].join(' · '),
+      };
+    });
 
     return [...(query.data?.papers ?? []), ...fromBank].sort((a, b) => {
       // Undated papers go last rather than sorting as year zero.
@@ -157,8 +166,19 @@ export default function SchoolPage() {
   // drive the year chips below, and boards+subjects drive the teacher
   // cross-sell query further down.
   const boards = useMemo(() => [...new Set(papers.map((p) => p.board).filter(Boolean))], [papers]);
+  /* p.class is Arabic-numeral native for `papers`-table rows but a Roman
+     numeral ("IX", "X"...) for bank rows (see the `fromBank` mapping above,
+     which keeps b.cls as-is) -- Number() alone silently dropped every bank
+     class, so a bank-only school (most of the top schools by paper count,
+     e.g. La Martiniere for Boys) never showed a class range at all. Kept
+     numeric here for sorting/range math; displayed back via numberToRoman
+     below, consistent with the Roman numerals this same page already shows
+     on each bank paper's own card. */
   const classes = useMemo(
-    () => [...new Set(papers.map((p) => Number(p.class)).filter((n) => !Number.isNaN(n)))].sort((a, b) => a - b),
+    () => [...new Set(papers.map((p) => {
+      const n = Number(p.class);
+      return Number.isNaN(n) ? romanToNumber(p.class) : n;
+    }).filter((n) => !Number.isNaN(n)))].sort((a, b) => a - b),
     [papers],
   );
   const years = useMemo(
@@ -185,8 +205,8 @@ export default function SchoolPage() {
     if (classes.length) {
       parts.push(
         classes.length === 1
-          ? `Class ${classes[0]}`
-          : `Classes ${classes[0]} to ${classes[classes.length - 1]}`,
+          ? `Class ${numberToRoman(classes[0])}`
+          : `Classes ${numberToRoman(classes[0])} to ${numberToRoman(classes[classes.length - 1])}`,
       );
     }
     if (years.length) {
@@ -340,8 +360,8 @@ export default function SchoolPage() {
     if (classes.length) {
       clauses.push(
         classes.length === 1
-          ? `class ${classes[0]}`
-          : `classes ${classes[0]} to ${classes[classes.length - 1]}`,
+          ? `class ${numberToRoman(classes[0])}`
+          : `classes ${numberToRoman(classes[0])} to ${numberToRoman(classes[classes.length - 1])}`,
       );
     }
     if (years.length) {

@@ -79,7 +79,12 @@ export default function About() {
            papers from 5 schools while the footer, the papers library and the
            blog all counted 619 from 155 out of bank_papers. Same site, same
            moment, two numbers off by a factor of thirty. */
-        supabase.from('bank_papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+        /* needs_review papers (English's 914, plus the new non-Class-X Maths
+           batch) are listed but show "Coming soon" -- not actually free to
+           read -- so they must not inflate the count this tile pairs with
+           "free to read". */
+        supabase.from('bank_papers').select('id', { count: 'exact', head: true })
+          .eq('is_published', true).eq('needs_review', false),
         fetchBankSchoolValues().catch((err: unknown) => {
           logger.error('About.fetchStats.schools', err as Error);
           return null;
@@ -273,7 +278,7 @@ export default function About() {
                     icon: <BookOpen />,
                     tint: 'bg-brand-blue-subtle',
                     title: 'We host the papers, free to read',
-                    body: `Real question papers from Kolkata schools, kept as they were set. The first ${FREE_PREVIEW_WORD} questions of any paper need no account at all.`,
+                    body: `Real question papers from Kolkata schools, kept as they were set. The first ${FREE_PREVIEW_WORD} questions of any open paper need no account at all.`,
                   },
                   {
                     tone: 'muted' as const,
@@ -454,7 +459,7 @@ export default function About() {
                   { head: 'The fee is the fee', body: 'No commission, so nobody here is steering you towards a pricier tutor.' },
                   { head: 'You message them, not us', body: 'Every profile ends in a WhatsApp thread. No call centre, no lead form.' },
                   { head: 'Verified means a person checked', body: 'No badge where we have not checked. We show less rather than imply more.' },
-                  { head: 'Free stays free', body: 'Past papers are free to read, always. There is no upgrade to bait you into.' },
+                  { head: 'Free stays free', body: 'Open past papers are free to read, always. There is no upgrade to bait you into.' },
                 ].map((pt) => (
                   <li
                     key={pt.head}

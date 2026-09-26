@@ -22,6 +22,22 @@ export function numberToRoman(num: number): string {
   return romanMap[num] || num.toString();
 }
 
+const ROMAN_TO_NUMBER: Record<string, number> = {
+  i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10, xi: 11, xii: 12,
+};
+
+/**
+ * The reverse of numberToRoman: bank_papers.cls stores class as a Roman
+ * numeral ("IX", "X", ...) for numeric classes, so any facet that needs to
+ * sort or range-display bank classes numerically (SchoolPage's "Classes IX
+ * to XII" summary line) needs this to get a number back out. Returns NaN for
+ * anything outside I-XII (including non-numeric values like "UG"), same
+ * failure signal Number() gives its callers.
+ */
+export function romanToNumber(roman: string): number {
+  return ROMAN_TO_NUMBER[roman.trim().toLowerCase()] ?? NaN;
+}
+
 /**
  * Whether an Arabic-numeral class filter value (e.g. "10", "UG", from the
  * filter_classes chips in FilterGroups.tsx) matches a bank_papers.cls value.
