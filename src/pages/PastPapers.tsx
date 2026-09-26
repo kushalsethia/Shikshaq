@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck } from 'lucide-react';
+import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Sparkles } from 'lucide-react';
 import { SearchControl } from '@/components/SearchControl';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 import { EmptyResults } from '@/components/EmptyResults';
@@ -1028,6 +1028,31 @@ export default function PastPapers() {
                     </button>
                   );
                 })}
+                {/* Not another subject tile -- a dashed, muted "there's more
+                    coming" note, same row height as the rest of the grid so
+                    it doesn't read as a broken slot, but the dashed border
+                    marks it as a signpost rather than a real subject (same
+                    convention the shelf's own "see all papers" door tile
+                    uses further up this page). Spans every column from sm:
+                    up rather than stacking like a subject tile: as the 5th
+                    item in a 4-wide grid it would otherwise wrap alone onto
+                    a second row with three empty column-tracks beside it.
+                    No count, no click: it isn't standing in for a real
+                    subject with real papers, so nothing here should look
+                    actionable. */}
+                <div className="col-span-1 flex min-h-11 animate-card-reveal items-center gap-4 rounded-[18px] border-2 border-dashed border-warm-band bg-muted/40 p-[14px] sm:col-span-2 sm:rounded-2xl sm:p-6 lg:col-span-4">
+                  <span className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] bg-muted sm:h-10 sm:w-10 sm:rounded-lg">
+                    <Sparkles size={21} strokeWidth={1.9} aria-hidden="true" className="text-muted-foreground" />
+                  </span>
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                    <span className="block break-words text-[19px] font-extrabold tracking-[-0.03em] text-foreground sm:text-card-title-lg sm:font-bold sm:tracking-normal">
+                      More coming soon
+                    </span>
+                    <span className="flex-none rounded-full bg-muted px-3 py-1 text-label font-bold uppercase tabular-nums text-muted-foreground">
+                      Stay tuned
+                    </span>
+                  </span>
+                </div>
               </div>
             ) : (
               <div className="stagger-children grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
