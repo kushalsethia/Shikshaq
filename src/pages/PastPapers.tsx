@@ -8,6 +8,7 @@ import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
+import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { useAuth } from '@/lib/auth-context';
@@ -418,7 +419,14 @@ export default function PastPapers() {
   const shelfPapers = useMemo(() => recentPapers.slice(0, SHELF_LIMIT), [recentPapers]);
   const subjectCounts = useMemo(() => {
     const out: Record<string, number> = { ...(landing.data?.subjectCounts ?? {}) };
-    bankPapers.forEach((p) => { out[p.subject] = (out[p.subject] ?? 0) + 1; });
+    // p.subject is the raw bank spelling ("Mathematics"); SUBJECTS/
+    // featuredSubjects below key on the SITE spelling ("Maths"). Every other
+    // bank subject happens to spell identically in both vocabularies, so
+    // this was the one row invisible in "By subject" despite having papers.
+    bankPapers.forEach((p) => {
+      const site = bankSubjectToSite(p.subject) || p.subject;
+      out[site] = (out[site] ?? 0) + 1;
+    });
     return out;
   }, [landing.data, bankPapers]);
   const boardCounts = useMemo(() => {
