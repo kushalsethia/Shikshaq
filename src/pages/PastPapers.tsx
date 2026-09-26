@@ -13,9 +13,7 @@ import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
 import { useAuth } from '@/lib/auth-context';
-import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';
-import { MoreComingSoonTip } from '@/components/papers/more-coming-soon-tip';
-import { IconDisc } from '@/components/ui/icon-disc';
+import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';import { IconDisc } from '@/components/ui/icon-disc';
 import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { schoolSlug } from '@/lib/school-slug';
 import { generateCollectionPageSchema } from '@/utils/structuredDataGenerators';
@@ -405,16 +403,13 @@ export default function PastPapers() {
      sentence around the one real totalPapers count already fetched — gets
      the same "the page feels alive" effect without inventing any data. */
   const genericHeadline = useMemo(() => {
-    const pool: ((n: ReactNode) => ReactNode)[] = [
+    const pool: ((n: string) => ReactNode)[] = [
       (n) => (<>{n} past papers,<br /><span className="font-black">free to read</span></>),
       (n) => (<>{n} papers,<br /><span className="font-black">yours to read free</span></>),
       (n) => (<>Free access to<br /><span className="font-black">{n} real past papers</span></>),
       (n) => (<>{n} papers shared<br /><span className="font-black">by students, for students</span></>),
     ];
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-    /* Every wording wraps the one real count in the looping "More coming
-       soon" tooltip (owner request 2026-09-26). */
-    return (n: string) => pick(<MoreComingSoonTip>{n}</MoreComingSoonTip>);
+    return pool[Math.floor(Math.random() * pool.length)];
   }, []);
   /* Was `!hasFilters && landing.isPending` alone — totalPapers sums TWO
      independent queries (landing's DB count + bankQuery's 193 static
