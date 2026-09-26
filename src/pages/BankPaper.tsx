@@ -611,7 +611,7 @@ export default function BankPaper() {
             <PaperDisclaimerDialog />
             <PaperShareLock paperTitle={paperTitle(paper)} />
             <CaptureShield />
-            <DisclaimerStrip tone="dark" school={paper.school} reportHref="/contact" />
+            <DisclaimerStrip tone="dark" school={paper.school} />
           </>
         )}
 

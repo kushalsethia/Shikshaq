@@ -85,7 +85,7 @@ function MethodNote({ subject }: { subject: string }) {
   return (
     <p className="mt-8 border-t border-border pt-4 text-meta leading-[1.6] text-warm-label">
       Counted from {fmt(t.questions)} questions in {fmt(t.papers)} {scopeLabel(subject)} papers set by{' '}
-      {fmt(t.schools)} Kolkata schools{t.firstYear && t.lastYear ? ` between ${t.firstYear} and ${t.lastYear}` : ''}.
+      {fmt(t.schools)} schools{t.firstYear && t.lastYear ? ` between ${t.firstYear} and ${t.lastYear}` : ''}.
       Topic labels are the ones carried in the paper bank. Papers are the property of the schools that set them.
     </p>
   );
@@ -194,7 +194,7 @@ function HowSchoolsSetPapers({ subject }: { subject: string }) {
   return (
     <>
       <p className="text-lede text-warm-prose">
-        {fmt(totals.schools)} Kolkata schools, {fmt(totals.papers)} papers, and a fairly consistent
+        {fmt(totals.schools)} schools, {fmt(totals.papers)} papers, and a fairly consistent
         shape underneath them.
       </p>
 

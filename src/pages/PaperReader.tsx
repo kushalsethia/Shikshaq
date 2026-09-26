@@ -8,7 +8,6 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { getSubjectPalette } from '@/lib/subject-palette';
-import { getWhatsAppLink } from '@/utils/whatsapp';
 import { recordVisit } from '@/lib/recently-visited';
 import { GateSheet } from '@/components/auth/gate-sheet';
 import { setAuthIntent } from '@/lib/auth-intent';
@@ -330,11 +329,6 @@ export default function PaperReader() {
     }
   }
 
-  function requestRemovalUrl(p: Paper): string {
-    const message = `Hi! I'd like to request removal of a paper on Shikshaq: "${p.title}" (${p.school}, ${p.subject} Class ${p.class} ${p.board}, ${p.year}). Paper ID: ${p.id}.`;
-    return `${getWhatsAppLink('8240980312')}?text=${encodeURIComponent(message)}`;
-  }
-
   const colors = paper ? getSubjectPalette(paper.subject) : null;
 
   // ---------------- Loading shell ----------------
@@ -437,7 +431,7 @@ export default function PaperReader() {
           viewport itself is withheld from print, further down. */}
       <div>
         <PaperDisclaimerDialog />
-        <DisclaimerStrip tone="dark" school={paper.school} reportHref={requestRemovalUrl(paper)} />
+        <DisclaimerStrip tone="dark" school={paper.school} />
       </div>
 
       <main className={`flex-1 ${CONTAINER} pb-16 pt-4`}>
@@ -547,7 +541,7 @@ export default function PaperReader() {
                   <EmptyResults
                     className="bg-transparent shadow-none"
                     heading="This paper's file hasn't been uploaded yet"
-                    message='The listing is here but the PDF itself is still missing. Check back soon, or use "Request removal" above if this listing looks wrong.'
+                    message="The listing is here but the PDF itself is still missing. Check back soon."
                     action={{ label: 'Browse other papers', onClick: () => navigate('/past-papers') }}
                   />
                 </div>

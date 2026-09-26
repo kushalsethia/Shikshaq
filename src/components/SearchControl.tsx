@@ -16,6 +16,7 @@ import { useIntent } from '@/lib/intent-context';
 import { recordSignal } from '@/lib/intent/signals';
 import { suggestedSearches } from '@/lib/intent/copy';
 import { extractFiltersFromQuery } from '@/utils/searchKeywordExtractor';
+import { parsePaperQuery } from '@/lib/paper-query';
 import { getRecentSearches, addRecentSearch, type RecentSearch } from '@/utils/recentSearches';
 import { setSearchExpanded } from '@/hooks/useSearchExpanded';
 import { isMeteredConnection } from '@/lib/net-conditions';
@@ -364,7 +365,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     void ensureLoaded();
   }, [ensureLoaded]);
 
-  const buildParams = useCallback((query: string, sel: Selections, forMode: SearchMode) => {
+  const buildParams = useCallback((query: string, sel: Selections, forMode: SearchMode, years?: string[]) => {
     const params = new URLSearchParams();
     if (query) params.set('q', query);
     if (sel.subject.length) params.set('filter_subjects', sel.subject.join(','));
@@ -372,6 +373,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     if (sel.board.length) params.set('filter_boards', sel.board.join(','));
     if (forMode === 'teachers' && sel.area.length) params.set('filter_areas', sel.area.join(','));
     if (forMode === 'papers' && sel.school.length) params.set('filter_schools', sel.school.join(','));
+    if (forMode === 'papers' && years?.length) params.set('filter_years', years.join(','));
     return params.toString();
   }, []);
 
@@ -399,6 +401,24 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
        Chip selections still win where both exist: a picked chip is a more
        deliberate statement than a word inside a free-text query. */
     const extracted = trimmedQ ? extractFiltersFromQuery(trimmedQ) : {};
+    /* Papers: parse the typed text into class/subject/board/year facets
+       BEFORE routing, and union them with any chips the reader picked by
+       hand (a chip is a deliberate choice and always kept). The query that
+       actually reaches PaperResults' `q` param is only the leftover free
+       text (a school name, a typo) -- passing the raw "12 math cbse" through
+       verbatim is exactly what made the results page's ilike search return
+       nothing, see paper-query.ts. Teachers keeps its existing behaviour:
+       Browse.tsx already re-parses `q` itself (extractFiltersFromQuery),
+       so the raw query still works there. */
+    const parsedPapers = mode === 'papers' && trimmedQ ? parsePaperQuery(trimmedQ) : null;
+    const papersSelections: Selections | null = parsedPapers
+      ? {
+          ...selections,
+          subject: Array.from(new Set([...selections.subject, ...parsedPapers.subjects])),
+          cls: Array.from(new Set([...selections.cls, ...parsedPapers.classes])),
+          board: Array.from(new Set([...selections.board, ...parsedPapers.boards])),
+        }
+      : null;
     recordSignal('search_submitted', {
       query: trimmedQ || null,
       subject: selections.subject.length ? selections.subject : extracted.subjects,
@@ -408,7 +428,9 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
       school: selections.school,
       mode,
     });
-    const qs = buildParams(trimmedQ, selections, mode);
+    const qs = papersSelections
+      ? buildParams(parsedPapers!.freeText, papersSelections, mode, parsedPapers!.years.map(String))
+      : buildParams(trimmedQ, selections, mode);
     const path = mode === 'teachers' ? '/all-tuition-teachers-in-kolkata' : '/past-papers';
     navigate(qs ? `${path}?${qs}` : path);
     closeControl();
@@ -628,16 +650,26 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                to clear the navbar while genuinely showing its dropdown/
                facets (`reveal`) — at rest it stays below it instead. */
             /* inlineFacetsDesktop:!reveal narrows the field specifically at
-               lg — the chip row + its own Search button sit to the field's
+               xl — the chip row + its own Search button sit to the field's
                right at a fixed content width (each chip sized for its
-               label, not flexible), and on a ~1280px laptop width there
+               label, not flexible), and on a ~1024-1200px width there
                wasn't room left for all four chips plus the button once it
                moved outside the bar; the row pushed past the viewport edge
                and put a horizontal scrollbar on the whole page. Trading
                some of the field's own width back to the row it shares
-               fixes that without capping how many facets show. */
+               fixes that without capping how many facets show. Was `lg:`
+               (1024) until PastPapers.tsx nested this control's only
+               `inlineFacetsDesktop` caller inside a card rather than a
+               full-bleed panel — 1024px minus that card's own edges never
+               had room for both the shrunk field AND the chip row+button in
+               the same line, so the row (and sometimes the button itself)
+               ran past the card into the panel's own `overflow-hidden` and
+               vanished. `xl:` (1280) is the first breakpoint with enough
+               spare width for both; below it the chips fall back to
+               wrapping under the field, same as they already do below
+               `lg`. */
             : `relative ${reveal ? 'z-[45]' : 'z-20'} ${expanded ? 'max-w-3xl' : 'max-w-2xl'} ${
-                inlineFacetsDesktop && !reveal ? 'lg:max-w-lg' : ''
+                inlineFacetsDesktop && !reveal ? 'xl:max-w-lg' : ''
               }`
         } ${className}`}
       >
@@ -680,14 +712,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
         {inlineFacetsDesktop && !reveal && (
           <div
             ref={inlineGroupRef}
-            /* Below lg: same chips, but there's no room to the field's
-               right on a phone width, so they wrap onto their own row
-               under the field instead of sitting beside it — still visible
+            /* Below xl: same chips, but there's no room to the field's
+               right at that width, so they wrap onto their own row under
+               the field instead of sitting beside it — still visible
                before the user has tapped anything, which was the point;
                previously this whole block was lg-only and mobile only ever
-               saw facets after focusing the field. */
-            className={`pointer-events-auto absolute left-0 right-0 top-[calc(100%+8px)] flex flex-wrap items-center gap-2 lg:left-[calc(100%+12px)] lg:right-auto lg:top-0 lg:flex-nowrap ${
-              heroDesk ? 'lg:h-[60px]' : 'lg:h-14'
+               saw facets after focusing the field. (xl, not lg — see the
+               root className's own note on why.) */
+            className={`pointer-events-auto absolute left-0 right-0 top-[calc(100%+8px)] flex flex-wrap items-center gap-2 xl:left-[calc(100%+12px)] xl:right-auto xl:top-0 xl:flex-nowrap ${
+              heroDesk ? 'xl:h-[60px]' : 'xl:h-14'
             }`}
           >
             {facetKeys.map((key) => {
@@ -753,18 +786,18 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               );
             })}
 
-            {/* The bar's own Search button only hides at lg in this mode
-                (see its `inlineFacetsDesktop` note) — below lg it's still
+            {/* The bar's own Search button only hides at xl in this mode
+                (see its `inlineFacetsDesktop` note) — below xl it's still
                 the one visible Search button, so this replacement stays
-                lg-only too. Without the gate, mobile briefly had two
+                xl-only too. Without the gate, mobile/tablet briefly had two
                 Search buttons: the bar's own plus this one wrapped onto a
-                lone third row under the chips. Last in the row at lg so it
+                lone third row under the chips. Last in the row at xl so it
                 reads as "field, then filters, then go" left to right
                 instead of sitting before the filters it follows. */}
             <button
               type="button"
               onClick={runSearch}
-              className={`hidden h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.97] lg:flex ${FOCUS} ${accent.solid} ${accent.ring}`}
+              className={`hidden h-11 flex-none items-center gap-2 whitespace-nowrap rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.97] xl:flex ${FOCUS} ${accent.solid} ${accent.ring}`}
             >
               Search
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
@@ -859,13 +892,13 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               type="button"
               onClick={runSearch}
               aria-label="Search"
-              /* inlineFacetsDesktop hides this copy at lg: that mode gets its
+              /* inlineFacetsDesktop hides this copy at xl: that mode gets its
                  own Search button after the chip row instead (extreme
                  right, once the chips it's meant to follow), so this one
                  would otherwise sit both before the chips AND duplicate it.
-                 Still the only Search button below lg, where the chip row
+                 Still the only Search button below xl, where the chip row
                  itself is hidden. */
-              className={`${inlineFacetsDesktop && !reveal ? 'lg:hidden' : ''} ${
+              className={`${inlineFacetsDesktop && !reveal ? 'xl:hidden' : ''} ${
                 heroDesk
                   ? `flex h-[46px] flex-none items-center justify-center gap-2 rounded-full px-5 text-sm font-bold transition-colors duration-150 active:scale-[0.97] ${FOCUS} ${accent.solid} ${accent.ring}`
                   : `flex h-11 flex-none items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-150 active:scale-[0.97] ${FOCUS} ${accent.solid} ${accent.ring} ${

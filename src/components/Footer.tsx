@@ -193,7 +193,6 @@ function FooterExplainer() {
   const { data } = useSiteCounts();
   const teachers = data?.teachers ?? null;
   const papers = data?.papers ?? null;
-  const schools = data?.schools ?? null;
 
   return (
     <div className="space-y-4">
@@ -202,13 +201,18 @@ function FooterExplainer() {
       {/* Sentence one: what this is. Display size, because it is the footer's
           statement rather than its small print. Punctuation sits on the same
           line as the object it follows, or JSX's own newline becomes a space
-          and the full stop drifts away from the word. */}
+          and the full stop drifts away from the word.
+          2026-09-26: dropped the "across N Kolkata schools" clause -- the
+          distinct-school count is not defensible as genuinely Kolkata (see
+          the coordinator's audit: only ~38 of 190 raw values are recognisably
+          Kolkata schools once board-paper rows, out-of-city schools and junk
+          strings are excluded). /schools is still reachable from the Footer's
+          own link list and the Navbar sheet menu. */}
       <p className="max-w-[26ch] font-display text-[clamp(21px,3.2vw,32px)] font-black leading-[1.6] tracking-[-0.03em] text-white sm:max-w-[36ch]">
         Shikshaq is{' '}
         <Fig to="/all-tuition-teachers-in-kolkata" value={teachers}>verified teachers</Fig>{' '}
         in Kolkata, and{' '}
-        <Fig to="/past-papers" value={papers}>past papers</Fig>{' '}
-        from <Fig to="/schools" value={schools}>Kolkata schools</Fig>.
+        <Fig to="/past-papers" value={papers}>past papers</Fig>.
       </p>
 
       {/* Sentence two: what you can do here. The reference's whole trick is

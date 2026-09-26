@@ -8,7 +8,6 @@ import { IconDisc } from '@/components/ui/icon-disc';
 import { Button } from '@/components/ui/button';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchBankSchoolValues } from '@/lib/question-bank';
 import { logger } from '@/utils/logger';
 import { EyesPanel } from '@/components/home/EyesPanel';
 import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
@@ -66,38 +65,33 @@ export default function About() {
   const [stats, setStats] = useState({
     teachers: null as number | null,
     papers: null as number | null,
-    schools: null as number | null,
   });
 
   useEffect(() => {
     let cancelled = false;
     async function fetchStats() {
-      const [teachersRes, papersRes, schoolsRes] = await Promise.all([
+      const [teachersRes, papersRes] = await Promise.all([
         supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
         /* `bank_papers`, not `papers`. The two are different tables and this
            page was the only surface reading the old one: it advertised 18
            papers from 5 schools while the footer, the papers library and the
            blog all counted 619 from 155 out of bank_papers. Same site, same
            moment, two numbers off by a factor of thirty. */
-        /* needs_review papers (English's 914, plus the new non-Class-X Maths
-           batch) are listed but show "Coming soon" -- not actually free to
-           read -- so they must not inflate the count this tile pairs with
-           "free to read". */
+        /* 2026-09-26: counts every listed paper, needs_review or not, by
+           product-owner decision -- see 20260926030000_site_counts_include_needs_review.sql.
+           The "Kolkata schools represented" tile that used to sit alongside
+           this was removed the same day: the distinct-school count was not
+           defensible as genuinely Kolkata (see the coordinator's audit --
+           only ~38 of 190 raw values). */
         supabase.from('bank_papers').select('id', { count: 'exact', head: true })
-          .eq('is_published', true).eq('needs_review', false),
-        fetchBankSchoolValues().catch((err: unknown) => {
-          logger.error('About.fetchStats.schools', err as Error);
-          return null;
-        }),
+          .eq('is_published', true),
       ]);
       if (cancelled) return;
       if (teachersRes.error) logger.error('About.fetchStats.teachers', teachersRes.error);
       if (papersRes.error) logger.error('About.fetchStats.papers', papersRes.error);
-      const distinctSchools = schoolsRes ? new Set(schoolsRes).size : null;
       setStats({
         teachers: teachersRes.count ?? null,
         papers: papersRes.count ?? null,
-        schools: distinctSchools,
       });
     }
     fetchStats();
@@ -108,14 +102,19 @@ export default function About() {
 
   /* Guarded on > 0, not != null. `!= null` only hides these while they load, so
      with an empty papers table this page — the one page whose whole job is to
-     say we are trustworthy — rendered "0 past papers, free to read" and
-     "0 Kolkata schools represented" as if they were achievements. design.md
-     §3.2: never advertise emptiness. A zero drops its tile. */
-  /* Each stat keeps its own fixed colour regardless of which subset of the
-     four actually renders (papers/schools drop out on a failed query, per
-     the "never advertise emptiness" rule below) — a real colour per tile
-     instead of three flat greys and one orange accent, so the row reads
-     as a set of highlights rather than a plain data table. */
+     say we are trustworthy — rendered "0 past papers, free to read" as if it
+     were an achievement. design.md §3.2: never advertise emptiness. A zero
+     drops its tile. */
+  /* Each stat keeps its own fixed colour regardless of which subset actually
+     renders (papers drops out on a failed query, per the "never advertise
+     emptiness" rule below) — a real colour per tile instead of flat greys
+     and one orange accent, so the row reads as a set of highlights rather
+     than a plain data table.
+     Was four tiles; the "N Kolkata schools represented" one was removed
+     2026-09-26 — the distinct-school count was not defensible as genuinely
+     Kolkata (see the coordinator's audit — only ~38 of 190 raw values). Three
+     tiles still reads as a balanced row at every width; nothing here assumed
+     exactly four. */
   const statTiles = [
     (stats.teachers ?? 0) > 0
       ? { value: stats.teachers!.toLocaleString('en-IN'), label: 'verified teachers listed', ink: 'text-brand-deep', tint: 'bg-brand-subtle' }
@@ -126,9 +125,6 @@ export default function About() {
     // A fact, not a query — always true, so it always shows (same reasoning
     // PreFooter's B2 uses for its commission line).
     { value: '₹0', label: 'commission taken from a fee', ink: 'text-foreground', tint: 'bg-mint' },
-    (stats.schools ?? 0) > 0
-      ? { value: stats.schools!.toLocaleString('en-IN'), label: 'Kolkata schools represented', ink: 'text-foreground', tint: 'bg-muted' }
-      : null,
   ].filter(Boolean) as { value: string; label: string; ink: string; tint: string }[];
 
   const statement = (
@@ -312,15 +308,17 @@ export default function About() {
                 We list teachers, verify who they say they are, then get out of the way. The fee
                 you agree is the fee they keep.
               </p>
-              {/* lg:grid-cols-4: unconditional grid-cols-2 gave each of these
-                  four compact number+label tiles a ~595px-wide cell on a real
-                  desktop panel — a 24px number stretched across most of that
-                  width with nothing else to fill it. One row at lg instead.
+              {/* lg:grid-cols-3: unconditional grid-cols-2 gave each of these
+                  compact number+label tiles a wide cell on a real desktop
+                  panel — a 24px number stretched across most of that width
+                  with nothing else to fill it. One row at lg instead (was
+                  grid-cols-4 for four tiles; now three, after the "Kolkata
+                  schools represented" tile was removed 2026-09-26).
                   stagger-children + animate-card-reveal: each tile pops in a
                   beat after the last instead of the whole grid landing as
                   one flat block; hover lift gives them the same tactility
                   the rest of the product's cards already have. */}
-              <div className="stagger-children mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+              <div className="stagger-children mt-4 grid grid-cols-2 gap-2.5 lg:grid-cols-3">
                 {statTiles.map((st) => (
                   <div
                     key={st.label}

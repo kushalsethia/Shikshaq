@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Sparkles } from 'lucide-react';
 import { SearchControl } from '@/components/SearchControl';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
+import { coverPaper, coverMeta } from '@/lib/paper-cover-mapping';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
@@ -133,16 +134,6 @@ function ShelfSkeleton() {
 }
 
 export default function PastPapers() {
-  /* Drives the cover rail's leading edge fade. Cheap: one boolean, flipped
-     only when the rail crosses the 8px threshold, so scrolling does not
-     re-render on every frame. */
-  const coverRailRef = useRef<HTMLDivElement>(null);
-  const [coverRailScrolled, setCoverRailScrolled] = useState(false);
-  const onCoverRailScroll = useCallback(() => {
-    const next = (coverRailRef.current?.scrollLeft ?? 0) > 8;
-    setCoverRailScrolled((prev) => (prev === next ? prev : next));
-  }, []);
-
   usePageMeta(
     // 58 chars. Was 74, so ~14 characters were truncated out of the SERP.
     'Free Past Year Question Papers - CBSE, ICSE, ISC | Shikshaq',
@@ -325,52 +316,9 @@ export default function PastPapers() {
      below on every single render and re-derived the facets each time. */
   const bankPapers = useMemo(() => bankQuery.data ?? [], [bankQuery.data]);
 
-  /* Everything a cover can say that its three built-in slots do not already:
-     the class always, and the school whenever the headline is showing the year
-     instead (the board-published papers). No duplicates — a cover repeating
-     "ICSE" three times tells the reader nothing. */
-  /* How a bank paper is drawn on a cover. Three built-in slots, so: eyebrow
-     carries board (+ year when the school is not the board), headline carries
-     whatever distinguishes this paper from its shelf-mates — the school, or
-     the year when the papers ARE the board's own — and the footer carries the
-     exam and the question count. */
-  const coverPaper = (p: Paper) => {
-    const bank = p as Paper & { _bankYear?: string; _questions?: number; _isBoard?: boolean };
-    /* `_questions` is the honest test for "this came from the bank", and it is
-       the only one available now that file_url is not anon-selectable. It is
-       also more correct than the old `p.file_url !== null ||` term ever was: a
-       papers-table row with no PDF uploaded has a null file_url too, so that
-       check treated it as a bank paper and drew it with a bank cover. */
-    if (bank._questions === undefined) return p;
-    const year = bank._bankYear ?? '';
-    /* "ICSE 2026" with no school IS the board's own paper. The year becomes
-       the headline for those, because it is the only thing separating one
-       board paper from the next. The database says which they are, so this no
-       longer sniffs the display name for the words "board paper". */
-    const schoolIsBoard = bank._isBoard === true;
-    return {
-      ...p,
-      subject: schoolIsBoard && hasYear(year) ? year : p.school,
-      board: schoolIsBoard ? p.board : [p.board, hasYear(year) ? year : null].filter(Boolean).join(' · '),
-      title: p.exam_type.replace(/ Examination$/, '').replace(/^Pre-board.*/, 'Pre-board'),
-      year: `${bank._questions} questions` as unknown as number,
-    };
-  };
-
-  const coverMeta = (p: Paper): string[] => {
-    const out: string[] = [];
-    const shown = coverPaper(p);
-    /* Subject first and always. Once the headline became the school (so a
-       shelf of Maths papers is distinguishable at all), nothing on the cover
-       said what subject it was — the one fact a student filters on hardest. */
-    const subject = String(p.subject ?? '').trim();
-    if (subject && subject !== String(shown.subject ?? '')) out.push(subject);
-    if (p.class) out.push(`Class ${p.class}`);
-    const headline = String(shown.subject ?? '');
-    const school = String(p.school ?? '');
-    if (school && school !== headline && !String(shown.board ?? '').includes(school)) out.push(school);
-    return out;
-  };
+  /* coverPaper()/coverMeta() (how a bank paper is drawn on a cover — eyebrow,
+     headline and the meta lines under it) now live in paper-cover-mapping.ts,
+     shared with Index.tsx's home rail. */
 
   /* Facets count the bank papers too. Without this the board row, the subject
      row and the "By school" grid all described only the 18 database papers
@@ -440,15 +388,14 @@ export default function PastPapers() {
     return out;
   }, [landing.data, bankPapers]);
   const totalPapers = (landing.data?.totalPapers ?? 0) + bankPapers.length || null;
-  /* totalPapers counts every LISTED paper, including ones gated behind
-     needs_review ("coming soon" -- searchable, not yet readable). Copy that
-     pairs a count with an actual "free to read" promise needs this smaller
-     number instead, or it overstates by exactly the gated batch (914 English
-     + 427 new-class Maths as of the 2026-09-25 imports). The `papers` table
-     has no needs_review concept, so only the bank side needs filtering. */
-  const totalFreePapers =
-    (landing.data?.totalPapers ?? 0) +
-      bankPapers.filter((p) => !(p as { _needsReview?: boolean })._needsReview).length || null;
+  /* 2026-09-26: by product-owner decision this now equals totalPapers --
+     every LISTED paper counts, needs_review or not (see
+     20260926030000_site_counts_include_needs_review.sql, the same reversal
+     applied to site_counts()). Kept as its own variable rather than replacing
+     every totalFreePapers reference, so this is the one place to revisit if
+     "free to read" copy ever needs the smaller, needs_review-excluded figure
+     again. */
+  const totalFreePapers = totalPapers;
   /* Same idea as home's adaptive hero (resolveHeroCopy) and the footer's
      sign-off pool: the signed-in "N new papers waiting" branch below
      already varies per reader, but a first-time/signed-out visitor always
@@ -538,9 +485,8 @@ export default function PastPapers() {
       <BentoStack>
         {/* ------------------------------------------------------------- Hero */}
         {/* D4 "Papers library" hero: saturated indigo band with two soft
-            radial blobs, a centered Archivo-900 headline, lede, sign-in CTA,
-            and a dashed shelf tray peeking covers out of the band's bottom
-            edge. The mockup's headline ("You have 12 new papers waiting on
+            radial blobs, a centered Archivo-900 headline, lede and sign-in
+            CTA. The mockup's headline ("You have 12 new papers waiting on
             your shelf") and the streak/goal-ring pill both depend on
             per-user data this schema does not have (no streak table, no
             per-user new-paper count) — both are now REAL, from paper_reads,
@@ -550,8 +496,20 @@ export default function PastPapers() {
             Handoff PP-002: BentoPanel fill="papers" edge="top" — square-topped,
             30px bottom corners. No separate in-panel logo/menu row added: per
             Home (H-002) and Browse (B-003b), the floating Navbar pill already
-            carries that, and this route doesn't duplicate it either. */}
-        <BentoPanel fill="papers" edge="top" className="relative overflow-hidden px-4 pt-[14px] pb-0 sm:px-6 lg:px-8">
+            carries that, and this route doesn't duplicate it either.
+
+            Owner request: the dashed shelf tray of cover cards that used to
+            peek out of this band's bottom edge is gone, and the search bar
+            (formerly its own BentoPanel below the hero) now lives inside
+            this same panel instead — mirrors Index.tsx's hero, where the
+            greeting content is directly followed by SearchDesk
+            (src/pages/Index.tsx:788, src/components/home/SearchDesk.tsx)
+            with no gap between them. Here the search card is nested in the
+            hero panel itself rather than a sibling panel, because this
+            hero is a saturated colour (indigo) and Index's is plain card —
+            floating a bg-card box on top of it is this page's own
+            "colours-on-blue" version of that same pairing. */}
+        <BentoPanel fill="papers" edge="top" className="relative overflow-hidden px-4 pt-[14px] pb-6 sm:px-6 sm:pb-8 lg:px-8 lg:pb-10">
           <span aria-hidden className="pointer-events-none absolute -left-10 top-5 h-[180px] w-[180px] rounded-full bg-white/[.06] sm:h-[240px] sm:w-[240px]" />
           <span aria-hidden className="pointer-events-none absolute -right-10 top-16 h-[210px] w-[210px] rounded-full bg-white/[.06] sm:h-[280px] sm:w-[280px]" />
 
@@ -614,122 +572,64 @@ export default function PastPapers() {
             )}
           </div>
 
-          {/* Shelf tray: covers peeking out of the indigo band. Dashed
-              border, radius 28px on top only, no bottom border — literal
-              per D4. Falls back to nothing (not an empty dashed box) while
-              papers are still loading or the catalogue is empty.
-              Handoff PP-005: full-bleed inside the panel on mobile (-mx-4
-              px-4), mx-auto max-w-[1000px] kept from sm: up. */}
-          {!loading && !loadError && recentPapers.length > 0 && (
-            <div className="relative -mx-4 mt-[26px] rounded-t-[28px] border-[1.5px] border-b-0 border-dashed border-white/45 px-4 pt-[18px] sm:mx-auto sm:max-w-[1000px] sm:px-[26px] sm:pt-[26px]">
-              {/* items-end + overflow-y-visible: the covers stand OUT of the
-                  tray's top edge, so a clipping scroller would slice their
-                  tops off — which is why this is a plain scrollbar-hide row and
-                  not ScrollRail (that one clips on both axes). The edge fade
-                  ScrollRail would have given us is rendered explicitly below;
-                  without it the third cover ended at a hard vertical slice
-                  right where the dashed tray corner curves, which reads as a
-                  rendering fault rather than as a shelf that continues. */}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-y-[1.5px] right-[1.5px] z-10 w-12 rounded-tr-[28px] bg-gradient-to-l from-brand-blue via-brand-blue/70 to-transparent sm:hidden"
-              />
-              {/* Matching fade at the start, but only once there IS something
-                  scrolled past. Drawn unconditionally it would dim the first
-                  cover's spine at rest; absent entirely, scrolling left cut the
-                  first cover off with a hard square edge against the tray's
-                  rounded corner. */}
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute inset-y-[1.5px] left-[1.5px] z-10 w-12 rounded-tl-[28px] bg-gradient-to-r from-brand-blue via-brand-blue/70 to-transparent transition-opacity duration-200 sm:hidden ${
-                  coverRailScrolled ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-              {/* Reported as covers "scrolling in a weird box". Measured against
-                  Past Papers Redesign.dc.html at 390: the drawing puts THREE
-                  covers at 152x200 in the tray, the third deliberately cut by
-                  the right edge so the shelf reads as continuing. This was
-                  rendering five at 128x176 — PP-005's literal mobile values —
-                  which at 357px of usable width shows about two and a half
-                  cramped covers and reads as clipped content rather than a
-                  shelf. Following the drawing on mobile: three covers at the
-                  size the mockup actually draws. `sm:` keeps PP-005's 150x210
-                  and the five-cover slice, which is what D-005's desktop row
-                  ("5 covers at 150x210, 1000px tray") asks for. */}
-              {/* justify-start on mobile, not justify-center: a centred flex row whose
-                  content overflows is clipped equally at BOTH ends, and the
-                  overflow past the start edge cannot be scrolled back to — the
-                  first cover was cut in half with no way to reach it. The
-                  mockup starts the shelf flush with the tray's padding and lets
-                  only the far end run off. From sm: the covers fit, so centring
-                  is correct again. */}
-              <div
-                ref={coverRailRef}
-                onScroll={onCoverRailScroll}
-                /* sm:overflow-visible assumed the 5 covers + the "All N
-                   papers" card always fit from sm: up, verified (per the
-                   comment above) at the usual round breakpoints. They don't
-                   at 1024px specifically -- the lg boundary, an easy width to
-                   skip by hand -- where the row is ~163px wider than the
-                   viewport and overflow-visible lets that bleed straight
-                   into the page instead of clipping or scrolling it.
-                   overflow-x-auto is visually identical whenever the row
-                   does fit (scrollbar-hide already hides the bar, and
-                   nothing scrolls if there's nothing to scroll), so this
-                   keeps the "fits and centres" look everywhere it already
-                   held while turning the case where it doesn't into a
-                   contained scroll instead of a page-wide layout break. */
-                className="scrollbar-hide flex items-end justify-start gap-3 overflow-x-auto overflow-y-visible pb-0 sm:justify-center sm:gap-[18px]"
-              >
-                {recentPapers.slice(0, 5).map((p, i) => (
-                  <PaperCover
-                    key={p.id}
-                    paper={coverPaper(p)}
-                    meta={coverMeta(p)}
-                    /* Bank papers get a generated tint; papers-table rows keep
-                       their own cover. `_questions` identifies a bank row --
-                       see coverPaper() for why that replaced a file_url test. */
-                    tintKey={(p as { _questions?: number })._questions !== undefined ? `${p.school}-${p.id}` : undefined}
-                    href={`/past-papers/${p.id}`}
-                    /* Not auth-locked for now: reading is the point, and a
-                       gate on a free library only stops people seeing it. */
-                    locked={false}
-                    comingSoon={(p as { _needsReview?: boolean })._needsReview === true}
-                    size="desktop"
-                    className={`!h-[228px] !w-[152px] flex-none sm:!h-[236px] sm:!w-[150px] ${
-                      i >= 3 ? 'hidden sm:block' : ''
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Search, moved up into the hero fold. Same SearchControl, same
+              props and handlers as before (only the placement moved) — a
+              bg-card box floated on the indigo band, directly under the
+              lede/CTA with no gap, the same adjacency Index.tsx gives its
+              own greeting-panel + SearchDesk pairing.
+              Handoff PP-007: H-009 field metrics via heroDesk (submit disc
+              is bg-brand-blue automatically — SearchControl's accent
+              already switches on mode, and this control's mode is papers).
+
+              No max-w here (was max-w-3xl): inlineFacetsDesktop pins the
+              field to `xl:max-w-lg` and lays the four facet chips + a
+              Search button out BESIDE it at xl+ (SearchControl.tsx's own
+              `xl:left-[calc(100%+12px)]` row) — that assembly needs close
+              to this panel's full available width to avoid the chips
+              running past the card (and this panel's own `overflow-hidden`
+              clipping them), the same width this control always had before
+              it was nested in a card (the standalone BentoPanel it used to
+              sit in carried no max-w either). SearchControl.tsx's own
+              inlineFacetsDesktop breakpoint moved from `lg` (1024) to `xl`
+              (1280) as part of this same fix — at 1024, even with this
+              card at full width, there wasn't room for both the shrunk
+              field and the chip row + Search button side by side; below xl
+              the chips now wrap under the field instead, the same fallback
+              they already used below lg. inlineFacetsDesktop has exactly
+              one caller (this one), so that breakpoint change is scoped to
+              this page.
+
+              This card's OWN box is never inset further than this hero
+              panel's own padding (16/24/32px at base/sm/lg) — that's what
+              stays concentric with the panel's rounded-bento (30px) corner
+              (30 - 16 = 14, both on the design's radius scale; this is the
+              value that matters for nesting, not the horizontal padding
+              below, which only spaces this card's own children).
+
+              Horizontal padding on that content is px-0 below sm: at 375px
+              the field (`isNarrow`'s short "Board, class, subject"
+              placeholder, ~154px of text) was measured actually clipping
+              inside a padded card — the field's own internal pl-[18px] and
+              the Search button already give it plenty of breathing room
+              from the card's rounded edge, so a second layer of card
+              padding was pure loss on a screen with none to spare. From sm:
+              up there is room again, so sm:px-4 restores it — and leaves
+              plenty of width free for the chip row at xl either way.
+              pb-24, only lifting at xl (not lg): the chip row is still
+              wrapping under the field through lg per the breakpoint change
+              above, so it needs the same bottom padding as below lg all
+              the way to xl. */}
+          <div className="relative mx-auto mt-6 w-full rounded-[14px] bg-card px-0 pt-4 pb-24 sm:mt-8 sm:px-4 sm:pt-6 xl:pb-6">
+            <SearchControl align="flex-start" stackedToggle heroDesk initialMode="papers" onModeChange={handleSearchModeChange} inlineFacetsDesktop />
+          </div>
         </BentoPanel>
 
-        {/* Board tabs (D4) removed per explicit request: SearchControl below
+        {/* Board tabs (D4) removed per explicit request: SearchControl above
             already exposes Board as one of its four facet chips (subject,
             class, board, school — PAPER_FACET_KEYS), so this was the same
             "pick a board" entry point twice on one page. featuredBoards/
             boardCounts stay — the "By subject & board" toggle further down
             still uses them. */}
-
-        {/* D4's hero drops the search bar entirely (it's a hand-off frame,
-            not a functional prototype). "Design wins, keep functionality" —
-            the filtered-search entry point is a real feature this page
-            currently exposes, so it stays, just relocated below the hero
-            instead of living inside it.
-            Handoff PP-007: BentoPanel wrap, H-009 field metrics via heroDesk
-            (submit disc is bg-brand-blue automatically — SearchControl's
-            accent already switches on mode, and this control's mode is papers). */}
-        {/* pb-20 lg:pb-4: below lg, SearchControl's inlineFacetsDesktop chip
-            row now wraps under the field instead of sitting only at lg+ —
-            it's `position: absolute` (so it can float without shifting the
-            field itself), which means it does NOT push this panel's own
-            height. Without the extra bottom padding here the wrapped chips
-            hung half outside the card into whatever renders next. */}
-        <BentoPanel fill="card" className="p-4 pb-28 lg:pb-4">
-          <SearchControl align="flex-start" stackedToggle heroDesk initialMode="papers" onModeChange={handleSearchModeChange} inlineFacetsDesktop />
-        </BentoPanel>
 
         {loading && <ShelfSkeleton />}
 
@@ -1198,9 +1098,6 @@ export default function PastPapers() {
           <div className="space-y-3">
             <p className="text-[14px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
               Every paper here is the property of the school that set it. Shikshaq claims no ownership over any paper, derives no revenue from any paper, and hosts these materials solely as a free community resource for students.
-            </p>
-            <p className="text-[14px] leading-[1.6] text-white/[.72] lg:text-[15px] lg:leading-[1.65]">
-              Any school that wishes a paper removed can have it removed on request, without argument.
             </p>
             <Link
               to={BROWSE_PATH}

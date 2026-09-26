@@ -39,7 +39,7 @@ type Stage = 'form' | 'sending' | 'done' | 'fallback';
 export default function SubmitPaper() {
   usePageMeta(
     'Submit a Past Paper from Your School | Shikshaq',
-    'Upload a question paper from your school so the next batch can revise from it. We check it, credit your school, and take it down on request.',
+    'Upload a question paper from your school so the next batch can revise from it. We check it and credit your school.',
   );
 
   const fileInput = useRef<HTMLInputElement>(null);
@@ -413,7 +413,7 @@ export default function SubmitPaper() {
                 {
                   icon: ShieldCheck,
                   head: 'The school keeps the copyright',
-                  body: 'Every paper names the school that set it, stays free to read, and comes down if that school asks.',
+                  body: 'Every paper names the school that set it and stays free to read.',
                 },
               ].map((row) => (
                 <li key={row.head} className="flex gap-3">

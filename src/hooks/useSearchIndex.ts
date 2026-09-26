@@ -3,6 +3,26 @@ import Fuse from 'fuse.js';
 import { supabase } from '@/integrations/supabase/client';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 import { bankSubjectToSite } from '@/lib/subject-vocabulary';
+import { parsePaperQuery, paperQueryHasFacets, paperMatchesParsedQuery } from '@/lib/paper-query';
+import { extractFiltersFromQuery } from '@/utils/searchKeywordExtractor';
+import { searchByName } from '@/utils/searchByName';
+import { filterShikshaqRecords, fillFilterStateDefaults, hasTeacherFacets } from '@/lib/teacher-facet-match';
+
+/** The Shikshaqmine columns filterShikshaqRecords actually reads for the
+ *  subject/class/board/area facets the overlay's chip row (and a typed
+ *  query) can produce -- see TEACHER_FACET_KEYS in searchFacets.ts. Fees,
+ *  class size, mode/place of teaching and experience are deliberately left
+ *  out: none of those are a typed-search facet today, and pulling all
+ *  fourteen Shikshaqmine columns Browse.tsx's own fetch needs would
+ *  reintroduce the exact "heaviest speculative download" problem the idle
+ *  preload above was written to avoid. */
+interface TeacherShikshaqSlice {
+  Subjects: string | null;
+  'Classes Taught': string | null;
+  'Classes Taught for Backend': string | null;
+  'School Boards Catered': string | null;
+  Area: string | null;
+}
 
 export interface TeacherHit {
   id: string;
@@ -12,6 +32,11 @@ export interface TeacherHit {
   location: string | null;
   honorific: string | null;
   is_featured: boolean | null;
+  /** null when the row has none, or when the Shikshaqmine slice below failed
+   *  to load -- filterShikshaqRecords treats a null/missing column as "no
+   *  value", which fails every subject/class/board/area check gracefully
+   *  rather than throwing. */
+  shikshaq: TeacherShikshaqSlice | null;
 }
 
 export interface PaperHit {
@@ -105,7 +130,37 @@ async function loadIndex(): Promise<void> {
     }
   }
 
-  teachersCache = teachersData;
+  /* Facet slice for the "12 math cbse"-style teacher query: teachers_list
+     itself carries neither board nor a machine-tokenised class list, only
+     Shikshaqmine does (see teacher-facet-match.ts's column notes). Same
+     separate/isolated/fail-soft shape as the pause-filter query above --
+     a failure here costs facet matching in the overlay (it falls back to
+     treating the query as a name search, exactly like today) and never the
+     teacher list itself. Intentionally NOT filtered by is_paused or anything
+     else: every teacher's row is needed to build the lookup. */
+  let shikshaqBySlug = new Map<string, TeacherShikshaqSlice>();
+  if (teachersData.length > 0) {
+    const { data: shikRows, error: shikError } = await supabase
+      .from('Shikshaqmine')
+      .select('Slug, Subjects, "Classes Taught", "Classes Taught for Backend", "School Boards Catered", Area')
+      .returns<Array<{ Slug: string | null } & TeacherShikshaqSlice>>();
+    if (shikError && import.meta.env.DEV) {
+      console.warn('Search index: teacher facet slice skipped:', shikError.message);
+    }
+    shikshaqBySlug = new Map(
+      (shikRows ?? [])
+        .filter((r): r is { Slug: string } & TeacherShikshaqSlice => !!r.Slug)
+        .map((r) => [r.Slug, {
+          Subjects: r.Subjects,
+          'Classes Taught': r['Classes Taught'],
+          'Classes Taught for Backend': r['Classes Taught for Backend'],
+          'School Boards Catered': r['School Boards Catered'],
+          Area: r.Area,
+        }]),
+    );
+  }
+
+  teachersCache = teachersData.map((t) => ({ ...t, shikshaq: shikshaqBySlug.get(t.slug) ?? null }));
 
   /* Mapped exactly as PastPapers maps them, so a paper found by search and the
      same paper found by browsing read identically. */
@@ -142,31 +197,9 @@ export function useSearchIndex() {
   const [schools, setSchools] = useState<string[]>(
     papersCache ? Array.from(new Set(papersCache.map((p) => p.school))).sort() : []
   );
-  const teachersFuse = useRef<Fuse<TeacherHit> | null>(null);
   const papersFuse = useRef<Fuse<PaperHit> | null>(null);
 
   const buildFuseIndexes = useCallback(() => {
-    /* ignoreLocation is the important one. Fuse defaults to location 0 with a
-       distance of 100, meaning it scores a match by how near the START of the
-       field it is -- so "Computer" sitting 40 characters into a teacher's
-       "Physics, Chemistry, Biology, Mathematics, Computer Science" was scored
-       almost out of existence. These are lists and titles, not prose: where a
-       word sits in them carries no meaning, so position should not be scored.
-
-       Weights then decide what a match is worth once found. A name match is
-       what someone typing "Rekha" wants; an area match for the same letters is
-       a weaker signal, and without weights Fuse treated them as equal. */
-    teachersFuse.current = new Fuse(teachersCache ?? [], {
-      includeScore: true,
-      threshold: 0.35,
-      minMatchCharLength: 2,
-      ignoreLocation: true,
-      keys: [
-        { name: 'name', weight: 3 },
-        { name: 'subjects', weight: 2 },
-        { name: 'location', weight: 1 },
-      ],
-    });
     /* board/exam_type/year were not searchable at all, so "ICSE 2024" and
        "prelim" matched nothing however many such papers existed. */
     papersFuse.current = new Fuse(papersCache ?? [], {
@@ -187,13 +220,13 @@ export function useSearchIndex() {
     });
   }, []);
 
-  if ((teachersCache !== null && papersCache !== null) && !teachersFuse.current) {
+  if ((teachersCache !== null && papersCache !== null) && !papersFuse.current) {
     buildFuseIndexes();
   }
 
   const ensureLoaded = useCallback(async () => {
     if (teachersCache !== null && papersCache !== null) {
-      if (!teachersFuse.current) buildFuseIndexes();
+      if (!papersFuse.current) buildFuseIndexes();
       setReady(true);
       return;
     }
@@ -206,11 +239,47 @@ export function useSearchIndex() {
 
   const search = useCallback((query: string): SearchGroups => {
     const q = query.trim();
-    if (!q || q.length < 2 || !teachersFuse.current || !papersFuse.current) {
+    if (!q || q.length < 2 || !papersFuse.current) {
       return { teachers: [], papers: [], teachersTotal: 0, papersTotal: 0 };
     }
-    const teacherResults = teachersFuse.current.search(q).map((r) => r.item);
-    const paperResults = papersFuse.current.search(q).map((r) => r.item);
+
+    /* Teachers: the SAME facet extraction Browse.tsx's own results page runs
+       on this exact `q` (extractFiltersFromQuery) and the SAME predicate
+       Browse filters Shikshaqmine records with (filterShikshaqRecords,
+       moved to teacher-facet-match.ts) -- so a multi-facet query like "maths
+       class 10 salt lake" or "cbse 12 chemistry" is decided by one function
+       used in both places, instead of this overlay's own whole-string Fuse
+       match (over name/subjects/location) scoring it near zero the same way
+       the papers overlay used to. A query with no recognisable facet at all
+       (a teacher's actual name, or plain gibberish) falls through to
+       searchByName -- the exact name-only fuzzy matcher Browse's own
+       name-search path calls, not a separate Fuse index, so a name query's
+       count agrees with Browse too. */
+    const extracted = extractFiltersFromQuery(q);
+    const teacherResults = hasTeacherFacets(extracted)
+      ? (() => {
+          const cache = teachersCache ?? [];
+          const effectiveFilters = fillFilterStateDefaults(extracted);
+          const records = cache.map((t, i) => ({ ...(t.shikshaq ?? {}), __idx: i }));
+          const matchedIdx = new Set(filterShikshaqRecords(records, effectiveFilters).map((r) => r.__idx as number));
+          return cache.filter((_, i) => matchedIdx.has(i));
+        })()
+      : searchByName(teachersCache ?? [], q);
+
+    /* Papers: try facets first ("12 math cbse" -> class 12 + Maths + CBSE,
+       matched as three separate columns) before falling back to Fuse's plain
+       fuzzy match on the whole string. Fuse alone never worked for a combined
+       query -- no single title/school/subject/board field ever contains "12
+       math cbse" verbatim, at any edit distance Fuse's threshold accepts, so
+       a casual multi-facet query always scored 0 papers. See
+       src/lib/paper-query.ts for why. A query with no recognisable facet at
+       all (a school name, a typo) still goes through Fuse exactly as before,
+       so the fallback experience is unchanged. */
+    const parsedPaperQuery = parsePaperQuery(q);
+    const paperResults = paperQueryHasFacets(parsedPaperQuery)
+      ? (papersCache ?? []).filter((p) => paperMatchesParsedQuery(p, parsedPaperQuery))
+      : papersFuse.current.search(q).map((r) => r.item);
+
     return {
       teachers: teacherResults.slice(0, RESULT_LIMIT),
       papers: paperResults.slice(0, RESULT_LIMIT),

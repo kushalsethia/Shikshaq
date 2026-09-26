@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchBankSchoolValues } from '@/lib/question-bank';
 import { SUBJECTS, CLASSES, AREAS, BOARDS, type SearchMode } from '@/utils/searchFacets';
 import type { SentenceSlot } from '@/components/home/SentenceBuilder';
 import { recordSignal } from '@/lib/intent/signals';
@@ -25,8 +25,14 @@ export function useSentenceBuilder() {
     queryKey: ['sentence-builder', 'school-options'],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const { data } = await supabase.from('papers').select('school').eq('is_published', true);
-      return data ? Array.from(new Set(data.map((p) => p.school))).sort() : [];
+      /* Was reading `papers` (the submit-a-paper flow, 18 rows), which meant
+         the school dropdown here offered a near-empty list next to a "school"
+         filter that runs against bank_papers everywhere else it is used
+         (PaperResults, PastPapers). bank_papers is the real library (~2,000
+         rows); has_school=true excludes board-level rows, which carry a board
+         name rather than a school name in that column — see fetchBankSchoolValues. */
+      const schools = await fetchBankSchoolValues(true);
+      return Array.from(new Set(schools.filter((s): s is string => !!s))).sort();
     },
   });
   const schoolOptions = schoolOptionsQuery.data ?? [];

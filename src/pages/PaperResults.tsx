@@ -7,6 +7,7 @@ import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 import { sanitizeForIlike } from '@/lib/ilike-sanitize';
 import { bankSubjectToSite, bankSubjectMatches } from '@/lib/subject-vocabulary';
 import { bankClassMatches } from '@/utils/romanNumerals';
+import { parsePaperQuery, paperQueryHasFacets } from '@/lib/paper-query';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -58,6 +59,7 @@ export default function PaperResults() {
   const classFilters = parseArrayParam(searchParams.get('filter_classes'));
   const boardFilters = parseArrayParam(searchParams.get('filter_boards'));
   const schoolFilters = parseArrayParam(searchParams.get('filter_schools'));
+  const yearFilters = parseArrayParam(searchParams.get('filter_years'));
   // Single-value convenience accessors, used for heading/chip/handoff display
   // (which show one value per filter). Query filtering itself honours the
   // full array via .in() below — see runQuery.
@@ -65,6 +67,55 @@ export default function PaperResults() {
   const classFilter = classFilters[0] || '';
   const boardFilter = boardFilters[0] || '';
   const schoolFilter = schoolFilters[0] || '';
+
+  /* `q` can still carry recognisable class/subject/board/year tokens even
+     here -- a direct link, a bookmark, or any entry point that didn't route
+     through SearchControl's own facet parsing. Re-parsing it (mirroring how
+     Browse.tsx re-parses `q` for teachers with extractFiltersFromQuery)
+     means a bare "?q=12%20math%20cbse" link works too, not only the one
+     SearchControl now produces. Merged with, not replacing, the explicit
+     filter_* chips -- a reader can have both a Subject chip picked AND typed
+     "cbse 2023". Root-cause writeup: src/lib/paper-query.ts. */
+  // Joined once, so every memo/effect below that needs to react to a filter_*
+  // array can list one plain identifier in its dependency array instead of a
+  // repeated `.join(',')` call (eslint's react-hooks/exhaustive-deps flags an
+  // inline expression there as unable to be statically checked).
+  const subjectFiltersKey = subjectFilters.join(',');
+  const classFiltersKey = classFilters.join(',');
+  const boardFiltersKey = boardFilters.join(',');
+  const schoolFiltersKey = schoolFilters.join(',');
+  const yearFiltersKey = yearFilters.join(',');
+
+  const parsedQuery = useMemo(() => (q.trim().length >= 2 ? parsePaperQuery(q) : null), [q]);
+  const hasParsedFacets = !!parsedQuery && paperQueryHasFacets(parsedQuery);
+  const effectiveSubjects = useMemo(
+    () => Array.from(new Set([...subjectFilters, ...(parsedQuery?.subjects ?? [])])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [subjectFiltersKey, parsedQuery],
+  );
+  const effectiveClasses = useMemo(
+    () => Array.from(new Set([...classFilters, ...(parsedQuery?.classes ?? [])])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [classFiltersKey, parsedQuery],
+  );
+  const effectiveBoards = useMemo(
+    () => Array.from(new Set([...boardFilters, ...(parsedQuery?.boards ?? [])])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [boardFiltersKey, parsedQuery],
+  );
+  const effectiveYears = useMemo(
+    () => Array.from(new Set([...yearFilters.map(Number), ...(parsedQuery?.years ?? [])])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [yearFiltersKey, parsedQuery],
+  );
+  /* The text that actually goes into the ilike/substring match. Once facets
+     are pulled out of `q`, searching for the FULL "12 math cbse" against
+     title/school/subject is exactly the bug (no column ever contains that
+     whole phrase) -- only the leftover (a school name, a typo) should be
+     matched as free text. A query with no recognisable facet at all falls
+     through unchanged, so a plain school-name search behaves exactly as
+     before. */
+  const freeText = hasParsedFacets ? (parsedQuery?.freeText ?? '') : q.trim();
 
   const [papers, setPapers] = useState<Paper[]>([]);
   const [total, setTotal] = useState(0);
@@ -110,7 +161,7 @@ export default function PaperResults() {
 
   const bankMatches = useMemo(() => {
     const rows = bankQuery.data ?? [];
-    const needle = q.trim().toLowerCase();
+    const needle = freeText.toLowerCase();
     const eq = (want: string[], value: string) =>
       want.length === 0 || want.some((w) => w.toLowerCase() === value.toLowerCase());
     return rows.filter((p) =>
@@ -118,21 +169,22 @@ export default function PaperResults() {
          a ?filter_subjects=Maths link has to find rows whose bank subject is
          "Mathematics", and an older ?filter_subjects=Mathematics link has to
          keep working. */
-      (subjectFilters.length === 0 ||
-        subjectFilters.some((w) => bankSubjectMatches(w, p.subject))) &&
+      (effectiveSubjects.length === 0 ||
+        effectiveSubjects.some((w) => bankSubjectMatches(w, p.subject))) &&
       /* bank_papers.cls stores numeric classes as Roman numerals ("X"), while
          the filter chips and URL are Arabic ("10") -- see bankClassMatches.
          The 18-row `papers` table below (runQuery) is untouched: its `class`
          column is already Arabic-numeral native. */
-      (classFilters.length === 0 || classFilters.some((w) => bankClassMatches(w, p.class))) &&
-      eq(boardFilters, p.board) &&
+      (effectiveClasses.length === 0 || effectiveClasses.some((w) => bankClassMatches(w, p.class))) &&
+      eq(effectiveBoards, p.board) &&
       eq(schoolFilters, p.school) &&
+      (effectiveYears.length === 0 || effectiveYears.includes(p.year)) &&
       (!needle ||
         p.title.toLowerCase().includes(needle) ||
         p.school.toLowerCase().includes(needle) ||
         p.subject.toLowerCase().includes(needle)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bankQuery.data, q, subjectFilters.join(','), classFilters.join(','), boardFilters.join(','), schoolFilters.join(',')]);
+  }, [bankQuery.data, freeText, effectiveSubjects, effectiveClasses, effectiveBoards, schoolFiltersKey, effectiveYears]);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -170,7 +222,7 @@ export default function PaperResults() {
     // Depend on the raw joined params (not just the first value) so the heading
     // updates when a non-first value in the list changes, matching the fetch effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, subjectFilters.join(','), classFilters.join(','), boardFilters.join(','), schoolFilters.join(',')]);
+  }, [q, subjectFiltersKey, classFiltersKey, boardFiltersKey, schoolFiltersKey]);
 
   usePageMeta(
     `${heading} | Shikshaq`,
@@ -183,16 +235,23 @@ export default function PaperResults() {
       .select('id,title,school,subject,class,board,exam_type,year', { count: 'exact' })
       .eq('is_published', true);
 
-    if (subjectFilters.length > 1) query = query.in('subject', subjectFilters);
-    else if (subjectFilters.length === 1) query = query.eq('subject', subjectFilters[0]);
-    if (classFilters.length > 1) query = query.in('class', classFilters);
-    else if (classFilters.length === 1) query = query.eq('class', classFilters[0]);
-    if (boardFilters.length > 1) query = query.in('board', boardFilters);
-    else if (boardFilters.length === 1) query = query.eq('board', boardFilters[0]);
+    if (effectiveSubjects.length > 1) query = query.in('subject', effectiveSubjects);
+    else if (effectiveSubjects.length === 1) query = query.eq('subject', effectiveSubjects[0]);
+    if (effectiveClasses.length > 1) query = query.in('class', effectiveClasses);
+    else if (effectiveClasses.length === 1) query = query.eq('class', effectiveClasses[0]);
+    if (effectiveBoards.length > 1) query = query.in('board', effectiveBoards);
+    else if (effectiveBoards.length === 1) query = query.eq('board', effectiveBoards[0]);
     if (schoolFilters.length > 1) query = query.in('school', schoolFilters);
     else if (schoolFilters.length === 1) query = query.eq('school', schoolFilters[0]);
-    if (q.trim()) {
-      const needle = sanitizeForIlike(q.trim());
+    if (effectiveYears.length > 1) query = query.in('year', effectiveYears);
+    else if (effectiveYears.length === 1) query = query.eq('year', effectiveYears[0]);
+    /* Only the leftover free text after facets are pulled out -- searching
+       ilike for the WHOLE raw query (e.g. "12 math cbse") is the bug this
+       page used to have: no title/school/subject column ever contains that
+       phrase verbatim, so a compound casual query always matched nothing
+       however many such papers exist. See src/lib/paper-query.ts. */
+    if (freeText.trim()) {
+      const needle = sanitizeForIlike(freeText.trim());
       query = query.or(`title.ilike.%${needle}%,school.ilike.%${needle}%,subject.ilike.%${needle}%`);
     }
 
@@ -223,9 +282,10 @@ export default function PaperResults() {
     return () => { cancelled = true; };
     // Depend on the raw joined params (not just the first value) so a change
     // to e.g. "Maths,Physics" -> "Maths,Chemistry" re-fetches even though the
-    // first value in the list didn't change.
+    // first value in the list didn't change. effectiveX (not the raw filter_*
+    // arrays) so a query-derived facet re-fetches too.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, subjectFilters.join(','), classFilters.join(','), boardFilters.join(','), schoolFilters.join(',')]);
+  }, [freeText, effectiveSubjects, effectiveClasses, effectiveBoards, schoolFiltersKey, effectiveYears]);
 
   // Back-to-top visibility. Long lists here are unbounded ("Load more" with no
   // virtualization by design), so getting back to the filter row must not mean
@@ -487,8 +547,7 @@ export default function PaperResults() {
           <p className="mt-3 max-w-prose text-[14px] leading-[1.55] text-white/75 lg:text-[16px] lg:leading-[1.65]">
             Every paper here is the property of the school that set it. Shikshaq claims no
             ownership, derives no revenue from any paper, and hosts these materials solely as a
-            free revision resource. If you represent a school and want a paper removed, tell us
-            and it goes the same day.
+            free revision resource.
           </p>
         </BentoPanel>
 

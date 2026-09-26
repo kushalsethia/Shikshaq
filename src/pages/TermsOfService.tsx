@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { LegalReader, type LegalSection } from '@/pages/legal/reader';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { getWhatsAppLink } from '@/utils/whatsapp';
 
 const pClass = 'max-w-prose text-warm-prose leading-relaxed';
 const pMtClass = 'max-w-prose text-warm-prose leading-relaxed mt-3';
@@ -228,7 +227,7 @@ const SECTIONS: LegalSection[] = [
     n: '09',
     title: 'Past papers',
     short: 'The papers belong to the schools that set them. We host them for reading only.',
-    body: 'Papers are shared by students and hosted for revision. Reading is free and requires an account. Downloading, reposting or selling them is not allowed. Any school can ask us to remove a paper and we do it the same day, no argument.',
+    body: 'Papers are shared by students and hosted for revision. Reading is free and requires an account. Downloading, reposting or selling them is not allowed.',
   },
   {
     n: '10',
@@ -292,15 +291,6 @@ export default function TermsOfService() {
     window.scrollTo(0, 0);
   }, []);
 
-  // LG-003: the copyright callout's removal action. There is no specific
-  // paper in context on this page (unlike PaperReader.tsx's per-paper
-  // requestRemovalUrl), so this is the same WhatsApp contact + wording
-  // pattern generalized to a document-level request rather than one about
-  // a single paper.
-  const removalUrl = `${getWhatsAppLink('8240980312')}?text=${encodeURIComponent(
-    "Hi! I'd like to request removal of a paper on Shikshaq."
-  )}`;
-
   return (
     <LegalReader
       pill="plain English, then the clauses"
@@ -319,7 +309,6 @@ export default function TermsOfService() {
       footHead="Something here unclear?"
       footBody="Ask us in normal words and we will answer in normal words. If a clause needs to change, we would rather rewrite it than argue about it."
       copyrightSectionN="09"
-      removalUrl={removalUrl}
       crossLink={{ label: 'Privacy policy', href: '/privacy-policy' }}
     />
   );

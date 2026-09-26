@@ -1,7 +1,9 @@
 import { FilterState } from '@/components/FilterPanel';
 
-// Base normalization for common subjects (always available)
-const BASE_SUBJECT_NORMALIZATION: Record<string, string> = {
+// Base normalization for common subjects (always available). Exported so
+// src/lib/paper-query.ts (the papers-search facet parser) shares the same
+// subject vocabulary instead of maintaining a second copy that could drift.
+export const BASE_SUBJECT_NORMALIZATION: Record<string, string> = {
   'math': 'Maths', 'mathematics': 'Maths', 'maths': 'Maths',
   'bio': 'Biology', 'biology': 'Biology', 'biol': 'Biology',
   'chem': 'Chemistry', 'chemistry': 'Chemistry',

@@ -105,7 +105,7 @@ function mathematicsArticles(stats: SubjectStats): BlogArticle[] {
       title: `Which ${scopeLabelMaths} chapters actually carry the marks`,
       description:
         `Every chapter in the ${scopeLabelMaths} syllabus, ranked by the marks it really carried ` +
-        `across ${fmt(stats.totals.papers)} papers from ${fmt(stats.totals.schools)} Kolkata schools.`,
+        `across ${fmt(stats.totals.papers)} papers from ${fmt(stats.totals.schools)} schools.`,
       eyebrow: 'Counted from real papers',
       shortTitle: 'Which chapters carry the marks',
       order: 0,
@@ -161,7 +161,7 @@ function articlesFor(subject: string, stats: SubjectStats): BlogArticle[] {
       title: `Which ${label} topics actually carry the marks`,
       description:
         `Every topic that came up in the ${label} bank, ranked by the marks it really carried ` +
-        `across ${fmt(stats.totals.papers)} papers from ${fmt(stats.totals.schools)} Kolkata schools.`,
+        `across ${fmt(stats.totals.papers)} papers from ${fmt(stats.totals.schools)} schools.`,
       eyebrow: 'Counted from real papers',
       shortTitle: 'Which topics carry the marks',
       order: 0,

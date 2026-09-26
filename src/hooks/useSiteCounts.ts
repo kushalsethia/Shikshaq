@@ -57,15 +57,22 @@ export function useSiteCounts() {
 
       const [teachers, papers, schools] = await Promise.all([
         supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
-        /* needs_review papers are listed but show "Coming soon", not actually
-           free to read -- every caller of this hook pairs the count with a
-           "free to read"-style claim, so a gated paper must not inflate it. */
+        /* 2026-09-26: the product owner decided the headline figure should
+           count every listed paper, needs_review or not -- a gated paper is
+           still a real paper the site hosts, just not openable yet. This is
+           an intentional reversal of the 20260926020000 exclusion; keep in
+           sync with site_counts() (20260926030000) and any other caller that
+           still filters needs_review for a count. */
         supabase
           .from('bank_papers')
           .select('id', { count: 'exact', head: true })
-          .eq('is_published', true)
-          .eq('needs_review', false),
-        fetchBankSchoolValues(),
+          .eq('is_published', true),
+        /* has_school = true: a board-level row (is_board_paper) carries a
+           board name, not a school, in the `school` column, and counting it
+           as a distinct school is exactly what made this figure indefensible.
+           scripts/generate-bank-sql.ts's own distinct_schools report already
+           filters the same way. */
+        fetchBankSchoolValues(true),
       ]);
 
       return {

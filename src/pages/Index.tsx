@@ -39,6 +39,9 @@ import { useSentenceBuilder } from '@/hooks/useSentenceBuilder';
 import { useIntent } from '@/lib/intent-context';
 import { intentCta } from '@/lib/intent/copy';
 import { getShikshaqmineBasicBySlugs } from '@/lib/teachers';
+import { loadPaperIndex, hasYear } from '@/lib/question-bank';
+import { bankSubjectToSite } from '@/lib/subject-vocabulary';
+import { coverPaper, coverMeta, pickVariedRecent, type CoverSourcePaper } from '@/lib/paper-cover-mapping';
 import { generateLocalBusinessSchema, generateServiceSchema } from '@/utils/structuredDataGenerators';
 import type { SearchMode } from '@/utils/searchFacets';
 
@@ -66,14 +69,25 @@ interface Subject {
   paperCount: number;
 }
 
+/* Shape a PaperCover actually renders (paper-cover.tsx's PaperCoverPaper),
+   plus the `meta` lines it prints under the headline. Built by running a bank
+   row through paper-cover-mapping.ts's coverPaper()/coverMeta() — the same
+   helpers PastPapers.tsx's own shelf uses, so a paper reads identically on
+   both surfaces. */
 interface RecentPaper {
   id: string;
   title: string;
-  school: string;
   subject: string;
   board: string;
-  class: string;
-  year: number;
+  year: number | string;
+  /** Subject, class and (for board papers) school — coverMeta()'s output. */
+  meta: string[];
+  /** Bank papers get a generated tint (one subject, many schools, would
+   *  otherwise render identical covers) — same `${school}-${id}` key
+   *  PastPapers.tsx's shelf uses. */
+  tintKey: string;
+  /** Listed but not yet openable — PaperCover shows "Soon" instead of a lock. */
+  comingSoon: boolean;
 }
 
 interface StudentQuote {
@@ -206,7 +220,7 @@ export default function Index() {
          stays for the call sites still using it. */
 
         const desiredSubjects = ['Chemistry', 'Hindi', 'English', 'Maths', 'Mathematics', 'Psychology', 'Computers', 'Computer', 'Accounts', 'Biology', 'Economics'];
-        const [subjectsRes, upvoteStatsRes, allTeachersRes, facetCountsRes] = await Promise.all([
+        const [subjectsRes, upvoteStatsRes, allTeachersRes, facetCountsRes, bankPapersForFacets] = await Promise.all([
           supabase.from('subjects').select('*').in('name', desiredSubjects).limit(10),
           // teacher_upvote_stats is a pre-aggregated view (teacher_id, upvote_count) —
           // avoids pulling every teacher_upvotes row down and counting client-side.
@@ -222,17 +236,19 @@ export default function Index() {
             .from('teachers_list')
             .select('id, name, slug, image_url, is_verified, subject_id, classes, subjects(name, slug), subjects_text:subjects')
             .limit(200),
-          /* Both of these were whole-table transfers pulled purely to be
-             counted in the browser: every published paper's board/class, and
-             every teacher's "School Boards Catered" cell. They are now one
-             aggregate done in the database (migration home_facet_counts_rpc),
-             so the homepage carries the tallies instead of the rows.
-
-             The RPC also fixed a real bug in passing: splitting that column
-             on "/" turned "N/A" into boards named "N" and "A", which this
-             page's own tokenizer below would have counted too. It counts
-             only recognised boards now. */
+          /* teacher_boards (every teacher's "School Boards Catered" cell) is
+             still one aggregate done in the database (migration
+             home_facet_counts_rpc, not checked into supabase/migrations/).
+             paper_boards from the SAME rpc is NOT used any more (see below):
+             it reads the wrong table (bank_papers has 1,960 rows; the RPC's
+             own paper_boards always came back {}), so the homepage's paper
+             board pills silently never rendered -- 2026-09-26,
+             docs/SUPABASE_RUNBOOK.md. We cannot fix the RPC's SQL from here
+             (no migration file for it, anon can't read pg_proc), so
+             paper_boards is derived client-side instead, from the same
+             cached bank_papers index PastPapers.tsx already uses. */
           supabase.rpc('home_facet_counts'),
+          loadPaperIndex(),
         ]);
 
         if (subjectsRes.error || upvoteStatsRes.error || allTeachersRes.error) {
@@ -388,9 +404,68 @@ export default function Index() {
         });
 
 
-        const paperBoardTally = tallyFrom(facetCounts.paper_boards);
+        // Derived from bank_papers client-side (see the loadPaperIndex() call
+        // above) rather than facetCounts.paper_boards: that RPC field reads
+        // the wrong table and always comes back {}. Reuses the same
+        // BOARD_ORDER-normalised tallyFrom the teacher side already uses.
+        const paperBoardRaw: Record<string, number> = {};
+        bankPapersForFacets.forEach((p) => {
+          paperBoardRaw[p.board] = (paperBoardRaw[p.board] ?? 0) + 1;
+        });
+        const paperBoardTally = tallyFrom(paperBoardRaw);
 
-      return { featured, subjectList, boardTally, classTally, paperBoardTally };
+        // "New papers" shelf (section 04, "the boards set") — was reading
+        // `papers` (18 rows, the submit-a-paper flow, 0 published to anon),
+        // not `bank_papers` (the library this same queryFn already loaded
+        // above for the board pills) — the exact "counted/read the wrong
+        // table" bug class CLAUDE.md calls out. That made the shelf almost
+        // always fall through to its EmptyResults ("Papers are being added").
+        // Reuses bankPapersForFacets rather than a second loadPaperIndex()
+        // call — the function memoises one promise for the whole session
+        // regardless, but there is no reason to ask twice from the same
+        // queryFn.
+        //
+        // Mapped into the same CoverSourcePaper shape PastPapers.tsx's own
+        // bank mapping builds, then run through the SAME coverPaper()/
+        // coverMeta()/pickVariedRecent() paper-cover-mapping.ts exports —
+        // product-owner review of the shelf (2026-09-26) caught two things a
+        // bare slice(0, 10) missed: no meta line (subject/class/school), so
+        // every cover under-described itself next to PastPapers.tsx's own
+        // shelf, and no variety — the bank sorts undated board papers first
+        // within a year, so ten near-identical "ICSE 2026" covers could
+        // (and did) fill the whole rail.
+        const bankAsCoverSource: CoverSourcePaper[] = bankPapersForFacets.map((b) => {
+          const subject = bankSubjectToSite(b.subject);
+          return {
+            id: b.id,
+            title: `Class ${b.cls} ${subject}`,
+            school: b.school,
+            subject,
+            class: b.cls,
+            board: b.board,
+            exam_type: b.exam,
+            year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+            _bankYear: b.year,
+            _questions: b.questionCount,
+            _isBoard: b.isBoardPaper,
+            _needsReview: b.needsReview,
+          };
+        });
+        const recentPapers: RecentPaper[] = pickVariedRecent(bankAsCoverSource, 10).map((p) => {
+          const shown = coverPaper(p);
+          return {
+            id: p.id,
+            subject: shown.subject,
+            board: shown.board,
+            title: shown.title,
+            year: shown.year,
+            meta: coverMeta(p),
+            tintKey: `${p.school}-${p.id}`,
+            comingSoon: p._needsReview === true,
+          };
+        });
+
+      return { featured, subjectList, boardTally, classTally, paperBoardTally, recentPapers };
     },
   });
 
@@ -427,9 +502,14 @@ export default function Index() {
     queryKey: ['home', 'stats'],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
+      /* 2026-09-26: papers was reading `papers` (18 rows, the submit-a-paper
+         flow), not `bank_papers` (the library, ~1,960 rows incl. needs_review)
+         -- the exact "counted the wrong table" bug class CLAUDE.md calls out.
+         The sentence-builder's "N papers" pill was silently near-zero. Matches
+         useSiteCounts' inclusive count (is_published, needs_review or not). */
       const [teachersRes, papersRes, reviewsRes] = await Promise.all([
         supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
-        supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+        supabase.from('bank_papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
         supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('approved', true),
       ]);
       return {
@@ -441,25 +521,11 @@ export default function Index() {
   });
   const stats = statsQuery.data ?? { teachers: null, papers: null, reviews: null };
 
-  // New papers — the three most recently published, real order by created_at
-  // desc (C-007 / O-01). Limit matches what the tray actually renders (owner
-  // QA: show 3, not 5 — see the 04 Papers section below).
-  const recentPapersQuery = useQuery({
-    queryKey: ['home', 'recent-papers'],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('papers')
-        .select('id, title, school, subject, board, class, year, created_at')
-        .eq('is_published', true)
-        .order('created_at', { ascending: false })
-        /* 10, not 3. The shelf is a carousel now, so three covers left it
-           half empty at desktop with nothing to scroll to. */
-        .limit(10);
-      return (data || []) as RecentPaper[];
-    },
-  });
-  const recentPapers = recentPapersQuery.data ?? [];
+  // New papers (section 04, "the boards set") — the 10 bank papers computed
+  // inside the `home` query above (see its 2026-09-26 comment), not a
+  // separate query: that queryFn already holds the one loadPaperIndex() call
+  // this route makes, so deriving from its result here is one fetch, not two.
+  const recentPapers = home.data?.recentPapers ?? [];
 
   // Student quote rail (C-009) — real, approved teacher_comments only. Never
   // ships placeholder quotes (design.md §0.10).
@@ -1127,14 +1193,17 @@ export default function Index() {
                       start edge cannot be scrolled back to. With ten covers in
                       here that would strand the first few. */}
                   <div className="scrollbar-hide flex items-end justify-start gap-3 overflow-x-auto overflow-y-visible">
-                    {recentPapers.slice(0, 10).map((p, i) => (
+                    {recentPapers.slice(0, 10).map((p) => (
                       <PaperCover
                         key={p.id}
                         paper={p}
+                        meta={p.meta}
+                        tintKey={p.tintKey}
+                        comingSoon={p.comingSoon}
                         href={`/past-papers/${p.id}`}
                         size="mobile"
                         /* Three fit a phone; the rest are there to scroll to. */
-                        className="flex-none" 
+                        className="flex-none"
                       />
                     ))}
                   </div>
