@@ -136,7 +136,7 @@ export default function PastPapers() {
   usePageMeta(
     // 58 chars. Was 74, so ~14 characters were truncated out of the SERP.
     'Free Past Year Question Papers - CBSE, ICSE, ISC | Shikshaq',
-    'Download free past year question papers and previous year solved papers for CBSE, ICSE, ISC and West Bengal State Board exams. Practice PYQs by subject and class.'
+    'Read free past year question papers for CBSE, ICSE, ISC and West Bengal State Board exams. Practice previous year questions (PYQs) by subject, class and school.'
   );
 
   const navigate = useNavigate();

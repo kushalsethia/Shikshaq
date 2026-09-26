@@ -508,7 +508,7 @@ export default function About() {
                 <p className="text-[14px] font-bold text-foreground">Where we draw the line</p>
                 <p className="mt-1 text-[14px] leading-[1.6] text-warm-secondary">
                   The questions belong to the schools that set them. Free to read, not to download
-                  or repost. Every one names its school, and any school can ask for theirs down.
+                  or repost. Every one names the school that set it.
                 </p>
               </div>
               <div className="mt-4 flex flex-wrap gap-2.5">
