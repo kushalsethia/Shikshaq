@@ -59,12 +59,22 @@ function isStaleChunkError(error: unknown): boolean {
  * storage) this returns false and the reader gets the panel and a button they
  * can press themselves. Never an unguarded reload.
  */
+/* Set once this page load has been granted its reload. Every later caller in
+   the same page lifetime gets `true` too: vite:preloadError (main.tsx) usually
+   claims first, and the same failure then reaches getDerivedStateFromError --
+   which React may also invoke more than once (StrictMode, render retries).
+   Without this, those later calls saw the budget as spent and rendered
+   "Something went wrong" in the moment before the reload landed. */
+let reloadGrantedThisPage = false;
+
 function claimStaleChunkReload(): boolean {
+  if (reloadGrantedThisPage) return true;
   const KEY = 'shikshaq_chunk_reload_at';
   try {
     const previous = Number(window.sessionStorage.getItem(KEY) ?? 0);
     if (Number.isFinite(previous) && Date.now() - previous < 60_000) return false;
     window.sessionStorage.setItem(KEY, String(Date.now()));
+    reloadGrantedThisPage = true;
     return true;
   } catch {
     return false;
@@ -80,15 +90,28 @@ interface Props {
 interface State {
   hasError: boolean;
   message: string;
+  /* True for exactly the renders where a guarded auto-reload is about to
+     happen. Decided in getDerivedStateFromError -- BEFORE the first paint of
+     the error UI -- specifically so that paint never shows "Something went
+     wrong": a reader who is about to be silently reloaded a moment later
+     should see a neutral loading state, not a message that reads like a
+     crash and gets contradicted a heartbeat later. See render() below. */
+  recovering: boolean;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, message: '' };
+  state: State = { hasError: false, message: '', recovering: false };
 
   static getDerivedStateFromError(error: unknown): State {
+    /* claimStaleChunkReload is called here, not in componentDidCatch, so the
+       one decision it makes (may we reload this time, or did we already try
+       in the last minute) is made exactly once per error and is the same
+       decision both the render below and componentDidCatch's actual reload
+       act on -- there is no second call to disagree with the first. */
     return {
       hasError: true,
       message: error instanceof Error ? error.message : String(error),
+      recovering: isStaleChunkError(error) && claimStaleChunkReload(),
     };
   }
 
@@ -99,7 +122,7 @@ export class ErrorBoundary extends Component<Props, State> {
       info.componentStack,
     );
 
-    if (isStaleChunkError(error) && claimStaleChunkReload()) {
+    if (this.state.recovering) {
       /* Not a bug in the page: the visitor is holding an index.html that
          references chunk filenames which no longer exist, because a deploy
          landed while they were reading. Their next route change asks for a
@@ -125,6 +148,35 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.hasError) return this.props.children;
+
+    if (this.state.recovering) {
+      /* Same "depend on nothing" rule as the panel below applies here too --
+         plain markup, inline styles, no router. role="status" rather than
+         "alert": this is not a fault being reported, it is a reload already
+         under way, and a screen reader announcing it as an alert would tell
+         the reader something is wrong exactly when nothing is. */
+      return (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            background: '#F9F5F1',
+            color: '#1F1B17',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ fontSize: '15px', lineHeight: 1.6, color: '#5A524A' }}>
+            Loading the latest version…
+          </p>
+        </div>
+      );
+    }
 
     return (
       /* Deliberately plain: this renders when the app is known to be in a bad
@@ -201,3 +253,15 @@ export class ErrorBoundary extends Component<Props, State> {
    public surface; these two are decisions worth pinning independently, because
    getting either wrong is worse than having no boundary at all. */
 export { isStaleChunkError as __isStaleChunkError, claimStaleChunkReload as __claimStaleChunkReload };
+/** Tests only: a real reload starts a fresh module, which this simulates. */
+export function __resetReloadGrantForTests(): void {
+  reloadGrantedThisPage = false;
+}
+
+/* Plain names for main.tsx's `vite:preloadError` listener (below the test
+   aliases, not instead of them, so the existing test imports keep working
+   unchanged). Sharing this exact function -- not a re-implementation -- means
+   the listener and this boundary spend the same one-reload-per-minute budget
+   from the same sessionStorage key, so a failure that fires both cannot burn
+   two reloads instead of one. */
+export { isStaleChunkError, claimStaleChunkReload };

@@ -13,7 +13,7 @@ import { IntentDebugPanel } from "@/components/IntentDebugPanel";
 import { LikesProvider } from "@/lib/likes-context";
 import { UpvotesProvider } from "@/lib/upvotes-context";
 import { StudiesWithProvider } from "@/lib/studies-with-context";
-import { ScrollToTop } from "@/components/ScrollToTop";
+import { ScrollManager } from "@/components/ScrollManager";
 import { CanonicalTag } from "@/components/CanonicalTag";
 import { AppShell } from "@/components/layout/AppShell";
 import { BentoStack, BentoPanel } from "@/components/layout/PageContainer";
@@ -252,7 +252,7 @@ const App = () => (
             >
               Skip to content
             </a>
-            <ScrollToTop />
+            <ScrollManager />
             <CanonicalTag />
             <RoutePrefetch />
             {/* fallback={null}, not PageLoader: these three are floating

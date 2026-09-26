@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { __isStaleChunkError, __claimStaleChunkReload } from './ErrorBoundary';
+import { __isStaleChunkError, __claimStaleChunkReload, __resetReloadGrantForTests } from './ErrorBoundary';
 
 /**
  * The two decisions that must not be wrong.
@@ -61,6 +61,7 @@ describe('claimStaleChunkReload', () => {
 
   beforeEach(() => {
     store = {};
+    __resetReloadGrantForTests();
     (globalThis as Record<string, unknown>).window = {
       sessionStorage: {
         getItem: (k: string) => (k in store ? store[k] : null),
@@ -77,10 +78,20 @@ describe('claimStaleChunkReload', () => {
     expect(__claimStaleChunkReload()).toBe(true);
   });
 
-  it('refuses a second reload straight away, so it cannot loop', () => {
+  it('refuses a second reload on the NEXT page load, so it cannot loop', () => {
     expect(__claimStaleChunkReload()).toBe(true);
+    __resetReloadGrantForTests(); // the reload: a fresh module, same sessionStorage
     expect(__claimStaleChunkReload()).toBe(false);
     expect(__claimStaleChunkReload()).toBe(false);
+  });
+
+  it('keeps saying yes within the page that was granted the reload', () => {
+    /* vite:preloadError claims first, then the same failure reaches
+       getDerivedStateFromError (possibly twice). A `false` there rendered
+       "Something went wrong" just before the reload landed. */
+    expect(__claimStaleChunkReload()).toBe(true);
+    expect(__claimStaleChunkReload()).toBe(true);
+    expect(__claimStaleChunkReload()).toBe(true);
   });
 
   it('allows another attempt once the window has passed', () => {

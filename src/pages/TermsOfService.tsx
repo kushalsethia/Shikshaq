@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { LegalReader, type LegalSection } from '@/pages/legal/reader';
 import { usePageMeta } from '@/hooks/usePageMeta';
 
@@ -286,10 +285,6 @@ export default function TermsOfService() {
     'Terms of Service | Shikshaq',
     'The terms that govern your use of Shikshaq, the free tutor-student matchmaking platform connecting students with verified tuition teachers in Kolkata.'
   );
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
 
   return (
     <LegalReader
