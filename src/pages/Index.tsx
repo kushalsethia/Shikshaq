@@ -860,7 +860,7 @@ export default function Index() {
                     the same family as the facet pills directly above it. */}
                 <span className="flex h-[34px] items-center gap-[8px] whitespace-nowrap rounded-full bg-muted px-3.5 text-[13px] font-semibold text-foreground">
                   <ShieldCheck className="h-[15px] w-[15px] flex-none text-brand-deep" strokeWidth={2.25} aria-hidden="true" />
-                  {stats.teachers} verified tutors in Kolkata
+                  {stats.teachers} verified teachers in Kolkata
                 </span>
               </div>
             )}
@@ -1132,7 +1132,7 @@ export default function Index() {
                   >
                     <span className="font-display text-[17px] font-bold">{b}</span>
                     <span className="text-[14px] tabular-nums opacity-80">
-                      {boardCounts[b]} {boardCounts[b] === 1 ? 'tutor' : 'tutors'}
+                      {boardCounts[b]} {boardCounts[b] === 1 ? 'teacher' : 'teachers'}
                     </span>
                   </Link>
                 ))}

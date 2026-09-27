@@ -41,7 +41,7 @@ export default function SchoolsPage() {
 
   usePageMeta(
     'Past Papers by School | Shikshaq',
-    'Browse free past papers grouped by the school that set them, ICSE, CBSE and ISC, classes 9 to 12. Open any school to read its papers question by question.',
+    'Browse free past papers grouped by the school that set them, ICSE, CBSE and ISC. Open any school to read its papers question by question.',
   );
 
   // Handoff SC-005: this route renders its own eyes panel, replacing

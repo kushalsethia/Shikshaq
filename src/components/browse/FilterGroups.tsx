@@ -606,6 +606,7 @@ export function FilterSheet({
   filters,
   onFilterChange,
   resultCount,
+  resultCountPending = false,
   onClear,
   mode = 'teachers',
 }: FilterGroupsProps & {
@@ -615,6 +616,12 @@ export function FilterSheet({
    *  Apply button, so without this the only way back from a nine-filter dead
    *  end was to un-tap nine chips one at a time. */
   onClear?: () => void;
+  /** RM2 — true while `resultCount` is a network-derived number that may not
+   *  yet reflect the latest chip tap (the caller's instant, no-network pool
+   *  estimate isn't ready yet). The CTA dims the number and shows a small
+   *  spinner instead of a confidently-stale one; never set once the caller
+   *  can answer instantly. */
+  resultCountPending?: boolean;
 }) {
   const count = activeFilterCount(filters);
 
@@ -624,7 +631,26 @@ export function FilterSheet({
         side="bottom"
         hideCloseButton
         aria-describedby={undefined}
-        className="flex h-[100dvh] max-h-[100dvh] flex-col rounded-none p-0"
+        /* Round-1 deferral: this full-screen sheet had no entrance animation
+           of its own — SheetContent's shared slide-in-from-bottom still
+           applies (untouched), but this is the one sheet in the product
+           that wants the site's *lift* timing rather than the generic
+           500ms/ease-snap every other sheet/dialog shares (that spec is
+           intentionally shared in ui/sheet.tsx, which this stream doesn't
+           own — overridden here per-instance instead). The `!` modifier is
+           load-bearing: this project's `cn()` only teaches tailwind-merge
+           about its custom font-size scale, not custom duration/easing
+           theme keys, so `duration-500` and `duration-lift` are two
+           unrelated Tailwind classes to it — both would ship in the
+           className, and without `!important` which one wins depends on
+           unrelated Tailwind generation order, not source order here.
+           duration-lift (300ms) in, duration-exit (130ms) out — CRAFT.md
+           "exits are softer and shorter than
+           enters" — both on ease-settle. Adds a fade so the motion reads
+           as opacity+transform (CRAFT.md §2), not transform alone.
+           motion-reduce collapses the slide distance to 0 and keeps only
+           the fade, per CRAFT.md's "keep the fades, drop the movement". */
+        className="flex h-[100dvh] max-h-[100dvh] flex-col rounded-none p-0 !ease-settle data-[state=open]:!duration-lift data-[state=closed]:!duration-exit data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 motion-reduce:data-[state=open]:!slide-in-from-bottom-0 motion-reduce:data-[state=closed]:!slide-out-to-bottom-0"
       >
         {/* Sticky header. The default Radix close X that SheetContent renders
             (top-right, 40px, 70% opacity) is hidden via
@@ -697,7 +723,20 @@ export function FilterSheet({
             className="rounded-full px-[22px] text-[15px] font-bold"
             onClick={() => onOpenChange(false)}
           >
-            Show {resultCount} {mode === 'papers' ? 'papers' : 'teachers'}
+            {/* RM2: while the count is only a network number that may not
+                reflect the chip just tapped yet, dim it and show a small
+                spinner instead of a confidently-stale "Show N" — the caller
+                only sets resultCountPending when it has no instant,
+                no-network estimate to show yet (see Browse.tsx). */}
+            {resultCountPending && (
+              <span
+                aria-hidden="true"
+                className="mr-2 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent align-[-2px] motion-reduce:animate-none"
+              />
+            )}
+            <span className={resultCountPending ? 'opacity-60 transition-opacity duration-tap' : 'transition-opacity duration-tap'}>
+              Show {resultCount} {mode === 'papers' ? 'papers' : 'teachers'}
+            </span>
           </Button>
         </div>
       </SheetContent>

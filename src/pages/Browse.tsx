@@ -29,6 +29,7 @@ import { RegionNotice } from '@/components/RegionNotice';
 import { extractFiltersFromQuery, extractNameFromQuery } from '@/utils/searchKeywordExtractor';
 import { searchByName, searchByNameWithScores } from '@/utils/searchByName';
 import { filterShikshaqRecords } from '@/lib/teacher-facet-match';
+import { firstMatchingToken, tokenizeFacetField, subjectFilterSynonyms } from '@/lib/teacher-badge-match';
 import { getCache, setCache, CACHE_TTL, getTeachersListCacheKey, getShikshaqmineChunkCacheKey} from '@/utils/cache';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { deriveExperienceYears, pageAllTeachers, fetchShikshaqmineChunked } from '@/lib/teachers';
@@ -479,39 +480,35 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
            whole-token-boundary + synonym rules filterShikshaqRecords already
            uses to decide the teacher matched in the first place (accountancy/
            accounts, computers/computer, drawing variants, social studies =
-           history & civics/geography), reimplemented here rather than
-           imported from teacher-facet-match.ts because that file is outside
-           this stream's owned files. Falls back to the old behaviour
+           history & civics/geography) — now shared with the Area badge below
+           via src/lib/teacher-badge-match.ts (`firstMatchingToken`) rather
+           than reimplemented per facet. Falls back to the old behaviour
            (first subject, then the joined subjects relation, then the
            generic label) whenever no filter subject actually matches —
            a teacher can match on class/area/etc. while genuinely not
            teaching the filtered subject via a different pathway is not
            possible here (subject is itself part of the match), so this
            fallback path is effectively "no subject filter is active". */
-        const matchedFilterSubject = filters.subjects.find((fs) => {
-          const fsLower = fs.toLowerCase();
-          const tokenMatchesAny = (tokens: string[]) =>
-            subjectList.some((t) => tokens.includes(t.toLowerCase()));
-          if (fsLower === 'accountancy') return tokenMatchesAny(['accountancy', 'accounts']);
-          if (fsLower === 'computers') return tokenMatchesAny(['computers', 'computer']);
-          if (fsLower === 'computer') return tokenMatchesAny(['computer']);
-          if (fsLower === 'drawing & painting' || fsLower === 'drawing and painting') {
-            return tokenMatchesAny(['drawing & painting', 'drawing and painting', 'drawing']);
-          }
-          if (fsLower === 'drawing') return tokenMatchesAny(['drawing']);
-          if (fsLower === 'social studies') {
-            return tokenMatchesAny(['history & civics', 'geography', 'social studies']);
-          }
-          return tokenMatchesAny([fsLower]);
-        });
+        const matchedFilterSubject = firstMatchingToken(filters.subjects, subjectList, subjectFilterSynonyms);
         const firstSubject = matchedFilterSubject || subjectList[0] || teacher.subjects?.name || 'Tuition Teacher';
         const area = (teacher as { area?: string | null }).area ?? null;
-        const firstArea = area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null;
+        /* RM1 — same bug as the subject badge above, for Area: under an active
+           "Salt Lake" filter, a multi-area teacher's card showed their
+           first-listed area (e.g. "Bhowanipore") rather than the area the
+           filter actually matched, reading as if the filter had silently
+           failed. Show the first active area filter that matches one of this
+           teacher's (comma/slash-separated) areas — same whole-token rules
+           filterShikshaqRecords/teacher-facet-match.ts uses for Area — and
+           fall back to the old first-token behaviour only when no area
+           filter is active (or the teacher matched on a different facet). */
+        const areaTokens = tokenizeFacetField(area);
+        const matchedFilterArea = firstMatchingToken(filters.areas, areaTokens);
+        const firstArea = matchedFilterArea || (area ? area.split(',').map((a) => a.trim()).filter(Boolean)[0] : null);
         const meta = [teacher.classes_taught, firstArea].filter(Boolean).join(' · ');
         const experienceYears = deriveExperienceYears((teacher as { _yearStarted?: number | null })._yearStarted);
         return { teacher, firstSubject, firstArea, meta, experienceYears };
       }),
-    [displayedTeachers, filters.subjects],
+    [displayedTeachers, filters.subjects, filters.areas],
   );
   const [allTeachersData, setAllTeachersData] = useState<Teacher[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -537,6 +534,53 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   // Null until an over-filtered empty state asks for it, so the ~497 kB is never
   // spent by the overwhelming majority of sessions, which never hit a dead end.
   const [relaxPool, setRelaxPool] = useState<any[] | null>(null);
+
+  /* RM2 — the Filters sheet's own "Show N teachers" CTA lagged ~1.5s behind
+     a chip tap (a full debounced network round trip on every toggle, with no
+     estimate shown meanwhile), reading as unresponsive even though the chip
+     itself toggled instantly. Reuses the SAME unfiltered pool + predicate the
+     empty-state relax pills already use above (loadRelaxPool +
+     filterShikshaqRecords) instead of a second cache: once loaded, every chip
+     tap re-runs the pure, in-memory predicate over ~147 rows and updates the
+     count on the next render — no network wait. Prefetched as soon as the
+     sheet opens (not on page load, matching the relax-pool comment above:
+     the ~497 kB is only worth spending once there's a filters sheet on
+     screen to show a count on) so it's normally ready well before the first
+     chip tap; if it isn't ready yet, the caller falls back to the
+     network-derived `teachers.length` and marks it pending (dimmed + spinner)
+     rather than showing a stale confident number. */
+  useEffect(() => {
+    if (!filterSheetOpen || relaxPool) return;
+    let cancelled = false;
+    loadRelaxPool()
+      .then((rows) => {
+        if (!cancelled) setRelaxPool(rows);
+      })
+      .catch((err: unknown) => {
+        // Losing this is not losing the sheet: it just falls back to the
+        // network-derived count, pending until that resolves.
+        if (import.meta.env.DEV) console.warn('filter-sheet preview pool fetch failed:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filterSheetOpen, relaxPool]);
+
+  // Instant (no-network) prospective teacher count for the current chip
+  // selection, once the pool above has landed. Shikshaqmine maps 1:1 onto
+  // teachers_list (see loadRelaxPool's comment), so this is the same number
+  // the server-side path would eventually return.
+  const instantFilterPreviewCount = useMemo(() => {
+    if (viewMode !== 'teachers' || !relaxPool) return null;
+    return filterShikshaqRecords(relaxPool, filters).length;
+  }, [viewMode, relaxPool, filters]);
+
+  const filterSheetResultCount = viewMode === 'papers' ? papersTotal : (instantFilterPreviewCount ?? teachers.length);
+  // Papers has no client-side pool to compute from, so it stays pending
+  // exactly while its own network fetch is in flight; teachers is pending
+  // only until the pool above lands (after that every chip tap is instant).
+  const filterSheetResultCountPending = viewMode === 'papers' ? papersLoading : instantFilterPreviewCount == null;
+
   // Cache of the last fetch's enriched (pre-sort) result set + upvote counts, keyed by the
   // searchParams that determined it (everything EXCEPT `sort`). Lets the sort control
   // re-order the whole result set with zero network round trips when only `sort` changes.
@@ -2415,7 +2459,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         onOpenChange={setFilterSheetOpen}
         filters={filters}
         onFilterChange={setFilters}
-        resultCount={viewMode === 'papers' ? papersTotal : teachers.length}
+        resultCount={filterSheetResultCount}
+        resultCountPending={filterSheetResultCountPending}
         onClear={clearFilters}
         mode={viewMode}
       />

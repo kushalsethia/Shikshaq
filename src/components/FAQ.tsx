@@ -10,7 +10,7 @@ export const FAQ_ITEMS: FAQEntry[] = [
   },
   {
     question: 'Which classes/grades and boards do you support?',
-    answer: 'Shikshaq caters to students across all school classes, from primary to senior secondary levels, under boards including CISCE, CBSE, IB, IGCSE, and State Boards. The platform also supports college students at the undergraduate level, along with learners preparing for various competitive examinations.',
+    answer: 'Shikshaq caters to students across all school classes, from primary to senior secondary levels, under boards including ICSE, CBSE, IB, IGCSE, and State Boards. The platform also supports college students at the undergraduate level, along with learners preparing for various competitive examinations.',
   },
   {
     question: 'Which cities or localities do you currently cater to?',

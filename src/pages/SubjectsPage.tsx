@@ -100,9 +100,9 @@ export default function SubjectsPage() {
           <BentoPanel fill="card" edge="top" className="px-[22px] pt-[14px] pb-[22px]">
             <NumberedHeading
               as="h1"
-              line1="Every subject,"
+              line1="Browse by"
               ordinal="01"
-              line2="one tap away"
+              line2="subject"
               support="Every board, classes 9 to 12."
             />
           </BentoPanel>

@@ -134,7 +134,7 @@ export default function Blog() {
       <SEOHead
         title="The papers, counted | Shikshaq"
         description={
-          `What ${fmt(allTotals.questions)} questions from ${fmt(allTotals.papers)} Kolkata school papers ` +
+          `What ${fmt(allTotals.questions)} questions from ${fmt(allTotals.papers)} real school papers ` +
           `show about which topics actually carry the marks. Free to read.`
         }
         canonical={BLOG_PATH}
@@ -148,7 +148,7 @@ export default function Blog() {
               The papers, counted.
             </h1>
             <p className="mt-4 max-w-[52ch] text-lede text-white/90">
-              Every number on these pages was counted from real papers set by Kolkata schools, across{' '}
+              Every number on these pages was counted from real papers, across{' '}
               {BLOG_SUBJECT_NAMES.length} subjects. Nothing here is estimated.
             </p>
 

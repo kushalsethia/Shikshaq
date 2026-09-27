@@ -115,7 +115,7 @@ function mathematicsArticles(stats: SubjectStats): BlogArticle[] {
     },
     {
       slug: 'how-kolkata-schools-set-their-papers',
-      title: 'How Kolkata schools actually set their Class 10 Maths papers',
+      title: 'How schools actually set their Class 10 Maths papers',
       description:
         `What ${fmt(stats.totals.questions)} questions from ${fmt(stats.totals.schools)} schools show ` +
         `about paper types, mark weights and how much of the syllabus a prelim really covers.`,
@@ -173,7 +173,7 @@ function articlesFor(subject: string, stats: SubjectStats): BlogArticle[] {
 
   out.push({
     slug: `how-kolkata-schools-set-their-${subjectSlug(subject)}-papers`,
-    title: `How Kolkata schools actually set their ${label} papers`,
+    title: `How schools actually set their ${label} papers`,
     description:
       `What ${fmt(stats.totals.questions)} questions from ${fmt(stats.totals.schools)} schools show ` +
       `about paper types and how questions are weighted.`,

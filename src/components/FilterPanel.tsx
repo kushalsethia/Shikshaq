@@ -215,7 +215,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={subject}
                   onClick={() => toggleFilter('subjects', subject)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-[0.96] motion-reduce:active:scale-100 ${
                     filters.subjects.includes(subject)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -235,7 +235,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={cls}
                   onClick={() => toggleFilter('classes', cls)}
-                  className={`w-12 h-12 rounded-full text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 flex items-center justify-center ${
+                  className={`w-12 h-12 rounded-full text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-[0.96] motion-reduce:active:scale-100 flex items-center justify-center ${
                     filters.classes.includes(cls)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -255,7 +255,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={board}
                   onClick={() => toggleFilter('boards', board)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-[0.96] motion-reduce:active:scale-100 ${
                     filters.boards.includes(board)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -275,7 +275,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={size}
                   onClick={() => toggleFilter('classSize', size)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-[0.96] motion-reduce:active:scale-100 ${
                     filters.classSize.includes(size)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -321,7 +321,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                           key={area}
                           onClick={() => toggleFilter('areas', area)}
                           aria-pressed={filters.areas.includes(area)}
-                          className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
+                          className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-[0.96] motion-reduce:active:scale-100 ${
                             filters.areas.includes(area)
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-muted text-foreground hover:bg-muted/80'
@@ -345,7 +345,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={mode}
                   onClick={() => toggleFilter('modeOfTeaching', mode)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-[0.96] motion-reduce:active:scale-100 ${
                     filters.modeOfTeaching.includes(mode)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'
@@ -365,7 +365,7 @@ export function FilterPanel({ open, onOpenChange, filters, onFilterChange, onCle
                 <button
                   key={place}
                   onClick={() => toggleFilter('placeOfTeaching', place)}
-                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-95 motion-reduce:active:scale-100 ${
+                  className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-[color,background-color,transform] duration-tap ease-tap active:scale-[0.96] motion-reduce:active:scale-100 ${
                     filters.placeOfTeaching.includes(place)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-muted/80'

@@ -535,7 +535,7 @@ export default function PastPapers() {
               ) : !loading && !loadError && totalFreePapers != null && totalFreePapers > 0 ? (
                 genericHeadline(totalFreePapers.toLocaleString('en-IN'))
               ) : (
-                <>Past papers from{' '}<br /><span className="font-black">Kolkata schools</span></>
+                <>Past papers from{' '}<br /><span className="font-black">schools across India</span></>
               )}
             </h1>
             {/* Was a school-count + "classes 9 to 12" range ("From 6 schools
@@ -551,7 +551,7 @@ export default function PastPapers() {
                   (La Martiniere, Bhavan's, DPS Joka, Don Bosco Park Circus)
                   most are from schools elsewhere in India. Saying Kolkata
                   would be plainly untrue on the same screen that lists them. */}
-              Real ICSE and CBSE papers, shared by students. Free to read, with marking schemes where the boards publish them.
+              Real ICSE, CBSE and ISC papers, shared by students. Free to read, with marking schemes where the boards publish them.
             </p>
             {/* Owner mobile QA: "Sign in free to read" here was a second,
                 premature sign-in CTA above the fold — the gate a reader
@@ -737,7 +737,7 @@ export default function PastPapers() {
               className="bg-transparent shadow-none"
               icon={<FileText className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />}
               heading="The collection is just getting started"
-              message="We're still gathering papers from Kolkata schools, nothing's uploaded yet. Tell us which paper you need and we'll chase it down, or find a teacher who can help in the meantime."
+              message="We're still gathering papers, nothing's uploaded yet. Tell us which paper you need and we'll chase it down, or find a teacher who can help in the meantime."
               options={[{ label: 'Browse teachers instead', onClick: () => navigate('/all-tuition-teachers-in-kolkata') }]}
               action={{
                 label: 'Request a paper',
@@ -1036,7 +1036,7 @@ export default function PastPapers() {
         <BentoPanel fill="papersTint" className="p-[22px]">
           <h2 className={`mb-2 ${SECTION_H2} text-foreground`}>More papers on the way</h2>
           <p className="max-w-prose text-body-secondary text-muted-foreground">
-            Students across Kolkata are working hard to add more papers to this collection every week. If the one you need is not here yet, it is probably next.
+            More papers are added most weeks. If the one you need is not here yet, it is probably next.
           </p>
         </BentoPanel>
 

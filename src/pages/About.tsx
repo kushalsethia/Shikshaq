@@ -274,7 +274,7 @@ export default function About() {
                     icon: <BookOpen />,
                     tint: 'bg-brand-blue-subtle',
                     title: 'We host the papers, free to read',
-                    body: `Real question papers from Kolkata schools, kept as they were set. The first ${FREE_PREVIEW_WORD} questions of any open paper need no account at all.`,
+                    body: `Real question papers, kept as they were set. The first ${FREE_PREVIEW_WORD} questions of any open paper need no account at all.`,
                   },
                   {
                     tone: 'muted' as const,

@@ -1348,10 +1348,14 @@ export default function TeacherDashboard() {
               <h2 className="font-display text-[19px] font-extrabold tracking-[-0.03em] text-foreground">Your listing</h2>
               <span className="text-[14px] font-extrabold tabular-nums text-brand-deep">{completenessPct}%</span>
             </div>
-            <div className="relative mt-2.5 h-2 rounded-full bg-muted">
+            <div className="relative mt-2.5 h-2 overflow-hidden rounded-full bg-muted">
+              {/* Fixed-width track, inner bar scaled via transform (composited)
+                  rather than animating `width` (layout-triggering on every
+                  frame). Same visual result: origin-left so it grows from the
+                  left edge exactly like the old width animation did. */}
               <span
-                className="absolute inset-y-0 left-0 rounded-full bg-brand transition-[width] duration-300 ease-out"
-                style={{ width: `${completenessPct}%` }}
+                className="absolute inset-y-0 left-0 h-full w-full origin-left rounded-full bg-brand transition-transform duration-300 ease-out"
+                style={{ transform: `scaleX(${completenessPct / 100})` }}
               />
             </div>
             {missingLabels.length > 0 && (

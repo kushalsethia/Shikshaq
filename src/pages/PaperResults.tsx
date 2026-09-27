@@ -226,7 +226,7 @@ export default function PaperResults() {
 
   usePageMeta(
     `${heading} | Shikshaq`,
-    'Browse free past year question papers shared by students from Kolkata schools. Read online, no download, no sign-up wall.'
+    'Browse free past year question papers shared by students. Read online, no download, no sign-up wall.'
   );
 
   function runQuery(pageNum: number) {
@@ -260,6 +260,12 @@ export default function PaperResults() {
     return query.order('year', { ascending: false }).order('school', { ascending: true }).range(from, to);
   }
 
+  // Bumped by the error state's Retry button to re-run the fetch effect below
+  // without a full page reload -- CRAFT.md §4 wants an actual retry, not
+  // window.location.reload().
+  const [retryTick, setRetryTick] = useState(0);
+  const retry = useCallback(() => setRetryTick((t) => t + 1), []);
+
   useEffect(() => {
     let cancelled = false;
     async function fetchFirstPage() {
@@ -283,9 +289,11 @@ export default function PaperResults() {
     // Depend on the raw joined params (not just the first value) so a change
     // to e.g. "Maths,Physics" -> "Maths,Chemistry" re-fetches even though the
     // first value in the list didn't change. effectiveX (not the raw filter_*
-    // arrays) so a query-derived facet re-fetches too.
+    // arrays) so a query-derived facet re-fetches too. retryTick has no effect
+    // on the query itself -- it exists purely so Retry can re-trigger this
+    // effect when nothing else about the search changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [freeText, effectiveSubjects, effectiveClasses, effectiveBoards, schoolFiltersKey, effectiveYears]);
+  }, [freeText, effectiveSubjects, effectiveClasses, effectiveBoards, schoolFiltersKey, effectiveYears, retryTick]);
 
   // Back-to-top visibility. Long lists here are unbounded ("Load more" with no
   // virtualization by design), so getting back to the filter row must not mean
@@ -359,28 +367,35 @@ export default function PaperResults() {
 
   // One chip per active VALUE (not per facet) so a multi-select filter shows
   // and can remove each value independently — matching the .in() query above.
-  const filterChips: FilterChipItem[] = [
-    ...subjectFilters.map((v) => ({
-      key: `filter_subjects:${v}`,
-      label: v,
-      onRemove: () => removeFilterValue('filter_subjects', v),
-    })),
-    ...classFilters.map((v) => ({
-      key: `filter_classes:${v}`,
-      label: `Class ${v}`,
-      onRemove: () => removeFilterValue('filter_classes', v),
-    })),
-    ...boardFilters.map((v) => ({
-      key: `filter_boards:${v}`,
-      label: v,
-      onRemove: () => removeFilterValue('filter_boards', v),
-    })),
-    ...schoolFilters.map((v) => ({
-      key: `filter_schools:${v}`,
-      label: v,
-      onRemove: () => removeFilterValue('filter_schools', v),
-    })),
-  ];
+  // Memoized (not just a plain const) so the relax-scoring effect and
+  // relaxOptions memo below, which both depend on this array by reference,
+  // don't re-run on every render — only when a filter value actually changes.
+  const filterChips: FilterChipItem[] = useMemo(
+    () => [
+      ...subjectFilters.map((v) => ({
+        key: `filter_subjects:${v}`,
+        label: v,
+        onRemove: () => removeFilterValue('filter_subjects', v),
+      })),
+      ...classFilters.map((v) => ({
+        key: `filter_classes:${v}`,
+        label: `Class ${v}`,
+        onRemove: () => removeFilterValue('filter_classes', v),
+      })),
+      ...boardFilters.map((v) => ({
+        key: `filter_boards:${v}`,
+        label: v,
+        onRemove: () => removeFilterValue('filter_boards', v),
+      })),
+      ...schoolFilters.map((v) => ({
+        key: `filter_schools:${v}`,
+        label: v,
+        onRemove: () => removeFilterValue('filter_schools', v),
+      })),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [subjectFiltersKey, classFiltersKey, boardFiltersKey, schoolFiltersKey],
+  );
 
   /* Bank matches lead, then the database page. Only on the first page — they
      are not part of the server's pagination. */
@@ -388,6 +403,119 @@ export default function PaperResults() {
   const shownTotal = total + bankMatches.length;
 
   const hasMore = papers.length < total;
+
+  // Same predicate as the `bankMatches` memo above, parametrised so the relax
+  // scoring below can ask "how many bank rows would match with one filter
+  // value dropped" without re-deriving effectiveSubjects/etc. for a
+  // hypothetical filter state.
+  const countBankMatches = useCallback(
+    (subjects: string[], classes: string[], boards: string[], schools: string[], years: number[]) => {
+      const rows = bankQuery.data ?? [];
+      const needle = freeText.toLowerCase();
+      const eq = (want: string[], value: string) =>
+        want.length === 0 || want.some((w) => w.toLowerCase() === value.toLowerCase());
+      return rows.filter(
+        (p) =>
+          (subjects.length === 0 || subjects.some((w) => bankSubjectMatches(w, p.subject))) &&
+          (classes.length === 0 || classes.some((w) => bankClassMatches(w, p.class))) &&
+          eq(boards, p.board) &&
+          eq(schools, p.school) &&
+          (years.length === 0 || years.includes(p.year)) &&
+          (!needle ||
+            p.title.toLowerCase().includes(needle) ||
+            p.school.toLowerCase().includes(needle) ||
+            p.subject.toLowerCase().includes(needle)),
+      ).length;
+    },
+    [bankQuery.data, freeText],
+  );
+
+  const isDeadEnd = !loading && !loadError && shownPapers.length === 0;
+
+  // EmptyResults relax options: for each active filter chip, a head-only count
+  // (bank rows filtered locally + a Supabase count query) of what the result
+  // set would be with just that one value dropped. Reuses the existing
+  // chip-removal logic (`removeFilterValue`, the same one FilterChips itself
+  // calls) rather than inventing a second way to drop a filter -- this IS the
+  // "existing relax logic" the brief asks for, just scored so the empty state
+  // can show the highest-yield option(s) first instead of guessing.
+  const [relaxCounts, setRelaxCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!isDeadEnd || filterChips.length === 0) return;
+    let cancelled = false;
+    async function scoreOne(chip: FilterChipItem): Promise<[string, number]> {
+      const sepIndex = chip.key.indexOf(':');
+      const paramKey = chip.key.slice(0, sepIndex);
+      const value = chip.key.slice(sepIndex + 1);
+      const subjects = paramKey === 'filter_subjects' ? effectiveSubjects.filter((v) => v !== value) : effectiveSubjects;
+      const classes = paramKey === 'filter_classes' ? effectiveClasses.filter((v) => v !== value) : effectiveClasses;
+      const boards = paramKey === 'filter_boards' ? effectiveBoards.filter((v) => v !== value) : effectiveBoards;
+      const schools = paramKey === 'filter_schools' ? schoolFilters.filter((v) => v !== value) : schoolFilters;
+      const bankCount = countBankMatches(subjects, classes, boards, schools, effectiveYears);
+      let dbCount = 0;
+      try {
+        let q = supabase.from('papers').select('id', { count: 'exact', head: true }).eq('is_published', true);
+        if (subjects.length > 1) q = q.in('subject', subjects);
+        else if (subjects.length === 1) q = q.eq('subject', subjects[0]);
+        if (classes.length > 1) q = q.in('class', classes);
+        else if (classes.length === 1) q = q.eq('class', classes[0]);
+        if (boards.length > 1) q = q.in('board', boards);
+        else if (boards.length === 1) q = q.eq('board', boards[0]);
+        if (schools.length > 1) q = q.in('school', schools);
+        else if (schools.length === 1) q = q.eq('school', schools[0]);
+        if (effectiveYears.length > 1) q = q.in('year', effectiveYears);
+        else if (effectiveYears.length === 1) q = q.eq('year', effectiveYears[0]);
+        if (freeText.trim()) {
+          const needle = sanitizeForIlike(freeText.trim());
+          q = q.or(`title.ilike.%${needle}%,school.ilike.%${needle}%,subject.ilike.%${needle}%`);
+        }
+        const { count, error } = await q;
+        if (error) throw error;
+        dbCount = count ?? 0;
+      } catch {
+        // Losing one candidate's DB half is not losing the empty state -- it
+        // just scores lower (bank-only) than it should, worst case it's left
+        // out of the top slice below rather than shown wrong.
+      }
+      return [chip.key, bankCount + dbCount];
+    }
+    Promise.all(filterChips.map(scoreOne)).then((entries) => {
+      if (!cancelled) setRelaxCounts(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDeadEnd, subjectFiltersKey, classFiltersKey, boardFiltersKey, schoolFiltersKey, yearFiltersKey, bankQuery.data]);
+
+  // Highest-yield first, capped at 2 so it plus the "Browse all papers"
+  // fallback below never exceeds EmptyResults' three-pill guidance.
+  const relaxOptions = useMemo(
+    () =>
+      filterChips
+        .map((chip) => ({ chip, n: relaxCounts[chip.key] }))
+        .filter((r): r is { chip: FilterChipItem; n: number } => typeof r.n === 'number' && r.n > 0)
+        .sort((a, b) => b.n - a.n)
+        .slice(0, 2)
+        .map(({ chip, n }) => ({
+          label: `Without ${chip.label} · ${n.toLocaleString('en-IN')}`,
+          onClick: chip.onRemove,
+        })),
+    [filterChips, relaxCounts],
+  );
+
+  // "Browse all papers" always stands regardless of whether a relax option
+  // exists -- it's the one option that works even for a free-text search
+  // with no filter chips to drop (e.g. "?q=zzqx").
+  const emptyStateOptions = [
+    ...relaxOptions,
+    { label: 'Browse all papers', onClick: clearFilters },
+    {
+      label: 'Request this paper',
+      onClick: () => window.open(requestPaperUrl(), '_blank', 'noopener,noreferrer'),
+    },
+  ];
+  const findTeacherLabel = subjectFilter ? `Find a teacher for ${subjectFilter}` : 'Find a teacher';
 
   const infiniteScrollRef = useInfiniteScroll({ hasMore, loading: loadingMore, onLoadMore: loadMore });
 
@@ -493,9 +621,10 @@ export default function PaperResults() {
             </div>
           ) : loadError ? (
             <EmptyResults
+              tone="papers"
               heading="Unable to load papers right now"
-              message="Please refresh the page and try again."
-              action={{ label: 'Refresh', onClick: () => window.location.reload() }}
+              message="This is on us, not necessarily on your connection. Try again."
+              action={{ label: 'Retry', onClick: retry }}
             />
           ) : /* shownPapers, not papers. This gated the whole result list on the
                  Supabase PDF rows alone while the count beside the heading used
@@ -548,13 +677,11 @@ export default function PaperResults() {
             </div>
           ) : (
             <EmptyResults
+              tone="papers"
               heading="No papers match all of those filters yet"
-              message="The collection is still growing. Relax a filter, or ask for this paper and we'll add it when a student shares it."
-              options={filterChips.length > 0 ? [{ label: 'Clear all filters', onClick: clearFilters }] : undefined}
-              action={{
-                label: 'Request this paper',
-                onClick: () => window.open(requestPaperUrl(), '_blank', 'noopener,noreferrer'),
-              }}
+              message="The collection is still growing. Drop a filter, browse everything we have, ask us to add this paper, or find a teacher instead."
+              options={emptyStateOptions}
+              action={{ label: findTeacherLabel, onClick: handleSeeTeachers }}
             />
           )}
         </BentoPanel>
