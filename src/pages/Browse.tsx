@@ -20,6 +20,7 @@ import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { ScrollRail } from '@/components/ui/scroll-rail';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 import { bankSubjectMatches, bankSubjectToSite } from '@/lib/subject-vocabulary';
+import { rawSchoolsFor } from '@/lib/school-display';
 import { InlinePapersNudge } from '@/components/browse/InlinePapersNudge';
 import { cn } from '@/lib/utils';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
@@ -387,9 +388,15 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         // is the same helper PaperResults.tsx already uses for this comparison.
         const eqSubject = (want: string[], value: string) =>
           want.length === 0 || want.some((w) => bankSubjectMatches(w, value));
+        /* filters.schools holds the FACET LABEL (useSearchIndex's `schools`
+           list is deduped through displaySchool -- see school-display.ts), so
+           it has to be expanded back to every raw bank_papers.school value a
+           merged label covers before it can match either source's raw
+           column. */
+        const rawSchoolFilters = filters.schools.flatMap((label) => rawSchoolsFor(label));
         const bankMatches = bank.filter((p) =>
           eqSubject(filters.subjects, p.subject) && eqClass(filters.classes, p.class) && eq(filters.boards, p.board)
-          && eq(filters.schools, p.school) && eq(filters.examTypes, p.exam_type));
+          && eq(rawSchoolFilters, p.school) && eq(filters.examTypes, p.exam_type));
 
         let query = supabase
           .from('papers')
@@ -401,8 +408,8 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         else if (filters.classes.length === 1) query = query.eq('class', filters.classes[0]);
         if (filters.boards.length > 1) query = query.in('board', filters.boards);
         else if (filters.boards.length === 1) query = query.eq('board', filters.boards[0]);
-        if (filters.schools.length > 1) query = query.in('school', filters.schools);
-        else if (filters.schools.length === 1) query = query.eq('school', filters.schools[0]);
+        if (rawSchoolFilters.length > 1) query = query.in('school', rawSchoolFilters);
+        else if (rawSchoolFilters.length === 1) query = query.eq('school', rawSchoolFilters[0]);
         if (filters.examTypes.length > 1) query = query.in('exam_type', filters.examTypes);
         else if (filters.examTypes.length === 1) query = query.eq('exam_type', filters.examTypes[0]);
         const { data, error, count } = await query

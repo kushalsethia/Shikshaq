@@ -39,6 +39,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { canonicalPathFor } from '../src/lib/canonical';
 import { schoolSlug } from '../src/lib/school-slug';
+import { displaySchool, isRealSchoolLabel } from '../src/lib/school-display';
 import { isExcludedPaper } from './excluded-papers';
 import { extractLeakNeedles, findLeak } from './prerender-leak-check';
 import { SUBJECT_CONTENT, BOARD_CONTENT, type SubjectContent } from '../src/content/subject-seo';
@@ -120,6 +121,11 @@ interface Meta {
   title: string;
   description: string;
   path: string;
+  /** Overrides what the canonical link / og:url are computed from, when the
+   *  page is written at a NON-canonical URL (a merged school's non-canonical
+   *  raw slug — see schoolRoutes()) that should still declare the canonical
+   *  page as the real one. Defaults to `path` itself. */
+  canonicalPath?: string;
   ogImage?: string;
   schemas: object[];
   body: string;
@@ -134,7 +140,7 @@ interface Meta {
  * Twitter tends to take the last. Replacing in place keeps exactly one.
  */
 function render(template: string, meta: Meta): string {
-  const url = `${SITE_URL}${canonicalPathFor(meta.path)}`;
+  const url = `${SITE_URL}${canonicalPathFor(meta.canonicalPath ?? meta.path)}`;
   const title = esc(meta.title);
   const description = esc(meta.description);
 
@@ -226,7 +232,7 @@ function hasYear(year: string | null): boolean {
 
 function paperTitle(p: BankPaper): string {
   const year = hasYear(p.year) ? ` ${p.year}` : '';
-  return `${p.school} Class ${p.cls} ${p.subject}${year} Question Paper | Shikshaq`;
+  return `${displaySchool(p.school)} Class ${p.cls} ${p.subject}${year} Question Paper | Shikshaq`;
 }
 
 function paperRoutes(papers: BankPaper[], template: string): number {
@@ -244,6 +250,7 @@ function paperRoutes(papers: BankPaper[], template: string): number {
     const url = `${SITE_URL}${routePath}`;
     const year = hasYear(p.year) ? p.year : null;
     const slug = p.has_school ? schoolSlug(p.school) : '';
+    const displayName = displaySchool(p.school);
 
     /* Siblings from the same school turn 1,282 near-orphan paper pages into a
        connected graph. Before this, most were reachable only from the sitemap
@@ -253,15 +260,15 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       .slice(0, 4)
       .map((s) => ({
         href: `/past-papers/${s.id}`,
-        label: `${s.school} Class ${s.cls} ${s.subject}${hasYear(s.year) ? ` ${s.year}` : ''}`,
+        label: `${displaySchool(s.school)} Class ${s.cls} ${s.subject}${hasYear(s.year) ? ` ${s.year}` : ''}`,
       }));
 
-    const heading = `${p.school} Class ${p.cls} ${p.subject}${year ? ` ${year}` : ''} question paper`;
+    const heading = `${displayName} Class ${p.cls} ${p.subject}${year ? ` ${year}` : ''} question paper`;
 
     const body = [
       `<h1>${esc(heading)}</h1>`,
       `<dl>`,
-      `<dt>School</dt><dd>${esc(p.school)}</dd>`,
+      `<dt>School</dt><dd>${esc(displayName)}</dd>`,
       `<dt>Board</dt><dd>${esc(p.board)}</dd>`,
       `<dt>Class</dt><dd>${esc(p.cls)}</dd>`,
       `<dt>Subject</dt><dd>${esc(p.subject)}</dd>`,
@@ -270,7 +277,7 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       `<dt>Questions</dt><dd>${esc(p.question_count)}</dd>`,
       `<dt>Total marks</dt><dd>${esc(p.marks)}</dd>`,
       `</dl>`,
-      slug ? `<p><a href="/school/${esc(slug)}">All ${esc(p.school)} question papers</a></p>` : '',
+      slug ? `<p><a href="/school/${esc(slug)}">All ${esc(displayName)} question papers</a></p>` : '',
       siblings.length ? `<h2>More from this school</h2>${links(siblings)}` : '',
     ].join('');
 
@@ -291,7 +298,7 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       about: { '@type': 'Thing', name: p.subject },
       isAccessibleForFree: false,
       ...(year ? { datePublished: year } : {}),
-      provider: { '@type': 'EducationalOrganization', name: p.school },
+      provider: { '@type': 'EducationalOrganization', name: displayName },
       isPartOf: { '@id': `${SITE_URL}/#website` },
       hasPart: {
         '@type': 'WebPageElement',
@@ -304,7 +311,7 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       [
         { name: 'Home', url: '/' },
         { name: 'Past papers', url: '/past-papers' },
-        ...(slug ? [{ name: p.school, url: `/school/${slug}` }] : []),
+        ...(slug ? [{ name: displayName, url: `/school/${slug}` }] : []),
         { name: heading, url: routePath },
       ],
       `${url}#breadcrumb`,
@@ -315,7 +322,7 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       render(template, {
         title: paperTitle(p),
         description:
-          `${p.question_count} questions from the ${p.school} Class ${p.cls} ${p.subject} ${p.exam ?? 'question paper'}, `
+          `${p.question_count} questions from the ${displayName} Class ${p.cls} ${p.subject} ${p.exam ?? 'question paper'}, `
           + 'with marks, chapters and figures. Free to read with an account.',
         path: routePath,
         schemas: [learningResource, breadcrumbs],
@@ -328,18 +335,63 @@ function paperRoutes(papers: BankPaper[], template: string): number {
 }
 
 function schoolRoutes(papers: BankPaper[], template: string): number {
-  const bySchool = new Map<string, { name: string; papers: BankPaper[] }>();
+  /* Two layers, same shape as src/lib/question-bank.ts's schoolGroupsOfPapers
+     (this script has its own BankPaper/lowercase-field shape, so the grouping
+     is re-implemented here rather than imported):
+
+     1. bySlug -- raw slug -> that spelling's own papers, exactly as before.
+     2. byLabel -- several raw slugs that share a DISPLAY LABEL ("Gregorios" /
+        "St Gregorios" / "St. Gregorios High School" are all one real school)
+        folded into one group, so the merged page's own count/paper list is
+        the school's TRUE total, not one third of it three times over.
+
+     Every raw slug in a group still gets its own prerendered file (an old
+     /school/gregorios link must not 404), but all of them render the SAME
+     merged content, and only the canonical slug's version omits an
+     overriding canonical link. */
+  const bySlug = new Map<string, { name: string; papers: BankPaper[] }>();
   for (const p of papers) {
     if (!p.has_school) continue;
     const slug = schoolSlug(p.school);
     if (!slug) continue;
-    if (!bySchool.has(slug)) bySchool.set(slug, { name: p.school, papers: [] });
-    bySchool.get(slug)!.papers.push(p);
+    if (!bySlug.has(slug)) bySlug.set(slug, { name: p.school, papers: [] });
+    bySlug.get(slug)!.papers.push(p);
   }
 
-  for (const [slug, { name, papers: list }] of bySchool) {
-    const routePath = `/school/${slug}`;
-    const url = `${SITE_URL}${routePath}`;
+  interface SchoolGroup { label: string; canonicalSlug: string; slugs: string[]; papers: BankPaper[] }
+  const bySlugsForLabel = new Map<string, string[]>();
+  for (const [slug, { name }] of bySlug) {
+    const label = displaySchool(name);
+    if (!isRealSchoolLabel(label)) continue;
+    const list = bySlugsForLabel.get(label) ?? [];
+    list.push(slug);
+    bySlugsForLabel.set(label, list);
+  }
+
+  const byLabel = new Map<string, SchoolGroup>();
+  for (const [label, slugs] of bySlugsForLabel) {
+    /* Canonical: the raw spelling whose OWN display equals the label (no
+       lookup table needed to justify the URL), else the raw spelling with
+       the most papers -- same rule SchoolsPage.tsx and question-bank.ts's
+       schoolGroupsOfPapers use, kept in sync by hand across the three since
+       this script cannot import browser-facing modules that pull in
+       supabase-js. */
+    const selfCanonicalSlug = slugs.find((s) => displaySchool(bySlug.get(s)!.name) === bySlug.get(s)!.name);
+    const canonicalSlug = selfCanonicalSlug
+      ?? slugs.reduce((best, s) => (
+        bySlug.get(s)!.papers.length > bySlug.get(best)!.papers.length ? s : best
+      ));
+    byLabel.set(label, {
+      label,
+      canonicalSlug,
+      slugs,
+      papers: slugs.flatMap((s) => bySlug.get(s)!.papers),
+    });
+  }
+
+  for (const { label: name, canonicalSlug, slugs, papers: list } of byLabel.values()) {
+    const canonicalPath = `/school/${canonicalSlug}`;
+    const canonicalUrl = `${SITE_URL}${canonicalPath}`;
     const years = [...new Set(list.map((p) => p.year).filter(hasYear))].sort().reverse();
     const subjects = [...new Set(list.map((p) => p.subject))];
 
@@ -360,38 +412,51 @@ function schoolRoutes(papers: BankPaper[], template: string): number {
       links(paperLinks),
     ].join('');
 
-    writeRoute(
-      routePath,
-      render(template, {
-        title: `${name} Question Papers | Shikshaq`,
-        description:
-          `${list.length} past question papers from ${name}`
-          + `${subjects.length ? `, covering ${subjects.join(', ')}` : ''}`
-          + `${years.length ? `, ${years[years.length - 1]} to ${years[0]}` : ''}. Free to read with an account.`,
-        path: routePath,
-        schemas: [
-          generateCollectionPageSchema({
-            url,
-            name: `${name} question papers`,
-            description: `Past question papers from ${name}, Kolkata.`,
-            about: name,
-            numberOfItems: list.length,
-          }),
-          generateBreadcrumbSchema(
-            [
-              { name: 'Home', url: '/' },
-              { name: 'Schools', url: '/schools' },
-              { name, url: routePath },
-            ],
-            `${url}#breadcrumb`,
-          ),
-        ],
-        body,
+    const schemas = [
+      generateCollectionPageSchema({
+        url: canonicalUrl,
+        name: `${name} question papers`,
+        description: `Past question papers from ${name}, Kolkata.`,
+        about: name,
+        numberOfItems: list.length,
       }),
-    );
+      generateBreadcrumbSchema(
+        [
+          { name: 'Home', url: '/' },
+          { name: 'Schools', url: '/schools' },
+          { name, url: canonicalPath },
+        ],
+        `${canonicalUrl}#breadcrumb`,
+      ),
+    ];
+
+    const description =
+      `${list.length} past question papers from ${name}`
+      + `${subjects.length ? `, covering ${subjects.join(', ')}` : ''}`
+      + `${years.length ? `, ${years[years.length - 1]} to ${years[0]}` : ''}. Free to read with an account.`;
+
+    /* One physical file per raw slug the group covers -- an old
+       /school/gregorios link renders the same merged page rather than
+       404ing -- but every one of them (including the canonical slug's own,
+       harmlessly: canonicalPath === its own path there) declares the
+       canonical URL via canonicalPath. */
+    for (const slug of slugs) {
+      const routePath = `/school/${slug}`;
+      writeRoute(
+        routePath,
+        render(template, {
+          title: `${name} Question Papers | Shikshaq`,
+          description,
+          path: routePath,
+          canonicalPath,
+          schemas,
+          body,
+        }),
+      );
+    }
   }
 
-  return bySchool.size;
+  return byLabel.size;
 }
 
 interface TeacherRow {

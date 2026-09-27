@@ -7,6 +7,7 @@
  */
 
 import { schoolSlug } from '../src/lib/school-slug';
+import { displaySchool, isRealSchoolLabel } from '../src/lib/school-display';
 import { isExcludedPaper } from './excluded-papers';
 
 export interface SitemapURL {
@@ -51,6 +52,10 @@ export function buildBankURLs(
   const daysBySlug = new Map<string, (string | null)[]>();
   rows.forEach((r) => {
     if (!r.has_school) return;
+    /* has_school is true for import fragments like "History" too; those
+       slugs now render "School not found" (school-display.ts), so listing
+       them would advertise soft 404s. */
+    if (!isRealSchoolLabel(displaySchool(r.school))) return;
     const slug = schoolSlug(r.school);
     daysBySlug.set(slug, [...(daysBySlug.get(slug) ?? []), toDay(r.created_at)]);
   });

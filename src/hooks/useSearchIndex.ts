@@ -7,6 +7,7 @@ import { parsePaperQuery, paperQueryHasFacets, paperMatchesParsedQuery } from '@
 import { extractFiltersFromQuery } from '@/utils/searchKeywordExtractor';
 import type { searchByName as SearchByNameFn } from '@/utils/searchByName';
 import { filterShikshaqRecords, fillFilterStateDefaults, hasTeacherFacets } from '@/lib/teacher-facet-match';
+import { displaySchool, isRealSchoolLabel, schoolSearchTerms } from '@/lib/school-display';
 
 /** The Shikshaqmine columns filterShikshaqRecords actually reads for the
  *  subject/class/board/area facets the overlay's chip row (and a typed
@@ -227,8 +228,13 @@ export function useSearchIndex() {
      constructor is a dynamic import), so it can never be true before that
      import resolves even once the data itself is cached. */
   const [ready, setReady] = useState(false);
+  /* Facet OPTIONS, not raw values -- deduped through displaySchool() so a
+     merged label (school-display.ts) appears once here rather than once per
+     raw spelling/abbreviation it covers. buildParams() in SearchControl.tsx
+     is what expands a picked label back to every raw value it needs to
+     filter by. */
   const [schools, setSchools] = useState<string[]>(
-    papersCache ? Array.from(new Set(papersCache.map((p) => p.school))).sort() : []
+    papersCache ? Array.from(new Set(papersCache.map((p) => displaySchool(p.school)))).filter(isRealSchoolLabel).sort() : []
   );
   const papersFuse = useRef<Fuse<PaperHit> | null>(null);
   const searchByNameRef = useRef<typeof SearchByNameFn | null>(null);
@@ -246,6 +252,17 @@ export function useSearchIndex() {
       ignoreLocation: true,
       keys: [
         { name: 'school', weight: 3 },
+        /* Typing the real, expanded school name (e.g. "Jamnabai Narsee")
+           has to find a paper whose raw bank_papers.school is a fragment or
+           abbreviation of it ("Jamanabai Historycivics") -- see
+           school-display.ts. Fuse only matches string fields, so this adds
+           the expanded name as extra searchable text on the same weight,
+           without touching what the row itself displays. */
+        {
+          name: 'schoolDisplay',
+          weight: 3,
+          getFn: (p: PaperHit) => schoolSearchTerms(p.school).join(' '),
+        },
         { name: 'title', weight: 2 },
         { name: 'subject', weight: 2 },
         { name: 'board', weight: 1 },
@@ -274,7 +291,7 @@ export function useSearchIndex() {
     if (!loadPromise) loadPromise = loadIndex();
     await loadPromise;
     await buildFuseIndexes();
-    setSchools(Array.from(new Set((papersCache ?? []).map((p) => p.school))).sort());
+    setSchools(Array.from(new Set((papersCache ?? []).map((p) => displaySchool(p.school)))).filter(isRealSchoolLabel).sort());
     setReady(true);
   }, [buildFuseIndexes]);
 

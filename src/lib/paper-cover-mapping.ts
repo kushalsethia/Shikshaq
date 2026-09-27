@@ -11,6 +11,8 @@
    questions" covers — the bank sorts undated/board papers first at the top
    of any given year, so a naive slice(0, 10) landed on ten of them. */
 
+import { displaySchool } from '@/lib/school-display';
+
 /** The minimal shape coverPaper()/coverMeta()/pickVariedRecent() need. Both
  *  PastPapers.tsx's merged `Paper` (papers-table rows AND bank rows folded
  *  into the same interface) and a bank row mapped straight for the home
@@ -58,7 +60,7 @@ export function coverPaper<T extends CoverSourcePaper>(p: T): T {
   const schoolIsBoard = p._isBoard === true;
   return {
     ...p,
-    subject: schoolIsBoard && hasYear(year) ? year : p.school,
+    subject: schoolIsBoard && hasYear(year) ? year : displaySchool(p.school),
     board: schoolIsBoard ? p.board : [p.board, hasYear(year) ? year : null].filter(Boolean).join(' · '),
     title: p.exam_type.replace(/ Examination$/, '').replace(/^Pre-board.*/, 'Pre-board'),
     year: `${p._questions} questions` as unknown as number,
@@ -79,7 +81,7 @@ export function coverMeta(p: CoverSourcePaper): string[] {
   if (subject && subject !== String(shown.subject ?? '')) out.push(subject);
   if (p.class) out.push(`Class ${p.class}`);
   const headline = String(shown.subject ?? '');
-  const school = String(p.school ?? '');
+  const school = displaySchool(p.school);
   if (school && school !== headline && !String(shown.board ?? '').includes(school)) out.push(school);
   return out;
 }

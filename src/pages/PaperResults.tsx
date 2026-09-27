@@ -24,6 +24,7 @@ import { useChromeConfig } from '@/components/layout/AppShell';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { ArrowLeft } from 'lucide-react';
 import { getSubjectPalette } from '@/lib/subject-palette';
+import { displaySchool, schoolSearchTerms } from '@/lib/school-display';
 
 interface Paper {
   id: string;
@@ -217,6 +218,7 @@ export default function PaperResults() {
       (!needle ||
         p.title.toLowerCase().includes(needle) ||
         p.school.toLowerCase().includes(needle) ||
+        schoolSearchTerms(p.school).some((t) => t.toLowerCase().includes(needle)) ||
         p.subject.toLowerCase().includes(needle)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bankQuery.data, freeText, effectiveSubjects, effectiveClasses, effectiveBoards, schoolFiltersKey, effectiveYears]);
@@ -251,7 +253,7 @@ export default function PaperResults() {
       boardFilters.length ? boardFilters.join(', ') : '',
       classFilters.length ? `Class ${classFilters.join(', ')}` : '',
       subjectFilters.length ? subjectFilters.join(', ') : '',
-      schoolFilters.length ? schoolFilters.join(', ') : '',
+      schoolFilters.length ? Array.from(new Set(schoolFilters.map(displaySchool))).join(', ') : '',
     ].filter(Boolean);
     return parts.length ? `${parts.join(' ')} papers` : 'Past papers';
     // Depend on the raw joined params (not just the first value) so the heading
@@ -378,6 +380,24 @@ export default function PaperResults() {
     setSearchParams(next);
   };
 
+  /* A merged school label (school-display.ts) can cover several raw
+     filter_schools values at once. removeFilterValue() reads searchParams
+     fresh from its closure on every call, so calling it once per raw value
+     in a loop drops all but the last removal — the second call rebuilds
+     `next` from the still-unmodified `searchParams`, discarding the first
+     call's edit. This removes every value named in one pass instead. */
+  const removeFilterValues = (
+    key: 'filter_subjects' | 'filter_classes' | 'filter_boards' | 'filter_schools',
+    values: string[],
+  ) => {
+    const current = parseArrayParam(searchParams.get(key));
+    const remaining = current.filter((v) => !values.includes(v));
+    const next = new URLSearchParams(searchParams);
+    if (remaining.length > 0) next.set(key, remaining.join(','));
+    else next.delete(key);
+    setSearchParams(next);
+  };
+
   const clearFilters = () => setSearchParams(new URLSearchParams());
 
   // Subject/class/board carry to the teachers browse page; school and free-text
@@ -394,7 +414,7 @@ export default function PaperResults() {
   // Prefilled WhatsApp message for the EmptyResults "Request this paper" action,
   // carrying whatever filters/search the student had applied.
   const requestPaperUrl = () => {
-    const parts = [subjectFilter, classFilter && `Class ${classFilter}`, boardFilter, schoolFilter, q && `"${q}"`].filter(Boolean);
+    const parts = [subjectFilter, classFilter && `Class ${classFilter}`, boardFilter, schoolFilter && displaySchool(schoolFilter), q && `"${q}"`].filter(Boolean);
     const context = parts.length ? ` (${parts.join(', ')})` : '';
     const message = `Hi! I couldn't find a paper on Shikshaq${context}. Could you add it?`;
     return `${getWhatsAppLink('8240980312')}?text=${encodeURIComponent(message)}`;
@@ -422,10 +442,21 @@ export default function PaperResults() {
         label: v,
         onRemove: () => removeFilterValue('filter_boards', v),
       })),
-      ...schoolFilters.map((v) => ({
-        key: `filter_schools:${v}`,
-        label: v,
-        onRemove: () => removeFilterValue('filter_schools', v),
+      /* One chip per LABEL, not per raw value -- a merged label (school-
+         display.ts) can cover several raw schoolFilters entries (e.g. "Arya
+         Vidya Mandir" + "Arya Vidya Mandir Hc"), and without this dedupe the
+         chip row showed two identical-looking "Arya Vidya Mandir" chips.
+         Removing the chip removes every raw value grouped under it. */
+      ...Array.from(
+        schoolFilters.reduce((byLabel, v) => {
+          const label = displaySchool(v);
+          (byLabel.get(label) ?? byLabel.set(label, []).get(label)!).push(v);
+          return byLabel;
+        }, new Map<string, string[]>()),
+      ).map(([label, raws]) => ({
+        key: `filter_schools:${label}`,
+        label,
+        onRemove: () => removeFilterValues('filter_schools', raws),
       })),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -459,6 +490,7 @@ export default function PaperResults() {
           (!needle ||
             p.title.toLowerCase().includes(needle) ||
             p.school.toLowerCase().includes(needle) ||
+            schoolSearchTerms(p.school).some((t) => t.toLowerCase().includes(needle)) ||
             p.subject.toLowerCase().includes(needle)),
       ).length;
     },
