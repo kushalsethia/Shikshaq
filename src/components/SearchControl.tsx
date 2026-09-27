@@ -122,9 +122,27 @@ interface SearchControlProps {
    * has the horizontal room and asked for the filters visible up front.
    */
   inlineFacetsDesktop?: boolean;
+  /**
+   * R3S1: pre-fills the free-text field from a search the reader already
+   * made — e.g. `/past-papers/results`'s own in-place edit control, seeded
+   * from that page's `q` URL param. Only read once, on mount (an initial
+   * value, not a controlled prop) — a caller that wants it to track a
+   * changing URL re-mounts with a `key`, same as any other initial-value
+   * prop. Every existing caller omits this, so `q` still starts empty
+   * exactly as before.
+   */
+  initialQuery?: string;
+  /**
+   * Same initial-value contract as `initialQuery`, for the facet chips
+   * (subject/class/board/school/area). Partial: a caller only supplies the
+   * facet keys its mode actually has (PAPER_FACET_KEYS or
+   * TEACHER_FACET_KEYS) — the rest default to unselected, same as
+   * `EMPTY_SELECTIONS` always has.
+   */
+  initialSelections?: Partial<Selections>;
 }
 
-export function SearchControl({ className = '', align = 'center', stackedToggle = false, alwaysShowModeToggle = false, onDark = false, initialMode, onModeChange, heroDesk = false, hideFacets = false, inlineFacetsDesktop = false }: SearchControlProps) {
+export function SearchControl({ className = '', align = 'center', stackedToggle = false, alwaysShowModeToggle = false, onDark = false, initialMode, onModeChange, heroDesk = false, hideFacets = false, inlineFacetsDesktop = false, initialQuery, initialSelections }: SearchControlProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -176,10 +194,12 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   const isNarrow = useMediaQuery('(max-width: 430px)');
 
 
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(initialQuery ?? '');
   const [field, setField] = useState<FacetKey | 'q' | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [selections, setSelections] = useState<Selections>(EMPTY_SELECTIONS);
+  const [selections, setSelections] = useState<Selections>(() => (
+    initialSelections ? { ...EMPTY_SELECTIONS, ...initialSelections } : EMPTY_SELECTIONS
+  ));
   const [recents, setRecents] = useState<RecentSearch[]>([]);
 
   /* Persistent inline chips (inlineFacetsDesktop) open their own small

@@ -85,6 +85,15 @@ interface TeacherCardProps {
   minFees?: number | null; // Shikshaqmine."Min Fees"
   maxFees?: number | null; // Shikshaqmine."Max Fees"
   area?: string | null; // Shikshaqmine.Area / "LOCATION V2"
+  /**
+   * R3P6: the caller's own signal that this card is the LCP candidate --
+   * above-the-fold on a cold landing (Browse's first row today). Defaults to
+   * false so every existing call site keeps the current lazy/normal-priority
+   * behaviour; a caller opts a card in rather than this card guessing its own
+   * position from render order. Mirrors what TeacherProfile's hero photo
+   * already does correctly (fetchpriority="high", loading="eager").
+   */
+  priority?: boolean;
 }
 
 // "₹1,800" / "₹1,200 - ₹1,800" / "₹1,200+" / "Up to ₹1,800". Null when neither is set.
@@ -134,6 +143,7 @@ function TeacherCardComponent({
   minFees,
   maxFees,
   area,
+  priority = false,
 }: TeacherCardProps) {
   const isSm = size === 'sm';
   const resolvedVariant: TeacherCardVariant = variant ?? (isSm ? 'rail' : 'grid');
@@ -225,8 +235,17 @@ function TeacherCardComponent({
          w_400 -- and Browse renders up to 500 of them. */
       src={imageAtWidth(imageUrl, 400)}
       alt={area ? `${name}, ${subject} tutor in ${area}, Kolkata` : `${name}, ${subject} tutor in Kolkata`}
-      loading="lazy"
+      /* R3P6: `priority` lets the caller mark this card as the LCP candidate
+         (Browse's first row) -- eager + high fetch priority, same treatment
+         TeacherProfile's hero photo already gets. Every other card keeps the
+         existing lazy/auto behaviour. decoding="async" throughout so a
+         decode never blocks the main thread regardless of priority.
+         React 18 does not recognise `fetchPriority` as a prop (warns and
+         drops it; React 19 added it) -- spread the lowercase HTML attribute,
+         same workaround TeacherProfile.tsx already uses for its hero photo. */
+      loading={priority ? 'eager' : 'lazy'}
       decoding="async"
+      {...(priority ? ({ fetchpriority: 'high' } as Record<string, string>) : {})}
       className="h-full w-full object-cover"
     />
   ) : (

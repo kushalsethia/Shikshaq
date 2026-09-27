@@ -2289,6 +2289,10 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                       minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
                       maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
                       area={firstArea}
+                      /* First screenful of rows: fetch the photo eagerly at high
+                         priority. Same teachers as the grid's first cells, so
+                         the browser downloads each URL once for both lists. */
+                      priority={i < 3}
                     />
                   </div>
                   </Fragment>
@@ -2341,6 +2345,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                         minFees={(teacher as { _minFees?: number | null })._minFees ?? null}
                         maxFees={(teacher as { _maxFees?: number | null })._maxFees ?? null}
                         area={firstArea}
+                        priority={i < 4}
                       />
                     </div>
                     </Fragment>
