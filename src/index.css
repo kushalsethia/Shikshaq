@@ -843,6 +843,54 @@ input[type="date"].date-input-left,
   }
 }
 
+/* CRAFT.md §2: "prefers-reduced-motion: keep the fades, drop the movement."
+   Fixer round 2. The kill-switch above stops every animation from looping or
+   visibly travelling by collapsing animation-duration to 0.01ms -- but for
+   entrance utilities that combine a fade with translateY/scale/blur, a
+   near-zero duration erases the fade too: content simply snaps into place
+   with nothing readable happening, which is not what "keep the fades" asks
+   for. This block gives the ENTRANCE-ONLY utilities named in the fixer brief
+   (plus the .stagger-children children they're used with) a real, short,
+   movement-free fade instead -- same opacity curve, no translate/scale/blur,
+   still one-shot (the kill-switch's animation-iteration-count: 1 above still
+   applies to these class selectors too). Class selectors here outrank the
+   universal (*) kill-switch rule on specificity, so these properties win
+   despite both being !important.
+   Deliberately excluded: animate-spin (loading spinners must keep spinning),
+   animate-shimmer / animate-pulse (skeletons stay visible, static is fine),
+   and the capture shield (its own reduced-motion behaviour is untouched). */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes reducedMotionFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .animate-card-reveal,
+  .animate-card-blur-in,
+  .animate-fade-slide-up,
+  .animate-pop,
+  .animate-search-pop,
+  .animate-fan-in,
+  .animate-sticker-in,
+  .animate-tour-step-in,
+  .animate-blur-swap,
+  .animate-hero-swap,
+  .stagger-children > * {
+    animation-name: reducedMotionFadeIn !important;
+    animation-duration: 180ms !important;
+    animation-timing-function: ease-out !important;
+    animation-delay: 0ms !important;
+    animation-fill-mode: both !important;
+  }
+
+  /* Pure decoration with no "content arriving" meaning to fade in -- dropped
+     outright rather than converted to a fade. */
+  .animate-hero-blink,
+  .animate-count-glow {
+    animation: none !important;
+  }
+}
+
 /* =============================================================================
    CHARACTER LAYER — task #3. "Loud moments" toolkit: outline/sticker/tape/
    halftone/signpost. Per the brief these are reserved for hero, empty states,

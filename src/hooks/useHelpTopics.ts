@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 
 export interface HelpTopic {
   title: string;
@@ -16,9 +17,9 @@ export interface HelpTopic {
 const FALLBACK_TOPICS: HelpTopic[] = [
   { title: 'Finding a teacher', body: 'Use the search bar in Teachers mode: pick a subject, a class and board, and an area.|Filters stay as removable chips above the results so you can loosen one at a time.' },
   { title: 'Contacting a teacher', body: 'Open a profile and use Contact via WhatsApp.|Your number is never shared with the teacher until you message them yourself.' },
-  { title: 'Reading past papers', body: 'Switch the search to Papers mode, or open Past Papers from the navigation.|Papers open in a reader on Shikshaq, and the page is watermarked to your account.' },
+  { title: 'Reading past papers', body: `Switch the search to Papers mode, or open Past Papers from the navigation.|Papers open in a reader on Shikshaq. The first ${FREE_PREVIEW_WORD} questions of any paper need no account at all; sign in to read the rest.` },
   { title: 'Contributing a paper', body: 'Send us the paper through the contribute link on the Past Papers page.|Nothing publishes until an admin has reviewed and published it deliberately.' },
-  { title: 'Joining as a teacher', body: 'Apply through Join as a teacher.|It is a four-step form and there is no listing fee, ever.' },
+  { title: 'Joining as a teacher', body: 'Apply through Join as a teacher.|It is a five-step form and there is no listing fee, ever.' },
 ];
 
 /** Handoff HP-004: the "Guides" panel's source data — a real, admin-editable

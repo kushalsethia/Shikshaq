@@ -381,7 +381,7 @@ export function papersHeroCopy(
     eyebrow: 'Past papers',
     before: name ? `${name}, revise from ` : 'Revise from ',
     bold: 'real board papers',
-    after: ' set by Kolkata schools',
+    after: ' from schools across India',
     chip: null,
     mode: 'papers',
   };

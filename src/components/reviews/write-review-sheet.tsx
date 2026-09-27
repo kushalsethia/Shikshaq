@@ -107,7 +107,7 @@ export function WriteReviewSheet({ open, onOpenChange, submitting, error, onSubm
                     onMouseEnter={() => setHovered(value)}
                     aria-label={`${value} star${value === 1 ? "" : "s"}`}
                     aria-pressed={value <= rating}
-                    className="flex h-11 w-11 items-center justify-center rounded-full transition-transform duration-150 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95 motion-reduce:transform-none motion-reduce:transition-none"
+                    className="flex h-11 w-11 items-center justify-center rounded-full transition-transform duration-150 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96] motion-reduce:transform-none motion-reduce:transition-none"
                   >
                     <Star
                       className={cn(

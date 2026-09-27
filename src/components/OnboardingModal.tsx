@@ -183,7 +183,7 @@ export function OnboardingModal() {
       <div className="px-5 pb-8">
         {c?.teachers != null && c.teachers > 0 && (
           <p className="mb-4 text-center text-[15px] leading-[1.5] text-brand-foreground/70">
-            {c.teachers} verified tutors in Kolkata. Free to search, free to contact.
+            {c.teachers} verified teachers in Kolkata. Free to search, free to contact.
           </p>
         )}
         <button

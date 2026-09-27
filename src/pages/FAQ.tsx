@@ -28,7 +28,7 @@ export default function FAQPage() {
   usePageMeta(
     'Tuition FAQs for Students and Parents in Kolkata | Shikshaq',
     // Was 164 chars, over the ~160 SERP-snippet guideline. 153 now.
-    'Common questions about finding a tuition teacher in Kolkata on Shikshaq: how matching works, fees, verification, and contacting tutors directly for free.'
+    'Common questions about finding a tuition teacher in Kolkata on Shikshaq: how matching works, fees, verification, and contacting teachers directly for free.'
   );
 
   const topics = useHelpTopics();
@@ -42,7 +42,7 @@ export default function FAQPage() {
         questions={QUESTIONS}
         guides={topics.map((t) => ({ title: t.title, body: topicToGuideBody(t.body) }))}
         contactHeading="Still have a question?"
-        contactBody="Ask our assistant, or write to us on WhatsApp. We reply within a day."
+        contactBody="Ask our assistant, or write to us on WhatsApp. We reply the same day, usually."
       />
     </>
   );

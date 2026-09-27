@@ -275,7 +275,7 @@ function TopicArticle({ article }: { article: BlogArticle }) {
       </h2>
       <p className="mt-3 max-w-prose text-body-secondary text-warm-prose">
         It appeared in {fmt(t.papers)} of {fmt(totals.papers)} papers, set by {fmt(t.schools)}{' '}
-        different Kolkata schools{t.firstYear && t.lastYear ? `, in papers dated ${t.firstYear} to ${t.lastYear}` : ''}.{' '}
+        different schools{t.firstYear && t.lastYear ? `, in papers dated ${t.firstYear} to ${t.lastYear}` : ''}.{' '}
         {paperCoverage(subject, t) >= 75
           ? 'At that rate it is close to a certainty rather than a topic to gamble on.'
           : paperCoverage(subject, t) >= 40

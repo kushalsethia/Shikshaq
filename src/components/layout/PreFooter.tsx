@@ -240,7 +240,7 @@ function B3() {
             /* The mockup says "from 24 Kolkata schools". There is no query
                behind that number and the library is currently empty, so the
                claim is made without it rather than invented (design.md §0.10). */
-            text: "Real prelim and half-yearly papers from Kolkata schools.",
+            text: "Real prelim and half-yearly papers, shared for free.",
           },
           {
             icon: <Eye />,

@@ -583,9 +583,9 @@ export default function TeacherProfile() {
               <div className="stagger-children flex gap-seam">
                 {[0, 1, 2].map((i) => (
                   <BentoPanel key={i} fill="card" className="animate-card-reveal motion-reduce:animate-none flex-1 px-[14px] py-4">
-                    <div className="h-[18px] w-[18px] animate-shimmer rounded-[4px] bg-muted bg-[length:200%_100%]" />
-                    <div className="mt-[10px] h-[10px] w-14 animate-shimmer rounded-[4px] bg-muted bg-[length:200%_100%]" />
-                    <div className="mt-[6px] h-[16px] w-16 animate-shimmer rounded-[4px] bg-muted bg-[length:200%_100%]" />
+                    <div className="h-[18px] w-[18px] animate-shimmer rounded-[6px] bg-muted bg-[length:200%_100%]" />
+                    <div className="mt-[10px] h-[10px] w-14 animate-shimmer rounded-[6px] bg-muted bg-[length:200%_100%]" />
+                    <div className="mt-[6px] h-[16px] w-16 animate-shimmer rounded-[6px] bg-muted bg-[length:200%_100%]" />
                   </BentoPanel>
                 ))}
               </div>
@@ -595,8 +595,8 @@ export default function TeacherProfile() {
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                   {[0, 1, 2, 3].map((i) => (
                     <div key={i}>
-                      <div className="h-[11px] w-16 animate-shimmer rounded-[4px] bg-muted bg-[length:200%_100%]" />
-                      <div className="mt-2 h-[15px] w-24 animate-shimmer rounded-[4px] bg-muted bg-[length:200%_100%]" />
+                      <div className="h-[11px] w-16 animate-shimmer rounded-[6px] bg-muted bg-[length:200%_100%]" />
+                      <div className="mt-2 h-[15px] w-24 animate-shimmer rounded-[6px] bg-muted bg-[length:200%_100%]" />
                     </div>
                   ))}
                 </div>
