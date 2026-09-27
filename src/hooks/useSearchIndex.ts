@@ -1,11 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import Fuse from 'fuse.js';
+import type Fuse from 'fuse.js';
 import { supabase } from '@/integrations/supabase/client';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { parsePaperQuery, paperQueryHasFacets, paperMatchesParsedQuery } from '@/lib/paper-query';
 import { extractFiltersFromQuery } from '@/utils/searchKeywordExtractor';
-import { searchByName } from '@/utils/searchByName';
+import type { searchByName as SearchByNameFn } from '@/utils/searchByName';
 import { filterShikshaqRecords, fillFilterStateDefaults, hasTeacherFacets } from '@/lib/teacher-facet-match';
 
 /** The Shikshaqmine columns filterShikshaqRecords actually reads for the
@@ -192,17 +192,54 @@ export function invalidateSearchIndexCache() {
 const RESULT_LIMIT = 3;
 const SUGGEST_LIMIT = 4;
 
+/* fuse.js is real weight (~19KB of its own vendor chunk) that only earns its
+   keep once someone actually types into search -- nothing above the fold on
+   any route needs a fuzzy-match index before first paint, including the
+   Home hero this control renders eagerly in. A static top-level `import
+   Fuse from 'fuse.js'` therefore put it in the SAME eager module graph every
+   route's entry HTML preloads, whether that route renders a search box or
+   not (TeacherProfile and BankPaper never do). Loaded here instead, on
+   first actual use (ensureLoaded, called on focus/typing -- see
+   SearchControl), and cached at module scope so every later search reuses
+   the same constructor without a second network round trip. */
+let fuseCtorPromise: Promise<typeof Fuse> | null = null;
+function loadFuseCtor(): Promise<typeof Fuse> {
+  if (!fuseCtorPromise) fuseCtorPromise = import('fuse.js').then((m) => m.default);
+  return fuseCtorPromise;
+}
+
+/* searchByName.ts is the name-only fallback matcher (see its use in
+   `search()` below) and it ALSO imports fuse.js at its own top level -- a
+   static `import { searchByName } from '@/utils/searchByName'` here would
+   have re-introduced the exact same eager fuse.js dependency the dynamic
+   import above just removed, just one hop further away. Loaded the same
+   way, alongside Fuse's own constructor, and cached the same way. */
+let searchByNamePromise: Promise<typeof SearchByNameFn> | null = null;
+function loadSearchByName(): Promise<typeof SearchByNameFn> {
+  if (!searchByNamePromise) searchByNamePromise = import('@/utils/searchByName').then((m) => m.searchByName);
+  return searchByNamePromise;
+}
+
 export function useSearchIndex() {
-  const [ready, setReady] = useState(teachersCache !== null && papersCache !== null);
+  /* Always starts false, even when teachersCache/papersCache are already
+     warm from an earlier mount: `ready` now means "papersFuse.current is
+     built," which the render-body effect below sets asynchronously (Fuse's
+     constructor is a dynamic import), so it can never be true before that
+     import resolves even once the data itself is cached. */
+  const [ready, setReady] = useState(false);
   const [schools, setSchools] = useState<string[]>(
     papersCache ? Array.from(new Set(papersCache.map((p) => p.school))).sort() : []
   );
   const papersFuse = useRef<Fuse<PaperHit> | null>(null);
+  const searchByNameRef = useRef<typeof SearchByNameFn | null>(null);
+  const building = useRef(false);
 
-  const buildFuseIndexes = useCallback(() => {
+  const buildFuseIndexes = useCallback(async () => {
+    const [FuseCtor, searchByNameFn] = await Promise.all([loadFuseCtor(), loadSearchByName()]);
+    searchByNameRef.current = searchByNameFn;
     /* board/exam_type/year were not searchable at all, so "ICSE 2024" and
        "prelim" matched nothing however many such papers existed. */
-    papersFuse.current = new Fuse(papersCache ?? [], {
+    papersFuse.current = new FuseCtor(papersCache ?? [], {
       includeScore: true,
       threshold: 0.35,
       minMatchCharLength: 2,
@@ -220,19 +257,23 @@ export function useSearchIndex() {
     });
   }, []);
 
-  if ((teachersCache !== null && papersCache !== null) && !papersFuse.current) {
-    buildFuseIndexes();
+  if ((teachersCache !== null && papersCache !== null) && !papersFuse.current && !building.current) {
+    building.current = true;
+    void buildFuseIndexes().then(() => {
+      building.current = false;
+      setReady(true);
+    });
   }
 
   const ensureLoaded = useCallback(async () => {
     if (teachersCache !== null && papersCache !== null) {
-      if (!papersFuse.current) buildFuseIndexes();
+      if (!papersFuse.current) await buildFuseIndexes();
       setReady(true);
       return;
     }
     if (!loadPromise) loadPromise = loadIndex();
     await loadPromise;
-    buildFuseIndexes();
+    await buildFuseIndexes();
     setSchools(Array.from(new Set((papersCache ?? []).map((p) => p.school))).sort());
     setReady(true);
   }, [buildFuseIndexes]);
@@ -264,7 +305,7 @@ export function useSearchIndex() {
           const matchedIdx = new Set(filterShikshaqRecords(records, effectiveFilters).map((r) => r.__idx as number));
           return cache.filter((_, i) => matchedIdx.has(i));
         })()
-      : searchByName(teachersCache ?? [], q);
+      : (searchByNameRef.current ?? (() => []))(teachersCache ?? [], q);
 
     /* Papers: try facets first ("12 math cbse" -> class 12 + Maths + CBSE,
        matched as three separate columns) before falling back to Fuse's plain

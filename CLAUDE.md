@@ -6,12 +6,13 @@ React 18 + Vite + TypeScript + Tailwind + shadcn/ui, Supabase behind it.
 **The product exists so a parent reaches a teacher.** Papers are the traffic
 engine that brings them. Every decision below reads better with that in mind.
 
-**Two other documents carry the rest of the context:**
+**Other documents carry the rest of the context:**
 
 | | |
 |---|---|
 | `docs/GUARDRAILS.md` | the living checklist: what protects this product, what does not yet, what is deliberately accepted. Every claim there was measured, not inferred. **Section 11 is the short list of things blocked on a login, a phone or real traffic rather than on work** -- start there if you have account access. |
 | `docs/LAUNCH.md` | merging to `main` IS the public launch. The rehearsal, the rollback, the post-launch checks. |
+| `docs/CRAFT.md` | the craft bar: speed budgets, motion, visual system, affordances, flows, content truth, stakeholders. Audits and fixes are judged against it. |
 | `docs/SUPABASE_RUNBOOK.md` | what is left to run against the database, and what is deliberately not a migration. |
 
 ---
@@ -34,9 +35,10 @@ environment variable at build time, never by different code in different repos.
 Two repos with different code is two codebases, and every future change would
 have to be applied and merged twice.
 
-`origin/main` is an **ancestor** of `shikshaq-2.0`, so the launch is a
-fast-forward with no conflict risk. `main` has not moved since 13 July 2026 and
-is tagged `pre-2.0-live` for rollback. See `docs/LAUNCH.md`.
+`main` is a protected branch: it only moves through merged PRs from
+`shikshaq-2.0` (merge commits, not fast-forwards; the 2.0 launch went out this
+way on 26 September 2026). The pre-2.0 build is tagged `pre-2.0-live` for
+rollback. See `docs/LAUNCH.md`.
 
 If a fresh clone is missing the test remote:
 
@@ -162,7 +164,7 @@ status.
 
 ## Architecture worth knowing
 
-- **Papers live in Supabase**, in `bank_papers` (1,282) and `bank_questions` —
+- **Papers live in Supabase**, in `bank_papers` (1,960 published as of 2026-09-26, 1,341 of them `needs_review`) and `bank_questions` —
   not in the repo. `data/question-bank.json` is a 6,912-question subset for
   re-imports, deliberately outside `public/` so it is never served. It is **not**
   the whole bank; do not audit data quality from it.
@@ -174,7 +176,7 @@ status.
   upload, then delete the local copies. `BankPaper.tsx` reads the bucket via
   `supabase.storage.from('paper-figures').getPublicUrl(...)`, never a local path.
 - **`papers` and `bank_papers` are different tables.** `papers` has 18 rows and
-  is the submit-a-paper flow; `bank_papers` has 1,282 and is the library.
+  is the submit-a-paper flow; `bank_papers` has 1,960 published and is the library.
   Counting the wrong one has now caused the same user-visible bug twice.
   **Use `useSiteCounts()`** — the one hook — for teachers/papers/schools.
 - **Prerendering is build-time HTML injection, not SSG.** `scripts/prerender.ts`
