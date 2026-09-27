@@ -245,6 +245,11 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
   const [selectedSubject, setSelectedSubject] = useState(searchParams.get('subject') || '');
   const [selectedClass, setSelectedClass] = useState(searchParams.get('class') || '');
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  /* R4G3: FilterSheet's `open` is driven from here rather than a Radix
+     SheetTrigger, so Radix has no trigger of its own to return focus to on
+     close -- Escape (and the sheet's own X / "Show N teachers") left focus on
+     `<body>`. Passed to FilterSheet as `restoreFocusRef`. */
+  const filtersButtonRef = useRef<HTMLButtonElement>(null);
   // Error state (list-states.tsx "Error" — design.md §3 state coverage).
   // Retrying just bumps this counter, which the fetch effect below depends on.
   const [fetchError, setFetchError] = useState(false);
@@ -2126,6 +2131,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
       >
           <div className="flex items-center gap-[8px] pr-4">
             <button
+              ref={filtersButtonRef}
               type="button"
               onClick={() => setFilterSheetOpen(true)}
               className="shikshaq-tap flex h-11 flex-none items-center gap-[8px] rounded-full bg-panel px-[16px] text-[14px] font-bold text-background transition-transform duration-tap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
@@ -2468,6 +2474,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         resultCountPending={filterSheetResultCountPending}
         onClear={clearFilters}
         mode={viewMode}
+        restoreFocusRef={filtersButtonRef}
       />
     </div>
   );

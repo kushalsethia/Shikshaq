@@ -19,6 +19,11 @@ export interface TopicStat {
   shortQuestions: number;
   examTypes: Array<{ label: string; count: number }>;
   markValues: Array<{ value: number; count: number }>;
+  /** Questions with no usable mark value recorded in the bank. Always
+      `questions - sum(markValues[].count)`, carried explicitly so a reader
+      adding up the visible bars gets the same total as the "questions set"
+      stat, never less. */
+  unspecifiedMarks: number;
 }
 
 export interface SubjectScope {
@@ -131,7 +136,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 6,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 141
       },
       {
         "name": "Statistics",
@@ -200,7 +206,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 6,
             "count": 88
           }
-        ]
+        ],
+        "unspecifiedMarks": 87
       },
       {
         "name": "Trigonometry",
@@ -269,7 +276,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 6,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 146
       },
       {
         "name": "Quadratic Equations",
@@ -334,7 +342,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 5,
             "count": 10
           }
-        ]
+        ],
+        "unspecifiedMarks": 119
       },
       {
         "name": "Mensuration",
@@ -399,7 +408,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 6,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 86
       },
       {
         "name": "GST and Banking",
@@ -452,7 +462,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 5,
             "count": 5
           }
-        ]
+        ],
+        "unspecifiedMarks": 103
       },
       {
         "name": "Circles",
@@ -521,7 +532,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 6,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 99
       },
       {
         "name": "Arithmetic Progression",
@@ -582,7 +594,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 5,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 56
       },
       {
         "name": "Similarity",
@@ -643,7 +656,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 5,
             "count": 13
           }
-        ]
+        ],
+        "unspecifiedMarks": 76
       },
       {
         "name": "Ratio and Proportion",
@@ -692,7 +706,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 75
           }
-        ]
+        ],
+        "unspecifiedMarks": 56
       },
       {
         "name": "Factorisation and Remainder Theorem",
@@ -749,7 +764,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 5,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 50
       },
       {
         "name": "Matrices",
@@ -798,7 +814,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 52
           }
-        ]
+        ],
+        "unspecifiedMarks": 56
       },
       {
         "name": "Probability",
@@ -863,7 +880,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 6,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 50
       },
       {
         "name": "Linear Inequations",
@@ -916,7 +934,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 5,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 42
       },
       {
         "name": "Constructions",
@@ -969,7 +988,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 6,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 35
       },
       {
         "name": "Shares and Dividends",
@@ -1010,7 +1030,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 15
           }
-        ]
+        ],
+        "unspecifiedMarks": 7
       },
       {
         "name": "Geometric Progression",
@@ -1055,7 +1076,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 10
           }
-        ]
+        ],
+        "unspecifiedMarks": 5
       },
       {
         "name": "Loci",
@@ -1088,7 +1110,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 5,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 2
       }
     ]
   },
@@ -1207,7 +1230,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 20,
             "count": 5
           }
-        ]
+        ],
+        "unspecifiedMarks": 37
       },
       {
         "name": "Indian Nationalism",
@@ -1308,7 +1332,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 12,
             "count": 3
           }
-        ]
+        ],
+        "unspecifiedMarks": 109
       },
       {
         "name": "Parliament",
@@ -1409,7 +1434,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 20,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 19
       },
       {
         "name": "Judiciary",
@@ -1478,7 +1504,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 12,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 20
       },
       {
         "name": "United Nations",
@@ -1563,7 +1590,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 15,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 41
       },
       {
         "name": "President",
@@ -1644,7 +1672,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 12,
             "count": 3
           }
-        ]
+        ],
+        "unspecifiedMarks": 23
       },
       {
         "name": "Ancient India",
@@ -1721,7 +1750,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 25
           }
-        ]
+        ],
+        "unspecifiedMarks": 6
       },
       {
         "name": "World War II",
@@ -1790,7 +1820,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 68
           }
-        ]
+        ],
+        "unspecifiedMarks": 18
       },
       {
         "name": "Post-WWII World",
@@ -1863,7 +1894,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 12,
             "count": 9
           }
-        ]
+        ],
+        "unspecifiedMarks": 15
       },
       {
         "name": "Medieval India – Mughals",
@@ -1940,7 +1972,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 16
           }
-        ]
+        ],
+        "unspecifiedMarks": 3
       },
       {
         "name": "Medieval India",
@@ -2021,7 +2054,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 7
           }
-        ]
+        ],
+        "unspecifiedMarks": 8
       },
       {
         "name": "Rise of Fascism",
@@ -2094,7 +2128,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 12,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 3
       },
       {
         "name": "Industrial Revolution",
@@ -2175,7 +2210,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 12,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 4
       },
       {
         "name": "Revolt of 1857",
@@ -2248,7 +2284,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 11,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 1
       },
       {
         "name": "Medieval India – Delhi Sultanate",
@@ -2317,7 +2354,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 14
           }
-        ]
+        ],
+        "unspecifiedMarks": 2
       },
       {
         "name": "Reformation",
@@ -2378,7 +2416,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 16
           }
-        ]
+        ],
+        "unspecifiedMarks": 2
       },
       {
         "name": "Medieval India – South India",
@@ -2463,7 +2502,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 4
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Interwar Period",
@@ -2512,7 +2552,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 9
           }
-        ]
+        ],
+        "unspecifiedMarks": 1
       },
       {
         "name": "Ancient India – Mauryan Empire",
@@ -2585,7 +2626,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 5
           }
-        ]
+        ],
+        "unspecifiedMarks": 1
       },
       {
         "name": "Rise of Nazism",
@@ -2658,7 +2700,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 11,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 4
       },
       {
         "name": "Urban LSG",
@@ -2715,7 +2758,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 9
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Renaissance",
@@ -2772,7 +2816,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 10
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Rural LSG",
@@ -2841,7 +2886,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 9
           }
-        ]
+        ],
+        "unspecifiedMarks": 1
       },
       {
         "name": "Elections",
@@ -2910,7 +2956,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 12,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Medieval India – Mughals – Akbar",
@@ -2983,7 +3030,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Ancient India – Early Vedic Age",
@@ -3036,7 +3084,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 5
           }
-        ]
+        ],
+        "unspecifiedMarks": 2
       },
       {
         "name": "Elections – Election Commission",
@@ -3101,7 +3150,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 3
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Ancient India – Gupta Empire",
@@ -3154,7 +3204,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 4
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Ancient India – Later Vedic Age",
@@ -3207,7 +3258,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 3
           }
-        ]
+        ],
+        "unspecifiedMarks": 1
       },
       {
         "name": "Japan's Militarism",
@@ -3260,7 +3312,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 8,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Rajya Sabha",
@@ -3309,7 +3362,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Medieval India – Sher Shah",
@@ -3358,7 +3412,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Medieval India – Mughal Architecture",
@@ -3415,7 +3470,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 7,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Reformation & Industrial Revolution",
@@ -3464,7 +3520,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Russian Revolution",
@@ -3501,7 +3558,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 8,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Council of Ministers",
@@ -3542,7 +3600,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 3,
             "count": 4
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Map Reading",
@@ -3567,7 +3626,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 2,
             "count": 22
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Medieval India – Mughals – Aurangzeb",
@@ -3616,7 +3676,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Transport in India",
@@ -3645,7 +3706,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 3,
             "count": 10
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Forests of India",
@@ -3674,7 +3736,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 3,
             "count": 10
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Soils of India",
@@ -3707,7 +3770,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 3,
             "count": 7
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Lok Sabha",
@@ -3752,7 +3816,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 3,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Supreme Court",
@@ -3793,7 +3858,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 3,
             "count": 7
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Cabinet",
@@ -3838,7 +3904,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 9,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Treaty of Versailles",
@@ -3883,7 +3950,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 5
           }
-        ]
+        ],
+        "unspecifiedMarks": 5
       },
       {
         "name": "Map Reading and Interpretation",
@@ -3908,7 +3976,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 2,
             "count": 16
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Indian National Congress",
@@ -3961,7 +4030,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 4
       },
       {
         "name": "Buddha",
@@ -4002,7 +4072,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 5,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Map Work",
@@ -4031,7 +4102,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 2,
             "count": 10
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Municipal Corporation",
@@ -4072,7 +4144,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Prime Minister",
@@ -4117,7 +4190,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 15
       },
       {
         "name": "Education in Independent India",
@@ -4150,7 +4224,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 1
       },
       {
         "name": "Assertive Nationalists",
@@ -4195,7 +4270,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 3,
             "count": 3
           }
-        ]
+        ],
+        "unspecifiedMarks": 7
       }
     ]
   },
@@ -4223,7 +4299,7 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
       "classLevel": "IV-XII"
     },
     "totals": {
-      "questions": 10987,
+      "questions": 10982,
       "marks": 19869,
       "papers": 330,
       "schools": 95,
@@ -4279,7 +4355,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 30,
             "count": 6
           }
-        ]
+        ],
+        "unspecifiedMarks": 6
       },
       {
         "name": "English Language",
@@ -4336,7 +4413,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 20,
             "count": 35
           }
-        ]
+        ],
+        "unspecifiedMarks": 434
       },
       {
         "name": "Literature",
@@ -4389,7 +4467,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 20,
             "count": 25
           }
-        ]
+        ],
+        "unspecifiedMarks": 249
       },
       {
         "name": "Poetry",
@@ -4446,7 +4525,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 20,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 36
       },
       {
         "name": "Drama",
@@ -4507,7 +4587,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 20,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 48
       },
       {
         "name": "Prose",
@@ -4564,7 +4645,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 16,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 27
       },
       {
         "name": "Prose - Short Stories",
@@ -4605,7 +4687,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 8,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Grammar",
@@ -4662,7 +4745,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 110
       },
       {
         "name": "Letter Writing",
@@ -4695,7 +4779,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 25
           }
-        ]
+        ],
+        "unspecifiedMarks": 1
       },
       {
         "name": "English Literature",
@@ -4732,7 +4817,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 6
           }
-        ]
+        ],
+        "unspecifiedMarks": 99
       },
       {
         "name": "Reading",
@@ -4769,7 +4855,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 6,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 16
       },
       {
         "name": "Comprehension",
@@ -4830,7 +4917,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 12,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 1
       },
       {
         "name": "MCQ",
@@ -4855,7 +4943,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 1,
             "count": 180
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Short Stories",
@@ -4904,7 +4993,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 20,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Objective",
@@ -4933,7 +5023,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 1,
             "count": 88
           }
-        ]
+        ],
+        "unspecifiedMarks": 10
       },
       {
         "name": "English",
@@ -4966,7 +5057,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 10,
             "count": 3
           }
-        ]
+        ],
+        "unspecifiedMarks": 882
       },
       {
         "name": "Vocabulary",
@@ -5003,7 +5095,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 6,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 7
       },
       {
         "name": "Final Examination Section B",
@@ -5032,7 +5125,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 6
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Reading Comprehension",
@@ -5069,7 +5163,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 8,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Candida",
@@ -5114,7 +5209,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 20,
             "count": 1
           }
-        ]
+        ],
+        "unspecifiedMarks": 3
       },
       {
         "name": "Poems",
@@ -5143,12 +5239,13 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 4
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Literature in English",
         "slug": "literature-in-english",
-        "questions": 245,
+        "questions": 244,
         "marks": 52,
         "papers": 9,
         "schools": 8,
@@ -5156,11 +5253,11 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
         "lastYear": null,
         "averageMarks": 0.2,
         "longQuestions": 0,
-        "shortQuestions": 152,
+        "shortQuestions": 151,
         "examTypes": [
           {
             "label": "Question paper",
-            "count": 245
+            "count": 244
           }
         ],
         "markValues": [
@@ -5168,7 +5265,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 1,
             "count": 52
           }
-        ]
+        ],
+        "unspecifiedMarks": 192
       },
       {
         "name": "Objective Questions",
@@ -5193,7 +5291,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 1,
             "count": 40
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Writing Skill and Grammar",
@@ -5226,7 +5325,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 6,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Julius Caesar",
@@ -5255,7 +5355,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 8
       },
       {
         "name": "Extracts",
@@ -5280,7 +5381,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 2,
             "count": 15
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Reference to Context",
@@ -5313,7 +5415,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 3,
             "count": 3
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Reading Skills",
@@ -5342,7 +5445,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 2,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 5
       },
       {
         "name": "Multiple Choice",
@@ -5367,7 +5471,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 1,
             "count": 26
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Short Answers",
@@ -5392,7 +5497,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 1,
             "count": 21
           }
-        ]
+        ],
+        "unspecifiedMarks": 2
       },
       {
         "name": "Final Examination Section A",
@@ -5417,7 +5523,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 1,
             "count": 16
           }
-        ]
+        ],
+        "unspecifiedMarks": 0
       },
       {
         "name": "Literature revision questions",
@@ -5446,7 +5553,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 4,
             "count": 2
           }
-        ]
+        ],
+        "unspecifiedMarks": 34
       },
       {
         "name": "English - I",
@@ -5471,7 +5579,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 1,
             "count": 10
           }
-        ]
+        ],
+        "unspecifiedMarks": 22
       },
       {
         "name": "ENGLISH II",
@@ -5496,7 +5605,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "value": 1,
             "count": 10
           }
-        ]
+        ],
+        "unspecifiedMarks": 38
       },
       {
         "name": "The Merchant of Venice",
@@ -5520,7 +5630,8 @@ export const BLOG_SUBJECTS: Record<string, SubjectStats> = {
             "count": 2
           }
         ],
-        "markValues": []
+        "markValues": [],
+        "unspecifiedMarks": 42
       }
     ]
   }

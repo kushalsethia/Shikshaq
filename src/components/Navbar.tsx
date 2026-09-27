@@ -3,7 +3,7 @@ import {
   HelpCircle, MessageCircleQuestion, Menu, Shield, User,
   FileText, BookOpen, School, type LucideIcon,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { useLikes } from '@/lib/likes-context';
@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2';
 
 /* Handoff O-007: real, live counts for the menu's two product-half cards
- * and the signed-in account row — "counts are live or absent, never a
+ * and the signed-in account row -- "counts are live or absent, never a
  * placeholder." Gated on the sheet actually being open so this globally-
  * rendered component doesn't fire four count queries on every page load
  * whether or not anyone ever opens the menu. */
@@ -79,7 +79,7 @@ function LogoOrTourTrigger({ onDark = false }: { onDark?: boolean }) {
   const isHome = location.pathname === '/';
 
   /* Logo renders its own <Link>, so this must NOT wrap it in another anchor or
-     a button — that produced nested interactive elements (invalid HTML, and a
+     a button -- that produced nested interactive elements (invalid HTML, and a
      real "<a> inside <a>" console warning). Instead the handler is passed down
      and the navigation suppressed, keeping exactly one control. */
   if (isHome) {
@@ -119,12 +119,21 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  /* R4G2: opening the sheet with Enter/Space used to autofocus the "Sign in"
+     button, which sits near the bottom (below Teachers/Past papers/Subjects/
+     Schools/FAQ/Help) -- a keyboard user tabbing forward from there had to
+     cycle almost the whole sheet to reach those. Radix focuses the first
+     focusable descendant by default, but that "first" one is DOM order, and
+     "Sign in" only reads first because it's rendered before the quiet link
+     row that follows it, not because it IS first -- the Teachers card (the
+     sheet's actual first row) is what should get initial focus. */
+  const firstMenuLinkRef = useRef<HTMLAnchorElement>(null);
   const { user, signOut, profile } = useAuth();
   const { likedTeacherIds } = useLikes();
   /* Was this component's own `admins` select in a [user] effect. Footer ran
      an identical one, and between them (StrictMode double-invoke, plus a
      re-run when `user` settles) a single page load fired NINE copies of the
-     same request — see useIsAdminBadge for the measurement. One shared
+     same request -- see useIsAdminBadge for the measurement. One shared
      react-query key now serves both. */
   const isAdmin = useIsAdminBadge();
   const userRole = (profile?.role as UserRole) || null;
@@ -139,10 +148,10 @@ export function Navbar() {
   const searchExpanded = useSearchExpanded();
   const initial = (user?.email?.charAt(0) || '?').toUpperCase();
 
-  // Nav track dissolve — VISUAL_LANGUAGE.md §9: the header's hairline/backdrop
+  // Nav track dissolve -- VISUAL_LANGUAGE.md §9: the header's hairline/backdrop
   // fades in once the page has scrolled past a small threshold, distinguishing
   // "at top" from "scrolled" states. Was 48px, which read as sluggish on a
-  // mobile QA pass — the pill sat transparent-over-hero for nearly a full
+  // mobile QA pass -- the pill sat transparent-over-hero for nearly a full
   // swipe before it caught up. 24px lets it react to the first flick of a
   // scroll instead of waiting for a deliberate one. `prefers-reduced-motion`
   // makes the transition instant via the global guard in index.css, so no
@@ -150,11 +159,11 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   /* T-010: "logo inversion follows the panel, not the route." Now that
      `edge="top"` panels actually run underneath this pill (the nav reserve
-     moved inside BentoPanel), what sits behind the pill is that panel's fill —
+     moved inside BentoPanel), what sits behind the pill is that panel's fill  -- 
      so the treatment is keyed on the fill family, not on a hand-listed route.
 
      Previously only `/` and `/past-papers` were special-cased, which left the
-     teacher profile — whose first panel is the near-black identity card — with
+     teacher profile -- whose first panel is the near-black identity card -- with
      the default bone pill: a light grey slab sitting on black. */
   const topFill = topPanelFill(location.pathname);
   /* T-009: home's first panel is bone after the redesign, so the pill is
@@ -191,13 +200,13 @@ export function Navbar() {
       } ${
         /* pointer-events-none, not just a lower z-index: with SearchControl's
            mobile-pinned scroll lock (`document.body.style.position = 'fixed'`
-           while the popup is open — see useEffect in SearchControl.tsx), this
+           while the popup is open -- see useEffect in SearchControl.tsx), this
            header's own `position: fixed` box stops losing hit-testing to the
            popup's z-[70] the way a lower z-index alone implies. Verified in
            the running app: with only the z-30 drop, taps on the pinned
            popup's Teachers/Past papers toggle (which sits at the same
            `top-3` corner as this bar) were landing on the navbar logo/menu
-           underneath instead of the toggle — the popup visually painted on
+           underneath instead of the toggle -- the popup visually painted on
            top, but the browser's hit-test still resolved to this header. That
            silent misroute is what a rework brief described as the toggle
            "taking me" somewhere else. Disabling pointer events here removes
@@ -206,8 +215,8 @@ export function Navbar() {
         searchExpanded ? 'z-30 pointer-events-none' : 'z-50'
       }`}
       /* fixed (not sticky): a sticky element can't be inset from the side
-         edges and still read as a floating pill — its box still spans the
-         full flow width even with side margins — so this is `fixed` with a
+         edges and still read as a floating pill -- its box still spans the
+         full flow width even with side margins -- so this is `fixed` with a
          `top-3` offset, same "pinned while scrolling" behaviour as before but
          now genuinely detached from the viewport edges like BottomNav's own
          floating pill. Being taken out of flow means the page needs an
@@ -216,20 +225,20 @@ export function Navbar() {
 
          Desktop chrome now lives in <TopBar> (mounted globally, hidden below
          lg). Navbar is retained purely for the mobile floating pill + sheet
-         menu — the hamburger's Sign out / admin / favourites / My teachers
+         menu -- the hamburger's Sign out / admin / favourites / My teachers
          items have no desktop equivalent elsewhere except TopBar's own
          account dropdown, so this component must not disappear on mobile. */
     >
       {/* pr-1.5, not a symmetric px-4. The pill is 56px tall and the menu
-          trigger is a 44px circle, so it sits 6px off the top and bottom — but
+          trigger is a 44px circle, so it sits 6px off the top and bottom -- but
           16px of right padding pushed it 10px further in than that, and a
           circle inset unevenly inside a rounded corner reads as off-centre.
           6px on the right makes the trigger concentric with the pill's own
           corner arc. The logo keeps the larger left inset because it is a
-          wordmark, not a circle — the same asymmetry D-004 specifies for the
+          wordmark, not a circle -- the same asymmetry D-004 specifies for the
           desktop bar (`pl-6 pr-2.5`). */}
       <div className="mx-auto w-full max-w-6xl pl-4 pr-1.5 sm:px-6 lg:px-8">
-        {/* Mobile: short bar — logo + a single action. The bottom tab bar carries navigation. */}
+        {/* Mobile: short bar -- logo + a single action. The bottom tab bar carries navigation. */}
         <div className="flex h-14 items-center justify-between gap-4">
           <LogoOrTourTrigger onDark={onTintBlock} />
 
@@ -268,6 +277,12 @@ export function Navbar() {
                  translucent panel over a perfectly sharp page does not read as
                  frosted, it reads as a rendering fault. */
               overlayClassName="backdrop-blur-[8px] backdrop-saturate-[130%]"
+              onOpenAutoFocus={(e) => {
+                if (firstMenuLinkRef.current) {
+                  e.preventDefault();
+                  firstMenuLinkRef.current.focus();
+                }
+              }}
               className={[
                 /* Sized by its content. max-h is a guard, not a layout: the
                    rows come to about 71% of an 812px screen, so nothing
@@ -285,10 +300,14 @@ export function Navbar() {
 
               {/* Handoff O-007: both halves of the product, always first, in
                   this order, on every route (C-019). Counts are live or
-                  absent — never a placeholder. */}
+                  absent -- never a placeholder. */}
               <div className="grid grid-cols-2 gap-2">
                 <SheetClose asChild>
-                  <Link to="/all-tuition-teachers-in-kolkata" className={`rounded-[24px] bg-brand-subtle p-[18px_16px] ${FOCUS_RING}`}>
+                  <Link
+                    ref={firstMenuLinkRef}
+                    to="/all-tuition-teachers-in-kolkata"
+                    className={`rounded-[24px] bg-brand-subtle p-[18px_16px] ${FOCUS_RING}`}
+                  >
                     <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand">
                       <User className="h-[19px] w-[19px] text-foreground" strokeWidth={2} aria-hidden="true" />
                     </span>
@@ -319,7 +338,7 @@ export function Navbar() {
                 {isAdmin && <SheetMenuRow to="/admin" icon={Shield} label="Admin" />}
               </div>
 
-              {/* Handoff O-007: account block — signed in gets a real "{n}
+              {/* Handoff O-007: account block -- signed in gets a real "{n}
                   saved · {m} papers" row (never a placeholder; each half
                   omitted when its own count isn't loaded yet), signed out
                   gets the one Sign in action in the same slot. */}
@@ -351,7 +370,7 @@ export function Navbar() {
               )}
 
               {/* Handoff O-007: a centred row of quiet links. Sign out moved
-                  here from the old per-item list — it's real functionality,
+                  here from the old per-item list -- it's real functionality,
                   reachable one tap further via the account row above rather
                   than a separate destructive item in this menu. */}
               <div className="mt-3 flex min-h-11 flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[13px] text-warm-meta">
@@ -389,7 +408,7 @@ export function Navbar() {
   );
 }
 
-/* Handoff O-007: secondary-row group inside the bg-muted p-1.5 wrapper —
+/* Handoff O-007: secondary-row group inside the bg-muted p-1.5 wrapper  -- 
  * min-h-[52px], 18px leading glyph, 15.5px/600 label, 16px trailing arrow,
  * hairlines between (not on the last row). */
 function SheetMenuRow({ to, icon: Icon, label, hairline = false }: { to: string; icon: LucideIcon; label: string; hairline?: boolean }) {

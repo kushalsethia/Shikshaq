@@ -251,7 +251,7 @@ function TopicArticle({ article }: { article: BlogArticle }) {
   const totals = BLOG_SUBJECTS[subject]?.totals;
   const rank = topics.findIndex((x) => x.slug === t.slug) + 1;
   const common = commonestMarkValue(t);
-  const markMax = Math.max(...t.markValues.map((m) => m.count), 0);
+  const markMax = Math.max(...t.markValues.map((m) => m.count), t.unspecifiedMarks, 0);
   const examMax = Math.max(...t.examTypes.map((e) => e.count), 0);
 
   if (!totals) return null;
@@ -283,7 +283,7 @@ function TopicArticle({ article }: { article: BlogArticle }) {
             : 'That is infrequent, so a given paper may well not set it at all.'}
       </p>
 
-      {t.markValues.length > 0 && (
+      {(t.markValues.length > 0 || t.unspecifiedMarks > 0) && (
         <>
           <h2 className="mt-10 font-display text-section-head font-extrabold tracking-[-0.03em] text-foreground">
             What it is usually worth
@@ -292,6 +292,15 @@ function TopicArticle({ article }: { article: BlogArticle }) {
             {t.markValues.map((m) => (
               <BarRow key={m.value} label={`${m.value} mark${m.value === 1 ? '' : 's'}`} value={m.count} max={markMax} suffix="questions" />
             ))}
+            {t.unspecifiedMarks > 0 && (
+              <BarRow
+                key="unspecified"
+                label="mark not recorded in the bank"
+                value={t.unspecifiedMarks}
+                max={markMax}
+                suffix="questions"
+              />
+            )}
           </ul>
           {common && (
             <p className="mt-4 max-w-prose text-body-secondary text-warm-prose">

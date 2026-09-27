@@ -140,6 +140,7 @@ function main() {
         years: Set<string>;
         examTypes: Map<string, number>;
         markValues: Map<number, number>;
+        unspecifiedMarks: number;
         long: number;
         short: number;
         nameVariants: Map<string, number>;
@@ -183,6 +184,7 @@ function main() {
           years: new Set(),
           examTypes: new Map(),
           markValues: new Map(),
+          unspecifiedMarks: 0,
           long: 0,
           short: 0,
           nameVariants: new Map(),
@@ -200,6 +202,11 @@ function main() {
       if (q.e) e.examTypes.set(q.e, (e.examTypes.get(q.e) ?? 0) + 1);
       if (typeof q.m === 'number' && q.m > 0) {
         e.markValues.set(q.m, (e.markValues.get(q.m) ?? 0) + 1);
+      } else {
+        // No usable mark value recorded for this question -- counted in
+        // `questions` but deliberately not folded into any mark bucket, so
+        // the "usually worth" breakdown never silently invents a value.
+        e.unspecifiedMarks += 1;
       }
       if (q.ty === 'long') e.long += 1;
       else if (q.ty === 'short') e.short += 1;
@@ -230,8 +237,21 @@ function main() {
         markValues: [...e.markValues.entries()]
           .sort((a, b) => a[0] - b[0])
           .map(([value, count]) => ({ value, count })),
+        unspecifiedMarks: e.unspecifiedMarks,
       }))
       .sort((a, b) => b.marks - a.marks);
+
+    // The "usually worth" breakdown must always reconcile with `questions`:
+    // every question is either in a mark bucket or counted as unspecified,
+    // never both and never neither.
+    for (const t of topics) {
+      const sum = t.markValues.reduce((acc, m) => acc + m.count, 0) + t.unspecifiedMarks;
+      if (sum !== t.questions) {
+        throw new Error(
+          `[blog-stats] ${subject} / ${t.name}: markValues (${sum}) does not reconcile with questions (${t.questions})`,
+        );
+      }
+    }
 
     const years = [...allYears].sort();
     const scope = SUBJECT_SCOPE[subject] ?? { board: 'ICSE', classLevel: '' };
@@ -274,6 +294,11 @@ export interface TopicStat {
   shortQuestions: number;
   examTypes: Array<{ label: string; count: number }>;
   markValues: Array<{ value: number; count: number }>;
+  /** Questions with no usable mark value recorded in the bank. Always
+      \`questions - sum(markValues[].count)\`, carried explicitly so a reader
+      adding up the visible bars gets the same total as the "questions set"
+      stat, never less. */
+  unspecifiedMarks: number;
 }
 
 export interface SubjectScope {

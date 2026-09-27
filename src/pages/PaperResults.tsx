@@ -9,6 +9,8 @@ import { sanitizeForIlike } from '@/lib/ilike-sanitize';
 import { bankSubjectToSite, bankSubjectMatches } from '@/lib/subject-vocabulary';
 import { bankClassMatches } from '@/utils/romanNumerals';
 import { parsePaperQuery, paperQueryHasFacets } from '@/lib/paper-query';
+import { filterToKnownVocabulary } from '@/lib/paper-filter-validation';
+import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
 import { FilterChips, type FilterChipItem } from '@/components/FilterChips';
 import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -55,12 +57,76 @@ export default function PaperResults() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  /* Moved above the filter parsing below: R4G6's school-vocabulary check
+     needs the bank's own school list, which only this query can supply, and
+     a hook's position among other hooks can move freely as long as it is
+     still called unconditionally on every render (it is). Nothing here reads
+     `q` or any filter_* value -- it fetches the static 193-paper bank index
+     regardless of what's being filtered for. */
+  const bankQuery = useQuery({
+    queryKey: ['paper-results', 'bank'],
+    staleTime: Infinity,
+    gcTime: Infinity,
+    queryFn: async (): Promise<Paper[]> =>
+      /* b.subject, not the literal 'Mathematics'/'Maths' these two lines used
+         to carry. That was true while the bank held nothing else; once History
+         & Civics and Economics landed it meant all 619 bank papers claimed to
+         be maths, so a History filter returned none of its 302 papers and every
+         one of them rendered as "Class X Mathematics". Subject is mapped into
+         the SITE vocabulary here so it matches the filter chips, the facets and
+         the subject pages. */
+      (await loadPaperIndex()).map((b) => {
+        // Both fields share one computed value now -- title used to read the
+        // raw b.subject directly, which is exactly the "Class X Mathematics"
+        // bug the comment above describes; only the `subject` field (used
+        // for filtering, not for what a reader actually sees) was mapped.
+        const site = bankSubjectToSite(b.subject);
+        return {
+          id: b.id,
+          title: `Class ${b.cls} ${site}`,
+          school: b.school,
+          subject: site,
+          class: b.cls,
+          board: b.board,
+          exam_type: b.exam,
+          year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
+          file_url: null,
+          needsReview: b.needsReview,
+        };
+      }) as Paper[],
+  });
+
   const q = searchParams.get('q') || '';
-  const subjectFilters = parseArrayParam(searchParams.get('filter_subjects'));
-  const classFilters = parseArrayParam(searchParams.get('filter_classes'));
-  const boardFilters = parseArrayParam(searchParams.get('filter_boards'));
-  const schoolFilters = parseArrayParam(searchParams.get('filter_schools'));
+  const rawSubjectFilters = parseArrayParam(searchParams.get('filter_subjects'));
+  const rawClassFilters = parseArrayParam(searchParams.get('filter_classes'));
+  const rawBoardFilters = parseArrayParam(searchParams.get('filter_boards'));
+  const rawSchoolFilters = parseArrayParam(searchParams.get('filter_schools'));
   const yearFilters = parseArrayParam(searchParams.get('filter_years'));
+
+  /* R4G6: a filter_* value from the URL used to reach the heading, <title>
+     and the Supabase query unchecked -- ?filter_classes=%25%25%25 rendered
+     as literally "Class %%% papers | Shikshaq", and nothing stopped a
+     crafted link from steering that title to arbitrary text. Classes,
+     subjects and boards are small closed vocabularies (searchFacets.ts, the
+     same file SearchControl and the Teacher filters already draw from), so
+     a value that doesn't match one case-insensitively is dropped rather than
+     echoed. Subjects also pass through bankSubjectToSite first so an older
+     ?filter_subjects=Mathematics link still resolves (to "Maths", the site
+     spelling) instead of being wrongly dropped as unrecognised.
+     Schools are not a small closed set, so they're checked against the
+     schools this page has actually loaded from the bank once that load
+     settles; before it settles (or if it's empty), school filters pass
+     through unchecked rather than being wrongly dropped while still loading. */
+  const subjectFilters = filterToKnownVocabulary(
+    rawSubjectFilters.map((v) => bankSubjectToSite(v) || v),
+    SUBJECTS,
+  );
+  const classFilters = filterToKnownVocabulary(rawClassFilters, CLASSES);
+  const boardFilters = filterToKnownVocabulary(rawBoardFilters, BOARDS);
+  const knownSchoolNames = bankQuery.data?.length ? bankQuery.data.map((p) => p.school) : null;
+  const schoolFilters = knownSchoolNames
+    ? filterToKnownVocabulary(rawSchoolFilters, knownSchoolNames)
+    : rawSchoolFilters;
   // Single-value convenience accessors, used for heading/chip/handoff display
   // (which show one value per filter). Query filtering itself honours the
   // full array via .in() below — see runQuery.
@@ -126,40 +192,8 @@ export default function PaperResults() {
      query — they are a static file — so they are filtered here with the same
      params and merged in ahead of the database rows, which is also the right
      order: they read as questions rather than as a scan. 193 rows filter in
-     well under a frame. */
-  const bankQuery = useQuery({
-    queryKey: ['paper-results', 'bank'],
-    staleTime: Infinity,
-    gcTime: Infinity,
-    queryFn: async (): Promise<Paper[]> =>
-      /* b.subject, not the literal 'Mathematics'/'Maths' these two lines used
-         to carry. That was true while the bank held nothing else; once History
-         & Civics and Economics landed it meant all 619 bank papers claimed to
-         be maths, so a History filter returned none of its 302 papers and every
-         one of them rendered as "Class X Mathematics". Subject is mapped into
-         the SITE vocabulary here so it matches the filter chips, the facets and
-         the subject pages. */
-      (await loadPaperIndex()).map((b) => {
-        // Both fields share one computed value now -- title used to read the
-        // raw b.subject directly, which is exactly the "Class X Mathematics"
-        // bug the comment above describes; only the `subject` field (used
-        // for filtering, not for what a reader actually sees) was mapped.
-        const site = bankSubjectToSite(b.subject);
-        return {
-          id: b.id,
-          title: `Class ${b.cls} ${site}`,
-          school: b.school,
-          subject: site,
-          class: b.cls,
-          board: b.board,
-          exam_type: b.exam,
-          year: hasYear(b.year) ? Number(String(b.year).slice(0, 4)) : 0,
-          file_url: null,
-          needsReview: b.needsReview,
-        };
-      }) as Paper[],
-  });
-
+     well under a frame. (bankQuery itself is declared above, before the
+     filter parsing that now depends on it -- see R4G6's comment there.) */
   const bankMatches = useMemo(() => {
     const rows = bankQuery.data ?? [];
     const needle = freeText.toLowerCase();
