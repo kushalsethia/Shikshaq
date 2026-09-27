@@ -103,7 +103,7 @@ export default function SubjectsPage() {
               line1="Browse by"
               ordinal="01"
               line2="subject"
-              support="Every board, classes 9 to 12."
+              support="Every board, every class."
             />
           </BentoPanel>
 

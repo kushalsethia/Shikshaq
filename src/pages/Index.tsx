@@ -17,6 +17,8 @@ import { EmptyResults } from '@/components/EmptyResults';
 import { supabase } from '@/integrations/supabase/client';
 import { imageAtWidth, validateImageSrc } from '@/utils/imageSanitizer';
 import { logger } from '@/utils/logger';
+import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/hooks/use-mobile';
 import { TeacherCard } from '@/components/TeacherCard';
 import { SubjectCard } from '@/components/SubjectCard';
 import { SearchDesk } from '@/components/home/SearchDesk';
@@ -646,6 +648,14 @@ export default function Index() {
   } = useSentenceBuilder();
 
   const [heroMode, setHeroMode] = useState<SearchMode>('teachers');
+  /* Owner spec: the search toggle's mode now drives which hero fork panel
+     (teachers/papers) is "active" — below `lg` only the active one shows,
+     at `lg`+ it takes the larger share of the row and its mascot is awake.
+     `useMediaQuery`, not `innerWidth`: the same source CSS breakpoints read
+     from (CLAUDE.md gotcha), so the JS split and the `lg:` classes below
+     can never disagree about which layout is showing. */
+  const teachersActive = heroMode === 'teachers';
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   /* Only teachers who actually have a photo. The stack is a row of faces; an
      initial placeholder in it would read as a missing image rather than a
@@ -884,21 +894,57 @@ export default function Index() {
                 clearing the floating top bar and the first fork's heading sat
                 underneath it. The left column's reserve only offsets its own
                 cell. */}
-            <div className="flex flex-col gap-0 lg:pt-[72px] [&>*]:lg:flex-1 [&>*]:lg:flex [&>*]:lg:flex-col [&>*]:lg:justify-between">
+            {/* Owner spec: the search toggle above now drives which fork is
+                "active." Below `lg` only the active tile shows (the other
+                fades/scales out and is pulled out of the tab order — never
+                just hidden with CSS that a screen reader or Tab key would
+                still reach); at `lg`+ both stay side by side but the active
+                one takes ~65% of the row and the inactive ~35%, animating
+                between the two splits rather than snapping. The two mobile
+                states share one grid cell ([grid-area:1/1]) so the container's
+                height never jumps as they cross-fade — at `lg` the container
+                switches to a real flex row and that grid-area is moot. */}
+            <div className="relative grid lg:flex lg:min-w-0 lg:items-stretch lg:gap-0 lg:pt-[72px]">
           {/* --------------------------------------------------- 3 · Teachers fork */}
-          <BentoPanel fill="brandTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
+          <div
+            className={cn(
+              '[grid-area:1/1] transition-[opacity,transform] duration-[220ms] ease-settle motion-reduce:transition-opacity motion-reduce:duration-150',
+              'lg:transition-[flex-basis] lg:duration-lift lg:ease-settle lg:grow-0 lg:shrink-0 lg:min-w-0 lg:opacity-100 lg:scale-100 lg:pointer-events-auto',
+              teachersActive
+                ? 'relative z-10 opacity-100 scale-100 lg:basis-[70%]'
+                : 'opacity-0 scale-95 pointer-events-none lg:basis-[30%]',
+            )}
+            aria-hidden={!teachersActive && !isDesktop}
+          >
+          <BentoPanel fill="brandTint" className="h-full !px-[22px] !pt-[18px] !pb-5 lg:flex lg:flex-col lg:justify-between lg:!px-6 lg:!pt-6 lg:!pb-6 xl:!px-8 xl:!pt-8 xl:!pb-8">
             {/* Owner call, reworked: the mascot was a tiny corner badge —
                 "make them bigger, take up half the panel, circular." Now a
-                real side-by-side split at lg: text content on the left,
-                a big circular tracking face on the right. */}
-            <div className="lg:flex lg:h-full lg:items-center lg:gap-6">
+                real side-by-side split at lg: text content on the left, a big
+                circular tracking face on the right.
+
+                Compact (inactive) is its own layout, not a squeezed copy of
+                the active one: side-by-side left no room for a full,
+                unclipped heading beside even a small mascot (measured — the
+                first pass truncated "Revise for free" to "R…", CRAFT.md's
+                "no clipped words"). Compact stacks instead — heading on top
+                at full tile width, small mascot pinned bottom-right below it
+                via `justify-between` on the full-height column — so the two
+                never compete for the same horizontal space and can never
+                overlap (verified with getBoundingClientRect). */}
+            <div className={cn('lg:flex lg:h-full lg:gap-2 xl:gap-3', teachersActive ? 'lg:items-center' : 'lg:flex-col lg:items-start lg:justify-between')}>
             <div className="min-w-0 lg:flex-1">
             <div className="flex items-center justify-between">
               <span className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-brand text-brand-foreground">
                 <Users className="h-[19px] w-[19px]" strokeWidth={2.25} aria-hidden />
               </span>
+              {/* Dropped from the compact (inactive) tile at lg — three
+                  overlapping avatars plus a 38px arrow button is decoration
+                  the active tile can afford and the compact one can't. Always
+                  shown on mobile — there the tile is either
+                  active-and-full-width or not rendered at all, never
+                  compact. */}
               {featuredWithPhotos.length > 0 && (
-                <div className="flex items-center">
+                <div className={cn('flex items-center', !teachersActive && 'lg:hidden')}>
                   <div className="flex -space-x-2.5">
                     {featuredWithPhotos.slice(0, 3).map((t) => (
                       <img
@@ -916,6 +962,7 @@ export default function Index() {
                   <Link
                     to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
                     aria-label="Find a teacher"
+                    tabIndex={!teachersActive && !isDesktop ? -1 : undefined}
                     className="tap-44 ml-2 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-panel text-background transition-transform duration-tap hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:hover:translate-y-0"
                   >
                     <ArrowUpRight className="h-4 w-4" aria-hidden />
@@ -927,25 +974,60 @@ export default function Index() {
                 intent ("Find a teacher" -> "Find Maths teachers"); the
                 stylised "Message them yourself, free" line under it is brand
                 voice, not a CTA label, and stays fixed so the block does not
-                read as unstable every time the subject changes. */}
+                read as unstable every time the subject changes.
+
+                Active: `text-balance` so the three words left over after
+                "Message them" wraps don't strand "them" as a one-word orphan
+                line — measured at 1280 this was wrapping to three lines
+                without it. Compact: two DELIBERATE lines ("Message them" /
+                "yourself, free" as separate block-level lines, not one
+                inline phrase left to wrap on its own) at a fixed size small
+                enough that neither line has to wrap again or clip — the
+                panel's own share of the row isn't a predictable fraction of
+                the viewport, so a vw-based clamp can't promise that fit the
+                way a fixed size can. */}
             <Link
               to={teachersCta?.href ?? '/all-tuition-teachers-in-kolkata'}
+              tabIndex={!teachersActive && !isDesktop ? -1 : undefined}
               className="group mt-[14px] block rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
             >
               <p className="text-[13px] font-medium text-warm-secondary">{teachersCta?.label ?? 'Find a teacher'}</p>
-              <p className="mt-[2px] font-display text-[25px] font-extrabold leading-[1.05] tracking-[-0.045em]">
-                <span className="text-brand-deep decoration-2 underline-offset-4 group-hover:underline">Message them</span>{' '}
-                <span className="font-normal text-foreground">yourself, free</span>
-              </p>
+              {teachersActive ? (
+                <p className="mt-[2px] text-balance font-display text-[25px] font-extrabold leading-[1.05] tracking-[-0.045em] lg:text-[21px] lg:leading-[1.08] lg:tracking-[-0.04em] 2xl:text-[25px] 2xl:leading-[1.05] 2xl:tracking-[-0.045em]">
+                  <span className="text-brand-deep decoration-2 underline-offset-4 group-hover:underline">Message them</span>{' '}
+                  <span className="font-normal text-foreground">yourself, free</span>
+                </p>
+              ) : (
+                <p className="mt-[2px] font-display text-[17px] font-extrabold leading-[1.18] tracking-[-0.03em] lg:block">
+                  <span className="block text-brand-deep decoration-2 underline-offset-4 group-hover:underline">Message them</span>
+                  <span className="block font-normal text-foreground">yourself, free</span>
+                </p>
+              )}
             </Link>
             </div>
-            <CornerMascot tone="teachers" />
+            <CornerMascot tone="teachers" asleep={!teachersActive} compact={!teachersActive} />
             </div>
           </BentoPanel>
+          </div>
 
           {/* ----------------------------------------------------- 4 · Papers fork */}
-          <BentoPanel fill="papersTint" className="!px-[22px] !pt-[18px] !pb-5 lg:!px-8 lg:!pt-8 lg:!pb-8">
-            <div className="lg:flex lg:h-full lg:items-center lg:gap-6">
+          <div
+            className={cn(
+              '[grid-area:1/1] transition-[opacity,transform] duration-[220ms] ease-settle motion-reduce:transition-opacity motion-reduce:duration-150',
+              'lg:transition-[flex-basis] lg:duration-lift lg:ease-settle lg:grow-0 lg:shrink-0 lg:min-w-0 lg:opacity-100 lg:scale-100 lg:pointer-events-auto',
+              !teachersActive
+                ? 'relative z-10 opacity-100 scale-100 lg:basis-[70%]'
+                : 'opacity-0 scale-95 pointer-events-none lg:basis-[30%]',
+            )}
+            aria-hidden={teachersActive && !isDesktop}
+          >
+          <BentoPanel fill="papersTint" className="h-full !px-[22px] !pt-[18px] !pb-5 lg:flex lg:flex-col lg:justify-between lg:!px-6 lg:!pt-6 lg:!pb-6 xl:!px-8 xl:!pt-8 xl:!pb-8">
+            {/* Compact (inactive) is its own stacked layout — see the
+                teachers fork's comment above for why: side-by-side left
+                "Revise for free" truncated to "R…", which CRAFT.md forbids.
+                Heading on top at full tile width, small mascot pinned
+                bottom-right below it. */}
+            <div className={cn('lg:flex lg:h-full lg:gap-2 xl:gap-3', !teachersActive ? 'lg:items-center' : 'lg:flex-col lg:items-start lg:justify-between')}>
             <div className="min-w-0 lg:flex-1">
             {/* Same top-left icon-badge treatment as the teachers fork above
                 (Users, bg-brand) — this panel had no equivalent icon at all. */}
@@ -954,26 +1036,44 @@ export default function Index() {
             </span>
             <Link
               to="/past-papers"
+              tabIndex={teachersActive && !isDesktop ? -1 : undefined}
               className="group mt-[14px] flex items-center justify-between gap-3 rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue focus-visible:ring-offset-4 focus-visible:ring-offset-card"
             >
-              <div>
+              <div className="min-w-0">
                 <p className="text-[13px] font-medium text-warm-secondary">Past papers</p>
-                <p className="mt-[2px] font-display text-[22px] font-extrabold tracking-[-0.04em]">
-                  <span className="text-brand-blue-deep">Revise</span>{' '}
-                  <span className="font-normal text-foreground">for free</span>
-                </p>
+                {/* Active: `text-balance` (same reasoning as the teachers
+                    fork). Compact: two deliberate lines, own fixed size — see
+                    the teachers fork's comment on why a fixed size beats a
+                    vw-clamp here. */}
+                {!teachersActive ? (
+                  <p className="mt-[2px] text-balance font-display text-[22px] font-extrabold tracking-[-0.04em] lg:text-[19px] 2xl:text-[22px]">
+                    <span className="text-brand-blue-deep">Revise</span>{' '}
+                    <span className="font-normal text-foreground">for free</span>
+                  </p>
+                ) : (
+                  <p className="mt-[2px] font-display text-[17px] font-extrabold leading-[1.18] tracking-[-0.03em]">
+                    <span className="block text-brand-blue-deep">Revise</span>
+                    <span className="block font-normal text-foreground">for free</span>
+                  </p>
+                )}
               </div>
+              {/* Dropped from the compact tile for the same reason the
+                  teachers fork drops its avatar row — see that comment. */}
               <span
                 aria-hidden
-                className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-brand-blue text-white transition-transform duration-hover ease-settle group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:group-hover:transform-none"
+                className={cn(
+                  'h-11 w-11 flex-none items-center justify-center rounded-full bg-brand-blue text-white transition-transform duration-hover ease-settle group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:group-hover:transform-none',
+                  teachersActive ? 'hidden' : 'flex',
+                )}
               >
                 <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={2.5} />
               </span>
             </Link>
             </div>
-            <CornerMascot tone="papers" />
+            <CornerMascot tone="papers" asleep={teachersActive} compact={teachersActive} />
             </div>
           </BentoPanel>
+          </div>
             </div>
           </div>
 
@@ -1087,7 +1187,7 @@ export default function Index() {
               line1="Or go straight"
               ordinal="02"
               line2="to the subject"
-              support="Every board, classes 9 to 12."
+              support="Every board, every class."
             />
 
             {loading && subjects.length === 0 ? (
@@ -1190,7 +1290,7 @@ export default function Index() {
                   {/* Not "from Kolkata schools": the question bank added 193 ICSE
                       and CBSE papers from schools across India, and a handful of
                       the covers beside this line are from Mumbai and Bengaluru. */}
-                  Free past papers: ICSE, CBSE and ISC, classes 9 to 12, read as questions with
+                  Free past papers: ICSE, CBSE and ISC, read as questions with
                   marks, chapters and figures.
                 </p>
                 <Link
