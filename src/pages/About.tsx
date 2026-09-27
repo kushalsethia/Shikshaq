@@ -402,7 +402,7 @@ export default function About() {
                   </IconDisc>
                   <p className="text-[15px] font-bold text-brand-deep">If you teach</p>
                   <p className="mt-1.5 text-[14px] leading-[1.6] text-foreground/70">
-                    Free to list, forever. Set your own rate, keep all of it. Enquiries are real
+                    Free to list. Set your own rate, keep all of it. Enquiries are real
                     people messaging you, not sold leads.
                   </p>
                   <Link

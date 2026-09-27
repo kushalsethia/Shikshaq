@@ -898,7 +898,7 @@ export default function Auth() {
                   Why sign in
                 </p>
                 <p className="mt-1.5 text-[14px] leading-[1.55] text-[rgba(249,245,241,.75)]">
-                  Message teachers on WhatsApp, save a shortlist, and open past papers. No fees, ever.
+                  Message teachers on WhatsApp, save a shortlist, and open past papers. It is all free.
                 </p>
               </div>
             )}

@@ -1401,7 +1401,7 @@ export default function Index() {
             </ol>
 
             <p className="mt-[22px] text-[14px] text-brand-foreground/80">
-              No fees, no middleman, no commission, ever.
+              No fees, no middleman, no commission.
             </p>
           </BentoPanel>
 
