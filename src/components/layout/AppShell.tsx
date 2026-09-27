@@ -1,13 +1,24 @@
 import * as React from 'react';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { TopBar } from '@/components/layout/TopBar';
 import { Navbar } from '@/components/Navbar';
 import { BottomNav } from '@/components/BottomNav';
-import { Footer } from '@/components/Footer';
 import { PreFooter, preFooterFor, type PreFooterVariant, type B2Counts } from '@/components/layout/PreFooter';
 import { isChromelessPath } from '@/lib/chromeless-routes';
+
+/* Footer is always below the fold (it is, by definition, the LAST thing on
+   every page) and its own `sanitize()` helper pulls in DOMPurify (~23KB) at
+   module scope -- but AppShell used to import it eagerly, which put that
+   whole dependency into the SAME static graph every route's entry HTML
+   preloads before its own page code, on a component nothing above the fold
+   ever needs. Lazy here costs nothing visible: `fallback={null}` renders
+   nothing while the chunk loads, exactly like the floating overlays in
+   App.tsx (Chatbot/ProductTourHost) that already use the same pattern, and
+   the footer fills in a moment later, below whatever the visitor is looking
+   at. */
+const Footer = lazy(() => import('@/components/Footer').then((m) => ({ default: m.Footer })));
 
 /* AppShell — the single place shell config for every route is decided.
 
@@ -120,7 +131,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               footer, which is the white strip under the footer on mobile.
               Reserving it inside is the correct one of the two: it keeps the
               dark fill running to the bottom edge of the page. */}
-          <Footer expandedContent={activeChrome?.footerExpandedContent} />
+          <Suspense fallback={null}>
+            <Footer expandedContent={activeChrome?.footerExpandedContent} />
+          </Suspense>
           <BottomNav />
         </>
       )}
