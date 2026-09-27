@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUp, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { PaperSheetCard } from '@/components/papers/paper-sheet-card';
+import { SearchControl } from '@/components/SearchControl';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 import { sanitizeForIlike } from '@/lib/ilike-sanitize';
 import { bankSubjectToSite, bankSubjectMatches } from '@/lib/subject-vocabulary';
@@ -583,6 +584,39 @@ export default function PaperResults() {
                 : `${shownTotal.toLocaleString('en-IN')} paper${shownTotal === 1 ? '' : 's'} found`}
             </span>
           </div>
+        </BentoPanel>
+
+        {/* R3S1: this route had no way to change or add to a search once
+            landed on it -- only FilterChips below (remove a value) or "See
+            teachers with these filters" (leave papers entirely). Reuses
+            SearchControl itself (papers mode, same component /past-papers'
+            hero and Browse already render) rather than a second bespoke
+            control, pre-filled from this page's own URL params so editing
+            starts from the search that's actually showing. Keyed on the
+            params string so removing a chip below (which changes the URL,
+            not this control's own internal state) remounts it in sync
+            instead of drifting from what FilterChips now shows; typing here
+            doesn't touch the URL until submit, so it never fights that key
+            mid-keystroke. Collapsed at rest (no `inlineFacetsDesktop`) so it
+            reads as one compact bar plus the existing chip row, not a second
+            block pushing results below the fold on a 375px phone. */}
+        <BentoPanel fill="card" className="px-4 py-3">
+          <SearchControl
+            key={searchParams.toString()}
+            align="flex-start"
+            /* Toggle hidden at rest (shown above the field once opened), as on
+               the /past-papers hero: inline it squeezed the 375px field down to
+               "Boar" of "Board, class, subject". */
+            stackedToggle
+            initialMode="papers"
+            initialQuery={q}
+            initialSelections={{
+              subject: subjectFilters,
+              cls: classFilters,
+              board: boardFilters,
+              school: schoolFilters,
+            }}
+          />
         </BentoPanel>
 
         {/* Handoff PR-002: sticky filter row becomes a BentoPanel pill row —

@@ -198,13 +198,22 @@ export default function BankPaper() {
      `loading="lazy"`, so there is no visible cost: by the time any image is
      near the viewport this has long since resolved. */
   const [figureDims, setFigureDims] = useState<Record<string, [number, number]> | null>(null);
+  /* R3P4: most papers carry zero figures (no question's row.f is set), and
+     until now the 116KB chunk above was fetched unconditionally on mount,
+     before `questions` had even loaded. Gating on "at least one loaded
+     question has row.f" skips the chunk entirely for the figure-less
+     majority, and still fetches it -- in parallel, non-blocking -- for
+     papers that do have figures, in time for the images (already
+     loading="lazy" below) that need it. */
+  const hasFigures = questions.some((row) => row.f);
   useEffect(() => {
+    if (!hasFigures) return;
     let cancelled = false;
     import('@/content/figure-dimensions').then((m) => {
       if (!cancelled) setFigureDims(m.FIGURE_DIMENSIONS);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [hasFigures]);
 
   /* bank_papers.subject stores the raw bank spelling ("Mathematics"); every
      other site-facing surface (title, header, CTA, meta) uses the site's own
