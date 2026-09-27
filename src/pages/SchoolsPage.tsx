@@ -5,6 +5,7 @@ import { ArrowRight, School } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
 import { schoolSlug } from '@/lib/school-slug';
+import { displaySchool, isRealSchoolLabel } from '@/lib/school-display';
 import { loadPaperIndex, schoolsOfPapers, type BankPaper } from '@/lib/question-bank';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
@@ -68,17 +69,25 @@ export default function SchoolsPage() {
       ]);
       if (dbResult.error && bank.length === 0) throw dbResult.error;
 
-      /* Keyed on slug, not on the raw name: the table's "La Martiniere for
-         Boys" and the bank's cleaned equivalent are one school and must not
-         become two half-populated rows. */
-      const bySchool = new Map<string, { name: string; boards: Map<string, number> }>();
-      const add = (name: string, board: string | null) => {
-        const slug = schoolSlug(name);
-        if (!slug) return;
-        const entry = bySchool.get(slug) ?? { name, boards: new Map<string, number>() };
+      /* Keyed on the DISPLAY LABEL (school-display.ts), not on the raw name
+         or its slug: several raw spellings/abbreviations can share one label
+         ("Gregorios", "St Gregorios", "St. Gregorios High School" are all
+         "St. Gregorios High School"), and without this they showed as three
+         separate half-populated rows instead of one row with the true count.
+         "candidates" tracks paper count PER RAW NAME (not per label), which
+         is what picking a canonical slug below needs. */
+      const bySchool = new Map<string, { boards: Map<string, number>; candidates: Map<string, number> }>();
+      const add = (rawName: string, board: string | null) => {
+        const label = displaySchool(rawName);
+        // "School not recorded" and board-paper source lines are real facts
+        // on a paper's own card, but neither is a school -- they don't
+        // belong in this directory.
+        if (!isRealSchoolLabel(label)) return;
+        const entry = bySchool.get(label) ?? { boards: new Map<string, number>(), candidates: new Map<string, number>() };
         if (board) entry.boards.set(board, (entry.boards.get(board) || 0) + 1);
         else entry.boards.set('', (entry.boards.get('') || 0) + 1);
-        bySchool.set(slug, entry);
+        entry.candidates.set(rawName, (entry.candidates.get(rawName) || 0) + 1);
+        bySchool.set(label, entry);
       };
 
       (dbResult.data || []).forEach((p) => add(p.school, p.board));
@@ -87,16 +96,26 @@ export default function SchoolsPage() {
       });
 
       const schoolStats: SchoolStat[] = Array.from(bySchool.entries())
-        .map(([slug, { name, boards }]) => {
+        .map(([label, { boards, candidates }]) => {
           const total = Array.from(boards.values()).reduce((sum, c) => sum + c, 0);
           // Papers with no board recorded are counted but never named as one.
           const named = Array.from(boards.entries())
             .filter(([board]) => board)
             .sort((a, b) => b[1] - a[1]);
           const [dominantBoard, dominantCount] = named[0] ?? [null, 0];
+          /* Canonical slug: the raw spelling whose OWN display equals the
+             label (needs no lookup table to justify the URL), or, when every
+             member is itself a fragment/abbreviation, whichever raw spelling
+             has the most papers. */
+          const rawNames = Array.from(candidates.keys());
+          const selfCanonical = rawNames.find((raw) => displaySchool(raw) === raw);
+          const canonicalRaw = selfCanonical
+            ?? rawNames.reduce((best, raw) => (
+              (candidates.get(raw) ?? 0) > (candidates.get(best) ?? 0) ? raw : best
+            ));
           return {
-            slug,
-            school: name,
+            slug: schoolSlug(canonicalRaw),
+            school: label,
             board: dominantBoard,
             count: dominantBoard ? dominantCount : total,
             otherBoardCount: dominantBoard ? total - dominantCount : 0,
@@ -148,7 +167,11 @@ export default function SchoolsPage() {
               <ListError onRetry={() => query.refetch()} />
             ) : schoolStats.length > 0 ? (
               <div className="stagger-children grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]">
-                {schoolStats.map(({ slug, school, board, count, otherBoardCount }) => (
+                {schoolStats.map(({ slug, school, board, count, otherBoardCount }) => {
+                  // `school` is already the merged display label -- schoolStats
+                  // is built (above) keyed by displaySchool(), not by raw name.
+                  const label = school;
+                  return (
                   <Link
                     key={slug}
                     to={`/school/${slug}`}
@@ -160,10 +183,10 @@ export default function SchoolsPage() {
                       shape="square"
                       className="h-[38px] w-[38px] rounded-xl font-display text-[15px] font-extrabold"
                     >
-                      {school.charAt(0).toUpperCase()}
+                      {label.charAt(0).toUpperCase()}
                     </IconDisc>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] font-bold text-foreground">{school}</span>
+                      <span className="block truncate text-[15px] font-bold text-foreground">{label}</span>
                       <span className="mt-px block text-[12px] tabular-nums text-muted-foreground">
                         {board ? `${board} · ` : ''}{count} paper{count === 1 ? '' : 's'}
                         {otherBoardCount > 0 ? ` + ${otherBoardCount} more` : ''}
@@ -171,7 +194,8 @@ export default function SchoolsPage() {
                     </span>
                     <ArrowRight className="h-4 w-4 flex-none text-warm-quaternary" aria-hidden="true" />
                   </Link>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <EmptyResults

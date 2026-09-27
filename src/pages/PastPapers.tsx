@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth-context';
 import { PaperCover, ShelfLedge } from '@/components/papers/paper-cover';import { IconDisc } from '@/components/ui/icon-disc';
 import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { schoolSlug } from '@/lib/school-slug';
+import { displaySchool, isRealSchoolLabel } from '@/lib/school-display';
 import { generateCollectionPageSchema } from '@/utils/structuredDataGenerators';
 import { injectSchemas } from '@/utils/injectSchemas';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
@@ -67,7 +68,14 @@ interface MostReadPaper {
 }
 
 interface SchoolStat {
+  /** The merged display label (school-display.ts) -- may cover several raw
+   *  bank_papers.school / papers.school spellings. */
   school: string;
+  /** The slug the row links to: the raw spelling whose own display equals
+   *  the label, or (when none is self-canonical) the raw spelling with the
+   *  most papers -- same rule SchoolPage.tsx and question-bank.ts's
+   *  schoolGroupsOfPapers use. */
+  slug: string;
   board: string;
   count: number;
   otherBoardCount: number;
@@ -190,27 +198,6 @@ export default function PastPapers() {
       const firstError = schoolsRes.error || recentRes.error || subjectsRes.error || countRes.error;
       if (firstError) throw firstError;
 
-      const bySchool = new Map<string, Map<string, number>>();
-      (schoolsRes.data || []).forEach((p) => {
-        const boards = bySchool.get(p.school) ?? new Map<string, number>();
-        boards.set(p.board, (boards.get(p.board) || 0) + 1);
-        bySchool.set(p.school, boards);
-      });
-      /* Card shows only the dominant board's own count (not the school's total
-         across all boards) so "{board} · {count} papers" is never wrong: a
-         school with 4 ICSE + 3 CBSE reads "ICSE · 4 papers + 3 more", not a
-         misleading "ICSE · 7 papers". */
-      const schoolStats: SchoolStat[] = Array.from(bySchool.entries()).map(([school, boards]) => {
-        let dominantBoard = '';
-        let dominantCount = 0;
-        let total = 0;
-        boards.forEach((count, board) => {
-          total += count;
-          if (count > dominantCount) { dominantCount = count; dominantBoard = board; }
-        });
-        return { school, board: dominantBoard, count: dominantCount, otherBoardCount: total - dominantCount };
-      }).sort((a, b) => a.school.localeCompare(b.school));
-
       const boardCounts: Record<string, number> = {};
       (schoolsRes.data || []).forEach((p) => { boardCounts[p.board] = (boardCounts[p.board] || 0) + 1; });
 
@@ -225,7 +212,12 @@ export default function PastPapers() {
       const readRows = readRes.data;
 
       return {
-        schoolStats,
+        /* Raw (school, board) rows, not pre-grouped: grouping now has to
+           happen once, after the bank's rows are folded in too (the
+           schoolStats memo below), so a raw spelling that only differs
+           between the table and the bank still merges into one label
+           instead of producing two rows. */
+        schoolRows: (schoolsRes.data || []) as { school: string; board: string }[],
         boardCounts,
         subjectCounts,
         recentPapers: (recentRes.data || []) as Paper[],
@@ -324,31 +316,50 @@ export default function PastPapers() {
      while the page's own heading claimed 211 — the counts and the total
      disagreed on the same screen. */
   const schoolStats = useMemo<SchoolStat[]>(() => {
-    const base = new Map<string, SchoolStat>();
-    (landing.data?.schoolStats ?? []).forEach((st) => base.set(st.school, { ...st }));
-    const bySchool = new Map<string, Map<string, number>>();
-    bankPapers.forEach((p) => {
-      const boards = bySchool.get(p.school) ?? new Map<string, number>();
-      boards.set(p.board, (boards.get(p.board) ?? 0) + 1);
-      bySchool.set(p.school, boards);
-    });
-    bySchool.forEach((boards, school) => {
-      let dominantBoard = '';
-      let dominantCount = 0;
-      let total = 0;
-      boards.forEach((count, board) => {
-        total += count;
-        if (count > dominantCount) { dominantCount = count; dominantBoard = board; }
-      });
-      const existing = base.get(school);
-      if (existing) {
-        existing.count += dominantCount;
-        existing.otherBoardCount += total - dominantCount;
-      } else {
-        base.set(school, { school, board: dominantBoard, count: dominantCount, otherBoardCount: total - dominantCount });
-      }
-    });
-    return [...base.values()].sort((a, b) => a.school.localeCompare(b.school));
+    /* Keyed on the DISPLAY LABEL (school-display.ts), not the raw name: two
+       raw spellings from either source that share a label ("Gregorios" /
+       "St Gregorios" / "St. Gregorios High School") are one real school and
+       must not become two half-populated rows. "candidates" tracks paper
+       count PER RAW NAME, which picking a canonical slug below needs. */
+    const bySchool = new Map<string, { boards: Map<string, number>; candidates: Map<string, number> }>();
+    const add = (rawName: string, board: string | null) => {
+      const label = displaySchool(rawName);
+      if (!isRealSchoolLabel(label)) return;
+      const entry = bySchool.get(label) ?? { boards: new Map<string, number>(), candidates: new Map<string, number>() };
+      if (board) entry.boards.set(board, (entry.boards.get(board) ?? 0) + 1);
+      entry.candidates.set(rawName, (entry.candidates.get(rawName) ?? 0) + 1);
+      bySchool.set(label, entry);
+    };
+    (landing.data?.schoolRows ?? []).forEach((p) => add(p.school, p.board));
+    bankPapers.forEach((p) => add(p.school, p.board));
+
+    return Array.from(bySchool.entries())
+      .map(([label, { boards, candidates }]) => {
+        let dominantBoard = '';
+        let dominantCount = 0;
+        let total = 0;
+        boards.forEach((count, board) => {
+          total += count;
+          if (count > dominantCount) { dominantCount = count; dominantBoard = board; }
+        });
+        /* Canonical: the raw spelling whose OWN display equals the label (no
+           lookup table needed to justify the URL), else the raw spelling
+           with the most papers. */
+        const rawNames = Array.from(candidates.keys());
+        const selfCanonical = rawNames.find((raw) => displaySchool(raw) === raw);
+        const canonicalRaw = selfCanonical
+          ?? rawNames.reduce((best, raw) => (
+            (candidates.get(raw) ?? 0) > (candidates.get(best) ?? 0) ? raw : best
+          ));
+        return {
+          school: label,
+          slug: schoolSlug(canonicalRaw),
+          board: dominantBoard,
+          count: dominantCount,
+          otherBoardCount: total - dominantCount,
+        };
+      })
+      .sort((a, b) => a.school.localeCompare(b.school));
   }, [landing.data, bankPapers]);
   const mostRead = landing.data?.mostRead ?? [];
   /* Bank papers lead: they read as questions rather than as a scan, which is
@@ -779,7 +790,7 @@ export default function PastPapers() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-bold text-foreground">{paper.title}</span>
-                      <span className="block truncate text-meta text-warm-meta">{paper.school}</span>
+                      <span className="block truncate text-meta text-warm-meta">{displaySchool(paper.school)}</span>
                     </span>
                     <span className="flex-none text-meta tabular-nums text-warm-meta">
                       {/* "opened", not "read" — what is recorded is that
@@ -809,7 +820,14 @@ export default function PastPapers() {
           <BentoPanel fill="card" className="p-[22px]">
             <h2 className={`mb-3 ${SECTION_H2} text-foreground`}>By school</h2>
             <div className="stagger-children grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-[10px]">
-              {schoolStats.map(({ school, board, count, otherBoardCount }) => (
+              {schoolStats.map(({ school, slug, board, count, otherBoardCount }) => {
+                // `school` is already the merged display label; `slug` is
+                // the group's canonical slug (schoolStats groups by label,
+                // above) -- computing schoolSlug(school) here would slug the
+                // LABEL text itself, which is not necessarily any raw
+                // spelling's own slug.
+                const label = school;
+                return (
                 /* A real link to the school's own page (S16), not a button that
                    pre-filters the results list. These rows were the "by-school
                    rows that go nowhere" a-to-z.md describes: a <button> has no
@@ -817,7 +835,7 @@ export default function PastPapers() {
                    or reached by a crawler. */
                 <Link
                   key={school}
-                  to={`/school/${schoolSlug(school)}`}
+                  to={`/school/${slug}`}
                   className={`flex min-h-11 animate-card-reveal items-center gap-3 rounded-2xl bg-muted px-[14px] py-3 text-left transition-transform duration-hover ease-settle hover:-translate-y-0.5 active:scale-[0.97] motion-reduce:animate-none motion-reduce:hover:translate-y-0 lg:px-[15px] lg:py-[13px] ${FOCUS_BLUE}`}
                 >
                   {/* pages.md §4 row 7: "school initial tile 40px solid" — this
@@ -834,10 +852,10 @@ export default function PastPapers() {
                     shape="square"
                     className="h-[38px] w-[38px] rounded-xl font-display text-[15px] font-extrabold"
                   >
-                    {school.charAt(0).toUpperCase()}
+                    {label.charAt(0).toUpperCase()}
                   </IconDisc>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-bold text-foreground">{school}</span>
+                    <span className="block truncate text-[15px] font-bold text-foreground">{label}</span>
                     <span className="mt-px block text-[12px] tabular-nums text-muted-foreground">
                       {board} · {count} paper{count === 1 ? '' : 's'}
                       {otherBoardCount > 0 ? ` + ${otherBoardCount} more` : ''}
@@ -845,7 +863,8 @@ export default function PastPapers() {
                   </span>
                   <ArrowRight className="h-4 w-4 flex-none text-warm-quaternary" aria-hidden="true" />
                 </Link>
-              ))}
+                );
+              })}
             </div>
           </BentoPanel>
         )}

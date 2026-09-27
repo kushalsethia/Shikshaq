@@ -6,6 +6,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { getSubjectPalette } from "@/lib/subject-palette";
 import { IconDisc } from "@/components/ui/icon-disc";
+import { displaySchool } from "@/lib/school-display";
 
 /* Redesign C3 (components.md §2).
 
@@ -147,7 +148,7 @@ function PaperSheetCard({ paper, locked = false, className }: PaperSheetCardProp
           {paper.title}
         </span>
         <span className="mt-1 block break-words text-meta font-medium" style={{ color: palette.meta }}>
-          {paper.school}
+          {displaySchool(paper.school)}
         </span>
 
         {/* Ruled lines standing in for body text. */}

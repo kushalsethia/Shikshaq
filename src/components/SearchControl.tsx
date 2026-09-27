@@ -20,6 +20,7 @@ import { parsePaperQuery } from '@/lib/paper-query';
 import { getRecentSearches, addRecentSearch, type RecentSearch } from '@/utils/recentSearches';
 import { setSearchExpanded } from '@/hooks/useSearchExpanded';
 import { isMeteredConnection } from '@/lib/net-conditions';
+import { displaySchool, rawSchoolsFor } from '@/lib/school-display';
 
 type Selections = Record<FacetKey, string[]>;
 
@@ -416,7 +417,17 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     if (sel.cls.length) params.set('filter_classes', sel.cls.join(','));
     if (sel.board.length) params.set('filter_boards', sel.board.join(','));
     if (forMode === 'teachers' && sel.area.length) params.set('filter_areas', sel.area.join(','));
-    if (forMode === 'papers' && sel.school.length) params.set('filter_schools', sel.school.join(','));
+    /* sel.school holds the FACET LABEL (a merged display name can cover
+       several raw bank_papers.school spellings/abbreviations -- see
+       school-display.ts). Expanded back to every raw value it covers here,
+       at the one place a papers-page URL gets built, so the results page
+       still filters by the raw column and a merged label's results stay
+       complete rather than matching only whichever single raw spelling
+       happened to be picked. */
+    if (forMode === 'papers' && sel.school.length) {
+      const rawSchools = Array.from(new Set(sel.school.flatMap((label) => rawSchoolsFor(label))));
+      params.set('filter_schools', rawSchools.join(','));
+    }
     if (forMode === 'papers' && years?.length) params.set('filter_years', years.join(','));
     return params.toString();
   }, []);
@@ -504,7 +515,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     if (p.id) {
       navigate(`/past-papers/${p.id}`);
     } else {
-      navigate(`/past-papers?q=${encodeURIComponent(`${p.title} ${p.school}`)}`);
+      navigate(`/past-papers?q=${encodeURIComponent(`${p.title} ${displaySchool(p.school)}`)}`);
     }
     closeControl();
   }, [trimmedQ, navigate, closeControl]);
@@ -1339,12 +1350,12 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                                 className={`${rowBase} ${highlightClass(paperOptionId(p.id))}`}
                               >
                                 <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
-                                  {initial(p.school)}
+                                  {initial(displaySchool(p.school))}
                                 </span>
                                 <span className="min-w-0 flex-1">
                                   <span className="block truncate text-base font-semibold text-foreground">{p.title}</span>
                                   <span className="block truncate text-sm text-muted-foreground">
-                                    {p.school} · {p.board} Class {p.class}
+                                    {displaySchool(p.school)} · {p.board} Class {p.class}
                                   </span>
                                 </span>
                                 <span className="flex-none text-xs tabular-nums text-muted-foreground">{p.year}</span>
@@ -1477,12 +1488,12 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                                 className={`${rowBase} ${resultCardEntranceClass} ${highlightClass(paperOptionId(p.id))}`}
                               >
                                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
-                                  {initial(p.school)}
+                                  {initial(displaySchool(p.school))}
                                 </span>
                                 <span className="min-w-0 flex-1">
                                   <span className="block truncate text-base font-semibold text-foreground">{p.title}</span>
                                   <span className="block truncate text-sm text-muted-foreground">
-                                    {p.school} · {p.board} Class {p.class}
+                                    {displaySchool(p.school)} · {p.board} Class {p.class}
                                   </span>
                                 </span>
                                 <span className="flex-none text-xs tabular-nums text-muted-foreground">{p.year}</span>

@@ -22,6 +22,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { schoolSlug } from '@/lib/school-slug';
+import { displaySchool, isRealSchoolLabel } from '@/lib/school-display';
 
 /** One question, as the reader needs it. Paper-level facts live on BankPaper. */
 export interface BankQuestion {
@@ -284,7 +285,7 @@ export function loadPaper(paperId: string): Promise<BankPaper | null> {
 
 /** The title a paper is listed under across the papers surface. */
 export function paperTitle(p: BankPaper): string {
-  return [p.school, `Class ${p.cls} ${p.subject}`, hasYear(p.year) ? p.year : null]
+  return [displaySchool(p.school), `Class ${p.cls} ${p.subject}`, hasYear(p.year) ? p.year : null]
     .filter(Boolean)
     .join(' · ');
 }
@@ -350,4 +351,72 @@ export function schoolsOfPapers(papers: BankPaper[]): BankSchool[] {
 /** The one school a slug resolves to, or null. */
 export function schoolBySlug(papers: BankPaper[], slug: string): BankSchool | null {
   return schoolsOfPapers(papers).find((s) => s.slug === slug) ?? null;
+}
+
+/* schoolsOfPapers() above groups by RAW slug: two raw spellings that share a
+   display label (school-display.ts) but derive different slugs -- "Gregorios",
+   "St Gregorios" and "St. Gregorios High School" are three raw values, three
+   slugs, one real school -- still produced three separate /school/:slug rows
+   each claiming a third of the papers. This second layer groups those raw
+   groups again, by DISPLAY LABEL, so a school reads as one row with the full
+   count and one page with every paper, no matter which raw spelling (and
+   therefore which slug) a paper happened to be filed under. */
+
+export interface BankSchoolGroup {
+  /** The merged label every raw spelling in this group displays as. */
+  label: string;
+  /** The slug SchoolsPage links to and SchoolPage's canonical tag points at:
+   *  the raw value whose OWN display equals the label (needs no lookup table
+   *  to explain), or, when no member is self-canonical (every raw spelling is
+   *  itself a fragment/abbreviation), the one with the most papers. */
+  canonicalSlug: string;
+  /** Every raw spelling folded into this group, each with its own slug —
+   *  schoolGroupBySlug() below matches on any of these, not just the
+   *  canonical one, so an old /school/gregorios link still resolves. */
+  raws: { raw: string; slug: string }[];
+  /** Every paper from every raw spelling in the group, combined. */
+  papers: BankPaper[];
+}
+
+const schoolGroupsCache = new WeakMap<object, BankSchoolGroup[]>();
+
+export function schoolGroupsOfPapers(papers: BankPaper[]): BankSchoolGroup[] {
+  const hit = schoolGroupsCache.get(papers);
+  if (hit) return hit;
+
+  const byLabel = new Map<string, { members: BankSchool[]; papers: BankPaper[] }>();
+  schoolsOfPapers(papers).forEach((school) => {
+    const label = displaySchool(school.name);
+    /* "School not recorded" and board-paper source lines are real facts on a
+       paper's own card, but neither is a school -- they do not belong in the
+       schools directory or on a /school/:slug page of their own. */
+    if (!isRealSchoolLabel(label)) return;
+    const entry = byLabel.get(label) ?? { members: [], papers: [] };
+    entry.members.push(school);
+    entry.papers.push(...school.papers);
+    byLabel.set(label, entry);
+  });
+
+  const out: BankSchoolGroup[] = [...byLabel.entries()].map(([label, { members, papers: groupPapers }]) => {
+    const selfCanonical = members.find((m) => displaySchool(m.name) === m.name);
+    const canonical = selfCanonical
+      ?? members.reduce((best, m) => (m.papers.length > best.papers.length ? m : best));
+    return {
+      label,
+      canonicalSlug: canonical.slug,
+      raws: members.map((m) => ({ raw: m.name, slug: m.slug })),
+      papers: groupPapers,
+    };
+  }).sort((a, b) => b.papers.length - a.papers.length || a.label.localeCompare(b.label));
+
+  schoolGroupsCache.set(papers, out);
+  return out;
+}
+
+/** The merged group a slug belongs to — matched against EVERY raw slug the
+ *  group covers, not just its canonical one, so a non-canonical /school/:slug
+ *  (an older link, or one of several merged spellings) still resolves to the
+ *  full merged page rather than 404ing or showing a partial count. */
+export function schoolGroupBySlug(papers: BankPaper[], slug: string): BankSchoolGroup | null {
+  return schoolGroupsOfPapers(papers).find((g) => g.raws.some((r) => r.slug === slug)) ?? null;
 }

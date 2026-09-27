@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
 import { bankSubjectToSite } from '@/lib/subject-vocabulary';
+import { displaySchool } from '@/lib/school-display';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
@@ -277,7 +278,7 @@ export default function BankPaper() {
       .limit(50)
       .then(({ data }) => {
         if (cancelled || !data) return;
-        setSiblings(data.map((r) => ({ id: r.id, title: `${r.school} Class ${r.cls} ${bankSubjectToSite(r.subject)}`, year: hasYear(r.year) ? r.year : null })));
+        setSiblings(data.map((r) => ({ id: r.id, title: `${displaySchool(r.school)} Class ${r.cls} ${bankSubjectToSite(r.subject)}`, year: hasYear(r.year) ? r.year : null })));
       });
     return () => { cancelled = true; };
   }, [paper]);
@@ -370,12 +371,12 @@ export default function BankPaper() {
 
   usePageMeta(
     paper
-      ? `${paper.school} Class ${paper.cls} ${displaySubject} ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
+      ? `${displaySchool(paper.school)} Class ${paper.cls} ${displaySubject} ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
       : 'Past paper | Shikshaq',
     paper
       ? paper.needsReview
-        ? `${paper.school} Class ${paper.cls} ${displaySubject} ${paper.exam}. This paper is being audited and is not open to read yet.`
-        : `${paper.questionCount} questions from the ${paper.school} Class ${paper.cls} ${displaySubject} ${paper.exam}, with marks, chapters and figures. First ${FREE_PREVIEW_WORD} free, the rest with a free account.`
+        ? `${displaySchool(paper.school)} Class ${paper.cls} ${displaySubject} ${paper.exam}. This paper is being audited and is not open to read yet.`
+        : `${paper.questionCount} questions from the ${displaySchool(paper.school)} Class ${paper.cls} ${displaySubject} ${paper.exam}, with marks, chapters and figures. First ${FREE_PREVIEW_WORD} free, the rest with a free account.`
       : 'Read a free past year question paper on Shikshaq.',
   );
 
@@ -601,9 +602,9 @@ export default function BankPaper() {
           <div className="min-w-0 flex-1">
             <h1
               className="truncate text-[14px] font-bold text-white"
-              title={paper ? `${paper.school} · Class ${paper.cls} ${displaySubject}` : undefined}
+              title={paper ? `${displaySchool(paper.school)} · Class ${paper.cls} ${displaySubject}` : undefined}
             >
-              {paper ? `${paper.school} · Class ${paper.cls} ${displaySubject}` : 'Past paper'}
+              {paper ? `${displaySchool(paper.school)} · Class ${paper.cls} ${displaySubject}` : 'Past paper'}
             </h1>
             {facts.length > 0 && (
               <p className="truncate text-[12px] tabular-nums text-white/60" title={facts.join(' · ')}>
@@ -667,7 +668,7 @@ export default function BankPaper() {
             <PaperDisclaimerDialog />
             <PaperShareLock paperTitle={paperTitle(paper)} />
             <CaptureShield />
-            <DisclaimerStrip tone="dark" school={paper.school} />
+            <DisclaimerStrip tone="dark" school={displaySchool(paper.school)} />
           </>
         )}
 
@@ -737,7 +738,7 @@ export default function BankPaper() {
                the paper arriving rather than as decoration on every render
                (CRAFT §2: delight at success, not on every element). */
             <div className="mb-5 animate-card-blur-in border-b border-border pb-4 text-center motion-reduce:animate-none">
-              <p className="text-[13px] italic text-muted-foreground">{paper.school}</p>
+              <p className="text-[13px] italic text-muted-foreground">{displaySchool(paper.school)}</p>
               <h2 className="mt-1 font-display text-[20px] font-extrabold tracking-[-0.02em] text-foreground sm:text-[23px]">
                 {/* Middle dot, not an em dash -- CLAUDE.md bans em/en dashes in
                    site copy; · is this codebase's own standing separator
@@ -840,7 +841,7 @@ export default function BankPaper() {
         onOpenChange={setGateOpen}
         flavor="papers"
         redirectTo={`/past-papers/${id ?? ''}`}
-        paperTitle={paper ? `${paper.school} Class ${paper.cls} ${displaySubject}` : null}
+        paperTitle={paper ? `${displaySchool(paper.school)} Class ${paper.cls} ${displaySubject}` : null}
         paperSubject={displaySubject || "Maths"}
       />
 

@@ -6,7 +6,8 @@ import { ArrowLeft, ArrowRight, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { recordSignal } from '@/lib/intent/signals';
 import { schoolSlug } from '@/lib/school-slug';
-import { loadPaperIndex, schoolBySlug, hasYear } from '@/lib/question-bank';
+import { displaySchool } from '@/lib/school-display';
+import { loadPaperIndex, schoolGroupBySlug, hasYear } from '@/lib/question-bank';
 import { sanitizeForIlike } from '@/lib/ilike-sanitize';
 import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { numberToRoman, romanToNumber } from '@/utils/romanNumerals';
@@ -119,18 +120,26 @@ export default function SchoolPage() {
      This reads the light paper index (~31KB) rather than the full bank
      (2.5MB): a school page lists papers, it never shows question text. Both
      the fetch and the grouping are memoised for the session, so opening a
-     second school costs nothing beyond the lookup. */
+     second school costs nothing beyond the lookup.
+
+     schoolGroupBySlug (not schoolBySlug) — several raw bank_papers.school
+     spellings/abbreviations can share one display label (school-display.ts:
+     "Gregorios" / "St Gregorios" / "St. Gregorios High School" are all one
+     real school), and the requested slug can be ANY of their raw slugs, not
+     just the canonical one. The group's `.papers` is every paper from every
+     raw spelling combined, so this page shows the school's true count no
+     matter which spelling's URL a visitor lands on. */
   const bankQuery = useQuery({
     queryKey: ['school-bank', slug],
     staleTime: Infinity,
     gcTime: Infinity,
-    queryFn: async () => schoolBySlug(await loadPaperIndex(), slug),
+    queryFn: async () => schoolGroupBySlug(await loadPaperIndex(), slug),
   });
 
-  const bankSchool = bankQuery.data ?? null;
+  const bankGroup = bankQuery.data ?? null;
 
   const papers = useMemo<SchoolPaper[]>(() => {
-    const fromBank = (bankSchool?.papers ?? []).map((b): SchoolPaper => {
+    const fromBank = (bankGroup?.papers ?? []).map((b): SchoolPaper => {
       // b.subject is the raw bank spelling ("Mathematics"); every subject-
       // facing surface on the site (title, chips, cross-sell filter links)
       // uses the site's own vocabulary ("Maths") -- see PastPapers.tsx's
@@ -160,7 +169,7 @@ export default function SchoolPage() {
       if (b.year === null) return -1;
       return b.year - a.year;
     });
-  }, [query.data, bankSchool]);
+  }, [query.data, bankGroup]);
 
   // Shared facets — boards/classes/years feed the summary line, years also
   // drive the year chips below, and boards+subjects drive the teacher
@@ -314,10 +323,35 @@ export default function SchoolPage() {
   /* Either source can be the one that knows this school's name. When neither
      does and nothing is still in flight, the slug resolves to no school at
      all — say that, rather than heading the page with a bare "School", which
-     read as a page about a school whose name had failed to load. */
-  const resolvedName = query.data?.name ?? bankSchool?.name ?? null;
+     read as a page about a school whose name had failed to load.
+
+     bankGroup.label is ALREADY the merged display label (schoolGroupBySlug
+     groups by it); the `papers`-table half is still a raw name and needs
+     displaySchool() itself. Bank wins when both somehow disagree — it is the
+     source this whole fix exists for. */
+  const rawTableName = query.data?.name ?? null;
+  const resolvedName = bankGroup?.label ?? (rawTableName ? displaySchool(rawTableName) : null);
   const unknownSchool = !resolvedName && !loading && !failed;
   const name = resolvedName ?? (unknownSchool ? 'School not found' : 'School');
+
+  /* This slug may be one of several raw spellings folded into bankGroup —
+     canonicalSlug is the one SchoolsPage links to and prerender.ts builds
+     the merged page at. A non-canonical slug still renders the full merged
+     page (no 404: schoolGroupBySlug matches ANY of the group's raw slugs),
+     but its <link rel="canonical"> has to point at the canonical URL so
+     Google treats every merged spelling as one page, not near-duplicates. */
+  const canonicalSlug = bankGroup?.canonicalSlug ?? slug;
+  useEffect(() => {
+    if (!bankGroup || bankGroup.canonicalSlug === slug) return;
+    const href = `https://www.shikshaq.in/school/${bankGroup.canonicalSlug}`;
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    canonical.href = href;
+  }, [bankGroup, slug]);
 
   /* `school` is a tracked FacetSlotKey (lib/intent/types.ts) that nothing
      populated from actually visiting a school page — only from a papers
@@ -400,7 +434,7 @@ export default function SchoolPage() {
     if (!papers.length) return;
     injectSchemas([
       generateCollectionPageSchema({
-        url: `https://www.shikshaq.in/school/${slug}`,
+        url: `https://www.shikshaq.in/school/${canonicalSlug}`,
         name: `${name} past papers`,
         description: `${papers.length} past papers from ${name}, free to read on Shikshaq.`,
         about: name,
@@ -409,14 +443,14 @@ export default function SchoolPage() {
       generateBreadcrumbSchema([
         { name: 'Home', url: '/' },
         { name: 'Past papers', url: PAST_PAPERS_PATH },
-        { name, url: `/school/${slug}` },
+        { name, url: `/school/${canonicalSlug}` },
       ]),
     ]);
     return () => {
       const existing = document.getElementById('page-schemas');
       if (existing) existing.remove();
     };
-  }, [papers.length, name, slug]);
+  }, [papers.length, name, canonicalSlug]);
 
   const hasResults = !loading && papers.length > 0;
 

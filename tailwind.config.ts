@@ -530,6 +530,16 @@ export default {
           "0%, 100%": { boxShadow: "0 0 0 0 transparent" },
           "35%": { boxShadow: "0 3px 10px -2px var(--count-glow-color, transparent)" },
         },
+        /* CornerMascot's sleeping "Zzz" — opacity/transform only, per CRAFT.md
+           §2. Ambient and infinite, but only ever mounted inside the mascot's
+           own `hidden lg:flex` root, so — like `sparkle`/`bob` above — it
+           never reaches a phone. */
+        zFloat: {
+          "0%": { opacity: "0", transform: "translateY(0)" },
+          "18%": { opacity: "1" },
+          "75%": { opacity: "1" },
+          "100%": { opacity: "0", transform: "translateY(-13px)" },
+        },
       },
       animation: {
         "rail-nudge": "rail-nudge 0.9s cubic-bezier(0.16, 1, 0.3, 1) 1",
@@ -567,6 +577,7 @@ export default {
         "search-pop": "searchPop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both",
         "blur-swap": "blurSwap 0.42s cubic-bezier(0.16, 1, 0.3, 1) both",
         "hero-blink": "heroBlink 1.15s ease-in-out 0.55s 1 both",
+        "z-float": "zFloat 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite",
       },
     },
   },

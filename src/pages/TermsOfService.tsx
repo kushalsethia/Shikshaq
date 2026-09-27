@@ -1,5 +1,6 @@
 import { LegalReader, type LegalSection } from '@/pages/legal/reader';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 
 const pClass = 'max-w-prose text-warm-prose leading-relaxed';
 const pMtClass = 'max-w-prose text-warm-prose leading-relaxed mt-3';
@@ -226,7 +227,7 @@ const SECTIONS: LegalSection[] = [
     n: '09',
     title: 'Past papers',
     short: 'The papers belong to the schools that set them. We host them for reading only.',
-    body: 'Papers are shared by students and hosted for revision. Reading is free and requires an account. Downloading, reposting or selling them is not allowed.',
+    body: `Papers are shared by students and hosted for revision. The first ${FREE_PREVIEW_WORD} questions of any paper are free to read with no account; a free account unlocks the rest. Downloading, reposting or selling them is not allowed.`,
   },
   {
     n: '10',
@@ -292,10 +293,10 @@ export default function TermsOfService() {
       pillTone="brand"
       h1="What you agree to"
       lede="Shikshaq is a place to find a teacher and read past papers. We introduce people; we are not a tuition agency, an employer, or a party to the classes you arrange. Each section below opens with the plain-English version, followed by the exact clause it summarizes."
-      updated="Last updated 12 August 2026 · we tell you on WhatsApp when this changes"
+      updated="Last updated 27 September 2026"
       accent="brand"
       summary={[
-        { head: 'Free to use', text: 'For students, guardians and teachers. No listing fee, no commission, no premium tier.', tone: 'bone' },
+        { head: 'Free to use', text: 'For students, guardians and teachers. No listing fee or commission today. Any future fee is announced first (section 08).', tone: 'bone' },
         { head: 'We do not take the money', text: 'Fees are settled directly between you and the teacher. We never invoice or hold a deposit.', tone: 'brand' },
         { head: 'We verify, we do not vouch', text: 'We check ID and degree. We cannot guarantee anyone’s teaching.', tone: 'muted' },
         { head: 'You can leave', text: 'Delete your account whenever. Teachers can unlist in one tap.', tone: 'mint' },
