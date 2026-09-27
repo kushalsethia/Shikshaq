@@ -293,7 +293,7 @@ export default function TermsOfService() {
       pillTone="brand"
       h1="What you agree to"
       lede="Shikshaq is a place to find a teacher and read past papers. We introduce people; we are not a tuition agency, an employer, or a party to the classes you arrange. Each section below opens with the plain-English version, followed by the exact clause it summarizes."
-      updated="Last updated 12 August 2026 · we tell you on WhatsApp when this changes"
+      updated="Last updated 27 September 2026"
       accent="brand"
       summary={[
         { head: 'Free to use', text: 'For students, guardians and teachers. No listing fee or commission today. Any future fee is announced first (section 08).', tone: 'bone' },
