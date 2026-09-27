@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search, GraduationCap, ChevronDown, Clock, ArrowRight, X,
@@ -25,7 +25,7 @@ type Selections = Record<FacetKey, string[]>;
 
 const EMPTY_SELECTIONS: Selections = { subject: [], cls: [], area: [], board: [], school: [] };
 
-/* 'Past papers', not 'Papers' — the handoff labels this tab in full, and it
+/* 'Past papers', not 'Papers' -- the handoff labels this tab in full, and it
    matches the nav and the footer toggle, which already said 'Past papers'.
    The two read as different destinations when they are the same one. */
 const MODE_LABEL: Record<SearchMode, string> = { teachers: 'Teachers', papers: 'Past papers' };
@@ -43,7 +43,7 @@ const FACET_ICON: Record<FacetKey, typeof BookOpen> = {
   school: SchoolIcon,
 };
 
-/* Per-mode accent classes. DESIGN_SYSTEM.md §2: accents only — orange for
+/* Per-mode accent classes. DESIGN_SYSTEM.md §2: accents only -- orange for
    teachers, blue for papers. No literals anywhere in this file. */
 const ACCENT = {
   teachers: {
@@ -60,7 +60,7 @@ const ACCENT = {
   },
 } as const;
 
-/* Shared focus treatment — §1.5 requires a visible ring on every interactive element. */
+/* Shared focus treatment -- §1.5 requires a visible ring on every interactive element. */
 const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 function toggleValue(arr: string[], v: string): string[] {
@@ -90,7 +90,7 @@ interface SearchControlProps {
    * pages.md §2 puts browse's search field INSIDE the near-black block
    * ("`bg-white/10` field, white text, white/45 placeholder"), where home's
    * sits in its own bone card overhanging the block. Same component, two
-   * grounds — without this the browse field rendered bone-on-black, which is
+   * grounds -- without this the browse field rendered bone-on-black, which is
    * the one combination the spec never draws.
    */
   onDark?: boolean;
@@ -117,16 +117,16 @@ interface SearchControlProps {
   /**
    * Desktop-only: renders the facet trigger chips (Subject/Class/Board/
    * School or Area, per mode) in a persistent row to the right of the search
-   * bar, instead of only after the control is focused/expanded. Opt-in —
+   * bar, instead of only after the control is focused/expanded. Opt-in  -- 
    * most callers want the quieter reveal-gated behaviour; PastPapers' hero
    * has the horizontal room and asked for the filters visible up front.
    */
   inlineFacetsDesktop?: boolean;
   /**
    * R3S1: pre-fills the free-text field from a search the reader already
-   * made — e.g. `/past-papers/results`'s own in-place edit control, seeded
+   * made -- e.g. `/past-papers/results`'s own in-place edit control, seeded
    * from that page's `q` URL param. Only read once, on mount (an initial
-   * value, not a controlled prop) — a caller that wants it to track a
+   * value, not a controlled prop) -- a caller that wants it to track a
    * changing URL re-mounts with a `key`, same as any other initial-value
    * prop. Every existing caller omits this, so `q` still starts empty
    * exactly as before.
@@ -136,7 +136,7 @@ interface SearchControlProps {
    * Same initial-value contract as `initialQuery`, for the facet chips
    * (subject/class/board/school/area). Partial: a caller only supplies the
    * facet keys its mode actually has (PAPER_FACET_KEYS or
-   * TEACHER_FACET_KEYS) — the rest default to unselected, same as
+   * TEACHER_FACET_KEYS) -- the rest default to unselected, same as
    * `EMPTY_SELECTIONS` always has.
    */
   initialSelections?: Partial<Selections>;
@@ -151,7 +151,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
   const [mode, setMode] = useState<SearchMode>(initialMode || (location.pathname === '/past-papers' ? 'papers' : 'teachers'));
   /* mode_changed was a typed, weighted SignalKind (types.ts) with no producer
-     anywhere in the app — a reader deliberately switching Teachers <-> Papers
+     anywhere in the app -- a reader deliberately switching Teachers <-> Papers
      told the intent index nothing. Wraps setMode rather than adding the call
      at every click site, so a future toggle can't be added without it.
      pickRecent's setMode is left alone: that restores UI state ahead of a
@@ -163,7 +163,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   }, []);
   const { intent } = useIntent();
   // Frozen with the rest of the intent index (see intent-context.tsx's freeze
-  // rule) — the resting chips don't reshuffle while this control is open,
+  // rule) -- the resting chips don't reshuffle while this control is open,
   // only between one page view and the next. Falls back to the same
   // hardcoded POPULAR list this always showed when the index has nothing.
   const restingChips = useMemo(() => suggestedSearches(mode, intent) ?? POPULAR[mode], [mode, intent]);
@@ -174,7 +174,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   }, [mode]);
 
   // Below ~560px the collapsed bar's fixed-width children (mode toggle, Search
-  // button) don't leave room for the input — shrink them so nothing overflows
+  // button) don't leave room for the input -- shrink them so nothing overflows
   // the viewport on small phones.
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
@@ -197,6 +197,17 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   const [q, setQ] = useState(initialQuery ?? '');
   const [field, setField] = useState<FacetKey | 'q' | null>(null);
   const [expanded, setExpanded] = useState(false);
+  /* R4G4: the roving highlight for the search overlay's combobox pattern.
+     -1 means nothing is highlighted (Enter falls through to `runSearch`);
+     otherwise it indexes `flatOptions` below, and Enter activates that
+     option instead. Reset whenever the option set itself changes so a stale
+     index never points at last render's list. */
+  const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
+  // Read from the document-level Escape handler below, which is mounted
+  // once (empty dep array) -- a ref, not a dependency, so it always sees the
+  // latest value without re-subscribing the listener on every keystroke.
+  const activeOptionIndexRef = useRef(-1);
+  useEffect(() => { activeOptionIndexRef.current = activeOptionIndex; }, [activeOptionIndex]);
   const [selections, setSelections] = useState<Selections>(() => (
     initialSelections ? { ...EMPTY_SELECTIONS, ...initialSelections } : EMPTY_SELECTIONS
   ));
@@ -207,15 +218,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
      drives the whole reveal/pinned/scrim search-popup machinery below. A
      quick "pick a subject" tap on the hero was launching the full
      fixed-position, scroll-locked, scrim-and-close-button overlay meant for
-     the search field itself — this keeps that interaction lightweight and
+     the search field itself -- this keeps that interaction lightweight and
      anchored to the chip that opened it. Only meaningful with
      inlineFacetsDesktop; unused otherwise. */
   const [inlineOpenFacet, setInlineOpenFacet] = useState<FacetKey | null>(null);
   const inlineGroupRef = useRef<HTMLDivElement>(null);
 
   /* Was a bare `ensureLoaded()` on mount. Every page carrying a search bar
-     (Home, Browse, Past papers) therefore pulled the entire search index —
-     teachers_list at limit 2000, plus bank_papers and papers — into the
+     (Home, Browse, Past papers) therefore pulled the entire search index  -- 
+     teachers_list at limit 2000, plus bank_papers and papers -- into the
      first-paint connection window, for a feature the reader has not
      touched yet. Measured on Home: 25 concurrent REST calls against the
      browser's 6-per-host limit, the tail not settling until ~4.5s, with
@@ -261,26 +272,26 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     if (reveal && facetRowRef.current) facetRowRef.current.scrollLeft = 0;
   }, [reveal]);
 
-  // Only the stacked-toggle wrapper below reads this — the bar, facet row, and scrim
+  // Only the stacked-toggle wrapper below reads this -- the bar, facet row, and scrim
   // stay tied to `reveal` so the rest of the expand/collapse choreography is untouched.
   const stackedToggleVisible = stackedToggle && (reveal || alwaysShowModeToggle);
 
   // "Focused mode", every width now: once revealed, the bar/facet-row/results
   // pin near the top of the viewport instead of sitting wherever the collapsed
   // pill happened to be in normal flow, the scrim darkens further, and
-  // background scroll locks. Was mobile-only (isMobile, <768px) — desktop kept
+  // background scroll locks. Was mobile-only (isMobile, <768px) -- desktop kept
   // the plain in-flow dropdown, which meant an open search on a wide screen
   // didn't block scroll and could visually collide with page content below it
   // (the recurring "search bar overlaps X" reports). Same pinned treatment at
   // every width now; there is no narrower-viewport-only branch left to gate on.
   //
   // `pinEngaged` deliberately lags `reveal` by one animation frame. The very
-  // tap/click that focuses the field is what sets `reveal` true — if pinning
+  // tap/click that focuses the field is what sets `reveal` true -- if pinning
   // (a `relative` → `fixed inset-x-3 top-3` swap) applied on that SAME render,
   // the control physically jumped out from under the pointer mid-gesture: the
   // browser resolves `mousedown` against the field at its in-flow position, the
   // reflow happens before `mouseup`, and the click/tap that completes the
-  // gesture lands on whatever page content the jump just exposed underneath —
+  // gesture lands on whatever page content the jump just exposed underneath  -- 
   // a teacher card, a "See all" link, anything that happened to sit at that
   // pixel. That is what read as the popup "taking me" somewhere else and
   // "overflowing": it wasn't the popup misbehaving, it was a real navigation on
@@ -305,7 +316,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     return () => setSearchExpanded(false);
   }, [reveal]);
 
-  // Locks background scroll while pinned open, at every width now — the scrim
+  // Locks background scroll while pinned open, at every width now -- the scrim
   // alone doesn't stop the page from being dragged/scrolled (touch) or wheeled
   // (desktop) underneath it. Storing and restoring scrollY (instead of a bare
   // `overflow:hidden`) avoids the page jumping back to the top on iOS Safari
@@ -361,10 +372,23 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
+        /* R4G4: was an unconditional close-and-blur, which lost focus to
+           `<body>` on every Escape. First Escape only drops a keyboard
+           highlight if one is active (the roving combobox highlight),
+           keeping focus and the overlay exactly as they were -- standard
+           combobox behaviour is "Escape clears the highlight before it does
+           anything else". Only once nothing is highlighted does Escape
+           close the overlay/panel/dropdown, and even then focus is left
+           alone -- it was already in the search input, which is what opened
+           this overlay in the first place, so there is nowhere else for it
+           to go back to. */
+        if (activeOptionIndexRef.current >= 0) {
+          setActiveOptionIndex(-1);
+          return;
+        }
         setField(null);
         setExpanded(false);
         setInlineOpenFacet(null);
-        inputRef.current?.blur();
       }
     }
     document.addEventListener('mousedown', handlePointerDown);
@@ -409,12 +433,12 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
        nothing else. recordSignal takes the arrays directly; the hero's
        one-sentence trail record still reads the primary of each, which it
        derives itself. */
-    /* A bare keyword search — no chip picked, just typed text — used to reach
+    /* A bare keyword search -- no chip picked, just typed text -- used to reach
        the index as `query` alone, which types.ts is explicit never becomes a
        slot value. "maths tutor ballygunge" told the intent index nothing,
        despite being a strong/explicit signal kind. extractFiltersFromQuery is
        the same typo-tolerant vocabulary matcher Browse.tsx already runs on
-       this exact query once it lands there (to filter results) — reused here
+       this exact query once it lands there (to filter results) -- reused here
        so the signal recorded at the MOMENT of submission already carries what
        the reader typed, rather than depending on a second, weaker
        (medium/derived) extraction Browse happens to also do on mount.
@@ -474,7 +498,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
     // Always route through the reader. This previously did
     // `window.open(p.file_url)`, handing out the raw public bucket URL and
     // walking straight past the reader's sign-in wall, its visit tracking and
-    // its redistribution notice — so the "gate" wasn't one for anybody who
+    // its redistribution notice -- so the "gate" wasn't one for anybody who
     // arrived via search. Papers without a file still fall back to a filtered
     // browse rather than a dead click.
     if (p.id) {
@@ -523,9 +547,73 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   const showEmptyBanner = overlayTyping && searchActive && !indexLoading && currentCount === 0;
   const totalCount = teacherCount + paperCount;
 
+  /* R4G4 -- WAI-ARIA combobox pattern for the suggestions overlay. One flat,
+     ordered list of every currently-visible, selectable suggestion (in the
+     same order they render below), each with a stable id used for both the
+     DOM node's own `id` and the input's `aria-activedescendant`. Arrow keys
+     move `activeOptionIndex` through this list; Enter activates the
+     highlighted one, or falls through to `runSearch` when nothing is
+     highlighted. Mouse/touch is untouched -- every option keeps its own
+     onClick exactly as before, this only adds a second way to reach the
+     same `select()`. */
+  /* Per-instance ids (useId) so two controls on one page never collide, and
+     slugged labels: an IDREF with a space ("Class 10") is two ids to
+     aria-activedescendant, so the highlighted chip would be lost. */
+  const idBase = `search-${useId().replace(/:/g, "")}`;
+  const idSafe = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const listboxId = `${idBase}-listbox`;
+  const chipOptionId = (label: string) => `${idBase}-chip-${idSafe(label)}`;
+  const recentOptionId = (i: number) => `${idBase}-recent-${i}`;
+  const teacherOptionId = (id: string) => `${idBase}-teacher-${idSafe(id)}`;
+  const paperOptionId = (id: string) => `${idBase}-paper-${idSafe(id)}`;
+
+  const flatOptions = useMemo(() => {
+    type FlatOption = { id: string; select: () => void };
+    const opts: FlatOption[] = [];
+    if (overlayResting) {
+      restingChips.forEach((label) => opts.push({ id: chipOptionId(label), select: () => pickPopular(label) }));
+      recents.forEach((r, i) => opts.push({ id: recentOptionId(i), select: () => pickRecent(r) }));
+      const teachersShelfOpts: FlatOption[] = featuredTeachers.map((t) => ({
+        id: teacherOptionId(t.id), select: () => openTeacher(t),
+      }));
+      const papersShelfOpts: FlatOption[] = recentPapers.map((p) => ({
+        id: paperOptionId(p.id), select: () => openPaper(p),
+      }));
+      // Same DOM order as the shelves render in below (mode leads).
+      if (mode === 'papers') opts.push(...papersShelfOpts, ...teachersShelfOpts);
+      else opts.push(...teachersShelfOpts, ...papersShelfOpts);
+    } else if (overlayTyping && searchActive && !indexLoading) {
+      const teacherOpts: FlatOption[] = teacherCount > 0
+        ? results.teachers.map((t) => ({ id: teacherOptionId(t.id), select: () => openTeacher(t) }))
+        : [];
+      const paperOpts: FlatOption[] = paperCount > 0
+        ? results.papers.map((p) => ({ id: paperOptionId(p.id), select: () => openPaper(p) }))
+        : [];
+      if (mode === 'papers') opts.push(...paperOpts, ...teacherOpts);
+      else opts.push(...teacherOpts, ...paperOpts);
+    }
+    return opts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    overlayResting, overlayTyping, searchActive, indexLoading, mode,
+    restingChips, recents, featuredTeachers, recentPapers,
+    teacherCount, paperCount, results,
+  ]);
+
+  // A stale highlight pointing at last render's list is worse than none  -- 
+  // drop it the moment the option set can have changed (query edited, mode
+  // flipped, or the overlay itself opening/closing).
+  useEffect(() => {
+    setActiveOptionIndex(-1);
+  }, [mode, deferredQ, overlayOpen]);
+
+  const activeOption = activeOptionIndex >= 0 ? flatOptions[activeOptionIndex] : undefined;
+  const highlightClass = (id: string) =>
+    activeOption?.id === id ? 'bg-accent ring-2 ring-ring ring-inset' : '';
+
   /* Owner's "search that finds results" delight moment (CRAFT §2): the result
      rows should settle in the first time a query actually returns something,
-     not replay their entrance on every keystroke — each keystroke swaps in a
+     not replay their entrance on every keystroke -- each keystroke swaps in a
      different set of teacher/paper ids, so without this guard the mapped
      buttons below (new keys every time) remounted and re-played
      animate-card-blur-in on every character typed, which reads as flicker,
@@ -541,7 +629,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   }, [overlayOpen, totalCount]);
   const resultCardEntranceClass = resultsIntroduced ? '' : 'animate-card-blur-in';
 
-  // Shared by the popup's facet panel and the inline chips' own dropdown —
+  // Shared by the popup's facet panel and the inline chips' own dropdown  -- 
   // both list the same option set for a given facet key.
   const optionsForFacet = useCallback((key: FacetKey | null): string[] => {
     if (!key) return [];
@@ -564,7 +652,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
      picking a value always advances to the next unfilled decision instead
      of leaving the user to reopen the row themselves. */
   const nextFacetAfter = useCallback((key: FacetKey): FacetKey | null => {
-    // facetKeys is TeacherFacetKey[] | PaperFacetKey[] — a union of two
+    // facetKeys is TeacherFacetKey[] | PaperFacetKey[] -- a union of two
     // narrower arrays, so TS's own indexOf overload resolution narrows the
     // accepted argument to their intersection rather than the full FacetKey
     // `key` is typed as. Both key and facetKeys agree at runtime (key only
@@ -576,10 +664,10 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
   }, [facetKeys]);
 
   /* Dropdown surface: one shared shell for the facet panel and the suggestions
-     overlay. §5 — shadow-border only, never border + shadow.
+     overlay. §5 -- shadow-border only, never border + shadow.
 
      M21: was one 200ms duration both ways. CRAFT §2 wants an entrance in the
-     200-300ms band and an exit shorter/softer than that — bumped the open to
+     200-300ms band and an exit shorter/softer than that -- bumped the open to
      300ms and the close now uses the `exit` token (130ms) instead of sharing
      the entrance's timing. */
   const dropdownShell = (closing: boolean) =>
@@ -591,7 +679,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
   /* grid-cols-2, not flex + flex-1. `flex-1` is `flex: 1 1 0%`, but a flex
      item will not shrink below its own min-content, and with
-     `whitespace-nowrap` that floor is the label width — so "Past papers" held
+     `whitespace-nowrap` that floor is the label width -- so "Past papers" held
      94px while "Teachers" took the 76px left over. The two segments were never
      equal, and the indicator (a fixed `calc(50% - 0.25rem)`) sat under neither
      of them properly. Grid cells are exactly half each, which is what the
@@ -663,7 +751,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           Pinned, the control itself sits at z-70, so the scrim belongs above
           the nav at z-65 and covers everything. The lighter/lower z-30 branch
           only ever shows for the single frame between `reveal` turning true
-          and `pinEngaged` catching up a frame later — kept rather than
+          and `pinEngaged` catching up a frame later -- kept rather than
           removed, since that's still a real (if brief) state. */}
       <div
         onClick={closeControl}
@@ -675,7 +763,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
       <div
         ref={rootRef}
         /* The base width is conditional, not `w-full` plus a `w-auto` override.
-           This is a plain template string — no tailwind-merge — so when pinned
+           This is a plain template string -- no tailwind-merge -- so when pinned
            BOTH classes were emitted and `w-full` won on stylesheet order. With
            `inset-x-3` pinning the left edge at 12px, a 100%-of-viewport width
            put the right edge at 402px on a 390px screen: the results panel,
@@ -685,15 +773,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
         className={`${pinned ? '' : 'w-full'} ${align === 'center' ? 'mx-auto' : ''} ${
           pinned
             ? 'fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] max-w-none animate-search-pop motion-reduce:animate-none'
-            /* z-[45] was unconditional — TopBar is z-40 and fixed, so on any
+            /* z-[45] was unconditional -- TopBar is z-40 and fixed, so on any
                page where this control sits in the normal scroll flow near
                the top, scrolling slid the (at-rest) search bar's box up
                past/through the fixed navbar and it painted ON TOP of it
                (45 > 40), even though nothing was actually open. Only needs
                to clear the navbar while genuinely showing its dropdown/
-               facets (`reveal`) — at rest it stays below it instead. */
+               facets (`reveal`) -- at rest it stays below it instead. */
             /* inlineFacetsDesktop:!reveal narrows the field specifically at
-               xl — the chip row + its own Search button sit to the field's
+               xl -- the chip row + its own Search button sit to the field's
                right at a fixed content width (each chip sized for its
                label, not flexible), and on a ~1024-1200px width there
                wasn't room left for all four chips plus the button once it
@@ -703,7 +791,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                fixes that without capping how many facets show. Was `lg:`
                (1024) until PastPapers.tsx nested this control's only
                `inlineFacetsDesktop` caller inside a card rather than a
-               full-bleed panel — 1024px minus that card's own edges never
+               full-bleed panel -- 1024px minus that card's own edges never
                had room for both the shrunk field AND the chip row+button in
                the same line, so the row (and sometimes the button itself)
                ran past the card into the panel's own `overflow-hidden` and
@@ -719,12 +807,12 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               }`
         } ${className}`}
       >
-        {/* Pinned close button — the only way to leave the expanded search
+        {/* Pinned close button -- the only way to leave the expanded search
             was clicking the scrim or hitting Escape, neither of which is
             discoverable. Was top-left; on mobile that corner sits directly
             over the mode toggle/facet chips stacked above the field
             (stackedToggle), so the two overlapped. Bottom-right of the
-            whole pinned card instead — nothing else renders there at any
+            whole pinned card instead -- nothing else renders there at any
             width, toggle included. */}
         {pinned && (
           <button
@@ -737,7 +825,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           </button>
         )}
 
-        {/* Persistent desktop filter row — the facet chips normally only
+        {/* Persistent desktop filter row -- the facet chips normally only
             show once the control is focused/expanded (the "Narrow it" row
             below), which on a wide hero with room to spare just reads as
             filters that don't exist until you go looking. Positioned off
@@ -747,7 +835,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
             below the field) takes over from there.
 
             Each chip owns a small dropdown anchored to itself, driven by
-            `inlineOpenFacet` rather than `field` — `field` is what turns on
+            `inlineOpenFacet` rather than `field` -- `field` is what turns on
             the whole reveal/pinned/scrim search popup below, and a tap on
             "Subject" here isn't the same gesture as focusing the search
             field. Picking a value advances straight to the next facet's
@@ -760,10 +848,10 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
             ref={inlineGroupRef}
             /* Below xl: same chips, but there's no room to the field's
                right at that width, so they wrap onto their own row under
-               the field instead of sitting beside it — still visible
+               the field instead of sitting beside it -- still visible
                before the user has tapped anything, which was the point;
                previously this whole block was lg-only and mobile only ever
-               saw facets after focusing the field. (xl, not lg — see the
+               saw facets after focusing the field. (xl, not lg -- see the
                root className's own note on why.) */
             className={`pointer-events-auto relative order-last mt-2 flex flex-wrap items-center gap-2 xl:absolute xl:left-[calc(100%+12px)] xl:right-auto xl:top-0 xl:mt-0 xl:flex-nowrap ${
               heroDesk ? 'xl:h-[60px]' : 'xl:h-14'
@@ -833,7 +921,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
             })}
 
             {/* The bar's own Search button only hides at xl in this mode
-                (see its `inlineFacetsDesktop` note) — below xl it's still
+                (see its `inlineFacetsDesktop` note) -- below xl it's still
                 the one visible Search button, so this replacement stays
                 xl-only too. Without the gate, mobile/tablet briefly had two
                 Search buttons: the bar's own plus this one wrapped onto a
@@ -855,7 +943,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           <div
             /* M22: `margin` is layout-affecting (non-composited) alongside
                max-height/opacity, which already carry the disclosure
-               animation on their own — dropped from the transitioned
+               animation on their own -- dropped from the transitioned
                property list so the margin snaps with the state change
                instead of forcing an extra reflow every frame. */
             className={`flex overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
@@ -892,7 +980,41 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               value={q}
               onChange={(e) => { setQ(e.target.value); setField('q'); setExpanded(true); }}
               onFocus={expandBar}
-              onKeyDown={(e) => { if (e.key === 'Enter') runSearch(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') {
+                  if (flatOptions.length === 0) return;
+                  e.preventDefault();
+                  setActiveOptionIndex((i) => (i + 1) % flatOptions.length);
+                  return;
+                }
+                if (e.key === 'ArrowUp') {
+                  if (flatOptions.length === 0) return;
+                  e.preventDefault();
+                  setActiveOptionIndex((i) => (i - 1 + flatOptions.length) % flatOptions.length);
+                  return;
+                }
+                if (e.key === 'Home' && flatOptions.length > 0) {
+                  e.preventDefault();
+                  setActiveOptionIndex(0);
+                  return;
+                }
+                if (e.key === 'End' && flatOptions.length > 0) {
+                  e.preventDefault();
+                  setActiveOptionIndex(flatOptions.length - 1);
+                  return;
+                }
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (activeOption) activeOption.select();
+                  else runSearch();
+                }
+              }}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              aria-expanded={overlayOpen}
+              aria-controls={listboxId}
+              aria-activedescendant={activeOption?.id}
               aria-label={mode === 'teachers' ? 'Search teachers' : 'Search past papers'}
               /* The placeholder says what the field accepts rather than
                  showing one example, because the field really does take all of
@@ -913,7 +1035,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                   : isNarrow ? 'Board, class, subject' : 'Board, class, subject or school'
               }
               /* h-full, not the intrinsic 24px line box: the field reads as a
-                 60px (or 56px) row, so the whole row has to be focusable —
+                 60px (or 56px) row, so the whole row has to be focusable  -- 
                  otherwise the 18px above and below the text is a dead zone and
                  the real tap target is well under the 44px floor (C-011). An
                  input centres its own value vertically, so this is a no-op
@@ -921,7 +1043,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               /* `focus-visible:outline-none`, not just `outline-none`. The
                  global focus rule in index.css is scoped with
                  `:not([class*="focus-visible:outline-"])`, so a plain
-                 `outline-none` does not exclude an element — the field was
+                 `outline-none` does not exclude an element -- the field was
                  getting the global 2px outline plus its 4px white halo, drawn
                  as a hard RECTANGLE inside a rounded-[24px] pill. The
                  indicator now lives on the pill itself as a focus-within
@@ -958,10 +1080,10 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               }`}
             >
               {/* Arrow, not a magnifier. dc.html draws this as a 44x44 orange
-                  tile holding `M5 12h14M13 6l6 6-6 6` — the magnifier already
+                  tile holding `M5 12h14M13 6l6 6-6 6` -- the magnifier already
                   sits at the other end of the field, so repeating it says
                   nothing, where the arrow says "go".
-                  heroDesk carries the "Search" label too now — an icon-only
+                  heroDesk carries the "Search" label too now -- an icon-only
                   disc read as decoration rather than the button that
                   actually submits, per owner review; text on every width
                   this control renders at removes the ambiguity. */}
@@ -970,9 +1092,9 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
             </button>
           </div>
 
-          {/* Facet row — horizontal snap-scroll on mobile, never ragged wrapped rows (§11). */}
+          {/* Facet row -- horizontal snap-scroll on mobile, never ragged wrapped rows (§11). */}
           <div
-            /* M22: same fix as the stacked-toggle wrapper above — margin
+            /* M22: same fix as the stacked-toggle wrapper above -- margin
                dropped from the transitioned properties, max-height/opacity
                carry the animation alone. */
             className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
@@ -981,7 +1103,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
           >
             <div className={`relative ${pinned ? 'rounded-2xl bg-card px-3 py-2.5 shadow-border' : ''}`}>
               {/* The "Narrow it" label lives OUTSIDE the scroller. It used to be the scroller's
-                  first child, which meant it scrolled away from the very chips it labels — and
+                  first child, which meant it scrolled away from the very chips it labels -- and
                   because this row animates open (max-h-0 → max-h-40), the browser landed it at
                   scrollLeft ≈ 75 on first paint, so mobile users never saw it at all. */}
               <span className={`${sectionLabel} mb-1.5 block ${align === 'center' ? 'sm:text-center' : ''}`}>
@@ -991,7 +1113,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                 key={mode}
                 ref={facetRowRef}
                 /* key={mode}: Area (teachers) and School (papers) are different
-                   facet sets, so a mode switch swaps this row's chips outright —
+                   facet sets, so a mode switch swaps this row's chips outright  -- 
                    animate-fade-slide-up (the project's one whitelisted entrance
                    keyframe) cross-fades that swap instead of it snapping,
                    matching the resting shelf below. */
@@ -1012,7 +1134,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                     className={`flex min-h-11 flex-none snap-start items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${
                       /* accent.subtle (idle) → accent.solid (has a value):
                          one mode-matched hue applied to the whole facet
-                         cluster, not a per-chip neutral gray — same "exactly
+                         cluster, not a per-chip neutral gray -- same "exactly
                          one accent" reading as the rest of the page, just
                          carried by every chip in this row instead of none of
                          them. */
@@ -1047,7 +1169,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               {/* Owner revision: auto-jumping to the next facet the instant
                   one value was picked didn't leave room to pick a second
                   value in the SAME facet first ("board" can be multi-select
-                  too) — replaced with a plain toggle below (stays open,
+                  too) -- replaced with a plain toggle below (stays open,
                   multi-select) plus this explicit Next, right half of the
                   header per the brief, bigger than a text link since it's
                   now the primary way through the sequence rather than an
@@ -1070,7 +1192,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
               ) : (
                 // M11: a small entrance stagger on the first render of this facet's
                 // option set (a facet switch remounts every button, since the
-                // option list itself changes) — reads as the panel presenting its
+                // option list itself changes) -- reads as the panel presenting its
                 // choices rather than the whole list just appearing at once.
                 <div className="scrollbar-slim -mr-1 flex max-h-[130px] flex-wrap gap-2 overflow-y-auto overscroll-contain pr-2 stagger-children">
                   {facetPanelOptions.map((opt) => {
@@ -1094,13 +1216,21 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
             </div>
           )}
 
-          {/* Suggestions overlay */}
+          {/* Suggestions overlay -- the combobox's listbox (R4G4). Section
+              labels/banners/skeletons inside it are plain content, not
+              options; every actual suggestion below carries role="option"
+              plus the matching id from `flatOptions`. */}
           {overlayPresence.mounted && (
-            <div className={`${dropdownShell(overlayPresence.closing)} overflow-hidden`}>
+            <div
+              id={listboxId}
+              role="listbox"
+              aria-label={mode === 'teachers' ? 'Teacher suggestions' : 'Past paper suggestions'}
+              className={`${dropdownShell(overlayPresence.closing)} overflow-hidden`}
+            >
               {displayOverlayResting && (
                 /* key={mode} cross-fades the whole resting shelf (facet-driven
                    copy, popular chips, suggestions) in on a mode switch instead
-                   of the content just snapping to its Papers/Teachers values —
+                   of the content just snapping to its Papers/Teachers values  -- 
                    requirement 6. animate-fade-slide-up is the project's one
                    whitelisted entrance keyframe (tailwind.config.ts), reused
                    rather than inventing a new one. */
@@ -1110,9 +1240,12 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                     {restingChips.map((label) => (
                       <button
                         key={label}
+                        id={chipOptionId(label)}
+                        role="option"
+                        aria-selected={activeOption?.id === chipOptionId(label)}
                         type="button"
                         onClick={() => pickPopular(label)}
-                        className={`flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${accent.subtle}`}
+                        className={`flex min-h-11 flex-none snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-medium transition-colors duration-150 active:scale-[0.96] ${FOCUS} focus-visible:ring-ring ${accent.subtle} ${highlightClass(chipOptionId(label))}`}
                       >
                         {label}
                       </button>
@@ -1126,9 +1259,12 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                         {recents.map((r, i) => (
                           <button
                             key={`${r.q}-${i}`}
+                            id={recentOptionId(i)}
+                            role="option"
+                            aria-selected={activeOption?.id === recentOptionId(i)}
                             type="button"
                             onClick={() => pickRecent(r)}
-                            className={rowBase}
+                            className={`${rowBase} ${highlightClass(recentOptionId(i))}`}
                           >
                             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-muted">
                               <Clock className="h-4 w-4 text-muted-foreground" strokeWidth={2} aria-hidden="true" />
@@ -1142,7 +1278,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                       </div>
                     </>
                   )}
-                  {/* Suggested/recent shelf — teachers flavor reuses the same real
+                  {/* Suggested/recent shelf -- teachers flavor reuses the same real
                       `is_featured` column Browse.tsx's "Featured teachers" shelf
                       reads; papers flavor is the head of the already
                       year-descending papers fetch. Hidden (not a fabricated
@@ -1159,12 +1295,20 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                         <div key="shelf-teachers">
                           <div className={`${sectionLabel} mb-2 mt-6`}>Suggested teachers</div>
                           {/* Was a single-column list ("not just top to
-                              bottom") — a real grid at sm+ now, where there's
+                              bottom") -- a real grid at sm+ now, where there's
                               width to actually use for more than one card a
                               row. */}
                           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {featuredTeachers.map((t) => (
-                              <button key={t.id} type="button" onClick={() => openTeacher(t)} className={rowBase}>
+                              <button
+                                key={t.id}
+                                id={teacherOptionId(t.id)}
+                                role="option"
+                                aria-selected={activeOption?.id === teacherOptionId(t.id)}
+                                type="button"
+                                onClick={() => openTeacher(t)}
+                                className={`${rowBase} ${highlightClass(teacherOptionId(t.id))}`}
+                              >
                                 <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
                                   {initial(t.name)}
                                 </span>
@@ -1185,7 +1329,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                           <div className={`${sectionLabel} mb-2 mt-6`}>Recently added papers</div>
                           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {recentPapers.map((p) => (
-                              <button key={p.id} type="button" onClick={() => openPaper(p)} className={rowBase}>
+                              <button
+                                key={p.id}
+                                id={paperOptionId(p.id)}
+                                role="option"
+                                aria-selected={activeOption?.id === paperOptionId(p.id)}
+                                type="button"
+                                onClick={() => openPaper(p)}
+                                className={`${rowBase} ${highlightClass(paperOptionId(p.id))}`}
+                              >
                                 <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
                                   {initial(p.school)}
                                 </span>
@@ -1210,7 +1362,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
 
               {displayOverlayTyping && (
                 <div key={mode} className="animate-blur-swap motion-reduce:animate-none">
-                  {/* Loading — skeleton matching the result rows' shape (§9). */}
+                  {/* Loading -- skeleton matching the result rows' shape (§9). */}
                   {searchActive && indexLoading && (
                     <div className="grid gap-2 p-4 sm:p-6" aria-busy="true" aria-live="polite">
                       <span className="sr-only">Searching…</span>
@@ -1261,7 +1413,7 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                   {/* Group order follows the mode in the DOM, not with CSS
                       `order`. Reordering visually while leaving the DOM alone
                       put the group you asked for first on screen but second in
-                      the tab and screen-reader sequence — WCAG 2.4.3. */}
+                      the tab and screen-reader sequence -- WCAG 2.4.3. */}
                   {(() => {
                     const teachersGroup =
                       searchActive && teacherCount > 0 ? (
@@ -1274,7 +1426,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                           </div>
                           <div className="grid gap-2 stagger-children sm:grid-cols-2 lg:grid-cols-3">
                             {results.teachers.map((t) => (
-                              <button key={t.id} type="button" onClick={() => openTeacher(t)} className={`${rowBase} ${resultCardEntranceClass}`}>
+                              <button
+                                key={t.id}
+                                id={teacherOptionId(t.id)}
+                                role="option"
+                                aria-selected={activeOption?.id === teacherOptionId(t.id)}
+                                type="button"
+                                onClick={() => openTeacher(t)}
+                                className={`${rowBase} ${resultCardEntranceClass} ${highlightClass(teacherOptionId(t.id))}`}
+                              >
                                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-subtle text-sm font-semibold text-brand">
                                   {initial(t.name)}
                                 </span>
@@ -1307,7 +1467,15 @@ export function SearchControl({ className = '', align = 'center', stackedToggle 
                           </div>
                           <div className="grid gap-2 stagger-children sm:grid-cols-2 lg:grid-cols-3">
                             {results.papers.map((p) => (
-                              <button key={p.id} type="button" onClick={() => openPaper(p)} className={`${rowBase} ${resultCardEntranceClass}`}>
+                              <button
+                                key={p.id}
+                                id={paperOptionId(p.id)}
+                                role="option"
+                                aria-selected={activeOption?.id === paperOptionId(p.id)}
+                                type="button"
+                                onClick={() => openPaper(p)}
+                                className={`${rowBase} ${resultCardEntranceClass} ${highlightClass(paperOptionId(p.id))}`}
+                              >
                                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-brand-blue-subtle text-sm font-semibold text-brand-blue">
                                   {initial(p.school)}
                                 </span>

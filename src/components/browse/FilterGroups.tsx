@@ -22,15 +22,15 @@ import type { FilterState } from '@/components/FilterPanel';
 import { BentoPanel } from '@/components/layout/PageContainer';
 
 /**
- * C6 — components.md §2 / design.md §2.3.
+ * C6 -- components.md §2 / design.md §2.3.
  *
  * One chip-group component, TWO presentations: inside a bottom Sheet on
  * mobile (`FilterSheet`), and as a persistent 284px rail on desktop
- * (`FilterRail`). Both render the same `FilterGroupsBody` — the body is
+ * (`FilterRail`). Both render the same `FilterGroupsBody` -- the body is
  * extracted once, never duplicated (components.md C6 note).
  *
  * Design's five groups are Subject / Class / Area / Rate / Mode. The app's
- * existing FilterState also carries Board, Class size and Experience — fields
+ * existing FilterState also carries Board, Class size and Experience -- fields
  * the mockup doesn't model but the data layer and ~35 SEO routes depend on
  * (Board in particular is part of the `filter_boards` URL contract). Per the
  * "design wins, keep functionality" rule those stay, as extra groups appended
@@ -39,14 +39,14 @@ import { BentoPanel } from '@/components/layout/PageContainer';
 
 const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'UG'];
 const BOARDS = ['ICSE', 'ISC', 'CBSE', 'IGCSE', 'IB', 'State'];
-/* The real, queried values — `select distinct exam_type from papers union
+/* The real, queried values -- `select distinct exam_type from papers union
    select distinct exam from bank_papers` against the live project. The
    filter spans both tables (Browse queries papers.exam_type and matches
    bank rows on their `exam`), so it needs the union of the two.
 
    This list was previously inferred from labels read off the rendered UI,
    and three of its four entries ('Board paper', 'Pre-board', 'Prelim')
-   matched no row at all — the real values are 'Board Examination',
+   matched no row at all -- the real values are 'Board Examination',
    'Pre-board Examination' and 'Prelims'. Guessed facet values are worse
    than no facet: every one is a dead end that looks like a real choice.
 
@@ -73,7 +73,7 @@ const EXPERIENCE_OPTIONS = [
   { value: '20', label: '20+ years' },
 ];
 
-// copy.md §4 "Mode options: Home tuition / Online / At tutor's place" — the
+// copy.md §4 "Mode options: Home tuition / Online / At tutor's place" -- the
 // data layer splits this into two Shikshaqmine columns (Mode of Teaching,
 // Place of Teaching); each pill here toggles the matching underlying value.
 const MODE_OPTIONS: { label: string; isActive: (f: FilterState) => boolean; toggle: (f: FilterState) => FilterState }[] = [
@@ -122,11 +122,11 @@ const AREA_GROUPS: { label: string; areas: string[] }[] = [
 export interface FilterGroupsProps {
   filters: FilterState;
   onFilterChange: (filters: FilterState) => void;
-  /** Real result count for the current filter set — never invented (design.md §0.10). */
+  /** Real result count for the current filter set -- never invented (design.md §0.10). */
   resultCount: number;
   /** Browse's same-page Teachers/Past-papers toggle (viewMode). A teacher
    *  has no school or exam-type facet, and a paper has no area/fee/mode/
-   *  class-size/experience — each mode gets the groups that apply to it
+   *  class-size/experience -- each mode gets the groups that apply to it
    *  rather than always showing the teacher set regardless of which
    *  results are actually on screen. Defaults to 'teachers' so every
    *  existing caller (which never filters papers) keeps its current
@@ -143,9 +143,9 @@ type ArrayFilterKey = 'subjects' | 'classes' | 'boards' | 'classSize' | 'areas' 
 
    Owner mobile QA (F7): with every group's options rendered flat and always
    visible, Subjects + Classes alone filled the sheet before a user reached
-   Areas — "make each category ... an expandable dropdown". Each group is now
-   an `AccordionItem` — collapsed by default, expanding on tap to reveal its
-   options — using the project's existing shadcn Accordion primitive (already
+   Areas -- "make each category ... an expandable dropdown". Each group is now
+   an `AccordionItem` -- collapsed by default, expanding on tap to reveal its
+   options -- using the project's existing shadcn Accordion primitive (already
    wired to the `accordion-down`/`accordion-up` keyframes in
    tailwind.config.ts) rather than hand-rolled collapse logic. A group opens
    by default only if it already has an active selection, so a returning user
@@ -160,7 +160,7 @@ function groupItem(
   return (
     /* Concentric radius fix: on the desktop rail this card sits inside
        FilterRail's BentoPanel (rounded-bento = 30px, default 20px
-       padding) — 30 - 20 = 10px, exactly rounded-md, not another copy of
+       padding) -- 30 - 20 = 10px, exactly rounded-md, not another copy of
        the outer 30px. The mobile sheet's body has no rounded outer
        surface around it (full-screen sheet, flat background), but 30px
        read as oversized/blobby on a compact accordion row there too, so
@@ -188,7 +188,7 @@ function groupItem(
   );
 }
 
-/** The shared body — icon-labelled groups of 44px pill toggles + the fee
+/** The shared body -- icon-labelled groups of 44px pill toggles + the fee
  * slider. Rendered once, used inside both the mobile Sheet and the desktop
  * rail (design.md §2.3 / components.md C6). */
 export function FilterGroupsBody({
@@ -200,7 +200,7 @@ export function FilterGroupsBody({
   /**
    * Selected-pill tone. Mobile sheet (S2 mockup) selects in orange
    * (`facet-on`, the default); the desktop rail (D2 mockup) selects in
-   * solid black instead — trusted literally per the binding-rules owner
+   * solid black instead -- trusted literally per the binding-rules owner
    * override even though it diverges from the mobile treatment.
    */
   selectedTone?: 'facet-on' | 'dark';
@@ -208,7 +208,7 @@ export function FilterGroupsBody({
   const isPapers = mode === 'papers';
 
   // Real school list, same source PastPapers'/the search overlay's own
-  // facet dropdown reads — not a second, possibly-stale copy of it.
+  // facet dropdown reads -- not a second, possibly-stale copy of it.
   const { ensureLoaded, schools: realSchools } = useSearchIndex();
   useEffect(() => {
     if (isPapers) ensureLoaded();
@@ -240,7 +240,7 @@ export function FilterGroupsBody({
     });
   };
 
-  /* Owner mobile QA (F7) "reduce the size of the chips": visual size only —
+  /* Owner mobile QA (F7) "reduce the size of the chips": visual size only  -- 
      the invisible `.tap-44` overlay Chip already applies to every interactive
      chip (ui/chip.tsx) keeps the real tap target at the 44px floor regardless
      of how small the label reads, so shrinking height/padding/type here never
@@ -249,7 +249,7 @@ export function FilterGroupsBody({
      px-2.5, not px-3: at the rail's 184px usable width, "Accounts" and
      "Economics" missed pairing onto one row by 3px at px-3, so an 8-9 letter
      subject routinely sat alone on its own row with ~100px empty beside it.
-     Measured live — the same 4px-per-side trim (paired with the container's
+     Measured live -- the same 4px-per-side trim (paired with the container's
      gap-[6px] below, was 8px) lets Accounts+Economics and several other
      pairs share a row instead. */
   const pill = (label: string, active: boolean, onClick: () => void, key?: string) => (
@@ -275,7 +275,7 @@ export function FilterGroupsBody({
      selection. Auto-opening on an active filter sounded helpful, but arriving
      from a "Maths teachers" chip means subjects is pre-filled, so the rail
      opened onto thirty-odd subject options and pushed every other group off
-     the screen — on the exact journey where the reader has already told us
+     the screen -- on the exact journey where the reader has already told us
      what they want. The count badge on each header says what is applied, so
      nothing is hidden by keeping them shut. */
 
@@ -289,7 +289,7 @@ export function FilterGroupsBody({
         filters.subjects.length,
         <div className="flex flex-col gap-3">
           {/* Owner mobile QA (F7) "everything ... goes for search ... it's
-              becoming too long" — Subjects (33 options) is the other flat
+              becoming too long" -- Subjects (33 options) is the other flat
               list long enough to need in-list search alongside Areas. */}
           <Input
             type="search"
@@ -314,7 +314,7 @@ export function FilterGroupsBody({
         'Classes taught',
         GraduationCap,
         filters.classes.length,
-        // Handoff O-003: number grid, not chips — grid-cols-6 gap-2, h-11
+        // Handoff O-003: number grid, not chips -- grid-cols-6 gap-2, h-11
         // rounded-[14px], selected bg-brand-subtle/text-brand-deep.
         <div className="grid grid-cols-6 gap-2">
           {CLASSES.map((c) => {
@@ -328,7 +328,7 @@ export function FilterGroupsBody({
                 aria-label={c === 'UG' ? 'UG' : `Class ${c}`}
                 /* M14/D8.4: this grid is a raw <button>, not the Chip
                    primitive (whose "no active:scale" is a documented,
-                   intentional spec exception elsewhere) — it had neither a
+                   intentional spec exception elsewhere) -- it had neither a
                    pressed state nor a visible focus ring, so a keyboard
                    user got no feedback at all and a tap only ever showed
                    the *toggled* colour, never a distinct "registering the
@@ -345,7 +345,7 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {/* Areas/Fee/Mode are teacher-only facets — a paper has no travel
+      {/* Areas/Fee/Mode are teacher-only facets -- a paper has no travel
           radius, no fee and no "online vs at home". */}
       {!isPapers && groupItem(
         'areas',
@@ -382,10 +382,10 @@ export function FilterGroupsBody({
         IndianRupee,
         feeSelectedCount,
         <div className="flex flex-col gap-3">
-          {/* Two-handle range: simple overlaid <input type=range> pair — no
+          {/* Two-handle range: simple overlaid <input type=range> pair -- no
               slider primitive exists in the codebase yet, and the values map
               onto the app's existing monthly Min/Max Fees filter (the only
-              fee granularity the data has — see report). */}
+              fee granularity the data has -- see report). */}
           <div className="relative h-11">
             <div className="pointer-events-none absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-muted" />
             <div
@@ -440,7 +440,7 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {/* Kept for functionality — not one of design.md's five groups, but the
+      {/* Kept for functionality -- not one of design.md's five groups, but the
           only way to set board/class-size/experience filters, and Board feeds
           the `filter_boards` URL contract the SEO routes depend on. Board
           applies to both teachers and papers, so it's the one group that
@@ -455,7 +455,7 @@ export function FilterGroupsBody({
         </div>,
       )}
 
-      {/* School + Category (exam_type) — papers-only, the two facets a
+      {/* School + Category (exam_type) -- papers-only, the two facets a
           teacher card has nothing equivalent to. */}
       {isPapers && groupItem(
         'schools',
@@ -590,14 +590,14 @@ const EMPTY_FILTERS: FilterState = {
   examTypes: [],
 };
 
-/** Mobile presentation — genuinely full-screen popup (owner mobile QA F7:
- * "Filter should be a full screen pop up" — the previous 85vh bottom sheet
+/** Mobile presentation -- genuinely full-screen popup (owner mobile QA F7:
+ * "Filter should be a full screen pop up" -- the previous 85vh bottom sheet
  * left a visible strip of the page above it). `h-[100dvh]` rather than
  * `100vh`: the dynamic viewport unit accounts for a mobile browser's
  * address-bar chrome so the sheet is never clipped short of the real
  * viewport. Stack: sticky header (Filters title + close X, Clear all) →
  * scrollable body (flex:1, min-height:0, overflow-y:auto) → sticky footer (N
- * filters active + Show N teachers). No Apply button — chips apply instantly
+ * filters active + Show N teachers). No Apply button -- chips apply instantly
  * (components.md §7); the footer's button just closes the sheet, same as the
  * header's X. */
 export function FilterSheet({
@@ -609,6 +609,7 @@ export function FilterSheet({
   resultCountPending = false,
   onClear,
   mode = 'teachers',
+  restoreFocusRef,
 }: FilterGroupsProps & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -616,12 +617,18 @@ export function FilterSheet({
    *  Apply button, so without this the only way back from a nine-filter dead
    *  end was to un-tap nine chips one at a time. */
   onClear?: () => void;
-  /** RM2 — true while `resultCount` is a network-derived number that may not
+  /** RM2 -- true while `resultCount` is a network-derived number that may not
    *  yet reflect the latest chip tap (the caller's instant, no-network pool
    *  estimate isn't ready yet). The CTA dims the number and shows a small
    *  spinner instead of a confidently-stale one; never set once the caller
    *  can answer instantly. */
   resultCountPending?: boolean;
+  /** R4G3: this sheet's `open` is driven externally (a plain button in the
+   *  caller, not a `SheetTrigger`), so Radix has no trigger of its own to
+   *  return focus to on close -- Escape, the X and "Show N teachers" all left
+   *  focus on `<body>`. The caller passes a ref to whatever opened the sheet
+   *  (its "Filters" button) and gets it focused back on every close path. */
+  restoreFocusRef?: React.RefObject<HTMLElement>;
 }) {
   const count = activeFilterCount(filters);
 
@@ -631,22 +638,28 @@ export function FilterSheet({
         side="bottom"
         hideCloseButton
         aria-describedby={undefined}
+        onCloseAutoFocus={(e) => {
+          if (restoreFocusRef?.current) {
+            e.preventDefault();
+            restoreFocusRef.current.focus();
+          }
+        }}
         /* Round-1 deferral: this full-screen sheet had no entrance animation
-           of its own — SheetContent's shared slide-in-from-bottom still
+           of its own -- SheetContent's shared slide-in-from-bottom still
            applies (untouched), but this is the one sheet in the product
            that wants the site's *lift* timing rather than the generic
            500ms/ease-snap every other sheet/dialog shares (that spec is
            intentionally shared in ui/sheet.tsx, which this stream doesn't
-           own — overridden here per-instance instead). The `!` modifier is
+           own -- overridden here per-instance instead). The `!` modifier is
            load-bearing: this project's `cn()` only teaches tailwind-merge
            about its custom font-size scale, not custom duration/easing
            theme keys, so `duration-500` and `duration-lift` are two
-           unrelated Tailwind classes to it — both would ship in the
+           unrelated Tailwind classes to it -- both would ship in the
            className, and without `!important` which one wins depends on
            unrelated Tailwind generation order, not source order here.
-           duration-lift (300ms) in, duration-exit (130ms) out — CRAFT.md
+           duration-lift (300ms) in, duration-exit (130ms) out -- CRAFT.md
            "exits are softer and shorter than
-           enters" — both on ease-settle. Adds a fade so the motion reads
+           enters" -- both on ease-settle. Adds a fade so the motion reads
            as opacity+transform (CRAFT.md §2), not transform alone.
            motion-reduce collapses the slide distance to 0 and keeps only
            the fade, per CRAFT.md's "keep the fades, drop the movement". */
@@ -655,11 +668,11 @@ export function FilterSheet({
         {/* Sticky header. The default Radix close X that SheetContent renders
             (top-right, 40px, 70% opacity) is hidden via
             `[&>button:last-child]:hidden` above in favour of this one: owner
-            mobile QA (F7) "There should be a visible X also" — at full-screen
+            mobile QA (F7) "There should be a visible X also" -- at full-screen
             size a small corner glyph wasn't prominent enough, so this is a
             44px circular disc sitting in the header next to the title,
             unmistakable regardless of what else is on the page. */}
-        {/* Handoff O-002: header — bg-card rounded-b-bento, sticky. */}
+        {/* Handoff O-002: header -- bg-card rounded-b-bento, sticky. */}
         <div className="sticky top-0 z-10 flex flex-none items-center justify-between gap-3 rounded-b-bento bg-card px-5 pb-4 pt-[14px]">
           {/* SheetTitle, not a bare h2: Radix needs a DialogTitle inside
               DialogContent to label the dialog for assistive tech, and warns
@@ -668,7 +681,7 @@ export function FilterSheet({
           <div className="flex flex-none items-center gap-[6px]">
             {/* "a Clear all chip appears once two or more are active"
                 (micro-03-buttons-fields.png). It was rendered unconditionally, so
-                a sheet with nothing selected offered to clear nothing — the same
+                a sheet with nothing selected offered to clear nothing -- the same
                 empty-affordance problem as the "0 filters active" line beneath it.
                 Two, not one: clearing a single filter is a tap on the chip
                 itself. */}
@@ -688,18 +701,18 @@ export function FilterSheet({
           </div>
         </div>
 
-        {/* Scrollable body — must stay flex:1/min-height:0 or long option sets
+        {/* Scrollable body -- must stay flex:1/min-height:0 or long option sets
             clip (design.md §2.3). */}
         <div className="min-h-0 flex-1 overflow-y-auto bg-background px-[16px] pb-[16px] pt-[4px]">
           <FilterGroupsBody filters={filters} onFilterChange={onFilterChange} mode={mode} />
         </div>
 
-        {/* Handoff O-002: footer — bg-card rounded-t-bento, pinned. */}
+        {/* Handoff O-002: footer -- bg-card rounded-t-bento, pinned. */}
         <div className="flex flex-none items-center justify-between gap-[10px] rounded-t-bento bg-card px-5 pb-[26px] pt-4">
           {/* core-02-filters.png shows "2 filters active" alongside two chosen
               chips. With nothing chosen this read "0 filters active", which is
               the same advertise-a-zero pattern found on About, sign-in and the
-              trust strip — and here it is also just noise, since the sheet you
+              trust strip -- and here it is also just noise, since the sheet you
               have not touched yet obviously has no filters on. Empty until
               there is something to report. */}
           {/* The count doubles as the way out once anything is on: undoing a
@@ -725,7 +738,7 @@ export function FilterSheet({
           >
             {/* RM2: while the count is only a network number that may not
                 reflect the chip just tapped yet, dim it and show a small
-                spinner instead of a confidently-stale "Show N" — the caller
+                spinner instead of a confidently-stale "Show N" -- the caller
                 only sets resultCountPending when it has no instant,
                 no-network estimate to show yet (see Browse.tsx). */}
             {resultCountPending && (
@@ -744,18 +757,18 @@ export function FilterSheet({
   );
 }
 
-/** Desktop presentation — persistent 284px rail, the sheet's content
+/** Desktop presentation -- persistent 284px rail, the sheet's content
  * unwrapped (design.md §5 / components.md C6). No Clear-all/footer chrome;
  * the sticky filter bar above the results carries the applied chips and the
  * global "Clear all" already. */
 export function FilterRail({ filters, onFilterChange, mode = 'teachers' }: FilterGroupsProps) {
   return (
     <nav aria-label="Filters" className="hidden lg:block lg:w-[284px] lg:flex-none">
-      {/* Handoff B-014: the rail is a BentoPanel now — sticky top-24, no
+      {/* Handoff B-014: the rail is a BentoPanel now -- sticky top-24, no
           border/shadow, separated from the results panel by fill alone.
           fill="muted", not "card": with the lg:gap-8 that used to sit
           between the rail and the results panel now closed to gap-0, two
-          "card" fills touching left no visible seam at all — "separated by
+          "card" fills touching left no visible seam at all -- "separated by
           fill alone" was a promise this code never actually kept. */}
       <BentoPanel fill="muted" className="sticky top-24">
         {/* The group labels below are h3. The mobile sheet gives them an h2

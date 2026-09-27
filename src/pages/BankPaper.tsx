@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Clock, Flag, Search } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
 import { DisclaimerStrip } from '@/components/papers/disclaimer-strip';
 import { PaperDisclaimerDialog } from '@/components/papers/paper-disclaimer-dialog';
@@ -16,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
 import { bankSubjectToSite } from '@/lib/subject-vocabulary';
+import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 
@@ -682,7 +684,19 @@ export default function BankPaper() {
           )}
 
           {!loading && !paper && (
-            <p className="text-[15px] text-warm-prose">We could not find that paper.</p>
+            <div className="flex flex-col items-center gap-4 py-10 text-center">
+              <p className="text-[15px] text-warm-prose">
+                We could not find that paper. It may have been removed, or the link may be wrong.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button asChild variant="primary" size={44}>
+                  <Link to={PAST_PAPERS_PATH}>Browse all papers</Link>
+                </Button>
+                <Button asChild variant="muted" size={44}>
+                  <Link to={`${PAST_PAPERS_PATH}/results`}>Search papers</Link>
+                </Button>
+              </div>
+            </div>
           )}
 
           {/* Coming soon: the paper is listed (is_published stays true — it
