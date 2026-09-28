@@ -1,6 +1,34 @@
 import { describe, expect, it } from 'vitest';
 
-import { matchCheckerShortcut, CHECKER_SHORTCUTS } from './checker-shortcuts';
+import { matchCheckerShortcut, CHECKER_SHORTCUTS, shortcutHint } from './checker-shortcuts';
+
+describe('matchCheckerShortcut, browser shortcuts and focused buttons', () => {
+  it('never fires while Ctrl, Cmd or Alt is held (Ctrl+F is find, Ctrl+P is print)', () => {
+    for (const key of ['f', 'p', 'k', 'h', 's', 'Enter']) {
+      expect(matchCheckerShortcut(key, { isTyping: false, hasModifier: true })).toBeNull();
+    }
+  });
+
+  it('lets a focused button handle Enter itself instead of also passing', () => {
+    expect(matchCheckerShortcut('Enter', { isTyping: false, onActivatable: true })).toBeNull();
+    expect(matchCheckerShortcut('p', { isTyping: false, onActivatable: true })).toBe('pass');
+  });
+});
+
+describe('shortcutHint', () => {
+  it('only mentions split when split is available', () => {
+    expect(shortcutHint({ canSplit: false, canPass: true })).not.toMatch(/split/i);
+    expect(shortcutHint({ canSplit: true, canPass: true })).toMatch(/S split/);
+  });
+
+  it('drops the pass hint when the question cannot be passed as it is', () => {
+    expect(shortcutHint({ canSplit: false, canPass: false })).not.toMatch(/looks right/);
+  });
+
+  it('has no em or en dash', () => {
+    expect(shortcutHint({ canSplit: true, canPass: true })).not.toMatch(/[–—]/);
+  });
+});
 
 /**
  * Kid Mode's keyboard shortcuts are a class 9-12 student's main input on a

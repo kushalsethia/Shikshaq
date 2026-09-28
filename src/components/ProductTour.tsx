@@ -7,6 +7,7 @@ import { ArrowRight, X } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { cn } from '@/lib/utils';
 import { hasSeenOnboarding, markOnboardingSeen } from '@/lib/onboarding';
+import { isFooterlessPath } from '@/lib/chromeless-routes';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
@@ -242,6 +243,9 @@ export function ProductTour({ open, onOpenChange }: ProductTourProps) {
   /* First visit opens it on its own. The same flag the old modal used, so a
      visitor who already dismissed that one is not shown this. */
   React.useEffect(() => {
+    // Not on a work screen: a student opening the paper checker from a link
+    // got the parents' marketing tour on top of it (isFooterlessPath).
+    if (isFooterlessPath(window.location.pathname)) return;
     if (!hasSeenOnboarding()) onOpenChange(true);
   }, [onOpenChange]);
 

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { hasSeenOnboarding } from '@/lib/onboarding';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
+import { isFooterlessPath } from '@/lib/chromeless-routes';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 /* "Past papers are live" — a one-time announcement, not a second onboarding.
@@ -63,6 +64,9 @@ export function PapersLiveAnnouncement() {
 
   useEffect(() => {
     /* Only for a returning visitor. A first-timer is mid-tour. */
+    /* Never over a work screen: it opened on top of the paper checker's
+       "Which papers?" picker. */
+    if (isFooterlessPath(window.location.pathname)) return;
     if (!hasSeen() && hasSeenOnboarding()) {
       /* One frame late, so it never races the tour's own mount and never
          competes with first paint. */

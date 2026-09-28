@@ -147,6 +147,9 @@ export async function checkerLeaderboard(): Promise<LeaderboardRow[]> {
 export interface CheckerPreferences {
   subjects: string[] | null;
   classes: string[] | null;
+  /** True once the checker has saved a choice, even "All" (which stores
+   *  nulls). Absent before 20260929000000 is applied. */
+  chosen?: boolean;
 }
 
 export async function checkerGetPreferences(): Promise<CheckerPreferences> {
@@ -180,6 +183,27 @@ export async function checkerQuestionContext(questionId: string): Promise<Contex
   return rpcRows<ContextRow>(data);
 }
 
+export interface QueueFacetRow {
+  subject: string | null;
+  cls: string | null;
+  waiting: number;
+}
+
+/**
+ * What is actually waiting in the kid queue, by subject and class
+ * (checker_queue_facets, 20260929000000_checker_queue_hygiene.sql). The
+ * "My subjects" picker is built from this so a chip can only name a value
+ * the queue really holds. It used to be built from the SITE's facet lists
+ * ('Maths', '10'), which never equal the audit values ('Mathematics', 'X'):
+ * choosing Maths or class 10 emptied the queue. Returns null when the RPC is
+ * not deployed yet, so the page falls back to a static list of audit values.
+ */
+export async function checkerQueueFacets(): Promise<QueueFacetRow[] | null> {
+  const { data, error } = await supabase.rpc('checker_queue_facets' as never);
+  if (error) return null;
+  return rpcRows<QueueFacetRow>(data).map((r) => ({ ...r, waiting: Number(r.waiting) || 0 }));
+}
+
 /** A 10-minute signed URL for one object in the private audit-figures
  *  bucket (a path planned by planCheckerPicture in checker-pictures.ts).
  *  Null on any failure: the page then shows the "no picture" note. */
@@ -190,6 +214,47 @@ export function checkerPictureUrl(path: string): Promise<string | null> {
     .then(({ data, error }) => (error ? null : data?.signedUrl ?? null))
     .catch(() => null);
 }
+
+/**
+ * Everything the checker page calls, as one object, so the page can run
+ * against the real RPCs or, in dummy mode (test builds only, see
+ * src/lib/dummy-mode.tsx), against an in-memory fake with the same shape.
+ */
+export interface CheckerApi {
+  isPaperChecker: typeof isPaperChecker;
+  nextQuestion: typeof checkerNextQuestion;
+  passQuestion: typeof checkerPassQuestion;
+  fixQuestion: typeof checkerFixQuestion;
+  splitQuestion: typeof checkerSplitQuestion;
+  askForHelp: typeof checkerAskForHelp;
+  skipQuestion: typeof checkerSkipQuestion;
+  checkedTodayCount: typeof checkerCheckedTodayCount;
+  myStats: typeof checkerMyStats;
+  leaderboard: typeof checkerLeaderboard;
+  getPreferences: typeof checkerGetPreferences;
+  setPreferences: typeof checkerSetPreferences;
+  questionContext: typeof checkerQuestionContext;
+  queueFacets: typeof checkerQueueFacets;
+  pictureUrl: typeof checkerPictureUrl;
+}
+
+export const realCheckerApi: CheckerApi = {
+  isPaperChecker,
+  nextQuestion: checkerNextQuestion,
+  passQuestion: checkerPassQuestion,
+  fixQuestion: checkerFixQuestion,
+  splitQuestion: checkerSplitQuestion,
+  askForHelp: checkerAskForHelp,
+  skipQuestion: checkerSkipQuestion,
+  checkedTodayCount: checkerCheckedTodayCount,
+  myStats: checkerMyStats,
+  leaderboard: checkerLeaderboard,
+  getPreferences: checkerGetPreferences,
+  setPreferences: checkerSetPreferences,
+  questionContext: checkerQuestionContext,
+  queueFacets: checkerQueueFacets,
+  pictureUrl: checkerPictureUrl,
+};
 
 // ---------------------------------------------------------------------------
 // Admin

@@ -32,7 +32,10 @@ export const KID_SENTENCE: Record<string, string> = {
   type_mismatch: 'This may be marked as the wrong kind of question.',
   numbering_gap: 'A question number seems to be missing near this one.',
   empty_body: 'This question has no words yet.',
-  figure_missing: 'This question talks about a picture or diagram, but none is attached.',
+  // 340 of 840 kid rows (2026-09-28). The old sentence stated the problem
+  // and asked nothing, and a checker cannot attach a picture here.
+  figure_missing:
+    'This question talks about a picture or diagram that is not attached yet. You cannot add it here, and that is fine. Just check the words read right.',
   short_body: 'This looks too short to be a whole question. Check it was not cut off.',
   missing_marks: 'No marks are set. Fill in the marks if the paper shows them.',
   display_number_missing: 'No question number is set. Fill in the number printed on the paper.',
@@ -50,7 +53,7 @@ export const KID_SENTENCE: Record<string, string> = {
   // GATE_SENTENCE holds the same words, keep them in sync by hand). A hidden
   // question carries `hidden_on_site` plus one `gate_*` code per reason the
   // owner's release gate hid it for.
-  hidden_on_site: 'This question is not on the website yet: an automatic check held it back. If it reads correctly and makes sense, press Pass and it goes live.',
+  hidden_on_site: 'This question is not on the website yet: an automatic check held it back. If it reads correctly and makes sense, press Looks right and it goes live.',
   rescue_ai_doubt: 'Two computer checks think something may be wrong with this question. Read it very carefully, and only press Looks right if it is really correct.',
   gate_not_ready: 'An earlier check marked this question as not ready. Read it carefully.',
   gate_paper: 'Answer lines were found somewhere in this paper. Make sure no answer is typed into this question or its passage.',
@@ -86,14 +89,77 @@ export function readableCode(code: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/** The flag checker_split_question puts on the second half of a split:
+ *  'split_from_<uuid>'. Read through readableCode it showed a checker a raw
+ *  UUID ("Split from 3f0c..."). */
+export const SPLIT_FROM_SENTENCE =
+  'Someone split this off from the question before it. Check it reads as one whole question, with nothing missing at the start or end.';
+
 export function kidSentence(reason: string): string {
+  if (reason.startsWith('split_from_')) return SPLIT_FROM_SENTENCE;
   return KID_SENTENCE[reason] ?? readableCode(reason);
 }
 
-/** Shows the "Split here" affordance for the one reason that means the OCR
- * fused two printed questions into one row. */
-export function needsSplit(flagReasons: string[]): boolean {
-  return flagReasons.includes('ocr_fused');
+/**
+ * Picture-aware sentences. "Fill in the number printed on the paper" is an
+ * impossible instruction when the page shows no picture of the paper (139
+ * of the 306 display_number_missing rows in the kid queue on 2026-09-28 had
+ * no trustworthy crop), so without a picture the checker is told plainly to
+ * leave it empty.
+ */
+const NO_PICTURE_SENTENCE: Record<string, string> = {
+  display_number_missing:
+    'No question number is set. You cannot see the paper for this one, so leave the number empty. That is fine.',
+  missing_marks: 'No marks are set. You cannot see the paper for this one, so leave the marks empty. That is fine.',
+  marks_mismatch: 'The marks on this paper may not add up. You cannot see the paper for this one, so leave the marks as they are.',
+};
+
+/** Reasons that ask nothing of the checker. Shown last, and muted. */
+export const INFO_ONLY_CODES = new Set([
+  'chapter_unresolved',
+  'possible_duplicate',
+  'gate_work',
+  'gate_labels',
+  'board_class_mismatch',
+  'type_mismatch',
+  'numbering_gap',
+]);
+
+/**
+ * The pipeline's evidence, only when a student can read it. A lot of it is
+ * written for engineers ("chapter is null -- ch= was '?'", "fused_group
+ * 'grpB3'", "paper.max_marks is 80.0", "Computer note: truncated_end",
+ * "unclaimed line L108"); shown under "What the computer noticed" that is
+ * noise at best. Returns null for anything that looks machine-made, and
+ * drops a leading "Computer check:" / "Computer note:" (the page already
+ * says the computer noticed it).
+ */
+export function kidDetail(detail: string | null | undefined): string | null {
+  if (!detail) return null;
+  const text = detail.replace(/^\s*computer (check|note)\s*:\s*/i, '').trim();
+  if (!text) return null;
+  const machine = [
+    /\b[a-z]+_[a-z0-9_]+\b/, // snake_case identifiers
+    /\s--\s/, // engineer's dash
+    /\bL\d+\b/, // line numbers
+    /\bgrp[A-Z0-9]/,
+    /\bblock b\d+/i,
+    /\bq\d+_\d+/,
+    /\bnull\b/,
+    /\[\s*\]/,
+    /\bOCR\b/i,
+    /\bch=/,
+    /\bparse|regex|segment map\b/i,
+  ];
+  if (machine.some((re) => re.test(text))) return null;
+  return text;
+}
+
+/** Shows the "Split here" affordance for the reason that means the OCR fused
+ * printed questions into one row, and on the second half of an earlier
+ * split (it may still hold more than one question when three were fused). */
+export function needsSplit(flagReasons: string[] | null | undefined): boolean {
+  return (flagReasons ?? []).some((r) => r === 'ocr_fused' || r.startsWith('split_from_'));
 }
 
 export interface ParsedFlagDetail {
@@ -132,8 +198,15 @@ export function parseFlagDetail(detail: string | null | undefined): ParsedFlagDe
 export interface FlagLine {
   code: string;
   sentence: string;
-  /** The pipeline's own evidence for this code, when it gave any. */
+  /** The pipeline's own evidence for this code, when it gave any a student can read. */
   detail: string | null;
+  /** True when the reason asks nothing of the checker (shown last, muted). */
+  info: boolean;
+}
+
+export interface DescribeOptions {
+  /** Whether the page is showing a picture of the printed paper. */
+  hasPicture?: boolean;
 }
 
 export interface FlagSummary {
@@ -150,22 +223,33 @@ export interface FlagSummary {
 export function describeFlags(
   flagReasons: string[] | null | undefined,
   flagDetail: string | null | undefined,
+  opts: DescribeOptions = {},
 ): FlagSummary {
   const { byCode, general } = parseFlagDetail(flagDetail);
+  const hasPicture = opts.hasPicture ?? true;
+  const sentenceFor = (code: string) =>
+    (!hasPicture && NO_PICTURE_SENTENCE[code]) || kidSentence(code);
   const seen = new Set<string>();
   const lines: FlagLine[] = [];
+  const push = (code: string, detail: string | null | undefined) =>
+    lines.push({ code, sentence: sentenceFor(code), detail: kidDetail(detail), info: INFO_ONLY_CODES.has(code) });
   for (const raw of flagReasons ?? []) {
     const code = (raw ?? '').trim();
     if (!code || seen.has(code)) continue;
     seen.add(code);
-    lines.push({ code, sentence: kidSentence(code), detail: byCode[code] ?? null });
+    push(code, byCode[code]);
   }
   for (const [code, detail] of Object.entries(byCode)) {
-    if (seen.has(code)) continue;
+    // A split removes 'ocr_fused' from flag_reasons but leaves its evidence
+    // in flag_detail; "Split them" must not come back without its button.
+    if (seen.has(code) || code === 'ocr_fused') continue;
     seen.add(code);
-    lines.push({ code, sentence: kidSentence(code), detail });
+    push(code, detail);
   }
-  return { lines, note: general };
+  // What the checker must look at first; "you do not need to fix that" last.
+  // Stable: equal groups keep the stored order.
+  lines.sort((a, b) => Number(a.info) - Number(b.info));
+  return { lines, note: kidDetail(general) };
 }
 
 /** Shown in place of the picture when a question has none, or it failed to load. */

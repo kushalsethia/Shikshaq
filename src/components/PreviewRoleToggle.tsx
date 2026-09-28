@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { PREVIEW_TOOLS, type PreviewRole } from '@/lib/preview-tools';
+import { DUMMY_PAGES, setDummyMode } from '@/lib/dummy-mode';
 
 /* The role toggle, test deployment only.
 
@@ -148,6 +149,25 @@ export function PreviewRoleToggle() {
             </button>
           );
         })}
+      </div>
+
+      {/* D75: dummy mode, a page against an in-memory fake API with no
+          sign-in (src/lib/dummy-mode.ts). Same build-time gate as the rest
+          of this component. */}
+      <div className="mt-1.5 flex flex-wrap gap-1 border-t border-fuchsia-400/30 pt-1.5">
+        {DUMMY_PAGES.map((p) => (
+          <button
+            key={p.path}
+            type="button"
+            onClick={() => {
+              setDummyMode(true);
+              window.location.assign(`${p.path}?dummy=1`);
+            }}
+            className="min-h-9 rounded-full bg-fuchsia-800/70 px-3 text-[12px] font-bold text-fuchsia-100 transition-colors hover:bg-fuchsia-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
 
       {error && (

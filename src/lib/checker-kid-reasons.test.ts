@@ -9,6 +9,7 @@ import {
   describeFlags,
   NO_PICTURE_TITLE,
   NO_PICTURE_NOTE,
+  SPLIT_FROM_SENTENCE,
 } from './checker-kid-reasons';
 
 /**
@@ -69,6 +70,14 @@ describe('kidSentence', () => {
   });
 });
 
+describe('button names in the sentences', () => {
+  it('names only buttons the page really has (there is no "Pass" button)', () => {
+    for (const s of Object.values(KID_SENTENCE)) {
+      expect(s).not.toMatch(/\bpress Pass\b/i);
+    }
+  });
+});
+
 describe('readableCode', () => {
   it('turns separators into spaces and capitalises', () => {
     expect(readableCode('ocr_dropout')).toBe('Ocr dropout');
@@ -84,6 +93,11 @@ describe('needsSplit', () => {
   it('is true only when ocr_fused is one of the flags', () => {
     expect(needsSplit(['ocr_fused'])).toBe(true);
     expect(needsSplit(['marks_mismatch', 'ocr_fused'])).toBe(true);
+  });
+
+  it('is true on the second half of an earlier split, which may still hold two questions', () => {
+    expect(needsSplit(['split_from_3f0c2a1e-1111-2222-3333-444455556666'])).toBe(true);
+    expect(needsSplit(null)).toBe(false);
   });
 
   it('is false for an empty list or unrelated flags', () => {
@@ -126,16 +140,67 @@ describe('describeFlags', () => {
       '{"ocr_junk": "Body shows (jin) (a)"}',
     );
     expect(s.lines).toEqual([
-      { code: 'missing_marks', sentence: KID_SENTENCE.missing_marks, detail: null },
-      { code: 'ocr_junk', sentence: KID_SENTENCE.ocr_junk, detail: 'Body shows (jin) (a)' },
+      { code: 'missing_marks', sentence: KID_SENTENCE.missing_marks, detail: null, info: false },
+      { code: 'ocr_junk', sentence: KID_SENTENCE.ocr_junk, detail: 'Body shows (jin) (a)', info: false },
     ]);
     expect(s.note).toBeNull();
+  });
+
+  it('puts reasons that ask nothing of the checker last, and marks them', () => {
+    const s = describeFlags(['chapter_unresolved', 'display_number_missing', 'figure_missing'], null);
+    expect(s.lines.map((l) => l.code)).toEqual(['display_number_missing', 'figure_missing', 'chapter_unresolved']);
+    expect(s.lines.map((l) => l.info)).toEqual([false, false, true]);
+  });
+
+  it('never asks for the printed number or marks when there is no picture of the paper', () => {
+    const s = describeFlags(['display_number_missing', 'missing_marks'], null, { hasPicture: false });
+    for (const l of s.lines) {
+      expect(l.sentence).not.toMatch(/printed on the paper|if the paper shows/);
+      expect(l.sentence).toMatch(/leave the (number|marks) empty/);
+    }
+    const withPicture = describeFlags(['display_number_missing'], null, { hasPicture: true });
+    expect(withPicture.lines[0].sentence).toBe(KID_SENTENCE.display_number_missing);
+  });
+
+  it('hides machine-made evidence (seen in the live kid queue) but keeps readable evidence', () => {
+    const d = JSON.stringify({
+      chapter_unresolved: "chapter is null -- ch= was '?' or did not resolve against the chapter list",
+      ocr_fused: "shares one un-splittable OCR block with other question(s) in fused_group 'grpB3' -- needs a human",
+      marks_mismatch: 'questions sum to 100.0, paper.max_marks is 80.0',
+      gate_detect: 'Computer note: truncated_end',
+      gate_mcq: 'Computer note: option letters in text []',
+      gate_source_before: "Computer note: unclaimed line L108 in the question block above: 'Class VII'",
+      figure_text_mixed: 'figure block b78 also carries substantial text',
+      gate_source: "Text printed just after it on the paper: 'Complete the following'",
+      ocr_junk: 'Computer check: The sentence breaks off mid-thought.',
+    });
+    const byCode = Object.fromEntries(describeFlags(['ocr_fused'], d).lines.map((l) => [l.code, l.detail]));
+    expect(byCode.chapter_unresolved).toBeNull();
+    expect(byCode.ocr_fused).toBeNull();
+    expect(byCode.marks_mismatch).toBeNull();
+    expect(byCode.gate_detect).toBeNull();
+    expect(byCode.gate_mcq).toBeNull();
+    expect(byCode.gate_source_before).toBeNull();
+    expect(byCode.figure_text_mixed).toBeNull();
+    expect(byCode.gate_source).toBe("Text printed just after it on the paper: 'Complete the following'");
+    expect(byCode.ocr_junk).toBe('The sentence breaks off mid-thought.');
+  });
+
+  it('never shows a raw UUID for the second half of a split', () => {
+    const s = describeFlags(['split_from_3f0c2a1e-1111-2222-3333-444455556666'], null);
+    expect(s.lines[0].sentence).toBe(SPLIT_FROM_SENTENCE);
+    expect(s.lines[0].sentence).not.toMatch(/[0-9a-f]{8}/);
   });
 
   it('keeps evidence for a code that is not in flag_reasons', () => {
     const s = describeFlags(['other'], '{"marks_mismatch": "sums to 22, header says 20"}');
     expect(s.lines.map((l) => l.code)).toEqual(['other', 'marks_mismatch']);
     expect(s.lines[1].detail).toBe('sums to 22, header says 20');
+  });
+
+  it('does not bring "Split them" back from leftover evidence after a split', () => {
+    const s = describeFlags([], JSON.stringify({ ocr_fused: 'Question 7 shares a block with 8.' }));
+    expect(s.lines).toEqual([]);
   });
 
   it('passes a plain-text detail through as the note', () => {
