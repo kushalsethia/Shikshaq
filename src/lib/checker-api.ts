@@ -31,7 +31,16 @@ export interface CheckerQuestion {
   flag_detail: string | null;
   /* W14: English rows also carry `pipeline`, `role`, `stimulus`, `set_text`
      (read through englishContext() in checker-english.ts). */
-  source: ({ page?: number; bbox?: number[]; dpi?: number; snippet_path?: string } & Record<string, unknown>) | null;
+  /* snippet_object / align_score / whole_snippet_*: the crop of the printed
+     paper and how far to trust it (read through checker-pictures.ts). */
+  source: ({
+    page?: number;
+    bbox?: number[];
+    dpi?: number;
+    snippet_path?: string;
+    snippet_object?: string;
+    align_score?: number;
+  } & Record<string, unknown>) | null;
   subject: string | null;
   school: string | null;
   cls: string | null;
@@ -171,11 +180,15 @@ export async function checkerQuestionContext(questionId: string): Promise<Contex
   return rpcRows<ContextRow>(data);
 }
 
-export function checkerSnippetUrl(paperId: string, questionId: string): Promise<string | null> {
+/** A 10-minute signed URL for one object in the private audit-figures
+ *  bucket (a path planned by planCheckerPicture in checker-pictures.ts).
+ *  Null on any failure: the page then shows the "no picture" note. */
+export function checkerPictureUrl(path: string): Promise<string | null> {
   return supabase.storage
     .from('audit-figures')
-    .createSignedUrl(`${paperId}/${questionId}.png`, 600)
-    .then(({ data, error }) => (error ? null : data?.signedUrl ?? null));
+    .createSignedUrl(path, 600)
+    .then(({ data, error }) => (error ? null : data?.signedUrl ?? null))
+    .catch(() => null);
 }
 
 // ---------------------------------------------------------------------------
@@ -486,7 +499,8 @@ export async function adminVerifyPaper(paperId: string): Promise<VerifyPaperResu
 
 /** Signed URLs for many question snippets in ONE request (the Kid Mode page
  *  signs one at a time; a paper can have fifty questions). A missing file
- *  simply has no entry. Same path shape as checkerSnippetUrl. */
+ *  simply has no entry. Path shape '<paper_id>/<question_id>.png', as in
+ *  audit_questions.source.snippet_object. */
 export async function snippetUrls(auditPaperId: string, questionIds: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (questionIds.length === 0) return out;

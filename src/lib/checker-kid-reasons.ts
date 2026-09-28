@@ -51,7 +51,7 @@ export const KID_SENTENCE: Record<string, string> = {
   // question carries `hidden_on_site` plus one `gate_*` code per reason the
   // owner's release gate hid it for.
   hidden_on_site: 'This question is not on the website yet: an automatic check held it back. If it reads correctly and makes sense, press Pass and it goes live.',
-  rescue_ai_doubt: 'The computer checks think this question has a problem, so it stays off the website for now.',
+  rescue_ai_doubt: 'Two computer checks think something may be wrong with this question. Read it very carefully, and only press Looks right if it is really correct.',
   gate_not_ready: 'An earlier check marked this question as not ready. Read it carefully.',
   gate_paper: 'Answer lines were found somewhere in this paper. Make sure no answer is typed into this question or its passage.',
   gate_flags: 'An earlier check put a warning on this question. Read it carefully.',
