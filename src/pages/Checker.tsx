@@ -496,11 +496,12 @@ export default function Checker() {
           <div className="w-full max-w-md rounded-2xl bg-card p-5">
             <h3 className="mb-2 text-[16px] font-bold text-foreground">Which papers do you want to check?</h3>
             <p className="mb-3 text-[13px] text-warm-secondary">
-              Pick as many subjects and classes as you like. Leave everything unpicked to see every paper. You can
-              change this any time from "My subjects".
+              Pick as many subjects and classes as you like, or All to see every paper. You can change this any
+              time from "My subjects".
             </p>
             <p className="mb-1 text-[13px] font-semibold text-foreground">Subjects</p>
             <div className="mb-3 flex flex-wrap gap-1.5">
+              <AllChip active={prefsDraftSubjects.length === 0} onClick={() => setPrefsDraftSubjects([])} />
               {SUBJECTS.map((s) => (
                 <button
                   key={s}
@@ -519,6 +520,7 @@ export default function Checker() {
             </div>
             <p className="mb-1 text-[13px] font-semibold text-foreground">Classes</p>
             <div className="mb-4 flex flex-wrap gap-1.5">
+              <AllChip active={prefsDraftClasses.length === 0} onClick={() => setPrefsDraftClasses([])} />
               {CLASSES.map((c) => (
                 <button
                   key={c}
@@ -573,6 +575,24 @@ export default function Checker() {
         </div>
       ) : null}
     </BentoStack>
+  );
+}
+
+/* "All" is the empty selection: the server treats an empty or null list as
+   no filter, so tapping All just clears the picks. */
+function AllChip({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'rounded-full px-3 py-1.5 text-[13px] font-semibold',
+        active ? 'bg-brand text-foreground' : 'bg-muted text-warm-secondary',
+      )}
+    >
+      All
+    </button>
   );
 }
 

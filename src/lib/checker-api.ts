@@ -179,9 +179,20 @@ export interface PaperQueueRow {
 }
 
 export async function adminPaperQueue(): Promise<PaperQueueRow[]> {
-  const { data, error } = await supabase.rpc('admin_paper_queue' as never);
-  if (error) throw error;
-  return rpcRows<PaperQueueRow>(data);
+  // PostgREST caps every response at 1000 rows, RPCs included, so one call
+  // silently returned 1000 of the 1,960 papers ("Needs review: 1000" instead
+  // of 1,341). Page until a short page comes back.
+  const PAGE = 1000;
+  const all: PaperQueueRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .rpc('admin_paper_queue' as never)
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = rpcRows<PaperQueueRow>(data);
+    all.push(...rows);
+    if (rows.length < PAGE) return all;
+  }
 }
 
 export interface EscalationRow {
@@ -225,6 +236,27 @@ export interface CheckerRow {
   fixed_count: number;
   split_count: number;
   escalated_count: number;
+}
+
+export interface CheckerLogRow {
+  at: string;
+  actor_user_id: string;
+  actor_name: string;
+  action: string;
+  school: string | null;
+  subject: string | null;
+  cls: string | null;
+  year: string | null;
+  live_bank_paper_id: string | null;
+  question_number: string | null;
+  note: string | null;
+}
+
+/** Who did what, newest first (admin_checker_log, admin-only). */
+export async function adminCheckerLog(limit = 300): Promise<CheckerLogRow[]> {
+  const { data, error } = await supabase.rpc('admin_checker_log' as never, { p_limit: limit } as never);
+  if (error) throw error;
+  return rpcRows<CheckerLogRow>(data);
 }
 
 export async function adminListCheckers(): Promise<CheckerRow[]> {

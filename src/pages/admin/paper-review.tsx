@@ -12,6 +12,7 @@ import {
   adminPaperQueue,
   adminEscalationQueue,
   adminListCheckers,
+  adminCheckerLog,
   adminGrantPaperChecker,
   adminRevokePaperChecker,
   adminHideBankPaper,
@@ -24,6 +25,7 @@ import {
   type PaperQueueRow,
   type EscalationRow,
   type CheckerRow,
+  type CheckerLogRow,
   type RevisionRow,
   type UserSearchRow,
 } from '@/lib/checker-api';
@@ -41,7 +43,27 @@ import {
    concepts, published/taken-down is the submissions concept). */
 
 type View = 'papers' | 'checkers' | 'escalations';
-type PaperFilter = 'needs_review' | 'escalated' | 'hidden' | 'incomplete' | 'all';
+type PaperFilter = 'needs_review' | 'escalated' | 'hidden' | 'incomplete' | 'verified' | 'all';
+
+const ACTION_LABELS: Record<string, string> = {
+  checker_pass: 'Passed',
+  checker_fix: 'Fixed',
+  checker_split: 'Split',
+  checker_ask_help: 'Asked for help',
+  checker_skip: 'Skipped',
+  admin_resolve_escalation: 'Resolved escalation',
+  admin_grant_checker: 'Switched on a checker',
+  admin_revoke_checker: 'Switched off a checker',
+};
+
+// Fully verified = live and cleared: published, and needs_review is off.
+const isVerified = (p: PaperQueueRow) => p.is_published && !p.needs_review;
+
+// Questions on this paper still waiting for a check. A paper with no audit
+// copy yet (total 0) has nothing countable and sorts after every paper that
+// does.
+const leftToCheck = (p: PaperQueueRow) =>
+  p.total_questions > 0 ? Math.max(p.total_questions - p.passed_questions, 0) : Number.POSITIVE_INFINITY;
 
 // The revision actions admin_undo_revision() can reverse; every other
 // action (merge/split/reorder/add/undo, live_apply/live_clear) it refuses.
@@ -88,6 +110,9 @@ export default function AdminPaperReviewPage() {
   const [editTarget, setEditTarget] = useState<PaperQueueRow | null>(null);
   const [editField, setEditField] = useState('general_instructions');
   const [editValue, setEditValue] = useState('');
+  const [checkerLog, setCheckerLog] = useState<CheckerLogRow[]>([]);
+  const [checkerLogError, setCheckerLogError] = useState(false);
+  const [logActor, setLogActor] = useState<string>('all');
 
   async function loadPapers() {
     setPapersLoading(true);
@@ -120,6 +145,13 @@ export default function AdminPaperReviewPage() {
     } finally {
       setCheckersLoading(false);
     }
+    // Loaded separately so a failure here never hides the checker list.
+    try {
+      setCheckerLog(await adminCheckerLog());
+      setCheckerLogError(false);
+    } catch {
+      setCheckerLogError(true);
+    }
   }
 
   useEffect(() => {
@@ -139,10 +171,18 @@ export default function AdminPaperReviewPage() {
         return papers.filter((p) => !p.is_published);
       case 'incomplete':
         return papers.filter((p) => !!p.incomplete_note);
+      case 'verified':
+        return papers.filter(isVerified);
       default:
         return papers;
     }
   }, [papers, filter]);
+
+  // Fewest questions left first: those papers clear and go live soonest.
+  const sortedPapers = useMemo(
+    () => [...filteredPapers].sort((a, b) => leftToCheck(a) - leftToCheck(b) || a.paper_id.localeCompare(b.paper_id)),
+    [filteredPapers],
+  );
 
   async function openHistory(p: PaperQueueRow) {
     setHistoryTarget(p);
@@ -308,10 +348,11 @@ export default function AdminPaperReviewPage() {
     { key: 'cls', label: 'Class', width: '0.6fr' },
     { key: 'year', label: 'Year', width: '0.6fr' },
     { key: 'progress', label: 'Progress', width: '0.9fr' },
+    { key: 'left', label: 'To check', width: '0.7fr' },
     { key: 'status', label: 'Status', width: '0.9fr' },
   ];
 
-  const paperRows: AdminTableRow[] = filteredPapers.map((p) => ({
+  const paperRows: AdminTableRow[] = sortedPapers.map((p) => ({
     id: p.paper_id,
     cells: [
       p.school,
@@ -319,6 +360,7 @@ export default function AdminPaperReviewPage() {
       p.cls,
       p.year,
       p.total_questions > 0 ? `${p.passed_questions}/${p.total_questions}` : '-',
+      p.total_questions > 0 ? String(leftToCheck(p)) : '-',
       <AdminStatusPill
         key="status"
         status={!p.is_published ? 'hidden' : p.needs_review ? 'pending' : 'live'}
@@ -356,6 +398,31 @@ export default function AdminPaperReviewPage() {
     cells: [e.school ?? 'Unknown', e.subject ?? '-', e.display_number ?? '-', e.flag_reasons.join(', ') || '-'],
     actions: [{ label: 'Accept as-is', tone: 'mint', onClick: () => doResolveEscalation(e.question_id) }],
   }));
+
+  const logActorNames = new Map<string, string>();
+  for (const r of checkerLog) if (!logActorNames.has(r.actor_user_id)) logActorNames.set(r.actor_user_id, r.actor_name);
+  const logActors = [...logActorNames.entries()];
+
+  const logColumns: AdminTableColumn[] = [
+    { key: 'who', label: 'Who', width: '1.2fr' },
+    { key: 'did', label: 'Did', width: '1fr' },
+    { key: 'paper', label: 'Paper', width: '1.8fr' },
+    { key: 'q', label: 'Question', width: '0.6fr' },
+    { key: 'when', label: 'When', width: '1fr' },
+  ];
+
+  const logRows: AdminTableRow[] = checkerLog
+    .filter((r) => logActor === 'all' || r.actor_user_id === logActor)
+    .map((r, i) => ({
+      id: `${r.at}-${i}`,
+      cells: [
+        r.actor_name,
+        ACTION_LABELS[r.action] ?? r.action,
+        [r.school || 'Unnamed school', r.subject, r.cls, r.year].filter(Boolean).join(' · ') || (r.note ?? '-'),
+        r.question_number ?? '-',
+        new Date(r.at).toLocaleString(),
+      ],
+    }));
 
   const checkerColumns: AdminTableColumn[] = [
     { key: 'email', label: 'Checker', width: '1.6fr' },
@@ -431,11 +498,12 @@ export default function AdminPaperReviewPage() {
                   { label: 'Escalated', value: papers.filter((p) => p.escalated_count > 0).length },
                   { label: 'Hidden', value: papers.filter((p) => !p.is_published).length },
                   { label: 'Incomplete', value: papers.filter((p) => !!p.incomplete_note).length },
+                  { label: 'Verified', value: papers.filter(isVerified).length },
                 ]}
               />
             </div>
             <div className="mb-4 flex flex-wrap gap-2 px-[18px]">
-              {(['needs_review', 'escalated', 'hidden', 'incomplete', 'all'] as PaperFilter[]).map((f) => (
+              {(['needs_review', 'escalated', 'hidden', 'incomplete', 'verified', 'all'] as PaperFilter[]).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
@@ -444,7 +512,7 @@ export default function AdminPaperReviewPage() {
                     filter === f ? 'bg-panel text-background' : 'bg-muted text-warm-secondary',
                   )}
                 >
-                  {f === 'needs_review' ? 'Needs review' : f === 'escalated' ? 'Escalated' : f === 'hidden' ? 'Hidden' : f === 'incomplete' ? 'Incomplete' : 'All'}
+                  {f === 'needs_review' ? 'Needs review' : f === 'escalated' ? 'Escalated' : f === 'hidden' ? 'Hidden' : f === 'incomplete' ? 'Incomplete' : f === 'verified' ? 'Verified' : 'All'}
                 </button>
               ))}
             </div>
@@ -515,6 +583,28 @@ export default function AdminPaperReviewPage() {
               <p className="px-[18px] py-8 text-center text-[15px] text-warm-meta">No paper checkers yet.</p>
             ) : (
               <AdminTable columns={checkerColumns} rows={checkerRows} />
+            )}
+
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-2 px-[18px]">
+              <h3 className="text-[16px] font-bold text-foreground">Checker log</h3>
+              <select
+                value={logActor}
+                onChange={(e) => setLogActor(e.target.value)}
+                aria-label="Show actions by"
+                className="h-9 rounded-full bg-muted px-3 text-[13px] font-semibold text-foreground"
+              >
+                <option value="all">Everyone</option>
+                {logActors.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+            </div>
+            {checkerLogError ? (
+              <p className="px-[18px] py-6 text-[14px] text-warm-meta">The log is not available yet.</p>
+            ) : logRows.length === 0 ? (
+              <p className="px-[18px] py-6 text-[14px] text-warm-meta">No checker actions yet.</p>
+            ) : (
+              <AdminTable columns={logColumns} rows={logRows} readOnly />
             )}
           </>
         )}
