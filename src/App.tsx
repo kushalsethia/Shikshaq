@@ -73,6 +73,7 @@ const AdminTeachersPage = lazy(() => import("./pages/admin/teachers"));
 const AdminPapersPage = lazy(() => import("./pages/admin/papers"));
 const AdminReviews = lazy(() => import("./pages/admin/reviews"));
 const AdminFeedbackPage = lazy(() => import("./pages/admin/feedback"));
+const AdminCheckersPage = lazy(() => import("./pages/admin/checkers"));
 const AdminAuditLog = lazy(() => import("./pages/admin/audit"));
 const AdminPaperReview = lazy(() => import("./pages/admin/paper-review"));
 const AdminPaperEdit = lazy(() => import("./pages/admin/paper-edit"));
@@ -353,6 +354,7 @@ const App = () => (
               <Route path="/admin/papers" element={<AdminPapersPage />} />
               <Route path="/admin/reviews" element={<AdminReviews />} />
               <Route path="/admin/feedback" element={<AdminFeedbackPage />} />
+              <Route path="/admin/checkers" element={<AdminCheckersPage />} />
               <Route path="/admin/audit" element={<AdminAuditLog />} />
               <Route path="/admin/paper-review" element={<AdminPaperReview />} />
               <Route path="/admin/paper-review/:paperId" element={<AdminPaperEdit />} />

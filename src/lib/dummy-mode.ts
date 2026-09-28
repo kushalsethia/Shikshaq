@@ -33,7 +33,10 @@ import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 const KEY = 'shikshaq:dummy-mode';
 
 /** Pages that have a dummy mode, for the preview toggle. */
-export const DUMMY_PAGES: { path: string; label: string }[] = [{ path: '/checker', label: 'Checker (dummy)' }];
+export const DUMMY_PAGES: { path: string; label: string }[] = [
+  { path: '/checker', label: 'Checker (dummy)' },
+  { path: '/admin/checkers', label: 'Admin: checkers (dummy)' },
+];
 
 function readParam(): string | null {
   try {

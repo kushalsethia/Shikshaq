@@ -8,6 +8,9 @@ import {
   canSplitAt,
   editSize,
   bigEdit,
+  matchLeadingNumberPrefix,
+  stripLeadingNumberPrefix,
+  displayBodyWithoutDuplicateNumber,
   FIX_RULE_TITLE,
   FIX_RULE_NOTE,
   BIG_EDIT_WARNING,
@@ -133,5 +136,75 @@ describe('fix-it copy', () => {
     }
     expect(FIX_RULE_NOTE).toMatch(/Do not reword/);
     expect(FIX_RULE_NOTE).toMatch(/exactly/);
+  });
+});
+
+describe('matchLeadingNumberPrefix / stripLeadingNumberPrefix', () => {
+  it('strips a plain numeric prefix that repeats display_number', () => {
+    const m = matchLeadingNumberPrefix('15. Solve for x.', '15');
+    expect(m).not.toBeNull();
+    expect(m!.rest).toBe('Solve for x.');
+    expect(stripLeadingNumberPrefix('15. Solve for x.', '15')).toEqual({
+      stripped: 'Solve for x.',
+      removed: '15. ',
+    });
+  });
+
+  it('strips "Q15)" and "(15)" forms', () => {
+    expect(matchLeadingNumberPrefix('Q15) Name the capital.', '15')?.rest).toBe('Name the capital.');
+    expect(matchLeadingNumberPrefix('(15) Name the capital.', '15')?.rest).toBe('Name the capital.');
+  });
+
+  it('strips a sub-part label like "(a)"', () => {
+    expect(matchLeadingNumberPrefix('(a) Name the district with the most trees.', '(a)')?.rest).toBe(
+      'Name the district with the most trees.',
+    );
+  });
+
+  it('is a no-op when there is no displayNumber or body', () => {
+    expect(matchLeadingNumberPrefix('15. Solve for x.', null)).toBeNull();
+    expect(matchLeadingNumberPrefix('', '15')).toBeNull();
+    expect(matchLeadingNumberPrefix(null, '15')).toBeNull();
+  });
+
+  it('does not strip when the number does not match', () => {
+    expect(matchLeadingNumberPrefix('16. Solve for x.', '15')).toBeNull();
+  });
+
+  it('never mistakes "15 marks" for a numbering prefix (no glue punctuation)', () => {
+    expect(matchLeadingNumberPrefix('15 marks for this question.', '15')).toBeNull();
+  });
+
+  it('never mistakes a decimal like "1.5" for prefix "1."', () => {
+    expect(matchLeadingNumberPrefix('1.5 kg of sand is poured in.', '1')).toBeNull();
+  });
+
+  it('leaves "(a) and (b)" alone unless display_number really is "(a)"/"a"', () => {
+    expect(matchLeadingNumberPrefix('(a) and (b) both apply.', '5')).toBeNull();
+    // When it genuinely is this question's own number, stripping is correct:
+    // that is the exact double-numbering the owner asked to fix.
+    expect(matchLeadingNumberPrefix('(a) and (b) both apply.', '(a)')?.rest).toBe('and (b) both apply.');
+  });
+
+  it('leaves ordinary text with no leading number alone', () => {
+    expect(matchLeadingNumberPrefix('Solve for x and verify.', '15')).toBeNull();
+  });
+
+  it('stripLeadingNumberPrefix is byte-identical when there is nothing to strip', () => {
+    expect(stripLeadingNumberPrefix('Solve for x.', '15')).toEqual({ stripped: 'Solve for x.', removed: null });
+  });
+});
+
+describe('displayBodyWithoutDuplicateNumber', () => {
+  it('hides a leading number that repeats the shown badge, render-only', () => {
+    expect(displayBodyWithoutDuplicateNumber('15. Solve for x.', '15')).toBe('Solve for x.');
+  });
+
+  it('leaves the body alone when there is no badge', () => {
+    expect(displayBodyWithoutDuplicateNumber('15. Solve for x.', null)).toBe('15. Solve for x.');
+  });
+
+  it('leaves the body alone when the badge does not match', () => {
+    expect(displayBodyWithoutDuplicateNumber('15. Solve for x.', '16')).toBe('15. Solve for x.');
   });
 });

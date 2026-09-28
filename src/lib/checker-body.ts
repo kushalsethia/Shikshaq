@@ -156,8 +156,104 @@ export function bigEdit(before: string, after: string): boolean {
   return size > 12 && size / Math.max(beforeLength, 1) > 0.15;
 }
 
+/* ---------------------------------------------------------------------------
+   Owner: "the number lives in the number box only". A body that repeats its
+   own printed number ("15. Solve for x...", display_number "15") shows that
+   number twice: once in the number box/badge, once as the first word of the
+   text. This never touches storage -- it only says whether the very start of
+   a body is that same number dressed as a prefix, so the checker can strip it
+   on save (a logged, leading-only removal) and the public page can hide it at
+   render time (5,734 live bodies, no data change). */
+
+/** "15", "(a)", "Q15", "4(ii)" -> the bare alphanumeric core, for comparing a
+ *  display_number against text that may wrap it differently. */
+function numberCore(s: string): string {
+  return s
+    .trim()
+    .replace(/^q\s*/i, '')
+    .replace(/[().\s]/g, '')
+    .toLowerCase();
+}
+
+export interface NumberPrefixMatch {
+  /** The exact leading slice of `body` that repeats the number (whitespace after it included). */
+  prefix: string;
+  /** `body` with that slice removed, otherwise byte-identical. */
+  rest: string;
+}
+
+/**
+ * Whether `body` starts by re-printing `displayNumber` as a numbering prefix
+ * -- "15.", "15)", "(15)", "Q15", "Q15.", "(a)", "4(ii)" -- immediately
+ * followed by a real word break, not by another digit (so "1.5" is never
+ * mistaken for prefix "1." before "5") and not by nothing but more of the
+ * same token (so "15 marks" is left alone: no punctuation glues the number
+ * to the text, which is the same test a human uses to tell a number label
+ * from a number that is just part of the sentence).
+ *
+ * Only ever matches at the very start of `body`, and only when the matched
+ * core equals `displayNumber`'s core exactly -- "(a) and (b) ..." is left
+ * alone unless this question's own display_number really is "(a)"/"a".
+ */
+export function matchLeadingNumberPrefix(
+  body: string | null | undefined,
+  displayNumber: string | null | undefined,
+): NumberPrefixMatch | null {
+  const text = body ?? '';
+  const wanted = (displayNumber ?? '').trim();
+  if (!text || !wanted) return null;
+  const wantedCore = numberCore(wanted);
+  if (!wantedCore) return null;
+
+  // Candidate leading tokens, longest / most specific first, each capturing
+  // the punctuation that must glue it to the text (group 1) and requiring
+  // whitespace or end-of-string right after (never another digit/letter of
+  // the same run, which is what makes "1.5" and "15 marks" safe).
+  const patterns = [
+    /^\(\s*[A-Za-z0-9]{1,4}\s*\)(?=\s|$)/, // "(a)", "(15)"
+    /^Q\s*[0-9]{1,4}\s*[.)](?=\s|$)/i, // "Q15.", "Q15)"
+    /^Q\s*[0-9]{1,4}(?=\s)/i, // "Q15 "
+    /^[0-9]{1,4}\s*[.)](?!\d)(?=\s|$)/, // "15.", "15)" -- not "1.5"
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (!m) continue;
+    const matched = m[0];
+    if (numberCore(matched) !== wantedCore) continue;
+    // Absorb one run of spaces after the token so the visible text does not
+    // start with a stray leading space.
+    const afterSpaces = text.slice(matched.length).match(/^\s+/);
+    const prefix = matched + (afterSpaces ? afterSpaces[0] : '');
+    return { prefix, rest: text.slice(prefix.length) };
+  }
+  return null;
+}
+
+/** Strips only that leading prefix (a no-op, byte-identical result, when
+ *  there is none) -- for the checker's save, never a general rewrite. */
+export function stripLeadingNumberPrefix(
+  body: string,
+  displayNumber: string | null | undefined,
+): { stripped: string; removed: string | null } {
+  const match = matchLeadingNumberPrefix(body, displayNumber);
+  if (!match) return { stripped: body, removed: null };
+  return { stripped: match.rest, removed: match.prefix };
+}
+
+/** For BankPaper.tsx: the text to show under the number badge, with a
+ *  self-repeating leading number hidden. Render-only -- `row.t` in storage
+ *  is untouched. */
+export function displayBodyWithoutDuplicateNumber(
+  body: string,
+  shownBadge: string | null | undefined,
+): string {
+  if (!shownBadge) return body;
+  const match = matchLeadingNumberPrefix(body, shownBadge);
+  return match ? match.rest : body;
+}
+
 export const FIX_RULE_TITLE = 'Only fix what the computer read wrong';
 export const FIX_RULE_NOTE =
   'Make it match the printed paper exactly: fix wrong letters, numbers or symbols, and add words that are missing. Do not reword it, fix its grammar or make it better, even if the paper has a mistake.';
 export const BIG_EDIT_WARNING =
-  'You changed a lot. Only fix reading mistakes so it matches the paper exactly. If the words are too broken to fix, press Ask for help instead.';
+  "You changed a lot. Only fix reading mistakes so it matches the paper exactly. If the words are too broken to fix, press Can't fix instead.";

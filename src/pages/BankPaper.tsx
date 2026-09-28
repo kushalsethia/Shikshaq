@@ -22,6 +22,7 @@ import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 import { resolveDisplayNumber, showPaperExtras, showIncompleteNote, showQuestionInstructions, marksShownInText as marksInText } from '@/lib/bank-paper-display';
+import { displayBodyWithoutDuplicateNumber } from '@/lib/checker-body';
 
 /** The teachers route for a bank paper's subject, or the filtered browse
  *  when that subject has no page of its own. Never an invented slug. */
@@ -410,7 +411,15 @@ export default function BankPaper() {
      ramped a CSS blur across the gated tail; under the real gate those rows
      are never sent, so every card this renders is one the reader is entitled
      to and there is nothing left to soften. */
-  const questionCard = (row: BankQuestion) => (
+  const questionCard = (row: BankQuestion) => {
+    /* D66: the printed display_number, when the checker/admin has recorded
+       one, wins over the client-derived a/b/c run lettering below -- it is a
+       real fact about how the paper was numbered, not a guess from repeated
+       raw numbers. Computed once so the body below can hide a leading
+       repeat of the same number (owner: "the number lives in the number
+       box only") without a second, possibly different, resolution. */
+    const shownNumber = resolveDisplayNumber(row.dn, displayNumbers.get(row.i), row.n);
+    return (
     <li
       key={row.i}
       id={`q-${row.i}`}
@@ -418,11 +427,7 @@ export default function BankPaper() {
     >
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         {(() => {
-          /* D66: the printed display_number, when the checker/admin has
-             recorded one, wins over the client-derived a/b/c run lettering
-             below -- it is a real fact about how the paper was numbered,
-             not a guess from repeated raw numbers. */
-          const shown = resolveDisplayNumber(row.dn, displayNumbers.get(row.i), row.n);
+          const shown = shownNumber;
           return shown ? (
             <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-blue px-1.5 text-[12px] font-extrabold tabular-nums text-white">
               {shown}
@@ -495,7 +500,10 @@ export default function BankPaper() {
         />
       )}
 
-      <MathText text={row.t} className="text-[15px] leading-[1.6] text-foreground" />
+      <MathText
+        text={displayBodyWithoutDuplicateNumber(row.t, shownNumber)}
+        className="text-[15px] leading-[1.6] text-foreground"
+      />
 
       {/* An MCQ without its choices is unanswerable, and 4,176 of them
           arrived with the History & Civics and Economics banks. The column
@@ -571,7 +579,8 @@ export default function BankPaper() {
       )}
 
     </li>
-  );
+    );
+  };
 
   if (failed) {
     return (
