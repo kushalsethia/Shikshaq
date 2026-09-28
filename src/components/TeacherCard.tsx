@@ -10,6 +10,7 @@ import { getSubjectPalette } from '@/lib/subject-palette';
 import { Chip } from '@/components/ui/chip';
 import { StripePlaceholder } from '@/components/ui/stripe-placeholder';
 import { Button } from '@/components/ui/button';
+import { DebugId } from '@/components/DebugId';
 
 /**
  * C1 — components.md §2 / design.md §2.1 + §2.5 (CONCENTRIC PHOTO, binding).
@@ -525,7 +526,7 @@ function TeacherCardComponent({
                   120px still keeps the name and the upvote pill on one line at
                   common widths; below that they wrap, which is the intended
                   behaviour of the flex-wrap parent. */}
-              <div className="min-w-[120px] flex-1">{nameHeading}</div>
+              <div className="min-w-[120px] flex-1">{nameHeading}<DebugId label="teacher" value={id} className="ml-1.5" /></div>
               {upvotePill}
             </div>
             {metaRow}
@@ -602,7 +603,7 @@ function TeacherCardComponent({
         {/* Body — everything the photo used to carry now lives here. */}
         <div className="px-1 pb-0.5 pt-2">
           <div className="flex items-start justify-between gap-x-2">
-            <div className="min-w-0 flex-1">{nameHeading}</div>
+            <div className="min-w-0 flex-1">{nameHeading}<DebugId label="teacher" value={id} className="ml-1.5" /></div>
             {!isCompact && upvotePill}
           </div>
           {metaRow}

@@ -41,6 +41,7 @@ import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewCha
 import { isForeignChangeToOpenQuestion } from '@/lib/paper-review-realtime';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
+import { DebugId } from '@/components/DebugId';
 
 /* The paper checker (Kid Mode) -- D8/D9/D11/D15/D16/D21: built INTO the
    Shikshaq site, in Shikshaq's own bento design language, reachable only by
@@ -53,9 +54,10 @@ import { isDummyMode } from '@/lib/dummy-mode';
 
    D16/D21: escalating never turns a paper red -- it hands the question to
    Sonnet first, then an admin, while the checker moves on to the next one.
-   The pipeline-plan Step 2 rename ("Can't fix", chip reasons) supersedes
-   D16/D21's button LABEL only: same askForHelp/escalate RPC underneath, a
-   plainer word for a class 9-12 reader on top.
+   The pipeline-plan Step 2 rename ("Can't fix") and owner Round 6 rename
+   back to "Ask for help" (00 Owner Brief and Answers.md: "the owner calls
+   the third one Ask for help") both supersede D16/D21's button LABEL only:
+   same askForHelp/escalate RPC underneath, the owner's own word on top.
 
    D75: in a test build (VITE_PREVIEW_TOOLS) with dummy mode on, the same
    page runs against an in-memory fake of the checker API, with no sign-in
@@ -379,7 +381,7 @@ export function CheckerPage({
   async function doPass() {
     if (!question || submitting) return;
     if (!canPass) {
-      setError("This question has no words, so it cannot be marked as right. Press Can't fix.");
+      setError('This question has no words, so it cannot be marked as right. Press Ask for help.');
       return;
     }
     if (marksInvalid) {
@@ -522,7 +524,15 @@ export function CheckerPage({
       <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-4xl">
         {banner}
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-lg font-bold text-foreground">Paper checker</h1>
+          <h1 className="text-lg font-bold text-foreground">
+            Paper checker
+            {question ? (
+              <span className="ml-2 inline-flex gap-1 align-middle">
+                <DebugId label="question" value={question.id} />
+                <DebugId label="paper" value={question.paper_id} />
+              </span>
+            ) : null}
+          </h1>
           <div className="flex flex-wrap items-center gap-2">
             <span
               className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold tabular-nums text-warm-secondary"
@@ -678,7 +688,7 @@ export function CheckerPage({
                 </Callout>
               ) : garbled ? (
                 <Callout tone="warn" title="These words look scrambled">
-                  Do not try to retype them. Press Can't fix and an admin will fix it from the paper.
+                  Do not try to retype them. Press Ask for help and an admin will fix it from the paper.
                 </Callout>
               ) : null}
 
@@ -825,7 +835,7 @@ export function CheckerPage({
                   </ActionButton>
                 )}
                 <ActionButton tone="brand" onClick={() => setHelpOpen(true)} disabled={submitting}>
-                  Can't fix
+                  Ask for help
                 </ActionButton>
                 <ActionButton tone="muted" onClick={doSkip} disabled={submitting}>
                   Show me another paper
@@ -904,7 +914,7 @@ export function CheckerPage({
       {helpOpen && question ? (
         <Modal onClose={() => setHelpOpen(false)} labelledBy="checker-help-title">
           <h2 id="checker-help-title" className="mb-2 text-[16px] font-bold text-foreground">
-            What can't you fix?
+            What do you need help with?
           </h2>
           <p className="mb-3 text-[13px] text-warm-secondary">
             Someone who knows more will take a look. This does not hold up the rest of the paper.

@@ -27,6 +27,7 @@ import {
   alternativeFollowerIds, subPartsOf, topLevelIds,
 } from '@/lib/bank-paper-display';
 import { displayBodyWithoutDuplicateNumber } from '@/lib/checker-body';
+import { DebugId } from '@/components/DebugId';
 
 /** The teachers route for a bank paper's subject, or the filtered browse
  *  when that subject has no page of its own. Never an invented slug. */
@@ -538,6 +539,7 @@ export default function BankPaper() {
             {row.al}
           </span>
         )}
+        <DebugId label="question" value={row.i} />
 
         {/* Report, as one more chip on this line rather than a full-width
             "Something wrong here?" button under every question. Icon only
@@ -713,10 +715,13 @@ export default function BankPaper() {
               tooltip rather than a layout change. */}
           <div className="min-w-0 flex-1">
             <h1
-              className="truncate text-[14px] font-bold text-white"
+              className="flex items-center gap-1.5 truncate text-[14px] font-bold text-white"
               title={paper ? `${displaySchool(paper.school)} · Class ${paper.cls} ${displaySubject}` : undefined}
             >
-              {paper ? `${displaySchool(paper.school)} · Class ${paper.cls} ${displaySubject}` : 'Past paper'}
+              <span className="truncate">
+                {paper ? `${displaySchool(paper.school)} · Class ${paper.cls} ${displaySubject}` : 'Past paper'}
+              </span>
+              {paper ? <DebugId label="paper" value={paper.id} /> : null}
             </h1>
             {facts.length > 0 && (
               <p className="truncate text-[12px] tabular-nums text-white/60" title={facts.join(' · ')}>

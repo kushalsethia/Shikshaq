@@ -39,7 +39,7 @@ export function checkerErrorAdvice(err: unknown): CheckerErrorAdvice {
     };
   }
   if (/has no words|empty question/i.test(text)) {
-    return { message: "This question has no words, so it cannot be marked as right. Press Can't fix.", moveOn: false };
+    return { message: "This question has no words, so it cannot be marked as right. Press Ask for help.", moveOn: false };
   }
   if (/split point out of range/i.test(text)) {
     return { message: 'Tap inside the words, between the two questions, then press Split here.', moveOn: false };
