@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { ContextRow } from '@/lib/checker-context';
+import { mergeQueueRows } from '@/lib/paper-review-filter';
 
 /**
  * Client wrapper for the paper-checker (Kid Mode) and paper-admin RPCs added
@@ -280,16 +281,24 @@ export async function adminPaperQueue(): Promise<PaperQueueRow[]> {
   // PostgREST caps every response at 1000 rows, RPCs included, so one call
   // silently returned 1000 of the 1,960 papers ("Needs review: 1000" instead
   // of 1,341). Page until a short page comes back.
+  //
+  // Paging needs a total order, or a page boundary can drop or repeat a row:
+  // the function's own order tied on two audit copies of one paper. So the
+  // pages are cut over an explicit (paper_id, audit_paper_id) order, and the
+  // rows are merged to one per paper before anyone counts them
+  // (paper-review-filter.ts has the whole story).
   const PAGE = 1000;
   const all: PaperQueueRow[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .rpc('admin_paper_queue' as never)
+      .order('paper_id' as never, { ascending: true })
+      .order('audit_paper_id' as never, { ascending: true, nullsFirst: true })
       .range(from, from + PAGE - 1);
     if (error) throw error;
     const rows = rpcRows<PaperQueueRow>(data);
     all.push(...rows);
-    if (rows.length < PAGE) return all;
+    if (rows.length < PAGE) return mergeQueueRows(all);
   }
 }
 
@@ -489,6 +498,8 @@ export interface DraftRow {
   paper_passed: boolean | null;
   is_red: boolean | null;
   red_reason: string | null;
+  /** File name of the printed paper (20260928230000); undefined before that migration. */
+  source_pdf?: string | null;
   question_id: string | null;
   ord: number | null;
   kind: string | null;

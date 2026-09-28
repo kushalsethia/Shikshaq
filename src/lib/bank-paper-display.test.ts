@@ -4,6 +4,7 @@ import {
   showPaperExtras,
   showIncompleteNote,
   showQuestionInstructions,
+  marksShownInText,
 } from './bank-paper-display';
 
 describe('resolveDisplayNumber (D66)', () => {
@@ -53,5 +54,17 @@ describe('showQuestionInstructions (D66)', () => {
     expect(showQuestionInstructions('Answer any three of the following.')).toBe(true);
     expect(showQuestionInstructions(null)).toBe(false);
     expect(showQuestionInstructions(undefined)).toBe(false);
+  });
+});
+
+describe('marksShownInText', () => {
+  it('hides the pill when the paper prints the same marks inline', () => {
+    expect(marksShownInText(3, 'Find x. [3]')).toBe(true);
+    expect(marksShownInText(3, 'Find x. [ 3 ]')).toBe(true);
+  });
+  it('keeps the pill otherwise, and never matches plain whitespace', () => {
+    expect(marksShownInText(3, 'Find x in 3 steps.')).toBe(false);
+    expect(marksShownInText(null, 'Find x. [3]')).toBe(false);
+    expect(marksShownInText(2, null)).toBe(false);
   });
 });

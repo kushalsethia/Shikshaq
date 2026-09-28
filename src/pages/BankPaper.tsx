@@ -21,7 +21,7 @@ import { displaySchool } from '@/lib/school-display';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
-import { resolveDisplayNumber, showPaperExtras, showIncompleteNote, showQuestionInstructions } from '@/lib/bank-paper-display';
+import { resolveDisplayNumber, showPaperExtras, showIncompleteNote, showQuestionInstructions, marksShownInText as marksInText } from '@/lib/bank-paper-display';
 
 /** The teachers route for a bank paper's subject, or the filtered browse
  *  when that subject has no page of its own. Never an invented slug. */
@@ -390,12 +390,7 @@ export default function BankPaper() {
   /* Many papers print their own marks inline, "Find: [3]". Our pill would then
      say the same number twice on one card, so ours stands down; the paper's
      own marker is the source and is never touched. */
-  const marksShownInText = (row: BankQuestion): boolean => {
-    if (row.m === null) return false;
-    // Escaped brackets: an unescaped [...] here is a character class, which
-    // matches the whitespace in every question and would hide every pill.
-    return new RegExp(`\\[\\s*${row.m}\\s*\\]`).test(row.t);
-  };
+  const marksShownInText = (row: BankQuestion): boolean => marksInText(row.m, row.t);
 
   /* One dot-separated line, not a wall of pills. As chips these five facts ran
      to two rows on a phone and pushed the first question below the fold. */

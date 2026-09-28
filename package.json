@@ -12,7 +12,7 @@
     "generate-blog-nav": "tsx scripts/generate-blog-nav.ts",
     "postbuild": "tsx scripts/prerender.ts",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "vitest run --exclude \".claude/**\"",
     "test:watch": "vitest",
     "preview": "vite preview",
     "test:gemini": "node scripts/test-gemini-api.js",
