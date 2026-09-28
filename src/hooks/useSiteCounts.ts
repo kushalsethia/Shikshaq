@@ -66,7 +66,7 @@ export function useSiteCounts() {
         supabase
           .from('bank_papers')
           .select('id', { count: 'exact', head: true })
-          .eq('is_published', true),
+          .eq('is_published', true).gt('question_count', 0),
         /* has_school = true: a board-level row (is_board_paper) carries a
            board name, not a school, in the `school` column, and counting it
            as a distinct school is exactly what made this figure indefensible.

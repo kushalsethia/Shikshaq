@@ -527,7 +527,7 @@ export default function Index() {
          useSiteCounts' inclusive count (is_published, needs_review or not). */
       const [teachersRes, papersRes, reviewsRes] = await Promise.all([
         supabase.from('teachers_list').select('id', { count: 'exact', head: true }),
-        supabase.from('bank_papers').select('id', { count: 'exact', head: true }).eq('is_published', true),
+        supabase.from('bank_papers').select('id', { count: 'exact', head: true }).eq('is_published', true).gt('question_count', 0),
         supabase.from('teacher_comments').select('id', { count: 'exact', head: true }).eq('approved', true),
       ]);
       return {
