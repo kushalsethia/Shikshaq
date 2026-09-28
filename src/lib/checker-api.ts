@@ -34,20 +34,34 @@ export interface CheckerQuestion {
      (read through englishContext() in checker-english.ts). */
   /* snippet_object / align_score / whole_snippet_*: the crop of the printed
      paper and how far to trust it (read through checker-pictures.ts). */
-  source: ({
-    page?: number;
-    bbox?: number[];
-    dpi?: number;
-    snippet_path?: string;
-    snippet_object?: string;
-    align_score?: number;
-  } & Record<string, unknown>) | null;
+  source: AuditQuestionSource | null;
   subject: string | null;
   school: string | null;
   cls: string | null;
   exam: string | null;
   year: string | null;
 }
+
+/** audit_questions.source (jsonb). The pipeline writes more keys than the
+ *  site reads; the named ones are the ones the site does read. Anything else
+ *  stays reachable as `unknown`, so a new key never needs a cast. */
+export type AuditQuestionSource = {
+  page?: number;
+  bbox?: number[];
+  dpi?: number;
+  snippet_path?: string;
+  /* the crop of the printed paper and how far to trust it (checker-pictures.ts) */
+  snippet_object?: string;
+  align_score?: number;
+  whole_snippet_object?: string;
+  whole_snippet_members?: { located?: number; members?: number; min_align?: number };
+  /* W14 English rows (checker-english.ts) */
+  pipeline?: string;
+  role?: string;
+  stimulus?: unknown;
+  set_text?: string;
+  rescue_decision?: string;
+} & Record<string, unknown>;
 
 function rpcRow<T>(data: unknown): T | null {
   const rows = (data ?? []) as unknown;
@@ -515,7 +529,7 @@ export interface DraftRow {
   review_bucket: string | null;
   flag_reasons: string[] | null;
   flag_detail: string | null;
-  source: { page?: number; bbox?: number[]; dpi?: number; snippet_path?: string } | null;
+  source: AuditQuestionSource | null;
   live_bank_question_id: string | null;
   updated_at: string | null;
 }
