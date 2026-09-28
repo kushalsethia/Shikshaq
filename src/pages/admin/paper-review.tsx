@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState, adminToast, adminPrimaryBtnStyle, adminSecondaryBtnStyle, AdminStatTiles } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
@@ -17,7 +18,6 @@ import {
   adminRevokePaperChecker,
   adminHideBankPaper,
   adminRestoreBankPaper,
-  adminEditBankPaper,
   adminPaperHistory,
   adminUndoRevision,
   adminResolveEscalation,
@@ -69,23 +69,12 @@ const leftToCheck = (p: PaperQueueRow) =>
 // action (merge/split/reorder/add/undo, live_apply/live_clear) it refuses.
 const UNDOABLE_ACTIONS = new Set(['admin_edit', 'admin_delete', 'admin_hide', 'admin_restore']);
 
-// The queue row only carries some of the editable fields; the rest start
-// blank rather than borrowing another field's text.
-function currentFieldValue(p: PaperQueueRow, field: string): string {
-  switch (field) {
-    case 'incomplete_note': return p.incomplete_note ?? '';
-    case 'school': return p.school ?? '';
-    case 'subject': return p.subject ?? '';
-    case 'year': return p.year ?? '';
-    default: return '';
-  }
-}
-
 export default function AdminPaperReviewPage() {
   usePageMeta('Paper review | Shikshaq Admin', 'Review, fix and clear papers in the question bank.');
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
   const { isAdmin, checkingAdmin, error: adminGuardError, retry } = useAdminGuard(user, { redirectOnDenied: true });
+  const navigate = useNavigate();
 
   const [view, setView] = useState<View>('papers');
   const [filter, setFilter] = useState<PaperFilter>('needs_review');
@@ -107,9 +96,6 @@ export default function AdminPaperReviewPage() {
   const [hideReason, setHideReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const [editTarget, setEditTarget] = useState<PaperQueueRow | null>(null);
-  const [editField, setEditField] = useState('general_instructions');
-  const [editValue, setEditValue] = useState('');
   const [checkerLog, setCheckerLog] = useState<CheckerLogRow[]>([]);
   const [checkerLogError, setCheckerLogError] = useState(false);
   const [logActor, setLogActor] = useState<string>('all');
@@ -241,18 +227,6 @@ export default function AdminPaperReviewPage() {
     }
   }
 
-  async function confirmEdit() {
-    if (!editTarget) return;
-    try {
-      await adminEditBankPaper(editTarget.paper_id, editField, editValue);
-      adminToast('Saved');
-      setEditTarget(null);
-      loadPapers();
-    } catch {
-      adminToast('Failed to save that field');
-    }
-  }
-
   // D32: search Shikshaq accounts by name or email instead of requiring the
   // admin to already know a raw account id.
   useEffect(() => {
@@ -369,7 +343,9 @@ export default function AdminPaperReviewPage() {
     ],
     actions: [
       { label: 'History', tone: 'primary', onClick: () => openHistory(p) },
-      { label: 'Edit', tone: 'primary', onClick: () => { setEditTarget(p); setEditField('incomplete_note'); setEditValue(currentFieldValue(p, 'incomplete_note')); } },
+      // W12: Edit opens the full paper edit page (autosaved draft + Verify).
+      // The old one-field dialog lives there now as "Paper details".
+      { label: 'Edit', tone: 'primary', onClick: () => navigate(`/admin/paper-review/${encodeURIComponent(p.paper_id)}`) },
       p.is_published
         ? { label: busyId === p.paper_id ? '...' : 'Hide', tone: 'destructive', onClick: () => setHideTarget(p), disabled: busyId === p.paper_id }
         : { label: busyId === p.paper_id ? '...' : 'Restore', tone: 'mint', onClick: () => doRestore(p), disabled: busyId === p.paper_id },
@@ -621,36 +597,6 @@ export default function AdminPaperReviewPage() {
           <div className="mt-4 flex gap-2">
             <button onClick={confirmHide} disabled={!hideReason.trim()} className={cn('disabled:opacity-60', adminPrimaryBtnStyle)}>Hide</button>
             <button onClick={() => setHideTarget(null)} className={adminSecondaryBtnStyle}>Cancel</button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit dialog -- one field at a time, whitelisted server-side by admin_edit_bank_paper. */}
-      <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
-        <DialogContent aria-describedby={undefined} className="w-full max-w-md rounded-bento bg-card p-6">
-          <DialogTitle className="text-xl font-bold text-foreground">Edit {editTarget?.school}</DialogTitle>
-          <label className="mt-3 block text-[13px] font-semibold text-foreground">Field</label>
-          <select
-            value={editField}
-            onChange={(e) => {
-              setEditField(e.target.value);
-              // Prefill with THIS field's current value so Save can never
-              // write one field's text into another.
-              setEditValue(editTarget ? currentFieldValue(editTarget, e.target.value) : '');
-            }}
-            className="mt-1 h-11 w-full rounded-xl bg-muted px-3 text-sm"
-          >
-            <option value="general_instructions">General instructions</option>
-            <option value="incomplete_note">Incomplete note</option>
-            <option value="allowed_time_minutes">Allowed time (minutes)</option>
-            <option value="school">School</option>
-            <option value="subject">Subject</option>
-            <option value="year">Year</option>
-          </select>
-          <Textarea value={editValue} onChange={(e) => setEditValue(e.target.value)} rows={3} className="mt-3" />
-          <div className="mt-4 flex gap-2">
-            <button onClick={confirmEdit} className={adminPrimaryBtnStyle}>Save</button>
-            <button onClick={() => setEditTarget(null)} className={adminSecondaryBtnStyle}>Cancel</button>
           </div>
         </DialogContent>
       </Dialog>
