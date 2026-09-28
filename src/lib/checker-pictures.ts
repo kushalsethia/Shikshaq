@@ -23,23 +23,28 @@
  * context row's including the parent's), so this is all decided here, pure,
  * with no extra columns.
  *
- * Rules (owner, 2026-09-28, from the picture-upload report):
- *   - no crop at all: the "no picture" note, and no signed URL is requested
- *   - a doubtful crop is never shown as if it were right: it starts hidden
- *     behind a plain warning, and the checker taps to see it
+ * Rules (owner, 2026-09-28):
+ *   - no trustworthy crop: the "no picture" note ("check the words only"),
+ *     and no signed URL is requested
+ *   - a doubtful crop is NEVER shown. The owner saw two in a row that were
+ *     of a different question, and a wrong picture next to the text is
+ *     worse than none: a checker may "fix" correct words to match it. No
+ *     tap-to-show button either ("i shouldnt have to load the picture with
+ *     a button").
  *   - a sub-part prefers the whole-question crop; if that crop is missing
  *     some parts, say so
  */
 
 import type { QuestionContext } from '@/lib/checker-context';
 
-/** Crops matched worse than this are treated as possibly the wrong question. */
-export const DOUBTFUL_ALIGN_BELOW = 0.6;
+/**
+ * Crops matched worse than this are treated as the wrong question. 0.9, not
+ * 0.6: in the sample every crop at 0.9 or more was right, and one at 0.81
+ * was wrong. Kid queue 2026-09-28: 389 of 735 scored crops pass.
+ */
+export const DOUBTFUL_ALIGN_BELOW = 0.9;
 
-export const PICTURE_MAY_BE_WRONG =
-  'This picture may be of a different question. If it does not match, check the words only.';
 export const PICTURE_MAY_MISS_PARTS = 'This picture may not show every part.';
-export const SHOW_PICTURE_LABEL = 'Show the picture';
 
 type Source = Record<string, unknown> | null | undefined;
 
@@ -48,7 +53,7 @@ export interface PicturePlan {
   path: string;
   /** 'whole' = the whole-question crop, 'parent' = the parent's own crop, 'own' = this question's crop. */
   kind: 'whole' | 'parent' | 'own';
-  /** True when the crop may show a different question: show it collapsed, behind the warning. */
+  /** True when the crop may show a different question. A returned plan never has it set; kept so candidates can be filtered on it. */
   doubtful: boolean;
   /** True when the whole-question crop is missing some of the parts. */
   mayMissParts: boolean;
@@ -99,8 +104,7 @@ export function wholeCrop(source: Source): { path: string; mayMissParts: boolean
  *   2. the parent's own crop, when this is a sub-part
  *   3. this question's own crop
  * The first candidate that is not doubtful wins. If every candidate is
- * doubtful, the first one is returned with `doubtful: true`, so the page
- * shows it collapsed behind the warning rather than dropping it.
+ * doubtful there is no picture (null): the page shows the no-picture note.
  *
  * Only one picture is ever planned, so only one signed URL is ever needed.
  */
@@ -124,7 +128,7 @@ export function planCheckerPicture(
   const own = snippetObject(question.source);
   if (own) candidates.push({ path: own, kind: 'own', doubtful: isDoubtfulCrop(question.source), mayMissParts: false });
 
-  return candidates.find((c) => !c.doubtful) ?? candidates[0] ?? null;
+  return candidates.find((c) => !c.doubtful) ?? null;
 }
 
 /** The small caption over the picture. */

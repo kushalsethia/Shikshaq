@@ -3,9 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { assembleQuestionContext, type ContextRow } from './checker-context';
 import {
   DOUBTFUL_ALIGN_BELOW,
-  PICTURE_MAY_BE_WRONG,
   PICTURE_MAY_MISS_PARTS,
-  SHOW_PICTURE_LABEL,
   alignScore,
   isDoubtfulCrop,
   pictureHeading,
@@ -51,10 +49,12 @@ describe('reading source', () => {
     expect(alignScore({})).toBeNull();
   });
 
-  it('calls a crop doubtful only when it has a score below 0.6', () => {
-    expect(DOUBTFUL_ALIGN_BELOW).toBe(0.6);
-    expect(isDoubtfulCrop(crop('q', 0.59))).toBe(true);
-    expect(isDoubtfulCrop(crop('q', 0.6))).toBe(false);
+  it('calls a crop doubtful only when it has a score below 0.9', () => {
+    expect(DOUBTFUL_ALIGN_BELOW).toBe(0.9);
+    // 0.81 was a wrong picture in the owner's sample.
+    expect(isDoubtfulCrop(crop('q', 0.81))).toBe(true);
+    expect(isDoubtfulCrop(crop('q', 0.89))).toBe(true);
+    expect(isDoubtfulCrop(crop('q', 0.9))).toBe(false);
     expect(isDoubtfulCrop(crop('q', 0.95))).toBe(false);
     // new_ocr rows carry no score: their crop is where the text was read from.
     expect(isDoubtfulCrop(crop('q'))).toBe(false);
@@ -83,10 +83,9 @@ describe('planCheckerPicture, a question on its own', () => {
     expect(planCheckerPicture({ id: 'q', source: crop('q') }, null)?.doubtful).toBe(false);
   });
 
-  it('marks a badly matched crop doubtful instead of dropping it', () => {
-    expect(planCheckerPicture({ id: 'q', source: crop('q', 0.31) }, null)).toEqual({
-      path: `${P}/q.png`, kind: 'own', doubtful: true, mayMissParts: false,
-    });
+  it('never shows a badly matched crop: no picture instead', () => {
+    expect(planCheckerPicture({ id: 'q', source: crop('q', 0.31) }, null)).toBeNull();
+    expect(planCheckerPicture({ id: 'q', source: crop('q', 0.81) }, null)).toBeNull();
   });
 });
 
@@ -122,7 +121,7 @@ describe('planCheckerPicture, a sub-part', () => {
   });
 
   it("falls back to the parent's crop, then its own, skipping doubtful ones", () => {
-    let ctx = group(crop('root', 0.8), crop('p1', 0.9));
+    let ctx = group(crop('root', 0.92), crop('p1', 0.9));
     expect(planCheckerPicture({ id: 'p1', source: crop('p1', 0.9) }, ctx)?.path).toBe(`${P}/root.png`);
 
     ctx = group(crop('root', 0.4), crop('p1', 0.9));
@@ -131,11 +130,9 @@ describe('planCheckerPicture, a sub-part', () => {
     });
   });
 
-  it('keeps the first doubtful crop, collapsed, when every crop is doubtful', () => {
+  it('shows no picture when every crop is doubtful', () => {
     const ctx = group(crop('root', 0.4), crop('p1', 0.2));
-    expect(planCheckerPicture({ id: 'p1', source: crop('p1', 0.2) }, ctx)).toEqual({
-      path: `${P}/root.png`, kind: 'parent', doubtful: true, mayMissParts: false,
-    });
+    expect(planCheckerPicture({ id: 'p1', source: crop('p1', 0.2) }, ctx)).toBeNull();
   });
 
   it('plans nothing when no row in the group has a crop', () => {
@@ -154,12 +151,9 @@ describe('planCheckerPicture, a sub-part', () => {
 
 describe('copy', () => {
   it('uses plain words and no em or en dashes', () => {
-    for (const s of [PICTURE_MAY_BE_WRONG, PICTURE_MAY_MISS_PARTS, SHOW_PICTURE_LABEL, pictureHeading(null)]) {
+    for (const s of [PICTURE_MAY_MISS_PARTS, pictureHeading(null)]) {
       expect(s).not.toMatch(/[–—]/);
     }
-    expect(PICTURE_MAY_BE_WRONG).toBe(
-      'This picture may be of a different question. If it does not match, check the words only.',
-    );
   });
 
   it('names the whole question only when the picture is of the whole question', () => {
