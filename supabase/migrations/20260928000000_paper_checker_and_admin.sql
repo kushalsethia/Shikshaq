@@ -60,12 +60,36 @@ alter table public.bank_questions
   add column if not exists parent_question_id text
     references public.bank_questions (id) on delete set null;
 
--- bank_paper_questions() must keep returning the new columns so the reader
--- (BankPaper.tsx) and future renderer work can use them. Re-created here
--- with `security definer` restated explicitly (CREATE OR REPLACE does not
--- inherit it) and all three revoke/grant lines re-run every time, per
--- CLAUDE.md's documented trap.
-create or replace function public.bank_paper_questions(p_paper_id text)
+-- bank_paper_questions() must keep the LIVE behaviour byte-for-byte
+-- (owner decisions D36-D38) and only append the new columns. Confirmed by
+-- reading the live definition directly (pg_get_functiondef, project
+-- uvtifolnsneitetzohtn, read-only SELECT, 2026-09-28 -- see W1's log note
+-- for the exact query and result): plpgsql, SECURITY DEFINER,
+-- `set search_path to 'public', 'extensions'`, records a read_events row
+-- for a signed-in reader (kind='paper', target_id=p_paper_id, ip_hash from
+-- the x-forwarded-for header), filters `is_published and not
+-- needs_review`, and limits a signed-out reader to **2** rows, not 5 (the
+-- free-preview gate moved from 5 to 2 on 2026-09-18 -- src/lib/free-preview.ts
+-- -- this function had already been updated live to match, and the version
+-- previously committed in this migration had silently regressed that back
+-- to 5; fixed here to match the confirmed-live text exactly).
+--
+-- A RETURNS TABLE column-list change is not something CREATE OR REPLACE can
+-- do -- DROP FUNCTION first, in the same transaction, then re-create with
+-- security definer restated explicitly (CREATE OR REPLACE does not inherit
+-- it) and all three revoke/grant lines re-run every time, per CLAUDE.md's
+-- documented trap. Dependency check performed (read-only, same session):
+--   select pg_describe_object(classid, objid, objsubid), deptype
+--   from pg_depend where refobjid = 'public.bank_paper_questions(text)'::regprocedure;
+-- returned zero rows live -- nothing else in the database references this
+-- function by OID, so the drop is safe. `bank_questions.marks` and
+-- `bank_papers.marks` were also checked directly and are already `numeric`
+-- live (see MEDIUM fix 8's note below) -- this function's signature did not
+-- need a cast for that reason, but the new numeric columns below do line up
+-- with what marks already is.
+drop function if exists public.bank_paper_questions(text);
+
+create function public.bank_paper_questions(p_paper_id text)
  returns table(
    id text, paper_id text, number text, body text, marks numeric, chapter text,
    qtype text, page integer, figure text, options text[],
@@ -73,21 +97,35 @@ create or replace function public.bank_paper_questions(p_paper_id text)
    chapter_from_paper boolean, answer_key text, alternative_group text,
    alternative_label text, section_label text
  )
- language sql
- stable security definer
- set search_path to 'public'
+ language plpgsql
+ security definer
+ set search_path to 'public', 'extensions'
 as $function$
-  select q.id, q.paper_id, q.number, q.body, q.marks, q.chapter,
-         q.qtype, q.page, q.figure, q.options,
-         q.display_number, q.instructions, q.suggested_time_minutes,
-         q.chapter_from_paper, q.answer_key, q.alternative_group,
-         q.alternative_label, q.section_label
-  from public.bank_questions q
-  join public.bank_papers p on p.id = q.paper_id
-  where q.paper_id = p_paper_id
-    and p.is_published
-  order by q.ord
-  limit case when auth.uid() is null then 5 else null end;
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is not null then
+    insert into public.read_events (user_id, kind, target_id, ip_hash)
+    values (v_uid, 'paper', p_paper_id,
+      encode(extensions.digest(coalesce(
+        current_setting('request.headers', true)::json ->> 'x-forwarded-for', ''
+      ), 'sha256'), 'hex'));
+  end if;
+
+  return query
+    select q.id, q.paper_id, q.number, q.body, q.marks, q.chapter,
+           q.qtype, q.page, q.figure, q.options,
+           q.display_number, q.instructions, q.suggested_time_minutes,
+           q.chapter_from_paper, q.answer_key, q.alternative_group,
+           q.alternative_label, q.section_label
+    from public.bank_questions q
+    join public.bank_papers p on p.id = q.paper_id
+    where q.paper_id = p_paper_id
+      and p.is_published
+      and not p.needs_review
+    order by q.ord
+    limit case when v_uid is null then 2 else null end;
+end;
 $function$;
 
 revoke all on function public.bank_paper_questions(text) from public;
@@ -244,7 +282,65 @@ alter table public.audit_questions
 create index if not exists audit_questions_lock_idx on public.audit_questions (locked_until);
 
 comment on column public.audit_questions.locked_by is
-  'Paper-checker RPC lease (checker_next_question) so two checkers are not handed the same question. Not a hard lock: an expired lease is simply ignored.';
+  'Paper-checker RPC lease (checker_next_question) so two checkers are not handed the same question. Not a hard lock: an expired lease is simply ignored. Cleared to null after every action -- for a PERSISTENT record of who acted, see checked_by_user below.';
+
+-- ============================================================
+-- 4a. Persistent actor attribution (orchestrator fix #5). locked_by is
+--     cleared to null by every checker RPC once it finishes, so it cannot
+--     be the chokepoint's source of "who acted" -- checked_by_user is set
+--     by every checker/admin RPC that changes a question and is NEVER
+--     cleared. Human checker actions leave `checked_by` (the existing AI
+--     column) null; checked_by_user is what identifies a human actor.
+--     W3's AI actions set `checked_by` directly (e.g. 'ai:haiku+haiku' --
+--     already a self-describing string) and leave checked_by_user null.
+--     split_from_id records split lineage (fix #3) so the chokepoint can
+--     find a split sibling's live row without parsing flag_reasons text.
+-- ============================================================
+alter table public.audit_questions
+  add column if not exists checked_by_user uuid references auth.users (id) on delete set null,
+  add column if not exists split_from_id uuid references public.audit_questions (id) on delete set null;
+
+create index if not exists audit_questions_checked_by_user_idx on public.audit_questions (checked_by_user);
+create index if not exists audit_questions_split_from_id_idx on public.audit_questions (split_from_id);
+
+comment on column public.audit_questions.checked_by_user is
+  'The Shikshaq user (paper checker or admin) who most recently acted on this question via a checker/admin RPC. Never nulled once set -- this is the chokepoint''s source for a human actor''s identity, since locked_by/locked_until are cleared after every action. Null means either untouched by a human, or (when checked_by is set) an AI action.';
+comment on column public.audit_questions.split_from_id is
+  'Set on the SECOND half of a split (checker_split_question / a future admin split of an audit row): the audit_questions.id this row was split from. Lets the chokepoint find the sibling''s live_bank_question_id and insert the new half immediately after it in bank_questions, without parsing flag_reasons text.';
+
+-- ============================================================
+-- 4b. checker_skip_question's "don't re-serve to the same checker for a
+--     while" bookkeeping (D40). A dedicated table rather than a column on
+--     audit_questions because a question can be skipped by more than one
+--     checker independently and each skip has its own 24h window.
+--     Service-role only, same lockdown shape as every audit_* table.
+-- ============================================================
+create table if not exists public.audit_question_skips (
+  question_id uuid not null references public.audit_questions (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  skipped_at timestamptz not null default now(),
+  primary key (question_id, user_id)
+);
+
+comment on table public.audit_question_skips is
+  'D40: when a checker skips a question, checker_next_question() will not hand that same question back to that same checker for 24h (skipped_at + interval). Reached only through checker_skip_question()/checker_next_question(), both SECURITY DEFINER.';
+
+alter table public.audit_question_skips enable row level security;
+revoke all on public.audit_question_skips from public, anon, authenticated;
+
+-- ============================================================
+-- 4c. Checker subjects/classes preference (D41). Empty/null means "no
+--     filter" -- a brand-new checker who has not picked yet, or an admin
+--     previewing Kid Mode, sees every routed question.
+-- ============================================================
+alter table public.paper_checkers
+  add column if not exists subjects text[],
+  add column if not exists classes text[];
+
+comment on column public.paper_checkers.subjects is
+  'D41: subjects this checker has chosen to check. Null or empty = no filter (sees every subject). Self-service via checker_set_preferences().';
+comment on column public.paper_checkers.classes is
+  'D41: classes this checker has chosen to check. Null or empty = no filter (sees every class). Self-service via checker_set_preferences().';
 
 -- ============================================================
 -- 5. The chokepoint. Applies a live_copy audit_papers row's passed/fixed
@@ -268,17 +364,84 @@ as $function$
 declare
   v_paper record;
   v_q record;
+  v_parent record;
   v_actor text;
+  v_actor_user_id uuid;
+  v_source text;
   v_total int;
   v_passed int;
   v_before jsonb;
-  v_after jsonb;
+  v_live_paper_id text;
+  v_parent_ord int;
+  v_new_live_id text;
+  v_new_row jsonb;
+  v_any_mismatch boolean := false;
+  v_any_unplaced boolean := false;
 begin
   select * into v_paper from public.audit_papers where id = p_audit_paper_id;
   if v_paper is null or v_paper.source <> 'live_copy' or v_paper.live_bank_paper_id is null then
     return; -- nothing to apply for a new_ocr paper or an unmatched live paper
   end if;
+  v_live_paper_id := v_paper.live_bank_paper_id;
 
+  -- ---- Pass 1: split halves that have no live row yet (fix #3) --------
+  -- A row created by checker_split_question has live_bank_question_id
+  -- null and split_from_id pointing at its sibling. Insert it into
+  -- bank_questions right after the sibling's live row, numbered as
+  -- printed, and record its new id on the audit row so pass 2 below (and
+  -- every future run) can apply further edits to it like any other row.
+  for v_q in
+    select * from public.audit_questions
+    where paper_id = p_audit_paper_id
+      and kind = 'question'
+      and question_passed = true
+      and live_bank_question_id is null
+      and split_from_id is not null
+  loop
+    v_actor := coalesce(v_q.checked_by, v_q.checked_by_user::text, 'unknown-checker');
+    v_actor_user_id := case when v_q.checked_by is null then v_q.checked_by_user else null end;
+    v_source := case when v_q.checked_by is null then 'checker' else 'ai' end;
+
+    select * into v_parent from public.audit_questions where id = v_q.split_from_id;
+    if v_parent is null or v_parent.live_bank_question_id is null then
+      -- The sibling itself has no live row yet either (not applied yet, or
+      -- was never a live_copy row) -- try again on a future run.
+      v_any_unplaced := true;
+      continue;
+    end if;
+
+    select ord into v_parent_ord from public.bank_questions
+      where id = v_parent.live_bank_question_id and paper_id = v_live_paper_id;
+    if v_parent_ord is null then
+      -- Scoping guard (fix #4): the sibling's live_bank_question_id does not
+      -- belong to this paper. Record and move on without touching anything.
+      insert into public.audit_review_log (reviewer_id, actor_user_id, paper_id, question_id, action, note)
+      values (null, v_actor_user_id, p_audit_paper_id, v_q.id, 'live_apply',
+              'skipped: split sibling''s live row is not in paper ' || v_live_paper_id);
+      v_any_mismatch := true;
+      continue;
+    end if;
+
+    v_new_live_id := v_parent.live_bank_question_id || '-split-' || extract(epoch from now())::bigint::text;
+
+    update public.bank_questions set ord = ord + 1
+      where paper_id = v_live_paper_id and ord > v_parent_ord;
+
+    insert into public.bank_questions (id, paper_id, ord, number, display_number, body, marks, chapter, qtype, page, figure, options)
+    values (v_new_live_id, v_live_paper_id, v_parent_ord + 1, v_q.display_number, v_q.display_number,
+            v_q.body, v_q.marks, v_parent.chapter, null, null, null, null);
+
+    update public.audit_questions set live_bank_question_id = v_new_live_id where id = v_q.id;
+
+    select to_jsonb(bq.*) into v_new_row from public.bank_questions bq where bq.id = v_new_live_id;
+    insert into public.bank_question_revisions
+      (table_name, row_id, action, field, before, after, actor, actor_user_id, source, audit_paper_id, audit_question_id)
+    values ('bank_questions', v_new_live_id, 'live_apply', null, null, v_new_row, v_actor, v_actor_user_id, v_source,
+            p_audit_paper_id, v_q.id);
+  end loop;
+
+  -- ---- Pass 2: field-level diffs on every question that now has a live
+  --      target, scoped to this paper (fix #4) ---------------------------
   for v_q in
     select * from public.audit_questions
     where paper_id = p_audit_paper_id
@@ -286,74 +449,83 @@ begin
       and question_passed = true
       and live_bank_question_id is not null
   loop
-    v_actor := case when v_q.checked_by is null then coalesce(v_q.locked_by::text, 'unknown-checker')
-                    else 'ai:' || v_q.checked_by end;
+    v_actor := coalesce(v_q.checked_by, v_q.checked_by_user::text, 'unknown-checker');
+    v_actor_user_id := case when v_q.checked_by is null then v_q.checked_by_user else null end;
+    v_source := case when v_q.checked_by is null then 'checker' else 'ai' end;
 
-    select to_jsonb(bq.*) into v_before from public.bank_questions bq where bq.id = v_q.live_bank_question_id;
+    select to_jsonb(bq.*) into v_before from public.bank_questions bq
+      where bq.id = v_q.live_bank_question_id and bq.paper_id = v_live_paper_id;
     if v_before is null then
-      continue; -- the live row this was copied from no longer exists
+      -- Either the live row no longer exists, or (scoping guard, fix #4) it
+      -- belongs to a different paper than this audit row claims. Either
+      -- way: never write, log it, and don't let this paper's needs_review
+      -- clear below.
+      insert into public.audit_review_log (reviewer_id, actor_user_id, paper_id, question_id, action, note)
+      values (null, v_actor_user_id, p_audit_paper_id, v_q.id, 'live_apply',
+              'skipped: live_bank_question_id ' || coalesce(v_q.live_bank_question_id, 'null') ||
+              ' not found in paper ' || v_live_paper_id);
+      v_any_mismatch := true;
+      continue;
     end if;
 
     -- body: only write when it actually differs (byte-exact rule).
     if v_q.body is distinct from (v_before->>'body') then
-      update public.bank_questions set body = v_q.body where id = v_q.live_bank_question_id;
+      update public.bank_questions set body = v_q.body
+        where id = v_q.live_bank_question_id and paper_id = v_live_paper_id;
       insert into public.bank_question_revisions
         (table_name, row_id, action, field, before, after, actor, actor_user_id, source, audit_paper_id, audit_question_id)
       values ('bank_questions', v_q.live_bank_question_id, 'live_apply', 'body',
-              to_jsonb(v_before->>'body'), to_jsonb(v_q.body), v_actor,
-              case when v_q.checked_by is null then v_q.locked_by else null end,
-              case when v_q.checked_by is null then 'checker' else 'ai' end,
+              to_jsonb(v_before->>'body'), to_jsonb(v_q.body), v_actor, v_actor_user_id, v_source,
               p_audit_paper_id, v_q.id);
     end if;
 
     if v_q.display_number is distinct from (v_before->>'display_number') then
-      update public.bank_questions set display_number = v_q.display_number where id = v_q.live_bank_question_id;
+      update public.bank_questions set display_number = v_q.display_number
+        where id = v_q.live_bank_question_id and paper_id = v_live_paper_id;
       insert into public.bank_question_revisions
         (table_name, row_id, action, field, before, after, actor, actor_user_id, source, audit_paper_id, audit_question_id)
       values ('bank_questions', v_q.live_bank_question_id, 'live_apply', 'display_number',
-              to_jsonb(v_before->>'display_number'), to_jsonb(v_q.display_number), v_actor,
-              case when v_q.checked_by is null then v_q.locked_by else null end,
-              case when v_q.checked_by is null then 'checker' else 'ai' end,
+              to_jsonb(v_before->>'display_number'), to_jsonb(v_q.display_number), v_actor, v_actor_user_id, v_source,
               p_audit_paper_id, v_q.id);
     end if;
 
     if v_q.marks is distinct from ((v_before->>'marks')::numeric) then
-      update public.bank_questions set marks = v_q.marks where id = v_q.live_bank_question_id;
+      update public.bank_questions set marks = v_q.marks
+        where id = v_q.live_bank_question_id and paper_id = v_live_paper_id;
       insert into public.bank_question_revisions
         (table_name, row_id, action, field, before, after, actor, actor_user_id, source, audit_paper_id, audit_question_id)
       values ('bank_questions', v_q.live_bank_question_id, 'live_apply', 'marks',
-              to_jsonb((v_before->>'marks')::numeric), to_jsonb(v_q.marks), v_actor,
-              case when v_q.checked_by is null then v_q.locked_by else null end,
-              case when v_q.checked_by is null then 'checker' else 'ai' end,
+              to_jsonb((v_before->>'marks')::numeric), to_jsonb(v_q.marks), v_actor, v_actor_user_id, v_source,
               p_audit_paper_id, v_q.id);
     end if;
 
     if v_q.answer_key is distinct from (v_before->>'answer_key') then
-      update public.bank_questions set answer_key = v_q.answer_key where id = v_q.live_bank_question_id;
+      update public.bank_questions set answer_key = v_q.answer_key
+        where id = v_q.live_bank_question_id and paper_id = v_live_paper_id;
       insert into public.bank_question_revisions
         (table_name, row_id, action, field, before, after, actor, actor_user_id, source, audit_paper_id, audit_question_id)
       values ('bank_questions', v_q.live_bank_question_id, 'live_apply', 'answer_key',
-              to_jsonb(v_before->>'answer_key'), to_jsonb(v_q.answer_key), v_actor,
-              case when v_q.checked_by is null then v_q.locked_by else null end,
-              case when v_q.checked_by is null then 'checker' else 'ai' end,
+              to_jsonb(v_before->>'answer_key'), to_jsonb(v_q.answer_key), v_actor, v_actor_user_id, v_source,
               p_audit_paper_id, v_q.id);
     end if;
   end loop;
 
-  -- Clear needs_review only once every question of the audit paper is passed.
+  -- ---- Clear needs_review only when every question is passed AND every
+  --      passed question has a live target AND nothing was skipped for a
+  --      scope mismatch (fix #3 + fix #4) -------------------------------
   select count(*) filter (where kind = 'question'),
          count(*) filter (where kind = 'question' and question_passed)
     into v_total, v_passed
   from public.audit_questions
   where paper_id = p_audit_paper_id;
 
-  if v_total > 0 and v_total = v_passed then
-    select to_jsonb(bp.*) into v_before from public.bank_papers bp where bp.id = v_paper.live_bank_paper_id;
+  if v_total > 0 and v_total = v_passed and not v_any_mismatch and not v_any_unplaced then
+    select to_jsonb(bp.*) into v_before from public.bank_papers bp where bp.id = v_live_paper_id;
     if v_before is not null and (v_before->>'needs_review')::boolean is distinct from false then
-      update public.bank_papers set needs_review = false where id = v_paper.live_bank_paper_id;
+      update public.bank_papers set needs_review = false where id = v_live_paper_id;
       insert into public.bank_question_revisions
         (table_name, row_id, action, field, before, after, actor, source, audit_paper_id)
-      values ('bank_papers', v_paper.live_bank_paper_id, 'live_clear', 'needs_review',
+      values ('bank_papers', v_live_paper_id, 'live_clear', 'needs_review',
               to_jsonb(true), to_jsonb(false), 'system:chokepoint', 'system', p_audit_paper_id);
     end if;
   end if;
@@ -391,16 +563,92 @@ create trigger audit_papers_apply_to_live
 after update of paper_passed on public.audit_papers
 for each row execute function public.trg_apply_live_copy_paper_to_live();
 
+-- 5a. admin_reapply_paper_to_live (fix #7): the retry path referenced in
+--     the chokepoint's own comment above, which previously did not exist.
+--     Admin-gated wrapper around the same chokepoint the trigger calls --
+--     useful after a partial failure (e.g. a split sibling not placed yet
+--     because ITS sibling wasn't live yet either) once the underlying state
+--     is fixed.
+create or replace function public.admin_reapply_paper_to_live(p_audit_paper_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+begin
+  if not public.is_admin() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+  perform public.apply_live_copy_paper_to_live(p_audit_paper_id);
+end;
+$function$;
+
+revoke all on function public.admin_reapply_paper_to_live(uuid) from public, anon, authenticated;
+grant execute on function public.admin_reapply_paper_to_live(uuid) to authenticated;
+
 -- ============================================================
 -- 6. Checker RPCs. Every function below revokes from public/anon/
 --    authenticated first, then grants execute to authenticated -- the
 --    function body itself calls is_paper_checker() and raises if false,
 --    per CLAUDE.md's trap (revoking from PUBLIC alone leaves the
 --    role-name grant Supabase's default-privilege rule adds untouched).
+--
+--    6z (shared helper) enforces the orchestrator's routing rule (fix #2)
+--    for every mutating checker RPC: is_paper_checker(), the question must
+--    be review_bucket='kid' (never 'escalated' -- ask-for-help/skip act
+--    only on routed 'kid' work too), the caller must hold the lease
+--    (locked_by/locked_until) OR be an admin, and the question's paper
+--    must be a source the checker queue actually serves ('live_copy' or
+--    'new_ocr'). Not granted to any role: called only from other
+--    SECURITY DEFINER functions below, which (like every function in this
+--    migration) run as the function owner -- a superuser in Supabase's
+--    migration path -- so the missing grant does not block them.
 -- ============================================================
+create or replace function public.checker_authorize_question(p_question_id uuid)
+returns public.audit_questions
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_q public.audit_questions;
+  v_source text;
+begin
+  if not public.is_paper_checker() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
 
--- 6a. Next question: cross-paper stream of live needs_review papers'
---     kid-bucket, not-yet-passed, not-currently-leased questions.
+  select * into v_q from public.audit_questions where id = p_question_id;
+  if v_q.id is null then
+    raise exception 'Question not found' using errcode = '42501';
+  end if;
+
+  if v_q.review_bucket <> 'kid' then
+    raise exception 'This question is not routed to the paper checker' using errcode = '42501';
+  end if;
+
+  if not (
+    (v_q.locked_by = auth.uid() and v_q.locked_until is not null and v_q.locked_until > now())
+    or public.is_admin()
+  ) then
+    raise exception 'This question is not currently assigned to you' using errcode = '42501';
+  end if;
+
+  select ap.source into v_source from public.audit_papers ap where ap.id = v_q.paper_id;
+  if v_source is null or v_source not in ('live_copy', 'new_ocr') then
+    raise exception 'This paper is not eligible for checking' using errcode = '42501';
+  end if;
+
+  return v_q;
+end;
+$function$;
+
+revoke all on function public.checker_authorize_question(uuid) from public, anon, authenticated;
+
+-- 6a. Next question: cross-paper stream of needs_review papers' kid-bucket,
+--     not-yet-passed, not-currently-leased, not-recently-skipped (D40)
+--     questions, filtered by the checker's own subjects/classes (D41) when
+--     they have chosen any.
 create or replace function public.checker_next_question()
 returns table (
   id uuid, paper_id uuid, ord int, display_number text, number_path text,
@@ -415,10 +663,15 @@ as $function$
 declare
   v_uid uuid := auth.uid();
   v_q public.audit_questions;
+  v_subjects text[];
+  v_classes text[];
 begin
   if not public.is_paper_checker() then
     raise exception 'Not authorized' using errcode = '42501';
   end if;
+
+  select subjects, classes into v_subjects, v_classes
+  from public.paper_checkers where user_id = v_uid;
 
   select aq.* into v_q
   from public.audit_questions aq
@@ -426,8 +679,14 @@ begin
   where aq.kind = 'question'
     and aq.review_bucket = 'kid'
     and aq.question_passed = false
-    and ap.source = 'live_copy'
+    and ap.source in ('live_copy', 'new_ocr')
     and (aq.locked_until is null or aq.locked_until < now())
+    and (v_subjects is null or array_length(v_subjects, 1) is null or ap.subject = any(v_subjects))
+    and (v_classes is null or array_length(v_classes, 1) is null or ap.class = any(v_classes))
+    and not exists (
+      select 1 from public.audit_question_skips s
+      where s.question_id = aq.id and s.user_id = v_uid and s.skipped_at > now() - interval '24 hours'
+    )
   order by ap.created_at, aq.ord
   limit 1
   for update of aq skip locked;
@@ -464,17 +723,11 @@ as $function$
 declare
   v_before public.audit_questions;
 begin
-  if not public.is_paper_checker() then
-    raise exception 'Not authorized' using errcode = '42501';
-  end if;
-
-  select * into v_before from public.audit_questions where id = p_question_id;
-  if v_before.id is null then
-    raise exception 'Question not found';
-  end if;
+  v_before := public.checker_authorize_question(p_question_id);
 
   update public.audit_questions
-  set status = 'passed', question_passed = true, locked_by = null, locked_until = null
+  set status = 'passed', question_passed = true, checked_by_user = auth.uid(),
+      locked_by = null, locked_until = null
   where id = p_question_id;
 
   insert into public.audit_review_log (reviewer_id, actor_user_id, paper_id, question_id, action, field, before, after)
@@ -499,20 +752,14 @@ as $function$
 declare
   v_before public.audit_questions;
 begin
-  if not public.is_paper_checker() then
-    raise exception 'Not authorized' using errcode = '42501';
-  end if;
-
-  select * into v_before from public.audit_questions where id = p_question_id;
-  if v_before.id is null then
-    raise exception 'Question not found';
-  end if;
+  v_before := public.checker_authorize_question(p_question_id);
 
   update public.audit_questions
   set body = coalesce(p_body, body),
       display_number = coalesce(p_display_number, display_number),
       marks = coalesce(p_marks, marks),
-      status = 'passed', question_passed = true, locked_by = null, locked_until = null
+      status = 'passed', question_passed = true, checked_by_user = auth.uid(),
+      locked_by = null, locked_until = null
   where id = p_question_id;
 
   insert into public.audit_review_log (reviewer_id, actor_user_id, paper_id, question_id, action, field, before, after)
@@ -527,8 +774,10 @@ grant execute on function public.checker_fix_question(uuid, text, text, numeric)
 
 -- 6d. Split: the printed question is actually two. Shortens the current
 --     row's body to the text before p_split_at and inserts a new row after
---     it (same paper, ord shifted) with the remainder. Neither half is
---     auto-passed -- both need a fresh look.
+--     it (same paper, ord shifted) with the remainder, tagged
+--     split_from_id so the chokepoint can place its live half next to the
+--     original's (fix #3). Neither half is auto-passed -- both need a
+--     fresh look.
 create or replace function public.checker_split_question(
   p_question_id uuid, p_body_before text, p_split_at int
 )
@@ -543,14 +792,8 @@ declare
   v_second text;
   v_new_id uuid;
 begin
-  if not public.is_paper_checker() then
-    raise exception 'Not authorized' using errcode = '42501';
-  end if;
+  v_q := public.checker_authorize_question(p_question_id);
 
-  select * into v_q from public.audit_questions where id = p_question_id;
-  if v_q.id is null then
-    raise exception 'Question not found';
-  end if;
   if p_split_at is null or p_split_at <= 0 or p_split_at >= length(p_body_before) then
     raise exception 'Split point out of range';
   end if;
@@ -565,16 +808,16 @@ begin
 
   update public.audit_questions
   set body = v_first, status = 'flagged', question_passed = false,
-      locked_by = null, locked_until = null
+      checked_by_user = auth.uid(), locked_by = null, locked_until = null
   where id = p_question_id;
 
   insert into public.audit_questions (
     paper_id, ord, kind, parent_id, section_label, number_path, display_number,
-    body, status, question_passed, review_bucket, flag_reasons
+    body, status, question_passed, review_bucket, flag_reasons, split_from_id
   )
   values (
     v_q.paper_id, v_q.ord + 1, 'question', v_q.parent_id, v_q.section_label, null, null,
-    v_second, 'flagged', false, 'kid', array['split_from_' || v_q.id::text]
+    v_second, 'flagged', false, 'kid', array['split_from_' || v_q.id::text], p_question_id
   )
   returning id into v_new_id;
 
@@ -600,17 +843,11 @@ as $function$
 declare
   v_before public.audit_questions;
 begin
-  if not public.is_paper_checker() then
-    raise exception 'Not authorized' using errcode = '42501';
-  end if;
-
-  select * into v_before from public.audit_questions where id = p_question_id;
-  if v_before.id is null then
-    raise exception 'Question not found';
-  end if;
+  v_before := public.checker_authorize_question(p_question_id);
 
   update public.audit_questions
-  set review_bucket = 'escalated', locked_by = null, locked_until = null
+  set review_bucket = 'escalated', checked_by_user = auth.uid(),
+      locked_by = null, locked_until = null
   where id = p_question_id;
 
   insert into public.audit_review_log (reviewer_id, actor_user_id, paper_id, question_id, action, field, before, after, note)
@@ -624,7 +861,38 @@ $function$;
 revoke all on function public.checker_ask_for_help(uuid, text) from public, anon, authenticated;
 grant execute on function public.checker_ask_for_help(uuid, text) to authenticated;
 
--- 6f. Checked-today count, for the small counter on Kid Mode.
+-- 6f. Skip (D40): release the lease and remember not to hand this exact
+--     question back to this exact checker for 24h. Never turns the paper
+--     red and never touches review_bucket -- a different checker (or the
+--     same one, after 24h) can still be routed to it.
+create or replace function public.checker_skip_question(p_question_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_q public.audit_questions;
+begin
+  v_q := public.checker_authorize_question(p_question_id);
+
+  update public.audit_questions
+  set locked_by = null, locked_until = null
+  where id = p_question_id;
+
+  insert into public.audit_question_skips (question_id, user_id, skipped_at)
+  values (p_question_id, auth.uid(), now())
+  on conflict (question_id, user_id) do update set skipped_at = now();
+
+  insert into public.audit_review_log (reviewer_id, actor_user_id, paper_id, question_id, action)
+  values (null, auth.uid(), v_q.paper_id, p_question_id, 'checker_skip');
+end;
+$function$;
+
+revoke all on function public.checker_skip_question(uuid) from public, anon, authenticated;
+grant execute on function public.checker_skip_question(uuid) to authenticated;
+
+-- 6g. Checked-today count, for the small counter on Kid Mode.
 create or replace function public.checker_checked_today_count()
 returns integer
 language sql
@@ -641,6 +909,108 @@ $$;
 
 revoke all on function public.checker_checked_today_count() from public, anon, authenticated;
 grant execute on function public.checker_checked_today_count() to authenticated;
+
+-- 6h. Today + lifetime counts in one call (D42's "plus the checker's own
+--     counts (today / total)"), and the weekly top-10 leaderboard by first
+--     name only -- never an email, per D42.
+create or replace function public.checker_my_stats()
+returns table (today_count bigint, total_count bigint)
+language plpgsql
+security definer
+stable
+set search_path to 'public'
+as $function$
+begin
+  if not public.is_paper_checker() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  return query
+    select
+      count(*) filter (where at >= date_trunc('day', now())) as today_count,
+      count(*) as total_count
+    from public.audit_review_log
+    where actor_user_id = auth.uid()
+      and action in ('checker_pass', 'checker_fix', 'checker_split', 'checker_ask_help');
+end;
+$function$;
+
+revoke all on function public.checker_my_stats() from public, anon, authenticated;
+grant execute on function public.checker_my_stats() to authenticated;
+
+create or replace function public.checker_leaderboard()
+returns table (rank int, first_name text, weekly_count bigint)
+language plpgsql
+security definer
+stable
+set search_path to 'public'
+as $function$
+begin
+  if not public.is_paper_checker() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  return query
+    select row_number() over (order by count(*) desc)::int as rank,
+           coalesce(nullif(split_part(coalesce(p.full_name, ''), ' ', 1), ''), 'A checker') as first_name,
+           count(*) as weekly_count
+    from public.audit_review_log l
+    join public.profiles p on p.id = l.actor_user_id
+    where l.action in ('checker_pass', 'checker_fix', 'checker_split', 'checker_ask_help')
+      and l.at >= now() - interval '7 days'
+    group by l.actor_user_id, p.full_name
+    order by weekly_count desc
+    limit 10;
+end;
+$function$;
+
+revoke all on function public.checker_leaderboard() from public, anon, authenticated;
+grant execute on function public.checker_leaderboard() to authenticated;
+
+-- 6i. Checker preferences (D41): self-service, any signed-in checker may
+--     set their OWN subjects/classes. Never lets a checker edit another
+--     row (p_user_id is always auth.uid(), not a parameter).
+create or replace function public.checker_set_preferences(p_subjects text[], p_classes text[])
+returns void
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+begin
+  if not public.is_paper_checker() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  update public.paper_checkers
+  set subjects = nullif(p_subjects, array[]::text[]),
+      classes = nullif(p_classes, array[]::text[])
+  where user_id = auth.uid();
+end;
+$function$;
+
+revoke all on function public.checker_set_preferences(text[], text[]) from public, anon, authenticated;
+grant execute on function public.checker_set_preferences(text[], text[]) to authenticated;
+
+-- 6j. Read the caller's own preferences (so the client knows whether to
+--     show the first-use "pick your subjects" prompt).
+create or replace function public.checker_get_preferences()
+returns table (subjects text[], classes text[])
+language plpgsql
+security definer
+stable
+set search_path to 'public'
+as $function$
+begin
+  if not public.is_paper_checker() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  return query select pc.subjects, pc.classes from public.paper_checkers pc where pc.user_id = auth.uid();
+end;
+$function$;
+
+revoke all on function public.checker_get_preferences() from public, anon, authenticated;
+grant execute on function public.checker_get_preferences() to authenticated;
 
 -- ============================================================
 -- 7. Storage: paper checkers and admins may read snippet crops in the
@@ -1004,22 +1374,34 @@ revoke all on function public.admin_restore_bank_paper(text) from public, anon, 
 grant execute on function public.admin_restore_bank_paper(text) to authenticated;
 
 -- 8e. Full change history for a paper (its own row + every question's).
+--     plpgsql + an explicit raise (fix #9): the previous `language sql`
+--     version folded the admin check into the WHERE clause, which just
+--     returns an empty set for a non-admin instead of refusing outright --
+--     harmless here since RLS on bank_question_revisions already limits
+--     SELECT to admins, but inconsistent with every other RPC's 42501
+--     contract, so a caller can no longer mistake "empty" for "you looked
+--     but there was nothing".
 create or replace function public.admin_paper_history(p_paper_id text)
 returns setof public.bank_question_revisions
-language sql
+language plpgsql
 security definer
 stable
 set search_path to 'public'
-as $$
-  select r.* from public.bank_question_revisions r
-  where public.is_admin() and (
-    (r.table_name = 'bank_papers' and r.row_id = p_paper_id)
-    or (r.table_name = 'bank_questions' and r.row_id in (
-          select id from public.bank_questions where paper_id = p_paper_id
-        ))
-  )
-  order by r.created_at desc;
-$$;
+as $function$
+begin
+  if not public.is_admin() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  return query
+    select r.* from public.bank_question_revisions r
+    where (r.table_name = 'bank_papers' and r.row_id = p_paper_id)
+       or (r.table_name = 'bank_questions' and r.row_id in (
+             select id from public.bank_questions where paper_id = p_paper_id
+           ))
+    order by r.created_at desc;
+end;
+$function$;
 
 revoke all on function public.admin_paper_history(text) from public, anon, authenticated;
 grant execute on function public.admin_paper_history(text) to authenticated;
@@ -1029,7 +1411,12 @@ grant execute on function public.admin_paper_history(text) to authenticated;
 --     reorder are intentionally NOT auto-undoable here (their `before` is
 --     a compound snapshot, not a single field) -- an admin undoes those by
 --     re-editing manually; the history still shows exactly what happened.
-create or replace function public.admin_undo_revision(p_revision_id bigint)
+--
+--     Optimistic check (fix #6): if the field's CURRENT live value no
+--     longer matches this revision's `after` (i.e. something else changed
+--     it since), refuse unless p_force is passed -- otherwise an undo could
+--     silently clobber a newer, unrelated edit made after this revision.
+create or replace function public.admin_undo_revision(p_revision_id bigint, p_force boolean default false)
 returns void
 language plpgsql
 security definer
@@ -1037,6 +1424,9 @@ set search_path to 'public'
 as $function$
 declare
   v_rev public.bank_question_revisions;
+  v_current_text text;
+  v_current_exists boolean;
+  v_current_published boolean;
 begin
   if not public.is_admin() then
     raise exception 'Not authorized' using errcode = '42501';
@@ -1048,6 +1438,17 @@ begin
 
   if v_rev.action = 'admin_edit' and v_rev.field is not null then
     if v_rev.table_name = 'bank_papers' then
+      execute format('select %I::text from public.bank_papers where id = $1', v_rev.field)
+        into v_current_text using v_rev.row_id;
+    else
+      execute format('select %I::text from public.bank_questions where id = $1', v_rev.field)
+        into v_current_text using v_rev.row_id;
+    end if;
+    if not p_force and v_current_text is distinct from (v_rev.after #>> '{}') then
+      raise exception 'This field has changed since that revision -- pass p_force to undo anyway' using errcode = '40001';
+    end if;
+
+    if v_rev.table_name = 'bank_papers' then
       execute format('update public.bank_papers set %I = $1 where id = $2', v_rev.field)
         using (v_rev.before #>> '{}'), v_rev.row_id;
     else
@@ -1055,10 +1456,20 @@ begin
         using (v_rev.before #>> '{}'), v_rev.row_id;
     end if;
   elsif v_rev.action = 'admin_delete' and v_rev.table_name = 'bank_questions' then
+    select exists(select 1 from public.bank_questions where id = v_rev.row_id) into v_current_exists;
+    if v_current_exists and not p_force then
+      raise exception 'A question with this id already exists -- pass p_force to overwrite' using errcode = '40001';
+    end if;
+    if v_current_exists then
+      delete from public.bank_questions where id = v_rev.row_id;
+    end if;
     insert into public.bank_questions
-      select * from jsonb_populate_record(null::public.bank_questions, v_rev.before)
-    on conflict (id) do nothing;
+      select * from jsonb_populate_record(null::public.bank_questions, v_rev.before);
   elsif v_rev.action in ('admin_hide', 'admin_restore') and v_rev.table_name = 'bank_papers' then
+    select is_published into v_current_published from public.bank_papers where id = v_rev.row_id;
+    if not p_force and v_current_published is distinct from (v_rev.after #>> '{}')::boolean then
+      raise exception 'This paper''s published state has changed since that revision -- pass p_force to undo anyway' using errcode = '40001';
+    end if;
     update public.bank_papers set is_published = (v_rev.before #>> '{}')::boolean where id = v_rev.row_id;
   else
     raise exception 'This revision type cannot be auto-undone; edit the paper directly instead.';
@@ -1070,8 +1481,8 @@ begin
 end;
 $function$;
 
-revoke all on function public.admin_undo_revision(bigint) from public, anon, authenticated;
-grant execute on function public.admin_undo_revision(bigint) to authenticated;
+revoke all on function public.admin_undo_revision(bigint, boolean) from public, anon, authenticated;
+grant execute on function public.admin_undo_revision(bigint, boolean) to authenticated;
 
 -- 8g. Grant/revoke the checker role.
 create or replace function public.admin_grant_paper_checker(p_user_id uuid)
@@ -1120,53 +1531,102 @@ grant execute on function public.admin_revoke_paper_checker(uuid) to authenticat
 --     simulation harness is the only planned source of ground truth to
 --     compute a real accuracy figure against; see the assumption recorded
 --     in W1's log note).
+-- plpgsql + explicit raise (fix #9), same reasoning as admin_paper_history
+-- above: a non-admin now gets a hard 42501 refusal, not a quietly empty list.
 create or replace function public.admin_list_checkers()
 returns table (
   user_id uuid, email text, active boolean, granted_at timestamptz,
   passed_count bigint, fixed_count bigint, split_count bigint, escalated_count bigint
 )
-language sql
+language plpgsql
 security definer
 stable
 set search_path to 'public'
-as $$
-  select pc.user_id,
-         u.email,
-         pc.active,
-         pc.granted_at,
-         count(*) filter (where l.action = 'checker_pass') as passed_count,
-         count(*) filter (where l.action = 'checker_fix') as fixed_count,
-         count(*) filter (where l.action = 'checker_split') as split_count,
-         count(*) filter (where l.action = 'checker_ask_help') as escalated_count
-  from public.paper_checkers pc
-  join auth.users u on u.id = pc.user_id
-  left join public.audit_review_log l on l.actor_user_id = pc.user_id
-  where public.is_admin()
-  group by pc.user_id, u.email, pc.active, pc.granted_at
-  order by pc.granted_at desc;
-$$;
+as $function$
+begin
+  if not public.is_admin() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  return query
+    select pc.user_id,
+           u.email,
+           pc.active,
+           pc.granted_at,
+           count(*) filter (where l.action = 'checker_pass') as passed_count,
+           count(*) filter (where l.action = 'checker_fix') as fixed_count,
+           count(*) filter (where l.action = 'checker_split') as split_count,
+           count(*) filter (where l.action = 'checker_ask_help') as escalated_count
+    from public.paper_checkers pc
+    join auth.users u on u.id = pc.user_id
+    left join public.audit_review_log l on l.actor_user_id = pc.user_id
+    group by pc.user_id, u.email, pc.active, pc.granted_at
+    order by pc.granted_at desc;
+end;
+$function$;
 
 revoke all on function public.admin_list_checkers() from public, anon, authenticated;
 grant execute on function public.admin_list_checkers() to authenticated;
 
--- 8i. The escalation queue ("Ask for help").
+-- 8h-2. Search Shikshaq accounts by name or email (D32), so granting the
+--     checker permission does not require already knowing a user's uuid.
+--     public.profiles carries both full_name and email directly (checked
+--     live, 2026-09-28) so this needs no auth.users join.
+create or replace function public.admin_search_users(p_query text)
+returns table (user_id uuid, full_name text, email text, role text, is_checker boolean, checker_active boolean)
+language plpgsql
+security definer
+stable
+set search_path to 'public'
+as $function$
+begin
+  if not public.is_admin() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+  if p_query is null or length(trim(p_query)) < 2 then
+    return;
+  end if;
+
+  return query
+    select p.id, p.full_name, p.email, p.role,
+           pc.user_id is not null as is_checker,
+           coalesce(pc.active, false) as checker_active
+    from public.profiles p
+    left join public.paper_checkers pc on pc.user_id = p.id
+    where p.full_name ilike '%' || p_query || '%' or p.email ilike '%' || p_query || '%'
+    order by p.full_name nulls last
+    limit 20;
+end;
+$function$;
+
+revoke all on function public.admin_search_users(text) from public, anon, authenticated;
+grant execute on function public.admin_search_users(text) to authenticated;
+
+-- 8i. The escalation queue ("Ask for help"). plpgsql + explicit raise (fix #9).
 create or replace function public.admin_escalation_queue()
 returns table (
   question_id uuid, paper_id uuid, live_bank_paper_id text, display_number text,
   body text, flag_reasons text[], school text, subject text, cls text, updated_at timestamptz
 )
-language sql
+language plpgsql
 security definer
 stable
 set search_path to 'public'
-as $$
-  select aq.id, aq.paper_id, ap.live_bank_paper_id, aq.display_number, aq.body,
-         aq.flag_reasons, ap.school, ap.subject, ap.class, aq.updated_at
-  from public.audit_questions aq
-  join public.audit_papers ap on ap.id = aq.paper_id
-  where public.is_admin() and aq.review_bucket = 'escalated' and aq.question_passed = false
-  order by aq.updated_at asc;
-$$;
+as $function$
+begin
+  if not public.is_admin() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  return query
+    select aq.id, aq.paper_id, ap.live_bank_paper_id, aq.display_number, aq.body,
+           aq.flag_reasons, ap.school, ap.subject, ap.class, aq.updated_at
+    from public.audit_questions aq
+    join public.audit_papers ap on ap.id = aq.paper_id
+    where aq.review_bucket = 'escalated' and aq.question_passed = false
+    order by aq.updated_at asc;
+end;
+$function$;
 
 revoke all on function public.admin_escalation_queue() from public, anon, authenticated;
 grant execute on function public.admin_escalation_queue() to authenticated;
@@ -1220,30 +1680,37 @@ grant execute on function public.admin_resolve_escalation(uuid, text, text, nume
 --     is any live_copy paper with paper_passed=true and no escalated
 --     questions left -- computed client-side from this + the escalation
 --     queue rather than a fifth SQL branch, to keep one function simple.)
+-- plpgsql + explicit raise (fix #9).
 create or replace function public.admin_paper_queue()
 returns table (
   paper_id text, title text, school text, subject text, cls text, board text, year text,
   needs_review boolean, is_published boolean, incomplete_note text,
   audit_paper_id uuid, escalated_count bigint, total_questions bigint, passed_questions bigint
 )
-language sql
+language plpgsql
 security definer
 stable
 set search_path to 'public'
-as $$
-  select bp.id, bp.school || ' ' || bp.subject as title, bp.school, bp.subject, bp.cls, bp.board, bp.year,
-         bp.needs_review, bp.is_published, bp.incomplete_note,
-         ap.id as audit_paper_id,
-         count(aq.*) filter (where aq.review_bucket = 'escalated' and aq.question_passed = false) as escalated_count,
-         count(aq.*) filter (where aq.kind = 'question') as total_questions,
-         count(aq.*) filter (where aq.kind = 'question' and aq.question_passed) as passed_questions
-  from public.bank_papers bp
-  left join public.audit_papers ap on ap.live_bank_paper_id = bp.id and ap.source = 'live_copy'
-  left join public.audit_questions aq on aq.paper_id = ap.id
-  where public.is_admin()
-  group by bp.id, ap.id
-  order by bp.needs_review desc, bp.id;
-$$;
+as $function$
+begin
+  if not public.is_admin() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  return query
+    select bp.id, bp.school || ' ' || bp.subject as title, bp.school, bp.subject, bp.cls, bp.board, bp.year,
+           bp.needs_review, bp.is_published, bp.incomplete_note,
+           ap.id as audit_paper_id,
+           count(aq.*) filter (where aq.review_bucket = 'escalated' and aq.question_passed = false) as escalated_count,
+           count(aq.*) filter (where aq.kind = 'question') as total_questions,
+           count(aq.*) filter (where aq.kind = 'question' and aq.question_passed) as passed_questions
+    from public.bank_papers bp
+    left join public.audit_papers ap on ap.live_bank_paper_id = bp.id and ap.source = 'live_copy'
+    left join public.audit_questions aq on aq.paper_id = ap.id
+    group by bp.id, ap.id
+    order by bp.needs_review desc, bp.id;
+end;
+$function$;
 
 revoke all on function public.admin_paper_queue() from public, anon, authenticated;
 grant execute on function public.admin_paper_queue() to authenticated;
@@ -1251,10 +1718,13 @@ grant execute on function public.admin_paper_queue() to authenticated;
 commit;
 
 -- ============================================================
--- Audit query (CLAUDE.md's exact recipe). Every function this migration
--- created must show EXECUTE granted only to a role that is either
+-- Audit query (CLAUDE.md's exact recipe), re-run after the orchestrator's
+-- fix-list review to cover every function this migration now creates.
+-- Every one must show EXECUTE granted only to a role that is either
 -- 'authenticated' (function checks caller internally) or nothing at all
--- for the two chokepoint helpers, which are trigger-only:
+-- for the three internal-only helpers (checker_authorize_question is a
+-- shared helper called only from other SECURITY DEFINER functions, same
+-- shape as the two chokepoint functions):
 --
 --   select p.proname, p.prosecdef,
 --          case when p.proacl is null then 'DEFAULT (execute to public)'
@@ -1263,26 +1733,58 @@ commit;
 --   where n.nspname = 'public' and p.prokind = 'f'
 --     and p.proname in (
 --       'is_paper_checker', 'apply_live_copy_paper_to_live',
---       'trg_apply_live_copy_paper_to_live', 'checker_next_question',
---       'checker_pass_question', 'checker_fix_question',
---       'checker_split_question', 'checker_ask_for_help',
---       'checker_checked_today_count', 'admin_edit_bank_paper',
+--       'trg_apply_live_copy_paper_to_live', 'checker_authorize_question',
+--       'checker_next_question', 'checker_pass_question',
+--       'checker_fix_question', 'checker_split_question',
+--       'checker_ask_for_help', 'checker_skip_question',
+--       'checker_checked_today_count', 'checker_my_stats',
+--       'checker_leaderboard', 'checker_set_preferences',
+--       'checker_get_preferences', 'admin_edit_bank_paper',
 --       'admin_edit_bank_question', 'admin_merge_bank_questions',
 --       'admin_split_bank_question', 'admin_reorder_bank_questions',
 --       'admin_add_bank_question', 'admin_delete_bank_question',
 --       'admin_set_bank_question_figure', 'admin_hide_bank_paper',
 --       'admin_restore_bank_paper', 'admin_paper_history',
---       'admin_undo_revision', 'admin_grant_paper_checker',
---       'admin_revoke_paper_checker', 'admin_list_checkers',
---       'admin_escalation_queue', 'admin_resolve_escalation', 'admin_paper_queue',
---       'bank_paper_questions'
+--       'admin_undo_revision', 'admin_reapply_paper_to_live',
+--       'admin_grant_paper_checker', 'admin_revoke_paper_checker',
+--       'admin_list_checkers', 'admin_search_users',
+--       'admin_escalation_queue', 'admin_resolve_escalation',
+--       'admin_paper_queue', 'bank_paper_questions'
 --     )
 --   order by p.prosecdef desc, p.proname;
 --
 -- Expected: proacl shows exactly `={}` (revoked from PUBLIC) plus
--- `authenticated=X` for every function except apply_live_copy_paper_to_live
--- and trg_apply_live_copy_paper_to_live, which should show NO grant to
--- authenticated at all (trigger/internal-only), and bank_paper_questions,
--- which additionally grants to anon (the public reader gate). A NULL
--- proacl anywhere in this list means the revoke/grant block for that
--- function was skipped -- re-run this migration.
+-- `authenticated=X` for every function EXCEPT these three, which must show
+-- NO grant to authenticated (or any role) at all -- internal-only, reached
+-- only from inside another SECURITY DEFINER function in this same
+-- migration, which runs as the function owner regardless of grants:
+--   apply_live_copy_paper_to_live, trg_apply_live_copy_paper_to_live,
+--   checker_authorize_question
+-- ...and bank_paper_questions, which additionally grants to anon (the
+-- public reader gate; every other function in the list grants to
+-- authenticated only, never anon). A NULL proacl anywhere in this list
+-- means the revoke/grant block for that function was skipped -- re-run
+-- this migration.
+--
+-- Run live, read-only, 2026-09-28 (project uvtifolnsneitetzohtn, before
+-- this fix-list revision existed -- kept here as the confirmed baseline for
+-- objects this migration REPLACES, not for the new ones it adds):
+--   select p.proacl from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+--   where n.nspname='public' and p.proname='bank_paper_questions';
+--   -> {postgres=X/postgres,service_role=X/postgres,anon=X/postgres,authenticated=X/postgres}
+-- i.e. PUBLIC already had no entry (previously revoked) and anon/
+-- authenticated were both already explicitly granted -- this migration's
+-- revoke/grant block reproduces that state after the DROP+CREATE above,
+-- it does not change it.
+--
+-- MEDIUM fix #8 (widen bank_questions.marks to numeric): checked live,
+-- read-only, same session -- `bank_questions.marks` and `bank_papers.marks`
+-- are ALREADY `numeric` (confirmed via information_schema.columns), not
+-- `integer` as the committed schema migration
+-- (20260829180149_bank_papers_and_questions.sql) declares. That migration
+-- has drifted from live before this workstream touched anything. No ALTER
+-- COLUMN TYPE is included here: running one on an already-numeric column
+-- would force a full-table rewrite of bank_questions (44,726 rows) for zero
+-- schema change, which is a real lock/IO cost with no benefit. If the
+-- orchestrator's own inspection shows a different live type by the time
+-- this is applied, re-check with the query above before applying an ALTER.
