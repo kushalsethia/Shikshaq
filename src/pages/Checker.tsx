@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { MathText } from '@/components/papers/math-text';
+import { BodyEditor } from '@/components/checker/BodyEditor';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { cn } from '@/lib/utils';
 import { realCheckerApi, type CheckerApi } from '@/lib/checker-api';
@@ -720,13 +721,7 @@ export function CheckerPage({
                     <p className="text-[13px] font-semibold text-foreground">{FIX_RULE_TITLE}</p>
                     <p className="text-[13px] leading-snug text-warm-secondary">{FIX_RULE_NOTE}</p>
                   </div>
-                  <textarea
-                    value={bodyDraft}
-                    onChange={(e) => setBodyDraft(e.target.value)}
-                    rows={8}
-                    aria-label="The question's words"
-                    className="w-full rounded-2xl bg-muted p-3 text-[16px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                  />
+                  <BodyEditor value={bodyDraft} onChange={setBodyDraft} disabled={submitting} />
                   {showBigEditWarning ? (
                     <p role="status" className="mt-1 text-[13px] leading-snug text-destructive">
                       {BIG_EDIT_WARNING}

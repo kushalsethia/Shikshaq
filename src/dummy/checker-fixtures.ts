@@ -163,6 +163,48 @@ export function dummyQuestions(): CheckerQuestion[] {
       flag_detail: JSON.stringify({ ocr_fused: "shares one un-splittable OCR block in fused_group 'grpA'" }),
       source: { snippet_object: 'dummy/q-split.png' },
     }),
+    // The four rows below exist to preview the visual maths editor
+    // (Fix it -> tap a formula) against the shapes it must handle: the
+    // owner's own example (a fraction equation), a quadratic, chemistry
+    // (\ce{}), and a matrix. Each starts unflagged so "Fix it" is one tap
+    // away without first working through the flagged-question fixtures
+    // above -- none of this text is copied from a real paper.
+    q({
+      id: 'd0000009-0000-4000-8000-000000000009',
+      ord: 15,
+      display_number: '15',
+      marks: 3,
+      body: '15. Solve and verify your answer: $$\\frac{2x}{3} + 6 = -4 + \\frac{x}{9}$$',
+      flag_reasons: [],
+      source: { snippet_object: 'dummy/q-quadratic.png' },
+    }),
+    q({
+      id: 'd0000010-0000-4000-8000-000000000010',
+      ord: 16,
+      display_number: '16',
+      marks: 3,
+      body: 'Solve for $x$: $$2x^2 - 7x + 3 = 0$$',
+      flag_reasons: [],
+      source: { snippet_object: 'dummy/q-quadratic.png' },
+    }),
+    q({
+      id: 'd0000011-0000-4000-8000-000000000011',
+      ord: 17,
+      subject: 'Chemistry',
+      display_number: '17',
+      marks: 2,
+      body: 'Balance the equation $\\ce{2H2 + O2 -> 2H2O}$ and name the type of reaction.',
+      flag_reasons: [],
+    }),
+    q({
+      id: 'd0000012-0000-4000-8000-000000000012',
+      ord: 18,
+      display_number: '18',
+      marks: 4,
+      body:
+        'Find the inverse of the matrix $$A = \\begin{bmatrix} 1 & 2 \\\\ 3 & 4 \\end{bmatrix}$$ and verify that $AA^{-1} = I$.',
+      flag_reasons: [],
+    }),
   ];
 }
 
