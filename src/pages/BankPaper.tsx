@@ -21,7 +21,11 @@ import { displaySchool } from '@/lib/school-display';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
-import { resolveDisplayNumber, showPaperExtras, showIncompleteNote, showQuestionInstructions, marksShownInText as marksInText } from '@/lib/bank-paper-display';
+import {
+  resolveDisplayNumber, showPaperExtras, showIncompleteNote, showQuestionInstructions,
+  marksShownInText as marksInText, showSuggestedTime, sectionHeadings, alternativeRuns,
+  alternativeFollowerIds, subPartsOf, topLevelIds,
+} from '@/lib/bank-paper-display';
 import { displayBodyWithoutDuplicateNumber } from '@/lib/checker-body';
 
 /** The teachers route for a bank paper's subject, or the filtered browse
@@ -298,6 +302,67 @@ export default function BankPaper() {
     [questions, chapter, needle],
   );
 
+  /* D77: layout for the pipeline's structural fields -- a printed section
+     heading ("Section A"), OR-alternatives ("Answer Q7 OR Q8") and sub-parts
+     ("5" -> "5(a)", "5(b)"). Derived from `visible` (the already
+     chapter/search-filtered list), not the raw `questions`, so a filter never
+     shows a heading or an OR pair whose other half it just hid -- each of
+     these three helpers is a pure, order-preserving pass and none of them
+     re-sort, so they compose safely with that filter. Most papers have none
+     of the three fields set; every one of these is empty for such a paper and
+     the render below falls straight back to today's flat list. */
+  const sectionHeadingsMap = useMemo(
+    () => sectionHeadings(visible.map((row) => ({ i: row.i, sec: row.sec }))),
+    [visible],
+  );
+  const altRuns = useMemo(
+    () => alternativeRuns(visible.map((row) => ({ i: row.i, ag: row.ag }))),
+    [visible],
+  );
+  const altFollowers = useMemo(() => alternativeFollowerIds(altRuns), [altRuns]);
+  const childrenOf = useMemo(
+    () => subPartsOf(visible.map((row) => ({ i: row.i, pid: row.pid }))),
+    [visible],
+  );
+  const topIds = useMemo(
+    () => new Set(topLevelIds(visible.map((row) => ({ i: row.i, pid: row.pid })))),
+    [visible],
+  );
+  const byId = useMemo(() => new Map(visible.map((row) => [row.i, row])), [visible]);
+
+  type RenderNode =
+    | { kind: 'heading'; key: string; label: string }
+    | { kind: 'or'; key: string }
+    | { kind: 'card'; key: string; row: BankQuestion; depth: number };
+
+  const renderNodes = useMemo(() => {
+    const nodes: RenderNode[] = [];
+    const pushWithChildren = (row: BankQuestion, depth: number) => {
+      nodes.push({ kind: 'card', key: row.i, row, depth });
+      for (const childId of childrenOf.get(row.i) ?? []) {
+        const child = byId.get(childId);
+        if (child) pushWithChildren(child, depth + 1);
+      }
+    };
+    for (const row of visible) {
+      if (!topIds.has(row.i) || altFollowers.has(row.i)) continue; // rendered elsewhere
+      const heading = sectionHeadingsMap.get(row.i);
+      if (heading) nodes.push({ kind: 'heading', key: `sec-${row.i}`, label: heading });
+
+      const run = altRuns.get(row.i);
+      if (run) {
+        run.forEach((id, idx) => {
+          if (idx > 0) nodes.push({ kind: 'or', key: `or-${row.i}-${idx}` });
+          const member = byId.get(id);
+          if (member) pushWithChildren(member, 0);
+        });
+      } else {
+        pushWithChildren(row, 0);
+      }
+    }
+    return nodes;
+  }, [visible, topIds, altFollowers, sectionHeadingsMap, altRuns, childrenOf, byId]);
+
   /* The source splits a multi-part printed question ("1. a) ... b) ... c) ...")
      into one row per part, but every part carries the SAME printed number —
      the badge showed "1","1","1","2","2","2"... which reads as duplicated/
@@ -411,7 +476,7 @@ export default function BankPaper() {
      ramped a CSS blur across the gated tail; under the real gate those rows
      are never sent, so every card this renders is one the reader is entitled
      to and there is nothing left to soften. */
-  const questionCard = (row: BankQuestion) => {
+  const questionCard = (row: BankQuestion, depth = 0) => {
     /* D66: the printed display_number, when the checker/admin has recorded
        one, wins over the client-derived a/b/c run lettering below -- it is a
        real fact about how the paper was numbered, not a guess from repeated
@@ -423,7 +488,15 @@ export default function BankPaper() {
     <li
       key={row.i}
       id={`q-${row.i}`}
-      className="min-w-0 animate-card-blur-in rounded-[18px] bg-muted p-[16px] motion-reduce:animate-none"
+      /* D77: a sub-part ("5(a)") nests under its parent with an indent and a
+         rule down its left edge, the same visual language paper-edit.tsx
+         already uses for the checker's own nesting. depth is 0 for every
+         top-level question, so this never changes today's layout for a
+         paper with no parent_question_id at all. */
+      style={depth > 0 ? { marginLeft: `${Math.min(depth, 3) * 16}px` } : undefined}
+      className={`min-w-0 animate-card-blur-in rounded-[18px] bg-muted p-[16px] motion-reduce:animate-none${
+        depth > 0 ? ' border-l-2 border-border pl-3' : ''
+      }`}
     >
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         {(() => {
@@ -447,6 +520,22 @@ export default function BankPaper() {
         {row.c && (
           <span className="rounded-full bg-brand-blue-subtle px-2 py-0.5 text-[12px] font-semibold text-brand-blue-deep">
             {row.c}
+          </span>
+        )}
+        {/* D77: how long the pipeline suggests spending on THIS question --
+            distinct from the paper's own allowed-time header. Most questions
+            carry none, so this is gated the same way the marks pill is. */}
+        {showSuggestedTime(row.stm) && (
+          <span className="rounded-full bg-card px-2 py-0.5 text-[12px] font-semibold tabular-nums text-warm-secondary shadow-border">
+            {row.stm} min
+          </span>
+        )}
+        {/* D77: the printed label for this row's own place in an OR-group
+            ("Either", a repeated question number) -- the "OR" divider between
+            cards (below) is presentation; this is the paper's own word. */}
+        {row.al && (
+          <span className="rounded-full bg-brand-subtle px-2 py-0.5 text-[12px] font-semibold text-brand-deep">
+            {row.al}
           </span>
         )}
 
@@ -813,7 +902,34 @@ export default function BankPaper() {
                is not a way around the gate. Selection is off here and nowhere
                else on the page -- see paperLockClass. */
             <ol data-paper-locked data-protected className={`grid grid-cols-1 gap-3 stagger-children ${paperLockClass}`}>
-              {visible.map((row) => questionCard(row))}
+              {renderNodes.map((node) => {
+                if (node.kind === 'heading') {
+                  /* D77: a printed section heading ("Section A"), shown once
+                     above the first question of a run that carries it -- never
+                     repeated per row, never shown for a paper with no
+                     section_label at all. */
+                  return (
+                    <li key={node.key} className="mt-1 px-0.5 first:mt-0">
+                      <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-warm-label">
+                        {node.label}
+                      </h3>
+                    </li>
+                  );
+                }
+                if (node.kind === 'or') {
+                  /* D77: the divider between OR-alternatives -- presentation
+                     only, so it is hidden from assistive tech; the alt-group
+                     label chip on each card (above) carries the actual words. */
+                  return (
+                    <li key={node.key} aria-hidden="true" className="flex items-center gap-2 py-0.5">
+                      <span className="h-px flex-1 bg-border" />
+                      <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-warm-label">OR</span>
+                      <span className="h-px flex-1 bg-border" />
+                    </li>
+                  );
+                }
+                return questionCard(node.row, node.depth);
+              })}
             </ol>
           )}
 

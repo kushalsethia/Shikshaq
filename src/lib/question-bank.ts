@@ -44,6 +44,22 @@ export interface BankQuestion {
   /** D66: question-level instructions ("Answer any three of the following"),
    *  as distinct from the paper-level general_instructions on BankPaper. */
   instr?: string | null;
+  /** How many minutes this ONE question is suggested to take -- distinct from
+   *  the paper-level allowed_time_minutes. Most questions carry none. */
+  stm?: number | null;
+  /** A printed heading above a run of questions ("Section A"). Rendered once,
+   *  when it differs from the previous question's, never repeated per row. */
+  sec?: string | null;
+  /** Rows sharing the same non-null value are OR-choices of each other
+   *  ("Answer Q7 OR Q8"). Grouping key only -- never shown to the reader. */
+  ag?: string | null;
+  /** The printed label for this row within its alternative group ("OR",
+   *  "Either", a repeated number) -- distinct from `ag`, which is the key. */
+  al?: string | null;
+  /** The id of the question this row is a printed sub-part of, when the
+   *  source numbered it as one ("5" -> "5(a)", "5(b)"). Null for a top-level
+   *  question or when no parent was recorded. */
+  pid?: string | null;
 }
 
 export interface BankPaper {
@@ -290,6 +306,13 @@ export function loadPaperQuestions(paperId: string, signedIn = false): Promise<B
           o: r.options ?? undefined,
           dn: r.display_number ?? null,
           instr: r.instructions ?? null,
+          stm: r.suggested_time_minutes === null || r.suggested_time_minutes === undefined
+            ? null
+            : Number(r.suggested_time_minutes),
+          sec: r.section_label ?? null,
+          ag: r.alternative_group ?? null,
+          al: r.alternative_label ?? null,
+          pid: r.parent_question_id ?? null,
         }),
       );
     })
