@@ -33,9 +33,7 @@ import {
 import {
   planCheckerPicture,
   pictureHeading,
-  PICTURE_MAY_BE_WRONG,
   PICTURE_MAY_MISS_PARTS,
-  SHOW_PICTURE_LABEL,
   type PicturePlan,
 } from '@/lib/checker-pictures';
 import { matchCheckerKeyboardEvent } from '@/lib/checker-shortcuts';
@@ -156,14 +154,11 @@ export default function Checker() {
   // The one picture of the printed paper (checker-pictures.ts): the whole
   // question's crop for a sub-part when there is one, else the parent's,
   // else the question's own. Null plan = no crop, so no signed URL is asked
-  // for. A doubtful crop (align_score below 0.6) starts hidden behind a
-  // warning and is only signed when the checker taps to see it.
+  // for. A doubtful crop (align_score below 0.6) is shown straight away with
+  // a warning above it (owner, 2026-09-28: no tap-to-show button).
   const picturePlan: PicturePlan | null =
     question && !contextQuery.isLoading ? planCheckerPicture(question, context) : null;
   const picturePlanKey = question && !contextQuery.isLoading ? `${question.id}|${picturePlan?.path ?? ''}` : '';
-  // Which plan the checker tapped open; a new question never inherits it.
-  const [revealedKey, setRevealedKey] = useState('');
-  const pictureRevealed = revealedKey !== '' && revealedKey === picturePlanKey;
   // undefined = still looking, null = none (or it failed to load).
   const [pictureUrl, setPictureUrl] = useState<string | null | undefined>(undefined);
   useEffect(() => {
@@ -173,7 +168,6 @@ export default function Checker() {
       setPictureUrl(null);
       return;
     }
-    if (picturePlan.doubtful && !pictureRevealed) return;
     let cancelled = false;
     checkerPictureUrl(picturePlan.path).then((url) => {
       if (!cancelled) setPictureUrl(url);
@@ -183,8 +177,7 @@ export default function Checker() {
     };
     // `picturePlan` is derived from picturePlanKey (a new object every render).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picturePlanKey, pictureRevealed]);
-  const pictureHidden = Boolean(picturePlan?.doubtful && !pictureRevealed);
+  }, [picturePlanKey]);
   const flags = question ? describeFlags(question.flag_reasons, question.flag_detail) : { lines: [], note: null };
   // W14: English questions carry their passage and set text in `source`.
   const english = question ? englishContext(question.source) : null;
@@ -438,32 +431,21 @@ export default function Checker() {
             {/* Left: the printed page snippet */}
             <div className="flex flex-col">
               <p className="mb-1 text-[12px] text-warm-meta">{pictureHeading(pictureUrl ? picturePlan : null)}</p>
-              {picturePlan?.doubtful && pictureUrl !== null ? (
-                <p role="note" className="mb-2 rounded-2xl bg-brand-subtle px-3 py-2 text-[13px] leading-snug text-foreground">
-                  {PICTURE_MAY_BE_WRONG}
-                </p>
-              ) : null}
-              {picturePlan?.mayMissParts && !pictureHidden && pictureUrl ? (
+              {picturePlan?.mayMissParts && pictureUrl ? (
                 <p className="mb-2 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
               ) : null}
-              <div className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-muted lg:max-h-[60vh]">
-                {pictureHidden ? (
-                  <button
-                    type="button"
-                    onClick={() => setRevealedKey(picturePlanKey)}
-                    className="tap-44 m-4 self-center rounded-full bg-card px-5 py-3 text-[14px] font-semibold text-foreground"
-                  >
-                    {SHOW_PICTURE_LABEL}
-                  </button>
-                ) : pictureUrl === undefined ? (
+              <div className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-white p-2 lg:max-h-[60vh]">
+                {pictureUrl === undefined ? (
                   <p className="p-6 text-center text-[13px] text-warm-meta">Loading the picture...</p>
                 ) : pictureUrl ? (
+                  // Natural size, never stretched past it: a small crop blown
+                  // up to the panel width turned into a few giant blurry words.
                   <img
                     key={pictureUrl}
                     src={pictureUrl}
                     alt={picturePlan && picturePlan.kind !== 'own' ? 'the printed whole question' : 'the printed question'}
                     onError={() => setPictureUrl(null)}
-                    className="w-full object-contain"
+                    className="mx-auto block h-auto max-w-full shrink-0"
                   />
                 ) : (
                   // D65 + W11: no crop exists for this question, or it failed
