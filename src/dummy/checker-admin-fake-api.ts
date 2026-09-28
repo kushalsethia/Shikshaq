@@ -52,7 +52,7 @@ export function createFakeCheckerAdminApi(): CheckerAdminApi & { reset: () => vo
       // so the preview can show that path without a real Supabase lookup.
       if (trimmed.startsWith('nobody')) throw new Error('No account found for that email');
       const newRow: CheckerAdminRow = {
-        user_id: `d2${Math.random().toString(16).slice(2, 10)}-0000-4000-8000-000000000000`,
+        user_id: crypto.randomUUID(),
         email: trimmed,
         full_name: null,
         added_at: new Date().toISOString(),
