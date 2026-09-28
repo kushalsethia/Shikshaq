@@ -29,7 +29,9 @@ export interface CheckerQuestion {
   instructions: string | null;
   flag_reasons: string[];
   flag_detail: string | null;
-  source: { page?: number; bbox?: number[]; dpi?: number; snippet_path?: string } | null;
+  /* W14: English rows also carry `pipeline`, `role`, `stimulus`, `set_text`
+     (read through englishContext() in checker-english.ts). */
+  source: ({ page?: number; bbox?: number[]; dpi?: number; snippet_path?: string } & Record<string, unknown>) | null;
   subject: string | null;
   school: string | null;
   cls: string | null;

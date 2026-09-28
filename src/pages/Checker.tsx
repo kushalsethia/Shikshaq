@@ -23,6 +23,7 @@ import {
   checkerQuestionContext,
 } from '@/lib/checker-api';
 import { describeFlags, needsSplit, NO_PICTURE_TITLE, NO_PICTURE_NOTE } from '@/lib/checker-kid-reasons';
+import { englishContext, passageHeading } from '@/lib/checker-english';
 import {
   assembleQuestionContext,
   contextHeading,
@@ -170,6 +171,8 @@ export default function Checker() {
   }, [question?.id, contextPending, contextKey]);
   const visiblePictures = (pictures ?? []).filter((u) => !failedPictures.includes(u));
   const flags = question ? describeFlags(question.flag_reasons, question.flag_detail) : { lines: [], note: null };
+  // W14: English questions carry their passage and set text in `source`.
+  const english = question ? englishContext(question.source) : null;
 
   const [mode, setMode] = useState<Mode>('check');
   const [bodyDraft, setBodyDraft] = useState('');
@@ -474,6 +477,21 @@ export default function Checker() {
               )}
 
               {context ? <WholeQuestion context={context} /> : null}
+
+              {/* W14: the passage an English question is about. On the
+                  website it sits right above the question, so the checker
+                  reads the question against it here too. */}
+              {english?.passage ? (
+                <div className="mb-2 rounded-2xl bg-muted px-4 py-3">
+                  <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
+                  <div className="max-h-[40vh] overflow-y-auto">
+                    <MathText text={english.passage.text} className="text-[14px] leading-relaxed text-foreground" />
+                  </div>
+                </div>
+              ) : null}
+              {english?.setText ? (
+                <p className="mb-2 text-[12px] text-warm-secondary">From: {english.setText}</p>
+              ) : null}
 
               {question.instructions ? (
                 <div className="mb-2 rounded-2xl bg-muted px-4 py-2">

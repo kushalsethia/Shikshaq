@@ -45,6 +45,34 @@ export const KID_SENTENCE: Record<string, string> = {
   ocr_fused: 'A few questions got stuck together. Split them.',
   figure_text_mixed: 'This may be a picture, real words, or both. Check against the paper.',
   other: 'Something else looked wrong. Read the note below.',
+
+  // W14, English (no pictures; UnlimitedOCR/auditor/pipeline/english_release.py
+  // GATE_SENTENCE holds the same words, keep them in sync by hand). A hidden
+  // question carries `hidden_on_site` plus one `gate_*` code per reason the
+  // owner's release gate hid it for.
+  hidden_on_site: 'This question is not on the website yet: an automatic check held it back. If it reads correctly and makes sense, press Pass and it goes live.',
+  rescue_ai_doubt: 'The computer checks think this question has a problem, so it stays off the website for now.',
+  gate_not_ready: 'An earlier check marked this question as not ready. Read it carefully.',
+  gate_paper: 'Answer lines were found somewhere in this paper. Make sure no answer is typed into this question or its passage.',
+  gate_flags: 'An earlier check put a warning on this question. Read it carefully.',
+  gate_detect: 'This question may be cut off, or two questions may be stuck together.',
+  gate_text: 'The words may be broken or jumbled. Check it reads cleanly from start to end.',
+  gate_source: 'Some text printed right after this question may be missing from it. Check nothing is cut off at the end.',
+  gate_source_before: 'Some text printed just above this question may be missing, like the instruction or a word box. Check it makes sense on its own.',
+  gate_source_extract: 'The paper had an extract heading here, but no extract is attached. Check the question makes sense without it.',
+  gate_work: 'We are not sure which book, poem or play this is from. You do not need to fix that, just check the question reads right.',
+  gate_extract: 'The extract (the lines from the book) may be missing or messy. Check the passage shown is clean and complete.',
+  gate_reference: "This question says 'he', 'this person' or 'the poem' without saying who or which. Check a student could still tell what it means.",
+  gate_labels: 'It may be filed as the wrong kind of question. You do not need to fix that, just check it reads right.',
+  gate_type_marks: 'The marks may not fit this kind of question. Check the marks.',
+  gate_mcq: 'The answer options may be missing or mixed up. Check every option is there.',
+  gate_instruction: "The instruction may be missing (like 'Fill in the blanks'), or this may be only an instruction with no question.",
+  gate_format: 'This may need underlining, bold or a blank line that got lost. Check the question still works without it.',
+  gate_merged: 'Several separate questions may be stuck together in this one.',
+  gate_needs_context: 'This question refers to a passage, box or table. Check it is shown and the question makes sense with it.',
+  gate_passage: 'The passage may be missing or messy. Check the passage shown is clean and complete.',
+  gate_prompt_input: 'This writing task refers to a notice or input (like a letter or chart). Check that input is included.',
+  gate_out_of_scope: 'This kind of question was not covered by the automatic checks. Read it carefully.',
 };
 
 /** `some_future_code` -> "Some future code". Never returns the raw code. */
