@@ -1,16 +1,20 @@
-import { memo, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Fragment, memo, useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Clock, FileText, Pencil } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState, adminToast, adminPrimaryBtnStyle, adminSecondaryBtnStyle } from '@/components/AdminConsole';
 import { AdminHeader, buildAdminNav } from '@/pages/admin/shell';
 import { AdminStatusPill } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { MathText } from '@/components/papers/math-text';
 import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { kidSentence } from '@/lib/checker-kid-reasons';
+import { displaySchool } from '@/lib/school-display';
+import { bankSubjectToSite } from '@/lib/subject-vocabulary';
+import { resolveDisplayNumber, showQuestionInstructions, marksShownInText } from '@/lib/bank-paper-display';
+import { passageHeading } from '@/lib/checker-english';
+import { isDoubtfulCrop } from '@/lib/checker-pictures';
 import {
   adminPaperDraft,
   adminSaveDraftQuestion,
@@ -25,7 +29,6 @@ import {
   autosaveReducer,
   initialAutosave,
   hasEditsBeyondSave,
-  hasUnsavedWork,
   saveStatusLabel,
   parseMarks,
   numberForSave,
@@ -34,28 +37,37 @@ import {
   verifyConfirmLines,
   verifyResultHeadline,
   depthMap,
-  PAPER_DETAIL_FIELDS,
   paperDetailValue,
+  detailError,
+  adminFlagLines,
+  looksLikeRewrite,
+  passagesBefore,
+  sourcePdfLine,
+  OCR_ONLY_REMINDER,
+  BIG_EDIT_WARNING,
   type DraftFields,
   type PaperDetailField,
   type SaveStatus,
 } from '@/lib/paper-edit';
 
-/* Admin paper edit page -- W12. Owner: "paper edit button should open a
-   paper edit page where the paper is loaded and text can be edited and saved
-   automatically and then verify button verifies it all".
+/* Admin paper edit page -- W12, reshaped 2026-09-28.
 
-   Every edit autosaves into the DRAFT (audit_questions, the live paper's
-   working copy) through admin_save_draft_question(). Readers see nothing
-   until Verify: admin_verify_paper() passes every question and flips the
-   draft's paper_passed, which fires the chokepoint that copies the draft onto
-   bank_questions. Nothing on this page writes bank_questions directly; doing
-   so would be overwritten by the older draft on the next flip.
+   Owner: the edit page must LOOK LIKE the public paper page (BankPaper.tsx)
+   while staying editable. So the top is the same exam header (school, class,
+   subject, exam, year, time allowed, general instructions, incomplete note),
+   each part editable where it stands, and every question is the same card
+   the reader sees (number badge, marks pill, instructions, MathText body,
+   options). Edit on a card swaps its text for the editor in place.
 
-   The one exception is "Paper details" (school, year, incomplete note...),
-   which are bank_papers fields with no draft copy. That dialog is the old
-   Edit dialog from the Paper review list, moved here, and it says plainly
-   that it saves straight to the live paper. */
+   Every question edit autosaves into the DRAFT (audit_questions, the live
+   paper's working copy) through admin_save_draft_question(). Readers see
+   nothing until Verify: admin_verify_paper() passes every question and flips
+   the draft's paper_passed, which fires the chokepoint that copies the draft
+   onto bank_questions. Nothing on this page writes bank_questions directly.
+
+   The header fields are bank_papers columns with no draft copy. They save
+   only when Save is pressed, straight to the live paper (History can undo
+   them), and the page says so. */
 
 const AUTOSAVE_MS = 800;
 
@@ -89,11 +101,6 @@ export default function AdminPaperEditPage() {
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyPaperResult | null>(null);
 
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [detailField, setDetailField] = useState<PaperDetailField>('incomplete_note');
-  const [detailValue, setDetailValue] = useState('');
-  const [detailSaving, setDetailSaving] = useState(false);
-
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
@@ -123,6 +130,7 @@ export default function AdminPaperEditPage() {
   const paper = rows[0] ?? null;
   const items = useMemo(() => rows.filter((r): r is QuestionRow => !!r.question_id), [rows]);
   const depths = useMemo(() => depthMap(items.map((r) => ({ id: r.question_id, parent_id: r.parent_id }))), [items]);
+  const passages = useMemo(() => passagesBefore(items), [items]);
   const summary = useMemo(
     () =>
       summarizeForVerify(
@@ -133,6 +141,10 @@ export default function AdminPaperEditPage() {
           flag_reasons: r.flag_reasons,
         })),
       ),
+    [items],
+  );
+  const firstFlaggedId = useMemo(
+    () => items.find((r) => r.kind === 'question' && !r.question_passed)?.question_id ?? null,
     [items],
   );
 
@@ -192,26 +204,23 @@ export default function AdminPaperEditPage() {
     }
   }
 
-  function openDetails() {
-    const field: PaperDetailField = 'incomplete_note';
-    setDetailField(field);
-    setDetailValue(paper ? paperDetailValue(paper, field) : '');
-    setDetailsOpen(true);
-  }
-
-  async function saveDetails() {
-    setDetailSaving(true);
-    try {
-      await adminEditBankPaper(paperId, detailField, detailValue);
-      adminToast('Saved to the live paper');
-      setDetailsOpen(false);
-      await load();
-    } catch {
-      adminToast('Failed to save that field');
-    } finally {
-      setDetailSaving(false);
-    }
-  }
+  // A header field saved straight to the live paper. The page's copy is
+  // patched in place rather than reloaded, so no question editor remounts.
+  const saveDetail = useCallback(
+    async (field: PaperDetailField, value: string): Promise<boolean> => {
+      try {
+        await adminEditBankPaper(paperId, field, value);
+        const stored = field === 'allowed_time_minutes' ? Number(value.trim()) : value;
+        setRows((prev) => prev.map((r) => ({ ...r, [field]: stored })));
+        adminToast('Saved to the live paper');
+        return true;
+      } catch {
+        adminToast('Could not save that. Nothing was changed.');
+        return false;
+      }
+    },
+    [paperId],
+  );
 
   const nav = buildAdminNav('paper-review', {});
 
@@ -257,8 +266,9 @@ export default function AdminPaperEditPage() {
 
         {loading && rows.length === 0 ? (
           <div className="mt-3 animate-pulse space-y-3">
+            <div className="mx-auto h-24 max-w-md rounded-2xl bg-muted" />
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-24 rounded-2xl bg-muted" />
+              <div key={i} className="h-24 rounded-[18px] bg-muted" />
             ))}
           </div>
         ) : loadError ? (
@@ -269,26 +279,43 @@ export default function AdminPaperEditPage() {
         ) : !paper ? (
           <p className="py-10 text-center text-[15px] text-warm-meta">No paper with this id.</p>
         ) : (
-          <>
-            <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h1 className="text-[22px] font-extrabold tracking-[-0.03em] text-foreground">{paper.school || 'Unnamed school'}</h1>
-                <p className="mt-0.5 text-[13px] text-warm-meta">
-                  {[paper.subject, paper.cls ? `Class ${paper.cls}` : null, paper.exam, paper.year].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <AdminStatusPill
-                  status={!paper.is_published ? 'hidden' : paper.needs_review ? 'pending' : 'live'}
-                  label={!paper.is_published ? 'Hidden' : paper.needs_review ? 'Needs review' : 'Live'}
-                />
-                <button onClick={openDetails} className={adminSecondaryBtnStyle}>Paper details</button>
-              </div>
+          <div className="mx-auto max-w-[760px]">
+            {/* Admin strip: state of the paper and of this draft. Kept above
+                the exam header so the header itself reads like the public one. */}
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <AdminStatusPill
+                status={!paper.is_published ? 'hidden' : paper.needs_review ? 'pending' : 'live'}
+                label={!paper.is_published ? 'Hidden' : paper.needs_review ? 'Needs review' : 'Live'}
+              />
+              {hasDraft ? (
+                summary.stillFlagged > 0 ? (
+                  <span className="rounded-full bg-brand-subtle px-2.5 py-1 text-[12px] font-semibold text-brand-deep">
+                    {summary.stillFlagged} of {summary.total} questions need review
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-mint px-2.5 py-1 text-[12px] font-semibold text-foreground">
+                    All {summary.total} questions checked
+                  </span>
+                )
+              ) : null}
+              {firstFlaggedId ? (
+                <a
+                  href={`#q-${firstFlaggedId}`}
+                  className="inline-flex min-h-11 items-center px-1 text-[13px] font-semibold text-brand-blue hover:underline"
+                >
+                  Go to the first one
+                </a>
+              ) : null}
             </div>
-
-            <p className="mt-3 rounded-2xl bg-muted px-4 py-3 text-[13px] leading-relaxed text-warm-secondary">
-              Changes save by themselves into the draft. Readers keep seeing the current paper until you press Verify.
+            <p className="mt-1 flex items-center gap-1.5 text-[13px] text-warm-meta">
+              <FileText size={14} aria-hidden="true" className="shrink-0" />
+              <span className="min-w-0 break-all">{sourcePdfLine(paper.source_pdf)}</span>
             </p>
+            {paper.needs_review ? (
+              <p className="mt-2 text-[13px] leading-relaxed text-warm-secondary">
+                Readers cannot open this paper yet. Verify below puts it live once the questions read right.
+              </p>
+            ) : null}
 
             {verifyResult ? (
               <div
@@ -306,35 +333,67 @@ export default function AdminPaperEditPage() {
               </div>
             ) : null}
 
+            <PaperHeader paper={paper} questionCount={summary.total} onSave={saveDetail} />
+
+            <p className="mb-4 rounded-2xl bg-muted px-4 py-3 text-[13px] leading-relaxed text-warm-secondary">
+              Question changes save by themselves into the draft. Readers keep seeing the current paper until you press Verify.
+            </p>
+
             {!hasDraft ? (
               <p className="py-10 text-center text-[15px] text-warm-meta">
                 This paper has no working copy yet, so there is nothing to edit here.
               </p>
             ) : (
-              <ol className="mt-4 space-y-3">
-                {items.map((r) =>
-                  r.kind === 'question' ? (
-                    <QuestionEditor
-                      key={`${editorEpoch}-${r.question_id}`}
-                      row={r}
-                      depth={depths.get(r.question_id) ?? 0}
-                      snippetUrl={snippets.get(r.question_id) ?? null}
-                      onStatus={onStatus}
-                      onSaved={onSaved}
-                      reloadQuestion={reloadQuestion}
-                    />
-                  ) : (
-                    <li key={r.question_id} className="border-l-2 border-warm-hairline py-2 pl-4">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-warm-meta">
-                        {KIND_LABEL[r.kind ?? ''] ?? r.kind}
-                      </p>
-                      {r.body ? <MathText text={r.body} className="mt-1 text-[14px] leading-relaxed text-warm-secondary" /> : null}
-                    </li>
-                  ),
-                )}
+              <ol className="grid grid-cols-1 gap-3">
+                {items.map((r) => {
+                  const passage = passages.get(r.question_id);
+                  const card =
+                    r.kind === 'question' ? (
+                      <QuestionEditor
+                        key={`${editorEpoch}-${r.question_id}`}
+                        row={r}
+                        depth={depths.get(r.question_id) ?? 0}
+                        snippetUrl={snippets.get(r.question_id) ?? null}
+                        onStatus={onStatus}
+                        onSaved={onSaved}
+                        reloadQuestion={reloadQuestion}
+                      />
+                    ) : (
+                      <li key={r.question_id} className={cn('px-1 py-1', r.kind === 'section_break' && 'text-center')}>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-warm-meta">
+                          {KIND_LABEL[r.kind ?? ''] ?? 'Note on the paper'}
+                        </p>
+                        {r.body ? (
+                          <MathText
+                            text={r.body}
+                            className={cn(
+                              'mt-1 text-[14px] leading-[1.55] text-warm-prose',
+                              r.kind === 'section_break' ? 'font-bold text-foreground' : 'italic',
+                            )}
+                          />
+                        ) : null}
+                      </li>
+                    );
+                  if (!passage) return card;
+                  return (
+                    <Fragment key={`with-passage-${r.question_id}`}>
+                      {/* English passage or extract, once, before the first
+                          question that uses it, as its own card like the
+                          public page's context rows. Text is verbatim. */}
+                      <li className="rounded-[18px] bg-card p-[16px] shadow-border">
+                        <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.03em] text-warm-secondary">
+                          {passageHeading(passage.kind)}
+                          {passage.title ? `: ${passage.title}` : ''}
+                        </p>
+                        <MathText text={passage.text} className="text-[15px] leading-[1.6] text-foreground" />
+                      </li>
+                      {card}
+                    </Fragment>
+                  );
+                })}
               </ol>
             )}
-          </>
+          </div>
         )}
       </BentoPanel>
 
@@ -380,38 +439,183 @@ export default function AdminPaperEditPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={detailsOpen} onOpenChange={(open) => { if (!open) setDetailsOpen(false); }}>
-        <DialogContent aria-describedby={undefined} className="w-full max-w-md rounded-bento bg-card p-6">
-          <DialogTitle className="text-xl font-bold text-foreground">Paper details</DialogTitle>
-          <p className="mt-1.5 text-[13px] text-warm-secondary">
-            These fields have no draft. Saving here changes the live paper straight away, and History can undo it.
-          </p>
-          <label className="mt-3 block text-[13px] font-semibold text-foreground" htmlFor="detail-field">Field</label>
-          <select
-            id="detail-field"
-            value={detailField}
-            onChange={(e) => {
-              const f = e.target.value as PaperDetailField;
-              setDetailField(f);
-              setDetailValue(paper ? paperDetailValue(paper, f) : '');
-            }}
-            className="mt-1 h-11 w-full rounded-xl bg-muted px-3 text-sm"
-          >
-            {PAPER_DETAIL_FIELDS.map((f) => (
-              <option key={f.key} value={f.key}>{f.label}</option>
-            ))}
-          </select>
-          <Textarea value={detailValue} onChange={(e) => setDetailValue(e.target.value)} rows={3} className="mt-3" />
-          <div className="mt-4 flex gap-2">
-            <button onClick={() => void saveDetails()} disabled={detailSaving} className={cn('disabled:opacity-60', adminPrimaryBtnStyle)}>
-              {detailSaving ? 'Saving...' : 'Save'}
-            </button>
-            <button onClick={() => setDetailsOpen(false)} className={adminSecondaryBtnStyle}>Cancel</button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </BentoStack>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The exam header, as BankPaper.tsx draws it, with every part editable.
+
+function PaperHeader({
+  paper,
+  questionCount,
+  onSave,
+}: {
+  paper: DraftRow;
+  questionCount: number;
+  onSave: (field: PaperDetailField, value: string) => Promise<boolean>;
+}) {
+  const v = (f: PaperDetailField) => paperDetailValue(paper, f);
+  return (
+    <div className="my-5 border-b border-border pb-4 text-center">
+      <p className="text-[13px] italic text-muted-foreground">
+        <DetailText field="school" label="School" value={v('school')} onSave={onSave} display={(s) => displaySchool(s)} />
+      </p>
+      <h2 className="mt-1 font-display text-[20px] font-extrabold tracking-[-0.02em] text-foreground sm:text-[23px]">
+        Class <DetailText field="cls" label="Class" value={v('cls')} onSave={onSave} />{' '}
+        <DetailText field="subject" label="Subject" value={v('subject')} onSave={onSave} display={(s) => bankSubjectToSite(s)} />{' '}
+        · <DetailText field="exam" label="Exam" value={v('exam')} onSave={onSave} placeholder="Add exam" />
+      </h2>
+      <p className="mt-0.5 text-[13px] tabular-nums text-muted-foreground">
+        <DetailText field="year" label="Year" value={v('year')} onSave={onSave} placeholder="Add year" />
+      </p>
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[13px] font-semibold tabular-nums text-foreground">
+        <span>{questionCount} question{questionCount === 1 ? '' : 's'}</span>
+      </div>
+      <p className="mt-2 text-[13px] uppercase tracking-[0.04em] text-muted-foreground">Answer all questions</p>
+      <div className="mt-3 flex flex-col items-center gap-1">
+        <p className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+          <Clock size={14} strokeWidth={2.2} aria-hidden="true" />
+          <DetailText
+            field="allowed_time_minutes"
+            label="Time allowed in minutes"
+            value={v('allowed_time_minutes')}
+            onSave={onSave}
+            placeholder="Add time allowed"
+            display={(s) => `${s} minutes allowed`}
+            inputMode="numeric"
+          />
+        </p>
+        <div className="max-w-[48ch] text-[13px] leading-[1.5] text-warm-prose">
+          <DetailText
+            field="general_instructions"
+            label="General instructions"
+            value={v('general_instructions')}
+            onSave={onSave}
+            placeholder="Add general instructions"
+            multiline
+            render={(s) => <MathText text={s} className="text-[13px] leading-[1.5] text-warm-prose" />}
+          />
+        </div>
+      </div>
+      <div className="mt-2 text-[12px] italic leading-[1.5] text-muted-foreground">
+        <DetailText
+          field="incomplete_note"
+          label="Incomplete note"
+          value={v('incomplete_note')}
+          onSave={onSave}
+          placeholder="Add an incomplete note"
+          multiline
+        />
+      </div>
+      <p className="mt-3 text-[12px] text-warm-meta">Header changes go to the live paper as soon as you press Save. History can undo them.</p>
+    </div>
+  );
+}
+
+function DetailText({
+  field,
+  label,
+  value,
+  onSave,
+  placeholder,
+  display,
+  render,
+  multiline,
+  inputMode,
+}: {
+  field: PaperDetailField;
+  label: string;
+  value: string;
+  onSave: (field: PaperDetailField, value: string) => Promise<boolean>;
+  placeholder?: string;
+  display?: (v: string) => string;
+  render?: (v: string) => ReactNode;
+  multiline?: boolean;
+  inputMode?: 'numeric';
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function open() {
+    setDraft(value);
+    setError(null);
+    setEditing(true);
+  }
+
+  async function save() {
+    const problem = detailError(field, draft);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    if (draft === value) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    const ok = await onSave(field, draft);
+    setSaving(false);
+    if (ok) setEditing(false);
+  }
+
+  if (editing) {
+    const common = {
+      value: draft,
+      autoFocus: true,
+      'aria-label': label,
+      onChange: (e: { target: { value: string } }) => {
+        setDraft(e.target.value);
+        setError(null);
+      },
+      onKeyDown: (e: { key: string; preventDefault: () => void }) => {
+        if (e.key === 'Escape') setEditing(false);
+        if (e.key === 'Enter' && !multiline) {
+          e.preventDefault();
+          void save();
+        }
+      },
+      className:
+        'w-full rounded-xl bg-muted px-3 py-2 text-left text-[15px] font-normal not-italic normal-case tracking-normal text-foreground outline-none focus:ring-2 focus:ring-brand',
+    };
+    return (
+      <span className="my-1 inline-flex w-full max-w-md flex-col items-stretch gap-1.5 align-top">
+        {multiline ? <textarea rows={3} {...common} /> : <input inputMode={inputMode} {...common} />}
+        {error ? <span className="text-left text-[13px] font-normal not-italic text-destructive">{error}</span> : null}
+        <span className="flex gap-2">
+          <button type="button" onClick={() => void save()} disabled={saving} className={cn('min-h-11 disabled:opacity-60', adminPrimaryBtnStyle)}>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          <button type="button" onClick={() => setEditing(false)} disabled={saving} className={adminSecondaryBtnStyle}>
+            Cancel
+          </button>
+        </span>
+      </span>
+    );
+  }
+
+  const empty = value.trim() === '';
+  return (
+    <button
+      type="button"
+      onClick={open}
+      aria-label={empty ? placeholder ?? `Add ${label.toLowerCase()}` : `Edit ${label.toLowerCase()}`}
+      className={cn(
+        'group inline-flex min-h-8 max-w-full items-center gap-1 rounded-md px-0.5 text-inherit transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+        empty && 'font-semibold not-italic text-brand-blue',
+      )}
+    >
+      {empty ? (
+        <span>{placeholder ?? `Add ${label.toLowerCase()}`}</span>
+      ) : render ? (
+        render(value)
+      ) : (
+        <span>{display ? display(value) : value}</span>
+      )}
+      <Pencil size={12} aria-hidden="true" className="shrink-0 opacity-40 group-hover:opacity-100" />
+    </button>
   );
 }
 
@@ -430,7 +634,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
   const id = row.question_id;
   const [fields, setFields] = useState(() => toFieldStrings(row));
   const [state, dispatch] = useReducer(autosaveReducer, initialAutosave);
-  const [preview, setPreview] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const [lostText, setLostText] = useState<string | null>(null);
 
@@ -440,6 +644,9 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
   fieldsRef.current = fields;
   const stateRef = useRef(state);
   stateRef.current = state;
+  // D76: the text as it was when the page loaded, what "only a reading fix"
+  // is measured against (not the last save, or small steps would add up).
+  const loadedBodyRef = useRef(row.body ?? '');
 
   useEffect(() => {
     onStatus(id, state.status);
@@ -523,46 +730,49 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
     dispatch({ type: 'edit' });
   }
 
-  const flags = row.flag_reasons ?? [];
   const passed = !!row.question_passed;
   const escalated = row.review_bucket === 'escalated' && !passed;
+  const flagLines = passed ? [] : adminFlagLines(row.flag_reasons, row.flag_detail);
   const statusLabel = saveStatusLabel(state.status);
   const lineCount = fields.body.split('\n').length;
-  const showPicture = !!snippetUrl && !imgFailed;
-  const inputId = `q-${id}`;
+  // Same rule as the checker: a crop that may be of a different question is
+  // never shown next to the text (it invites "fixing" correct words).
+  const showPicture = editing && !!snippetUrl && !imgFailed && !isDoubtfulCrop(row.source as Record<string, unknown> | null);
+  const shownNumber = resolveDisplayNumber(fields.number || null, undefined, row.number_path);
+  const marksValue = parseMarks(fields.marks);
+  const marksNum = marksValue.ok ? marksValue.value : null;
+  const bigEdit = useMemo(() => looksLikeRewrite(loadedBodyRef.current, fields.body), [fields.body]);
+  const textId = `q-text-${id}`;
 
   return (
     <li
-      className="rounded-[24px] bg-muted p-3"
+      id={`q-${id}`}
+      className={cn(
+        'min-w-0 scroll-mt-24 rounded-[18px] bg-muted p-[16px]',
+        !passed && 'ring-2 ring-inset ring-brand',
+      )}
       style={depth > 0 ? { marginLeft: `${Math.min(depth, 3) * 12}px` } : undefined}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1.5 text-[13px] font-semibold text-warm-secondary">
-          No.
-          <input
-            value={fields.number}
-            onChange={(e) => edit({ number: e.target.value })}
-            aria-label="Question number"
-            className="h-11 w-20 rounded-xl bg-card px-2 text-center text-[15px] font-bold text-foreground outline-none focus:ring-2 focus:ring-brand"
-          />
-        </label>
-        <label className="flex items-center gap-1.5 text-[13px] font-semibold text-warm-secondary">
-          Marks
-          <input
-            value={fields.marks}
-            onChange={(e) => edit({ marks: e.target.value })}
-            inputMode="decimal"
-            aria-label="Marks"
-            className="h-11 w-16 rounded-xl bg-card px-2 text-center text-[15px] text-foreground outline-none focus:ring-2 focus:ring-brand"
-          />
-        </label>
+      {/* The public card's meta line: number badge, marks pill. Then this
+          page's own state, pushed right. */}
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        {shownNumber ? (
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-blue px-1.5 text-[12px] font-extrabold tabular-nums text-white">
+            {shownNumber}
+          </span>
+        ) : null}
+        {marksNum !== null && !marksShownInText(marksNum, fields.body) ? (
+          <span className="rounded-full bg-card px-2 py-0.5 text-[12px] font-bold tabular-nums text-foreground shadow-border">
+            {marksNum} {marksNum === 1 ? 'mark' : 'marks'}
+          </span>
+        ) : null}
         <span
           className={cn(
-            'rounded-full px-2.5 py-1 text-[12px] font-semibold',
-            passed ? 'bg-mint text-foreground' : escalated ? 'bg-brand text-foreground' : 'bg-brand-subtle text-foreground',
+            'rounded-full px-2 py-0.5 text-[12px] font-semibold',
+            passed ? 'bg-mint text-foreground' : escalated ? 'bg-brand text-foreground' : 'bg-brand-subtle text-brand-deep',
           )}
         >
-          {passed ? 'Checked' : escalated ? 'Sent for help' : 'Flagged'}
+          {passed ? 'Checked' : escalated ? 'Sent for help' : 'Needs review'}
         </span>
         <span
           aria-live="polite"
@@ -573,95 +783,145 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
         >
           {statusLabel}
         </span>
+        <button
+          type="button"
+          onClick={() => setEditing((v) => !v)}
+          aria-expanded={editing}
+          aria-controls={textId}
+          className="inline-flex min-h-11 items-center gap-1 rounded-full px-3 text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:bg-card hover:text-foreground active:scale-[0.96]"
+        >
+          {editing ? 'Done' : (
+            <>
+              <Pencil size={13} aria-hidden="true" />
+              Edit
+            </>
+          )}
+        </button>
       </div>
 
-      {!passed && flags.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {flags.map((f) => (
-            <span key={f} className="rounded-full bg-card px-2.5 py-1 text-[12px] text-warm-secondary">{kidSentence(f)}</span>
-          ))}
+      {flagLines.length > 0 ? (
+        <div className="mb-2.5 rounded-[12px] bg-brand-subtle px-3 py-2">
+          <p className="text-[12px] font-bold text-brand-deep">Why this needs review</p>
+          <ul className="mt-1 space-y-0.5 text-[13px] leading-[1.45] text-foreground">
+            {flagLines.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
         </div>
       ) : null}
-      {!passed && row.flag_detail ? <p className="mt-1.5 text-[12px] text-warm-meta">{row.flag_detail}</p> : null}
 
-      <div className={cn('mt-3 grid gap-3', showPicture && 'lg:grid-cols-2')}>
-        {showPicture ? (
-          <div className="flex max-h-[40vh] items-center justify-center overflow-hidden rounded-xl bg-card lg:max-h-[60vh]">
-            <img
-              src={snippetUrl as string}
-              alt={`The printed question ${row.display_number ?? ''}`.trim()}
-              loading="lazy"
-              onError={() => setImgFailed(true)}
-              className="h-full w-full object-contain"
-            />
-          </div>
-        ) : null}
+      {showQuestionInstructions(row.instructions) ? (
+        <MathText text={row.instructions as string} className="mb-1.5 text-[13px] italic leading-[1.5] text-warm-secondary" />
+      ) : null}
 
-        <div className="min-w-0">
-          {preview ? (
-            <div className="min-h-[96px] rounded-xl bg-card p-3">
-              <MathText text={fields.body} className="text-[15px] leading-relaxed text-foreground" />
-            </div>
-          ) : (
-            <textarea
-              id={inputId}
-              value={fields.body}
-              onChange={(e) => edit({ body: e.target.value })}
-              rows={Math.min(Math.max(lineCount + 1, 3), 18)}
-              aria-label="Question text"
-              spellCheck={false}
-              className="w-full rounded-xl bg-card p-3 text-[15px] leading-relaxed text-foreground outline-none focus:ring-2 focus:ring-brand"
-            />
-          )}
-          {row.options && row.options.length > 0 ? (
-            <ul className="mt-2 space-y-1 text-[13px] text-warm-secondary">
-              {row.options.map((o, i) => (
-                <li key={i}>
-                  <span className="font-semibold">{o.label ? `(${o.label}) ` : ''}</span>
-                  {o.text}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPreview((v) => !v)}
-              className="min-h-11 rounded-full bg-card px-4 text-[13px] font-semibold text-warm-secondary"
-            >
-              {preview ? 'Edit text' : 'Preview'}
-            </button>
-            {state.status === 'failed' ? (
-              <button
-                type="button"
-                onClick={() => dispatch({ type: 'edit' })}
-                className="min-h-11 rounded-full bg-card px-4 text-[13px] font-semibold text-foreground"
-              >
-                Retry
-              </button>
+      <div id={textId}>
+        {editing ? (
+          <div className={cn('grid gap-3', showPicture && 'lg:grid-cols-2')}>
+            {showPicture ? (
+              <div className="flex max-h-[40vh] items-center justify-center overflow-hidden rounded-[12px] bg-card lg:max-h-[60vh]">
+                <img
+                  src={snippetUrl as string}
+                  alt={`The printed question ${row.display_number ?? ''}`.trim()}
+                  loading="lazy"
+                  onError={() => setImgFailed(true)}
+                  className="h-full w-full object-contain"
+                />
+              </div>
             ) : null}
-            {!snippetUrl || imgFailed ? <span className="text-[12px] text-warm-meta">No picture for this question</span> : null}
-          </div>
-          {state.status === 'failed' && state.error ? <p className="mt-1.5 text-[13px] text-destructive">{state.error}</p> : null}
-          {lostText !== null ? (
-            <div className="mt-2 rounded-xl bg-brand-subtle p-3">
-              <p className="text-[13px] font-semibold text-foreground">
-                Someone else changed this question, so their version is loaded above. Your text was not saved:
-              </p>
+            <div className="min-w-0">
+              <p className="mb-2 text-[12px] leading-[1.45] text-warm-secondary">{OCR_ONLY_REMINDER}</p>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-1.5 text-[13px] font-semibold text-warm-secondary">
+                  No.
+                  <input
+                    value={fields.number}
+                    onChange={(e) => edit({ number: e.target.value })}
+                    aria-label="Question number"
+                    className="h-11 w-20 rounded-xl bg-card px-2 text-center text-[15px] font-bold text-foreground outline-none focus:ring-2 focus:ring-brand"
+                  />
+                </label>
+                <label className="flex items-center gap-1.5 text-[13px] font-semibold text-warm-secondary">
+                  Marks
+                  <input
+                    value={fields.marks}
+                    onChange={(e) => edit({ marks: e.target.value })}
+                    inputMode="decimal"
+                    aria-label="Marks"
+                    className="h-11 w-16 rounded-xl bg-card px-2 text-center text-[15px] text-foreground outline-none focus:ring-2 focus:ring-brand"
+                  />
+                </label>
+              </div>
               <textarea
-                readOnly
-                value={lostText}
-                rows={Math.min(Math.max(lostText.split('\n').length, 2), 8)}
-                aria-label="Your unsaved text"
-                className="mt-2 w-full rounded-xl bg-card p-2 text-[13px] text-foreground"
+                value={fields.body}
+                onChange={(e) => edit({ body: e.target.value })}
+                rows={Math.min(Math.max(lineCount + 1, 3), 18)}
+                aria-label="Question text"
+                spellCheck={false}
+                autoFocus
+                className="w-full rounded-xl bg-card p-3 text-[15px] leading-relaxed text-foreground outline-none focus:ring-2 focus:ring-brand"
               />
-              <button onClick={() => setLostText(null)} className="mt-1 min-h-11 text-[13px] font-semibold text-warm-secondary">
-                Dismiss
-              </button>
+              {bigEdit ? (
+                <p role="status" className="mt-1.5 rounded-[10px] bg-brand-subtle px-3 py-2 text-[13px] font-semibold text-brand-deep">
+                  {BIG_EDIT_WARNING}
+                </p>
+              ) : null}
+              <p className="mt-2 text-[12px] font-semibold text-warm-meta">How readers will see it</p>
+              <div className="mt-1 rounded-[12px] bg-card p-3">
+                <MathText text={fields.body} className="text-[15px] leading-[1.6] text-foreground" />
+              </div>
+              {!showPicture ? (
+                <p className="mt-2 text-[12px] text-warm-meta">No picture of the printed question to compare with.</p>
+              ) : null}
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : (
+          <MathText text={fields.body} className="text-[15px] leading-[1.6] text-foreground" />
+        )}
       </div>
+
+      {row.options && row.options.length > 0 ? (
+        <ul className="mt-2 flex flex-col gap-1">
+          {row.options.map((o, i) => (
+            <li key={`${id}-opt-${i}`} className="flex gap-2">
+              <span aria-hidden="true" className="mt-[9px] h-1 w-1 flex-none rounded-full bg-warm-label" />
+              <MathText
+                text={`${o.label ? `(${o.label}) ` : ''}${o.text ?? ''}`}
+                className="text-[14px] leading-[1.55] text-warm-prose"
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {state.status === 'failed' ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {state.error ? <p className="text-[13px] text-destructive">{state.error}</p> : null}
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'edit' })}
+            className="min-h-11 rounded-full bg-card px-4 text-[13px] font-semibold text-foreground"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+      {lostText !== null ? (
+        <div className="mt-2 rounded-[12px] bg-brand-subtle p-3">
+          <p className="text-[13px] font-semibold text-foreground">
+            Someone else changed this question, so their version is loaded above. Your text was not saved:
+          </p>
+          <textarea
+            readOnly
+            value={lostText}
+            rows={Math.min(Math.max(lostText.split('\n').length, 2), 8)}
+            aria-label="Your unsaved text"
+            className="mt-2 w-full rounded-xl bg-card p-2 text-[13px] text-foreground"
+          />
+          <button onClick={() => setLostText(null)} className="mt-1 min-h-11 text-[13px] font-semibold text-warm-secondary">
+            Dismiss
+          </button>
+        </div>
+      ) : null}
     </li>
   );
 });

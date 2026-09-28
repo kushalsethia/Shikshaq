@@ -37,3 +37,14 @@ export function showIncompleteNote(incompleteNote: string | null): boolean {
 export function showQuestionInstructions(instr: string | null | undefined): boolean {
   return Boolean(instr);
 }
+
+/** Many papers print their own marks inline, "Find: [3]". The marks pill
+ *  then says the same number twice on one card, so the pill stands down;
+ *  the paper's own marker is the source and is never touched. Shared by
+ *  BankPaper.tsx and the admin paper edit page, which must look the same. */
+export function marksShownInText(marks: number | null | undefined, text: string | null | undefined): boolean {
+  if (marks === null || marks === undefined) return false;
+  // Escaped brackets: an unescaped [...] here is a character class, which
+  // matches the whitespace in every question and would hide every pill.
+  return new RegExp(`\\[\\s*${marks}\\s*\\]`).test(text ?? '');
+}
