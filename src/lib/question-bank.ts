@@ -36,6 +36,14 @@ export interface BankQuestion {
   pg?: number;            // source page
   f?: string;             // figure filename
   o?: string[];           // options
+  /** D66: the printed display number, when the checker/admin has recorded
+   *  one -- distinct from `n`, which is the raw parsed number. Callers fall
+   *  back to `n` when this is null, same rule BankPaper.tsx already used for
+   *  its own runs-of-parts lettering. */
+  dn?: string | null;
+  /** D66: question-level instructions ("Answer any three of the following"),
+   *  as distinct from the paper-level general_instructions on BankPaper. */
+  instr?: string | null;
 }
 
 export interface BankPaper {
@@ -61,6 +69,14 @@ export interface BankPaper {
   /** Listed and searchable (is_published is untouched), but not openable yet
    *  -- the reader shows a "Coming soon" notice instead of content. */
   needsReview: boolean;
+  /** D66: minutes allowed for the whole paper, when recorded. */
+  allowedTimeMinutes: number | null;
+  /** D66: paper-level instructions ("Answer all questions in Section A"), as
+   *  distinct from a single question's own `instr`. */
+  generalInstructions: string | null;
+  /** D66: a small note when the source paper itself was incomplete (missing
+   *  pages, a cut-off scan, etc.) -- never a claim about question quality. */
+  incompleteNote: string | null;
 }
 
 /* Several papers carry no year at all. The column is null in those cases;
@@ -74,7 +90,7 @@ export const hasYear = (y: string | null | undefined): boolean =>
 --------------------------------------------------------------------------- */
 
 const PAPER_COLUMNS =
-  'id, school, school_raw, is_board_paper, has_school, year, exam, cls, subject, board, question_count, marks, needs_review';
+  'id, school, school_raw, is_board_paper, has_school, year, exam, cls, subject, board, question_count, marks, needs_review, allowed_time_minutes, general_instructions, incomplete_note';
 
 interface PaperRow {
   id: string;
@@ -90,6 +106,9 @@ interface PaperRow {
   question_count: number;
   marks: number;
   needs_review: boolean;
+  allowed_time_minutes: number | null;
+  general_instructions: string | null;
+  incomplete_note: string | null;
 }
 
 const toPaper = (r: PaperRow): BankPaper => ({
@@ -112,6 +131,9 @@ const toPaper = (r: PaperRow): BankPaper => ({
      this the declared `marks: number` would quietly be "82.5". */
   marks: Number(r.marks) || 0,
   needsReview: r.needs_review,
+  allowedTimeMinutes: r.allowed_time_minutes ?? null,
+  generalInstructions: r.general_instructions ?? null,
+  incompleteNote: r.incomplete_note ?? null,
 });
 
 let indexCache: Promise<BankPaper[]> | null = null;
@@ -133,7 +155,13 @@ function pageQuery(from: number) {
     .eq('is_published', true)
     .order('year', { ascending: false, nullsFirst: false })
     .order('school', { ascending: true })
-    .range(from, from + PAGE - 1);
+    .range(from, from + PAGE - 1)
+    /* D66: allowed_time_minutes/general_instructions/incomplete_note are not
+       yet in the generated Database type. The migration that adds them
+       (supabase/migrations/20260928000000_paper_checker_and_admin.sql) was
+       applied live on 2026-09-28; .returns<>() asserts the real shape until
+       `npm run generate-types` is re-run. */
+    .returns<PaperRow[]>();
 }
 
 /* Was a `for` loop awaiting one page at a time -- page 2 did not even start
@@ -256,6 +284,8 @@ export function loadPaperQuestions(paperId: string, signedIn = false): Promise<B
           pg: r.page ?? undefined,
           f: r.figure ?? undefined,
           o: r.options ?? undefined,
+          dn: r.display_number ?? null,
+          instr: r.instructions ?? null,
         }),
       );
     })
@@ -276,7 +306,8 @@ export function loadPaper(paperId: string): Promise<BankPaper | null> {
       .select(PAPER_COLUMNS)
       .eq('id', paperId)
       .eq('is_published', true)
-      .maybeSingle(),
+      .maybeSingle()
+      .returns<PaperRow | null>(),
   ).then(({ data, error }) => {
     if (error) throw new Error(`bank paper: ${error.message}`);
     return data ? toPaper(data) : null;
