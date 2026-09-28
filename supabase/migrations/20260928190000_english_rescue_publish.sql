@@ -476,6 +476,38 @@ begin
       (table_name, row_id, action, field, before, after, actor, source, audit_paper_id, audit_question_id, reason)
     values ('bank_papers', v_live_paper, 'live_clear', 'needs_review', to_jsonb(true), to_jsonb(false),
             'system:english_rescue', 'system', v_paper.id, v_q.id, 'first rescued English question published');
+
+    -- Owner, 2026-09-28: a paper opened by a rescue carries the "some
+    -- questions missing" note until every hidden question of it is settled.
+    if v_bp.incomplete_note is null then
+      update public.bank_papers set incomplete_note = 'Some questions from this paper are still being checked and will appear here once confirmed.'
+        where id = v_live_paper;
+      insert into public.bank_question_revisions
+        (table_name, row_id, action, field, before, after, actor, source, audit_paper_id, audit_question_id, reason)
+      values ('bank_papers', v_live_paper, 'live_apply', 'incomplete_note', 'null'::jsonb,
+              to_jsonb('Some questions from this paper are still being checked and will appear here once confirmed.'::text),
+              'system:english_rescue', 'system', v_paper.id, v_q.id, 'paper opened by english rescue');
+    end if;
+  end if;
+
+  -- The note this flow set comes off once no rescue row of the paper is
+  -- left unpublished (passed-and-live, or deliberately kept hidden).
+  if not exists (
+    select 1 from public.audit_questions r
+    join public.audit_papers rp on rp.id = r.paper_id
+    where rp.source = 'live_copy' and rp.live_bank_paper_id = v_live_paper
+      and r.kind = 'question'
+      and r.source ->> 'pipeline' = 'english_w14' and r.source ->> 'role' = 'rescue'
+      and r.live_bank_question_id is null
+      and coalesce(r.source ->> 'rescue_decision', '') <> 'keep_hidden'
+  ) and (select incomplete_note from public.bank_papers where id = v_live_paper)
+        = 'Some questions from this paper are still being checked and will appear here once confirmed.' then
+    update public.bank_papers set incomplete_note = null where id = v_live_paper;
+    insert into public.bank_question_revisions
+      (table_name, row_id, action, field, before, after, actor, source, audit_paper_id, audit_question_id, reason)
+    values ('bank_papers', v_live_paper, 'live_apply', 'incomplete_note',
+            to_jsonb('Some questions from this paper are still being checked and will appear here once confirmed.'::text), 'null'::jsonb,
+            'system:english_rescue', 'system', v_paper.id, v_q.id, 'every hidden question of the paper settled');
   end if;
 
   insert into public.audit_review_log (reviewer_id, actor_user_id, paper_id, question_id, action, note)
