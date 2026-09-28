@@ -21,6 +21,7 @@ import { displaySchool } from '@/lib/school-display';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
 import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
+import { resolveDisplayNumber, showPaperExtras, showIncompleteNote, showQuestionInstructions } from '@/lib/bank-paper-display';
 
 /** The teachers route for a bank paper's subject, or the filtered browse
  *  when that subject has no page of its own. Never an invented slug. */
@@ -421,11 +422,18 @@ export default function BankPaper() {
       className="min-w-0 animate-card-blur-in rounded-[18px] bg-muted p-[16px] motion-reduce:animate-none"
     >
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        {row.n && (
-          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-blue px-1.5 text-[12px] font-extrabold tabular-nums text-white">
-            {displayNumbers.get(row.i) ?? row.n}
-          </span>
-        )}
+        {(() => {
+          /* D66: the printed display_number, when the checker/admin has
+             recorded one, wins over the client-derived a/b/c run lettering
+             below -- it is a real fact about how the paper was numbered,
+             not a guess from repeated raw numbers. */
+          const shown = resolveDisplayNumber(row.dn, displayNumbers.get(row.i), row.n);
+          return shown ? (
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-brand-blue px-1.5 text-[12px] font-extrabold tabular-nums text-white">
+              {shown}
+            </span>
+          ) : null;
+        })()}
         {row.m !== null && !marksShownInText(row) && (
           <span className="rounded-full bg-card px-2 py-0.5 text-[12px] font-bold tabular-nums text-foreground shadow-border">
             {row.m} {row.m === 1 ? 'mark' : 'marks'}
@@ -480,6 +488,17 @@ export default function BankPaper() {
           );
         })()}
       </div>
+
+      {/* D66: question-level instructions ("Answer any three of the
+          following"), printed above the question stem itself, as the source
+          paper prints them. Distinct from the paper-level ones in the header
+          above. */}
+      {showQuestionInstructions(row.instr) && (
+        <MathText
+          text={row.instr as string}
+          className="mb-1.5 text-[13px] italic leading-[1.5] text-warm-secondary"
+        />
+      )}
 
       <MathText text={row.t} className="text-[15px] leading-[1.6] text-foreground" />
 
@@ -545,7 +564,7 @@ export default function BankPaper() {
               this costs nothing extra per card. */}
           <img
             src={supabase.storage.from('paper-figures').getPublicUrl(row.f).data.publicUrl}
-            alt={`Figure for question ${displayNumbers.get(row.i) ?? row.n ?? ''}`}
+            alt={`Figure for question ${resolveDisplayNumber(row.dn, displayNumbers.get(row.i), row.n) ?? ''}`}
             {...(figureDims?.[row.f]
               ? { width: figureDims[row.f][0], height: figureDims[row.f][1] }
               : {})}
@@ -755,6 +774,32 @@ export default function BankPaper() {
               <p className="mt-2 text-[13px] uppercase tracking-[0.04em] text-muted-foreground">
                 Answer all questions
               </p>
+              {/* D66: allowed time and the paper's own general instructions,
+                  when recorded -- most papers have neither, so both are
+                  gated on presence rather than always taking up the header. */}
+              {showPaperExtras(paper.allowedTimeMinutes, paper.generalInstructions) && (
+                <div className="mt-3 flex flex-col items-center gap-1">
+                  {paper.allowedTimeMinutes && (
+                    <p className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+                      <Clock size={14} strokeWidth={2.2} aria-hidden="true" />
+                      {paper.allowedTimeMinutes} minutes allowed
+                    </p>
+                  )}
+                  {paper.generalInstructions && (
+                    <MathText
+                      text={paper.generalInstructions}
+                      className="max-w-[48ch] text-[13px] leading-[1.5] text-warm-prose"
+                    />
+                  )}
+                </div>
+              )}
+              {/* D66: a small, honest note when the source paper itself was
+                  incomplete -- never a claim about the questions' quality. */}
+              {showIncompleteNote(paper.incompleteNote) && (
+                <p className="mt-2 text-[12px] italic leading-[1.5] text-muted-foreground">
+                  {paper.incompleteNote}
+                </p>
+              )}
             </div>
           )}
 
