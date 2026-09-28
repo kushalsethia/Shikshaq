@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
+import { formatOnlineNames } from '@/lib/paper-review-realtime';
 import {
   adminPaperQueue,
   adminEscalationQueue,
@@ -160,6 +162,23 @@ export default function AdminPaperReviewPage() {
     loadEscalations();
     loadCheckers();
   }, [isAdmin]);
+
+  // W13 realtime: when anyone checks, fixes or edits, refetch the numbers
+  // and the log a few seconds later, quietly (no skeleton, no toast), and
+  // show who is online. Does nothing if the channel cannot connect.
+  const refreshLive = useLiveRefresh(() => {
+    adminPaperQueue().then(setPapers).catch(() => undefined);
+    adminEscalationQueue().then(setEscalations).catch(() => undefined);
+    adminListCheckers().then(setCheckers).catch(() => undefined);
+    adminCheckerLog().then((rows) => { setCheckerLog(rows); setCheckerLogError(false); }).catch(() => undefined);
+  });
+  const { status: liveStatus, online } = usePaperReviewChannel({
+    enabled: !!isAdmin,
+    userId: user?.id,
+    fullName: profile?.full_name,
+    onActivity: refreshLive,
+  });
+  const othersOnline = online.filter((p) => p.userId !== user?.id);
 
   const filteredPapers = useMemo(() => {
     switch (filter) {
@@ -488,6 +507,15 @@ export default function AdminPaperReviewPage() {
             ))}
           </div>
         </div>
+
+        {liveStatus === 'live' ? (
+          <p className="mb-4 flex items-center gap-2 px-[18px] text-[13px] text-warm-secondary" aria-live="polite">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-mint" aria-hidden />
+            {othersOnline.length > 0
+              ? <span><span className="font-semibold text-foreground">Online now:</span> {formatOnlineNames(othersOnline)}</span>
+              : <span>No one else is checking right now. This page updates as people work.</span>}
+          </p>
+        ) : null}
 
         {view === 'papers' ? (
           <>
