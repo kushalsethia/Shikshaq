@@ -129,4 +129,13 @@ describe('20260929120000_checker_order_history_dashboard.sql', () => {
     expect(body).toContain('from public.bank_question_revisions r');
     expect(body).not.toContain('audit_question_skips');
   });
+
+  it.each(['trg_log_audit_question_created', 'trg_log_audit_question_ai_verdict'])(
+    '%s guards its log insert so a logging failure never aborts the pipeline write',
+    (fn) => {
+      const m = SQL.match(new RegExp(`create or replace function public\\.${fn}\\(\\)[\\s\\S]*?\\$function\\$;`));
+      expect(m).not.toBeNull();
+      expect(m![0]).toMatch(/begin\s+insert into public\.audit_review_log[\s\S]*?exception when others then\s+raise warning/);
+    },
+  );
 });

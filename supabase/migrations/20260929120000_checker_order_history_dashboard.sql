@@ -204,13 +204,18 @@ create or replace function public.trg_log_audit_question_created()
 as $function$
 begin
   if new.kind = 'question' then
-    insert into public.audit_review_log
-      (reviewer_id, actor_user_id, paper_id, question_id, action, field, before, after, note)
-    values (
-      null, null, new.paper_id, new.id,
-      case when coalesce(array_length(new.flag_reasons, 1), 0) > 0 then 'ai_flagged' else 'created' end,
-      'flag_reasons', null, to_jsonb(new.flag_reasons), new.flag_detail
-    );
+    -- A logging failure must never abort the pipeline's own insert.
+    begin
+      insert into public.audit_review_log
+        (reviewer_id, actor_user_id, paper_id, question_id, action, field, before, after, note)
+      values (
+        null, null, new.paper_id, new.id,
+        case when coalesce(array_length(new.flag_reasons, 1), 0) > 0 then 'ai_flagged' else 'created' end,
+        'flag_reasons', null, to_jsonb(new.flag_reasons), new.flag_detail
+      );
+    exception when others then
+      raise warning 'audit_question created log skipped: %', sqlerrm;
+    end;
   end if;
   return new;
 end;
@@ -231,9 +236,14 @@ create or replace function public.trg_log_audit_question_ai_verdict()
 as $function$
 begin
   if new.source is distinct from old.source then
-    insert into public.audit_review_log
-      (reviewer_id, actor_user_id, paper_id, question_id, action, field, before, after)
-    values (null, null, new.paper_id, new.id, 'ai_verdict', 'source', old.source, new.source);
+    -- A logging failure must never abort the pipeline's own update.
+    begin
+      insert into public.audit_review_log
+        (reviewer_id, actor_user_id, paper_id, question_id, action, field, before, after)
+      values (null, null, new.paper_id, new.id, 'ai_verdict', 'source', old.source, new.source);
+    exception when others then
+      raise warning 'audit_question ai_verdict log skipped: %', sqlerrm;
+    end;
   end if;
   return new;
 end;
