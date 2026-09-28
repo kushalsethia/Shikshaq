@@ -32,6 +32,8 @@ import {
 } from '@/lib/checker-context';
 import { matchCheckerKeyboardEvent } from '@/lib/checker-shortcuts';
 import { SUBJECTS, CLASSES } from '@/utils/searchFacets';
+import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
+import { isForeignChangeToOpenQuestion } from '@/lib/paper-review-realtime';
 
 /* The paper checker (Kid Mode) -- D8/D9/D11/D15/D16/D21: built INTO the
    Shikshaq site, in Shikshaq's own bento design language, reachable only by
@@ -191,6 +193,33 @@ export default function Checker() {
       setError(null);
     }
   }, [question?.id]);
+
+  // W13 realtime: show as online, keep my counters and the leaderboard
+  // current, and move on if someone else changes the question I have open.
+  const { profile } = useAuth();
+  const [takenNotice, setTakenNotice] = useState(false);
+  const refreshCounters = useLiveRefresh(() => {
+    qc.invalidateQueries({ queryKey: ['checker-checked-today'] });
+    qc.invalidateQueries({ queryKey: ['checker-my-stats'] });
+    qc.invalidateQueries({ queryKey: ['checker-leaderboard'] });
+  });
+  usePaperReviewChannel({
+    enabled: allowed === true,
+    userId: user?.id,
+    fullName: profile?.full_name,
+    onActivity: (event) => {
+      refreshCounters();
+      if (!submitting && isForeignChangeToOpenQuestion(event, question?.id, user?.id)) {
+        setTakenNotice(true);
+        qc.invalidateQueries({ queryKey: ['checker-next-question'] });
+      }
+    },
+  });
+  useEffect(() => {
+    if (!takenNotice) return;
+    const t = setTimeout(() => setTakenNotice(false), 6000);
+    return () => clearTimeout(t);
+  }, [takenNotice]);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['checker-next-question'] });
@@ -365,6 +394,12 @@ export default function Checker() {
             )}
           </div>
         )}
+
+        {takenNotice ? (
+          <div role="status" className="mb-3 rounded-2xl bg-brand-subtle px-4 py-3 text-[14px] text-foreground">
+            Someone else just changed that question, so here is the next one.
+          </div>
+        ) : null}
 
         {error ? (
           <div className="mb-3 rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">{error}</div>
