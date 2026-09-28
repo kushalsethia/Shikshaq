@@ -163,7 +163,7 @@ export interface CheckerPreferences {
   subjects: string[] | null;
   classes: string[] | null;
   /** True once the checker has saved a choice, even "All" (which stores
-   *  nulls). Absent before 20260929000000 is applied. */
+   *  nulls). Absent before 20260929013000 is applied. */
   chosen?: boolean;
 }
 
@@ -206,7 +206,7 @@ export interface QueueFacetRow {
 
 /**
  * What is actually waiting in the kid queue, by subject and class
- * (checker_queue_facets, 20260929000000_checker_queue_hygiene.sql). The
+ * (checker_queue_facets, 20260929013000_checker_queue_hygiene.sql). The
  * "My subjects" picker is built from this so a chip can only name a value
  * the queue really holds. It used to be built from the SITE's facet lists
  * ('Maths', '10'), which never equal the audit values ('Mathematics', 'X'):

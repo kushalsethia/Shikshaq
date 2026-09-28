@@ -330,6 +330,12 @@ begin
   v_first := left(p_body_before, p_split_at);
   v_second := substring(p_body_before from p_split_at + 1);
 
+  -- CHANGED: a cut on whitespace must not leave a blank half. The queue no
+  -- longer serves blank bodies, so a blank half would sit in 'kid' unseen.
+  if btrim(v_first) = '' or btrim(v_second) = '' then
+    raise exception 'Both parts of a split need some words in them' using errcode = '22023';
+  end if;
+
   update public.audit_questions
   set ord = ord + 1
   where paper_id = v_q.paper_id and ord > v_q.ord;
