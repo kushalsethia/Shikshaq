@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { ContextRow } from '@/lib/checker-context';
 
 /**
  * Client wrapper for the paper-checker (Kid Mode) and paper-admin RPCs added
@@ -149,6 +150,23 @@ export async function checkerSetPreferences(subjects: string[], classes: string[
     p_classes: classes,
   } as never);
   if (error) throw error;
+}
+
+/**
+ * The whole question a sub-part belongs to (parent + every part, in paper
+ * order), from checker_question_context in
+ * 20260928160000_checker_question_context.sql. Same gate as the other
+ * checker RPCs: only the lease holder or an admin. Returns [] when the
+ * question is not part of a larger one, AND when the call fails (for
+ * example before that migration is applied): the extra context is a help,
+ * never a reason to block checking.
+ */
+export async function checkerQuestionContext(questionId: string): Promise<ContextRow[]> {
+  const { data, error } = await supabase.rpc('checker_question_context' as never, {
+    p_question_id: questionId,
+  } as never);
+  if (error) return [];
+  return rpcRows<ContextRow>(data);
 }
 
 export function checkerSnippetUrl(paperId: string, questionId: string): Promise<string | null> {
