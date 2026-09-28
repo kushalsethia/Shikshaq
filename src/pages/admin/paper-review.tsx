@@ -43,6 +43,22 @@ import {
 type View = 'papers' | 'checkers' | 'escalations';
 type PaperFilter = 'needs_review' | 'escalated' | 'hidden' | 'incomplete' | 'all';
 
+// The revision actions admin_undo_revision() can reverse; every other
+// action (merge/split/reorder/add/undo, live_apply/live_clear) it refuses.
+const UNDOABLE_ACTIONS = new Set(['admin_edit', 'admin_delete', 'admin_hide', 'admin_restore']);
+
+// The queue row only carries some of the editable fields; the rest start
+// blank rather than borrowing another field's text.
+function currentFieldValue(p: PaperQueueRow, field: string): string {
+  switch (field) {
+    case 'incomplete_note': return p.incomplete_note ?? '';
+    case 'school': return p.school ?? '';
+    case 'subject': return p.subject ?? '';
+    case 'year': return p.year ?? '';
+    default: return '';
+  }
+}
+
 export default function AdminPaperReviewPage() {
   usePageMeta('Paper review | Shikshaq Admin', 'Review, fix and clear papers in the question bank.');
   const { user, profile } = useAuth();
@@ -311,7 +327,7 @@ export default function AdminPaperReviewPage() {
     ],
     actions: [
       { label: 'History', tone: 'primary', onClick: () => openHistory(p) },
-      { label: 'Edit', tone: 'primary', onClick: () => { setEditTarget(p); setEditField('general_instructions'); setEditValue(p.incomplete_note ?? ''); } },
+      { label: 'Edit', tone: 'primary', onClick: () => { setEditTarget(p); setEditField('incomplete_note'); setEditValue(currentFieldValue(p, 'incomplete_note')); } },
       p.is_published
         ? { label: busyId === p.paper_id ? '...' : 'Hide', tone: 'destructive', onClick: () => setHideTarget(p), disabled: busyId === p.paper_id }
         : { label: busyId === p.paper_id ? '...' : 'Restore', tone: 'mint', onClick: () => doRestore(p), disabled: busyId === p.paper_id },
@@ -526,7 +542,12 @@ export default function AdminPaperReviewPage() {
           <label className="mt-3 block text-[13px] font-semibold text-foreground">Field</label>
           <select
             value={editField}
-            onChange={(e) => setEditField(e.target.value)}
+            onChange={(e) => {
+              setEditField(e.target.value);
+              // Prefill with THIS field's current value so Save can never
+              // write one field's text into another.
+              setEditValue(editTarget ? currentFieldValue(editTarget, e.target.value) : '');
+            }}
             className="mt-1 h-11 w-full rounded-xl bg-muted px-3 text-sm"
           >
             <option value="general_instructions">General instructions</option>
@@ -563,7 +584,7 @@ export default function AdminPaperReviewPage() {
                     <span className="text-warm-meta">{new Date(r.created_at).toLocaleString()}</span>
                   </div>
                   <div className="mt-1 text-warm-secondary">by {r.actor} ({r.source})</div>
-                  {r.action === 'edit' && (
+                  {UNDOABLE_ACTIONS.has(r.action) && (
                     <button onClick={() => doUndo(r.id)} className="mt-2 rounded-full bg-card px-3 py-1.5 text-[12px] font-semibold text-foreground">
                       Undo
                     </button>

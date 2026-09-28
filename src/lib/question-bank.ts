@@ -157,11 +157,10 @@ function pageQuery(from: number) {
     .order('school', { ascending: true })
     .range(from, from + PAGE - 1)
     /* D66: allowed_time_minutes/general_instructions/incomplete_note are not
-       yet in the generated Database type (the migration that adds them has
-       not been applied live -- see supabase/migrations/20260928000000_
-       paper_checker_and_admin.sql). .returns<>() asserts the real shape
-       instead of fighting a generated type that will catch up once the
-       migration lands and `npm run generate-types` is re-run. */
+       yet in the generated Database type. The migration that adds them
+       (supabase/migrations/20260928000000_paper_checker_and_admin.sql) was
+       applied live on 2026-09-28; .returns<>() asserts the real shape until
+       `npm run generate-types` is re-run. */
     .returns<PaperRow[]>();
 }
 
