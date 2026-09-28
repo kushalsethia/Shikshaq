@@ -145,7 +145,8 @@ describe('the auto-return and lease-timing migration', () => {
 
     it('replaces the hardcoded null median_seconds with the real column', () => {
       expect(sql).not.toMatch(/select\s*\n\s*pu\.actor_user_id as user_id,[\s\S]*?null::numeric as median_seconds,/);
-      expect(sql).toMatch(/mb\.median_seconds,/);
+      // percentile_cont returns double precision; RETURN QUERY needs the declared numeric.
+      expect(sql).toMatch(/round\(mb\.median_seconds::numeric, 1\) as median_seconds,/);
     });
 
     it('left-joins the new median CTE without dropping the existing overturns join', () => {
