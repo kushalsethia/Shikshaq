@@ -26,6 +26,18 @@ export function isChromelessPath(pathname: string): boolean {
   );
 }
 
+/** Work screens that keep the top nav but drop the pre-footer plug, the
+ *  site footer and the floating mobile nav. The paper checker (owner,
+ *  2026-09-28: "remove the footer and the bottom shikshaq plug from that
+ *  page"): its action buttons sit at the bottom, and the floating nav pill
+ *  covered them on phones. */
+const FOOTERLESS_ROUTES = ['/checker'];
+
+export function isFooterlessPath(pathname: string): boolean {
+  const p = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  return FOOTERLESS_ROUTES.includes(p);
+}
+
 export function useIsChromelessRoute() {
   const { pathname } = useLocation();
   return isChromelessPath(pathname);
