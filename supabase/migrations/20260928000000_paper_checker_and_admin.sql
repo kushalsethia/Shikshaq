@@ -270,6 +270,15 @@ alter table public.audit_questions drop constraint if exists audit_questions_rev
 alter table public.audit_questions add constraint audit_questions_review_bucket_check
   check (review_bucket in ('kid', 'admin', 'data', 'renderer', 'none', 'escalated'));
 
+-- checked_by: keep the legacy single-model values and accept the logging
+-- contract's model-pair form ('ai:haiku+haiku', 'ai:haiku+sonnet'). The live
+-- constraint (checked 2026-09-28) allowed only haiku/sonnet/gap_audit, which
+-- would have refused every AI approval written in the contract's format.
+alter table public.audit_questions drop constraint if exists audit_questions_checked_by_check;
+alter table public.audit_questions add constraint audit_questions_checked_by_check
+  check (checked_by is null or checked_by in ('haiku', 'sonnet', 'gap_audit')
+         or checked_by ~ '^ai:(haiku|sonnet)(\+(haiku|sonnet))?$');
+
 -- A short lease so two checkers can't both be handed the same question by
 -- checker_next_question(). Cleared automatically once the question is no
 -- longer 'flagged' by the existing audit_questions triggers -- not relied on
