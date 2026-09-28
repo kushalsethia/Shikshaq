@@ -20,10 +20,21 @@ import {
   checkerLeaderboard,
   checkerGetPreferences,
   checkerSetPreferences,
+  checkerQuestionContext,
 } from '@/lib/checker-api';
-import { kidSentence, needsSplit } from '@/lib/checker-kid-reasons';
+import { describeFlags, needsSplit, NO_PICTURE_TITLE, NO_PICTURE_NOTE } from '@/lib/checker-kid-reasons';
+import { englishContext, passageHeading } from '@/lib/checker-english';
+import {
+  assembleQuestionContext,
+  contextHeading,
+  partLabel,
+  resolveCheckerPictures,
+  type QuestionContext,
+} from '@/lib/checker-context';
 import { matchCheckerKeyboardEvent } from '@/lib/checker-shortcuts';
 import { SUBJECTS, CLASSES } from '@/utils/searchFacets';
+import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
+import { isForeignChangeToOpenQuestion } from '@/lib/paper-review-realtime';
 
 /* The paper checker (Kid Mode) -- D8/D9/D11/D15/D16/D21: built INTO the
    Shikshaq site, in Shikshaq's own bento design language, reachable only by
@@ -123,20 +134,45 @@ export default function Checker() {
     enabled: allowed === true && leaderboardOpen,
   });
 
-  const [snippetUrl, setSnippetUrl] = useState<string | null>(null);
+  // W11: the whole question a sub-part belongs to (empty for a standalone
+  // question, and also empty if the RPC is not deployed yet).
+  const contextQuery = useQuery({
+    queryKey: ['checker-question-context', question?.id],
+    queryFn: () => checkerQuestionContext(question!.id),
+    enabled: allowed === true && Boolean(question?.id),
+    staleTime: 5 * 60 * 1000,
+  });
+  const context: QuestionContext | null = question
+    ? assembleQuestionContext(contextQuery.data, question.id)
+    : null;
+
+  // Pictures: the whole question's crop(s) when this is a sub-part,
+  // otherwise the question's own crop. `null` = still looking. A picture
+  // that fails to load is dropped, and with none left the "no picture"
+  // note shows instead.
+  const [pictures, setPictures] = useState<string[] | null>(null);
+  const [failedPictures, setFailedPictures] = useState<string[]>([]);
+  const contextKey = context ? [context.parent?.id ?? '', ...context.parts.map((p) => p.id)].join(',') : '';
+  const contextPending = contextQuery.isLoading;
   useEffect(() => {
-    if (!question) {
-      setSnippetUrl(null);
-      return;
-    }
+    setFailedPictures([]);
+    setPictures(null);
+    if (!question || contextPending) return;
     let cancelled = false;
-    checkerSnippetUrl(question.paper_id, question.id).then((url) => {
-      if (!cancelled) setSnippetUrl(url);
+    resolveCheckerPictures(question.id, context, (qid) => checkerSnippetUrl(question.paper_id, qid)).then((urls) => {
+      if (!cancelled) setPictures(urls);
     });
     return () => {
       cancelled = true;
     };
-  }, [question?.id]);
+    // `context` is derived from contextKey; listing it would re-run on
+    // every render because assembleQuestionContext returns a new object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question?.id, contextPending, contextKey]);
+  const visiblePictures = (pictures ?? []).filter((u) => !failedPictures.includes(u));
+  const flags = question ? describeFlags(question.flag_reasons, question.flag_detail) : { lines: [], note: null };
+  // W14: English questions carry their passage and set text in `source`.
+  const english = question ? englishContext(question.source) : null;
 
   const [mode, setMode] = useState<Mode>('check');
   const [bodyDraft, setBodyDraft] = useState('');
@@ -160,6 +196,33 @@ export default function Checker() {
       setError(null);
     }
   }, [question?.id]);
+
+  // W13 realtime: show as online, keep my counters and the leaderboard
+  // current, and move on if someone else changes the question I have open.
+  const { profile } = useAuth();
+  const [takenNotice, setTakenNotice] = useState(false);
+  const refreshCounters = useLiveRefresh(() => {
+    qc.invalidateQueries({ queryKey: ['checker-checked-today'] });
+    qc.invalidateQueries({ queryKey: ['checker-my-stats'] });
+    qc.invalidateQueries({ queryKey: ['checker-leaderboard'] });
+  });
+  usePaperReviewChannel({
+    enabled: allowed === true,
+    userId: user?.id,
+    fullName: profile?.full_name,
+    onActivity: (event) => {
+      refreshCounters();
+      if (!submitting && isForeignChangeToOpenQuestion(event, question?.id, user?.id)) {
+        setTakenNotice(true);
+        qc.invalidateQueries({ queryKey: ['checker-next-question'] });
+      }
+    },
+  });
+  useEffect(() => {
+    if (!takenNotice) return;
+    const t = setTimeout(() => setTakenNotice(false), 6000);
+    return () => clearTimeout(t);
+  }, [takenNotice]);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['checker-next-question'] });
@@ -335,6 +398,12 @@ export default function Checker() {
           </div>
         )}
 
+        {takenNotice ? (
+          <div role="status" className="mb-3 rounded-2xl bg-brand-subtle px-4 py-3 text-[14px] text-foreground">
+            Someone else just changed that question, so here is the next one.
+          </div>
+        ) : null}
+
         {error ? (
           <div className="mb-3 rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">{error}</div>
         ) : null}
@@ -353,18 +422,29 @@ export default function Checker() {
           <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Left: the printed page snippet */}
             <div className="flex flex-col">
-              <p className="mb-1 text-[12px] text-warm-meta">The printed paper</p>
-              <div className="flex max-h-[42vh] w-full items-center justify-center overflow-hidden rounded-2xl bg-muted lg:max-h-[60vh]">
-                {snippetUrl ? (
-                  <img src={snippetUrl} alt="the printed question" className="h-full w-full object-contain" />
+              <p className="mb-1 text-[12px] text-warm-meta">
+                {context && visiblePictures.length > 0 ? 'The printed paper, whole question' : 'The printed paper'}
+              </p>
+              <div className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-muted lg:max-h-[60vh]">
+                {pictures === null ? (
+                  <p className="p-6 text-center text-[13px] text-warm-meta">Loading the picture...</p>
+                ) : visiblePictures.length > 0 ? (
+                  visiblePictures.map((url, i) => (
+                    <img
+                      key={url}
+                      src={url}
+                      alt={visiblePictures.length > 1 ? `the printed question, piece ${i + 1}` : 'the printed question'}
+                      onError={() => setFailedPictures((prev) => [...prev, url])}
+                      className="w-full object-contain"
+                    />
+                  ))
                 ) : (
-                  // D65: this paper has no PDF anywhere, or the sense-check pack
-                  // ran instead of the picture-matching one -- the question is
-                  // still served and checkable, just without a photo to compare
-                  // against. The label is deliberately plain, not an error state.
+                  // D65 + W11: no crop exists for this question, or it failed
+                  // to load. The question is still checkable and every button
+                  // works; the note is plain guidance, not an error state.
                   <div className="p-6 text-center">
-                    <p className="text-[14px] font-semibold text-foreground">No picture</p>
-                    <p className="mt-1 text-[13px] text-warm-meta">check that it makes sense</p>
+                    <p className="text-[14px] font-semibold text-foreground">{NO_PICTURE_TITLE}</p>
+                    <p className="mt-1 text-[13px] text-warm-secondary">{NO_PICTURE_NOTE}</p>
                   </div>
                 )}
               </div>
@@ -377,15 +457,51 @@ export default function Checker() {
 
             {/* Right: the question + actions */}
             <div className="flex flex-col">
-              {question.flag_reasons.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {question.flag_reasons.map((r) => (
-                    <span key={r} className="rounded-full bg-brand-subtle px-2.5 py-1 text-[12px] font-medium text-foreground">
-                      {kidSentence(r)}
-                    </span>
-                  ))}
+              {(flags.lines.length > 0 || flags.note) && (
+                <div className="mb-3 rounded-2xl bg-brand-subtle p-3">
+                  <p className="mb-1.5 text-[13px] font-semibold text-foreground">Why this question needs a check</p>
+                  <ul className="space-y-1.5">
+                    {flags.lines.map((f) => (
+                      <li key={f.code} className="text-[14px] leading-snug text-foreground">
+                        {f.sentence}
+                        {f.detail ? (
+                          <span className="mt-0.5 block text-[12px] text-warm-secondary">
+                            What the computer noticed: {f.detail}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                  {flags.note ? <p className="mt-1.5 text-[12px] text-warm-secondary">Note: {flags.note}</p> : null}
                 </div>
               )}
+
+              {context ? <WholeQuestion context={context} /> : null}
+
+              {/* W14: the passage an English question is about. On the
+                  website it sits right above the question, so the checker
+                  reads the question against it here too. */}
+              {english?.passage ? (
+                <div className="mb-2 rounded-2xl bg-muted px-4 py-3">
+                  <p className="mb-1 text-[12px] font-semibold text-warm-meta">{passageHeading(english.passage.kind)}</p>
+                  <div className="max-h-[40vh] overflow-y-auto">
+                    <MathText text={english.passage.text} className="text-[14px] leading-relaxed text-foreground" />
+                  </div>
+                </div>
+              ) : null}
+              {english?.setText ? (
+                <p className="mb-2 text-[12px] text-warm-secondary">From: {english.setText}</p>
+              ) : null}
+
+              {question.instructions ? (
+                <div className="mb-2 rounded-2xl bg-muted px-4 py-2">
+                  <MathText text={question.instructions} className="text-[14px] italic leading-relaxed text-warm-secondary" />
+                </div>
+              ) : null}
+
+              {context ? (
+                <p className="mb-1 text-[13px] font-semibold text-foreground">The part you are checking</p>
+              ) : null}
 
               <div className="mb-2 flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-2 text-[13px] font-medium text-warm-secondary">
@@ -435,6 +551,7 @@ export default function Checker() {
               ) : (
                 <div className="rounded-2xl bg-muted p-4">
                   <MathText text={bodyDraft} className="text-[16px] leading-relaxed text-foreground" />
+                  <OptionList options={question.options} />
                 </div>
               )}
 
@@ -496,11 +613,12 @@ export default function Checker() {
           <div className="w-full max-w-md rounded-2xl bg-card p-5">
             <h3 className="mb-2 text-[16px] font-bold text-foreground">Which papers do you want to check?</h3>
             <p className="mb-3 text-[13px] text-warm-secondary">
-              Pick as many subjects and classes as you like. Leave everything unpicked to see every paper. You can
-              change this any time from "My subjects".
+              Pick as many subjects and classes as you like, or All to see every paper. You can change this any
+              time from "My subjects".
             </p>
             <p className="mb-1 text-[13px] font-semibold text-foreground">Subjects</p>
             <div className="mb-3 flex flex-wrap gap-1.5">
+              <AllChip active={prefsDraftSubjects.length === 0} onClick={() => setPrefsDraftSubjects([])} />
               {SUBJECTS.map((s) => (
                 <button
                   key={s}
@@ -519,6 +637,7 @@ export default function Checker() {
             </div>
             <p className="mb-1 text-[13px] font-semibold text-foreground">Classes</p>
             <div className="mb-4 flex flex-wrap gap-1.5">
+              <AllChip active={prefsDraftClasses.length === 0} onClick={() => setPrefsDraftClasses([])} />
               {CLASSES.map((c) => (
                 <button
                   key={c}
@@ -573,6 +692,86 @@ export default function Checker() {
         </div>
       ) : null}
     </BentoStack>
+  );
+}
+
+/* W11: the whole question a sub-part belongs to, read-only, with the part
+   being checked highlighted. Bodies go through MathText verbatim. */
+function WholeQuestion({ context }: { context: QuestionContext }) {
+  return (
+    <div className="mb-3 rounded-2xl border border-warm-hairline p-3">
+      <p className="mb-2 text-[13px] font-semibold text-foreground">{contextHeading(context)}</p>
+      {context.parent ? (
+        <div
+          aria-current={context.currentIsParent ? 'true' : undefined}
+          className={cn('rounded-xl p-2.5', context.currentIsParent ? 'bg-brand-subtle ring-2 ring-brand' : 'bg-muted')}
+        >
+          {context.currentIsParent ? <CheckingTag /> : null}
+          <MathText text={context.parent.body ?? ''}className="text-[14px] leading-relaxed text-foreground" />
+          <OptionList options={context.parent.options} />
+        </div>
+      ) : null}
+      <ol className="mt-2 space-y-2">
+        {context.parts.map((part, i) => {
+          const current = part.id === context.currentId;
+          return (
+            <li
+              key={part.id}
+              aria-current={current ? 'true' : undefined}
+              className={cn('rounded-xl p-2.5', current ? 'bg-brand-subtle ring-2 ring-brand' : 'bg-muted')}
+              style={{ marginLeft: Math.min(Math.max(part.depth - 1, 0), 3) * 12 }}
+            >
+              {current ? <CheckingTag /> : null}
+              <p className="mb-0.5 text-[12px] font-semibold text-warm-secondary">{partLabel(part, i)}</p>
+              <MathText text={part.body ?? ''}className="text-[14px] leading-relaxed text-foreground" />
+              <OptionList options={part.options} />
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function CheckingTag() {
+  return (
+    <span className="mb-1 inline-block rounded-full bg-brand px-2 py-0.5 text-[12px] font-bold text-foreground">
+      You are checking this part
+    </span>
+  );
+}
+
+/* Multiple-choice options, read-only and verbatim, so an mcq_malformed flag
+   can actually be checked against the paper. */
+function OptionList({ options }: { options: { label?: string; text?: string }[] | null | undefined }) {
+  if (!Array.isArray(options) || options.length === 0) return null;
+  return (
+    <ul className="mt-2 space-y-1">
+      {options.map((o, i) => (
+        <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-foreground">
+          {o?.label ? <span className="font-semibold">{o.label}</span> : null}
+          <MathText text={o?.text ?? ''} className="min-w-0 flex-1" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* "All" is the empty selection: the server treats an empty or null list as
+   no filter, so tapping All just clears the picks. */
+function AllChip({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'rounded-full px-3 py-1.5 text-[13px] font-semibold',
+        active ? 'bg-brand text-foreground' : 'bg-muted text-warm-secondary',
+      )}
+    >
+      All
+    </button>
   );
 }
 

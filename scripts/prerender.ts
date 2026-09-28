@@ -699,7 +699,7 @@ async function main(): Promise<void> {
     () => supabase
       .from('bank_papers')
       .select('id, school, has_school, year, exam, cls, subject, board, question_count, marks')
-      .eq('is_published', true) as unknown as Query,
+      .eq('is_published', true).gt('question_count', 0) as unknown as Query,
     'bank_papers',
   );
   if (allPapers.length === 0) fail('bank_papers returned zero rows');

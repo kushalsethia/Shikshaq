@@ -112,6 +112,8 @@ export interface AdminTableProps {
   readOnly?: boolean;
 }
 
+const SUBGRID_ROW = { gridColumn: '1 / -1', gridTemplateColumns: 'subgrid' } as const;
+
 /** One shared column template — every section passes its own columns/rows.
  *  Rendered inside a `<BentoPanel fill="card">` by the caller (the panel
  *  also carries the section's own title/meta row above the table). */
@@ -131,11 +133,15 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
           run of text with no column association — C-015 asks that the
           semantics survive the restyle, so the ARIA table roles carry what the
           <table> element would have. */}
-      <div className="hidden overflow-x-auto lg:block" role="table">
+      {/* One grid owns the column template and every row is a subgrid of
+          it. Separate per-row grids sized the `auto` actions column per row
+          (empty in the header, button-wide in the rows), so header labels
+          drifted away from their cells. */}
+      <div className="hidden overflow-x-auto lg:grid" role="table" style={{ gridTemplateColumns: gridTemplate }}>
         <div
           role="row"
           className="grid gap-3.5 px-[14px] py-[10px] shadow-[inset_0_-1px_0_#E7DFD5]"
-          style={{ gridTemplateColumns: gridTemplate }}
+          style={SUBGRID_ROW}
         >
           {columns.map((c) => (
             <span role="columnheader" key={c.key} className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
@@ -152,7 +158,7 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
             key={row.id}
             role="row"
             className="grid items-center gap-3.5 px-[14px] py-[12px] shadow-[inset_0_-1px_0_#F0EAE2] transition-colors duration-150 hover:bg-muted/40"
-            style={{ gridTemplateColumns: gridTemplate }}
+            style={SUBGRID_ROW}
           >
             {row.cells.map((cell, i) => (
               <span

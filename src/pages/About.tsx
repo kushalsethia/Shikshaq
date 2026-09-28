@@ -84,7 +84,7 @@ export default function About() {
            defensible as genuinely Kolkata (see the coordinator's audit --
            only ~38 of 190 raw values). */
         supabase.from('bank_papers').select('id', { count: 'exact', head: true })
-          .eq('is_published', true),
+          .eq('is_published', true).gt('question_count', 0),
       ]);
       if (cancelled) return;
       if (teachersRes.error) logger.error('About.fetchStats.teachers', teachersRes.error);

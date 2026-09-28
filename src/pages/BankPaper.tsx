@@ -271,7 +271,7 @@ export default function BankPaper() {
     supabase
       .from('bank_papers')
       .select('id,school,cls,subject,year')
-      .eq('is_published', true)
+      .eq('is_published', true).gt('question_count', 0)
       .eq('needs_review', false)
       .eq('subject', paper.subject)
       .eq('cls', paper.cls)
