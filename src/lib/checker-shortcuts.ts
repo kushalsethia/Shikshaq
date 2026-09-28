@@ -7,7 +7,7 @@
  * `matchCheckerShortcut` is the one thing a test needs to call.
  */
 
-export type CheckerAction = 'pass' | 'fix' | 'split' | 'help';
+export type CheckerAction = 'pass' | 'fix' | 'split' | 'help' | 'skip';
 
 export interface CheckerShortcutDef {
   action: CheckerAction;
@@ -21,6 +21,7 @@ export const CHECKER_SHORTCUTS: CheckerShortcutDef[] = [
   { action: 'fix', keys: 'F', key: 'f' },
   { action: 'split', keys: 'S', key: 's' },
   { action: 'help', keys: 'H', key: 'h' },
+  { action: 'skip', keys: 'K', key: 'k' },
 ];
 
 function isTypingTarget(el: EventTarget | null): boolean {

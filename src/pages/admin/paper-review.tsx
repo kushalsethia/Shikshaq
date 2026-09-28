@@ -20,10 +20,12 @@ import {
   adminPaperHistory,
   adminUndoRevision,
   adminResolveEscalation,
+  adminSearchUsers,
   type PaperQueueRow,
   type EscalationRow,
   type CheckerRow,
   type RevisionRow,
+  type UserSearchRow,
 } from '@/lib/checker-api';
 
 /* Paper admin -- D22. A tab of the existing Shikshaq admin console (not a
@@ -55,7 +57,9 @@ export default function AdminPaperReviewPage() {
   const [escalationsLoading, setEscalationsLoading] = useState(true);
   const [checkers, setCheckers] = useState<CheckerRow[]>([]);
   const [checkersLoading, setCheckersLoading] = useState(true);
-  const [grantEmailUserId, setGrantEmailUserId] = useState('');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState<UserSearchRow[]>([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
 
   const [historyTarget, setHistoryTarget] = useState<PaperQueueRow | null>(null);
   const [history, setHistory] = useState<RevisionRow[]>([]);
@@ -193,16 +197,43 @@ export default function AdminPaperReviewPage() {
     }
   }
 
-  async function doGrant() {
-    const id = grantEmailUserId.trim();
-    if (!id) return;
+  // D32: search Shikshaq accounts by name or email instead of requiring the
+  // admin to already know a raw account id.
+  useEffect(() => {
+    const q = userSearchQuery.trim();
+    if (q.length < 2) {
+      setUserSearchResults([]);
+      return;
+    }
+    let cancelled = false;
+    setUserSearchLoading(true);
+    const timer = setTimeout(() => {
+      adminSearchUsers(q)
+        .then((rows) => {
+          if (!cancelled) setUserSearchResults(rows);
+        })
+        .catch(() => {
+          if (!cancelled) adminToast('Search failed');
+        })
+        .finally(() => {
+          if (!cancelled) setUserSearchLoading(false);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [userSearchQuery]);
+
+  async function doGrant(userId: string) {
     try {
-      await adminGrantPaperChecker(id);
+      await adminGrantPaperChecker(userId);
       adminToast('Paper checker permission granted');
-      setGrantEmailUserId('');
+      setUserSearchQuery('');
+      setUserSearchResults([]);
       loadCheckers();
     } catch {
-      adminToast('Failed to grant. Paste the user\'s account id (uuid), not their email.');
+      adminToast('Failed to grant the paper checker permission');
     }
   }
 
@@ -427,14 +458,36 @@ export default function AdminPaperReviewPage() {
           )
         ) : (
           <>
-            <div className="mb-4 flex flex-wrap items-center gap-2 px-[18px]">
+            <div className="mb-4 px-[18px]">
               <input
-                value={grantEmailUserId}
-                onChange={(e) => setGrantEmailUserId(e.target.value)}
-                placeholder="Account id (uuid) to grant"
-                className="h-11 w-[320px] rounded-full bg-muted px-4 text-sm outline-none"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                placeholder="Search by name or email to grant the paper checker permission"
+                className="h-11 w-full max-w-md rounded-full bg-muted px-4 text-sm outline-none"
               />
-              <button onClick={doGrant} className={adminPrimaryBtnStyle}>Grant checker</button>
+              {userSearchQuery.trim().length >= 2 && (
+                <div className="mt-2 max-w-md space-y-1.5">
+                  {userSearchLoading ? (
+                    <p className="text-[13px] text-warm-meta">Searching...</p>
+                  ) : userSearchResults.length === 0 ? (
+                    <p className="text-[13px] text-warm-meta">No accounts match.</p>
+                  ) : (
+                    userSearchResults.map((u) => (
+                      <div key={u.user_id} className="flex items-center justify-between rounded-xl bg-muted px-3 py-2">
+                        <div>
+                          <p className="text-[13px] font-semibold text-foreground">{u.full_name || 'Unnamed account'}</p>
+                          <p className="text-[12px] text-warm-meta">{u.email}</p>
+                        </div>
+                        {u.is_checker && u.checker_active ? (
+                          <span className="text-[12px] font-semibold text-warm-secondary">Already a checker</span>
+                        ) : (
+                          <button onClick={() => doGrant(u.user_id)} className={adminPrimaryBtnStyle}>Grant checker</button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
             {checkersLoading ? (
               <div className="animate-pulse space-y-3 px-[18px]">

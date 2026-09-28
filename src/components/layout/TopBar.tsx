@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   FileText, Heart, Shield, GraduationCap, Users,
-  MessageSquare, ThumbsUp, ClipboardList, BookMarked, type LucideIcon,
+  MessageSquare, ThumbsUp, ClipboardList, BookMarked, CheckSquare, type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ import { openProductTour } from "@/components/ProductTour";
 import { logger } from "@/utils/logger";
 import { useExitPresence } from "@/hooks/useExitPresence";
 import { useIsAdminBadge } from "@/hooks/useIsAdminBadge";
+import { useIsCheckerBadge } from "@/hooks/useIsCheckerBadge";
 import {
   BROWSE_PATH,
   getDashboardLink,
@@ -66,6 +67,7 @@ export function TopBar({ className }: { className?: string }) {
      nine of them between them. Shared react-query key now. See
      useIsAdminBadge for the measurement. */
   const isAdmin = useIsAdminBadge();
+  const isChecker = useIsCheckerBadge();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuPresence = useExitPresence(menuOpen);
   const initial = (user?.email?.charAt(0) || "?").toUpperCase();
@@ -197,6 +199,9 @@ export function TopBar({ className }: { className?: string }) {
                       <TopBarMenuLink to="/liked-teachers" icon={Heart} label="Favourite teachers" onClick={() => setMenuOpen(false)} />
                       {role === "student" && (
                         <TopBarMenuLink to="/my-teachers" icon={BookMarked} label="My teachers" onClick={() => setMenuOpen(false)} />
+                      )}
+                      {isChecker && (
+                        <TopBarMenuLink to="/checker" icon={CheckSquare} label="Check papers" onClick={() => setMenuOpen(false)} />
                       )}
                       {isAdmin && (
                         <>

@@ -13,12 +13,17 @@ import {
   checkerFixQuestion,
   checkerSplitQuestion,
   checkerAskForHelp,
+  checkerSkipQuestion,
   checkerCheckedTodayCount,
   checkerSnippetUrl,
-  type CheckerQuestion,
+  checkerMyStats,
+  checkerLeaderboard,
+  checkerGetPreferences,
+  checkerSetPreferences,
 } from '@/lib/checker-api';
 import { kidSentence, needsSplit } from '@/lib/checker-kid-reasons';
 import { matchCheckerKeyboardEvent } from '@/lib/checker-shortcuts';
+import { SUBJECTS, CLASSES } from '@/utils/searchFacets';
 
 /* The paper checker (Kid Mode) -- D8/D9/D11/D15/D16/D21: built INTO the
    Shikshaq site, in Shikshaq's own bento design language, reachable only by
@@ -57,6 +62,41 @@ export default function Checker() {
     };
   }, [user, authLoading, navigate]);
 
+  // D41: first-use subject/class picker. `undefined` = not checked yet,
+  // `null` = checked and the checker has never chosen (show the prompt),
+  // an object = already chosen (skip the prompt).
+  const [prefs, setPrefs] = useState<{ subjects: string[] | null; classes: string[] | null } | null | undefined>(undefined);
+  const [prefsPromptOpen, setPrefsPromptOpen] = useState(false);
+  const [prefsDraftSubjects, setPrefsDraftSubjects] = useState<string[]>([]);
+  const [prefsDraftClasses, setPrefsDraftClasses] = useState<string[]>([]);
+  useEffect(() => {
+    if (allowed !== true) return;
+    let cancelled = false;
+    checkerGetPreferences()
+      .then((p) => {
+        if (cancelled) return;
+        setPrefs(p);
+        if ((p.subjects === null || p.subjects.length === 0) && (p.classes === null || p.classes.length === 0)) {
+          setPrefsPromptOpen(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPrefs(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [allowed]);
+
+  async function savePrefs() {
+    await checkerSetPreferences(prefsDraftSubjects, prefsDraftClasses);
+    setPrefs({ subjects: prefsDraftSubjects, classes: prefsDraftClasses });
+    setPrefsPromptOpen(false);
+    refresh();
+  }
+
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+
   const questionQuery = useQuery({
     queryKey: ['checker-next-question'],
     queryFn: checkerNextQuestion,
@@ -69,6 +109,18 @@ export default function Checker() {
     queryKey: ['checker-checked-today'],
     queryFn: checkerCheckedTodayCount,
     enabled: allowed === true,
+  });
+
+  const statsQuery = useQuery({
+    queryKey: ['checker-my-stats'],
+    queryFn: checkerMyStats,
+    enabled: allowed === true,
+  });
+
+  const leaderboardQuery = useQuery({
+    queryKey: ['checker-leaderboard'],
+    queryFn: checkerLeaderboard,
+    enabled: allowed === true && leaderboardOpen,
   });
 
   const [snippetUrl, setSnippetUrl] = useState<string | null>(null);
@@ -112,6 +164,7 @@ export default function Checker() {
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['checker-next-question'] });
     qc.invalidateQueries({ queryKey: ['checker-checked-today'] });
+    qc.invalidateQueries({ queryKey: ['checker-my-stats'] });
   };
 
   async function doPass() {
@@ -166,11 +219,25 @@ export default function Checker() {
     }
   }
 
+  async function doSkip() {
+    if (!question || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await checkerSkipQuestion(question.id);
+      refresh();
+    } catch {
+      setError("Could not save that. Check your internet and try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const splitTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (helpOpen || submitting) return;
+      if (helpOpen || submitting || prefsPromptOpen) return;
       const action = matchCheckerKeyboardEvent(e);
       if (!action) return;
       if (action === 'pass' && mode === 'check') {
@@ -185,12 +252,15 @@ export default function Checker() {
       } else if (action === 'help' && mode === 'check') {
         e.preventDefault();
         setHelpOpen(true);
+      } else if (action === 'skip' && mode === 'check') {
+        e.preventDefault();
+        void doSkip();
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, helpOpen, submitting, question?.id]);
+  }, [mode, helpOpen, submitting, prefsPromptOpen, question?.id]);
 
   if (authLoading || allowed === null) {
     return (
@@ -218,12 +288,52 @@ export default function Checker() {
   return (
     <BentoStack className="min-h-screen bg-muted">
       <BentoPanel fill="card" edge="top" className="mx-auto w-full max-w-4xl">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-lg font-bold text-foreground">Paper checker</h1>
-          <span className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-warm-secondary">
-            Checked today: {countQuery.data ?? 0}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-warm-secondary">
+              Today: {statsQuery.data?.today_count ?? countQuery.data ?? 0} - Total: {statsQuery.data?.total_count ?? 0}
+            </span>
+            <button
+              type="button"
+              onClick={() => setLeaderboardOpen((v) => !v)}
+              className="rounded-full bg-brand-subtle px-3 py-1 text-[13px] font-semibold text-foreground"
+            >
+              Leaderboard
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPrefsDraftSubjects(prefs?.subjects ?? []);
+                setPrefsDraftClasses(prefs?.classes ?? []);
+                setPrefsPromptOpen(true);
+              }}
+              className="rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-warm-secondary"
+            >
+              My subjects
+            </button>
+          </div>
         </div>
+
+        {leaderboardOpen && (
+          <div className="mb-3 rounded-2xl bg-muted p-3">
+            <p className="mb-2 text-[13px] font-semibold text-foreground">This week's top checkers</p>
+            {leaderboardQuery.isLoading ? (
+              <p className="text-[13px] text-warm-secondary">Loading...</p>
+            ) : !leaderboardQuery.data || leaderboardQuery.data.length === 0 ? (
+              <p className="text-[13px] text-warm-secondary">No one has checked a question this week yet.</p>
+            ) : (
+              <ol className="space-y-1 text-[13px] text-warm-secondary">
+                {leaderboardQuery.data.map((row) => (
+                  <li key={row.rank} className="flex justify-between">
+                    <span>{row.rank}. {row.first_name}</span>
+                    <span className="font-semibold text-foreground">{row.weekly_count}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
 
         {error ? (
           <div className="mb-3 rounded-2xl bg-destructive/10 px-4 py-3 text-[14px] text-destructive">{error}</div>
@@ -362,14 +472,73 @@ export default function Checker() {
                 <ActionButton tone="brand" onClick={() => setHelpOpen(true)} disabled={submitting}>
                   Ask for help
                 </ActionButton>
+                <ActionButton tone="muted" onClick={doSkip} disabled={submitting}>
+                  Skip
+                </ActionButton>
               </>
             )}
             <p className="ml-auto hidden text-[12px] text-warm-meta lg:block">
-              Enter / P looks right - F fix it - S split - H ask for help
+              Enter / P looks right - F fix it - S split - H ask for help - K skip
             </p>
           </div>
         ) : null}
       </BentoPanel>
+
+      {prefsPromptOpen ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-card p-5">
+            <h3 className="mb-2 text-[16px] font-bold text-foreground">Which papers do you want to check?</h3>
+            <p className="mb-3 text-[13px] text-warm-secondary">
+              Pick as many subjects and classes as you like. Leave everything unpicked to see every paper. You can
+              change this any time from "My subjects".
+            </p>
+            <p className="mb-1 text-[13px] font-semibold text-foreground">Subjects</p>
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {SUBJECTS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() =>
+                    setPrefsDraftSubjects((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
+                  }
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-[13px] font-semibold',
+                    prefsDraftSubjects.includes(s) ? 'bg-brand text-foreground' : 'bg-muted text-warm-secondary',
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <p className="mb-1 text-[13px] font-semibold text-foreground">Classes</p>
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {CLASSES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() =>
+                    setPrefsDraftClasses((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))
+                  }
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-[13px] font-semibold',
+                    prefsDraftClasses.includes(c) ? 'bg-brand text-foreground' : 'bg-muted text-warm-secondary',
+                  )}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <ActionButton tone="mint" onClick={savePrefs}>
+                Save
+              </ActionButton>
+              <ActionButton tone="muted" onClick={() => setPrefsPromptOpen(false)}>
+                Not now
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {helpOpen && question ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={() => setHelpOpen(false)}>

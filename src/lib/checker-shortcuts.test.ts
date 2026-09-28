@@ -16,10 +16,11 @@ describe('matchCheckerShortcut', () => {
     expect(matchCheckerShortcut('P', false)).toBe('pass');
   });
 
-  it('maps F to fix, S to split, H to help', () => {
+  it('maps F to fix, S to split, H to help, K to skip', () => {
     expect(matchCheckerShortcut('f', false)).toBe('fix');
     expect(matchCheckerShortcut('s', false)).toBe('split');
     expect(matchCheckerShortcut('h', false)).toBe('help');
+    expect(matchCheckerShortcut('k', false)).toBe('skip');
   });
 
   it('returns null for an unmapped key', () => {
@@ -28,7 +29,7 @@ describe('matchCheckerShortcut', () => {
   });
 
   it('suppresses every shortcut while typing, so editing a body never fires an action', () => {
-    for (const key of ['Enter', 'p', 'f', 's', 'h']) {
+    for (const key of ['Enter', 'p', 'f', 's', 'h', 'k']) {
       expect(matchCheckerShortcut(key, true)).toBeNull();
     }
   });
