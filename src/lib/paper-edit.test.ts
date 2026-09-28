@@ -197,9 +197,9 @@ describe('the admin paper edit migration', () => {
 
   for (const [name, args] of fns) {
     it(`${name} is admin-checked, definer, and closed to anon`, () => {
-      const esc = args.replace(/[()]/g, '\\$&');
-      expect(sql).toMatch(new RegExp(`revoke all on function public\\.${name}\\(${esc}\\) from public, anon, authenticated;`));
-      expect(sql).toMatch(new RegExp(`grant execute on function public\\.${name}\\(${esc}\\) to authenticated;`));
+      // Literal substrings, not a RegExp built from the signature: nothing to escape.
+      expect(sql).toContain(`revoke all on function public.${name}(${args}) from public, anon, authenticated;`);
+      expect(sql).toContain(`grant execute on function public.${name}(${args}) to authenticated;`);
       const body = sql.slice(sql.indexOf(`function public.${name}(`));
       const head = body.slice(0, body.indexOf('$function$;'));
       expect(head).toMatch(/security definer/);
