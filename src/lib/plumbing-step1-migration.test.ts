@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
    its parent's tag before publishing, and that the proposed data move at
    the end stays commented out. */
 
-const raw = readFileSync('supabase/migrations/20260929100000_plumbing_step1.sql', 'utf8');
+const raw = readFileSync('supabase/migrations/20260929100000_plumbing_step1.sql', 'utf8').replace(/\r\n/g, '\n'); // a Windows checkout has CRLF
 const sql = raw
   .split('\n')
   .filter((line) => !line.trim().startsWith('--'))
