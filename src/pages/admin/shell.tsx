@@ -82,7 +82,7 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
   );
 }
 
-export type AdminSectionKey = 'approvals' | 'teachers' | 'papers' | 'reviews' | 'feedback' | 'audit';
+export type AdminSectionKey = 'approvals' | 'teachers' | 'papers' | 'paper-review' | 'reviews' | 'feedback' | 'audit';
 
 /** AD-002a: the fixed tab set and order — Approvals · Teachers · Papers ·
  *  Reviews · Feedback · Audit — with badges only on the two queues
@@ -97,11 +97,15 @@ export type AdminSectionKey = 'approvals' | 'teachers' | 'papers' | 'reviews' | 
  *  publish/convert action -- see admin/reviews.tsx's own header comment),
  *  which left it with no admin surface at all. Its own tab, no count badge
  *  (not a moderation queue to clear, just browsable history). */
-export function buildAdminNav(active: AdminSectionKey, counts: { approvals?: number; reviews?: number }): AdminNavItem[] {
+export function buildAdminNav(
+  active: AdminSectionKey,
+  counts: { approvals?: number; reviews?: number; paperReview?: number },
+): AdminNavItem[] {
   return [
     { key: 'approvals', label: 'Approvals', path: '/admin/approvals', count: counts.approvals, active: active === 'approvals' },
     { key: 'teachers', label: 'Teachers', path: '/admin/teachers', active: active === 'teachers' },
     { key: 'papers', label: 'Papers', path: '/admin/papers', active: active === 'papers' },
+    { key: 'paper-review', label: 'Paper review', path: '/admin/paper-review', count: counts.paperReview, active: active === 'paper-review' },
     { key: 'reviews', label: 'Reviews', path: '/admin/reviews', count: counts.reviews, active: active === 'reviews' },
     { key: 'feedback', label: 'Feedback', path: '/admin/feedback', active: active === 'feedback' },
     { key: 'audit', label: 'Audit', path: '/admin/audit', active: active === 'audit' },
