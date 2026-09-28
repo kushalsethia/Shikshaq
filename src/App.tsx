@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "
 import { installRoutePrefetch } from "@/lib/route-prefetch";
 import { lazy, Suspense, type ReactNode } from "react";
 import { AuthProvider } from "@/lib/auth-context";
+import { AdminDebugProvider } from "@/lib/admin-debug";
 import { PreviewRoleToggle } from "@/components/PreviewRoleToggle";
 import { IntentProvider } from "@/lib/intent-context";
 import { IntentDebugPanel } from "@/components/IntentDebugPanel";
@@ -76,6 +77,7 @@ const AdminFeedbackPage = lazy(() => import("./pages/admin/feedback"));
 const AdminCheckersPage = lazy(() => import("./pages/admin/checkers"));
 const AdminAuditLog = lazy(() => import("./pages/admin/audit"));
 const AdminPaperReview = lazy(() => import("./pages/admin/paper-review"));
+const AdminTeamPage = lazy(() => import("./pages/admin/team"));
 const AdminPaperEdit = lazy(() => import("./pages/admin/paper-edit"));
 /* Paper checker (Kid Mode) -- W1. A route only paper checkers/admins can
    open (see is_paper_checker(), checked client-side inside the page
@@ -209,6 +211,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
+        <AdminDebugProvider>
         <LikesProvider>
           <UpvotesProvider>
             <StudiesWithProvider>
@@ -357,6 +360,7 @@ const App = () => (
               <Route path="/admin/checkers" element={<AdminCheckersPage />} />
               <Route path="/admin/audit" element={<AdminAuditLog />} />
               <Route path="/admin/paper-review" element={<AdminPaperReview />} />
+              <Route path="/admin/team" element={<AdminTeamPage />} />
               <Route path="/admin/paper-review/:paperId" element={<AdminPaperEdit />} />
               <Route path="/checker" element={<Checker />} />
               {/* Legacy admin URLs redirect into the console (pages.md §15). */}
@@ -429,6 +433,7 @@ const App = () => (
             </StudiesWithProvider>
           </UpvotesProvider>
         </LikesProvider>
+        </AdminDebugProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

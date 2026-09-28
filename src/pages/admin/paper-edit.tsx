@@ -15,6 +15,7 @@ import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { resolveDisplayNumber, showQuestionInstructions, marksShownInText } from '@/lib/bank-paper-display';
 import { passageHeading } from '@/lib/checker-english';
 import { isDoubtfulCrop } from '@/lib/checker-pictures';
+import { DebugId } from '@/components/DebugId';
 import {
   adminPaperDraft,
   adminSaveDraftQuestion,
@@ -287,6 +288,8 @@ export default function AdminPaperEditPage() {
                 status={!paper.is_published ? 'hidden' : paper.needs_review ? 'pending' : 'live'}
                 label={!paper.is_published ? 'Hidden' : paper.needs_review ? 'Needs review' : 'Live'}
               />
+              <DebugId label="paper" value={paperId} />
+              <DebugId label="audit-paper" value={paper.audit_paper_id} />
               {hasDraft ? (
                 summary.stillFlagged > 0 ? (
                   <span className="rounded-full bg-brand-subtle px-2.5 py-1 text-[12px] font-semibold text-brand-deep">
@@ -774,6 +777,8 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
         >
           {passed ? 'Checked' : escalated ? 'Sent for help' : 'Needs review'}
         </span>
+        <DebugId label="question" value={id} />
+        <DebugId label="live-question" value={row.live_bank_question_id} />
         <span
           aria-live="polite"
           className={cn(

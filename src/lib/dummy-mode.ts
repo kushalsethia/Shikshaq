@@ -36,6 +36,7 @@ const KEY = 'shikshaq:dummy-mode';
 export const DUMMY_PAGES: { path: string; label: string }[] = [
   { path: '/checker', label: 'Checker (dummy)' },
   { path: '/admin/checkers', label: 'Admin: checkers (dummy)' },
+  { path: '/admin/team', label: 'Admin: team (dummy)' },
 ];
 
 function readParam(): string | null {

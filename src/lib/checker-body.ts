@@ -256,4 +256,4 @@ export const FIX_RULE_TITLE = 'Only fix what the computer read wrong';
 export const FIX_RULE_NOTE =
   'Make it match the printed paper exactly: fix wrong letters, numbers or symbols, and add words that are missing. Do not reword it, fix its grammar or make it better, even if the paper has a mistake.';
 export const BIG_EDIT_WARNING =
-  "You changed a lot. Only fix reading mistakes so it matches the paper exactly. If the words are too broken to fix, press Can't fix instead.";
+  "You changed a lot. Only fix reading mistakes so it matches the paper exactly. If the words are too broken to fix, press Ask for help instead.";

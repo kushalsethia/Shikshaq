@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { BentoPanel } from '@/components/layout/PageContainer';
 import { cn } from '@/lib/utils';
+import { useAdminDebugToggle } from '@/lib/admin-debug';
+import { AdminDebugToggle } from '@/components/DebugId';
 
 /* Handoff 09i AD-001/AD-002/AD-002a — the admin shell.
 
@@ -36,6 +38,7 @@ export interface AdminHeaderProps {
  *  pill tab row nested inside it, exactly as the dc.html mockup lays it
  *  out — square top corners (butts the page's top edge), rounded bottom. */
 export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps) {
+  const debug = useAdminDebugToggle();
   return (
     <BentoPanel fill="card" edge="top" className={cn('px-6 py-[18px] lg:px-6 lg:py-[18px]', className)}>
       <div className="flex items-center justify-between gap-4">
@@ -44,6 +47,10 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
           <span className="inline-flex h-6 items-center rounded-lg bg-muted px-[9px] text-[12px] font-bold uppercase tracking-[.04em] text-warm-secondary">
             Admin
           </span>
+          {/* Owner, 2026-09-28: admin-only debug mode -- shows teacher/paper/
+              question/audit ids on screen. Never rendered for a non-admin
+              (AdminDebugToggle itself returns null when canToggle is false). */}
+          <AdminDebugToggle on={debug.on} canToggle={debug.canToggle} toggle={debug.toggle} />
         </div>
         <div className="flex items-center gap-2.5">
           <span className="hidden text-[13px] text-warm-secondary sm:inline">{signedInEmail}</span>
@@ -82,7 +89,7 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
   );
 }
 
-export type AdminSectionKey = 'approvals' | 'teachers' | 'papers' | 'paper-review' | 'reviews' | 'feedback' | 'checkers' | 'audit';
+export type AdminSectionKey = 'approvals' | 'teachers' | 'papers' | 'paper-review' | 'team' | 'reviews' | 'feedback' | 'checkers' | 'audit';
 
 /** AD-002a: the fixed tab set and order — Approvals · Teachers · Papers ·
  *  Reviews · Feedback · Audit — with badges only on the two queues
@@ -106,6 +113,7 @@ export function buildAdminNav(
     { key: 'teachers', label: 'Teachers', path: '/admin/teachers', active: active === 'teachers' },
     { key: 'papers', label: 'Papers', path: '/admin/papers', active: active === 'papers' },
     { key: 'paper-review', label: 'Paper review', path: '/admin/paper-review', count: counts.paperReview, active: active === 'paper-review' },
+    { key: 'team', label: 'Team', path: '/admin/team', active: active === 'team' },
     { key: 'reviews', label: 'Reviews', path: '/admin/reviews', count: counts.reviews, active: active === 'reviews' },
     { key: 'feedback', label: 'Feedback', path: '/admin/feedback', active: active === 'feedback' },
     { key: 'checkers', label: 'Checkers', path: '/admin/checkers', active: active === 'checkers' },
