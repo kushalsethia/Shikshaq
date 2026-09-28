@@ -384,6 +384,16 @@ begin
   end if;
   v_live_paper_id := v_paper.live_bank_paper_id;
 
+  -- Paper-scoped advisory lock (second review, MEDIUM #3): serializes this
+  -- chokepoint against admin_split_bank_question / admin_reorder_bank_questions
+  -- / admin_merge_bank_questions / admin_add_bank_question /
+  -- admin_delete_bank_question for the SAME live paper, all of which shift
+  -- bank_questions.ord. Confirmed live (read-only select against pg_constraint,
+  -- 2026-09-28): bank_questions has UNIQUE (paper_id, ord)
+  -- (constraint bank_questions_paper_id_ord_key) -- two ord-shifting writers
+  -- racing on one paper without this lock could violate it mid-transaction.
+  perform pg_advisory_xact_lock(hashtext(v_live_paper_id));
+
   -- ---- Pass 1: split halves that have no live row yet (fix #3) --------
   -- A row created by checker_split_question has live_bank_question_id
   -- null and split_from_id pointing at its sibling. Insert it into
@@ -422,7 +432,22 @@ begin
       continue;
     end if;
 
-    v_new_live_id := v_parent.live_bank_question_id || '-split-' || extract(epoch from now())::bigint::text;
+    -- Fix (HIGH #1, second review): extract(epoch from now()) is constant
+    -- within one transaction, so two splits of the SAME parent applied in the
+    -- same chokepoint call generated the identical id and the second insert
+    -- hit the live primary key (23505), aborting the whole chokepoint and
+    -- leaving the paper stuck. Derive the id from the split audit row's own
+    -- uuid instead, which is unique per split by construction.
+    v_new_live_id := v_parent.live_bank_question_id || '-s-' || left(replace(v_q.id::text, '-', ''), 12);
+
+    if exists (select 1 from public.bank_questions where id = v_new_live_id and paper_id = v_live_paper_id) then
+      -- Idempotency: a previous run already created this live row (e.g. it
+      -- crashed after the insert below but before recording it on the audit
+      -- row). Point the audit row at it and move on without re-shifting ord
+      -- or re-inserting.
+      update public.audit_questions set live_bank_question_id = v_new_live_id where id = v_q.id;
+      continue;
+    end if;
 
     update public.bank_questions set ord = ord + 1
       where paper_id = v_live_paper_id and ord > v_parent_ord;
@@ -648,7 +673,12 @@ revoke all on function public.checker_authorize_question(uuid) from public, anon
 -- 6a. Next question: cross-paper stream of needs_review papers' kid-bucket,
 --     not-yet-passed, not-currently-leased, not-recently-skipped (D40)
 --     questions, filtered by the checker's own subjects/classes (D41) when
---     they have chosen any.
+--     they have chosen any. D65: deliberately no filter on aq.source (the
+--     snippet pointer) or the AI's pack choice -- a question with no PDF
+--     anywhere (sense_check_pack ran instead of verify_pack) is served like
+--     any other; the client shows "No picture / check that it makes sense"
+--     instead of an image, and every action (pass/fix/split/skip/help)
+--     works the same way since none of them read aq.source.
 create or replace function public.checker_next_question()
 returns table (
   id uuid, paper_id uuid, ord int, display_number text, number_path text,
@@ -687,7 +717,15 @@ begin
       select 1 from public.audit_question_skips s
       where s.question_id = aq.id and s.user_id = v_uid and s.skipped_at > now() - interval '24 hours'
     )
-  order by ap.created_at, aq.ord
+  -- D68: live needs_review papers (source='live_copy') go first -- they are
+  -- already published and wrong right now, so fixing them matters more than
+  -- clearing a paper that has not shipped yet. Within each group, newest
+  -- year first. ap.year is text; the regexp guard avoids a cast error on a
+  -- non-numeric value (blank, "N/A", etc.) by treating it as oldest.
+  order by
+    case when ap.source = 'live_copy' then 0 else 1 end,
+    case when ap.year ~ '^\d+$' then ap.year::int else 0 end desc,
+    ap.created_at, aq.ord
   limit 1
   for update of aq skip locked;
 
@@ -794,6 +832,31 @@ declare
 begin
   v_q := public.checker_authorize_question(p_question_id);
 
+  -- Paper-scoped advisory lock (second review, MEDIUM #3): serializes this
+  -- ord-shift against the chokepoint and every admin function that also
+  -- shifts bank_questions/audit_questions ord for the same paper. Confirmed
+  -- live: bank_questions has UNIQUE (paper_id, ord).
+  perform pg_advisory_xact_lock(hashtext(v_q.paper_id::text));
+
+  -- Stale-body check (second review, MEDIUM #2): the checker's client may
+  -- have loaded this question before someone else (another checker action,
+  -- or the AI pipeline) changed its body. Splitting at a byte offset into a
+  -- body the client did not actually see would silently corrupt both halves.
+  if p_body_before is distinct from v_q.body then
+    raise exception 'stale question text, reload and retry' using errcode = '40001';
+  end if;
+
+  -- Duplicate-split guard (second review, HIGH #1): refuse a second split of
+  -- the same question while an earlier split's second half has not yet been
+  -- applied to live (live_bank_question_id still null). Without this, two
+  -- unapplied splits of one parent race for the same chokepoint-generated id.
+  if exists (
+    select 1 from public.audit_questions
+    where split_from_id = p_question_id and live_bank_question_id is null
+  ) then
+    raise exception 'This question already has an unapplied split pending; resolve it before splitting again' using errcode = '40001';
+  end if;
+
   if p_split_at is null or p_split_at <= 0 or p_split_at >= length(p_body_before) then
     raise exception 'Split point out of range';
   end if;
@@ -895,17 +958,32 @@ grant execute on function public.checker_skip_question(uuid) to authenticated;
 -- 6g. Checked-today count, for the small counter on Kid Mode.
 create or replace function public.checker_checked_today_count()
 returns integer
-language sql
+language plpgsql
 security definer
 stable
 set search_path to 'public'
-as $$
-  select count(*)::int
+as $function$
+declare
+  v_count int;
+begin
+  -- Second review, LOW #4: the old `language sql` version had no auth check,
+  -- so any authenticated user (not just checkers) could call it. It only ever
+  -- returned that user's own count, but the RPC should still be
+  -- checker-gated like every other checker_* function for a consistent
+  -- 42501 contract.
+  if not public.is_paper_checker() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  select count(*)::int into v_count
   from public.audit_review_log
   where at >= date_trunc('day', now())
     and action in ('checker_pass', 'checker_fix', 'checker_split', 'checker_ask_help')
     and actor_user_id = auth.uid();
-$$;
+
+  return v_count;
+end;
+$function$;
 
 revoke all on function public.checker_checked_today_count() from public, anon, authenticated;
 grant execute on function public.checker_checked_today_count() to authenticated;
@@ -1044,6 +1122,7 @@ set search_path to 'public'
 as $function$
 declare
   v_before jsonb;
+  v_after jsonb;
   v_allowed text[] := array[
     'school', 'year', 'exam', 'cls', 'subject', 'board',
     'marks', 'is_published', 'needs_review', 'allowed_time_minutes',
@@ -1069,8 +1148,19 @@ begin
       else p_value
     end, p_paper_id;
 
+  -- Second review, LOW #6: store `after` typed the same way the column is,
+  -- not always as a jsonb string -- admin_undo_revision's optimistic check
+  -- reads it back with `#>>'{}'` and compares to the current column's ::text
+  -- cast, which only lines up when a numeric/boolean field's stored `after`
+  -- is itself a jsonb number/boolean.
+  v_after := case
+    when p_field in ('marks', 'allowed_time_minutes') then to_jsonb(p_value::numeric)
+    when p_field in ('is_published', 'needs_review') then to_jsonb(p_value::boolean)
+    else to_jsonb(p_value)
+  end;
+
   insert into public.bank_question_revisions (table_name, row_id, action, field, before, after, actor, actor_user_id, source)
-  values ('bank_papers', p_paper_id, 'admin_edit', p_field, v_before->p_field, to_jsonb(p_value), auth.uid()::text, auth.uid(), 'admin');
+  values ('bank_papers', p_paper_id, 'admin_edit', p_field, v_before->p_field, v_after, auth.uid()::text, auth.uid(), 'admin');
 end;
 $function$;
 
@@ -1085,6 +1175,7 @@ set search_path to 'public'
 as $function$
 declare
   v_before jsonb;
+  v_after jsonb;
   v_allowed text[] := array[
     'number', 'body', 'marks', 'chapter', 'qtype', 'page', 'figure',
     'display_number', 'instructions', 'suggested_time_minutes',
@@ -1111,8 +1202,15 @@ begin
       else p_value
     end, p_question_id;
 
+  -- Second review, LOW #6: typed `after`, matching admin_edit_bank_paper.
+  v_after := case
+    when p_field in ('marks', 'suggested_time_minutes', 'page') then to_jsonb(p_value::numeric)
+    when p_field = 'chapter_from_paper' then to_jsonb(p_value::boolean)
+    else to_jsonb(p_value)
+  end;
+
   insert into public.bank_question_revisions (table_name, row_id, action, field, before, after, actor, actor_user_id, source)
-  values ('bank_questions', p_question_id, 'admin_edit', p_field, v_before->p_field, to_jsonb(p_value), auth.uid()::text, auth.uid(), 'admin');
+  values ('bank_questions', p_question_id, 'admin_edit', p_field, v_before->p_field, v_after, auth.uid()::text, auth.uid(), 'admin');
 end;
 $function$;
 
@@ -1143,6 +1241,9 @@ begin
   if v_first.paper_id <> v_second.paper_id then
     raise exception 'Cannot merge questions from different papers';
   end if;
+
+  -- Second review, MEDIUM #3: paper-scoped advisory lock.
+  perform pg_advisory_xact_lock(hashtext(v_first.paper_id));
 
   update public.bank_questions
   set body = v_first.body || E'\n\n' || v_second.body,
@@ -1181,6 +1282,9 @@ begin
   if v_q.id is null then
     raise exception 'Question not found';
   end if;
+  -- Second review, MEDIUM #3: paper-scoped advisory lock.
+  perform pg_advisory_xact_lock(hashtext(v_q.paper_id));
+
   if p_split_at is null or p_split_at <= 0 or p_split_at >= length(v_q.body) then
     raise exception 'Split point out of range';
   end if;
@@ -1215,9 +1319,29 @@ declare
   v_before jsonb;
   v_id text;
   v_ord int := 0;
+  v_expected text[];
+  v_provided_sorted text[];
 begin
   if not public.is_admin() then
     raise exception 'Not authorized' using errcode = '42501';
+  end if;
+
+  -- Second review, MEDIUM #3: paper-scoped advisory lock.
+  perform pg_advisory_xact_lock(hashtext(p_paper_id));
+
+  -- Second review, LOW #5: p_ordered_ids must be exactly this paper's
+  -- question ids, each exactly once -- not a subset (which would silently
+  -- strand the omitted rows at whatever ord they last had), not a superset
+  -- with a stray id from another paper, and not a list with a duplicate
+  -- (which would collide with unique(paper_id, ord) once both loops below
+  -- try to place the same id at two ords). Comparing the sorted arrays
+  -- catches all three: different length, an unknown id, or a duplicate id
+  -- each make the sorted arrays unequal.
+  select array_agg(id order by id) into v_expected
+    from public.bank_questions where paper_id = p_paper_id;
+  select array_agg(x order by x) into v_provided_sorted from unnest(p_ordered_ids) x;
+  if v_expected is null or v_provided_sorted is distinct from v_expected then
+    raise exception 'p_ordered_ids must contain exactly this paper''s question ids, each exactly once' using errcode = '22023';
   end if;
 
   select jsonb_agg(jsonb_build_object('id', id, 'ord', ord) order by ord)
@@ -1256,6 +1380,9 @@ begin
     raise exception 'Not authorized' using errcode = '42501';
   end if;
 
+  -- Second review, MEDIUM #3: paper-scoped advisory lock.
+  perform pg_advisory_xact_lock(hashtext(p_paper_id));
+
   v_new_id := p_paper_id || '-add-' || extract(epoch from now())::bigint::text;
   update public.bank_questions set ord = ord + 1 where paper_id = p_paper_id and ord > p_after_ord;
   insert into public.bank_questions (id, paper_id, ord, body, marks, display_number)
@@ -1288,6 +1415,9 @@ begin
   if v_before.id is null then
     raise exception 'Question not found';
   end if;
+
+  -- Second review, MEDIUM #3: paper-scoped advisory lock.
+  perform pg_advisory_xact_lock(hashtext(v_before.paper_id));
 
   delete from public.bank_questions where id = p_question_id;
 

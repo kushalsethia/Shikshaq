@@ -358,7 +358,14 @@ export default function Checker() {
                 {snippetUrl ? (
                   <img src={snippetUrl} alt="the printed question" className="h-full w-full object-contain" />
                 ) : (
-                  <p className="p-6 text-center text-[13px] text-warm-meta">No snippet is available for this question.</p>
+                  // D65: this paper has no PDF anywhere, or the sense-check pack
+                  // ran instead of the picture-matching one -- the question is
+                  // still served and checkable, just without a photo to compare
+                  // against. The label is deliberately plain, not an error state.
+                  <div className="p-6 text-center">
+                    <p className="text-[14px] font-semibold text-foreground">No picture</p>
+                    <p className="mt-1 text-[13px] text-warm-meta">check that it makes sense</p>
+                  </div>
                 )}
               </div>
               {(question.school || question.subject) && (
