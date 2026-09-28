@@ -7,7 +7,7 @@ import { MathText } from '@/components/papers/math-text';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { cn } from '@/lib/utils';
 import { realCheckerApi, type CheckerApi } from '@/lib/checker-api';
-import { describeFlags, needsSplit, NO_PICTURE_TITLE, NO_PICTURE_NOTE } from '@/lib/checker-kid-reasons';
+import { whatToCheck, needsSplit, NO_PICTURE_TITLE, NO_PICTURE_NOTE } from '@/lib/checker-kid-reasons';
 import { englishContext, passageHeading } from '@/lib/checker-english';
 import {
   assembleQuestionContext,
@@ -29,6 +29,7 @@ import {
   splitHalves,
   canSplitAt,
   bigEdit,
+  stripLeadingNumberPrefix,
   FIX_RULE_TITLE,
   FIX_RULE_NOTE,
   BIG_EDIT_WARNING,
@@ -49,9 +50,11 @@ import { isDummyMode } from '@/lib/dummy-mode';
    reusing its flow and shortcut logic, not its visual design (D11: "not a
    separate designed thing").
 
-   D16/D21: the fourth button is "Ask for help", not "Can't fix" -- nothing
-   here can turn a paper red. Escalating just hands the question to Sonnet
-   first, then an admin, while the checker moves on to the next question.
+   D16/D21: escalating never turns a paper red -- it hands the question to
+   Sonnet first, then an admin, while the checker moves on to the next one.
+   The pipeline-plan Step 2 rename ("Can't fix", chip reasons) supersedes
+   D16/D21's button LABEL only: same askForHelp/escalate RPC underneath, a
+   plainer word for a class 9-12 reader on top.
 
    D75: in a test build (VITE_PREVIEW_TOOLS) with dummy mode on, the same
    page runs against an in-memory fake of the checker API, with no sign-in
@@ -179,6 +182,29 @@ export function CheckerPage({
 
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
 
+  /* Speed (pipeline-plan Step 2, #5): checker_next_question LEASES the row
+     it returns to whoever fetches it. That rules out fetching a real "next"
+     question ahead of time while the current one is still on screen -- it
+     would start a second 10-minute clock on a question nobody is reading
+     yet, and could hand it to another checker's queue in the meantime for
+     nothing if this one gets Skipped instead of finished. So this stays
+     "fetch after pass": one lease per question actually shown, requested
+     the moment an action resolves (`refresh()` below), never earlier.
+
+     What IS safe, and is what makes the transition feel instant rather than
+     "fetch after pass" reading as a visible reload: React Query does not
+     clear `data` on a background refetch of the SAME query key (only on the
+     very first load, before any question has ever arrived, is there no
+     previous question to show). So the questions after the first swap in
+     directly once the new row lands, with no full-panel skeleton between
+     them -- the old question's text and picture just stay put, buttons
+     disabled by `submitting`, until the next one replaces them. The picture
+     panel's own brief pulse (its signed URL is a second, sequential fetch,
+     started only once the new question's row is known) is the one part of
+     the transition that still visibly loads, and staying sequential there
+     is deliberate too: fetching a picture URL speculatively for a row nobody
+     has been leased yet would be a picture for a question this checker may
+     never see. */
   const questionQuery = useQuery({
     queryKey: ['checker-next-question', scope],
     queryFn: api.nextQuestion,
@@ -245,9 +271,9 @@ export function CheckerPage({
   // While the picture is still loading, sentences assume it will arrive
   // when one is planned.
   const hasPicture = pictureUrl === undefined ? picturePlan !== null : Boolean(pictureUrl);
-  const flags = question
-    ? describeFlags(question.flag_reasons, question.flag_detail, { hasPicture })
-    : { lines: [], note: null };
+  const whatToCheckLine = question
+    ? whatToCheck(question.flag_reasons, question.flag_detail, { hasPicture })
+    : { line: null, detail: null };
   // W14: English questions carry their passage and set text in `source`.
   const english = question ? englishContext(question.source) : null;
 
@@ -352,7 +378,7 @@ export function CheckerPage({
   async function doPass() {
     if (!question || submitting) return;
     if (!canPass) {
-      setError('This question has no words, so it cannot be marked as right. Press Ask for help.');
+      setError("This question has no words, so it cannot be marked as right. Press Can't fix.");
       return;
     }
     if (marksInvalid) {
@@ -360,14 +386,30 @@ export function CheckerPage({
       return;
     }
     if (mode === 'fix' || edited) {
-      const bodyChanged = bodyDraft !== (question.body ?? '');
+      const savedNumber = numberDraft.trim() || null;
+      // Owner: "the number lives in the number box only". A leading-prefix
+      // removal ONLY -- never a rewrite of the rest of the text -- so a
+      // body that still repeats its own number ("15. Solve for x...") is
+      // not saved with the number twice. Logged because it silently changes
+      // what gets stored, even though it is always the same removal a
+      // checker could have made by hand.
+      const { stripped, removed } = stripLeadingNumberPrefix(bodyDraft, savedNumber);
+      if (removed) {
+        console.info('[checker] stripped repeated leading number on save', {
+          questionId: question.id,
+          displayNumber: savedNumber,
+          removed,
+        });
+      }
+      const finalBody = stripped;
+      const bodyChanged = finalBody !== (question.body ?? '');
       await run(
         () =>
           api.fixQuestion(question.id, {
             // Unchanged text is not sent at all (null keeps the stored body),
             // so fixing only the marks can never rewrite the words.
-            body: bodyChanged ? bodyDraft : null,
-            display_number: numberDraft.trim() || null,
+            body: bodyChanged ? finalBody : null,
+            display_number: savedNumber,
             marks: marksDraft.trim() === '' ? null : Number(marksDraft),
           }),
         'Saved. Here is the next one.',
@@ -635,31 +677,21 @@ export function CheckerPage({
                 </Callout>
               ) : garbled ? (
                 <Callout tone="warn" title="These words look scrambled">
-                  Do not try to retype them. Press Ask for help and an admin will fix it from the paper.
+                  Do not try to retype them. Press Can't fix and an admin will fix it from the paper.
                 </Callout>
               ) : null}
 
-              {(flags.lines.length > 0 || flags.note) && (
+              {whatToCheckLine.line ? (
                 <div className="mb-3 rounded-2xl bg-brand-subtle p-3">
-                  <p className="mb-1.5 text-[13px] font-semibold text-foreground">Why this question needs a check</p>
-                  <ul className="space-y-1.5">
-                    {flags.lines.map((f) => (
-                      <li
-                        key={f.code}
-                        className={cn('text-[14px] leading-snug', f.info ? 'text-warm-secondary' : 'text-foreground')}
-                      >
-                        {f.sentence}
-                        {f.detail ? (
-                          <span className="mt-0.5 block text-[12px] text-warm-secondary">
-                            What the computer noticed: {f.detail}
-                          </span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                  {flags.note ? <p className="mt-1.5 text-[12px] text-warm-secondary">Note: {flags.note}</p> : null}
+                  <p className="mb-1 text-[13px] font-semibold text-foreground">What to check</p>
+                  <p className="text-[14px] leading-snug text-foreground">{whatToCheckLine.line}</p>
+                  {whatToCheckLine.detail ? (
+                    <p className="mt-1 text-[12px] text-warm-secondary">
+                      What the computer noticed: {whatToCheckLine.detail}
+                    </p>
+                  ) : null}
                 </div>
-              )}
+              ) : null}
 
               {context ? <WholeQuestion context={context} /> : null}
 
@@ -798,10 +830,10 @@ export function CheckerPage({
                   </ActionButton>
                 )}
                 <ActionButton tone="brand" onClick={() => setHelpOpen(true)} disabled={submitting}>
-                  Ask for help
+                  Can't fix
                 </ActionButton>
                 <ActionButton tone="muted" onClick={doSkip} disabled={submitting}>
-                  Skip
+                  Show me another paper
                 </ActionButton>
               </>
             )}
@@ -877,7 +909,7 @@ export function CheckerPage({
       {helpOpen && question ? (
         <Modal onClose={() => setHelpOpen(false)} labelledBy="checker-help-title">
           <h2 id="checker-help-title" className="mb-2 text-[16px] font-bold text-foreground">
-            What is stopping you?
+            What can't you fix?
           </h2>
           <p className="mb-3 text-[13px] text-warm-secondary">
             Someone who knows more will take a look. This does not hold up the rest of the paper.
@@ -904,7 +936,7 @@ export function CheckerPage({
             onChange={(e) => setHelpReason(e.target.value)}
             placeholder="Or say it in your own words"
             rows={3}
-            aria-label="What is stopping you"
+            aria-label="What can't you fix"
             className="w-full rounded-xl bg-muted p-3 text-[16px] outline-none focus-visible:ring-2 focus-visible:ring-brand"
           />
           {error ? <p className="mt-2 text-[13px] text-destructive">{error}</p> : null}

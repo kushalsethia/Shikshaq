@@ -252,6 +252,40 @@ export function describeFlags(
   return { lines, note: kidDetail(general) };
 }
 
+/**
+ * One plain "What to check" line, not a bulleted list. `describeFlags`
+ * already keeps one sentence per distinct code; a question flagged for four
+ * reasons at once used to show four bullet points, which reads like four
+ * separate jobs when a checker only needs to read the question once and
+ * keep all of them in mind. Bookkeeping reasons (INFO_ONLY_CODES -- "you do
+ * not need to fix that") are dropped entirely here, not just shown last:
+ * they ask nothing of the checker, so they are not part of what to check.
+ * Sentences are deduplicated by their exact text, so two codes that read
+ * the same (e.g. two "may be filed as the wrong kind" reasons) do not
+ * repeat themselves.
+ */
+export function whatToCheck(
+  flagReasons: string[] | null | undefined,
+  flagDetail: string | null | undefined,
+  opts: DescribeOptions = {},
+): { line: string | null; detail: string | null } {
+  const { lines, note } = describeFlags(flagReasons, flagDetail, opts);
+  const actionable = lines.filter((l) => !l.info);
+  const seenText = new Set<string>();
+  const sentences: string[] = [];
+  for (const l of actionable) {
+    const key = l.sentence.trim().toLowerCase();
+    if (seenText.has(key)) continue;
+    seenText.add(key);
+    sentences.push(l.sentence.trim());
+  }
+  if (sentences.length === 0) return { line: null, detail: note };
+  // First sentence's evidence is the one shown -- the most specific thing
+  // the pipeline noticed, not a wall of unrelated evidence strings.
+  const firstDetail = actionable.find((l) => !l.info && l.detail)?.detail ?? null;
+  return { line: sentences.join(' '), detail: firstDetail ?? note };
+}
+
 /** Shown in place of the picture when a question has none, or it failed to load. */
 export const NO_PICTURE_TITLE = 'There is no picture for this question';
 export const NO_PICTURE_NOTE = 'Just check that it reads correctly and makes sense. All the buttons still work.';

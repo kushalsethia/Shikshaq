@@ -2,7 +2,7 @@
  * Keyboard shortcuts for the paper-checker (Kid Mode) screen. Ported from
  * the standalone auditor's `shortcuts.ts` / `lib/useShortcuts.ts`
  * (UnlimitedOCR/auditor/web/src), trimmed to the actions Kid Mode
- * actually has: Looks right / Fix it / Split / Ask for help / Skip. Kept as
+ * actually has: Looks right / Fix it / Split / Can't fix / Skip. Kept as
  * pure functions (no DOM/React here) so they can be unit tested directly --
  * `matchCheckerShortcut` is the one thing a test needs to call.
  */
@@ -85,6 +85,6 @@ export function shortcutHint(opts: { canSplit: boolean; canPass: boolean }): str
   if (opts.canPass) parts.push('Enter or P looks right');
   parts.push('F fix it');
   if (opts.canSplit) parts.push('S split');
-  parts.push('H ask for help', 'K skip');
+  parts.push("H can't fix", 'K skip');
   return parts.join(', ');
 }

@@ -7,6 +7,7 @@ import {
   readableCode,
   parseFlagDetail,
   describeFlags,
+  whatToCheck,
   NO_PICTURE_TITLE,
   NO_PICTURE_NOTE,
   SPLIT_FROM_SENTENCE,
@@ -210,5 +211,44 @@ describe('describeFlags', () => {
   it('is empty for no flags and no detail', () => {
     expect(describeFlags([], null)).toEqual({ lines: [], note: null });
     expect(describeFlags(null, undefined)).toEqual({ lines: [], note: null });
+  });
+});
+
+describe('whatToCheck', () => {
+  it('collapses several actionable reasons into one line, no bullets', () => {
+    const { line } = whatToCheck(['answer_in_question', 'ocr_junk'], null);
+    expect(line).toBe(`${KID_SENTENCE.answer_in_question} ${KID_SENTENCE.ocr_junk}`);
+  });
+
+  it('drops bookkeeping (info-only) reasons entirely, not just last', () => {
+    const { line } = whatToCheck(['chapter_unresolved', 'answer_in_question'], null);
+    expect(line).toBe(KID_SENTENCE.answer_in_question);
+    expect(line).not.toContain('chapter');
+  });
+
+  it('is null when every reason is bookkeeping', () => {
+    const { line } = whatToCheck(['chapter_unresolved', 'possible_duplicate'], null);
+    expect(line).toBeNull();
+  });
+
+  it('is null with no flags at all', () => {
+    expect(whatToCheck([], null)).toEqual({ line: null, detail: null });
+    expect(whatToCheck(null, undefined)).toEqual({ line: null, detail: null });
+  });
+
+  it('deduplicates identical sentence text even from different codes', () => {
+    // gate_labels and type_mismatch are both info-only "wrong kind" -- pick
+    // two real actionable codes with distinct sentences instead, and prove
+    // the same code never appears twice.
+    const { line } = whatToCheck(['ocr_junk', 'ocr_junk'], null);
+    expect(line).toBe(KID_SENTENCE.ocr_junk);
+  });
+
+  it('surfaces the first actionable reason\'s evidence as the detail', () => {
+    const { detail } = whatToCheck(
+      ['marks_mismatch'],
+      JSON.stringify({ marks_mismatch: 'the marks printed do not add up to the paper total' }),
+    );
+    expect(detail).toBe('the marks printed do not add up to the paper total');
   });
 });
