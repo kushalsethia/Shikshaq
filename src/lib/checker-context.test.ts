@@ -4,8 +4,6 @@ import {
   assembleQuestionContext,
   contextHeading,
   partLabel,
-  resolveCheckerPictures,
-  resolveContextPictures,
   type ContextRow,
 } from './checker-context';
 
@@ -83,35 +81,5 @@ describe('labels', () => {
   it('names the whole question by its number when it has one', () => {
     expect(contextHeading(assembleQuestionContext(Q3, 'p1')!)).toBe('The whole question 3');
     expect(contextHeading(assembleQuestionContext([row('a', 1), row('b', 2)], 'a')!)).toBe('The whole question');
-  });
-});
-
-describe('pictures', () => {
-  const fake = (have: Record<string, string>) => async (id: string) => have[id] ?? null;
-
-  it("uses the parent's own picture when it exists", async () => {
-    const ctx = assembleQuestionContext(Q3, 'p2')!;
-    expect(await resolveContextPictures(ctx, fake({ root: 'R', p1: 'A', p2: 'B' }))).toEqual(['R']);
-  });
-
-  it("stacks every part's picture in order when the parent has none", async () => {
-    const ctx = assembleQuestionContext(Q3, 'p2')!;
-    expect(await resolveContextPictures(ctx, fake({ p3: 'C', p1: 'A' }))).toEqual(['A', 'C']);
-  });
-
-  it('treats a failing lookup as no picture, never throwing', async () => {
-    const ctx = assembleQuestionContext(Q3, 'p2')!;
-    const throwing = async (id: string) => {
-      if (id === 'root') throw new Error('signed url failed');
-      return id === 'p1' ? 'A' : null;
-    };
-    expect(await resolveContextPictures(ctx, throwing)).toEqual(['A']);
-  });
-
-  it("falls back to the question's own picture, then to none", async () => {
-    const ctx = assembleQuestionContext(Q3, 'p2')!;
-    expect(await resolveCheckerPictures('p2', ctx, fake({}))).toEqual([]);
-    expect(await resolveCheckerPictures('solo', null, fake({ solo: 'S' }))).toEqual(['S']);
-    expect(await resolveCheckerPictures('solo', null, fake({}))).toEqual([]);
   });
 });

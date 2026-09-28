@@ -15,7 +15,7 @@ import {
   checkerAskForHelp,
   checkerSkipQuestion,
   checkerCheckedTodayCount,
-  checkerSnippetUrl,
+  checkerPictureUrl,
   checkerMyStats,
   checkerLeaderboard,
   checkerGetPreferences,
@@ -28,9 +28,16 @@ import {
   assembleQuestionContext,
   contextHeading,
   partLabel,
-  resolveCheckerPictures,
   type QuestionContext,
 } from '@/lib/checker-context';
+import {
+  planCheckerPicture,
+  pictureHeading,
+  PICTURE_MAY_BE_WRONG,
+  PICTURE_MAY_MISS_PARTS,
+  SHOW_PICTURE_LABEL,
+  type PicturePlan,
+} from '@/lib/checker-pictures';
 import { matchCheckerKeyboardEvent } from '@/lib/checker-shortcuts';
 import { SUBJECTS, CLASSES } from '@/utils/searchFacets';
 import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
@@ -146,30 +153,38 @@ export default function Checker() {
     ? assembleQuestionContext(contextQuery.data, question.id)
     : null;
 
-  // Pictures: the whole question's crop(s) when this is a sub-part,
-  // otherwise the question's own crop. `null` = still looking. A picture
-  // that fails to load is dropped, and with none left the "no picture"
-  // note shows instead.
-  const [pictures, setPictures] = useState<string[] | null>(null);
-  const [failedPictures, setFailedPictures] = useState<string[]>([]);
-  const contextKey = context ? [context.parent?.id ?? '', ...context.parts.map((p) => p.id)].join(',') : '';
-  const contextPending = contextQuery.isLoading;
+  // The one picture of the printed paper (checker-pictures.ts): the whole
+  // question's crop for a sub-part when there is one, else the parent's,
+  // else the question's own. Null plan = no crop, so no signed URL is asked
+  // for. A doubtful crop (align_score below 0.6) starts hidden behind a
+  // warning and is only signed when the checker taps to see it.
+  const picturePlan: PicturePlan | null =
+    question && !contextQuery.isLoading ? planCheckerPicture(question, context) : null;
+  const picturePlanKey = question && !contextQuery.isLoading ? `${question.id}|${picturePlan?.path ?? ''}` : '';
+  // Which plan the checker tapped open; a new question never inherits it.
+  const [revealedKey, setRevealedKey] = useState('');
+  const pictureRevealed = revealedKey !== '' && revealedKey === picturePlanKey;
+  // undefined = still looking, null = none (or it failed to load).
+  const [pictureUrl, setPictureUrl] = useState<string | null | undefined>(undefined);
   useEffect(() => {
-    setFailedPictures([]);
-    setPictures(null);
-    if (!question || contextPending) return;
+    setPictureUrl(undefined);
+    if (!picturePlanKey) return;
+    if (!picturePlan) {
+      setPictureUrl(null);
+      return;
+    }
+    if (picturePlan.doubtful && !pictureRevealed) return;
     let cancelled = false;
-    resolveCheckerPictures(question.id, context, (qid) => checkerSnippetUrl(question.paper_id, qid)).then((urls) => {
-      if (!cancelled) setPictures(urls);
+    checkerPictureUrl(picturePlan.path).then((url) => {
+      if (!cancelled) setPictureUrl(url);
     });
     return () => {
       cancelled = true;
     };
-    // `context` is derived from contextKey; listing it would re-run on
-    // every render because assembleQuestionContext returns a new object.
+    // `picturePlan` is derived from picturePlanKey (a new object every render).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [question?.id, contextPending, contextKey]);
-  const visiblePictures = (pictures ?? []).filter((u) => !failedPictures.includes(u));
+  }, [picturePlanKey, pictureRevealed]);
+  const pictureHidden = Boolean(picturePlan?.doubtful && !pictureRevealed);
   const flags = question ? describeFlags(question.flag_reasons, question.flag_detail) : { lines: [], note: null };
   // W14: English questions carry their passage and set text in `source`.
   const english = question ? englishContext(question.source) : null;
@@ -422,22 +437,34 @@ export default function Checker() {
           <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Left: the printed page snippet */}
             <div className="flex flex-col">
-              <p className="mb-1 text-[12px] text-warm-meta">
-                {context && visiblePictures.length > 0 ? 'The printed paper, whole question' : 'The printed paper'}
-              </p>
+              <p className="mb-1 text-[12px] text-warm-meta">{pictureHeading(pictureUrl ? picturePlan : null)}</p>
+              {picturePlan?.doubtful && pictureUrl !== null ? (
+                <p role="note" className="mb-2 rounded-2xl bg-brand-subtle px-3 py-2 text-[13px] leading-snug text-foreground">
+                  {PICTURE_MAY_BE_WRONG}
+                </p>
+              ) : null}
+              {picturePlan?.mayMissParts && !pictureHidden && pictureUrl ? (
+                <p className="mb-2 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
+              ) : null}
               <div className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-muted lg:max-h-[60vh]">
-                {pictures === null ? (
+                {pictureHidden ? (
+                  <button
+                    type="button"
+                    onClick={() => setRevealedKey(picturePlanKey)}
+                    className="tap-44 m-4 self-center rounded-full bg-card px-5 py-3 text-[14px] font-semibold text-foreground"
+                  >
+                    {SHOW_PICTURE_LABEL}
+                  </button>
+                ) : pictureUrl === undefined ? (
                   <p className="p-6 text-center text-[13px] text-warm-meta">Loading the picture...</p>
-                ) : visiblePictures.length > 0 ? (
-                  visiblePictures.map((url, i) => (
-                    <img
-                      key={url}
-                      src={url}
-                      alt={visiblePictures.length > 1 ? `the printed question, piece ${i + 1}` : 'the printed question'}
-                      onError={() => setFailedPictures((prev) => [...prev, url])}
-                      className="w-full object-contain"
-                    />
-                  ))
+                ) : pictureUrl ? (
+                  <img
+                    key={pictureUrl}
+                    src={pictureUrl}
+                    alt={picturePlan && picturePlan.kind !== 'own' ? 'the printed whole question' : 'the printed question'}
+                    onError={() => setPictureUrl(null)}
+                    className="w-full object-contain"
+                  />
                 ) : (
                   // D65 + W11: no crop exists for this question, or it failed
                   // to load. The question is still checkable and every button
