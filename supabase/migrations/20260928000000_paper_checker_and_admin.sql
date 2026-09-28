@@ -832,10 +832,10 @@ declare
 begin
   v_q := public.checker_authorize_question(p_question_id);
 
-  -- Paper-scoped advisory lock (second review, MEDIUM #3): serializes this
-  -- ord-shift against the chokepoint and every admin function that also
-  -- shifts bank_questions/audit_questions ord for the same paper. Confirmed
-  -- live: bank_questions has UNIQUE (paper_id, ord).
+  -- Advisory lock keyed on the AUDIT paper id: serializes concurrent checker
+  -- splits of the same audit paper against each other (this shifts only
+  -- audit_questions.ord). It does not share a key with the chokepoint or the
+  -- admin bank_questions functions, which lock on the live bank_papers id.
   perform pg_advisory_xact_lock(hashtext(v_q.paper_id::text));
 
   -- Stale-body check (second review, MEDIUM #2): the checker's client may
@@ -1291,7 +1291,7 @@ begin
 
   v_first := left(v_q.body, p_split_at);
   v_second := substring(v_q.body from p_split_at + 1);
-  v_new_id := v_q.id || '-split-' || extract(epoch from now())::bigint::text;
+  v_new_id := v_q.id || '-split-' || replace(gen_random_uuid()::text, '-', '');
 
   update public.bank_questions set ord = ord + 1 where paper_id = v_q.paper_id and ord > v_q.ord;
   update public.bank_questions set body = v_first where id = p_question_id;
@@ -1383,7 +1383,7 @@ begin
   -- Second review, MEDIUM #3: paper-scoped advisory lock.
   perform pg_advisory_xact_lock(hashtext(p_paper_id));
 
-  v_new_id := p_paper_id || '-add-' || extract(epoch from now())::bigint::text;
+  v_new_id := p_paper_id || '-add-' || replace(gen_random_uuid()::text, '-', '');
   update public.bank_questions set ord = ord + 1 where paper_id = p_paper_id and ord > p_after_ord;
   insert into public.bank_questions (id, paper_id, ord, body, marks, display_number)
   values (v_new_id, p_paper_id, p_after_ord + 1, coalesce(p_body, ''), p_marks, p_display_number);
