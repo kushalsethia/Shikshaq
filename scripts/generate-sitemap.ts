@@ -332,7 +332,7 @@ async function readBankURLs(currentDate: string): Promise<{ schools: SitemapURL[
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const allRows = await fetchAllRows<{ id: string; school: string; has_school: boolean; created_at: string | null }>(
-    () => supabase.from('bank_papers').select('id, school, has_school, created_at').eq('is_published', true) as unknown as Query,
+    () => supabase.from('bank_papers').select('id, school, has_school, created_at').eq('is_published', true).gt('question_count', 0) as unknown as Query,
     'bank_papers',
   );
 

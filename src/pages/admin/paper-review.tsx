@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState, adminToast, adminPrimaryBtnStyle, adminSecondaryBtnStyle, AdminStatTiles } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
@@ -8,15 +9,17 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
+import { formatOnlineNames } from '@/lib/paper-review-realtime';
 import {
   adminPaperQueue,
   adminEscalationQueue,
   adminListCheckers,
+  adminCheckerLog,
   adminGrantPaperChecker,
   adminRevokePaperChecker,
   adminHideBankPaper,
   adminRestoreBankPaper,
-  adminEditBankPaper,
   adminPaperHistory,
   adminUndoRevision,
   adminResolveEscalation,
@@ -24,6 +27,7 @@ import {
   type PaperQueueRow,
   type EscalationRow,
   type CheckerRow,
+  type CheckerLogRow,
   type RevisionRow,
   type UserSearchRow,
 } from '@/lib/checker-api';
@@ -41,29 +45,38 @@ import {
    concepts, published/taken-down is the submissions concept). */
 
 type View = 'papers' | 'checkers' | 'escalations';
-type PaperFilter = 'needs_review' | 'escalated' | 'hidden' | 'incomplete' | 'all';
+type PaperFilter = 'needs_review' | 'escalated' | 'hidden' | 'incomplete' | 'verified' | 'all';
+
+const ACTION_LABELS: Record<string, string> = {
+  checker_pass: 'Passed',
+  checker_fix: 'Fixed',
+  checker_split: 'Split',
+  checker_ask_help: 'Asked for help',
+  checker_skip: 'Skipped',
+  admin_resolve_escalation: 'Resolved escalation',
+  admin_grant_checker: 'Switched on a checker',
+  admin_revoke_checker: 'Switched off a checker',
+};
+
+// Fully verified = live and cleared: published, and needs_review is off.
+const isVerified = (p: PaperQueueRow) => p.is_published && !p.needs_review;
+
+// Questions on this paper still waiting for a check. A paper with no audit
+// copy yet (total 0) has nothing countable and sorts after every paper that
+// does.
+const leftToCheck = (p: PaperQueueRow) =>
+  p.total_questions > 0 ? Math.max(p.total_questions - p.passed_questions, 0) : Number.POSITIVE_INFINITY;
 
 // The revision actions admin_undo_revision() can reverse; every other
 // action (merge/split/reorder/add/undo, live_apply/live_clear) it refuses.
 const UNDOABLE_ACTIONS = new Set(['admin_edit', 'admin_delete', 'admin_hide', 'admin_restore']);
-
-// The queue row only carries some of the editable fields; the rest start
-// blank rather than borrowing another field's text.
-function currentFieldValue(p: PaperQueueRow, field: string): string {
-  switch (field) {
-    case 'incomplete_note': return p.incomplete_note ?? '';
-    case 'school': return p.school ?? '';
-    case 'subject': return p.subject ?? '';
-    case 'year': return p.year ?? '';
-    default: return '';
-  }
-}
 
 export default function AdminPaperReviewPage() {
   usePageMeta('Paper review | Shikshaq Admin', 'Review, fix and clear papers in the question bank.');
   const { user, profile } = useAuth();
   const actorName = profile?.full_name || user?.email || 'an admin';
   const { isAdmin, checkingAdmin, error: adminGuardError, retry } = useAdminGuard(user, { redirectOnDenied: true });
+  const navigate = useNavigate();
 
   const [view, setView] = useState<View>('papers');
   const [filter, setFilter] = useState<PaperFilter>('needs_review');
@@ -85,9 +98,9 @@ export default function AdminPaperReviewPage() {
   const [hideReason, setHideReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const [editTarget, setEditTarget] = useState<PaperQueueRow | null>(null);
-  const [editField, setEditField] = useState('general_instructions');
-  const [editValue, setEditValue] = useState('');
+  const [checkerLog, setCheckerLog] = useState<CheckerLogRow[]>([]);
+  const [checkerLogError, setCheckerLogError] = useState(false);
+  const [logActor, setLogActor] = useState<string>('all');
 
   async function loadPapers() {
     setPapersLoading(true);
@@ -120,6 +133,13 @@ export default function AdminPaperReviewPage() {
     } finally {
       setCheckersLoading(false);
     }
+    // Loaded separately so a failure here never hides the checker list.
+    try {
+      setCheckerLog(await adminCheckerLog());
+      setCheckerLogError(false);
+    } catch {
+      setCheckerLogError(true);
+    }
   }
 
   useEffect(() => {
@@ -128,6 +148,23 @@ export default function AdminPaperReviewPage() {
     loadEscalations();
     loadCheckers();
   }, [isAdmin]);
+
+  // W13 realtime: when anyone checks, fixes or edits, refetch the numbers
+  // and the log a few seconds later, quietly (no skeleton, no toast), and
+  // show who is online. Does nothing if the channel cannot connect.
+  const refreshLive = useLiveRefresh(() => {
+    adminPaperQueue().then(setPapers).catch(() => undefined);
+    adminEscalationQueue().then(setEscalations).catch(() => undefined);
+    adminListCheckers().then(setCheckers).catch(() => undefined);
+    adminCheckerLog().then((rows) => { setCheckerLog(rows); setCheckerLogError(false); }).catch(() => undefined);
+  });
+  const { status: liveStatus, online } = usePaperReviewChannel({
+    enabled: !!isAdmin,
+    userId: user?.id,
+    fullName: profile?.full_name,
+    onActivity: refreshLive,
+  });
+  const othersOnline = online.filter((p) => p.userId !== user?.id);
 
   const filteredPapers = useMemo(() => {
     switch (filter) {
@@ -139,10 +176,18 @@ export default function AdminPaperReviewPage() {
         return papers.filter((p) => !p.is_published);
       case 'incomplete':
         return papers.filter((p) => !!p.incomplete_note);
+      case 'verified':
+        return papers.filter(isVerified);
       default:
         return papers;
     }
   }, [papers, filter]);
+
+  // Fewest questions left first: those papers clear and go live soonest.
+  const sortedPapers = useMemo(
+    () => [...filteredPapers].sort((a, b) => leftToCheck(a) - leftToCheck(b) || a.paper_id.localeCompare(b.paper_id)),
+    [filteredPapers],
+  );
 
   async function openHistory(p: PaperQueueRow) {
     setHistoryTarget(p);
@@ -198,18 +243,6 @@ export default function AdminPaperReviewPage() {
       adminToast('Failed to restore the paper');
     } finally {
       setBusyId(null);
-    }
-  }
-
-  async function confirmEdit() {
-    if (!editTarget) return;
-    try {
-      await adminEditBankPaper(editTarget.paper_id, editField, editValue);
-      adminToast('Saved');
-      setEditTarget(null);
-      loadPapers();
-    } catch {
-      adminToast('Failed to save that field');
     }
   }
 
@@ -308,10 +341,11 @@ export default function AdminPaperReviewPage() {
     { key: 'cls', label: 'Class', width: '0.6fr' },
     { key: 'year', label: 'Year', width: '0.6fr' },
     { key: 'progress', label: 'Progress', width: '0.9fr' },
+    { key: 'left', label: 'To check', width: '0.7fr' },
     { key: 'status', label: 'Status', width: '0.9fr' },
   ];
 
-  const paperRows: AdminTableRow[] = filteredPapers.map((p) => ({
+  const paperRows: AdminTableRow[] = sortedPapers.map((p) => ({
     id: p.paper_id,
     cells: [
       p.school,
@@ -319,6 +353,7 @@ export default function AdminPaperReviewPage() {
       p.cls,
       p.year,
       p.total_questions > 0 ? `${p.passed_questions}/${p.total_questions}` : '-',
+      p.total_questions > 0 ? String(leftToCheck(p)) : '-',
       <AdminStatusPill
         key="status"
         status={!p.is_published ? 'hidden' : p.needs_review ? 'pending' : 'live'}
@@ -327,7 +362,9 @@ export default function AdminPaperReviewPage() {
     ],
     actions: [
       { label: 'History', tone: 'primary', onClick: () => openHistory(p) },
-      { label: 'Edit', tone: 'primary', onClick: () => { setEditTarget(p); setEditField('incomplete_note'); setEditValue(currentFieldValue(p, 'incomplete_note')); } },
+      // W12: Edit opens the full paper edit page (autosaved draft + Verify).
+      // The old one-field dialog lives there now as "Paper details".
+      { label: 'Edit', tone: 'primary', onClick: () => navigate(`/admin/paper-review/${encodeURIComponent(p.paper_id)}`) },
       p.is_published
         ? { label: busyId === p.paper_id ? '...' : 'Hide', tone: 'destructive', onClick: () => setHideTarget(p), disabled: busyId === p.paper_id }
         : { label: busyId === p.paper_id ? '...' : 'Restore', tone: 'mint', onClick: () => doRestore(p), disabled: busyId === p.paper_id },
@@ -356,6 +393,31 @@ export default function AdminPaperReviewPage() {
     cells: [e.school ?? 'Unknown', e.subject ?? '-', e.display_number ?? '-', e.flag_reasons.join(', ') || '-'],
     actions: [{ label: 'Accept as-is', tone: 'mint', onClick: () => doResolveEscalation(e.question_id) }],
   }));
+
+  const logActorNames = new Map<string, string>();
+  for (const r of checkerLog) if (!logActorNames.has(r.actor_user_id)) logActorNames.set(r.actor_user_id, r.actor_name);
+  const logActors = [...logActorNames.entries()];
+
+  const logColumns: AdminTableColumn[] = [
+    { key: 'who', label: 'Who', width: '1.2fr' },
+    { key: 'did', label: 'Did', width: '1fr' },
+    { key: 'paper', label: 'Paper', width: '1.8fr' },
+    { key: 'q', label: 'Question', width: '0.6fr' },
+    { key: 'when', label: 'When', width: '1fr' },
+  ];
+
+  const logRows: AdminTableRow[] = checkerLog
+    .filter((r) => logActor === 'all' || r.actor_user_id === logActor)
+    .map((r, i) => ({
+      id: `${r.at}-${i}`,
+      cells: [
+        r.actor_name,
+        ACTION_LABELS[r.action] ?? r.action,
+        [r.school || 'Unnamed school', r.subject, r.cls, r.year].filter(Boolean).join(' · ') || (r.note ?? '-'),
+        r.question_number ?? '-',
+        new Date(r.at).toLocaleString(),
+      ],
+    }));
 
   const checkerColumns: AdminTableColumn[] = [
     { key: 'email', label: 'Checker', width: '1.6fr' },
@@ -422,6 +484,15 @@ export default function AdminPaperReviewPage() {
           </div>
         </div>
 
+        {liveStatus === 'live' ? (
+          <p className="mb-4 flex items-center gap-2 px-[18px] text-[13px] text-warm-secondary" aria-live="polite">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-mint" aria-hidden />
+            {othersOnline.length > 0
+              ? <span><span className="font-semibold text-foreground">Online now:</span> {formatOnlineNames(othersOnline)}</span>
+              : <span>No one else is checking right now. This page updates as people work.</span>}
+          </p>
+        ) : null}
+
         {view === 'papers' ? (
           <>
             <div className="mb-4 px-[18px]">
@@ -431,11 +502,12 @@ export default function AdminPaperReviewPage() {
                   { label: 'Escalated', value: papers.filter((p) => p.escalated_count > 0).length },
                   { label: 'Hidden', value: papers.filter((p) => !p.is_published).length },
                   { label: 'Incomplete', value: papers.filter((p) => !!p.incomplete_note).length },
+                  { label: 'Verified', value: papers.filter(isVerified).length },
                 ]}
               />
             </div>
             <div className="mb-4 flex flex-wrap gap-2 px-[18px]">
-              {(['needs_review', 'escalated', 'hidden', 'incomplete', 'all'] as PaperFilter[]).map((f) => (
+              {(['needs_review', 'escalated', 'hidden', 'incomplete', 'verified', 'all'] as PaperFilter[]).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
@@ -444,7 +516,7 @@ export default function AdminPaperReviewPage() {
                     filter === f ? 'bg-panel text-background' : 'bg-muted text-warm-secondary',
                   )}
                 >
-                  {f === 'needs_review' ? 'Needs review' : f === 'escalated' ? 'Escalated' : f === 'hidden' ? 'Hidden' : f === 'incomplete' ? 'Incomplete' : 'All'}
+                  {f === 'needs_review' ? 'Needs review' : f === 'escalated' ? 'Escalated' : f === 'hidden' ? 'Hidden' : f === 'incomplete' ? 'Incomplete' : f === 'verified' ? 'Verified' : 'All'}
                 </button>
               ))}
             </div>
@@ -516,6 +588,28 @@ export default function AdminPaperReviewPage() {
             ) : (
               <AdminTable columns={checkerColumns} rows={checkerRows} />
             )}
+
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-2 px-[18px]">
+              <h3 className="text-[16px] font-bold text-foreground">Checker log</h3>
+              <select
+                value={logActor}
+                onChange={(e) => setLogActor(e.target.value)}
+                aria-label="Show actions by"
+                className="h-9 rounded-full bg-muted px-3 text-[13px] font-semibold text-foreground"
+              >
+                <option value="all">Everyone</option>
+                {logActors.map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+            </div>
+            {checkerLogError ? (
+              <p className="px-[18px] py-6 text-[14px] text-warm-meta">The log is not available yet.</p>
+            ) : logRows.length === 0 ? (
+              <p className="px-[18px] py-6 text-[14px] text-warm-meta">No checker actions yet.</p>
+            ) : (
+              <AdminTable columns={logColumns} rows={logRows} readOnly />
+            )}
           </>
         )}
       </BentoPanel>
@@ -531,36 +625,6 @@ export default function AdminPaperReviewPage() {
           <div className="mt-4 flex gap-2">
             <button onClick={confirmHide} disabled={!hideReason.trim()} className={cn('disabled:opacity-60', adminPrimaryBtnStyle)}>Hide</button>
             <button onClick={() => setHideTarget(null)} className={adminSecondaryBtnStyle}>Cancel</button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit dialog -- one field at a time, whitelisted server-side by admin_edit_bank_paper. */}
-      <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
-        <DialogContent aria-describedby={undefined} className="w-full max-w-md rounded-bento bg-card p-6">
-          <DialogTitle className="text-xl font-bold text-foreground">Edit {editTarget?.school}</DialogTitle>
-          <label className="mt-3 block text-[13px] font-semibold text-foreground">Field</label>
-          <select
-            value={editField}
-            onChange={(e) => {
-              setEditField(e.target.value);
-              // Prefill with THIS field's current value so Save can never
-              // write one field's text into another.
-              setEditValue(editTarget ? currentFieldValue(editTarget, e.target.value) : '');
-            }}
-            className="mt-1 h-11 w-full rounded-xl bg-muted px-3 text-sm"
-          >
-            <option value="general_instructions">General instructions</option>
-            <option value="incomplete_note">Incomplete note</option>
-            <option value="allowed_time_minutes">Allowed time (minutes)</option>
-            <option value="school">School</option>
-            <option value="subject">Subject</option>
-            <option value="year">Year</option>
-          </select>
-          <Textarea value={editValue} onChange={(e) => setEditValue(e.target.value)} rows={3} className="mt-3" />
-          <div className="mt-4 flex gap-2">
-            <button onClick={confirmEdit} className={adminPrimaryBtnStyle}>Save</button>
-            <button onClick={() => setEditTarget(null)} className={adminSecondaryBtnStyle}>Cancel</button>
           </div>
         </DialogContent>
       </Dialog>

@@ -148,11 +148,15 @@ const PAGE = 1000;
    was landing past row 1000 and vanishing from every page reading this
    index. Paged explicitly so growth past any future page boundary fails
    the same way growth past this one didn't: not at all. */
+/* Every public read of bank_papers also requires question_count > 0: 469
+   English rows were published with no questions at all (2026-09-28), and a
+   listed paper that opens empty is worse than no listing. question_count was
+   checked against bank_questions and matches exactly. */
 function pageQuery(from: number) {
   return supabase
     .from('bank_papers')
     .select(PAPER_COLUMNS)
-    .eq('is_published', true)
+    .eq('is_published', true).gt('question_count', 0)
     .order('year', { ascending: false, nullsFirst: false })
     .order('school', { ascending: true })
     .range(from, from + PAGE - 1)
@@ -176,7 +180,7 @@ async function fetchAllPages(): Promise<PaperRow[]> {
   const { count, error: countError } = await supabase
     .from('bank_papers')
     .select('id', { count: 'exact', head: true })
-    .eq('is_published', true);
+    .eq('is_published', true).gt('question_count', 0);
 
   if (countError || typeof count !== 'number') {
     const rows: PaperRow[] = [];
@@ -211,7 +215,7 @@ async function fetchAllPages(): Promise<PaperRow[]> {
 export async function fetchBankSchoolValues(onlyWithSchool = false): Promise<(string | null)[]> {
   const values: (string | null)[] = [];
   for (let from = 0; ; from += PAGE) {
-    let q = supabase.from('bank_papers').select('school').eq('is_published', true);
+    let q = supabase.from('bank_papers').select('school').eq('is_published', true).gt('question_count', 0);
     if (onlyWithSchool) q = q.eq('has_school', true);
     const { data, error } = await q.range(from, from + PAGE - 1);
     if (error) throw new Error(`bank papers schools: ${error.message}`);
@@ -305,7 +309,7 @@ export function loadPaper(paperId: string): Promise<BankPaper | null> {
       .from('bank_papers')
       .select(PAPER_COLUMNS)
       .eq('id', paperId)
-      .eq('is_published', true)
+      .eq('is_published', true).gt('question_count', 0)
       .maybeSingle()
       .returns<PaperRow | null>(),
   ).then(({ data, error }) => {

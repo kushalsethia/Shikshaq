@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { ContextRow } from '@/lib/checker-context';
 
 /**
  * Client wrapper for the paper-checker (Kid Mode) and paper-admin RPCs added
@@ -28,7 +29,18 @@ export interface CheckerQuestion {
   instructions: string | null;
   flag_reasons: string[];
   flag_detail: string | null;
-  source: { page?: number; bbox?: number[]; dpi?: number; snippet_path?: string } | null;
+  /* W14: English rows also carry `pipeline`, `role`, `stimulus`, `set_text`
+     (read through englishContext() in checker-english.ts). */
+  /* snippet_object / align_score / whole_snippet_*: the crop of the printed
+     paper and how far to trust it (read through checker-pictures.ts). */
+  source: ({
+    page?: number;
+    bbox?: number[];
+    dpi?: number;
+    snippet_path?: string;
+    snippet_object?: string;
+    align_score?: number;
+  } & Record<string, unknown>) | null;
   subject: string | null;
   school: string | null;
   cls: string | null;
@@ -151,11 +163,32 @@ export async function checkerSetPreferences(subjects: string[], classes: string[
   if (error) throw error;
 }
 
-export function checkerSnippetUrl(paperId: string, questionId: string): Promise<string | null> {
+/**
+ * The whole question a sub-part belongs to (parent + every part, in paper
+ * order), from checker_question_context in
+ * 20260928160000_checker_question_context.sql. Same gate as the other
+ * checker RPCs: only the lease holder or an admin. Returns [] when the
+ * question is not part of a larger one, AND when the call fails (for
+ * example before that migration is applied): the extra context is a help,
+ * never a reason to block checking.
+ */
+export async function checkerQuestionContext(questionId: string): Promise<ContextRow[]> {
+  const { data, error } = await supabase.rpc('checker_question_context' as never, {
+    p_question_id: questionId,
+  } as never);
+  if (error) return [];
+  return rpcRows<ContextRow>(data);
+}
+
+/** A 10-minute signed URL for one object in the private audit-figures
+ *  bucket (a path planned by planCheckerPicture in checker-pictures.ts).
+ *  Null on any failure: the page then shows the "no picture" note. */
+export function checkerPictureUrl(path: string): Promise<string | null> {
   return supabase.storage
     .from('audit-figures')
-    .createSignedUrl(`${paperId}/${questionId}.png`, 600)
-    .then(({ data, error }) => (error ? null : data?.signedUrl ?? null));
+    .createSignedUrl(path, 600)
+    .then(({ data, error }) => (error ? null : data?.signedUrl ?? null))
+    .catch(() => null);
 }
 
 // ---------------------------------------------------------------------------
@@ -179,9 +212,20 @@ export interface PaperQueueRow {
 }
 
 export async function adminPaperQueue(): Promise<PaperQueueRow[]> {
-  const { data, error } = await supabase.rpc('admin_paper_queue' as never);
-  if (error) throw error;
-  return rpcRows<PaperQueueRow>(data);
+  // PostgREST caps every response at 1000 rows, RPCs included, so one call
+  // silently returned 1000 of the 1,960 papers ("Needs review: 1000" instead
+  // of 1,341). Page until a short page comes back.
+  const PAGE = 1000;
+  const all: PaperQueueRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .rpc('admin_paper_queue' as never)
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = rpcRows<PaperQueueRow>(data);
+    all.push(...rows);
+    if (rows.length < PAGE) return all;
+  }
 }
 
 export interface EscalationRow {
@@ -225,6 +269,27 @@ export interface CheckerRow {
   fixed_count: number;
   split_count: number;
   escalated_count: number;
+}
+
+export interface CheckerLogRow {
+  at: string;
+  actor_user_id: string;
+  actor_name: string;
+  action: string;
+  school: string | null;
+  subject: string | null;
+  cls: string | null;
+  year: string | null;
+  live_bank_paper_id: string | null;
+  question_number: string | null;
+  note: string | null;
+}
+
+/** Who did what, newest first (admin_checker_log, admin-only). */
+export async function adminCheckerLog(limit = 300): Promise<CheckerLogRow[]> {
+  const { data, error } = await supabase.rpc('admin_checker_log' as never, { p_limit: limit } as never);
+  if (error) throw error;
+  return rpcRows<CheckerLogRow>(data);
 }
 
 export async function adminListCheckers(): Promise<CheckerRow[]> {
@@ -335,4 +400,115 @@ export async function adminMergeBankQuestions(firstId: string, secondId: string)
 export async function adminDeleteBankQuestion(questionId: string): Promise<void> {
   const { error } = await supabase.rpc('admin_delete_bank_question' as never, { p_question_id: questionId } as never);
   if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Admin paper edit page (W12, supabase/migrations/20260928170000_admin_paper_edit.sql).
+// Edits go to the draft (audit_questions), never to bank_questions: Verify
+// carries them to readers through the chokepoint.
+
+export interface DraftRow {
+  paper_id: string;
+  school: string | null;
+  subject: string | null;
+  cls: string | null;
+  board: string | null;
+  year: string | null;
+  exam: string | null;
+  needs_review: boolean;
+  is_published: boolean;
+  incomplete_note: string | null;
+  general_instructions: string | null;
+  allowed_time_minutes: number | null;
+  audit_paper_id: string | null;
+  paper_passed: boolean | null;
+  is_red: boolean | null;
+  red_reason: string | null;
+  question_id: string | null;
+  ord: number | null;
+  kind: string | null;
+  parent_id: string | null;
+  number_path: string | null;
+  display_number: string | null;
+  body: string | null;
+  options: { label?: string; text?: string }[] | null;
+  marks: number | null;
+  instructions: string | null;
+  question_passed: boolean | null;
+  status: string | null;
+  review_bucket: string | null;
+  flag_reasons: string[] | null;
+  flag_detail: string | null;
+  source: { page?: number; bbox?: number[]; dpi?: number; snippet_path?: string } | null;
+  live_bank_question_id: string | null;
+  updated_at: string | null;
+}
+
+export async function adminPaperDraft(paperId: string): Promise<DraftRow[]> {
+  const { data, error } = await supabase.rpc('admin_paper_draft' as never, { p_paper_id: paperId } as never);
+  if (error) throw error;
+  return rpcRows<DraftRow>(data);
+}
+
+export interface SavedDraftQuestion {
+  id: string;
+  body: string;
+  display_number: string | null;
+  marks: number | null;
+  updated_at: string;
+}
+
+/** Postgres SQLSTATE the save RPC raises when the stored text no longer
+ *  matches what the page last saw (someone else changed it). */
+export const DRAFT_CONFLICT_CODE = '40001';
+
+export async function adminSaveDraftQuestion(
+  questionId: string,
+  fields: { body: string; display_number: string | null; marks: number | null },
+  bodyBefore: string,
+): Promise<SavedDraftQuestion | null> {
+  const { data, error } = await supabase.rpc('admin_save_draft_question' as never, {
+    p_question_id: questionId,
+    p_body: fields.body,
+    p_display_number: fields.display_number,
+    p_marks: fields.marks,
+    p_body_before: bodyBefore,
+  } as never);
+  if (error) throw error;
+  return rpcRow<SavedDraftQuestion>(data);
+}
+
+export interface VerifyPaperResult {
+  audit_paper_id: string;
+  questions_total: number;
+  questions_newly_passed: number;
+  is_live: boolean;
+  needs_review: boolean;
+  is_published: boolean;
+  skipped_count: number;
+  unplaced_count: number;
+  not_on_live_count: number;
+  reason: string | null;
+}
+
+export async function adminVerifyPaper(paperId: string): Promise<VerifyPaperResult | null> {
+  const { data, error } = await supabase.rpc('admin_verify_paper' as never, { p_paper_id: paperId } as never);
+  if (error) throw error;
+  return rpcRow<VerifyPaperResult>(data);
+}
+
+/** Signed URLs for many question snippets in ONE request (the Kid Mode page
+ *  signs one at a time; a paper can have fifty questions). A missing file
+ *  simply has no entry. Path shape '<paper_id>/<question_id>.png', as in
+ *  audit_questions.source.snippet_object. */
+export async function snippetUrls(auditPaperId: string, questionIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (questionIds.length === 0) return out;
+  const paths = questionIds.map((id) => `${auditPaperId}/${id}.png`);
+  const { data, error } = await supabase.storage.from('audit-figures').createSignedUrls(paths, 600);
+  if (error || !data) return out;
+  data.forEach((d, i) => {
+    if (!d.error && d.signedUrl) out.set(questionIds[i], d.signedUrl);
+  });
+  return out;
 }
