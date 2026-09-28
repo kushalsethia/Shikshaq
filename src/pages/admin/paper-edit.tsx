@@ -24,6 +24,7 @@ import {
 import {
   autosaveReducer,
   initialAutosave,
+  hasEditsBeyondSave,
   hasUnsavedWork,
   saveStatusLabel,
   parseMarks,
@@ -444,7 +445,11 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
     onStatus(id, state.status);
   }, [id, state.status, onStatus]);
 
-  const save = useCallback(async () => {
+  // The save currently on the wire, so an unmount flush can wait for it and
+  // then send with the body it stored as p_body_before.
+  const inFlightRef = useRef<Promise<void> | null>(null);
+
+  const saveNow = useCallback(async () => {
     const f = fieldsRef.current;
     const marks = parseMarks(f.marks);
     if (!marks.ok) {
@@ -485,6 +490,14 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
     }
   }, [id, onSaved, reloadQuestion]);
 
+  const save = useCallback(() => {
+    const p = saveNow().finally(() => {
+      if (inFlightRef.current === p) inFlightRef.current = null;
+    });
+    inFlightRef.current = p;
+    return p;
+  }, [saveNow]);
+
   // Debounced autosave: each edit restarts the timer.
   useEffect(() => {
     if (state.status !== 'dirty') return;
@@ -493,12 +506,16 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
   }, [state.status, state.editVersion, save]);
 
   // Leaving the page (or a reload after Verify) with a pending edit still
-  // sends it rather than dropping it.
+  // sends it rather than dropping it -- including keystrokes typed while a
+  // save was on the wire, which wait for that save and then follow it.
   useEffect(
     () => () => {
-      if (stateRef.current.status === 'dirty') void save();
+      if (!hasEditsBeyondSave(stateRef.current)) return;
+      const pending = inFlightRef.current;
+      if (pending) void pending.then(() => saveNow());
+      else void saveNow();
     },
-    [save],
+    [saveNow],
   );
 
   function edit(patch: Partial<typeof fields>) {

@@ -70,6 +70,17 @@ export function autosaveReducer(state: AutosaveState, event: AutosaveEvent): Aut
   }
 }
 
+/**
+ * True when an edit exists that no save has stored or started storing.
+ * Unlike status, this stays true for keystrokes typed while a save is in
+ * flight, which is what an unmount must still flush. A conflict is excluded:
+ * that question was reloaded from the server on purpose.
+ */
+export function hasEditsBeyondSave(state: AutosaveState): boolean {
+  if (state.status === 'conflict') return false;
+  return state.editVersion > Math.max(state.savedVersion, state.savingVersion ?? 0);
+}
+
 /** True while there is text the server has not stored yet. */
 export function hasUnsavedWork(state: AutosaveState): boolean {
   return state.status === 'dirty' || state.status === 'saving' || state.status === 'failed';

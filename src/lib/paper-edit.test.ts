@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   autosaveReducer,
   initialAutosave,
+  hasEditsBeyondSave,
   hasUnsavedWork,
   saveStatusLabel,
   parseMarks,
@@ -65,6 +66,17 @@ describe('autosave state', () => {
       expect(label).not.toMatch(/[–—]/);
     }
     expect(saveStatusLabel('idle')).toBe('');
+  });
+
+  it('still owes a save for keystrokes typed while a save was on the wire', () => {
+    expect(hasEditsBeyondSave(run([{ type: 'edit' }]))).toBe(true);
+    expect(hasEditsBeyondSave(run([{ type: 'edit' }, { type: 'save_start' }]))).toBe(false);
+    // Status reads "saving" here, which is why an unmount cannot trust it.
+    const typedDuringSave = run([{ type: 'edit' }, { type: 'save_start' }, { type: 'edit' }]);
+    expect(typedDuringSave.status).toBe('saving');
+    expect(hasEditsBeyondSave(typedDuringSave)).toBe(true);
+    expect(hasEditsBeyondSave(run([{ type: 'edit' }, { type: 'save_start' }, { type: 'save_ok' }]))).toBe(false);
+    expect(hasEditsBeyondSave(run([{ type: 'edit' }, { type: 'save_start' }, { type: 'conflict' }]))).toBe(false);
   });
 });
 
