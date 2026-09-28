@@ -21,7 +21,7 @@ const AUTHENTICATED_ONLY_FUNCTIONS = [
   'checker_next_question()',
   'admin_add_checker(text)',
   'admin_remove_checker(uuid)',
-  'admin_list_checkers()',
+  'admin_list_checker_accounts()',
 ];
 
 describe('plumbing step 1 migration', () => {
@@ -43,7 +43,7 @@ describe('plumbing step 1 migration', () => {
   it('every replaced/new function is security definer with a fixed search_path and an auth gate', () => {
     const bodies = sql.split(/create (?:or replace )?function /).slice(1);
     // admin_paper_queue, checker_next_question, trg_english_rescue_publish,
-    // admin_add_checker, admin_remove_checker, admin_list_checkers.
+    // admin_add_checker, admin_remove_checker, admin_list_checker_accounts.
     expect(bodies.length).toBe(6);
     for (const b of bodies) {
       expect(b).toContain('security definer');
@@ -58,10 +58,18 @@ describe('plumbing step 1 migration', () => {
     }
   });
 
-  it('admin_list_checkers() return shape is dropped and recreated, not CREATE OR REPLACEd', () => {
-    expect(sql).toContain('drop function if exists public.admin_list_checkers();');
-    expect(sql).toContain('create function public.admin_list_checkers()');
-    expect(sql).not.toContain('create or replace function public.admin_list_checkers()');
+  it('does not drop or recreate the existing admin_list_checkers(): paper-review.tsx and checker-api.ts still depend on its shape', () => {
+    expect(sql).not.toContain('drop function if exists public.admin_list_checkers()');
+    expect(sql).not.toContain('drop function public.admin_list_checkers()');
+    expect(sql).not.toMatch(/create (?:or replace )?function public\.admin_list_checkers\(\)/);
+  });
+
+  it('adds the new checker-listing RPC under its own name, admin_list_checker_accounts(), with the full grant pattern', () => {
+    expect(sql).toContain('create or replace function public.admin_list_checker_accounts()');
+    expect(sql).toContain(
+      'revoke all on function public.admin_list_checker_accounts() from public, anon, authenticated;',
+    );
+    expect(sql).toContain('grant execute on function public.admin_list_checker_accounts() to authenticated;');
   });
 
   it('admin_add_checker looks up by email and refuses a missing account', () => {
@@ -83,6 +91,12 @@ describe('plumbing step 1 migration', () => {
     // The 24h "don't re-serve what I skipped" exclusion (unchanged from the
     // hygiene migration) still targets the QUESTION id, not the paper.
     expect(sql).toContain("s.skipped_at > now() - interval '24 hours'");
+  });
+
+  it('checker_next_question re-checks eligibility in the claiming UPDATE, not just lock state', () => {
+    expect(sql).toContain(
+      "where public.audit_questions.id = v_id\n      and (locked_until is null or locked_until < now() or locked_by = v_uid)\n      and review_bucket = 'kid' and not question_passed\n      and btrim(coalesce(body, '')) <> ''",
+    );
   });
 
   it('checker_next_question keeps every existing ordering key', () => {

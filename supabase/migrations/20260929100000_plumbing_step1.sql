@@ -265,10 +265,18 @@ begin
       return;
     end if;
 
+    -- CHANGED (review SHOULD-FIX): re-check the row's own eligibility in
+    -- the claiming UPDATE, not just its lock state. Between the SELECT
+    -- above and this UPDATE, another transaction could have passed the
+    -- question, moved it out of the kid bucket, or blanked its body; the
+    -- lock-state check alone would still let this claim it. Any such row
+    -- now fails the WHERE, v_claimed_id stays null, and the loop retries.
     update public.audit_questions
     set locked_by = v_uid, locked_until = now() + interval '10 minutes'
     where public.audit_questions.id = v_id
       and (locked_until is null or locked_until < now() or locked_by = v_uid)
+      and review_bucket = 'kid' and not question_passed
+      and btrim(coalesce(body, '')) <> ''
     returning public.audit_questions.id into v_claimed_id;
 
     if v_claimed_id is not null then
@@ -421,15 +429,16 @@ $function$;
 revoke all on function public.admin_remove_checker(uuid) from public, anon, authenticated;
 grant execute on function public.admin_remove_checker(uuid) to authenticated;
 
--- New return shape (user_id, email, full_name, added_at, checked_today,
--- checked_total): CREATE OR REPLACE cannot change a function's return
--- type, so the existing admin_list_checkers() (active, granted_at,
--- passed_count/fixed_count/split_count/escalated_count) is dropped first.
--- Nothing in the repo calls it today (grep: only this migration and the
--- 2026-09-28 migration that created it).
-drop function if exists public.admin_list_checkers();
-
-create function public.admin_list_checkers()
+-- New RPC under a NEW name, admin_list_checker_accounts(): the OLD
+-- admin_list_checkers() (active, granted_at, passed_count/fixed_count/
+-- split_count/escalated_count) is NOT dropped or replaced here. It IS
+-- called today: src/lib/checker-api.ts's adminListCheckers() and
+-- src/pages/admin/paper-review.tsx (~412-436) both read its old shape,
+-- including revoked (active = false) checkers so an admin can reactivate
+-- them from that page. Dropping it would break paper-review.tsx. The new
+-- "add checkers by email" admin page (src/lib/checker-admin-api.ts) is
+-- pointed at this new function instead.
+create or replace function public.admin_list_checker_accounts()
 returns table (
   user_id uuid, email text, full_name text, added_at timestamptz,
   checked_today bigint, checked_total bigint
@@ -463,8 +472,8 @@ begin
 end;
 $function$;
 
-revoke all on function public.admin_list_checkers() from public, anon, authenticated;
-grant execute on function public.admin_list_checkers() to authenticated;
+revoke all on function public.admin_list_checker_accounts() from public, anon, authenticated;
+grant execute on function public.admin_list_checker_accounts() to authenticated;
 
 -- ============================================================
 -- Verify after applying (CLAUDE.md: has_function_privilege, never proacl):
@@ -473,7 +482,7 @@ grant execute on function public.admin_list_checkers() to authenticated;
 --   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 --   where n.nspname = 'public' and p.proname in ('admin_paper_queue',
 --     'checker_next_question', 'admin_add_checker', 'admin_remove_checker',
---     'admin_list_checkers');
+--     'admin_list_checker_accounts');
 --   -- expect anon = false and authd = true on every row
 -- ---------------------------------------------------------------------------
 -- English kid-queue rows (item 3): 90 open 'kid' rows are English today

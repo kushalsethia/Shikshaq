@@ -8,8 +8,14 @@ import { supabase } from '@/integrations/supabase/client';
  *
  *   admin_add_checker(p_email text) returns uuid
  *   admin_remove_checker(p_user_id uuid) returns void
- *   admin_list_checkers() returns table(user_id uuid, email text,
+ *   admin_list_checker_accounts() returns table(user_id uuid, email text,
  *     full_name text, added_at timestamptz, checked_today int, checked_total int)
+ *
+ * This is a DIFFERENT RPC from checker-api.ts's adminListCheckers(), which
+ * calls the older admin_list_checkers() (active, granted_at, passed_count/
+ * fixed_count/split_count/escalated_count) that src/pages/admin/paper-review.tsx
+ * still depends on, including revoked checkers so they can be reactivated.
+ * The two return different shapes and must not be merged.
  *
  * This module does not assume anything about HOW those RPCs decide who is
  * a checker (a role column, a membership table, a grant list) -- it only
@@ -31,7 +37,7 @@ function rpcRows<T>(data: unknown): T[] {
 }
 
 export async function adminListCheckers(): Promise<CheckerAdminRow[]> {
-  const { data, error } = await supabase.rpc('admin_list_checkers' as never);
+  const { data, error } = await supabase.rpc('admin_list_checker_accounts' as never);
   if (error) throw error;
   return rpcRows<CheckerAdminRow>(data);
 }
