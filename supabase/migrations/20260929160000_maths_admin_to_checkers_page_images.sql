@@ -42,8 +42,9 @@
 --    'admin' to 'kid' when (a) the paper is live_copy or new_ocr, (b) the
 --    question has words, is not red, and is not English, (c) a page image is
 --    registered for the page the question says it is on, and (d) it does not
---    carry a reason GUARDRAILS #34 keeps for admins only (ocr_dropout,
---    script_unsupported). p_apply=false only counts. Callable by the
+--    carry a reason that stays with admins: possible_duplicate (owner
+--    2026-09-30), ocr_dropout, script_unsupported (GUARDRAILS #34). These
+--    three are hard-coded; p_skip_reasons can only ADD to them. p_apply=false only counts. Callable by the
 --    database owner / service role only (revoked from public, anon,
 --    authenticated, by role name, per CLAUDE.md).
 --
@@ -121,7 +122,7 @@ comment on table public.audit_paper_pages is
 
 create or replace function public.route_maths_admin_to_checkers(
   p_apply boolean default false,
-  p_skip_reasons text[] default array['ocr_dropout', 'script_unsupported']
+  p_skip_reasons text[] default array['possible_duplicate', 'ocr_dropout', 'script_unsupported']
 )
 returns table (eligible_questions integer, eligible_papers integer, moved integer)
 language plpgsql
@@ -143,6 +144,10 @@ begin
     and ap.source in ('live_copy', 'new_ocr')
     and ap.subject ilike 'Math%'
     and not (coalesce(aq.source ->> 'pipeline', '') = 'english_w14')
+    -- Hard exclusions a caller cannot override (owner 2026-09-30: duplicates
+    -- stay with admin; GUARDRAILS #34: dropout and unsupported script too).
+    and not (coalesce(aq.flag_reasons, array[]::text[])
+             && array['possible_duplicate', 'ocr_dropout', 'script_unsupported'])
     and not (coalesce(aq.flag_reasons, array[]::text[]) && coalesce(p_skip_reasons, array[]::text[]))
     and (aq.source ->> 'page') ~ '^[0-9]{1,3}$'
     and exists (

@@ -37,7 +37,9 @@ describe('maths admin to checkers migration', () => {
     expect(sql).toContain("coalesce(aq.source ->> 'pipeline', '') = 'english_w14'");
     expect(sql).toContain("coalesce(aq.status, '') <> 'red'");
     expect(sql).toContain("btrim(coalesce(aq.body, '')) <> ''");
-    expect(sql).toContain("array['ocr_dropout', 'script_unsupported']");
+    expect(sql).toContain("default array['possible_duplicate', 'ocr_dropout', 'script_unsupported']");
+    // hard-coded too, so a caller passing p_skip_reasons => '{}' cannot route them
+    expect(sql).toMatch(/&&\s*array\['possible_duplicate', 'ocr_dropout', 'script_unsupported'\]/);
   });
 
   it('needs a registered page image, and only counts unless asked to apply', () => {
