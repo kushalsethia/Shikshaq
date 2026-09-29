@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { createFakeCheckerApi } from './checker-fake-api';
-import { dummyQuestions, dummyPictureDataUrl } from './checker-fixtures';
+import { dummyQuestions, dummyPictureDataUrl, dummyPageDataUrl } from './checker-fixtures';
+import { planWholePage } from '@/lib/checker-page';
 import { planCheckerPicture } from '@/lib/checker-pictures';
 import { assembleQuestionContext } from '@/lib/checker-context';
 import { isBlankBody, looksGarbled } from '@/lib/checker-body';
@@ -23,6 +24,18 @@ describe('dummy fixtures cover every case', () => {
     expect(plans.some((p) => p?.kind === 'whole')).toBe(true);
     expect(plans.some((p) => p === null)).toBe(true);
     for (const p of plans) if (p) expect(dummyPictureDataUrl(p.path)).toMatch(/^data:image\/svg\+xml/);
+  });
+
+  it('has a Maths question that falls back to the whole printed page', async () => {
+    const api = createFakeCheckerApi();
+    const first = await api.nextQuestion();
+    expect(first).not.toBeNull();
+    const ctx = assembleQuestionContext(await api.questionContext(first!.id), first!.id);
+    expect(planCheckerPicture(first!, ctx)).toBeNull();
+    const page = planWholePage(first!, false);
+    expect(page?.note).toBe('Find question 6 on this page.');
+    expect(dummyPageDataUrl(page!.path)).toMatch(/^data:image\/svg\+xml/);
+    expect(await api.pictureUrl(page!.path)).toMatch(/^data:image\/svg\+xml/);
   });
 
   it('has an English passage, scrambled text, a split, a blank row and maths', () => {

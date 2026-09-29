@@ -11,7 +11,7 @@
  */
 
 import type { CheckerApi, CheckerQuestion, LeaderboardRow, QueueFacetRow } from '@/lib/checker-api';
-import { dummyContext, dummyPictureDataUrl, dummyQuestions } from '@/dummy/checker-fixtures';
+import { dummyContext, dummyPageDataUrl, dummyPictureDataUrl, dummyQuestions } from '@/dummy/checker-fixtures';
 import { isBlankBody } from '@/lib/checker-body';
 
 export type DummySimulation = 'none' | 'lease' | 'offline' | 'slow' | 'blank';
@@ -176,7 +176,7 @@ export function createFakeCheckerApi(): FakeCheckerApi {
     },
 
     async pictureUrl(path) {
-      return dummyPictureDataUrl(path);
+      return dummyPageDataUrl(path) ?? dummyPictureDataUrl(path);
     },
   };
 
