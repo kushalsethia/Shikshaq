@@ -164,7 +164,7 @@ status.
 
 ## Architecture worth knowing
 
-- **Papers live in Supabase**, in `bank_papers` (1,960 published as of 2026-09-26, 1,341 of them `needs_review`) and `bank_questions` —
+- **Papers live in Supabase**, in `bank_papers` (1,960 rows as of 2026-09-29: 1,063 verified, 424 live but `needs_review`, 473 hidden; 893 `needs_review` in all) and `bank_questions` —
   not in the repo. `data/question-bank.json` is a 6,912-question subset for
   re-imports, deliberately outside `public/` so it is never served. It is **not**
   the whole bank; do not audit data quality from it.
@@ -175,7 +175,7 @@ status.
   capture intrinsic sizes into the committed `src/content/figure-dimensions.ts`),
   upload, then delete the local copies. `BankPaper.tsx` reads the bucket via
   `supabase.storage.from('paper-figures').getPublicUrl(...)`, never a local path.
-- **`papers` and `bank_papers` are different tables.** `papers` has 18 rows and
+- **`papers` and `bank_papers` are different tables.** `papers` has 0 rows (2026-09-29) and
   is the submit-a-paper flow; `bank_papers` has 1,960 published and is the library.
   Counting the wrong one has now caused the same user-visible bug twice.
   **Use `useSiteCounts()`** — the one hook — for teachers/papers/schools.
