@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { ContextRow } from '@/lib/checker-context';
+import { mergeQueueRows } from '@/lib/paper-review-filter';
 
 /**
  * Client wrapper for the paper-checker (Kid Mode) and paper-admin RPCs added
@@ -33,20 +34,34 @@ export interface CheckerQuestion {
      (read through englishContext() in checker-english.ts). */
   /* snippet_object / align_score / whole_snippet_*: the crop of the printed
      paper and how far to trust it (read through checker-pictures.ts). */
-  source: ({
-    page?: number;
-    bbox?: number[];
-    dpi?: number;
-    snippet_path?: string;
-    snippet_object?: string;
-    align_score?: number;
-  } & Record<string, unknown>) | null;
+  source: AuditQuestionSource | null;
   subject: string | null;
   school: string | null;
   cls: string | null;
   exam: string | null;
   year: string | null;
 }
+
+/** audit_questions.source (jsonb). The pipeline writes more keys than the
+ *  site reads; the named ones are the ones the site does read. Anything else
+ *  stays reachable as `unknown`, so a new key never needs a cast. */
+export type AuditQuestionSource = {
+  page?: number;
+  bbox?: number[];
+  dpi?: number;
+  snippet_path?: string;
+  /* the crop of the printed paper and how far to trust it (checker-pictures.ts) */
+  snippet_object?: string;
+  align_score?: number;
+  whole_snippet_object?: string;
+  whole_snippet_members?: { located?: number; members?: number; min_align?: number };
+  /* W14 English rows (checker-english.ts) */
+  pipeline?: string;
+  role?: string;
+  stimulus?: unknown;
+  set_text?: string;
+  rescue_decision?: string;
+} & Record<string, unknown>;
 
 function rpcRow<T>(data: unknown): T | null {
   const rows = (data ?? []) as unknown;
@@ -147,6 +162,9 @@ export async function checkerLeaderboard(): Promise<LeaderboardRow[]> {
 export interface CheckerPreferences {
   subjects: string[] | null;
   classes: string[] | null;
+  /** True once the checker has saved a choice, even "All" (which stores
+   *  nulls). Absent before 20260929013000 is applied. */
+  chosen?: boolean;
 }
 
 export async function checkerGetPreferences(): Promise<CheckerPreferences> {
@@ -180,6 +198,27 @@ export async function checkerQuestionContext(questionId: string): Promise<Contex
   return rpcRows<ContextRow>(data);
 }
 
+export interface QueueFacetRow {
+  subject: string | null;
+  cls: string | null;
+  waiting: number;
+}
+
+/**
+ * What is actually waiting in the kid queue, by subject and class
+ * (checker_queue_facets, 20260929013000_checker_queue_hygiene.sql). The
+ * "My subjects" picker is built from this so a chip can only name a value
+ * the queue really holds. It used to be built from the SITE's facet lists
+ * ('Maths', '10'), which never equal the audit values ('Mathematics', 'X'):
+ * choosing Maths or class 10 emptied the queue. Returns null when the RPC is
+ * not deployed yet, so the page falls back to a static list of audit values.
+ */
+export async function checkerQueueFacets(): Promise<QueueFacetRow[] | null> {
+  const { data, error } = await supabase.rpc('checker_queue_facets' as never);
+  if (error) return null;
+  return rpcRows<QueueFacetRow>(data).map((r) => ({ ...r, waiting: Number(r.waiting) || 0 }));
+}
+
 /** A 10-minute signed URL for one object in the private audit-figures
  *  bucket (a path planned by planCheckerPicture in checker-pictures.ts).
  *  Null on any failure: the page then shows the "no picture" note. */
@@ -190,6 +229,47 @@ export function checkerPictureUrl(path: string): Promise<string | null> {
     .then(({ data, error }) => (error ? null : data?.signedUrl ?? null))
     .catch(() => null);
 }
+
+/**
+ * Everything the checker page calls, as one object, so the page can run
+ * against the real RPCs or, in dummy mode (test builds only, see
+ * src/lib/dummy-mode.tsx), against an in-memory fake with the same shape.
+ */
+export interface CheckerApi {
+  isPaperChecker: typeof isPaperChecker;
+  nextQuestion: typeof checkerNextQuestion;
+  passQuestion: typeof checkerPassQuestion;
+  fixQuestion: typeof checkerFixQuestion;
+  splitQuestion: typeof checkerSplitQuestion;
+  askForHelp: typeof checkerAskForHelp;
+  skipQuestion: typeof checkerSkipQuestion;
+  checkedTodayCount: typeof checkerCheckedTodayCount;
+  myStats: typeof checkerMyStats;
+  leaderboard: typeof checkerLeaderboard;
+  getPreferences: typeof checkerGetPreferences;
+  setPreferences: typeof checkerSetPreferences;
+  questionContext: typeof checkerQuestionContext;
+  queueFacets: typeof checkerQueueFacets;
+  pictureUrl: typeof checkerPictureUrl;
+}
+
+export const realCheckerApi: CheckerApi = {
+  isPaperChecker,
+  nextQuestion: checkerNextQuestion,
+  passQuestion: checkerPassQuestion,
+  fixQuestion: checkerFixQuestion,
+  splitQuestion: checkerSplitQuestion,
+  askForHelp: checkerAskForHelp,
+  skipQuestion: checkerSkipQuestion,
+  checkedTodayCount: checkerCheckedTodayCount,
+  myStats: checkerMyStats,
+  leaderboard: checkerLeaderboard,
+  getPreferences: checkerGetPreferences,
+  setPreferences: checkerSetPreferences,
+  questionContext: checkerQuestionContext,
+  queueFacets: checkerQueueFacets,
+  pictureUrl: checkerPictureUrl,
+};
 
 // ---------------------------------------------------------------------------
 // Admin
@@ -215,16 +295,24 @@ export async function adminPaperQueue(): Promise<PaperQueueRow[]> {
   // PostgREST caps every response at 1000 rows, RPCs included, so one call
   // silently returned 1000 of the 1,960 papers ("Needs review: 1000" instead
   // of 1,341). Page until a short page comes back.
+  //
+  // Paging needs a total order, or a page boundary can drop or repeat a row:
+  // the function's own order tied on two audit copies of one paper. So the
+  // pages are cut over an explicit (paper_id, audit_paper_id) order, and the
+  // rows are merged to one per paper before anyone counts them
+  // (paper-review-filter.ts has the whole story).
   const PAGE = 1000;
   const all: PaperQueueRow[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .rpc('admin_paper_queue' as never)
+      .order('paper_id' as never, { ascending: true })
+      .order('audit_paper_id' as never, { ascending: true, nullsFirst: true })
       .range(from, from + PAGE - 1);
     if (error) throw error;
     const rows = rpcRows<PaperQueueRow>(data);
     all.push(...rows);
-    if (rows.length < PAGE) return all;
+    if (rows.length < PAGE) return mergeQueueRows(all);
   }
 }
 
@@ -424,6 +512,8 @@ export interface DraftRow {
   paper_passed: boolean | null;
   is_red: boolean | null;
   red_reason: string | null;
+  /** File name of the printed paper (20260928230000); undefined before that migration. */
+  source_pdf?: string | null;
   question_id: string | null;
   ord: number | null;
   kind: string | null;
@@ -439,7 +529,7 @@ export interface DraftRow {
   review_bucket: string | null;
   flag_reasons: string[] | null;
   flag_detail: string | null;
-  source: { page?: number; bbox?: number[]; dpi?: number; snippet_path?: string } | null;
+  source: AuditQuestionSource | null;
   live_bank_question_id: string | null;
   updated_at: string | null;
 }

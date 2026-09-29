@@ -16,9 +16,20 @@ import {
   verifyResultHeadline,
   depthMap,
   paperDetailValue,
+  PAPER_DETAIL_FIELDS,
+  detailError,
+  adminFlagLines,
+  editDistanceCapped,
+  ocrFixBudget,
+  looksLikeRewrite,
+  passagesBefore,
+  sourcePdfLine,
+  OCR_ONLY_REMINDER,
+  BIG_EDIT_WARNING,
   type AutosaveEvent,
   type AutosaveState,
 } from './paper-edit';
+import { KID_SENTENCE } from './checker-kid-reasons';
 
 const run = (events: AutosaveEvent[], from: AutosaveState = initialAutosave) => events.reduce(autosaveReducer, from);
 
@@ -177,6 +188,126 @@ describe('layout helpers', () => {
     expect(paperDetailValue(p, 'year')).toBe('');
     expect(paperDetailValue(p, 'allowed_time_minutes')).toBe('90');
     expect(paperDetailValue(p, 'subject')).toBe('');
+  });
+
+  it('offers every header field the public page shows, including class and exam', () => {
+    const keys = PAPER_DETAIL_FIELDS.map((f) => f.key);
+    for (const k of ['school', 'cls', 'subject', 'exam', 'year', 'allowed_time_minutes', 'general_instructions', 'incomplete_note']) {
+      expect(keys).toContain(k);
+    }
+    for (const f of PAPER_DETAIL_FIELDS) expect(f.label).not.toMatch(/[\u2013\u2014]/);
+  });
+
+  it('refuses a time allowed that the database cast would reject, before sending it', () => {
+    expect(detailError('allowed_time_minutes', '90')).toBeNull();
+    expect(detailError('allowed_time_minutes', '')).toMatch(/number/);
+    expect(detailError('allowed_time_minutes', '1 hour')).toMatch(/number/);
+    expect(detailError('school', '  ')).toMatch(/blank/);
+    expect(detailError('incomplete_note', '')).toBeNull();
+    expect(detailError('general_instructions', 'Answer all questions.')).toBeNull();
+  });
+});
+
+describe('flag reasons in plain words', () => {
+  it('turns the pipeline JSON into sentences and never shows the JSON', () => {
+    const lines = adminFlagLines(
+      ['hidden_on_site', 'gate_not_ready'],
+      '{"gate_not_ready": "The computer reading of this question was unsure."}',
+    );
+    expect(lines).toContain(KID_SENTENCE.gate_not_ready);
+    expect(lines).toContain('The computer reading of this question was unsure.');
+    for (const l of lines) {
+      expect(l).not.toMatch(/[{}]/);
+      expect(l).not.toMatch(/gate_|_/);
+    }
+  });
+
+  it('drops a malformed JSON note rather than printing it', () => {
+    const lines = adminFlagLines(['low_ocr_confidence'], '{"low_ocr_confidence": "unsure');
+    expect(lines).toEqual([KID_SENTENCE.low_ocr_confidence]);
+  });
+
+  it('keeps a plain-text note, and an unknown code still reads as words', () => {
+    const lines = adminFlagLines(['some_new_code'], 'Page two was blurred.');
+    expect(lines).toEqual(['Some new code', 'Page two was blurred.']);
+  });
+
+  it('is empty when there is nothing to say', () => {
+    expect(adminFlagLines(null, null)).toEqual([]);
+    expect(adminFlagLines([], '')).toEqual([]);
+  });
+});
+
+describe('D76: an edit may only fix a reading mistake', () => {
+  const naive = (a: string, b: string) => {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j += 1) d[0][j] = j;
+    for (let i = 1; i <= a.length; i += 1)
+      for (let j = 1; j <= b.length; j += 1)
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  };
+
+  it('the capped distance matches the full one, up to the cap', () => {
+    const pairs: [string, string][] = [
+      ['', ''],
+      ['kitten', 'sitting'],
+      ['abc', ''],
+      ['Find the value of x.', 'Find the va1ue of x'],
+      ['\\ling p p r b g a a part f our', 'Using the paper, find part four'],
+      ['same text', 'same text'],
+    ];
+    for (const [a, b] of pairs) {
+      for (const cap of [0, 1, 3, 10, 50]) {
+        expect(editDistanceCapped(a, b, cap)).toBe(Math.min(naive(a, b), cap + 1));
+      }
+    }
+  });
+
+  it('a few-letter OCR fix is not flagged', () => {
+    const before = 'Find the va1ue of x if 2x + 3 = 11. Show your working clear1y.';
+    const after = 'Find the value of x if 2x + 3 = 11. Show your working clearly.';
+    expect(looksLikeRewrite(before, after)).toBe(false);
+  });
+
+  it('a reworded question is flagged', () => {
+    const before = 'Find the value of x if 2x + 3 = 11. Show your working clearly.';
+    const after = 'Solve for x in the equation 2x + 3 = 11, explaining each step.';
+    expect(looksLikeRewrite(before, after)).toBe(true);
+  });
+
+  it('allows a small absolute fix on a very short question', () => {
+    expect(ocrFixBudget(8)).toBe(10);
+    expect(looksLikeRewrite('Def1ne', 'Define')).toBe(false);
+  });
+
+  it('the reminder and the warning are plain words with no em or en dash', () => {
+    for (const s of [OCR_ONLY_REMINDER, BIG_EDIT_WARNING]) expect(s).not.toMatch(/[\u2013\u2014]/);
+    expect(OCR_ONLY_REMINDER).toMatch(/exactly what the printed paper says/);
+  });
+});
+
+describe('English passages and the source file', () => {
+  const src = (id: string | null) =>
+    id ? { pipeline: 'english_w14', role: 'shown', stimulus: { id, kind: 'passage', text: 'Once upon a time', title: null } } : { pipeline: 'english_w14' };
+
+  it('shows each passage once, before the first question that uses it', () => {
+    const m = passagesBefore([
+      { question_id: 'q1', source: src('S-1') },
+      { question_id: 'q2', source: src('S-1') },
+      { question_id: 'q3', source: src(null) },
+      { question_id: 'q4', source: src('S-2') },
+      { question_id: 'q5', source: { page: 1 } },
+    ]);
+    expect([...m.keys()]).toEqual(['q1', 'q4']);
+    expect(m.get('q1')?.text).toBe('Once upon a time');
+  });
+
+  it('names the printed paper by file name only, never a path', () => {
+    expect(sourcePdfLine('C:\\Users\\kanis\\data\\filed\\ICSE\\X\\Maths_2023.pdf')).toBe('Printed paper file: Maths_2023.pdf');
+    expect(sourcePdfLine('010_Bhavans_2022_8_English.pdf')).toBe('Printed paper file: 010_Bhavans_2022_8_English.pdf');
+    expect(sourcePdfLine(null)).toBe('Printed paper file: not recorded');
+    expect(sourcePdfLine(undefined)).toBe('Printed paper file: not recorded');
   });
 });
 

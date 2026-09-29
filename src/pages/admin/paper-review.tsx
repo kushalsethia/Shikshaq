@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { usePaperReviewChannel, useLiveRefresh } from '@/hooks/usePaperReviewChannel';
 import { formatOnlineNames } from '@/lib/paper-review-realtime';
+import { kidSentence } from '@/lib/checker-kid-reasons';
 import {
   adminPaperQueue,
   adminEscalationQueue,
@@ -31,6 +32,15 @@ import {
   type RevisionRow,
   type UserSearchRow,
 } from '@/lib/checker-api';
+import {
+  PAPER_FILTERS,
+  PAGE_SIZE,
+  filterCounts,
+  filterPapers,
+  leftToCheck,
+  sortForReview,
+  type PaperFilter,
+} from '@/lib/paper-review-filter';
 
 /* Paper admin -- D22. A tab of the existing Shikshaq admin console (not a
    separate app, per D11), covering every capability the owner asked for:
@@ -45,7 +55,6 @@ import {
    concepts, published/taken-down is the submissions concept). */
 
 type View = 'papers' | 'checkers' | 'escalations';
-type PaperFilter = 'needs_review' | 'escalated' | 'hidden' | 'incomplete' | 'verified' | 'all';
 
 const ACTION_LABELS: Record<string, string> = {
   checker_pass: 'Passed',
@@ -57,15 +66,6 @@ const ACTION_LABELS: Record<string, string> = {
   admin_grant_checker: 'Switched on a checker',
   admin_revoke_checker: 'Switched off a checker',
 };
-
-// Fully verified = live and cleared: published, and needs_review is off.
-const isVerified = (p: PaperQueueRow) => p.is_published && !p.needs_review;
-
-// Questions on this paper still waiting for a check. A paper with no audit
-// copy yet (total 0) has nothing countable and sorts after every paper that
-// does.
-const leftToCheck = (p: PaperQueueRow) =>
-  p.total_questions > 0 ? Math.max(p.total_questions - p.passed_questions, 0) : Number.POSITIVE_INFINITY;
 
 // The revision actions admin_undo_revision() can reverse; every other
 // action (merge/split/reorder/add/undo, live_apply/live_clear) it refuses.
@@ -166,28 +166,18 @@ export default function AdminPaperReviewPage() {
   });
   const othersOnline = online.filter((p) => p.userId !== user?.id);
 
-  const filteredPapers = useMemo(() => {
-    switch (filter) {
-      case 'needs_review':
-        return papers.filter((p) => p.needs_review);
-      case 'escalated':
-        return papers.filter((p) => p.escalated_count > 0);
-      case 'hidden':
-        return papers.filter((p) => !p.is_published);
-      case 'incomplete':
-        return papers.filter((p) => !!p.incomplete_note);
-      case 'verified':
-        return papers.filter(isVerified);
-      default:
-        return papers;
-    }
-  }, [papers, filter]);
+  // Tiles, chips and list all come from paper-review-filter.ts's one
+  // predicate, over rows already merged to one per paper, so the number on
+  // a chip is always the number of rows it shows.
+  const counts = useMemo(() => filterCounts(papers), [papers]);
+  const filteredPapers = useMemo(() => filterPapers(papers, filter), [papers, filter]);
+  const sortedPapers = useMemo(() => sortForReview(filteredPapers), [filteredPapers]);
 
-  // Fewest questions left first: those papers clear and go live soonest.
-  const sortedPapers = useMemo(
-    () => [...filteredPapers].sort((a, b) => leftToCheck(a) - leftToCheck(b) || a.paper_id.localeCompare(b.paper_id)),
-    [filteredPapers],
-  );
+  // Paint the first PAGE_SIZE rows; "Show more" adds the next batch. A new
+  // filter starts again from the top.
+  const [shown, setShown] = useState(PAGE_SIZE);
+  useEffect(() => setShown(PAGE_SIZE), [filter]);
+  const visiblePapers = sortedPapers.slice(0, shown);
 
   async function openHistory(p: PaperQueueRow) {
     setHistoryTarget(p);
@@ -345,7 +335,7 @@ export default function AdminPaperReviewPage() {
     { key: 'status', label: 'Status', width: '0.9fr' },
   ];
 
-  const paperRows: AdminTableRow[] = sortedPapers.map((p) => ({
+  const paperRows: AdminTableRow[] = visiblePapers.map((p) => ({
     id: p.paper_id,
     cells: [
       p.school,
@@ -390,7 +380,7 @@ export default function AdminPaperReviewPage() {
 
   const escalationRows: AdminTableRow[] = escalations.map((e) => ({
     id: e.question_id,
-    cells: [e.school ?? 'Unknown', e.subject ?? '-', e.display_number ?? '-', e.flag_reasons.join(', ') || '-'],
+    cells: [e.school ?? 'Unknown', e.subject ?? '-', e.display_number ?? '-', e.flag_reasons.map(kidSentence).join(' ') || '-'],
     actions: [{ label: 'Accept as-is', tone: 'mint', onClick: () => doResolveEscalation(e.question_id) }],
   }));
 
@@ -459,7 +449,7 @@ export default function AdminPaperReviewPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-[18px]">
           <AdminPanelHeader
             title="Paper review"
-            meta={`${papers.filter((p) => p.needs_review).length} need review - ${escalations.length} escalated`}
+            meta={`${counts.needs_review} need review, ${escalations.length} escalated`}
           />
           <div role="tablist" aria-label="Paper review view" className="inline-flex h-11 shrink-0 items-center rounded-full bg-muted p-1">
             {viewTabs.map((t) => (
@@ -497,29 +487,34 @@ export default function AdminPaperReviewPage() {
           <>
             <div className="mb-4 px-[18px]">
               <AdminStatTiles
-                stats={[
-                  { label: 'Needs review', value: papers.filter((p) => p.needs_review).length },
-                  { label: 'Escalated', value: papers.filter((p) => p.escalated_count > 0).length },
-                  { label: 'Hidden', value: papers.filter((p) => !p.is_published).length },
-                  { label: 'Incomplete', value: papers.filter((p) => !!p.incomplete_note).length },
-                  { label: 'Verified', value: papers.filter(isVerified).length },
-                ]}
+                stats={PAPER_FILTERS.filter((f) => f.key !== 'all').map((f) => ({
+                  label: f.label,
+                  value: papersLoading && papers.length === 0 ? '...' : counts[f.key],
+                }))}
               />
             </div>
-            <div className="mb-4 flex flex-wrap gap-2 px-[18px]">
-              {(['needs_review', 'escalated', 'hidden', 'incomplete', 'verified', 'all'] as PaperFilter[]).map((f) => (
+            <div role="group" aria-label="Show papers" className="mb-2 flex flex-wrap gap-2 px-[18px]">
+              {PAPER_FILTERS.map((f) => (
                 <button
-                  key={f}
-                  onClick={() => setFilter(f)}
+                  key={f.key}
+                  type="button"
+                  aria-pressed={filter === f.key}
+                  onClick={() => setFilter(f.key)}
                   className={cn(
-                    'h-9 rounded-full px-3.5 text-[13px] font-semibold',
-                    filter === f ? 'bg-panel text-background' : 'bg-muted text-warm-secondary',
+                    'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-150 active:scale-[0.96]',
+                    filter === f.key ? 'bg-panel text-background' : 'bg-muted text-warm-secondary hover:text-foreground',
                   )}
                 >
-                  {f === 'needs_review' ? 'Needs review' : f === 'escalated' ? 'Escalated' : f === 'hidden' ? 'Hidden' : f === 'incomplete' ? 'Incomplete' : f === 'verified' ? 'Verified' : 'All'}
+                  {f.label}
+                  <span className="tabular-nums opacity-70">{counts[f.key]}</span>
                 </button>
               ))}
             </div>
+            {!papersLoading && filteredPapers.length > 0 ? (
+              <p className="mb-3 px-[18px] text-[13px] text-warm-meta" aria-live="polite">
+                Showing {Math.min(shown, filteredPapers.length)} of {filteredPapers.length}
+              </p>
+            ) : null}
             {papersLoading ? (
               <div className="animate-pulse space-y-3 px-[18px]">
                 {[...Array(4)].map((_, i) => (
@@ -529,7 +524,16 @@ export default function AdminPaperReviewPage() {
             ) : filteredPapers.length === 0 ? (
               <p className="px-[18px] py-8 text-center text-[15px] text-warm-meta">No papers match this filter.</p>
             ) : (
-              <AdminTable columns={paperColumns} rows={paperRows} />
+              <>
+                <AdminTable columns={paperColumns} rows={paperRows} />
+                {filteredPapers.length > shown ? (
+                  <div className="mt-4 flex justify-center px-[18px]">
+                    <button type="button" onClick={() => setShown((n) => n + PAGE_SIZE)} className={adminSecondaryBtnStyle}>
+                      Show {Math.min(PAGE_SIZE, filteredPapers.length - shown)} more
+                    </button>
+                  </div>
+                ) : null}
+              </>
             )}
           </>
         ) : view === 'escalations' ? (
