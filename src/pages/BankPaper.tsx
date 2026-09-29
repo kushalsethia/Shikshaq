@@ -27,6 +27,7 @@ import {
   alternativeFollowerIds, subPartsOf, topLevelIds,
 } from '@/lib/bank-paper-display';
 import { displayBodyWithoutDuplicateNumber } from '@/lib/checker-body';
+import { qtypeLabel } from '@/lib/qtype-label';
 import { DebugId } from '@/components/DebugId';
 
 /** The teachers route for a bank paper's subject, or the filtered browse
@@ -513,9 +514,9 @@ export default function BankPaper() {
             {row.m} {row.m === 1 ? 'mark' : 'marks'}
           </span>
         )}
-        {row.ty && (
-          <span className="rounded-full bg-card px-2 py-0.5 text-[12px] font-semibold uppercase tracking-[0.03em] text-warm-secondary shadow-border">
-            {row.ty}
+        {qtypeLabel(row.ty) && (
+          <span className="rounded-full bg-card px-2 py-0.5 text-[12px] font-semibold text-warm-secondary shadow-border">
+            {qtypeLabel(row.ty)}
           </span>
         )}
         {row.c && (
