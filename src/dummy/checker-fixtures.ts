@@ -59,6 +59,18 @@ function q(partial: Partial<CheckerQuestion> & Pick<CheckerQuestion, 'id' | 'bod
 
 export function dummyQuestions(): CheckerQuestion[] {
   return [
+    // No trusted crop (0.41), but the pipeline knows the page: the checker is
+    // shown the whole printed page as scanned (checker-page.ts), path
+    // pages/<DUMMY_PAPER>/3.jpg, drawn by dummyPageDataUrl below.
+    q({
+      id: 'd0000000-0000-4000-8000-000000000000',
+      ord: 0,
+      display_number: '6',
+      marks: 3,
+      body: '6. Find the value of $k$ if the points $(2, 3)$, $(4, k)$ and $(6, -3)$ are collinear.',
+      flag_reasons: ['snippet_unaligned', 'display_number_missing'],
+      source: { page: 3, align_score: 0.41, snippet_object: 'dummy/q-not-shown.png' },
+    }),
     q({
       id: 'd0000001-0000-4000-8000-000000000001',
       ord: 1,
@@ -238,6 +250,29 @@ export function dummyContext(questionId: string): ContextRow[] {
     row({ id: 'd0000003-0000-4000-8000-000000000003', ord: 4, display_number: '(b)', body: '(b) Find the total number of trees planted.', is_current: true }),
     row({ id: 'd0000003-0000-4000-8000-0000000000cc', ord: 5, display_number: '(c)', body: '(c) Which two districts planted the same number?' }),
   ];
+}
+
+/** A made-up whole A4 page (595 x 842), for the whole-page fallback preview. */
+export function dummyPageDataUrl(path: string): string | null {
+  if (path !== `pages/${DUMMY_PAPER}/3.jpg`) return null;
+  const rows: [number, string][] = [
+    [70, 'Section B'],
+    [110, '5. Find the mean of the first five prime numbers.                    [2]'],
+    [150, '6. Find the value of k if the points (2, 3), (4, k) and (6, -3)'],
+    [172, '   are collinear.                                                              [3]'],
+    [222, '7. A bag holds 4 red and 6 blue marbles. One is drawn at random.'],
+    [244, '   (i) What is the chance it is red?                                       [1]'],
+    [266, '   (ii) What is the chance it is not blue?                                [1]'],
+    [316, '8. Factorise completely: 3x^2 - 12                                         [2]'],
+    [366, '9. The sum of two numbers is 25 and their product is 144.'],
+    [388, '   Find the numbers.                                                            [4]'],
+    [800, 'Page 3 of 8'],
+  ];
+  const text = rows
+    .map(([y, l]) => `<text x="48" y="${y}" font-family="Times New Roman, serif" font-size="15" fill="#1c1c1c" xml:space="preserve">${l.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`)
+    .join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="595" height="842" viewBox="0 0 595 842"><rect width="100%" height="100%" fill="#fbfaf6"/><rect x="24" y="24" width="547" height="794" fill="none" stroke="#bbb"/>${text}</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 /** An SVG "photo" of the printed lines, as a data URL. */

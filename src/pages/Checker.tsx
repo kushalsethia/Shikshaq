@@ -22,6 +22,8 @@ import {
   PICTURE_MAY_MISS_PARTS,
   type PicturePlan,
 } from '@/lib/checker-pictures';
+import { planWholePage, PAGE_HEADING, type PagePlan } from '@/lib/checker-page';
+import { PageImageViewer } from '@/components/checker/PageImageViewer';
 import { matchCheckerKeyboardEvent, shortcutHint } from '@/lib/checker-shortcuts';
 import {
   isBlankBody,
@@ -251,18 +253,23 @@ export function CheckerPage({
   // never a tap-to-show button, never a doubtful crop.
   const picturePlan: PicturePlan | null =
     question && !contextQuery.isLoading ? planCheckerPicture(question, context) : null;
-  const picturePlanKey = question && !contextQuery.isLoading ? `${question.id}|${picturePlan?.path ?? ''}` : '';
+  // No trusted crop: a Maths question falls back to the whole printed page as
+  // scanned (checker-page.ts). Null when the pipeline has not said which page.
+  const pagePlan: PagePlan | null =
+    question && !contextQuery.isLoading ? planWholePage(question, picturePlan !== null) : null;
+  const viewPath = picturePlan?.path ?? pagePlan?.path ?? '';
+  const picturePlanKey = question && !contextQuery.isLoading ? `${question.id}|${viewPath}` : '';
   // undefined = still looking, null = none (or it failed to load).
   const [pictureUrl, setPictureUrl] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     setPictureUrl(undefined);
     if (!picturePlanKey) return;
-    if (!picturePlan) {
+    if (!viewPath) {
       setPictureUrl(null);
       return;
     }
     let cancelled = false;
-    api.pictureUrl(picturePlan.path).then((url) => {
+    api.pictureUrl(viewPath).then((url) => {
       if (!cancelled) setPictureUrl(url);
     });
     return () => {
@@ -273,7 +280,7 @@ export function CheckerPage({
   }, [picturePlanKey]);
   // While the picture is still loading, sentences assume it will arrive
   // when one is planned.
-  const hasPicture = pictureUrl === undefined ? picturePlan !== null : Boolean(pictureUrl);
+  const hasPicture = pictureUrl === undefined ? viewPath !== '' : Boolean(pictureUrl);
   const whatToCheckLine = question
     ? whatToCheck(question.flag_reasons, question.flag_detail, { hasPicture })
     : { line: null, detail: null };
@@ -644,10 +651,20 @@ export function CheckerPage({
           <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Left: the printed page snippet */}
             <div className="flex min-w-0 flex-col">
-              <p className="mb-1 text-[12px] text-warm-meta">{pictureHeading(pictureUrl ? picturePlan : null)}</p>
+              <p className="mb-1 text-[12px] text-warm-meta">
+                {pagePlan && !picturePlan ? PAGE_HEADING : pictureHeading(pictureUrl ? picturePlan : null)}
+              </p>
               {picturePlan?.mayMissParts && pictureUrl ? (
                 <p className="mb-2 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
               ) : null}
+              {pagePlan && !picturePlan && pictureUrl ? (
+                <PageImageViewer
+                  src={pictureUrl}
+                  alt={`the whole printed page ${pagePlan.page}, as scanned`}
+                  note={pagePlan.note}
+                  onError={() => setPictureUrl(null)}
+                />
+              ) : (
               <div className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-white p-2 lg:max-h-[60vh]">
                 {pictureUrl === undefined ? (
                   <div className="h-40 animate-pulse rounded-[14px] bg-muted" aria-label="Loading the picture" />
@@ -670,6 +687,7 @@ export function CheckerPage({
                   </div>
                 )}
               </div>
+              )}
               {(question.school || question.subject) && (
                 <p className="mt-1 text-[12px] text-warm-meta">
                   {[question.school ?? 'School not known', question.subject, question.cls ? `Class ${question.cls}` : null, question.year]
