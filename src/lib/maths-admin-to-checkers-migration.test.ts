@@ -39,7 +39,11 @@ describe('maths admin to checkers migration', () => {
     expect(sql).toContain("btrim(coalesce(aq.body, '')) <> ''");
     expect(sql).toContain("default array['possible_duplicate', 'ocr_dropout', 'script_unsupported']");
     // hard-coded too, so a caller passing p_skip_reasons => '{}' cannot route them
-    expect(sql).toMatch(/&&\s*array\['possible_duplicate', 'ocr_dropout', 'script_unsupported'\]/);
+    expect(sql).toMatch(/&&\s*array\['possible_duplicate', 'ocr_dropout', 'script_unsupported', 'board_class_mismatch'\]/);
+    // the move itself re-checks them, and the page cast is guarded
+    expect(sql.match(/'script_unsupported', 'board_class_mismatch'\]/g)?.length).toBe(2);
+    expect(sql).toContain("then (aq.source ->> 'page')::integer end");
+    expect(sql).toContain('set search_path = public, pg_temp');
   });
 
   it('needs a registered page image, and only counts unless asked to apply', () => {

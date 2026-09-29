@@ -43,8 +43,8 @@
 --    question has words, is not red, and is not English, (c) a page image is
 --    registered for the page the question says it is on, and (d) it does not
 --    carry a reason that stays with admins: possible_duplicate (owner
---    2026-09-30), ocr_dropout, script_unsupported (GUARDRAILS #34). These
---    three are hard-coded; p_skip_reasons can only ADD to them. p_apply=false only counts. Callable by the
+--    2026-09-30), ocr_dropout, script_unsupported (GUARDRAILS #34),
+--    board_class_mismatch (a mis-filed paper). These four are hard-coded; p_skip_reasons can only ADD to them. p_apply=false only counts. Callable by the
 --    database owner / service role only (revoked from public, anon,
 --    authenticated, by role name, per CLAUDE.md).
 --
@@ -127,7 +127,7 @@ create or replace function public.route_maths_admin_to_checkers(
 returns table (eligible_questions integer, eligible_papers integer, moved integer)
 language plpgsql
 security definer
-set search_path to 'public'
+set search_path = public, pg_temp
 as $function$
 declare
   v_ids uuid[];
@@ -146,14 +146,17 @@ begin
     and not (coalesce(aq.source ->> 'pipeline', '') = 'english_w14')
     -- Hard exclusions a caller cannot override (owner 2026-09-30: duplicates
     -- stay with admin; GUARDRAILS #34: dropout and unsupported script too).
+    -- board_class_mismatch too: a mis-filed paper is an admin call (review 2026-09-29).
     and not (coalesce(aq.flag_reasons, array[]::text[])
-             && array['possible_duplicate', 'ocr_dropout', 'script_unsupported'])
+             && array['possible_duplicate', 'ocr_dropout', 'script_unsupported', 'board_class_mismatch'])
     and not (coalesce(aq.flag_reasons, array[]::text[]) && coalesce(p_skip_reasons, array[]::text[]))
     and (aq.source ->> 'page') ~ '^[0-9]{1,3}$'
     and exists (
       select 1 from public.audit_paper_pages pg
       where pg.audit_paper_id = aq.paper_id
-        and pg.page = (aq.source ->> 'page')::integer
+        -- guarded cast: AND order is not guaranteed, so never cast a non-number
+        and pg.page = case when (aq.source ->> 'page') ~ '^[0-9]{1,3}$'
+                           then (aq.source ->> 'page')::integer end
     );
 
   if p_apply and coalesce(array_length(v_ids, 1), 0) > 0 then
@@ -163,6 +166,9 @@ begin
       where aq.id = any(v_ids)
         and aq.review_bucket = 'admin'
         and aq.question_passed = false
+        -- re-check the hard exclusions in case a flag was added since the snapshot
+        and not (coalesce(aq.flag_reasons, array[]::text[])
+                 && array['possible_duplicate', 'ocr_dropout', 'script_unsupported', 'board_class_mismatch'])
       returning aq.id, aq.paper_id
     ), logged as (
       insert into public.audit_review_log
