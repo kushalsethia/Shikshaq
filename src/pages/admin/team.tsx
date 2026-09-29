@@ -7,6 +7,7 @@ import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { QuestionTimeline } from '@/components/admin/QuestionTimeline';
 import { DebugId } from '@/components/DebugId';
+import { formatSeconds } from '@/lib/format-seconds';
 import {
   realTeamDashboardApi,
   type TeamDashboardApi,
@@ -137,6 +138,10 @@ export function AdminTeamPage({
   if (adminGuardError) return <AdminGuardErrorState onRetry={retryAdminGuard} />;
   if (!isAdmin) return null;
 
+  // Median time from picking a question up to acting on it. Only recorded
+  // from 2026-09-29 on, so the column stays hidden until someone has a value.
+  const showTime = stats.some((r) => r.median_seconds !== null);
+
   const checkerColumns: AdminTableColumn[] = [
     { key: 'name', label: 'Checker', width: '1.4fr' },
     { key: 'checked', label: 'Checked', width: '0.8fr' },
@@ -146,6 +151,7 @@ export function AdminTeamPage({
     { key: 'help', label: 'Asked for help', width: '0.9fr' },
     { key: 'skipped', label: 'Skipped', width: '0.7fr' },
     { key: 'papers', label: 'Papers done', width: '0.8fr' },
+    ...(showTime ? [{ key: 'time', label: 'Time per question', width: '0.9fr' }] : []),
     { key: 'overturns', label: 'Overturned', width: '0.8fr' },
   ];
 
@@ -163,6 +169,9 @@ export function AdminTeamPage({
       <span key="help" className="tabular-nums text-warm-secondary">{r.asked_help}</span>,
       <span key="skipped" className="tabular-nums text-warm-secondary">{r.skipped}</span>,
       <span key="papers" className="tabular-nums text-warm-secondary">{r.papers_completed}</span>,
+      ...(showTime
+        ? [<span key="time" className="tabular-nums text-warm-secondary">{formatSeconds(r.median_seconds)}</span>]
+        : []),
       <span
         key="overturns"
         className={cn('tabular-nums font-semibold', r.admin_overturns > 0 ? 'text-destructive' : 'text-warm-secondary')}
