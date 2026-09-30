@@ -101,6 +101,16 @@ begin
       ('validation', 'add: reject marks 500',          'admin', format('select public.admin_add_bank_question(%L, 0, ''text'', 500, ''1'')', v_p), '22023'),
       ('validation', 'add: reject position -5',        'admin', format('select public.admin_add_bank_question(%L, -5, ''text'', 1, ''1'')', v_p), '22023'),
       ('validation', 'add: reject unknown paper',      'admin', 'select public.admin_add_bank_question(''no-such-paper'', 0, ''text'', 1, ''1'')', '22023'),
+      -- accepted edits of every non-text column type (the live function failed these with 42804)
+      ('accept', 'question page 3 (integer)',          'admin', format('select public.admin_edit_bank_question(%L, ''page'', ''3'')', v_q), 'ok'),
+      ('accept', 'question marks 2.5 (numeric)',       'admin', format('select public.admin_edit_bank_question(%L, ''marks'', ''2.5'')', v_q), 'ok'),
+      ('accept', 'question suggested time 4 (numeric)','admin', format('select public.admin_edit_bank_question(%L, ''suggested_time_minutes'', ''4'')', v_q), 'ok'),
+      ('accept', 'question chapter_from_paper (bool)', 'admin', format('select public.admin_edit_bank_question(%L, ''chapter_from_paper'', ''true'')', v_q), 'ok'),
+      ('accept', 'question marks cleared (null)',      'admin', format('select public.admin_edit_bank_question(%L, ''marks'', null)', v_q), 'ok'),
+      ('accept', 'paper time 90 (integer)',            'admin', format('select public.admin_edit_bank_paper(%L, ''allowed_time_minutes'', ''90'')', v_p), 'ok'),
+      ('accept', 'paper marks 80 (numeric)',           'admin', format('select public.admin_edit_bank_paper(%L, ''marks'', ''80'')', v_p), 'ok'),
+      ('accept', 'paper needs_review unchanged (bool)','admin', format('select public.admin_edit_bank_paper(%L, ''needs_review'', %L)', v_p, (select needs_review::text from public.bank_papers where id = v_p)), 'ok'),
+      ('accept', 'paper exam text',                    'admin', format('select public.admin_edit_bank_paper(%L, ''exam'', (select exam from public.bank_papers where id = %L))', v_p, v_p), 'ok'),
       -- not an admin: every touched function refuses with 42501
       ('refusal', 'non-admin cannot edit a question',   'nonadmin', format('select public.admin_edit_bank_question(%L, ''marks'', ''1'')', v_q), '42501'),
       ('refusal', 'non-admin cannot edit a paper',      'nonadmin', format('select public.admin_edit_bank_paper(%L, ''cls'', ''X'')', v_p), '42501'),
@@ -139,7 +149,8 @@ begin
       execute c.stmt;
       v_state := 'ok';
     exception when others then
-      v_state := sqlstate;
+      -- an unexpected refusal of an accepted edit shows its message
+      v_state := case when c.expect = 'ok' then sqlstate || ' ' || sqlerrm else sqlstate end;
     end;
     reset role;
     insert into probe_results (area, name, ok, detail)
@@ -224,8 +235,9 @@ begin
           (select marks from public.bank_papers where id = v_p) is not distinct from v_m0, null);
 
   -- add question
+  select max(ord) into v_n from public.bank_questions where paper_id = v_p;   -- as the owner
   set local role authenticated;
-  select public.admin_add_bank_question(v_p, (select max(ord) from public.bank_questions where paper_id = v_p), E' probe add \n', 2, 'P1') into v_new;
+  select public.admin_add_bank_question(v_p, v_n, E' probe add \n', 2, 'P1') into v_new;
   reset role;
   insert into probe_results (area, name, ok, detail)
   values ('audit', 'add writes an admin_add revision by the admin, body untouched',
@@ -313,7 +325,7 @@ from pg_proc p
 where p.pronamespace = 'public'::regnamespace
   and p.proname in ('admin_edit_bank_question', 'admin_edit_bank_paper', 'admin_add_bank_question',
                     'admin_set_bank_question_figure', 'admin_english_rescue_publish_paper',
-                    'admin_reapply_paper_to_live', 'admin_question_history');
+                    'admin_reapply_paper_to_live', 'admin_question_history', 'admin_undo_revision');
 
 insert into probe_results (area, name, ok, detail)
 select 'grants', 'log_action_catalog has RLS on and no client privilege',

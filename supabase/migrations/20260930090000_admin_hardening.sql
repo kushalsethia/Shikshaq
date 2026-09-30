@@ -32,7 +32,7 @@
 --      marks           null or 0..100 (paper marks: 0..1000, live max is 426)
 --      qtype           null, or one of the values that exist live today plus
 --                      the pipeline enum names
---      page            null or a whole number 1..1000
+--      page            null or a whole number 1..9999
 --      time fields     whole minutes 1..600 (paper), numeric 0..600 (question)
 --      figure          null or a plain file name (letters, digits . _ / -),
 --                      no '..', at most 300 characters; all 1,983 live
@@ -41,6 +41,10 @@
 --      ord clash       a friendly 22023 instead of a raw 23505
 --    A null p_field used to slip past the allow-list (null = ANY is null);
 --    it is now rejected.
+--    FOUND IN REHEARSAL: the live admin_edit_bank_question / _paper passed
+--    every value as text, so marks, page, time and true/false edits failed
+--    with 42804 (0 such edits ever logged). The value is now cast to the
+--    column's own type (format_type from pg_attribute).
 -- 3. DIRECT TABLE WRITES CLOSED. authenticated held INSERT/UPDATE/DELETE on
 --    bank_papers and the "admins write papers" / "admins write questions"
 --    ALL policies let any admin session rewrite live rows around every log
@@ -107,6 +111,10 @@
 --                 for all to authenticated using (public.is_admin()) with check (public.is_admin());
 --    * Catalog: drop table public.log_action_catalog;  (after restoring the
 --      old admin_question_history, which does not read it)
+
+-- Fail fast rather than queue behind a long admin or pipeline transaction on
+-- the live tables (every later request would queue behind this one).
+set local lock_timeout = '5s';
 
 -- ---------------------------------------------------------------------------
 -- 6. log_action_catalog
@@ -182,6 +190,7 @@ declare
   v_before jsonb;
   v_after jsonb;
   v_num numeric;
+  v_type text;
   v_allowed text[] := array[
     'number', 'body', 'marks', 'chapter', 'qtype', 'page', 'figure',
     'display_number', 'instructions', 'suggested_time_minutes',
@@ -229,10 +238,11 @@ begin
     end if;
   elsif p_field = 'page' then
     -- CASE, not OR: the cast must never run on text that is not digits.
-    if p_value is not null and case
+    -- Parenthesised: PL/pgSQL reads an IF condition up to its first THEN.
+    if p_value is not null and (case
          when p_value !~ '^[0-9]+$' or length(p_value) > 4 then true
          else p_value::int < 1
-       end then
+       end) then
       raise exception 'Page must be a whole number from 1 to 9999' using errcode = '22023';
     end if;
   elsif p_field = 'suggested_time_minutes' then
@@ -265,7 +275,19 @@ begin
     raise exception 'Question not found';
   end if;
 
-  execute format('update public.bank_questions set %I = $1 where id = $2', p_field)
+  -- The value travels as text; cast it to the column's own type. The live
+  -- function passed text into numeric and boolean columns and failed with
+  -- 42804 on every marks, page, time and switch edit (0 ever logged).
+  -- A text column casts text to text: the stored value stays byte-exact.
+  select format_type(a.atttypid, a.atttypmod) into v_type
+  from pg_attribute a
+  where a.attrelid = 'public.bank_questions'::regclass and a.attname = p_field
+    and a.attnum > 0 and not a.attisdropped;
+  if v_type is null then
+    raise exception 'Field % does not exist', p_field using errcode = '22023';
+  end if;
+
+  execute format('update public.bank_questions set %I = $1::%s where id = $2', p_field, v_type)
     using case
       when p_field in ('marks', 'suggested_time_minutes', 'page') then p_value::numeric::text
       when p_field = 'chapter_from_paper' then p_value::boolean::text
@@ -296,6 +318,7 @@ declare
   v_before jsonb;
   v_after jsonb;
   v_num numeric;
+  v_type text;
   v_allowed text[] := array[
     'school', 'year', 'exam', 'cls', 'subject', 'board',
     'marks', 'is_published', 'needs_review', 'allowed_time_minutes',
@@ -325,10 +348,10 @@ begin
       end if;
     end if;
   elsif p_field = 'allowed_time_minutes' then
-    if p_value is not null and case
+    if p_value is not null and (case
          when p_value !~ '^[0-9]+$' or length(p_value) > 3 then true
          else p_value::int < 1 or p_value::int > 600
-       end then
+       end) then
       raise exception 'Time allowed must be a whole number of minutes from 1 to 600' using errcode = '22023';
     end if;
   elsif p_field in ('is_published', 'needs_review') then
@@ -346,7 +369,19 @@ begin
     raise exception 'Paper not found';
   end if;
 
-  execute format('update public.bank_papers set %I = $1 where id = $2', p_field)
+  -- The value travels as text; cast it to the column's own type. The live
+  -- function passed text into numeric and boolean columns and failed with
+  -- 42804 on every marks, page, time and switch edit (0 ever logged).
+  -- A text column casts text to text: the stored value stays byte-exact.
+  select format_type(a.atttypid, a.atttypmod) into v_type
+  from pg_attribute a
+  where a.attrelid = 'public.bank_papers'::regclass and a.attname = p_field
+    and a.attnum > 0 and not a.attisdropped;
+  if v_type is null then
+    raise exception 'Field % does not exist', p_field using errcode = '22023';
+  end if;
+
+  execute format('update public.bank_papers set %I = $1::%s where id = $2', p_field, v_type)
     using case
       when p_field in ('marks', 'allowed_time_minutes') then p_value::numeric::text
       when p_field in ('is_published', 'needs_review') then p_value::boolean::text
@@ -446,6 +481,86 @@ begin
 
   insert into public.bank_question_revisions (table_name, row_id, action, field, before, after, actor, actor_user_id, source)
   values ('bank_questions', p_question_id, 'admin_edit', 'figure', to_jsonb(v_before.figure), to_jsonb(p_figure_path), auth.uid()::text, auth.uid(), 'admin');
+end;
+$function$;
+
+-- ---------------------------------------------------------------------------
+-- 2b. admin_undo_revision: live body, one change. Its field undo passed the
+-- old value as text into numeric/boolean columns (42804, found in rehearsal),
+-- so no marks, page, time or switch edit could ever be undone. The restore
+-- now casts to the column's own type, exactly like the edit functions.
+
+create or replace function public.admin_undo_revision(p_revision_id bigint, p_force boolean DEFAULT false)
+ returns void
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare
+  v_rev public.bank_question_revisions;
+  v_current_text text;
+  v_current_exists boolean;
+  v_current_published boolean;
+  v_type text;
+begin
+  if not public.is_admin() then
+    raise exception 'Not authorized' using errcode = '42501';
+  end if;
+  select * into v_rev from public.bank_question_revisions where id = p_revision_id;
+  if v_rev.id is null then
+    raise exception 'Revision not found';
+  end if;
+
+  if v_rev.action = 'admin_edit' and v_rev.field is not null then
+    if v_rev.table_name = 'bank_papers' then
+      execute format('select %I::text from public.bank_papers where id = $1', v_rev.field)
+        into v_current_text using v_rev.row_id;
+    else
+      execute format('select %I::text from public.bank_questions where id = $1', v_rev.field)
+        into v_current_text using v_rev.row_id;
+    end if;
+    if not p_force and v_current_text is distinct from (v_rev.after #>> '{}') then
+      raise exception 'This field has changed since that revision -- pass p_force to undo anyway' using errcode = '40001';
+    end if;
+
+    select format_type(a.atttypid, a.atttypmod) into v_type
+    from pg_attribute a
+    where a.attrelid = ('public.' || v_rev.table_name)::regclass and a.attname = v_rev.field
+      and a.attnum > 0 and not a.attisdropped;
+    if v_type is null then
+      raise exception 'Field % does not exist', v_rev.field using errcode = '22023';
+    end if;
+
+    if v_rev.table_name = 'bank_papers' then
+      execute format('update public.bank_papers set %I = $1::%s where id = $2', v_rev.field, v_type)
+        using (v_rev.before #>> '{}'), v_rev.row_id;
+    else
+      execute format('update public.bank_questions set %I = $1::%s where id = $2', v_rev.field, v_type)
+        using (v_rev.before #>> '{}'), v_rev.row_id;
+    end if;
+  elsif v_rev.action = 'admin_delete' and v_rev.table_name = 'bank_questions' then
+    select exists(select 1 from public.bank_questions where id = v_rev.row_id) into v_current_exists;
+    if v_current_exists and not p_force then
+      raise exception 'A question with this id already exists -- pass p_force to overwrite' using errcode = '40001';
+    end if;
+    if v_current_exists then
+      delete from public.bank_questions where id = v_rev.row_id;
+    end if;
+    insert into public.bank_questions
+      select * from jsonb_populate_record(null::public.bank_questions, v_rev.before);
+  elsif v_rev.action in ('admin_hide', 'admin_restore') and v_rev.table_name = 'bank_papers' then
+    select is_published into v_current_published from public.bank_papers where id = v_rev.row_id;
+    if not p_force and v_current_published is distinct from (v_rev.after #>> '{}')::boolean then
+      raise exception 'This paper''s published state has changed since that revision -- pass p_force to undo anyway' using errcode = '40001';
+    end if;
+    update public.bank_papers set is_published = (v_rev.before #>> '{}')::boolean where id = v_rev.row_id;
+  else
+    raise exception 'This revision type cannot be auto-undone; edit the paper directly instead.';
+  end if;
+
+  insert into public.bank_question_revisions (table_name, row_id, action, field, before, after, actor, actor_user_id, source, reason)
+  values (v_rev.table_name, v_rev.row_id, 'admin_undo', v_rev.field, v_rev.after, v_rev.before, auth.uid()::text, auth.uid(), 'admin',
+          'undo of revision ' || p_revision_id::text);
 end;
 $function$;
 
@@ -660,6 +775,7 @@ revoke all on function public.admin_set_bank_question_figure(text, text) from pu
 revoke all on function public.admin_english_rescue_publish_paper(uuid) from public, anon, authenticated;
 revoke all on function public.admin_reapply_paper_to_live(uuid) from public, anon, authenticated;
 revoke all on function public.admin_question_history(uuid) from public, anon, authenticated;
+revoke all on function public.admin_undo_revision(bigint, boolean) from public, anon, authenticated;
 
 grant execute on function public.admin_edit_bank_question(text, text, text) to authenticated;
 grant execute on function public.admin_edit_bank_paper(text, text, text) to authenticated;
@@ -668,6 +784,7 @@ grant execute on function public.admin_set_bank_question_figure(text, text) to a
 grant execute on function public.admin_english_rescue_publish_paper(uuid) to authenticated;
 grant execute on function public.admin_reapply_paper_to_live(uuid) to authenticated;
 grant execute on function public.admin_question_history(uuid) to authenticated;
+grant execute on function public.admin_undo_revision(bigint, boolean) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3. Close direct table writes. SELECT grants and SELECT policies stay.
@@ -728,6 +845,17 @@ begin
       or has_column_privilege(r.rolname, c.oid, a.attnum, 'UPDATE'));
   if v_bad is not null then
     raise exception 'admin hardening: column write privileges survived: %', v_bad;
+  end if;
+
+  -- The pipeline (service_role) and the owner must keep writing: the revoke
+  -- above is for the client roles only.
+  select string_agg(format('%s %s %s', t.tbl, r.rolname, p.priv), ', ') into v_bad
+  from (values ('public.bank_papers'), ('public.bank_questions')) as t(tbl)
+  cross join (select rolname from pg_roles where rolname in ('service_role', 'postgres')) r
+  cross join (values ('INSERT'), ('UPDATE'), ('DELETE')) as p(priv)
+  where not has_table_privilege(r.rolname, t.tbl, p.priv);
+  if v_bad is not null then
+    raise exception 'admin hardening: server-side write privileges lost: %', v_bad;
   end if;
 end
 $$;
