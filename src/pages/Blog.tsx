@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
 import { SEOHead } from '@/components/SEOHead';
+import { ROUTE_META, blogDescription } from '@/content/route-meta';
 import { BentoStack, BentoPanel, PageContainer } from '@/components/layout/PageContainer';
 import { useChromeConfig } from '@/components/layout/AppShell';
 import {
@@ -132,11 +133,8 @@ export default function Blog() {
   return (
     <>
       <SEOHead
-        title="The papers, counted | Shikshaq"
-        description={
-          `What ${fmt(allTotals.questions)} questions from ${fmt(allTotals.papers)} real school papers ` +
-          `show about which topics actually carry the marks. Free to read.`
-        }
+        title={ROUTE_META.blog.title}
+        description={blogDescription(allTotals.questions, allTotals.papers)}
         canonical={BLOG_PATH}
       />
 

@@ -19,9 +19,9 @@
  */
 export const SITE_URL = 'https://www.shikshaq.in';
 
-export const DEFAULT_TITLE = 'Shikshaq - Find Tuition Teachers in Kolkata';
+export const DEFAULT_TITLE = 'Home Tutor in Kolkata: Verified Tuition Teachers, Free | Shikshaq';
 
 export const DEFAULT_DESCRIPTION =
-  'Find verified tuition teachers in Kolkata for free. Search by subject, class, or board. Connect directly with local tutors. No commission, no middlemen.';
+  'Find a home tutor or tuition teacher in Kolkata for free. Filter by subject, class, board and area, then message them on WhatsApp. Plus free ICSE, ISC and CBSE past papers.';
 
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image-default.jpg`;

@@ -53,6 +53,10 @@ Disallow: /join/apply
 # URL is not part of it.
 Disallow: /past-papers/results?*
 
+# The neutral SPA shell that vercel.json rewrites unprerendered routes to. It is
+# never linked, but it is a real file with a real URL, so keep it out of the index.
+Disallow: /app-shell.html
+
 # Block click-tracking interstitials
 Disallow: /*/whatsapp-click
 

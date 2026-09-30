@@ -88,7 +88,9 @@ export function generateCollectionPageSchema(params: {
   name: string;
   description: string;
   about: string;
-  numberOfItems: number;
+  /** Omit when the real count is not known: a wrong number (the prerender
+   *  used to write 0) is worse than no ItemList size. */
+  numberOfItems?: number;
 }): object {
   return {
     '@context': 'https://schema.org',
@@ -107,10 +109,9 @@ export function generateCollectionPageSchema(params: {
     publisher: {
       '@id': ORG_ID,
     },
-    mainEntity: {
-      '@type': 'ItemList',
-      numberOfItems: params.numberOfItems,
-    },
+    ...(params.numberOfItems === undefined
+      ? {}
+      : { mainEntity: { '@type': 'ItemList', numberOfItems: params.numberOfItems } }),
   };
 }
 

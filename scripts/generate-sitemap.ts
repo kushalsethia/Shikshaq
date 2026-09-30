@@ -24,6 +24,7 @@ import { fileURLToPath } from 'url';
    The import is type-only at runtime cost of one small module with no
    browser dependencies. */
 import { BLOG_ARTICLES, BLOG_PATH } from '../src/content/blog';
+import { LOCALITY_PAGES } from '../src/content/locality-pages.generated';
 import { config } from 'dotenv';
 /* Imported, not reimplemented. A local copy of this drifted immediately: it
    omitted the `&` -> ' and ' expansion that schoolSlug does before stripping
@@ -191,6 +192,17 @@ const SUBJECT_PAGES: Omit<SitemapURL, 'lastmod'>[] = [
   { loc: '/clat-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.7 },
   { loc: '/social-studies-tuition-teachers-in-kolkata', changefreq: 'weekly', priority: 0.6 },
 ];
+
+/**
+ * Locality x subject pages. The list is written by generate-locality-pages.ts
+ * (the step before this one in `prebuild`) from real teacher counts, so the
+ * sitemap, the client routes and the prerender all name the same URLs.
+ */
+const LOCALITY_SITEMAP_PAGES: Omit<SitemapURL, 'lastmod'>[] = LOCALITY_PAGES.map((p) => ({
+  loc: p.path,
+  changefreq: 'weekly' as const,
+  priority: 0.6,
+}));
 
 /**
  * Board pages
@@ -373,6 +385,7 @@ async function main() {
     ...STATIC_PAGES.map((url) => ({ ...url, lastmod: contentDate })),
     ...SUBJECT_PAGES.map((url) => ({ ...url, lastmod: contentDate })),
     ...BOARD_PAGES.map((url) => ({ ...url, lastmod: contentDate })),
+    ...LOCALITY_SITEMAP_PAGES.map((url) => ({ ...url, lastmod: contentDate })),
     ...teacherPages,
     ...schoolPages,
     ...bankURLs.schools,
@@ -383,6 +396,7 @@ async function main() {
   console.log(`   Static pages:       ${STATIC_PAGES.length}`);
   console.log(`   Subject pages:      ${SUBJECT_PAGES.length}`);
   console.log(`   Board pages:        ${BOARD_PAGES.length}`);
+  console.log(`   Locality pages:     ${LOCALITY_SITEMAP_PAGES.length}`);
   console.log(`   Teacher profiles:   ${teacherPages.length}`);
   console.log(`   School pages:       ${schoolPages.length} (table) + ${bankURLs.schools.length} (bank)`);
   console.log(`   Bank paper pages:   ${bankURLs.papers.length}`);
