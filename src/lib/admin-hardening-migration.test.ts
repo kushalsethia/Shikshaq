@@ -22,14 +22,14 @@ describe('admin hardening migration', () => {
 
   it('keeps every touched function SECURITY DEFINER with a pinned search_path', () => {
     const creates = sql.match(/create (?:or replace )?function public\.admin_\w+/gi) ?? [];
-    expect(creates.length).toBe(7);
-    expect((sql.match(/security definer/gi) ?? []).length).toBe(7);
-    expect((sql.match(/set search_path to 'public'/gi) ?? []).length).toBe(7);
+    expect(creates.length).toBe(8);
+    expect((sql.match(/security definer/gi) ?? []).length).toBe(8);
+    expect((sql.match(/set search_path to 'public'/gi) ?? []).length).toBe(8);
   });
 
   it('revokes from public, anon and authenticated by name, then grants authenticated only', () => {
     const revokes = sql.match(/revoke all on function public\.admin_\w+\([^)]*\) from public, anon, authenticated;/gi) ?? [];
-    expect(revokes.length).toBe(7);
+    expect(revokes.length).toBe(8);
     expect(sql).not.toMatch(/grant execute on function[^;]*\bto\s+(anon|public)\b/i);
   });
 
@@ -64,5 +64,17 @@ describe('admin hardening migration', () => {
 
   it('adds no em or en dashes', () => {
     expect(readFileSync(MIGRATION, 'utf8')).not.toMatch(/[–—]/);
+  });
+});
+
+describe('admin edits reach non-text columns', () => {
+  it('casts every edited and undone value to the column type (42804 before)', () => {
+    const casts = sql.match(/set %I = \$1::%s where id = \$2', (?:p_field|v_rev\.field), v_type\)/g) ?? [];
+    expect(casts.length).toBe(4);
+    expect(sql).not.toMatch(/set %I = \$1 where id = \$2'/);
+  });
+
+  it('parenthesises CASE inside IF conditions', () => {
+    expect(sql).not.toMatch(/if p_value is not null and case/i);
   });
 });
