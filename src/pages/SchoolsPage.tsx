@@ -6,6 +6,7 @@ import { ArrowRight, School } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { schoolSlug } from '@/lib/school-slug';
 import { displaySchool, isRealSchoolLabel } from '@/lib/school-display';
+import { ROUTE_META } from '@/content/route-meta';
 import { loadPaperIndex, schoolsOfPapers, type BankPaper } from '@/lib/question-bank';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
@@ -40,10 +41,7 @@ interface SchoolStat {
 export default function SchoolsPage() {
   const navigate = useNavigate();
 
-  usePageMeta(
-    'Past Papers by School | Shikshaq',
-    'Browse free past papers grouped by the school that set them, ICSE, CBSE and ISC. Open any school to read its papers question by question.',
-  );
+  usePageMeta(ROUTE_META.schools.title, ROUTE_META.schools.description);
 
   // Handoff SC-005: this route renders its own eyes panel, replacing
   // AppShell's default (B4) pre-footer. Schools is a papers-funnel surface,

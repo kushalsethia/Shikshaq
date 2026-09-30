@@ -40,9 +40,26 @@ import { createClient } from '@supabase/supabase-js';
 import { canonicalPathFor } from '../src/lib/canonical';
 import { schoolSlug } from '../src/lib/school-slug';
 import { displaySchool, isRealSchoolLabel } from '../src/lib/school-display';
+import { buildPaperSeo, paperEducationalLevel } from '../src/lib/paper-seo';
+import { bankSubjectToSite } from '../src/lib/subject-vocabulary';
 import { isExcludedPaper } from './excluded-papers';
 import { extractLeakNeedles, findLeak } from './prerender-leak-check';
 import { SUBJECT_CONTENT, BOARD_CONTENT, type SubjectContent } from '../src/content/subject-seo';
+import { SUBJECT_META, subjectSeoTitle } from '../src/content/subject-meta';
+import { GHAR_PE_HEADING, gharPeParagraph } from '../src/content/ghar-pe';
+import { LOCALITY_PAGES } from '../src/content/locality-pages.generated';
+import { ROUTE_META, blogDescription } from '../src/content/route-meta';
+import { BLOG_ARTICLES, BLOG_PATH, BLOG_SUBJECT_NAMES, BLOG_SUBJECTS } from '../src/content/blog';
+import { FAQ_ITEMS } from '../src/content/faq-items';
+import { DEFAULT_TITLE, DEFAULT_DESCRIPTION } from '../src/lib/seo-defaults';
+import {
+  countSubjectTeachers,
+  localityFacts,
+  localitySeoTitle,
+  teachersFor,
+  type LocalityTeacher,
+} from '../src/lib/locality';
+import { fetchLocalityTeachers } from './locality-data';
 import {
   generateBreadcrumbSchema,
   generateCollectionPageSchema,
@@ -60,6 +77,8 @@ const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const SITE_URL = 'https://www.shikshaq.in';
 const DIST = path.join(__dirname, '..', 'dist');
 const TEMPLATE_PATH = path.join(DIST, 'index.html');
+/* The neutral SPA fallback. See the long comment above writeAppShell(). */
+const SHELL_PATH = path.join(DIST, 'app-shell.html');
 const PAGE = 1000;
 
 /* Same reasoning as scripts/generate-sitemap.ts: nobody on this team can read
@@ -230,11 +249,6 @@ function hasYear(year: string | null): boolean {
   return Boolean(year && year.trim() && year !== 'null');
 }
 
-function paperTitle(p: BankPaper): string {
-  const year = hasYear(p.year) ? ` ${p.year}` : '';
-  return `${displaySchool(p.school)} Class ${p.cls} ${p.subject}${year} Question Paper | Shikshaq`;
-}
-
 function paperRoutes(papers: BankPaper[], template: string): number {
   const bySchool = new Map<string, BankPaper[]>();
   for (const p of papers) {
@@ -260,10 +274,21 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       .slice(0, 4)
       .map((s) => ({
         href: `/past-papers/${s.id}`,
-        label: `${displaySchool(s.school)} Class ${s.cls} ${s.subject}${hasYear(s.year) ? ` ${s.year}` : ''}`,
+        label: `${displaySchool(s.school)} Class ${s.cls} ${bankSubjectToSite(s.subject)}${hasYear(s.year) ? ` ${s.year}` : ''}`,
       }));
 
-    const heading = `${displayName} Class ${p.cls} ${p.subject}${year ? ` ${year}` : ''} question paper`;
+    /* Title, description and H1 come from the same builder BankPaper.tsx
+       calls, so what a crawler reads and what the browser sets are one string. */
+    const seo = buildPaperSeo({
+      school: p.school,
+      board: p.board,
+      cls: p.cls,
+      subject: p.subject,
+      exam: p.exam,
+      year: p.year,
+      questionCount: p.question_count,
+    });
+    const heading = seo.heading;
 
     const body = [
       `<h1>${esc(heading)}</h1>`,
@@ -271,7 +296,7 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       `<dt>School</dt><dd>${esc(displayName)}</dd>`,
       `<dt>Board</dt><dd>${esc(p.board)}</dd>`,
       `<dt>Class</dt><dd>${esc(p.cls)}</dd>`,
-      `<dt>Subject</dt><dd>${esc(p.subject)}</dd>`,
+      `<dt>Subject</dt><dd>${esc(bankSubjectToSite(p.subject))}</dd>`,
       year ? `<dt>Year</dt><dd>${esc(year)}</dd>` : '',
       p.exam ? `<dt>Exam</dt><dd>${esc(p.exam)}</dd>` : '',
       `<dt>Questions</dt><dd>${esc(p.question_count)}</dd>`,
@@ -294,8 +319,9 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       url,
       name: heading,
       learningResourceType: 'Exam question paper',
-      educationalLevel: `Class ${p.cls}`,
-      about: { '@type': 'Thing', name: p.subject },
+      inLanguage: 'en',
+      educationalLevel: paperEducationalLevel(p) || `Class ${p.cls}`,
+      about: { '@type': 'Thing', name: bankSubjectToSite(p.subject) },
       isAccessibleForFree: false,
       ...(year ? { datePublished: year } : {}),
       provider: { '@type': 'EducationalOrganization', name: displayName },
@@ -320,10 +346,8 @@ function paperRoutes(papers: BankPaper[], template: string): number {
     writeRoute(
       routePath,
       render(template, {
-        title: paperTitle(p),
-        description:
-          `${p.question_count} questions from the ${displayName} Class ${p.cls} ${p.subject} ${p.exam ?? 'question paper'}, `
-          + 'with marks, chapters and figures. Free to read with an account.',
+        title: seo.title,
+        description: seo.description,
         path: routePath,
         schemas: [learningResource, breadcrumbs],
         body,
@@ -334,7 +358,9 @@ function paperRoutes(papers: BankPaper[], template: string): number {
   return papers.length;
 }
 
-function schoolRoutes(papers: BankPaper[], template: string): number {
+interface SchoolSummary { label: string; canonicalSlug: string; count: number }
+
+function schoolRoutes(papers: BankPaper[], template: string): { count: number; schools: SchoolSummary[] } {
   /* Two layers, same shape as src/lib/question-bank.ts's schoolGroupsOfPapers
      (this script has its own BankPaper/lowercase-field shape, so the grouping
      is re-implemented here rather than imported):
@@ -456,7 +482,12 @@ function schoolRoutes(papers: BankPaper[], template: string): number {
     }
   }
 
-  return byLabel.size;
+  return {
+    count: byLabel.size,
+    schools: [...byLabel.values()]
+      .map((g) => ({ label: g.label, canonicalSlug: g.canonicalSlug, count: g.papers.length }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+  };
 }
 
 interface TeacherRow {
@@ -581,7 +612,15 @@ function teacherRoutes(teachers: TeacherRow[], mine: Map<string, ShikshaqmineRow
  * source of truth and no possibility of the static HTML and the rendered page
  * disagreeing.
  */
-function subjectRoutes(template: string): number {
+/** The locality pages hanging off one subject page, as a crawlable link list. */
+function localityLinksFor(subjectPath: string): Array<{ href: string; label: string }> {
+  const subject = SUBJECT_META[subjectPath]?.label;
+  return LOCALITY_PAGES
+    .filter((p) => p.subjectPath === subjectPath)
+    .map((p) => ({ href: p.path, label: `${subject} tuition in ${p.area}` }));
+}
+
+function subjectRoutes(template: string, teachers: LocalityTeacher[]): number {
   const entries: Array<[string, SubjectContent, 'subject' | 'board']> = [
     ...Object.entries(SUBJECT_CONTENT).map(([k, v]) => [k, v, 'subject'] as [string, SubjectContent, 'subject']),
     ...Object.entries(BOARD_CONTENT).map(([k, v]) => [k, v, 'board'] as [string, SubjectContent, 'board']),
@@ -589,16 +628,23 @@ function subjectRoutes(template: string): number {
 
   for (const [routePath, content, kind] of entries) {
     const url = `${SITE_URL}${canonicalPathFor(routePath)}`;
-    const label = routePath
-      .replace(/^\//, '')
-      .replace(/-tuition-teachers-in-kolkata$/, '')
-      .split('-')
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ');
+    /* Subject pages read title, description and label from SUBJECT_META, the
+       table SubjectPage.tsx reads too, so crawler and browser agree. (The label
+       used to be title-cased out of the URL, which turned "sat" into "Sat".)
+       Board pages are unchanged. */
+    const meta = kind === 'subject' ? SUBJECT_META[routePath] : undefined;
+    if (kind === 'subject' && !meta) fail(`No SUBJECT_META entry for ${routePath}`);
+    const label = meta
+      ? meta.label
+      : routePath
+        .replace(/^\//, '')
+        .replace(/-tuition-teachers-in-kolkata$/, '')
+        .split('-')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
 
-    const heading = kind === 'board'
-      ? `${label} tuition teachers in Kolkata`
-      : `${label} tuition teachers in Kolkata`;
+    const heading = `${label} tuition teachers in Kolkata`;
+    const localityLinks = kind === 'subject' ? localityLinksFor(routePath) : [];
 
     const body = [
       `<h1>${esc(heading)}</h1>`,
@@ -606,6 +652,10 @@ function subjectRoutes(template: string): number {
       content.covers.length
         ? `<h2>What tutors cover</h2><ul>${content.covers.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>`
         : '',
+      kind === 'subject'
+        ? `<h2>${esc(GHAR_PE_HEADING)}</h2><p>${esc(gharPeParagraph(label))}</p>`
+        : '',
+      localityLinks.length ? `<h2>${esc(label)} tuition by area</h2>${links(localityLinks)}` : '',
       content.faqs.length
         ? `<h2>Common questions</h2>${content.faqs
             .map((f) => `<h3>${esc(f.question)}</h3><p>${esc(f.answer)}</p>`)
@@ -617,8 +667,8 @@ function subjectRoutes(template: string): number {
     writeRoute(
       routePath,
       render(template, {
-        title: `${heading} | Shikshaq`,
-        description: content.intro.slice(0, 300).replace(/\s+\S*$/, ''),
+        title: meta ? subjectSeoTitle(label) : `${heading} | Shikshaq`,
+        description: meta ? meta.description : content.intro.slice(0, 300).replace(/\s+\S*$/, ''),
         path: routePath,
         schemas: [
           generateCollectionPageSchema({
@@ -626,7 +676,10 @@ function subjectRoutes(template: string): number {
             name: heading,
             description: content.intro.slice(0, 200),
             about: label,
-            numberOfItems: 0,
+            /* A real count for subject pages, from the same rows the locality
+               pages use; omitted for boards, where no count is computed. It
+               used to be a hardcoded 0 on all of them. */
+            numberOfItems: kind === 'subject' ? countSubjectTeachers(teachers, routePath) : undefined,
           }),
           ...(content.faqs.length ? [generateFAQPageSchema({ url, faqs: content.faqs })] : []),
           generateBreadcrumbSchema(
@@ -646,6 +699,310 @@ function subjectRoutes(template: string): number {
   return entries.length;
 }
 
+/**
+ * Locality x subject pages: /maths-tuition-teachers-in-salt-lake.
+ *
+ * Which pages exist is decided by src/content/locality-pages.generated.ts
+ * (5+ real published teachers for that subject and area), so the client
+ * bundle, this prerender and the sitemap all agree. The body is built from
+ * the live teacher rows: their names, classes and boards, and the class and
+ * board mix across them. No bio, no contact, nothing gated: the same columns
+ * the public teacher pages above already read.
+ */
+function localityRoutes(template: string, teachers: LocalityTeacher[]): number {
+  for (const entry of LOCALITY_PAGES) {
+    const meta = SUBJECT_META[entry.subjectPath];
+    if (!meta) fail(`Locality page ${entry.path} points at unknown subject ${entry.subjectPath}`);
+    const list = teachersFor(teachers, entry.subjectPath, entry.area);
+    /* The generated list is from the prebuild step; this read is seconds
+       later. A teacher joining or pausing in between would change the count by
+       one, which is worth a warning and not a failed deploy. */
+    if (list.length !== entry.count) {
+      console.warn(`   ${entry.path}: generated count ${entry.count}, live count ${list.length}`);
+    }
+    const facts = localityFacts(list);
+    const url = `${SITE_URL}${entry.path}`;
+    const heading = `${meta.label} tuition teachers in ${entry.area}, Kolkata`;
+
+    const cards = list.map((t) => ({
+      href: `/tuition-teachers/${t.slug}`,
+      label: [
+        t.honorific ? `${t.name} ${t.honorific}` : t.name,
+        t.classes,
+        t.boards,
+      ].filter(Boolean).join(', '),
+    }));
+
+    const nearby = LOCALITY_PAGES
+      .filter((p) => p.subjectPath === entry.subjectPath && p.path !== entry.path)
+      .map((p) => ({ href: p.path, label: `${meta.label} tuition in ${p.area}` }));
+    const otherSubjects = LOCALITY_PAGES
+      .filter((p) => p.area === entry.area && p.path !== entry.path)
+      .map((p) => ({ href: p.path, label: `${SUBJECT_META[p.subjectPath].label} tuition in ${entry.area}` }));
+
+    const body = [
+      `<h1>${esc(heading)}</h1>`,
+      `<p>${esc(entry.count)} verified ${esc(meta.label)} teachers in ${esc(entry.area)} on Shikshaq.</p>`,
+      facts.boards.length
+        ? `<p>Boards they teach: ${esc(facts.boards.map((b) => `${b.board} (${b.count})`).join(', '))}.</p>`
+        : '',
+      facts.bands.length
+        ? `<p>Classes covered: ${esc(facts.bands.map((b) => `${b.band} (${b.count})`).join(', '))}.</p>`
+        : '',
+      `<h2>${esc(meta.label)} teachers in ${esc(entry.area)}</h2>`,
+      links(cards),
+      `<h2>${esc(GHAR_PE_HEADING)}</h2><p>${esc(gharPeParagraph(meta.label))}</p>`,
+      `<p><a href="${esc(entry.subjectPath)}">All ${esc(meta.label)} tuition teachers in Kolkata</a></p>`,
+      nearby.length ? `<h2>${esc(meta.label)} tuition in other areas</h2>${links(nearby)}` : '',
+      otherSubjects.length ? `<h2>More tuition in ${esc(entry.area)}</h2>${links(otherSubjects)}` : '',
+    ].join('');
+
+    writeRoute(
+      entry.path,
+      render(template, {
+        title: localitySeoTitle(meta.label, entry.area, entry.count),
+        description: entry.description,
+        path: entry.path,
+        schemas: [
+          generateCollectionPageSchema({
+            url,
+            name: heading,
+            description: entry.description,
+            about: `${meta.label} tutors in ${entry.area}`,
+            numberOfItems: list.length,
+          }),
+          generateBreadcrumbSchema(
+            [
+              { name: 'Home', url: '/' },
+              { name: `${meta.label} tuition teachers`, url: entry.subjectPath },
+              { name: heading, url: entry.path },
+            ],
+            `${url}#breadcrumb`,
+          ),
+        ],
+        body,
+      }),
+    );
+  }
+
+  return LOCALITY_PAGES.length;
+}
+
+// ---------------------------------------------------------------------------
+// The six top-level routes that used to ship an empty page
+// ---------------------------------------------------------------------------
+
+const BOARD_LINKS: Array<{ href: string; label: string }> = [
+  { href: '/cbse-ncert-tuition-teachers-in-kolkata', label: 'CBSE tuition teachers' },
+  { href: '/icse-tuition-teachers-in-kolkata', label: 'ICSE tuition teachers' },
+  { href: '/igcse-tuition-teachers-in-kolkata', label: 'IGCSE tuition teachers' },
+  { href: '/international-board-tuition-teachers-in-kolkata', label: 'International board tuition teachers' },
+  { href: '/state-board-tuition-teachers-in-kolkata', label: 'State board tuition teachers' },
+];
+
+function tally<T>(items: T[], key: (item: T) => string): Array<[string, number]> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const k = key(item);
+    if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function schoolLinks(list: SchoolSummary[]): Array<{ href: string; label: string }> {
+  return list.map((s) => ({
+    href: `/school/${s.canonicalSlug}`,
+    label: `${s.label}: ${s.count} paper${s.count === 1 ? '' : 's'}`,
+  }));
+}
+
+/**
+ * Home, /past-papers, /all-tuition-teachers-in-kolkata, /schools, /faq, /blog.
+ *
+ * Until now these reached any crawler that does not run JavaScript with the
+ * homepage's meta and an empty page. Each now gets its own title, description,
+ * canonical, H1 and a short crawlable link list, built from rows the anon key
+ * can already read. Titles and descriptions come from content/route-meta.ts
+ * and lib/seo-defaults.ts, which the page components read too.
+ */
+function siteRoutes(
+  template: string,
+  papers: BankPaper[],
+  schools: SchoolSummary[],
+  teachers: TeacherRow[],
+): number {
+  const subjectLinks = Object.keys(SUBJECT_META)
+    .filter((p) => p !== '/commercial-studies-tuition-teachers-in-kolkata')
+    .map((p) => ({ href: p, label: `${SUBJECT_META[p].label} tuition teachers in Kolkata` }));
+  const popularAreas = [...LOCALITY_PAGES]
+    .sort((a, b) => b.count - a.count || a.path.localeCompare(b.path))
+    .slice(0, 12)
+    .map((p) => ({ href: p.path, label: `${SUBJECT_META[p.subjectPath].label} tuition in ${p.area}` }));
+
+  const boards = tally(papers, (p) => (p.board && p.board !== 'Board' ? p.board : ''));
+  const paperSubjects = tally(papers, (p) => bankSubjectToSite(p.subject));
+  const boardText = boards.map(([b]) => b).join(', ');
+
+  let count = 0;
+  const write = (routePath: string, meta: Omit<Meta, 'path'>) => {
+    writeRoute(routePath, render(template, { ...meta, path: routePath }));
+    count++;
+  };
+
+  // Home. Written to dist/index.html; the neutral fallback is app-shell.html.
+  write('/', {
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    schemas: [],
+    body: [
+      '<h1>Find a home tutor in Kolkata</h1>',
+      `<p>Shikshaq lists ${esc(teachers.length)} verified tuition teachers across Kolkata. `
+        + 'Filter by subject, class, board and area, then message the teacher directly on WhatsApp. It is free.</p>',
+      `<h2>Tuition teachers by subject</h2>${links(subjectLinks)}`,
+      `<h2>Tuition teachers by board</h2>${links(BOARD_LINKS)}`,
+      popularAreas.length ? `<h2>Popular areas</h2>${links(popularAreas)}` : '',
+      `<h2>Free past papers</h2><p>${esc(papers.length)} question papers from ${esc(schools.length)} schools`
+        + `${boardText ? `, ${esc(boardText)}` : ''}.</p>`,
+      links([
+        { href: '/past-papers', label: 'All past papers' },
+        { href: '/schools', label: 'Papers by school' },
+        ...schoolLinks(schools.slice(0, 10)),
+      ]),
+      `<h2>More</h2>${links([
+        { href: '/all-tuition-teachers-in-kolkata', label: 'All tuition teachers in Kolkata' },
+        { href: '/faq', label: 'Questions and answers' },
+        { href: BLOG_PATH, label: 'The papers, counted' },
+        { href: '/join', label: 'Teach with Shikshaq' },
+      ])}`,
+    ].join(''),
+  });
+
+  write('/past-papers', {
+    ...ROUTE_META.pastPapers,
+    schemas: [
+      generateBreadcrumbSchema(
+        [{ name: 'Home', url: '/' }, { name: 'Past papers', url: '/past-papers' }],
+        `${SITE_URL}/past-papers#breadcrumb`,
+      ),
+    ],
+    body: [
+      '<h1>Free past year question papers</h1>',
+      `<p>${esc(papers.length)} question papers from ${esc(schools.length)} schools, read question by question.</p>`,
+      boards.length
+        ? `<h2>By board</h2><ul>${boards.map(([b, n]) => `<li>${esc(b)}: ${esc(n)} papers</li>`).join('')}</ul>`
+        : '',
+      paperSubjects.length
+        ? `<h2>By subject</h2><ul>${paperSubjects.map(([sub, n]) => `<li>${esc(sub)}: ${esc(n)} papers</li>`).join('')}</ul>`
+        : '',
+      `<h2>By school</h2>${links(schoolLinks(schools.slice(0, 40)))}`,
+      '<p><a href="/schools">See every school</a></p>',
+    ].join(''),
+  });
+
+  write('/schools', {
+    ...ROUTE_META.schools,
+    schemas: [
+      generateBreadcrumbSchema(
+        [{ name: 'Home', url: '/' }, { name: 'Schools', url: '/schools' }],
+        `${SITE_URL}/schools#breadcrumb`,
+      ),
+    ],
+    body: [
+      '<h1>Past papers by school</h1>',
+      `<p>${esc(schools.length)} schools, ${esc(papers.length)} papers.</p>`,
+      links(schoolLinks(schools)),
+    ].join(''),
+  });
+
+  write('/all-tuition-teachers-in-kolkata', {
+    ...ROUTE_META.allTeachers,
+    schemas: [
+      generateBreadcrumbSchema(
+        [{ name: 'Home', url: '/' }, { name: 'Tuition teachers', url: '/all-tuition-teachers-in-kolkata' }],
+        `${SITE_URL}/all-tuition-teachers-in-kolkata#breadcrumb`,
+      ),
+    ],
+    body: [
+      '<h1>Tuition teachers in Kolkata</h1>',
+      `<p>${esc(teachers.length)} verified tuition teachers. Filter by subject, class, board, area, mode of teaching and fees.</p>`,
+      `<h2>By subject</h2>${links(subjectLinks)}`,
+      `<h2>By board</h2>${links(BOARD_LINKS)}`,
+      `<h2>All teachers</h2>${links(teachers.map((t) => ({ href: `/tuition-teachers/${t.slug}`, label: t.name })))}`,
+    ].join(''),
+  });
+
+  write('/faq', {
+    ...ROUTE_META.faq,
+    schemas: [
+      generateFAQPageSchema({ url: `${SITE_URL}/faq`, faqs: FAQ_ITEMS }),
+      generateBreadcrumbSchema(
+        [{ name: 'Home', url: '/' }, { name: 'FAQ', url: '/faq' }],
+        `${SITE_URL}/faq#breadcrumb`,
+      ),
+    ],
+    body: [
+      '<h1>Tuition FAQs for students and parents in Kolkata</h1>',
+      FAQ_ITEMS.map((f) => `<h2>${esc(f.question)}</h2><p>${esc(f.answer)}</p>`).join(''),
+    ].join(''),
+  });
+
+  const totals = BLOG_SUBJECT_NAMES.reduce(
+    (acc, name) => {
+      const t = BLOG_SUBJECTS[name]?.totals;
+      return t ? { papers: acc.papers + t.papers, questions: acc.questions + t.questions } : acc;
+    },
+    { papers: 0, questions: 0 },
+  );
+  const blogIntro = blogDescription(totals.questions, totals.papers);
+  write(BLOG_PATH, {
+    title: ROUTE_META.blog.title,
+    description: blogIntro,
+    schemas: [
+      generateBreadcrumbSchema(
+        [{ name: 'Home', url: '/' }, { name: 'Reading', url: BLOG_PATH }],
+        `${SITE_URL}${BLOG_PATH}#breadcrumb`,
+      ),
+    ],
+    body: [
+      '<h1>The papers, counted</h1>',
+      `<p>${esc(blogIntro)}</p>`,
+      links(BLOG_ARTICLES.map((a) => ({ href: `${BLOG_PATH}/${a.slug}`, label: a.title }))),
+    ].join(''),
+  });
+
+  return count;
+}
+
+// ---------------------------------------------------------------------------
+// The SPA fallback
+// ---------------------------------------------------------------------------
+
+/**
+ * dist/index.html does two jobs, and they pull in opposite directions.
+ *
+ * 1. It is the page served at "/". The home page wants its own canonical and a
+ *    crawlable body.
+ * 2. vercel.json used to rewrite EVERY unprerendered URL to it (/about,
+ *    /contact, /join, a typo, a route added tomorrow). Anything route-specific
+ *    in this file, above all a canonical pointing at "/", would be served at
+ *    all of those and tell Google each one is a duplicate of the home page.
+ *
+ * So the two jobs get two files. The pristine, route-neutral template (home
+ * title and description, NO canonical, no body) is saved here as
+ * dist/app-shell.html, and vercel.json rewrites the fallback to THAT. Vercel
+ * serves a real file before it applies rewrites, so "/" still resolves to
+ * dist/index.html, which siteRoutes() overwrites with the prerendered home page.
+ *
+ * Asserted rather than trusted: if the shell ever gains a canonical or a
+ * prerender block, the build fails.
+ */
+function writeAppShell(pristineTemplate: string): void {
+  if (/rel="canonical"/.test(pristineTemplate) || pristineTemplate.includes('id="prerender"')) {
+    fail('The neutral app shell must carry no canonical link and no prerender block.');
+  }
+  fs.writeFileSync(SHELL_PATH, pristineTemplate, 'utf8');
+}
+
 // ---------------------------------------------------------------------------
 // The assertion that makes the exclusion real
 // ---------------------------------------------------------------------------
@@ -658,6 +1015,28 @@ function subjectRoutes(template: string): number {
  * here in six months without realising what it unlocks. This makes the rule
  * enforceable by the build instead of by memory.
  */
+/**
+ * question_count counts every row; the Maths hold keeps flagged questions off
+ * the page, so the "All N questions" a crawler reads uses the visible count,
+ * the same number the browser shows (src/lib/question-bank.ts). Counts only,
+ * anon key. A failure keeps question_count and says so: a slightly high number
+ * beats a failed deploy nobody here can read the logs of.
+ */
+async function applyVisibleCounts(papers: BankPaper[]): Promise<void> {
+  const { data, error } = await supabase.rpc('bank_paper_visible_counts' as never, {} as never);
+  if (error || !Array.isArray(data)) {
+    console.warn(`   Visible counts unavailable (${error?.message ?? 'no data'}); using question_count`);
+    return;
+  }
+  const visible = new Map((data as Array<{ paper_id: string; visible: number }>).map((r) => [r.paper_id, r.visible]));
+  let changed = 0;
+  for (const p of papers) {
+    const v = visible.get(p.id);
+    if (typeof v === 'number' && v !== p.question_count) { p.question_count = v; changed += 1; }
+  }
+  console.log(`   Visible question counts applied (${changed} papers differ from question_count)`);
+}
+
 async function assertNoQuestionText(paperId: string, emitted: string[]): Promise<void> {
   const { data, error } = await supabase.rpc('bank_paper_questions', { p_paper_id: paperId });
   if (error || !Array.isArray(data) || data.length === 0) {
@@ -689,11 +1068,22 @@ async function main(): Promise<void> {
   if (!fs.existsSync(TEMPLATE_PATH)) {
     fail(`No dist/index.html at ${TEMPLATE_PATH}. Run vite build first.`);
   }
-  const template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
+  let template = fs.readFileSync(TEMPLATE_PATH, 'utf8');
+
+  /* A second run over the same dist/ would find the prerendered home page here
+     instead of the pristine template, and bake its canonical and body into
+     every other route. Go back to the pristine shell saved on the first run. */
+  if (template.includes('id="prerender"')) {
+    if (!fs.existsSync(SHELL_PATH)) {
+      fail('dist/index.html is already prerendered and there is no dist/app-shell.html to start from. Run vite build again.');
+    }
+    template = fs.readFileSync(SHELL_PATH, 'utf8');
+  }
 
   if (!template.includes('<div id="root"></div>')) {
     fail('dist/index.html has no <div id="root"></div> to anchor the prerender block to.');
   }
+  writeAppShell(template);
 
   const allPapers = await fetchAll<BankPaper>(
     () => supabase
@@ -708,6 +1098,7 @@ async function main(): Promise<void> {
      all excluded then drops out on its own, instead of getting a hub page
      listing nothing -- which would trade one thin page for another. */
   const papers = allPapers.filter((p) => !isExcludedPaper(p.id));
+  await applyVisibleCounts(papers);
   const skipped = allPapers.length - papers.length;
   if (skipped > 0) console.log(`   Skipped ${skipped} papers with placeholder question text`);
 
@@ -728,25 +1119,39 @@ async function main(): Promise<void> {
   );
   const mine = new Map(mineRows.filter((r) => r.Slug).map((r) => [r.Slug.toLowerCase(), r]));
 
+  const localityTeachers = await fetchLocalityTeachers(supabase, fail);
+  if (localityTeachers.length === 0) fail('no teachers readable for locality pages');
+
+  const schoolResult = schoolRoutes(papers, template);
   const counts = {
     papers: paperRoutes(papers, template),
-    schools: schoolRoutes(papers, template),
+    schools: schoolResult.count,
     teachers: teacherRoutes(teachers, mine, template),
-    subjects: subjectRoutes(template),
+    subjects: subjectRoutes(template, localityTeachers),
+    localities: localityRoutes(template, localityTeachers),
+    site: siteRoutes(template, papers, schoolResult.schools, teachers),
   };
 
-  const total = counts.papers + counts.schools + counts.teachers + counts.subjects;
+  const total = counts.papers + counts.schools + counts.teachers + counts.subjects
+    + counts.localities + counts.site;
 
   console.log('   Paper pages:        ' + counts.papers);
   console.log('   School pages:       ' + counts.schools);
   console.log('   Teacher profiles:   ' + counts.teachers);
   console.log('   Subject/board:      ' + counts.subjects);
+  console.log('   Locality pages:     ' + counts.localities);
+  console.log('   Top-level routes:   ' + counts.site);
   console.log('   ─────────────────────────────');
   console.log('   Total prerendered:  ' + total);
 
   const sample = [
     path.join(DIST, 'past-papers', papers[0].id, 'index.html'),
     path.join(DIST, 'tuition-teachers', teachers[0].slug, 'index.html'),
+    TEMPLATE_PATH,
+    SHELL_PATH,
+    path.join(DIST, 'past-papers', 'index.html'),
+    path.join(DIST, 'schools', 'index.html'),
+    ...LOCALITY_PAGES.slice(0, 3).map((p) => path.join(DIST, p.path.replace(/^\//, ''), 'index.html')),
   ].filter((f) => fs.existsSync(f));
 
   await assertNoQuestionText(papers[0].id, sample);

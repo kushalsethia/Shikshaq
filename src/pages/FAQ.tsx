@@ -3,6 +3,7 @@ import { FAQSchema } from '@/components/FAQSchema';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { HelpFaqStack, type HelpFaqCategory, type HelpFaqQuestion } from '@/components/help/HelpFaqStack';
 import { useHelpTopics, topicToGuideBody } from '@/hooks/useHelpTopics';
+import { ROUTE_META } from '@/content/route-meta';
 
 // FAQ_ITEMS (components/FAQ.tsx) is shared with Index.tsx's teaser block, so
 // its question/answer strings stay the single source of truth for the JSON-LD
@@ -25,11 +26,8 @@ const QUESTIONS: HelpFaqQuestion[] = FAQ_ITEMS.map((f) => ({
 }));
 
 export default function FAQPage() {
-  usePageMeta(
-    'Tuition FAQs for Students and Parents in Kolkata | Shikshaq',
-    // Was 164 chars, over the ~160 SERP-snippet guideline. 153 now.
-    'Common questions about finding a tuition teacher in Kolkata on Shikshaq: how matching works, fees, verification, and contacting teachers directly for free.'
-  );
+  // Wording lives in content/route-meta.ts so the prerendered copy matches.
+  usePageMeta(ROUTE_META.faq.title, ROUTE_META.faq.description);
 
   const topics = useHelpTopics();
 

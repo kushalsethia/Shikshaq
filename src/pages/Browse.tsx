@@ -40,6 +40,9 @@ import { bankClassMatches } from '@/utils/romanNumerals';
 import { SEOHead } from '@/components/SEOHead';
 import { FAQSchema } from '@/components/FAQSchema';
 import { SEOContentBlock } from '@/components/seo/SEOContentBlock';
+import { LOCALITY_PAGES } from '@/content/locality-pages.generated';
+import { ROUTE_META } from '@/content/route-meta';
+import { DEFAULT_TITLE, DEFAULT_DESCRIPTION } from '@/lib/seo-defaults';
 import type { SubjectContent } from '@/content/subject-seo';
 import { generateSubjectPageSchemas, generateBoardPageSchemas, generateBrowsePageSchemas } from '@/utils/structuredDataGenerators';
 import { injectSchemas } from '@/utils/injectSchemas';
@@ -91,6 +94,13 @@ interface BrowseProps {
    * once Browse's own fetch has run.
    */
   seo?: { title: string; description: string; content?: SubjectContent };
+  /**
+   * Set by LocalityPage for /maths-tuition-teachers-in-salt-lake style routes.
+   * The page is a subject page narrowed to one area, so it still passes a
+   * 'subject' pageContext; this only changes the heading to name the area and
+   * points the "by area" links back at the parent subject page.
+   */
+  locality?: { area: string; subjectPath: string };
 }
 
 // filterShikshaqRecords now lives in src/lib/teacher-facet-match.ts (imported
@@ -238,7 +248,7 @@ function applySortOrder(list: any[], sortParam: string, upvoteMap: Map<string, n
   });
 }
 
-export default function Browse({ manageSeo = true, pageContext, seo }: BrowseProps = {}) {
+export default function Browse({ manageSeo = true, pageContext, seo, locality }: BrowseProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -683,12 +693,12 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
     // title/description/OG/Twitter/schema instead of this manual effect.
     if (!manageSeo || seo) return;
 
-    document.title = 'All Tuition Teachers in Kolkata | Shikshaq';
+    document.title = ROUTE_META.allTeachers.title;
     const metaDesc = document.querySelector('meta[name="description"]') as HTMLMetaElement;
-    if (metaDesc) metaDesc.setAttribute('content', 'Browse all verified tuition teachers in Kolkata. Filter by subject, class, board, area, mode of teaching, and fees. Free to use, connect directly with local teachers.');
+    if (metaDesc) metaDesc.setAttribute('content', ROUTE_META.allTeachers.description);
     return () => {
-      document.title = 'Shikshaq - Find Tuition Teachers in Kolkata';
-      if (metaDesc) metaDesc.setAttribute('content', 'Find verified tuition teachers in Kolkata for free. Search by subject, class, board, and area. Connect directly with local teachers for CBSE, ICSE, IGCSE, IB, State Board. No commission, no middlemen.');
+      document.title = DEFAULT_TITLE;
+      if (metaDesc) metaDesc.setAttribute('content', DEFAULT_DESCRIPTION);
     };
   }, [manageSeo]);
 
@@ -1941,6 +1951,23 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
         })
     : undefined;
 
+  /* Areas for the "{Subject} tuition, by area" chips. Where a locality page
+     exists for this subject and area (src/content/locality-pages.generated.ts,
+     5+ real teachers) the chip links to it; the rest keep the filter-param link
+     the page always had. Locality pages link back to the parent subject page. */
+  const subjectBasePath = locality?.subjectPath ?? location.pathname;
+  const subjectAreaLinks = (() => {
+    if (!isSubjectPage) return [] as Array<{ area: string; to: string }>;
+    const own = new Map(LOCALITY_PAGES.filter((p) => p.subjectPath === subjectBasePath).map((p) => [p.area, p.path]));
+    const defaults = ['Ballygunge', 'Salt Lake', 'Behala', 'Alipore', 'Gariahat', 'Kasba', 'Howrah', 'Dum Dum'];
+    const areas = [...own.keys(), ...defaults.filter((a) => !own.has(a))];
+    return areas.map((area) => ({
+      area,
+      to: own.get(area)
+        ?? `${subjectBasePath}?filter_subjects=${encodeURIComponent(pageContext!.label)}&filter_areas=${encodeURIComponent(area)}`,
+    }));
+  })();
+
   return (
     <div className="min-h-screen bg-background">
       {seo && (
@@ -2020,7 +2047,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
                pageContext's SEO-critical board/subject branch below. */
             <>{papersTotal || ''} past paper{papersTotal === 1 ? '' : 's'} <span className="font-black">in Kolkata</span></>
           ) : pageContext ? (
-            <>{pageContext.label} tuition teachers <span className="font-black">in Kolkata</span></>
+            <>{pageContext.label} tuition teachers <span className="font-black">in {locality ? `${locality.area}, Kolkata` : 'Kolkata'}</span></>
           ) : (
             /* "147 tuition teachers in Kolkata", not the bare "147 teachers"
                this used to render. Two reasons it has to carry the phrase:
@@ -2443,10 +2470,10 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
             {pageContext!.label} tuition, by area
           </h2>
           <div className="mt-4 flex flex-wrap gap-2">
-            {['Ballygunge', 'Salt Lake', 'Behala', 'Alipore', 'Gariahat', 'Kasba', 'Howrah', 'Dum Dum'].map((area) => (
+            {subjectAreaLinks.map(({ area, to }) => (
               <Link
                 key={area}
-                to={`${location.pathname}?filter_subjects=${encodeURIComponent(pageContext!.label)}&filter_areas=${encodeURIComponent(area)}`}
+                to={to}
                 className={cn(chipVariants({ tone: 'facet', size: 44 }), 'tap-44 active:scale-[0.97] hover:-translate-y-0.5')}
               >
                 {area}
@@ -2464,7 +2491,7 @@ export default function Browse({ manageSeo = true, pageContext, seo }: BrowsePro
           area grid above -- moved here so it sits last, immediately before
           the B2 strip, matching the spec. Not itself a stack panel — not in
           03's geometry appendix / COVERAGE. */}
-      {seo?.content && pageContext && <SEOContentBlock content={seo.content} label={pageContext.label} />}
+      {seo?.content && pageContext && <SEOContentBlock content={seo.content} label={pageContext.label} gharPe={pageContext.kind === 'subject'} />}
 
       </main>
       </PullToRefresh>

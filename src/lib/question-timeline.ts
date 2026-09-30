@@ -14,6 +14,8 @@ export interface TimelineEntry {
   detail: string | null;
   /** Present only when the row actually carries a before/after value. */
   diff: { before: unknown; after: unknown } | null;
+  /** True for an event about the whole paper, not this question alone. */
+  paperLevel: boolean;
 }
 
 const ACTION_LABEL: Record<string, string> = {
@@ -35,6 +37,8 @@ const ACTION_LABEL: Record<string, string> = {
   admin_undo_revision: 'Undone by an admin',
   admin_merge_bank_questions: 'Merged with another question by an admin',
   admin_delete_bank_question: 'Deleted by an admin',
+  admin_english_rescue_publish: 'Hidden English questions published by an admin (whole paper)',
+  admin_reapply_paper_to_live: 'Paper re-applied to the live site by an admin (whole paper)',
 };
 
 /** Plain word for an action the map above does not name -- "reclassified",
@@ -79,5 +83,6 @@ export function buildTimeline(rows: QuestionHistoryRow[]): TimelineEntry[] {
       what: actionLabel(r.action),
       detail: r.detail && r.detail.trim() ? r.detail : null,
       diff: r.before !== null || r.after !== null ? { before: r.before, after: r.after } : null,
+      paperLevel: r.scope === 'paper',
     }));
 }

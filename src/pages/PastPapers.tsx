@@ -18,6 +18,7 @@ import { PullToRefresh } from '@/components/devices/PullToRefresh';
 import { schoolSlug } from '@/lib/school-slug';
 import { displaySchool, isRealSchoolLabel } from '@/lib/school-display';
 import { generateCollectionPageSchema } from '@/utils/structuredDataGenerators';
+import { ROUTE_META } from '@/content/route-meta';
 import { injectSchemas } from '@/utils/injectSchemas';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { EyesPanel } from '@/components/home/EyesPanel';
@@ -141,11 +142,8 @@ function ShelfSkeleton() {
 }
 
 export default function PastPapers() {
-  usePageMeta(
-    // 58 chars. Was 74, so ~14 characters were truncated out of the SERP.
-    'Free Past Year Question Papers - CBSE, ICSE, ISC | Shikshaq',
-    'Read free past year question papers for CBSE, ICSE, ISC and West Bengal State Board exams. Practice previous year questions (PYQs) by subject, class and school.'
-  );
+  // 58 chars. Wording lives in content/route-meta.ts so the prerendered copy matches.
+  usePageMeta(ROUTE_META.pastPapers.title, ROUTE_META.pastPapers.description);
 
   const navigate = useNavigate();
   const { user } = useAuth();

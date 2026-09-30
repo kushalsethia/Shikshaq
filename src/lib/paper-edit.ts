@@ -252,6 +252,14 @@ export function paperDetailValue(
   return v == null ? '' : String(v);
 }
 
+/** The toast for a header save the server refused. The server's own sentence
+ *  (the 22023 validation messages) is shown, so an admin learns WHY; a
+ *  transport failure with no message falls back to a plain line. */
+export function notSavedMessage(e: unknown): string {
+  const msg = (e as { message?: string } | null)?.message;
+  return msg && msg.trim() ? `Not saved: ${msg.trim()}` : 'Not saved. Nothing was changed.';
+}
+
 /** What a paper detail may be saved as, before admin_edit_bank_paper() is
  *  called. That function casts time allowed with ::numeric, so a blank or a
  *  word would fail there with a database error; say it plainly here instead.

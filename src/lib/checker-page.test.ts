@@ -17,7 +17,7 @@ describe('the whole-page fallback', () => {
     paper_id: PAPER,
     display_number: '6' as string | null,
     subject: 'Mathematics' as string | null,
-    source: { page: 3, align_score: 0.4 } as Record<string, unknown> | null,
+    source: { page: 3, page_verified: true, align_score: 0.4 } as Record<string, unknown> | null,
     ...over,
   });
 
@@ -29,6 +29,13 @@ describe('the whole-page fallback', () => {
     });
   });
 
+  it('needs the page to be verified against the PDF, not just recorded', () => {
+    expect(planWholePage(q({ source: { page: 3, align_score: 0.4 } }), false)).toBeNull();
+    expect(planWholePage(q({ source: { page: 3, page_verified: false } }), false)).toBeNull();
+    expect(planWholePage(q({ source: { page: 3, page_verified: 'true' } }), false)).toBeNull();
+    expect(planWholePage(q({ source: { page: 3, page_verified: true } }), false)?.page).toBe(3);
+  });
+
   it('never plans a page when a trusted crop exists', () => {
     expect(planWholePage(q(), true)).toBeNull();
   });
@@ -36,7 +43,7 @@ describe('the whole-page fallback', () => {
   it('is Maths only, and needs a recorded page', () => {
     expect(planWholePage(q({ subject: 'Economics' }), false)).toBeNull();
     expect(planWholePage(q({ subject: null }), false)).toBeNull();
-    expect(planWholePage(q({ source: { align_score: 0.4 } }), false)).toBeNull();
+    expect(planWholePage(q({ source: { page_verified: true, align_score: 0.4 } }), false)).toBeNull();
     expect(planWholePage(q({ source: null }), false)).toBeNull();
     expect(isPageFallbackSubject('Maths')).toBe(true);
     expect(isPageFallbackSubject('  mathematics ')).toBe(true);

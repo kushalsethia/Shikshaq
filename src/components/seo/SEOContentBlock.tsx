@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Eyebrow } from '@/components/ui/eyebrow';
 import type { SubjectContent } from '@/content/subject-seo';
+import { GHAR_PE_HEADING, gharPeParagraph } from '@/content/ghar-pe';
 
 /**
  * Phase 13 (C-040 / C-041): the substantive-content block rendered on every
@@ -23,9 +24,12 @@ import type { SubjectContent } from '@/content/subject-seo';
 export function SEOContentBlock({
   content,
   label,
+  gharPe = false,
 }: {
   content: SubjectContent;
   label: string;
+  /** Subject pages only: adds the "Ghar pe tuition in Kolkata" section. */
+  gharPe?: boolean;
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
@@ -56,6 +60,13 @@ export function SEOContentBlock({
               </li>
             ))}
           </ul>
+
+          {gharPe && (
+            <>
+              <h2 className="mt-8 mb-3 text-lg font-bold tracking-tight text-foreground">{GHAR_PE_HEADING}</h2>
+              <p className="text-body-secondary leading-relaxed text-warm-secondary">{gharPeParagraph(label)}</p>
+            </>
+          )}
         </div>
 
         {/* FAQ accordion */}

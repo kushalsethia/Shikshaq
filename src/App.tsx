@@ -1,3 +1,4 @@
+import { LOCALITY_PAGES } from "./content/locality-pages.generated";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -66,6 +67,7 @@ const SchoolsPage = lazy(() => import("./pages/SchoolsPage"));
 
 // Lazy load heavy components for better performance on mobile
 const SubjectPage = lazy(() => import("./pages/SubjectPage"));
+const LocalityPage = lazy(() => import("./pages/LocalityPage"));
 const WhatsAppRedirect = lazy(() => import("./pages/WhatsAppRedirect"));
 const BoardPage = lazy(() => import("./pages/BoardPage"));
 const RecommendTeacher = lazy(() => import("./pages/RecommendTeacher"));
@@ -416,6 +418,13 @@ const App = () => (
               <Route path="/igcse-tuition-teachers-in-kolkata" element={<BoardPage />} />
               <Route path="/international-board-tuition-teachers-in-kolkata" element={<BoardPage />} />
               <Route path="/state-board-tuition-teachers-in-kolkata" element={<BoardPage />} />
+              {/* Locality x subject pages: one route per (subject, area) with 5+
+                  real teachers, from the list scripts/generate-locality-pages.ts
+                  writes at build time. Anything not in that list falls through
+                  to NotFound like any other unknown URL. */}
+              {LOCALITY_PAGES.map((p) => (
+                <Route key={p.path} path={p.path} element={<LocalityPage />} />
+              ))}
               <Route path="/404" element={<NotFound />} />
               {/* Render in place rather than Navigate to /404: redirecting
                   rewrote the address bar and destroyed the URL that actually
