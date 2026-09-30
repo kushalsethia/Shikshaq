@@ -28,6 +28,16 @@ export function isPageFallbackSubject(subject: string | null | undefined): boole
   return /^math/i.test((subject ?? '').trim());
 }
 
+/**
+ * True only when the pipeline CHECKED the page against the PDF text
+ * (locate_pages.py sets source.page_verified). An unverified page is the
+ * aligner's guess and was wrong for about a third of questions, so it is
+ * never shown: a wrong whole page is worse than none.
+ */
+export function pageIsVerified(source: Source): boolean {
+  return source?.page_verified === true;
+}
+
 /** The 1-based page a question sits on, or null when the pipeline has not said. */
 export function sourcePage(source: Source): number | null {
   const raw = source?.page;
@@ -61,8 +71,8 @@ export function findQuestionNote(displayNumber: string | null | undefined): stri
 
 /**
  * The whole-page fallback, or null. Only when the caller found no trusted crop
- * (`hasTrustedCrop` false), the subject may fall back, and the pipeline
- * recorded which page the question is on.
+ * (`hasTrustedCrop` false), the subject may fall back, the pipeline
+ * recorded which page the question is on, and it verified that page.
  */
 export function planWholePage(
   question: {
@@ -75,6 +85,7 @@ export function planWholePage(
 ): PagePlan | null {
   if (hasTrustedCrop) return null;
   if (!isPageFallbackSubject(question.subject)) return null;
+  if (!pageIsVerified(question.source)) return null;
   const page = sourcePage(question.source);
   const path = pageObjectPath(question.paper_id, page);
   if (!path || page === null) return null;
