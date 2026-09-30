@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { BentoStack, BentoPanel } from '@/components/layout/PageContainer';
 import { MathText } from '@/components/papers/math-text';
 import { BodyEditor } from '@/components/checker/BodyEditor';
+import { OptionList } from '@/components/checker/OptionList';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { cn } from '@/lib/utils';
 import { realCheckerApi, type CheckerApi } from '@/lib/checker-api';
@@ -750,6 +751,7 @@ export function CheckerPage({
                     <p className="text-[13px] leading-snug text-warm-secondary">{FIX_RULE_NOTE}</p>
                   </div>
                   <BodyEditor value={bodyDraft} onChange={setBodyDraft} disabled={submitting} />
+                  <OptionList options={question.options} />
                   {showBigEditWarning ? (
                     <p role="status" className="mt-1 text-[13px] leading-snug text-destructive">
                       {BIG_EDIT_WARNING}
@@ -1112,22 +1114,6 @@ function CheckingTag() {
     <span className="mb-1 inline-block rounded-full bg-brand px-2 py-0.5 text-[12px] font-bold text-foreground">
       You are checking this part
     </span>
-  );
-}
-
-/* Multiple-choice options, read-only and verbatim, so an mcq_malformed flag
-   can actually be checked against the paper. */
-function OptionList({ options }: { options: { label?: string; text?: string }[] | null | undefined }) {
-  if (!Array.isArray(options) || options.length === 0) return null;
-  return (
-    <ul className="mt-2 space-y-1">
-      {options.map((o, i) => (
-        <li key={i} className="flex gap-2 text-[14px] leading-relaxed text-foreground">
-          {o?.label ? <span className="font-semibold">{o.label}</span> : null}
-          <MathText text={o?.text ?? ''} className="min-w-0 flex-1" />
-        </li>
-      ))}
-    </ul>
   );
 }
 

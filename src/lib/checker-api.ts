@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { ContextRow } from '@/lib/checker-context';
 import { mergeQueueRows } from '@/lib/paper-review-filter';
+import type { RawOption } from '@/lib/checker-options';
 
 /**
  * Client wrapper for the paper-checker (Kid Mode) and paper-admin RPCs added
@@ -25,7 +26,7 @@ export interface CheckerQuestion {
   display_number: string | null;
   number_path: string | null;
   body: string;
-  options: { label?: string; text?: string }[] | null;
+  options: RawOption[] | null;
   marks: number | null;
   instructions: string | null;
   flag_reasons: string[];
@@ -53,6 +54,9 @@ export type AuditQuestionSource = {
   /* the crop of the printed paper and how far to trust it (checker-pictures.ts) */
   snippet_object?: string;
   align_score?: number;
+  /* locate_pages.py: the page was checked against the PDF text (checker-page.ts) */
+  page_verified?: boolean;
+  page_match_score?: number;
   whole_snippet_object?: string;
   whole_snippet_members?: { located?: number; members?: number; min_align?: number };
   /* W14 English rows (checker-english.ts) */

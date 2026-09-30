@@ -12,13 +12,15 @@
  * database holds them and rendered by MathText.
  */
 
+import type { RawOption } from './checker-options';
+
 export interface ContextRow {
   id: string;
   ord: number;
   display_number: string | null;
   number_path: string | null;
   body: string;
-  options: { label?: string; text?: string }[] | null;
+  options: RawOption[] | null;
   source: Record<string, unknown> | null;
   is_current: boolean;
   is_parent: boolean;

@@ -69,7 +69,7 @@ export function dummyQuestions(): CheckerQuestion[] {
       marks: 3,
       body: '6. Find the value of $k$ if the points $(2, 3)$, $(4, k)$ and $(6, -3)$ are collinear.',
       flag_reasons: ['snippet_unaligned', 'display_number_missing'],
-      source: { page: 3, align_score: 0.41, snippet_object: 'dummy/q-not-shown.png' },
+      source: { page: 3, page_verified: true, align_score: 0.41, snippet_object: 'dummy/q-not-shown.png' },
     }),
     q({
       id: 'd0000001-0000-4000-8000-000000000001',
