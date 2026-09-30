@@ -18,9 +18,9 @@ import { logger } from '@/utils/logger';
 import { SUBJECT_PATH_TO_FILTER } from '@/utils/subjectMapping';
 import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { displaySchool } from '@/lib/school-display';
+import { buildPaperSeo } from '@/lib/paper-seo';
 import { PAST_PAPERS_PATH } from '@/lib/nav-config';
 
-import { FREE_PREVIEW_WORD } from '@/lib/free-preview';
 import {
   resolveDisplayNumber, showPaperExtras, showIncompleteNote, showQuestionInstructions,
   marksShownInText as marksInText, showSuggestedTime, sectionHeadings, alternativeRuns,
@@ -438,22 +438,23 @@ export default function BankPaper() {
     paper && !user ? Math.max(0, paper.questionCount - questions.length) : 0;
   const filtering = Boolean(chapter || needle);
 
+  /* Title and description come from src/lib/paper-seo.ts, the same builder
+     scripts/prerender.ts uses, so the crawler's copy and the browser's copy of
+     this page cannot disagree. */
+  const paperSeo = paper ? buildPaperSeo(paper) : null;
   usePageMeta(
-    paper
-      ? `${displaySchool(paper.school)} Class ${paper.cls} ${displaySubject} ${hasYear(paper.year) ? paper.year : ''} Question Paper | Shikshaq`
-      : 'Past paper | Shikshaq',
-    paper
+    paperSeo ? paperSeo.title : 'Past paper | Shikshaq',
+    paper && paperSeo
       ? paper.needsReview
-        ? `${displaySchool(paper.school)} Class ${paper.cls} ${displaySubject} ${paper.exam}. This paper is being audited and is not open to read yet.`
-        : `${paper.questionCount} questions from the ${displaySchool(paper.school)} Class ${paper.cls} ${displaySubject} ${paper.exam}, with marks, chapters and figures. First ${FREE_PREVIEW_WORD} free, the rest with a free account.`
+        ? `${paperSeo.heading.replace(/ question paper$/, '')} ${paper.exam}. This paper is being audited and is not open to read yet.`
+        : paperSeo.description
       : 'Read a free past year question paper on Shikshaq.',
   );
 
-  /* The description no longer claims "All N questions ... Free to read". Under
-     the real gate that sentence was false twice over: a signed-out reader is
-     sent five, and this description's own audience is a crawler, which is
-     signed out. It still says free, because that remains true -- an account is
-     the only cost -- but it now says what you get before you have one. */
+  /* The description wording ("Read all N questions ... Free, no download
+     needed") is the owner-approved template of 2026-09-30. Note it says "all"
+     while a signed-out reader is sent the free-preview questions only; that
+     gap was flagged to the owner when the template was applied. */
 
   /* Many papers print their own marks inline, "Find: [3]". Our pill would then
      say the same number twice on one card, so ours stands down; the paper's

@@ -40,6 +40,8 @@ import { createClient } from '@supabase/supabase-js';
 import { canonicalPathFor } from '../src/lib/canonical';
 import { schoolSlug } from '../src/lib/school-slug';
 import { displaySchool, isRealSchoolLabel } from '../src/lib/school-display';
+import { buildPaperSeo, paperEducationalLevel } from '../src/lib/paper-seo';
+import { bankSubjectToSite } from '../src/lib/subject-vocabulary';
 import { isExcludedPaper } from './excluded-papers';
 import { extractLeakNeedles, findLeak } from './prerender-leak-check';
 import { SUBJECT_CONTENT, BOARD_CONTENT, type SubjectContent } from '../src/content/subject-seo';
@@ -230,11 +232,6 @@ function hasYear(year: string | null): boolean {
   return Boolean(year && year.trim() && year !== 'null');
 }
 
-function paperTitle(p: BankPaper): string {
-  const year = hasYear(p.year) ? ` ${p.year}` : '';
-  return `${displaySchool(p.school)} Class ${p.cls} ${p.subject}${year} Question Paper | Shikshaq`;
-}
-
 function paperRoutes(papers: BankPaper[], template: string): number {
   const bySchool = new Map<string, BankPaper[]>();
   for (const p of papers) {
@@ -260,10 +257,21 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       .slice(0, 4)
       .map((s) => ({
         href: `/past-papers/${s.id}`,
-        label: `${displaySchool(s.school)} Class ${s.cls} ${s.subject}${hasYear(s.year) ? ` ${s.year}` : ''}`,
+        label: `${displaySchool(s.school)} Class ${s.cls} ${bankSubjectToSite(s.subject)}${hasYear(s.year) ? ` ${s.year}` : ''}`,
       }));
 
-    const heading = `${displayName} Class ${p.cls} ${p.subject}${year ? ` ${year}` : ''} question paper`;
+    /* Title, description and H1 come from the same builder BankPaper.tsx
+       calls, so what a crawler reads and what the browser sets are one string. */
+    const seo = buildPaperSeo({
+      school: p.school,
+      board: p.board,
+      cls: p.cls,
+      subject: p.subject,
+      exam: p.exam,
+      year: p.year,
+      questionCount: p.question_count,
+    });
+    const heading = seo.heading;
 
     const body = [
       `<h1>${esc(heading)}</h1>`,
@@ -271,7 +279,7 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       `<dt>School</dt><dd>${esc(displayName)}</dd>`,
       `<dt>Board</dt><dd>${esc(p.board)}</dd>`,
       `<dt>Class</dt><dd>${esc(p.cls)}</dd>`,
-      `<dt>Subject</dt><dd>${esc(p.subject)}</dd>`,
+      `<dt>Subject</dt><dd>${esc(bankSubjectToSite(p.subject))}</dd>`,
       year ? `<dt>Year</dt><dd>${esc(year)}</dd>` : '',
       p.exam ? `<dt>Exam</dt><dd>${esc(p.exam)}</dd>` : '',
       `<dt>Questions</dt><dd>${esc(p.question_count)}</dd>`,
@@ -294,8 +302,9 @@ function paperRoutes(papers: BankPaper[], template: string): number {
       url,
       name: heading,
       learningResourceType: 'Exam question paper',
-      educationalLevel: `Class ${p.cls}`,
-      about: { '@type': 'Thing', name: p.subject },
+      inLanguage: 'en',
+      educationalLevel: paperEducationalLevel(p) || `Class ${p.cls}`,
+      about: { '@type': 'Thing', name: bankSubjectToSite(p.subject) },
       isAccessibleForFree: false,
       ...(year ? { datePublished: year } : {}),
       provider: { '@type': 'EducationalOrganization', name: displayName },
@@ -320,10 +329,8 @@ function paperRoutes(papers: BankPaper[], template: string): number {
     writeRoute(
       routePath,
       render(template, {
-        title: paperTitle(p),
-        description:
-          `${p.question_count} questions from the ${displayName} Class ${p.cls} ${p.subject} ${p.exam ?? 'question paper'}, `
-          + 'with marks, chapters and figures. Free to read with an account.',
+        title: seo.title,
+        description: seo.description,
         path: routePath,
         schemas: [learningResource, breadcrumbs],
         body,
