@@ -413,6 +413,28 @@ reproducible from this repo alone.
 - `ACCEPTED` Screen readers read protected prose as Cyrillic. Owner's explicit
   decision, recorded in `src/lib/glyph-substitution.ts`.
 
+### Admin writes and the change log (2026-09-30, migration `20260930090000_admin_hardening.sql`, not yet applied)
+
+- [ ] **`P1` Apply the admin hardening migration**, then run
+      `supabase/probes/20260930_admin_hardening_probe.sql` (BEGIN ... ROLLBACK).
+      It closes direct INSERT/UPDATE/DELETE on `bank_papers` and
+      `bank_questions` (admins now write only through the logged functions),
+      adds server-side validation (errcode `22023`, reject only, question text
+      is never altered), logs English rescue and re-apply, and adds
+      `log_action_catalog`.
+- `ACCEPTED` **No CHECK constraint on `audit_review_log.action`.** The laptop
+      pipeline writes new action names and a log line must never fail the
+      write it describes. `log_action_catalog` labels the known ones
+      (ai / checker / admin / pipeline / system); an unknown action falls back
+      to its actor's kind.
+- **Actor naming scheme** for `audit_review_log` and `bank_question_revisions`:
+      a human is `actor_user_id` (the name comes from profiles / auth.users);
+      automation is `ai:<name>` (for example `ai:empty-paper-hide`) or
+      `system:<name>` (`system:chokepoint`, `system:english_rescue`). A row with
+      no `actor_user_id` and no prefix is legacy.
+- `ACCEPTED` Stale-edit protection on admin edits is not built here; the
+      planned versions migration adds one version lock to every write.
+
 ## 3. Reliability and observability
 
 This is the weakest area and the one with the least attention on it.

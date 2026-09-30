@@ -44,13 +44,18 @@ export function QuestionTimeline({
           {timeline.map((entry, i) => (
             <li key={i} className="relative">
               <span
-                className="absolute -left-[25px] top-1 h-2.5 w-2.5 rounded-full bg-brand"
+                className={cn('absolute -left-[25px] top-1 h-2.5 w-2.5 rounded-full', entry.paperLevel ? 'bg-brand-blue' : 'bg-brand')}
                 aria-hidden
               />
               <p className="text-[12px] text-warm-meta">{format(new Date(entry.at), 'd MMM yyyy, h:mm a')}</p>
               <p className="text-[14px] font-semibold text-foreground">
                 {entry.who} &middot; {entry.what}
               </p>
+              {entry.paperLevel ? (
+                <span className="mt-0.5 inline-block rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-warm-label">
+                  Whole paper
+                </span>
+              ) : null}
               {entry.detail ? <p className="mt-0.5 text-[13px] text-warm-secondary">{entry.detail}</p> : null}
               {entry.diff ? <TimelineDiff before={entry.diff.before} after={entry.diff.after} /> : null}
             </li>

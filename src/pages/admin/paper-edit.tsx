@@ -16,6 +16,7 @@ import { resolveDisplayNumber, showQuestionInstructions, marksShownInText } from
 import { passageHeading } from '@/lib/checker-english';
 import { isDoubtfulCrop } from '@/lib/checker-pictures';
 import { DebugId } from '@/components/DebugId';
+import { useBusyActions } from '@/lib/busy-guard';
 import {
   adminPaperDraft,
   adminSaveDraftQuestion,
@@ -40,6 +41,7 @@ import {
   depthMap,
   paperDetailValue,
   detailError,
+  notSavedMessage,
   adminFlagLines,
   looksLikeRewrite,
   passagesBefore,
@@ -207,20 +209,26 @@ export default function AdminPaperEditPage() {
 
   // A header field saved straight to the live paper. The page's copy is
   // patched in place rather than reloaded, so no question editor remounts.
+  const { run: runBusy } = useBusyActions();
   const saveDetail = useCallback(
     async (field: PaperDetailField, value: string): Promise<boolean> => {
-      try {
-        await adminEditBankPaper(paperId, field, value);
-        const stored = field === 'allowed_time_minutes' ? Number(value.trim()) : value;
-        setRows((prev) => prev.map((r) => ({ ...r, [field]: stored })));
-        adminToast('Saved to the live paper');
-        return true;
-      } catch {
-        adminToast('Could not save that. Nothing was changed.');
-        return false;
-      }
+      // One save per field at a time: a second press while the first is on
+      // the wire is ignored and reports "not saved" so the input stays open.
+      const out = await runBusy(`detail:${field}`, async () => {
+        try {
+          await adminEditBankPaper(paperId, field, value);
+          const stored = field === 'allowed_time_minutes' ? Number(value.trim()) : value;
+          setRows((prev) => prev.map((r) => ({ ...r, [field]: stored })));
+          adminToast('Saved to the live paper');
+          return true;
+        } catch (e) {
+          adminToast(notSavedMessage(e));
+          return false;
+        }
+      });
+      return out.ran ? out.value === true : false;
     },
-    [paperId],
+    [paperId, runBusy],
   );
 
   const nav = buildAdminNav('paper-review', {});

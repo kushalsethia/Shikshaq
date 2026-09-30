@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useBusyActions } from '@/lib/busy-guard';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState, adminToast, adminPrimaryBtnStyle, adminSecondaryBtnStyle, AdminStatTiles } from '@/components/AdminConsole';
@@ -96,7 +97,8 @@ export default function AdminPaperReviewPage() {
 
   const [hideTarget, setHideTarget] = useState<PaperQueueRow | null>(null);
   const [hideReason, setHideReason] = useState('');
-  const [busyId, setBusyId] = useState<string | null>(null);
+  // One write per row at a time: undo, hide, restore, resolve.
+  const { run: runBusy, busy } = useBusyActions();
 
   const [checkerLog, setCheckerLog] = useState<CheckerLogRow[]>([]);
   const [checkerLogError, setCheckerLogError] = useState(false);
@@ -192,14 +194,17 @@ export default function AdminPaperReviewPage() {
   }
 
   async function doUndo(revisionId: number) {
-    try {
-      await adminUndoRevision(revisionId);
-      adminToast('Reverted');
-      if (historyTarget) openHistory(historyTarget);
-      loadPapers();
-    } catch {
-      adminToast('Could not undo that revision');
-    }
+    await runBusy(`undo:${revisionId}`, async () => {
+      try {
+        await adminUndoRevision(revisionId);
+        adminToast('Reverted');
+        if (historyTarget) openHistory(historyTarget);
+        loadPapers();
+      } catch (e) {
+        const msg = (e as { message?: string } | null)?.message;
+        adminToast('Could not undo that revision', msg ? { description: msg } : undefined);
+      }
+    });
   }
 
   async function confirmHide() {
@@ -209,31 +214,30 @@ export default function AdminPaperReviewPage() {
       adminToast('A reason is required to hide a paper');
       return;
     }
-    setBusyId(hideTarget.paper_id);
-    try {
-      await adminHideBankPaper(hideTarget.paper_id, reason);
-      adminToast('Paper hidden');
-      setHideTarget(null);
-      setHideReason('');
-      loadPapers();
-    } catch {
-      adminToast('Failed to hide the paper');
-    } finally {
-      setBusyId(null);
-    }
+    const paperId = hideTarget.paper_id;
+    await runBusy(`paper:${paperId}`, async () => {
+      try {
+        await adminHideBankPaper(paperId, reason);
+        adminToast('Paper hidden');
+        setHideTarget(null);
+        setHideReason('');
+        loadPapers();
+      } catch {
+        adminToast('Failed to hide the paper');
+      }
+    });
   }
 
   async function doRestore(p: PaperQueueRow) {
-    setBusyId(p.paper_id);
-    try {
-      await adminRestoreBankPaper(p.paper_id);
-      adminToast('Paper restored');
-      loadPapers();
-    } catch {
-      adminToast('Failed to restore the paper');
-    } finally {
-      setBusyId(null);
-    }
+    await runBusy(`paper:${p.paper_id}`, async () => {
+      try {
+        await adminRestoreBankPaper(p.paper_id);
+        adminToast('Paper restored');
+        loadPapers();
+      } catch {
+        adminToast('Failed to restore the paper');
+      }
+    });
   }
 
   // D32: search Shikshaq accounts by name or email instead of requiring the
@@ -356,8 +360,8 @@ export default function AdminPaperReviewPage() {
       // The old one-field dialog lives there now as "Paper details".
       { label: 'Edit', tone: 'primary', onClick: () => navigate(`/admin/paper-review/${encodeURIComponent(p.paper_id)}`) },
       p.is_published
-        ? { label: busyId === p.paper_id ? '...' : 'Hide', tone: 'destructive', onClick: () => setHideTarget(p), disabled: busyId === p.paper_id }
-        : { label: busyId === p.paper_id ? '...' : 'Restore', tone: 'mint', onClick: () => doRestore(p), disabled: busyId === p.paper_id },
+        ? { label: busy(`paper:${p.paper_id}`) ? '...' : 'Hide', tone: 'destructive', onClick: () => setHideTarget(p), disabled: busy(`paper:${p.paper_id}`) }
+        : { label: busy(`paper:${p.paper_id}`) ? '...' : 'Restore', tone: 'mint', onClick: () => doRestore(p), disabled: busy(`paper:${p.paper_id}`) },
     ],
   }));
 
@@ -369,19 +373,21 @@ export default function AdminPaperReviewPage() {
   ];
 
   async function doResolveEscalation(questionId: string) {
-    try {
-      await adminResolveEscalation(questionId);
-      adminToast('Marked resolved');
-      loadEscalations();
-    } catch {
-      adminToast('Failed to resolve this escalation');
-    }
+    await runBusy(`resolve:${questionId}`, async () => {
+      try {
+        await adminResolveEscalation(questionId);
+        adminToast('Marked resolved');
+        loadEscalations();
+      } catch {
+        adminToast('Failed to resolve this escalation');
+      }
+    });
   }
 
   const escalationRows: AdminTableRow[] = escalations.map((e) => ({
     id: e.question_id,
     cells: [e.school ?? 'Unknown', e.subject ?? '-', e.display_number ?? '-', e.flag_reasons.map(kidSentence).join(' ') || '-'],
-    actions: [{ label: 'Accept as-is', tone: 'mint', onClick: () => doResolveEscalation(e.question_id) }],
+    actions: [{ label: busy(`resolve:${e.question_id}`) ? '...' : 'Accept as-is', tone: 'mint', onClick: () => doResolveEscalation(e.question_id), disabled: busy(`resolve:${e.question_id}`) }],
   }));
 
   const logActorNames = new Map<string, string>();
@@ -627,7 +633,7 @@ export default function AdminPaperReviewPage() {
           <p className="mt-1.5 text-[14px] text-warm-secondary">Readers stop seeing it straight away. Restore brings it back.</p>
           <Textarea value={hideReason} onChange={(e) => setHideReason(e.target.value)} placeholder="Reason" rows={3} className="mt-3" autoFocus />
           <div className="mt-4 flex gap-2">
-            <button onClick={confirmHide} disabled={!hideReason.trim()} className={cn('disabled:opacity-60', adminPrimaryBtnStyle)}>Hide</button>
+            <button onClick={confirmHide} disabled={!hideReason.trim() || (!!hideTarget && busy(`paper:${hideTarget.paper_id}`))} className={cn('disabled:opacity-60', adminPrimaryBtnStyle)}>Hide</button>
             <button onClick={() => setHideTarget(null)} className={adminSecondaryBtnStyle}>Cancel</button>
           </div>
         </DialogContent>
@@ -653,8 +659,8 @@ export default function AdminPaperReviewPage() {
                   </div>
                   <div className="mt-1 text-warm-secondary">by {r.actor} ({r.source})</div>
                   {UNDOABLE_ACTIONS.has(r.action) && (
-                    <button onClick={() => doUndo(r.id)} className="mt-2 rounded-full bg-card px-3 py-1.5 text-[12px] font-semibold text-foreground">
-                      Undo
+                    <button onClick={() => doUndo(r.id)} disabled={busy(`undo:${r.id}`)} className="mt-2 rounded-full bg-card px-3 py-1.5 text-[12px] font-semibold text-foreground disabled:opacity-60">
+                      {busy(`undo:${r.id}`) ? 'Undoing...' : 'Undo'}
                     </button>
                   )}
                 </li>

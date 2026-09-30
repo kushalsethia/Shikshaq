@@ -48,6 +48,10 @@ export interface QuestionHistoryRow {
   detail: string | null;
   before: unknown;
   after: unknown;
+  /** 'paper' for an event about the whole paper (20260930090000); absent before that migration. */
+  scope?: 'question' | 'paper' | string;
+  /** ai | checker | admin | pipeline | system, from log_action_catalog. */
+  event_kind?: string;
 }
 
 function rpcRows<T>(data: unknown): T[] {
