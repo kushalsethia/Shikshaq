@@ -21,6 +21,7 @@
 
 import { displaySchool, isRealSchoolLabel } from './school-display';
 import { bankSubjectToSite } from './subject-vocabulary';
+import { FREE_PREVIEW_QUESTIONS, FREE_PREVIEW_WORD } from './free-preview';
 
 export const SITE_TITLE_SUFFIX = ' | Shikshaq';
 
@@ -117,8 +118,13 @@ export function buildPaperSeo(row: PaperSeoRow): PaperSeo {
 
   const label = join([school, board, cls, subject, exam, year]);
   const n = row.questionCount;
-  const description = `Read ${n === 1 ? 'the' : 'all'} ${n} question${n === 1 ? '' : 's'} from the ${label} question paper, `
-    + 'with marks, chapters and figures. Free, no download needed.';
+  // True for a signed-out reader too: only the free preview is open without an
+  // account (owner, 2026-09-30). The word comes from the one free-preview source.
+  const description = n <= FREE_PREVIEW_QUESTIONS
+    ? `${n === 1 ? 'The' : 'All'} ${n} question${n === 1 ? '' : 's'} from the ${label} question paper, `
+      + 'with marks and chapters, open to everyone.'
+    : `All ${n} questions from the ${label} question paper, with marks and chapters. `
+      + `First ${FREE_PREVIEW_WORD} open to everyone, the rest free with an account.`;
 
   return {
     title,

@@ -451,10 +451,9 @@ export default function BankPaper() {
       : 'Read a free past year question paper on Shikshaq.',
   );
 
-  /* The description wording ("Read all N questions ... Free, no download
-     needed") is the owner-approved template of 2026-09-30. Note it says "all"
-     while a signed-out reader is sent the free-preview questions only; that
-     gap was flagged to the owner when the template was applied. */
+  /* The description wording ("All N questions ... First two open to
+     everyone, the rest free with an account") is the owner's choice of
+     2026-09-30 and is true for a signed-out reader too. */
 
   /* Many papers print their own marks inline, "Find: [3]". Our pill would then
      say the same number twice on one card, so ours stands down; the paper's

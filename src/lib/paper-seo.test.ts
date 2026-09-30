@@ -65,9 +65,9 @@ describe('buildPaperSeo', () => {
   it('builds the approved description', () => {
     const { description } = buildPaperSeo({ ...base, school: 'Loreto House', exam: 'Unknown' });
     expect(description).toBe(
-      'Read all 40 questions from the Loreto House ICSE Class X Maths 2024 question paper, with marks, chapters and figures. Free, no download needed.',
+      'All 40 questions from the Loreto House ICSE Class X Maths 2024 question paper, with marks and chapters. First two open to everyone, the rest free with an account.',
     );
-    expect(buildPaperSeo({ ...base, questionCount: 1 }).description).toMatch(/^Read the 1 question from/);
+    expect(buildPaperSeo({ ...base, questionCount: 1 }).description).toMatch(/^The 1 question from .*, open to everyone.$/);
   });
 
   it('H1 gains the board but not the exam', () => {
