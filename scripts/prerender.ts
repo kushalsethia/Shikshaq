@@ -1015,6 +1015,28 @@ function writeAppShell(pristineTemplate: string): void {
  * here in six months without realising what it unlocks. This makes the rule
  * enforceable by the build instead of by memory.
  */
+/**
+ * question_count counts every row; the Maths hold keeps flagged questions off
+ * the page, so the "All N questions" a crawler reads uses the visible count,
+ * the same number the browser shows (src/lib/question-bank.ts). Counts only,
+ * anon key. A failure keeps question_count and says so: a slightly high number
+ * beats a failed deploy nobody here can read the logs of.
+ */
+async function applyVisibleCounts(papers: BankPaper[]): Promise<void> {
+  const { data, error } = await supabase.rpc('bank_paper_visible_counts' as never, {} as never);
+  if (error || !Array.isArray(data)) {
+    console.warn(`   Visible counts unavailable (${error?.message ?? 'no data'}); using question_count`);
+    return;
+  }
+  const visible = new Map((data as Array<{ paper_id: string; visible: number }>).map((r) => [r.paper_id, r.visible]));
+  let changed = 0;
+  for (const p of papers) {
+    const v = visible.get(p.id);
+    if (typeof v === 'number' && v !== p.question_count) { p.question_count = v; changed += 1; }
+  }
+  console.log(`   Visible question counts applied (${changed} papers differ from question_count)`);
+}
+
 async function assertNoQuestionText(paperId: string, emitted: string[]): Promise<void> {
   const { data, error } = await supabase.rpc('bank_paper_questions', { p_paper_id: paperId });
   if (error || !Array.isArray(data) || data.length === 0) {
@@ -1076,6 +1098,7 @@ async function main(): Promise<void> {
      all excluded then drops out on its own, instead of getting a hub page
      listing nothing -- which would trade one thin page for another. */
   const papers = allPapers.filter((p) => !isExcludedPaper(p.id));
+  await applyVisibleCounts(papers);
   const skipped = allPapers.length - papers.length;
   if (skipped > 0) console.log(`   Skipped ${skipped} papers with placeholder question text`);
 

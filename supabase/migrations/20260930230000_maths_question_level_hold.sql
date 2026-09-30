@@ -23,6 +23,9 @@
 --
 -- answer_key is not in the return list and is not added.
 
+-- Fail fast rather than queue behind a checker transaction (review 2026-09-30).
+set local lock_timeout = '5s';
+
 -- The hold set lives in exactly one place. Immutable so the planner can fold
 -- it to a constant. Change the list by CREATE OR REPLACE of this function.
 create or replace function public.question_hold_flags()
@@ -60,7 +63,7 @@ returns table(
 )
 language plpgsql
 security definer
-set search_path to 'public', 'extensions'
+set search_path to 'public', 'extensions', 'pg_temp'
 as $function$
 declare
   v_uid uuid := auth.uid();

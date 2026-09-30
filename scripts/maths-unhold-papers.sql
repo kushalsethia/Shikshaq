@@ -15,12 +15,16 @@
 --     where actor = 'system:owner-approved-2026-09-30' and field = 'needs_review');
 --
 -- One statement, returns the number of papers changed.
+-- Needs 20260930233000_paper_visible_counts.sql applied first.
 with target as (
   select id
   from public.bank_papers
   where subject = 'Mathematics'
     and is_published
     and needs_review
+    -- a paper whose every question is held (e.g. a whole duplicate) stays held
+    -- as a paper: unholding it would open an empty page
+    and exists (select 1 from public.bank_paper_visible_counts(bank_papers.id) c where c.visible > 0)
   for update
 ),
 logged as (

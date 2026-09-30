@@ -41,18 +41,25 @@ begin
   end if;
   raise notice 'PASS grants: anon and authenticated execute bank_paper_questions, PUBLIC does not, hold fn closed';
 
+  if not (hold @> array['figure_missing','snippet_unaligned','possible_duplicate','page_furniture','short_body','unbalanced_math_delim','ocr_junk']
+          and array_length(hold, 1) = 7) then
+    raise exception 'FAIL: hold flag list drifted from the owner rule: %', hold;
+  end if;
+
   -- a real Maths needs_review paper with held questions
   select p.id into v_paper
   from public.bank_papers p
   join public.bank_questions q on q.paper_id = p.id
   join public.audit_questions a on a.live_bank_question_id = q.id and a.kind = 'question'
-  where p.subject = 'Mathematics' and p.is_published and p.needs_review
+  where p.subject = 'Mathematics' and p.is_published
   group by p.id
   having count(*) >= 6
-     and count(*) filter (where a.status <> 'passed' and a.flag_reasons && hold) >= 1
-  order by count(*) filter (where a.status <> 'passed' and a.flag_reasons && hold) desc, p.id
+     and count(*) filter (where coalesce(a.status, '') <> 'passed' and a.flag_reasons && hold) >= 1
+     -- at least 3 visible, so the two-question preview is really exercised
+     and count(*) filter (where coalesce(a.status, '') = 'passed' or not (a.flag_reasons && hold)) >= 3
+  order by count(*) filter (where coalesce(a.status, '') <> 'passed' and a.flag_reasons && hold) desc, p.id
   limit 1;
-  if v_paper is null then raise exception 'FAIL: no needs_review Maths paper with held questions to probe'; end if;
+  if v_paper is null then raise exception 'FAIL: no published Maths paper with held questions to probe'; end if;
 
   select id into v_eng from public.bank_papers
    where subject = 'English' and is_published and needs_review order by id limit 1;

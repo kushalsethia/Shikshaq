@@ -337,8 +337,23 @@ export function loadPaper(paperId: string): Promise<BankPaper | null> {
       .returns<PaperRow | null>(),
   ).then(({ data, error }) => {
     if (error) throw new Error(`bank paper: ${error.message}`);
-    return data ? toPaper(data) : null;
+    return data ? withVisibleCount(toPaper(data)) : null;
   });
+}
+
+/* question_count counts every row; the Maths hold keeps flagged questions off
+   the page. The count a reader is promised ("Sign in to read all N", "N
+   questions") is the visible one, from the same rule the reader RPC applies.
+   Any failure keeps question_count: a slightly high number beats no page. */
+function withVisibleCount(paper: BankPaper): Promise<BankPaper> {
+  return Promise.resolve(
+    supabase.rpc('bank_paper_visible_counts' as never, { p_paper_id: paper.id } as never),
+  )
+    .then(({ data, error }) => {
+      const row = !error && Array.isArray(data) ? (data as Array<{ visible: number }>)[0] : undefined;
+      return typeof row?.visible === 'number' ? { ...paper, questionCount: row.visible } : paper;
+    })
+    .catch(() => paper);
 }
 
 /** The title a paper is listed under across the papers surface. */

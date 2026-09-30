@@ -43,6 +43,18 @@
 
 begin;
 
+set local lock_timeout = '10s';
+
+-- Guard: the one-time step below trusts page_verified; without it every routed
+-- question would go back to admin (safe, but noisy).
+do $$
+begin
+  if not exists (select 1 from public.audit_questions where source ? 'page_verified') then
+    raise exception 'run pipeline.locate_pages --apply before this migration';
+  end if;
+end
+$$;
+
 create or replace function public.route_maths_admin_to_checkers(
   p_apply boolean default false,
   p_skip_reasons text[] default array['possible_duplicate', 'ocr_dropout', 'script_unsupported']
