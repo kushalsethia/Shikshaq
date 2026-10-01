@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createFakeCheckerApi } from './checker-fake-api';
 import { dummyQuestions, dummyPictureDataUrl, dummyPageDataUrl } from './checker-fixtures';
-import { planWholePage } from '@/lib/checker-page';
+import { planWholePage, planVerifiedPage } from '@/lib/checker-page';
 import { planCheckerPicture } from '@/lib/checker-pictures';
 import { assembleQuestionContext } from '@/lib/checker-context';
 import { isBlankBody, looksGarbled } from '@/lib/checker-body';
@@ -92,6 +92,51 @@ describe('fake checker api', () => {
     await api.passQuestion(q.id);
     api.simulate = 'offline';
     await expect(api.nextQuestion()).rejects.toThrow('Failed to fetch');
+  });
+
+  it('every fixture carries a version, like checker_next_question after 20261002090000', () => {
+    for (const q of dummyQuestions()) expect(typeof q.version).toBe('number');
+  });
+
+  it('refuses a save over a newer version (40001) and accepts the version it saw', async () => {
+    const api = createFakeCheckerApi();
+    const q = (await api.nextQuestion())!;
+    api.simulate = 'stale';
+    await expect(api.passQuestion(q.id, q.version)).rejects.toMatchObject({ code: '40001' });
+    const fresh = (await api.nextQuestion())!;
+    expect(fresh.id).toBe(q.id);
+    expect(fresh.version).toBe((q.version ?? 1) + 1);
+    await api.passQuestion(fresh.id, fresh.version);
+  });
+
+  it('records a printed-typo fix with the version seen, and refuses one that changes no words', async () => {
+    const api = createFakeCheckerApi();
+    const q = dummyQuestions().find((x) => x.body.includes('compleetly'))!;
+    await expect(
+      api.fixQuestion(q.id, { body: null }, { version: q.version, printedTypo: true }),
+    ).rejects.toMatchObject({ code: '22023' });
+    await api.fixQuestion(
+      q.id,
+      { body: q.body.replace('compleetly', 'completely') },
+      { version: q.version, printedTypo: true, typoNote: 'misprint' },
+    );
+    expect(api.fixes.at(-1)).toMatchObject({ id: q.id, version: 3, printedTypo: true, typoNote: 'misprint' });
+  });
+
+  it('refuses a printed-typo fix when the question has no version (migration not applied)', async () => {
+    const api = createFakeCheckerApi();
+    const q = (await api.nextQuestion())!;
+    await expect(api.fixQuestion(q.id, { body: q.body + ' x' }, { version: null, printedTypo: true })).rejects.toThrow(
+      /not switched on/,
+    );
+  });
+
+  it('has a question with a trusted crop AND a verified page, both shown', async () => {
+    const api = createFakeCheckerApi();
+    const q = dummyQuestions().find((x) => x.body.includes('compleetly'))!;
+    const ctx = assembleQuestionContext(await api.questionContext(q.id), q.id);
+    expect(planCheckerPicture(q, ctx)?.kind).toBe('own');
+    expect(planVerifiedPage(q)?.page).toBe(3);
   });
 
   it('empties the queue and resets', async () => {

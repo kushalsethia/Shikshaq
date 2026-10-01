@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { CheckerPage } from '@/pages/Checker';
 import { createFakeCheckerApi, type DummySimulation } from '@/dummy/checker-fake-api';
 import { setDummyMode } from '@/lib/dummy-mode';
+import { AdminDebugContext } from '@/lib/admin-debug';
 import { cn } from '@/lib/utils';
 
 /* The checker in dummy mode (D75): the real CheckerPage against the
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 const SIMULATIONS: { value: DummySimulation; label: string }[] = [
   { value: 'none', label: 'Normal' },
   { value: 'lease', label: 'Next save: lease ran out' },
+  { value: 'stale', label: 'Next save: someone else changed it' },
   { value: 'offline', label: 'Offline' },
   { value: 'slow', label: 'Slow network' },
   { value: 'blank', label: 'Serve a blank question (old server)' },
@@ -22,6 +24,8 @@ const SIMULATIONS: { value: DummySimulation; label: string }[] = [
 export default function CheckerDummy() {
   const [api] = useState(createFakeCheckerApi);
   const [sim, setSim] = useState<DummySimulation>('none');
+  // Previews the admin debug chips without an admin sign-in.
+  const [debugOn, setDebugOn] = useState(false);
   const qc = useQueryClient();
 
   const refetchAll = () =>
@@ -71,6 +75,9 @@ export default function CheckerDummy() {
       >
         Start over
       </DummyButton>
+      <DummyButton onClick={() => setDebugOn((v) => !v)}>
+        {debugOn ? 'Admin debug chips: on' : 'Admin debug chips: off'}
+      </DummyButton>
       <DummyButton
         className="ml-auto"
         onClick={() => {
@@ -83,7 +90,11 @@ export default function CheckerDummy() {
     </div>
   );
 
-  return <CheckerPage api={api} dummy banner={banner} />;
+  return (
+    <AdminDebugContext.Provider value={{ on: debugOn, canToggle: true, toggle: () => setDebugOn((v) => !v) }}>
+      <CheckerPage api={api} dummy banner={banner} />
+    </AdminDebugContext.Provider>
+  );
 }
 
 function DummyButton({

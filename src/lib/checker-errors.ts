@@ -34,9 +34,22 @@ export function checkerErrorAdvice(err: unknown): CheckerErrorAdvice {
   }
   if (code === '40001' || /stale question text|unapplied split/i.test(text)) {
     return {
-      message: 'Someone changed this question while you had it open, so it was not saved. Here is the next one.',
+      // After a stale save the lease is still this checker's, so the server
+      // usually hands back the SAME question as it is now; "the next one"
+      // alone read as if the question had been lost.
+      message:
+        'Someone else changed this question while you had it open, so nothing was saved. Here it is as it is now, or the next one.',
       moveOn: true,
     };
+  }
+  if (/typo corrections are not switched on/i.test(text)) {
+    return {
+      message: 'Typo corrections are not switched on yet. Fix only reading mistakes for now, or press Ask for help.',
+      moveOn: false,
+    };
+  }
+  if (/printed typo fix must change the words/i.test(text)) {
+    return { message: 'Change the words to correct the typo, or untick the typo box.', moveOn: false };
   }
   if (/has no words|empty question/i.test(text)) {
     return { message: "This question has no words, so it cannot be marked as right. Press Ask for help.", moveOn: false };

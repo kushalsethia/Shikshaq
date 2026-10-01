@@ -89,7 +89,17 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
   );
 }
 
-export type AdminSectionKey = 'approvals' | 'teachers' | 'papers' | 'paper-review' | 'team' | 'reviews' | 'feedback' | 'checkers' | 'audit';
+export type AdminSectionKey =
+  | 'approvals'
+  | 'teachers'
+  | 'papers'
+  | 'paper-review'
+  | 'team'
+  | 'activity'
+  | 'reviews'
+  | 'feedback'
+  | 'checkers'
+  | 'audit';
 
 /** AD-002a: the fixed tab set and order — Approvals · Teachers · Papers ·
  *  Reviews · Feedback · Audit — with badges only on the two queues
@@ -114,6 +124,7 @@ export function buildAdminNav(
     { key: 'papers', label: 'Papers', path: '/admin/papers', active: active === 'papers' },
     { key: 'paper-review', label: 'Paper review', path: '/admin/paper-review', count: counts.paperReview, active: active === 'paper-review' },
     { key: 'team', label: 'Team', path: '/admin/team', active: active === 'team' },
+    { key: 'activity', label: 'Activity', path: '/admin/activity', active: active === 'activity' },
     { key: 'reviews', label: 'Reviews', path: '/admin/reviews', count: counts.reviews, active: active === 'reviews' },
     { key: 'feedback', label: 'Feedback', path: '/admin/feedback', active: active === 'feedback' },
     { key: 'checkers', label: 'Checkers', path: '/admin/checkers', active: active === 'checkers' },
