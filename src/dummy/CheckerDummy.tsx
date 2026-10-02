@@ -68,6 +68,13 @@ export default function CheckerDummy() {
       </DummyButton>
       <DummyButton
         onClick={() => {
+          api.arrive();
+        }}
+      >
+        A new question arrives
+      </DummyButton>
+      <DummyButton
+        onClick={() => {
           api.reset();
           setSim('none');
           refetchAll();

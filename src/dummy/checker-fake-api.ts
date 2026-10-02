@@ -13,6 +13,7 @@
 import type { CheckerApi, CheckerQuestion, LeaderboardRow, QueueFacetRow } from '@/lib/checker-api';
 import { dummyContext, dummyPageDataUrl, dummyPictureDataUrl, dummyQuestions } from '@/dummy/checker-fixtures';
 import { isBlankBody } from '@/lib/checker-body';
+import { lostTextSuggestion } from '@/lib/checker-lost-text';
 import { checkerSaveRoute, TYPO_NEEDS_VERSION } from '@/lib/checker-save';
 
 export type DummySimulation = 'none' | 'lease' | 'stale' | 'offline' | 'slow' | 'blank';
@@ -34,6 +35,8 @@ export interface FakeCheckerApi extends CheckerApi {
   reset(): void;
   /** Serve nothing, to see the end-of-queue state. */
   emptyQueue(): void;
+  /** A new question appears in the queue (what the pipeline does between polls). */
+  arrive(): void;
 }
 
 function pgError(code: string, message: string) {
@@ -52,6 +55,7 @@ export function createFakeCheckerApi(): FakeCheckerApi {
   };
   let today = 0;
   let total = 41;
+  let arrivals = 0;
 
   const api: FakeCheckerApi = {
     simulate: 'none',
@@ -71,6 +75,20 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       queue = [];
     },
 
+    arrive() {
+      const n = ++arrivals;
+      queue.push({
+        ...dummyQuestions()[0],
+        id: `d00000a0-0000-4000-8000-${String(n).padStart(12, '0')}`,
+        ord: 100 + n,
+        display_number: String(20 + n),
+        body: `${20 + n}. A new question that arrived while you waited. Find the mean of 2, 4 and 9.`,
+        flag_reasons: ['marks_mismatch'],
+        flag_detail: null,
+        source: { snippet_object: 'dummy/q-factorise.png', align_score: 0.96 },
+      });
+    },
+
     async isPaperChecker() {
       return true;
     },
@@ -83,8 +101,9 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       }
       const next = queue.find(
         (q) =>
-          // Like 20260929013000: a blank body is never served.
-          !isBlankBody(q.body) &&
+          // Like 20261003160000: a blank body is served only when the AI left
+          // a transcription of the page for the student to confirm.
+          (!isBlankBody(q.body) || lostTextSuggestion(q.body, q.flag_detail) !== null) &&
           !skipped.has(q.id) &&
           (!prefs.subjects || prefs.subjects.length === 0 || prefs.subjects.includes(q.subject ?? '')) &&
           (!prefs.classes || prefs.classes.length === 0 || prefs.classes.includes(q.cls ?? '')),
@@ -195,7 +214,7 @@ export function createFakeCheckerApi(): FakeCheckerApi {
     async queueFacets(): Promise<QueueFacetRow[] | null> {
       const counts = new Map<string, QueueFacetRow>();
       for (const q of queue) {
-        if (isBlankBody(q.body)) continue;
+        if (isBlankBody(q.body) && lostTextSuggestion(q.body, q.flag_detail) === null) continue;
         const key = `${q.subject}|${q.cls}`;
         const row = counts.get(key) ?? { subject: q.subject, cls: q.cls, waiting: 0 };
         row.waiting++;

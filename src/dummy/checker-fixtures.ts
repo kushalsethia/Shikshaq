@@ -24,6 +24,11 @@ export const DUMMY_PICTURES: Record<string, string[]> = {
     '   (b) Find the total number of trees planted.     [2]',
     '   (c) Which two districts planted the same number? [1]',
   ],
+  'dummy/q-bank-lost.png': [
+    '6. (a) State one difference between a Commercial Bank and',
+    '       the Central Bank.                                [2]',
+    '   (b) Name the bank that issues currency notes.        [1]',
+  ],
   'dummy/q-factorise.png': ['8. Factorise compleetly: 3x^2 - 12                    [2]'],
   'dummy/q-split.png': [
     '7. State two uses of a lever in daily life.          [2]',
@@ -72,6 +77,42 @@ export function dummyQuestions(): CheckerQuestion[] {
       body: '6. Find the value of $k$ if the points $(2, 3)$, $(4, k)$ and $(6, -3)$ are collinear.',
       flag_reasons: ['snippet_unaligned', 'display_number_missing'],
       source: { page: 3, page_verified: true, align_score: 0.41, snippet_object: 'dummy/q-not-shown.png' },
+    }),
+    // Lost text (PLAN_ROUND27 3.9): the words were lost, the AI transcribed the
+    // page into flag_detail ("| suggestion: {...}"). The student sees that text
+    // beside the picture and confirms or corrects it. Made-up text.
+    q({
+      id: 'd0000020-0000-4000-8000-000000000020',
+      ord: 0.2,
+      subject: 'Economics',
+      cls: 'X',
+      display_number: '6',
+      marks: 3,
+      version: 2,
+      body: '',
+      flag_reasons: ['other'],
+      flag_detail: JSON.stringify({
+        other:
+          'AI check: disagree (flag vs fix); Sonnet fix at 0.70 | suggestion: ' +
+          JSON.stringify({
+            body: '6. (a) State one difference between a Commercial Bank and the Central Bank. [2]\n(b) Name the bank that issues currency notes. [1]',
+          }),
+      }),
+      source: { page: 3, page_verified: true, snippet_object: 'dummy/q-bank-lost.png' },
+    }),
+    // Not Maths, no crop: the verified page is the only picture (every subject
+    // shows a page now, PLAN_ROUND27 3.8).
+    q({
+      id: 'd0000021-0000-4000-8000-000000000021',
+      ord: 0.3,
+      subject: 'Geography',
+      cls: 'X',
+      display_number: '7',
+      marks: 2,
+      body: '7. A bag holds 4 red and 6 blue marbles. One is drawn at random. (i) What is the chance it is red? [1] (ii) What is the chance it is not blue? [1]',
+      flag_reasons: ['marks_mismatch', 'figure_missing', 'chapter_unresolved'],
+      flag_detail: JSON.stringify({ marks_mismatch: 'The marks may not match the paper.' }),
+      source: { page: 3, page_verified: true },
     }),
     // A trusted crop AND a verified page (owner round 24: the verified page
     // sits beside every question that has one). The made-up "printed paper"

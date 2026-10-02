@@ -147,3 +147,39 @@ describe('fake checker api', () => {
     expect(await api.nextQuestion()).not.toBeNull();
   });
 });
+
+describe('fake checker api: lanes, lost text, arrivals', () => {
+  it('serves a blank question only when the AI left a transcription, and accepts the confirmed words', async () => {
+    const api = createFakeCheckerApi();
+    const lost = dummyQuestions().find((q) => q.id.startsWith('d0000020'))!;
+    expect(isBlankBody(lost.body)).toBe(true);
+    const served: string[] = [];
+    for (let i = 0; i < 40; i++) {
+      const q = await api.nextQuestion();
+      if (!q) break;
+      served.push(q.id);
+      if (q.id === lost.id) break;
+      await api.skipQuestion(q.id);
+    }
+    expect(served).toContain(lost.id);
+    const words = 'Confirmed words';
+    await api.fixQuestion(lost.id, { body: words }, { version: 2 });
+    expect(api.fixes.at(-1)).toMatchObject({ id: lost.id, body: words });
+    // the old blank row with no transcription is never served
+    const never = dummyQuestions().find((q) => isBlankBody(q.body) && q.id.startsWith('d0000008'))!;
+    for (let i = 0; i < 40; i++) {
+      const q = await api.nextQuestion();
+      if (!q) break;
+      expect(q.id).not.toBe(never.id);
+      await api.skipQuestion(q.id);
+    }
+  });
+
+  it('adds a question when one arrives', async () => {
+    const api = createFakeCheckerApi();
+    api.emptyQueue();
+    expect(await api.nextQuestion()).toBeNull();
+    api.arrive();
+    expect(await api.nextQuestion()).not.toBeNull();
+  });
+});
