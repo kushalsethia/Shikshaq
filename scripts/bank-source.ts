@@ -54,13 +54,14 @@ export interface BankPaper {
 export const hasYear = (y: string | null | undefined): boolean =>
   Boolean(y) && !String(y).startsWith('year-unknown');
 
-/** The school column doubles as the board for board-published papers. */
-function boardOf(school: string | null, examType: string | null): string {
+/** The school column doubles as the board for board-published papers.
+    The exam type is never a board: "Pre-board Examination" once made 297
+    papers' board the literal word 'Board'. Without a board name, fall back
+    the way the PDF sorter does: XI and XII are ISC, every other class ICSE. */
+export function boardOf(school: string | null, cls?: string | null): string {
   const s = (school ?? '').trim();
   if (/^(ICSE|ISC|CBSE|IGCSE|IB)$/i.test(s)) return s.toUpperCase();
-  const e = (examType ?? '').toLowerCase();
-  if (e.includes('board')) return 'Board';
-  return 'ICSE';
+  return /^(XI|XII)$/i.test((cls ?? '').trim()) ? 'ISC' : 'ICSE';
 }
 
 /** Groups the questions into their papers, newest first, undated last. */
@@ -76,7 +77,7 @@ export function papersOf(bank: BankQuestion[]): BankPaper[] {
         exam: row.e ?? '',
         cls: row.k ?? 'X',
         subject: row.subj ?? 'Mathematics',
-        board: boardOf(row.s, row.e),
+        board: boardOf(row.s, row.k),
         questionCount: 0,
         marks: 0,
       };

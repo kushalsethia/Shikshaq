@@ -1,5 +1,27 @@
 # Supabase runbook
 
+## Pending, 2026-10-02: `20261002090000_checker_versions_and_activity.sql` (site PR D)
+
+**NOT APPLIED.** Needs the owner's yes. Rehearsed against live inside one
+transaction that raised at the end, so nothing was kept. Apply it **before**
+merging PR D: the new checker sends the version it saw, and without this
+migration the questions carry no version, so the site falls back to the old
+unlocked save and refuses printed-typo corrections (by design, see
+`src/lib/checker-save.ts`).
+
+What it adds: `version` on `checker_next_question()`; `checker_fix_locked` /
+`checker_pass_locked` (40001 on a stale version, fixes through
+`apply_fix_locked`, printed-typo corrections logged as `checker_printed_typo`
+and kept in `content_versions`); `admin_activity_feed` (ids and labels only,
+no names, emails masked); `admin_version_history` (no `answer_key`); two
+indexes on `audit_review_log(at)`. Rollback is written at the top of the file.
+
+After applying, from the SQL editor: query 4b-style check that `anon` cannot
+execute any of the five functions (`has_function_privilege`), then open
+`/checker` as a checker and save one fix.
+
+---
+
 Everything that does not touch the database is done, tested and deployed.
 
 **`supabase/RUN_THIS_ONE.sql` has been applied and verified.** Everything still

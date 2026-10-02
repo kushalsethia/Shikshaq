@@ -13,11 +13,23 @@
 import type { CheckerApi, CheckerQuestion, LeaderboardRow, QueueFacetRow } from '@/lib/checker-api';
 import { dummyContext, dummyPageDataUrl, dummyPictureDataUrl, dummyQuestions } from '@/dummy/checker-fixtures';
 import { isBlankBody } from '@/lib/checker-body';
+import { checkerSaveRoute, TYPO_NEEDS_VERSION } from '@/lib/checker-save';
 
-export type DummySimulation = 'none' | 'lease' | 'offline' | 'slow' | 'blank';
+export type DummySimulation = 'none' | 'lease' | 'stale' | 'offline' | 'slow' | 'blank';
+
+/** What the fake recorded for the last fix, so tests can see the version lock and typo flag. */
+export interface FakeFixRecord {
+  id: string;
+  version: number | null | undefined;
+  printedTypo: boolean;
+  typoNote: string | null;
+  body: string | null;
+}
 
 export interface FakeCheckerApi extends CheckerApi {
   simulate: DummySimulation;
+  /** Every fix the fake accepted, newest last. */
+  fixes: FakeFixRecord[];
   /** Put every fixture back and clear counters and picks. */
   reset(): void;
   /** Serve nothing, to see the end-of-queue state. */
@@ -43,8 +55,10 @@ export function createFakeCheckerApi(): FakeCheckerApi {
 
   const api: FakeCheckerApi = {
     simulate: 'none',
+    fixes: [],
 
     reset() {
+      api.fixes = [];
       queue = dummyQuestions();
       skipped = new Set();
       prefs = { subjects: null, classes: null, chosen: false };
@@ -78,18 +92,33 @@ export function createFakeCheckerApi(): FakeCheckerApi {
       return next ? { ...next } : null;
     },
 
-    async passQuestion(id) {
+    async passQuestion(id, version) {
       await gateSave();
       const q = find(id);
+      checkVersion(q, version);
       if (!q.body || !q.body.trim()) throw pgError('22023', 'This question has no words; it cannot be passed');
       done(id);
     },
 
-    async fixQuestion(id, patch) {
+    async fixQuestion(id, patch, options = {}) {
       await gateSave();
       const q = find(id);
+      // Same rules as checker_fix_locked (20261002090000).
+      const route = checkerSaveRoute(options.version, Boolean(options.printedTypo));
+      if (route === 'refuse') throw new Error(TYPO_NEEDS_VERSION);
+      if (route === 'locked') checkVersion(q, options.version);
       const body = patch.body ?? q.body;
       if (!body || !body.trim()) throw pgError('22023', 'This question has no words; it cannot be passed');
+      if (options.printedTypo && (patch.body == null || patch.body === q.body)) {
+        throw pgError('22023', 'A printed typo fix must change the words');
+      }
+      api.fixes.push({
+        id,
+        version: options.version,
+        printedTypo: Boolean(options.printedTypo),
+        typoNote: options.typoNote ?? null,
+        body: patch.body ?? null,
+      });
       done(id);
     },
 
@@ -202,6 +231,17 @@ export function createFakeCheckerApi(): FakeCheckerApi {
     if (api.simulate === 'lease') {
       api.simulate = 'none';
       throw pgError('42501', 'This question is not currently assigned to you');
+    }
+    if (api.simulate === 'stale') {
+      // Someone else (an AI pass, an admin) saved a newer version meanwhile.
+      api.simulate = 'none';
+      for (const q of queue) q.version = (q.version ?? 1) + 1;
+    }
+  }
+
+  function checkVersion(q: CheckerQuestion, seen: number | null | undefined) {
+    if (typeof seen === 'number' && q.version != null && seen !== q.version) {
+      throw pgError('40001', `stale question: you saw version ${seen}, it is now at version ${q.version}`);
     }
   }
 
