@@ -95,6 +95,7 @@ export type AdminSectionKey =
   | 'teachers'
   | 'papers'
   | 'paper-review'
+  | 'paper-approvals'
   | 'team'
   | 'activity'
   | 'reviews'
@@ -117,13 +118,14 @@ export type AdminSectionKey =
  *  (not a moderation queue to clear, just browsable history). */
 export function buildAdminNav(
   active: AdminSectionKey,
-  counts: { approvals?: number; reviews?: number; paperReview?: number },
+  counts: { approvals?: number; reviews?: number; paperReview?: number; paperApprovals?: number },
 ): AdminNavItem[] {
   return [
     { key: 'approvals', label: 'Approvals', path: '/admin/approvals', count: counts.approvals, active: active === 'approvals' },
     { key: 'teachers', label: 'Teachers', path: '/admin/teachers', active: active === 'teachers' },
     { key: 'papers', label: 'Papers', path: '/admin/papers', active: active === 'papers' },
     { key: 'paper-review', label: 'Paper review', path: '/admin/paper-review', count: counts.paperReview, active: active === 'paper-review' },
+    { key: 'paper-approvals', label: 'Paper approvals', path: '/admin/paper-approvals', count: counts.paperApprovals, active: active === 'paper-approvals' },
     { key: 'pipeline', label: 'Pipeline', path: '/admin/pipeline', active: active === 'pipeline' },
     { key: 'team', label: 'Team', path: '/admin/team', active: active === 'team' },
     { key: 'activity', label: 'Activity', path: '/admin/activity', active: active === 'activity' },
