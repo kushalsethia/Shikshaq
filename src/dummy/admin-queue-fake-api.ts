@@ -45,13 +45,13 @@ export function createFakeAdminQueueApi(): AdminQueueApi {
     [P1, [
       q('f2b00000-0000-4000-8000-000000000001', P1, 1, '3', 'A shopkeeper buys a table for Rs 1,200 and sells it at a gain of 15%. Find the selling price.', ['possible_duplicate'], 2),
       q('f2b00000-0000-4000-8000-000000000002', P1, 2, '7(b)', 'Solve for x: 2x + 5 = 17.', ['display_number_missing'], 3),
-      q('f2b00000-0000-4000-8000-000000000003', P1, 3, '9', 'The sum of two numbers is 40 and their difference is', ['ocr_dropout'], 4),
+      q('f2b00000-0000-4000-8000-000000000003', P1, 3, '9', 'The sum of two numbers is 40 and their difference is', ['incomplete_text'], 4),
     ]],
     [P2, [
-      q('f2b00000-0000-4000-8000-000000000004', P2, 1, '2', 'State Ohm\'s law and write its formula.', ['low_confidence'], 1),
+      q('f2b00000-0000-4000-8000-000000000004', P2, 1, '2', 'State Ohm\'s law and write its formula.', ['low_ocr_confidence'], 1),
       q('f2b00000-0000-4000-8000-000000000005', P2, 2, '5', 'A wire of resistance 4 ohm carries a current of 3 A. Find the potential difference across it.', ['possible_duplicate'], 2),
     ]],
-    [P3, [q('f2b00000-0000-4000-8000-000000000006', P3, 1, '1', 'Define a journal and state two of its uses.', ['low_confidence'], 1)]],
+    [P3, [q('f2b00000-0000-4000-8000-000000000006', P3, 1, '1', 'Define a journal and state two of its uses.', ['low_ocr_confidence'], 1)]],
   ]);
   const help: EscalationRow[] = [
     {

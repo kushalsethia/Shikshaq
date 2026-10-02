@@ -267,7 +267,7 @@ export function AdminStatTiles({ stats }: { stats: { label: string; value: numbe
   return (
     <div
       className="mb-[18px] grid gap-2.5"
-      style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 4)}, minmax(0,1fr))` }}
+      style={{ gridTemplateColumns: `repeat(${stats.length > 4 && stats.length % 3 === 0 ? 3 : Math.min(stats.length, 4)}, minmax(0,1fr))` }}
     >
       {stats.map((st, i) => (
         <div key={st.label} className={`rounded-2xl px-4 py-3.5 ${fills[i % fills.length]}`}>
