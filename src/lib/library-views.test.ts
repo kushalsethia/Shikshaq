@@ -43,6 +43,9 @@ describe('library views', () => {
   });
 });
 
+// CI has no Supabase env; the shell only needs the client to exist.
+vi.mock('@/integrations/supabase/client', () => ({ supabase: { rpc: vi.fn(), from: vi.fn(), auth: { getSession: vi.fn(), onAuthStateChange: vi.fn() } } }));
+
 describe('admin nav', () => {
   it('has four groups, one active page, and badges only for real counts', async () => {
     // The shell pulls in browser-only modules; give them a storage to read.
