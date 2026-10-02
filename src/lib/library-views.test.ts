@@ -1,8 +1,6 @@
-// @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { PaperQueueRow } from '@/lib/checker-api';
 import { LIBRARY_VIEWS, hiddenWhy, normaliseExtra, viewCounts, viewRows, withExtras } from '@/lib/library-views';
-import { buildAdminNav } from '@/pages/admin/shell';
 
 const row = (o: Partial<PaperQueueRow>): PaperQueueRow => ({
   paper_id: 'p', title: '', school: 's', subject: 'x', cls: '10', board: 'ICSE', year: '2024',
@@ -46,7 +44,11 @@ describe('library views', () => {
 });
 
 describe('admin nav', () => {
-  it('has four groups, one active page, and badges only for real counts', () => {
+  it('has four groups, one active page, and badges only for real counts', async () => {
+    // The shell pulls in browser-only modules; give them a storage to read.
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined, removeItem: () => undefined });
+    vi.stubGlobal('sessionStorage', { getItem: () => null, setItem: () => undefined, removeItem: () => undefined });
+    const { buildAdminNav } = await import('@/pages/admin/shell');
     const nav = buildAdminNav('admin-queue', { adminQueue: 657, paperApprovals: 0 });
     expect(new Set(nav.map((n) => n.group))).toEqual(new Set(['papers', 'checking', 'teachers', 'site']));
     expect(nav.filter((n) => n.active).map((n) => n.key)).toEqual(['admin-queue']);
