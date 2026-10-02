@@ -13,7 +13,7 @@ import { AdminPageIntro, InfoTip } from '@/components/admin/AdminHelp';
 import { TIPS, type TipKey } from '@/lib/admin-hints';
 import { displaySchool } from '@/lib/school-display';
 import { realApprovalApi } from '@/lib/admin-approval';
-import { isReady, type ApprovalApi, type ApprovalQueueRow } from '@/lib/admin-approval-shape';
+import { isReady, type ApprovalApi, type ApprovalHistoryRow, type ApprovalQueueRow } from '@/lib/admin-approval-shape';
 import { PREVIEW_TOOLS } from '@/lib/preview-tools';
 import { isDummyMode } from '@/lib/dummy-mode';
 
@@ -94,6 +94,22 @@ export function AdminPaperApprovalsPage({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
+  // "Already decided" is the approval history: loaded the first time it is opened.
+  const [view, setView] = useState<'waiting' | 'decided'>('waiting');
+  const [decided, setDecided] = useState<ApprovalHistoryRow[] | null>(null);
+  const [decidedState, setDecidedState] = useState<'idle' | 'loading' | 'error'>('idle');
+
+  async function openDecided() {
+    setView('decided');
+    if (decided !== null || decidedState === 'loading') return;
+    setDecidedState('loading');
+    try {
+      setDecided(await api.history());
+      setDecidedState('idle');
+    } catch {
+      setDecidedState('error');
+    }
+  }
 
   const guard = useAdminGuard(dummy ? null : user, { onGranted: load, redirectOnDenied: !dummy });
   const isAdmin = dummy ? true : guard.isAdmin;
@@ -212,6 +228,29 @@ export function AdminPaperApprovalsPage({
       </BentoPanel>
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
+        <div role="tablist" aria-label="Papers to show" className="mx-[18px] mb-4 inline-flex h-11 items-center rounded-full bg-muted p-1">
+          {([
+            ['waiting', 'Waiting for you'],
+            ['decided', 'Already decided'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={view === key}
+              onClick={() => (key === 'decided' ? void openDecided() : setView('waiting'))}
+              className={cn(
+                'flex h-9 items-center rounded-full px-[14px] text-[13px] font-bold transition-colors duration-150',
+                view === key ? 'bg-card text-foreground' : 'text-warm-secondary hover:text-foreground',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {view === 'decided' ? (
+          <DecidedList rows={decided} state={decidedState} onRetry={() => { setDecided(null); void openDecided(); }} onOpen={(id) => navigate(`/admin/paper-approvals/${encodeURIComponent(id)}`)} />
+        ) : (
+        <>
         <div className="mb-3 flex flex-wrap gap-1.5 px-[18px]" role="group" aria-label="Show">
           {FILTERS.map((f) => (
             <button
@@ -266,11 +305,69 @@ export function AdminPaperApprovalsPage({
             )}
           </div>
         )}
+        </>
+        )}
       </BentoPanel>
 
       <AdminAuditNote />
     </BentoStack>
   );
+}
+
+function DecidedList({
+  rows,
+  state,
+  onRetry,
+  onOpen,
+}: {
+  rows: ApprovalHistoryRow[] | null;
+  state: 'idle' | 'loading' | 'error';
+  onRetry: () => void;
+  onOpen: (auditPaperId: string) => void;
+}) {
+  if (state === 'error') {
+    return (
+      <div className="px-[18px]" role="alert">
+        <p className="text-sm text-foreground">The history did not load. Check your internet and try again.</p>
+        <button type="button" onClick={onRetry} className="tap-44 mt-2 text-sm font-semibold text-brand-blue">Try again</button>
+      </div>
+    );
+  }
+  if (rows === null) {
+    return (
+      <div className="animate-pulse space-y-2 px-[18px]" role="status" aria-label="Loading the history">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-12 rounded-2xl bg-muted" />
+        ))}
+      </div>
+    );
+  }
+  if (rows.length === 0) {
+    return <p className="px-[18px] py-8 text-center text-[15px] text-warm-meta">No paper has been approved or rejected yet.</p>;
+  }
+  const columns: AdminTableColumn[] = [
+    { key: 'paper', label: 'Paper', width: '2fr', hint: TIPS['col.ready.paper'] },
+    { key: 'result', label: 'Result', width: '1fr', hint: TIPS['col.decided.result'] },
+    { key: 'by', label: 'By', width: '1fr', hint: TIPS['col.decided.by'] },
+    { key: 'when', label: 'When', width: '1fr', hint: TIPS['col.decided.when'] },
+    { key: 'note', label: 'Note', width: '2fr', hint: TIPS['col.decided.note'] },
+  ];
+  const tableRows: AdminTableRow[] = rows.map((r) => ({
+    id: r.audit_paper_id,
+    cells: [
+      <span key="t">{r.title}</span>,
+      r.state === 'approved' ? (
+        <AdminStatusPill key="s" status="live" label={r.kind === 'retro' ? 'Approved, was live' : 'Approved'} />
+      ) : (
+        <AdminStatusPill key="s" status="hidden" label="Rejected" />
+      ),
+      r.by_name ?? 'Not recorded',
+      <span key="w" className="text-warm-meta">{r.at ? formatDistanceToNow(new Date(r.at), { addSuffix: true }) : 'Not recorded'}</span>,
+      <span key="n" className="whitespace-normal">{r.note || 'No note'}</span>,
+    ],
+    actions: [{ label: 'Open', tone: 'primary', onClick: () => onOpen(r.audit_paper_id) }],
+  }));
+  return <AdminTable columns={columns} rows={tableRows} />;
 }
 
 export default function AdminPaperApprovals() {

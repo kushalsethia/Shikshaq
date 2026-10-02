@@ -102,7 +102,7 @@ export const ADMIN_PAGES: Record<AdminPageKey, AdminPageCopy> = {
     short: 'Papers that finished checking and wait for your yes before visitors see them.',
     purpose:
       'New papers are never published automatically. When every question on a paper has been checked, it waits here. You read it as visitors will, fix anything, and approve it. Papers already live that still need your yes are here too.',
-    flow: 'Open a paper marked Ready, read it, then approve it. A paper with open questions cannot be approved yet.',
+    flow: 'Open a paper marked Ready, read it, then approve it. A paper with open questions cannot be approved yet. Switch to Already decided to see what was approved or rejected, by whom and why.',
     buttons: [
       { label: 'Review', does: 'Opens the paper. From there you can fix questions, set one aside, and approve the paper.' },
     ],
@@ -300,6 +300,10 @@ export const TIPS = {
   'col.ready.ai': 'What the AI did with the questions before any person looked.',
   'col.ready.waiting': 'How long the paper has been waiting for you.',
   'col.ready.state': 'Ready can be approved now. A number means that many questions are still open.',
+  'col.decided.result': 'Approved means it went live. Rejected means it was sent back and is not on the site.',
+  'col.decided.by': 'The admin who made the decision.',
+  'col.decided.when': 'When the decision was made.',
+  'col.decided.note': 'The note the admin left with the decision.',
   // Checkers
   'col.checker': 'The person allowed to check papers.',
   'col.added': 'When they were given access.',

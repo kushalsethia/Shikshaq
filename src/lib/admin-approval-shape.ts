@@ -91,6 +91,32 @@ export function normaliseQueueRow(raw: unknown): ApprovalQueueRow {
   };
 }
 
+/** One paper already decided in Ready to go live (admin_approval_history). */
+export interface ApprovalHistoryRow {
+  audit_paper_id: string;
+  title: string;
+  kind: QueueKind;
+  state: 'approved' | 'rejected';
+  by_name: string | null;
+  at: string | null;
+  note: string | null;
+  live_bank_paper_id: string | null;
+}
+
+export function normaliseHistoryRow(raw: unknown): ApprovalHistoryRow {
+  const r = asObj(raw);
+  return {
+    audit_paper_id: str(r.audit_paper_id) ?? '',
+    title: str(r.title) || 'Untitled paper',
+    kind: str(r.kind) === 'retro' ? 'retro' : 'new',
+    state: str(r.state) === 'rejected' ? 'rejected' : 'approved',
+    by_name: str(r.by_name),
+    at: str(r.at),
+    note: str(r.note),
+    live_bank_paper_id: str(r.live_bank_paper_id),
+  };
+}
+
 /** Ready means nothing is open: every question ended passed or set aside. */
 export function isReady(row: Pick<ApprovalQueueRow, 'open'>): boolean {
   return row.open === 0;
@@ -456,6 +482,8 @@ export function changesFromDraft(row: ReviewRow, d: Draft): QuestionChanges | 'b
 
 export interface ApprovalApi {
   queue(): Promise<ApprovalQueueRow[]>;
+  /** Papers already approved or rejected, newest first. */
+  history(): Promise<ApprovalHistoryRow[]>;
   review(auditPaperId: string): Promise<PaperReview>;
   /** Returns the live bank paper id. */
   approve(auditPaperId: string, note: string): Promise<string | null>;
