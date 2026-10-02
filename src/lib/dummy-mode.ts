@@ -38,6 +38,7 @@ export const DUMMY_PAGES: { path: string; label: string }[] = [
   { path: '/admin/checkers', label: 'Admin: checkers (dummy)' },
   { path: '/admin/team', label: 'Admin: team (dummy)' },
   { path: '/admin/activity', label: 'Admin: activity (dummy)' },
+  { path: '/admin/pipeline', label: 'Admin: pipeline (dummy)' },
 ];
 
 function readParam(): string | null {

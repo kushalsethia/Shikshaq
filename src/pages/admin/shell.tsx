@@ -90,6 +90,7 @@ export function AdminHeader({ nav, signedInEmail, className }: AdminHeaderProps)
 }
 
 export type AdminSectionKey =
+  | 'pipeline'
   | 'approvals'
   | 'teachers'
   | 'papers'
@@ -123,6 +124,7 @@ export function buildAdminNav(
     { key: 'teachers', label: 'Teachers', path: '/admin/teachers', active: active === 'teachers' },
     { key: 'papers', label: 'Papers', path: '/admin/papers', active: active === 'papers' },
     { key: 'paper-review', label: 'Paper review', path: '/admin/paper-review', count: counts.paperReview, active: active === 'paper-review' },
+    { key: 'pipeline', label: 'Pipeline', path: '/admin/pipeline', active: active === 'pipeline' },
     { key: 'team', label: 'Team', path: '/admin/team', active: active === 'team' },
     { key: 'activity', label: 'Activity', path: '/admin/activity', active: active === 'activity' },
     { key: 'reviews', label: 'Reviews', path: '/admin/reviews', count: counts.reviews, active: active === 'reviews' },
