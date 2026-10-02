@@ -79,7 +79,8 @@ const AdminFeedbackPage = lazy(() => import("./pages/admin/feedback"));
 const AdminCheckersPage = lazy(() => import("./pages/admin/checkers"));
 const AdminAuditLog = lazy(() => import("./pages/admin/audit"));
 const AdminPipelinePage = lazy(() => import("./pages/admin/pipeline"));
-const AdminPaperReview = lazy(() => import("./pages/admin/paper-review"));
+const AdminLibrary = lazy(() => import("./pages/admin/library"));
+const AdminQueue = lazy(() => import("./pages/admin/admin-queue"));
 const AdminTeamPage = lazy(() => import("./pages/admin/team"));
 const AdminPaperEdit = lazy(() => import("./pages/admin/paper-edit"));
 const AdminActivityPage = lazy(() => import("./pages/admin/activity"));
@@ -176,6 +177,12 @@ const PaperRoute = () => {
 const TeacherRedirect = () => {
   const { slug } = useParams<{ slug: string }>();
   return <Navigate to={`/tuition-teachers/${slug}`} replace />;
+};
+
+// /admin/paper-review/:paperId became /admin/library/:paperId.
+const LegacyPaperReviewRedirect = () => {
+  const { paperId } = useParams<{ paperId: string }>();
+  return <Navigate to={`/admin/library/${paperId ?? ''}`} replace />;
 };
 
 // Handoff M-014: "no route-level fade, slide or crossfade anywhere" — the
@@ -368,10 +375,14 @@ const App = () => (
               <Route path="/admin/checkers" element={<AdminCheckersPage />} />
               <Route path="/admin/audit" element={<AdminAuditLog />} />
               <Route path="/admin/pipeline" element={<AdminPipelinePage />} />
-              <Route path="/admin/paper-review" element={<AdminPaperReview />} />
+              <Route path="/admin/library" element={<AdminLibrary />} />
+              <Route path="/admin/library/:paperId" element={<AdminPaperEdit />} />
+              <Route path="/admin/admin-queue" element={<AdminQueue />} />
+              {/* The old Paper review page and its edit page moved to Library. */}
+              <Route path="/admin/paper-review" element={<Navigate to="/admin/library" replace />} />
+              <Route path="/admin/paper-review/:paperId" element={<LegacyPaperReviewRedirect />} />
               <Route path="/admin/team" element={<AdminTeamPage />} />
               <Route path="/admin/activity" element={<AdminActivityPage />} />
-              <Route path="/admin/paper-review/:paperId" element={<AdminPaperEdit />} />
               <Route path="/admin/paper-approvals" element={<AdminPaperApprovals />} />
               <Route path="/admin/paper-approvals/:auditPaperId" element={<AdminPaperApproval />} />
               <Route path="/admin/checker-log" element={<AdminCheckerLog />} />

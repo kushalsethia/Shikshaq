@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { AdminPanelHeader } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
@@ -96,7 +97,7 @@ export function AdminActivityPage({
     }
   }
 
-  const nav = buildAdminNav('activity', { approvals: sectionCounts.approvals, reviews: sectionCounts.reviews });
+  const nav = buildAdminNav('activity', sectionCounts);
 
   if (checkingAdmin) {
     return (
@@ -115,6 +116,7 @@ export function AdminActivityPage({
   return (
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={dummy ? 'dummy admin' : user?.email ?? actorName} />
+      <AdminPageIntroPanel page="activity" />
       {banner}
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
         <AdminPanelHeader title="Activity" meta={rows ? `${rows.length} shown, newest first` : undefined} />

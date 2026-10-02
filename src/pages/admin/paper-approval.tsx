@@ -172,7 +172,7 @@ export function AdminPaperApprovalPage({
   const counts = useMemo(() => reviewCounts(rows), [rows]);
   const firstOpen = rows.find((r) => r.kind === 'question' && r.state === 'open');
 
-  const nav = buildAdminNav('paper-approvals', { approvals: sectionCounts.approvals, reviews: sectionCounts.reviews });
+  const nav = buildAdminNav('ready', sectionCounts);
 
   function afterWrite() {
     setHistoryKey((k) => k + 1);

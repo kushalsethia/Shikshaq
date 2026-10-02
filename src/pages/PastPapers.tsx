@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, BookOpen, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, BookOpen, ChevronDown, FlaskConical, Languages, Calculator, Brain, Landmark as LandmarkIcon, Dna, Monitor, Wallet, FileText, Search, ShieldCheck, Sparkles } from 'lucide-react';
 import { SearchControl } from '@/components/SearchControl';
 import { loadPaperIndex, hasYear } from '@/lib/question-bank';
 import { coverPaper, coverMeta } from '@/lib/paper-cover-mapping';
@@ -9,6 +9,7 @@ import { EmptyResults } from '@/components/EmptyResults';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBJECTS, CLASSES, BOARDS } from '@/utils/searchFacets';
+import { facetView, orderFacets } from '@/lib/facet-list';
 import { bankSubjectToSite } from '@/lib/subject-vocabulary';
 import { getSubjectPalette } from '@/lib/subject-palette';
 import { getWhatsAppLink } from '@/utils/whatsapp';
@@ -150,6 +151,9 @@ export default function PastPapers() {
   const [searchParams] = useSearchParams();
 
   const [groupMode, setGroupMode] = useState<GroupMode>('subject');
+  // By subject / By board: a search over the headings and a "Show all" for the rest.
+  const [facetQuery, setFacetQuery] = useState('');
+  const [facetExpanded, setFacetExpanded] = useState(false);
 
   // Handoff PP-014: this route renders its own eyes panel (papers mode),
   // replacing AppShell's B3 pre-footer.
@@ -438,7 +442,9 @@ export default function PastPapers() {
     navigate('/all-tuition-teachers-in-kolkata');
   };
 
-  const featuredSubjects = SUBJECTS.filter((s) => subjectCounts[s]).slice(0, 8);
+  /* Every subject with a paper, not the first eight of a fixed list: the
+     site's own order first, then anything else by size (lib/facet-list.ts). */
+  const featuredSubjects = orderFacets(SUBJECTS, subjectCounts);
   /* BOARDS is the known, curated list (also used by the public submit-a-paper
      form and admin dropdowns, so it can't just gain a literal "Board" entry
      there). bank_papers legitimately has board values outside it -- 297 rows
@@ -447,11 +453,10 @@ export default function PastPapers() {
      silently invisible in this facet despite outnumbering CBSE. Anything in
      boardCounts that isn't one of the known boards is appended, so a real,
      non-zero board value is never dropped just because it wasn't anticipated. */
-  const featuredBoards = [
-    ...BOARDS.filter((b) => boardCounts[b]),
-    ...Object.keys(boardCounts).filter((b) => boardCounts[b] > 0 && !BOARDS.includes(b)).sort(),
-  ];
+  const featuredBoards = orderFacets(BOARDS, boardCounts);
   const subjectsCovered = Object.keys(subjectCounts).length;
+  const activeFacets = groupMode === 'subject' ? featuredSubjects : featuredBoards;
+  const facets = facetView(activeFacets, facetQuery, facetExpanded);
   const isEmptyCatalogue = !loading && !loadError && totalPapers === 0;
 
   // No structured data existed on this page at all — it's the index of every
@@ -885,7 +890,11 @@ export default function PastPapers() {
                     key={mode}
                     role="tab"
                     aria-selected={groupMode === mode}
-                    onClick={() => setGroupMode(mode)}
+                    onClick={() => {
+                      setGroupMode(mode);
+                      setFacetQuery('');
+                      setFacetExpanded(false);
+                    }}
                     className={`tap-44 flex h-9 items-center rounded-full px-[14px] text-[14px] font-bold capitalize transition-colors duration-tap ease-tap ${FOCUS} ${
                       groupMode === mode ? 'bg-card text-foreground' : 'text-muted-foreground hover:text-foreground'
                     }`}
@@ -895,6 +904,27 @@ export default function PastPapers() {
                 ))}
               </div>
             </div>
+
+            {facets.searchable ? (
+              <label className="mb-4 flex max-w-sm flex-col gap-1">
+                <span className="sr-only">Search {groupMode === 'subject' ? 'subjects' : 'boards'}</span>
+                <span className="relative">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={facetQuery}
+                    onChange={(e) => setFacetQuery(e.target.value)}
+                    placeholder={`Search ${facets.total} ${groupMode === 'subject' ? 'subjects' : 'boards'}`}
+                    className={`h-11 w-full rounded-full bg-muted pl-10 pr-4 text-[15px] text-foreground outline-none placeholder:text-muted-foreground ${FOCUS_BLUE}`}
+                  />
+                </span>
+              </label>
+            ) : null}
+            {facets.shown.length === 0 ? (
+              <p className="py-6 text-center text-body-secondary text-muted-foreground" role="status">
+                No {groupMode === 'subject' ? 'subject' : 'board'} matches &ldquo;{facetQuery.trim()}&rdquo;.
+              </p>
+            ) : null}
 
             {/* RESPONSIVE FIX: this was `grid-cols-2` from 375px up, which put a
                 42px icon tile, a 23px name and a count badge inside a ~160px
@@ -910,7 +940,7 @@ export default function PastPapers() {
                 unchanged from sm:. */}
             {groupMode === 'subject' ? (
               <div className="stagger-children grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
-                {featuredSubjects.map((s) => {
+                {facets.shown.map((s) => {
                   const palette = getSubjectPalette(s);
                   const Icon = SUBJECT_ICON[s] || BookOpen;
                   const count = subjectCounts[s];
@@ -963,6 +993,7 @@ export default function PastPapers() {
                     No count, no click: it isn't standing in for a real
                     subject with real papers, so nothing here should look
                     actionable. */}
+                {facetQuery.trim() === '' ? (
                 <div className="col-span-1 flex min-h-11 animate-card-reveal items-center gap-4 rounded-[18px] border-2 border-dashed border-warm-band bg-muted/40 p-[14px] sm:col-span-2 sm:rounded-2xl sm:p-6 lg:col-span-4">
                   <span className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] bg-muted sm:h-10 sm:w-10 sm:rounded-lg">
                     <Sparkles size={21} strokeWidth={1.9} aria-hidden="true" className="text-muted-foreground" />
@@ -976,10 +1007,11 @@ export default function PastPapers() {
                     </span>
                   </span>
                 </div>
+                ) : null}
               </div>
             ) : (
               <div className="stagger-children grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
-                {featuredBoards.map((b) => {
+                {facets.shown.map((b) => {
                   const count = boardCounts[b];
                   return (
                     <button
@@ -1004,6 +1036,19 @@ export default function PastPapers() {
                 })}
               </div>
             )}
+            {facets.hidden > 0 || (facetExpanded && facets.total > 8 && facetQuery.trim() === '') ? (
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  aria-expanded={facetExpanded}
+                  onClick={() => setFacetExpanded((v) => !v)}
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-full bg-muted px-5 text-[14px] font-bold text-foreground transition-colors duration-tap hover:bg-warm-hairline ${FOCUS_BLUE}`}
+                >
+                  {facetExpanded ? 'Show fewer' : `Show all ${facets.total} ${groupMode === 'subject' ? 'subjects' : 'boards'}`}
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-tap ${facetExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+                </button>
+              </div>
+            ) : null}
           </BentoPanel>
         )}
 

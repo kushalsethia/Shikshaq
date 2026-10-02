@@ -1,5 +1,6 @@
 import type { CheckerAdminApi, CheckerAdminRow } from '@/lib/checker-admin-api';
 import { looksLikeEmail } from '@/lib/email-shape';
+import type { UserSearchRow } from '@/lib/checker-api';
 
 /**
  * In-memory fake of the "add checkers by email" admin RPCs (D75), for
@@ -38,7 +39,25 @@ export function createFakeCheckerAdminApi(): CheckerAdminApi & { reset: () => vo
     rows = rows.slice(0, 2);
   }
 
+  // Made-up accounts that have signed up but are not checkers yet.
+  const accounts: { user_id: string; full_name: string | null; email: string }[] = [
+    { user_id: 'd2222222-0000-4000-8000-000000000001', full_name: 'Tara Bose', email: 'tara.bose@example.com' },
+    { user_id: 'd2222222-0000-4000-8000-000000000002', full_name: 'Tarun Gupta', email: 'tarun.g@example.com' },
+    { user_id: 'd2222222-0000-4000-8000-000000000003', full_name: 'Meena Roy', email: 'meena.roy@example.com' },
+    { user_id: 'd2222222-0000-4000-8000-000000000004', full_name: null, email: 'ravi.k@example.com' },
+  ];
+
   return {
+    async searchUsers(query: string): Promise<UserSearchRow[]> {
+      const q = query.trim().toLowerCase();
+      const pool = [
+        ...rows.map((r) => ({ user_id: r.user_id, full_name: r.full_name, email: r.email, is_checker: true })),
+        ...accounts.filter((a) => !rows.some((r) => r.email === a.email)).map((a) => ({ ...a, is_checker: false })),
+      ];
+      return pool
+        .filter((a) => `${a.full_name ?? ''} ${a.email}`.toLowerCase().includes(q))
+        .map((a) => ({ user_id: a.user_id, full_name: a.full_name, email: a.email, role: null, is_checker: a.is_checker, checker_active: a.is_checker }));
+    },
     async listCheckers() {
       return rows.map((r) => ({ ...r }));
     },
@@ -51,10 +70,11 @@ export function createFakeCheckerAdminApi(): CheckerAdminApi & { reset: () => vo
       // 20% of made-up addresses simulate "no account with that email yet",
       // so the preview can show that path without a real Supabase lookup.
       if (trimmed.startsWith('nobody')) throw new Error('No account found for that email');
+      const known = accounts.find((a) => a.email.toLowerCase() === trimmed.toLowerCase());
       const newRow: CheckerAdminRow = {
-        user_id: crypto.randomUUID(),
+        user_id: known?.user_id ?? crypto.randomUUID(),
         email: trimmed,
-        full_name: null,
+        full_name: known?.full_name ?? null,
         added_at: new Date().toISOString(),
         checked_today: 0,
         checked_total: 0,

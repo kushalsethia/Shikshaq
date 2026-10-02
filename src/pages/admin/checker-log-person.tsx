@@ -169,7 +169,7 @@ export function AdminCheckerLogPersonPage({
     else if (!checkingAdmin) setLoading(false);
   }, [isAdmin, checkingAdmin, load]);
 
-  const nav = buildAdminNav('checker-log', { approvals: sectionCounts.approvals, reviews: sectionCounts.reviews });
+  const nav = buildAdminNav('checker-log', sectionCounts);
 
   const byDay = useMemo(() => new Map((log?.days ?? []).map((d) => [d.day, d])), [log]);
   const strip = useMemo(() => dayRange(from, today), [from, today]);

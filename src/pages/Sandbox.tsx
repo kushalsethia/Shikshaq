@@ -50,7 +50,7 @@ const GATED_PANELS: Array<{ page: string; note: string; cls: string }> = [
   { page: 'TeacherDashboard', note: 'listing / reviews 22', cls: 'p-[22px]' },
 ];
 
-const NAV = buildAdminNav('approvals', { approvals: 12, reviews: 4 });
+const NAV = buildAdminNav('applications', { approvals: 12, reviews: 4 });
 
 const COLUMNS: AdminTableColumn[] = [
   { key: 'applicant', label: 'Applicant', width: '2fr' },

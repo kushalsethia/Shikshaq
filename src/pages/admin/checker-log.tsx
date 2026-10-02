@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { AdminTable, AdminPanelHeader, type AdminTableColumn, type AdminTableRow } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
@@ -73,7 +74,7 @@ export function AdminCheckerLogPage({
     }
   }
 
-  const nav = buildAdminNav('checker-log', { approvals: sectionCounts.approvals, reviews: sectionCounts.reviews });
+  const nav = buildAdminNav('checker-log', sectionCounts);
 
   const sorted = useMemo(
     () =>
@@ -141,6 +142,7 @@ export function AdminCheckerLogPage({
   return (
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={signedIn} />
+      <AdminPageIntroPanel page="checker-log" />
       {banner}
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">

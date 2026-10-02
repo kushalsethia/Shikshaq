@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { adminSearchUsers, type UserSearchRow } from '@/lib/checker-api';
 
 /**
  * Client wrapper for the "add checkers by email" admin page
@@ -58,13 +59,22 @@ export async function adminRemoveChecker(userId: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Accounts whose name or email matches (at least two letters). The same
+ *  search the Paper review checkers tab used (admin_search_users), so there is
+ *  one way to find a person. */
+export async function adminSearchAccounts(query: string): Promise<UserSearchRow[]> {
+  return adminSearchUsers(query);
+}
+
 export interface CheckerAdminApi {
+  searchUsers: typeof adminSearchAccounts;
   listCheckers: typeof adminListCheckers;
   addChecker: typeof adminAddChecker;
   removeChecker: typeof adminRemoveChecker;
 }
 
 export const realCheckerAdminApi: CheckerAdminApi = {
+  searchUsers: adminSearchAccounts,
   listCheckers: adminListCheckers,
   addChecker: adminAddChecker,
   removeChecker: adminRemoveChecker,

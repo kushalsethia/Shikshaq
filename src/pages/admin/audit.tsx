@@ -5,6 +5,7 @@ import { toast as sonnerToast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
 import { AdminTable, AdminPanelHeader, AdminStatusPill, type AdminTableColumn, type AdminTableRow, type AdminStatus } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
@@ -99,7 +100,7 @@ export default function AdminAuditLog() {
     }
   }
 
-  const nav = buildAdminNav('audit', { approvals: sectionCounts.approvals, reviews: sectionCounts.reviews });
+  const nav = buildAdminNav('audit', sectionCounts);
 
   if (checkingAdmin || loading) {
     return (
@@ -176,6 +177,7 @@ export default function AdminAuditLog() {
   return (
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+      <AdminPageIntroPanel page="audit" />
 
       <BentoPanel fill="card" className="px-1.5 py-[18px] lg:px-1.5 lg:py-[18px]">
         {/* AD-008's mockup meta reads "last 30 days · {n} entries" — the real query has no
