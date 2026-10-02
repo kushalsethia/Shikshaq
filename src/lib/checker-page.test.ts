@@ -40,14 +40,16 @@ describe('the whole-page fallback', () => {
     expect(planWholePage(q(), true)).toBeNull();
   });
 
-  it('is Maths only, and needs a recorded page', () => {
-    expect(planWholePage(q({ subject: 'Economics' }), false)).toBeNull();
-    expect(planWholePage(q({ subject: null }), false)).toBeNull();
+  it('plans a page for every subject, and needs a recorded page', () => {
+    expect(planWholePage(q({ subject: 'Economics' }), false)?.page).toBe(3);
+    expect(planWholePage(q({ subject: 'Geography' }), false)?.page).toBe(3);
+    expect(planWholePage(q({ subject: null }), false)?.page).toBe(3);
     expect(planWholePage(q({ source: { page_verified: true, align_score: 0.4 } }), false)).toBeNull();
     expect(planWholePage(q({ source: null }), false)).toBeNull();
     expect(isPageFallbackSubject('Maths')).toBe(true);
     expect(isPageFallbackSubject('  mathematics ')).toBe(true);
-    expect(isPageFallbackSubject('English')).toBe(false);
+    expect(isPageFallbackSubject('English')).toBe(true);
+    expect(isPageFallbackSubject(null)).toBe(true);
   });
 
   it('reads pages as 1-based whole numbers only', () => {

@@ -24,6 +24,14 @@ import {
   type PicturePlan,
 } from '@/lib/checker-pictures';
 import { planVerifiedPage, PAGE_HEADING, type PagePlan } from '@/lib/checker-page';
+import { describeLanes, unmappedCodes } from '@/lib/checker-lanes';
+import {
+  lostTextSuggestion,
+  LOST_TEXT_CONFIRM,
+  LOST_TEXT_HEADING,
+  LOST_TEXT_NOTE,
+  LOST_TEXT_TITLE,
+} from '@/lib/checker-lost-text';
 import {
   typoSaveProblem,
   TYPO_CHECKBOX_LABEL,
@@ -90,6 +98,9 @@ export default function Checker() {
 }
 
 type Mode = 'check' | 'fix' | 'split';
+
+/** How often the empty queue asks for new questions (no reload needed). */
+const QUEUE_POLL_MS = 15_000;
 
 const HELP_REASONS = [
   'I cannot read the words',
@@ -233,8 +244,15 @@ export function CheckerPage({
     gcTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: false,
+    // New questions appear without a reload: while NOTHING is open, ask again
+    // every 15 seconds (only while the tab is visible). Never while a
+    // question is open: asking leases a question, and an idle open question
+    // must not have its lease renewed behind the student's back.
+    refetchInterval: (query) => (query.state.data ? false : QUEUE_POLL_MS),
   });
   const question = questionQuery.data ?? null;
+  // Lost text: no words, but the AI transcribed the page (checker-lost-text.ts).
+  const lost = question ? lostTextSuggestion(question.body, question.flag_detail) : null;
 
   const statsQuery = useQuery({
     queryKey: ['checker-my-stats', scope],
@@ -268,8 +286,13 @@ export function CheckerPage({
   const pagePlan: PagePlan | null = question && !contextQuery.isLoading ? planVerifiedPage(question) : null;
   const viewPath = picturePlan?.path ?? '';
   const pagePath = pagePlan?.path ?? '';
+  // Crop first; the whole page only after a tap (owner 2026-10-03). With no
+  // crop the page is the only picture, so it is shown straight away. The page
+  // image is not even requested until it is wanted.
+  const [showPage, setShowPage] = useState(false);
+  const pageWanted = pagePath !== '' && (showPage || viewPath === '');
   const picturePlanKey = question && !contextQuery.isLoading ? `${question.id}|${viewPath}` : '';
-  const pagePlanKey = question && !contextQuery.isLoading ? `${question.id}|${pagePath}` : '';
+  const pagePlanKey = question && !contextQuery.isLoading && pageWanted ? `${question.id}|${pagePath}` : '';
   // undefined = still looking, null = none (or it failed to load).
   const pictureUrl = useSignedUrl(api, picturePlanKey, viewPath);
   const [pictureFailed, setPictureFailed] = useState<string>('');
@@ -281,10 +304,19 @@ export function CheckerPage({
   // one is planned.
   const hasCrop = cropShown === undefined ? viewPath !== '' : Boolean(cropShown);
   const hasPage = pageShown === undefined ? pagePath !== '' : Boolean(pageShown);
+  // A crop that failed to load leaves the page as the picture: show it.
+  const pageOpen = pageWanted || (pagePath !== '' && !hasCrop);
   const hasPicture = hasCrop || hasPage;
   const whatToCheckLine = question
     ? whatToCheck(question.flag_reasons, question.flag_detail, { hasPicture })
     : { line: null, detail: null };
+  // Every flag has a lane in plain English (checker-lanes.ts). Without a
+  // picture the older picture-aware sentences are used instead.
+  const laneSummary = question ? describeLanes(question.flag_reasons, question.flag_detail) : null;
+  useEffect(() => {
+    const missing = unmappedCodes(question?.flag_reasons);
+    if (missing.length) console.warn('[checker] flag codes with no lane:', missing.join(', '));
+  }, [question?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // W14: English questions carry their passage and set text in `source`.
   const english = question ? englishContext(question.source) : null;
 
@@ -306,9 +338,10 @@ export function CheckerPage({
   useEffect(() => {
     if (question) {
       setMode('check');
-      setBodyDraft(question.body ?? '');
+      setBodyDraft(lost ?? question.body ?? '');
       setNumberDraft(question.display_number ?? '');
       setMarksDraft(question.marks != null ? String(question.marks) : '');
+      setShowPage(false);
       setSplitAt(null);
       setPrintedTypo(false);
       setTypoNote('');
@@ -343,7 +376,16 @@ export function CheckerPage({
     onActivity: (event) => {
       refreshCounters();
       if (!submitting && isForeignChangeToOpenQuestion(event, question?.id, user?.id)) {
-        setNotice({ text: 'Someone else just changed that question, so here is the next one.', tone: 'warn' });
+        setNotice({
+          text:
+            event.action === 'reclassify'
+              ? 'A check moved that question to an admin, so here is the next one.'
+              : 'Someone else just changed that question, so here is the next one.',
+          tone: 'warn',
+        });
+        qc.invalidateQueries({ queryKey: ['checker-next-question', scope] });
+      } else if (!question && !submitting) {
+        // Nothing open: any activity may mean new questions are waiting.
         qc.invalidateQueries({ queryKey: ['checker-next-question', scope] });
       }
     },
@@ -466,7 +508,7 @@ export function CheckerPage({
 
   function cancelEdit() {
     if (!question) return;
-    setBodyDraft(question.body ?? '');
+    setBodyDraft(lost ?? question.body ?? '');
     setNumberDraft(question.display_number ?? '');
     setMarksDraft(question.marks != null ? String(question.marks) : '');
     setSplitAt(null);
@@ -711,6 +753,34 @@ export function CheckerPage({
                 <div className="h-40 animate-pulse rounded-2xl bg-muted" aria-label="Loading the picture" />
               ) : null}
 
+              {/* The whole verified page: behind a tap when there is a crop,
+                  straight away when the page is the only picture. */}
+              {pagePlan && viewPath !== '' && hasCrop ? (
+                <button
+                  type="button"
+                  aria-expanded={showPage}
+                  onClick={() => setShowPage((v) => !v)}
+                  className="tap-44 self-start rounded-full bg-brand-subtle px-4 py-2 text-[13px] font-semibold text-foreground transition-transform duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  {showPage ? 'Hide the whole page' : 'See the whole page'}
+                </button>
+              ) : null}
+              {pagePlan && pageOpen && pageShown !== null ? (
+                <div className="flex min-w-0 flex-col">
+                  <p className="mb-1 text-[12px] text-warm-meta">{PAGE_HEADING}</p>
+                  {pageShown === undefined ? (
+                    <div className="h-72 animate-pulse rounded-2xl bg-muted" aria-label="Loading the printed page" />
+                  ) : (
+                    <PageImageViewer
+                      src={pageShown}
+                      alt={`the whole printed page ${pagePlan.page}, as scanned`}
+                      note={pagePlan.note}
+                      onError={() => setPageFailed(pagePlanKey)}
+                    />
+                  )}
+                </div>
+              ) : null}
+
               {picturePlanKey && !hasPicture && pictureUrl !== undefined && pageUrl !== undefined ? (
                 // D65 + W11: no trustworthy crop and no verified page, or both
                 // failed to load. The question is still checkable.
@@ -733,7 +803,11 @@ export function CheckerPage({
 
             {/* Right: the question + actions */}
             <div className="flex min-w-0 flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
-              {blank ? (
+              {lost ? (
+                <Callout tone="warn" title={LOST_TEXT_TITLE}>
+                  {LOST_TEXT_NOTE}
+                </Callout>
+              ) : blank ? (
                 <Callout tone="warn" title="There are no words to check here">
                   The computer read this question together with another one, so its words are not on this row. Press Ask
                   for help and an admin will sort it out.
@@ -744,7 +818,9 @@ export function CheckerPage({
                 </Callout>
               ) : null}
 
-              {whatToCheckLine.line ? (
+              {hasPicture && laneSummary && (laneSummary.blocks.length > 0 || laneSummary.unmapped.length > 0) ? (
+                <LaneCard summary={laneSummary} />
+              ) : whatToCheckLine.line ? (
                 <div className="mb-3 rounded-2xl bg-brand-subtle p-3">
                   <p className="mb-1 text-[13px] font-semibold text-foreground">What to check</p>
                   <p className="text-[14px] leading-snug text-foreground">{whatToCheckLine.line}</p>
@@ -838,8 +914,9 @@ export function CheckerPage({
                   />
                   <SplitPreview body={bodyDraft} at={splitAt} />
                 </div>
-              ) : blank ? null : (
+              ) : blank && !lost ? null : (
                 <div className="rounded-2xl bg-muted p-4">
+                  {lost ? <p className="mb-2 text-[12px] font-semibold text-warm-meta">{LOST_TEXT_HEADING}</p> : null}
                   <MathText text={bodyDraft} className="break-words text-[16px] leading-relaxed text-foreground" />
                   <OptionList options={question.options} />
                 </div>
@@ -883,28 +960,6 @@ export function CheckerPage({
                 </label>
               </div>
             </div>
-
-            {/* Left bottom: the verified whole page (owner round 24). */}
-            {pagePlan && pageShown !== null ? (
-              <div
-                className={cn(
-                  'flex min-w-0 flex-col lg:col-start-1 lg:row-start-2',
-                  !hasCrop && 'order-first lg:order-none',
-                )}
-              >
-                <p className="mb-1 text-[12px] text-warm-meta">{PAGE_HEADING}</p>
-                {pageShown === undefined ? (
-                  <div className="h-72 animate-pulse rounded-2xl bg-muted" aria-label="Loading the printed page" />
-                ) : (
-                  <PageImageViewer
-                    src={pageShown}
-                    alt={`the whole printed page ${pagePlan.page}, as scanned`}
-                    note={pagePlan.note}
-                    onError={() => setPageFailed(pagePlanKey)}
-                  />
-                )}
-              </div>
-            ) : null}
           </div>
         )}
 
@@ -924,11 +979,19 @@ export function CheckerPage({
             ) : (
               <>
                 <ActionButton
-                  tone={blank && mode === 'check' ? 'muted' : 'mint'}
+                  tone={blank && !lost && mode === 'check' ? 'muted' : 'mint'}
                   onClick={doPass}
                   disabled={submitting || !canPass || marksInvalid}
                 >
-                  {submitting ? 'Saving...' : mode === 'fix' ? (edited ? 'Save, now it matches' : 'Looks right') : 'Looks right'}
+                  {submitting
+                    ? 'Saving...'
+                    : mode === 'fix'
+                      ? edited
+                        ? 'Save, now it matches'
+                        : 'Looks right'
+                      : lost
+                        ? LOST_TEXT_CONFIRM
+                        : 'Looks right'}
                 </ActionButton>
                 {mode === 'check' ? (
                   <ActionButton tone="dark" onClick={() => setMode('fix')} disabled={submitting}>
@@ -1089,6 +1152,43 @@ function useSignedUrl(api: CheckerApi, key: string, path: string): string | null
   }, [key, api]);
   if (!key || !state || state.key !== key) return undefined;
   return state.url;
+}
+
+/**
+ * "What to check": one block per lane the question is in (checker-lanes.ts),
+ * in plain English. Lanes a student is asked to settle come first; lanes
+ * that ask nothing of a student (a label, a possible repeat) are one muted
+ * line. A flag with no lane still shows its fallback sentence.
+ */
+function LaneCard({ summary }: { summary: ReturnType<typeof describeLanes> }) {
+  const asked = summary.blocks.filter((b) => b.asked);
+  const quiet = summary.blocks.filter((b) => !b.asked);
+  if (asked.length === 0 && summary.unmapped.length === 0 && quiet.length === 0) return null;
+  return (
+    <div className="mb-3 rounded-2xl bg-brand-subtle p-3" data-testid="lane-card">
+      <p className="mb-1 text-[13px] font-semibold text-foreground">What to check</p>
+      <ul className="flex flex-col gap-2">
+        {asked.map((b) => (
+          <li key={b.lane.id} data-lane={b.lane.id}>
+            <p className="text-[14px] font-semibold leading-snug text-foreground">{b.lane.name}</p>
+            <p className="text-[14px] leading-snug text-foreground">{b.lane.what_to_do}</p>
+            {b.detail ? <p className="mt-0.5 text-[12px] text-warm-secondary">What the computer noticed: {b.detail}</p> : null}
+          </li>
+        ))}
+        {summary.unmapped.map((u) => (
+          <li key={u.code}>
+            <p className="text-[14px] leading-snug text-foreground">{u.sentence}</p>
+          </li>
+        ))}
+      </ul>
+      {quiet.length > 0 ? (
+        <p className="mt-2 text-[12px] leading-snug text-warm-secondary">
+          Not for you to settle: {quiet.map((b) => b.lane.name.toLowerCase()).join(', ')}. Someone else sorts that out.
+        </p>
+      ) : null}
+      {summary.note ? <p className="mt-1 text-[12px] text-warm-secondary">What the computer noticed: {summary.note}</p> : null}
+    </div>
+  );
 }
 
 /* Shaped like what it replaces: a picture box and a question box. */

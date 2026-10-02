@@ -1,5 +1,5 @@
 /**
- * The whole PDF page, as scanned (owner, 2026-09-29: "Show as scanned").
+ * The whole PDF page, as scanned (owner, 2026-09-29: "Show as scanned"; every subject since 2026-10-03).
  *
  * When there is no trusted crop (checker-pictures.ts: no crop, or a crop
  * matched worse than DOUBTFUL_ALIGN_BELOW), a Maths question shows the whole
@@ -23,9 +23,17 @@
 
 type Source = Record<string, unknown> | null | undefined;
 
-/** Subjects whose questions may fall back to the whole page. Owner decision: Maths only. */
-export function isPageFallbackSubject(subject: string | null | undefined): boolean {
-  return /^math/i.test((subject ?? '').trim());
+/**
+ * Subjects whose questions may show the whole page. Every subject now (owner,
+ * 2026-10-03, PLAN_ROUND27 3.8: a student only checks with a picture). It was
+ * Maths only. The gate that still holds is pageIsVerified: the pipeline
+ * uploads a page image only for a page it checked against the PDF text, and
+ * the database serves a question only when that image is registered in
+ * audit_paper_pages (20261003160000). The function stays so a subject can be
+ * excluded again in one place.
+ */
+export function isPageFallbackSubject(_subject?: string | null): boolean {
+  return true;
 }
 
 /**
@@ -96,7 +104,7 @@ export function planWholePage(
  * Owner round 24 (2026-09-30): "students see the verified raw page always".
  * The verified page now sits beside every question that has one, crop or
  * not: the crop shows the question up close, the page shows where it sits
- * and what is printed around it. Same gates as before otherwise (Maths,
+ * and what is printed around it. Same gates as before otherwise (any subject,
  * page_verified true, a usable page number).
  */
 export function planVerifiedPage(question: {
