@@ -60,6 +60,11 @@ export interface BankQuestion {
    *  source numbered it as one ("5" -> "5(a)", "5(b)"). Null for a top-level
    *  question or when no parent was recorded. */
   pid?: string | null;
+  /** QUEUE_20261002: a question that is set aside, rejected or still being
+   *  checked on a live paper. The RPC sends only `{held: true, number, ord}`
+   *  for it -- no body, options or figure ever reach the browser -- and the
+   *  page draws a short placeholder card in its place. */
+  held?: boolean;
 }
 
 export interface BankPaper {
@@ -288,16 +293,18 @@ export function loadPaperQuestions(paperId: string, signedIn = false): Promise<B
   if (hit) return hit;
 
   const req = Promise.resolve(
-    supabase.rpc('bank_paper_questions', { p_paper_id: paperId }),
+    // p_with_placeholders (20261003100000): held questions come back as
+    // {held: true, number, ord} with no text, and render as a placeholder card.
+    supabase.rpc('bank_paper_questions', { p_paper_id: paperId, p_with_placeholders: true } as never),
   )
     .then(({ data, error }) => {
       if (error) throw new Error(`bank questions: ${error.message}`);
       return ((data ?? []) as any[]).map(
-        (r): BankQuestion => ({
-          i: r.id,
-          p: r.paper_id,
-          n: r.number,
-          t: r.body,
+        (r, idx): BankQuestion => ({
+          i: r.id ?? `held-${r.ord ?? idx}`,
+          p: r.paper_id ?? paperId,
+          n: r.number ?? null,
+          t: r.held === true ? '' : r.body ?? '',
           m: r.marks === null || r.marks === undefined ? null : Number(r.marks),
           c: r.chapter,
           ty: r.qtype,
@@ -313,6 +320,7 @@ export function loadPaperQuestions(paperId: string, signedIn = false): Promise<B
           ag: r.alternative_group ?? null,
           al: r.alternative_label ?? null,
           pid: r.parent_question_id ?? null,
+          ...(r.held === true ? { held: true } : {}),
         }),
       );
     })

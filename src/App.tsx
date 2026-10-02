@@ -83,6 +83,10 @@ const AdminPaperReview = lazy(() => import("./pages/admin/paper-review"));
 const AdminTeamPage = lazy(() => import("./pages/admin/team"));
 const AdminPaperEdit = lazy(() => import("./pages/admin/paper-edit"));
 const AdminActivityPage = lazy(() => import("./pages/admin/activity"));
+const AdminPaperApprovals = lazy(() => import("./pages/admin/paper-approvals"));
+const AdminPaperApproval = lazy(() => import("./pages/admin/paper-approval"));
+const AdminCheckerLog = lazy(() => import("./pages/admin/checker-log"));
+const AdminCheckerLogPerson = lazy(() => import("./pages/admin/checker-log-person"));
 /* Paper checker (Kid Mode) -- W1. A route only paper checkers/admins can
    open (see is_paper_checker(), checked client-side inside the page
    itself); lazy like every other secondary route. */
@@ -368,6 +372,10 @@ const App = () => (
               <Route path="/admin/team" element={<AdminTeamPage />} />
               <Route path="/admin/activity" element={<AdminActivityPage />} />
               <Route path="/admin/paper-review/:paperId" element={<AdminPaperEdit />} />
+              <Route path="/admin/paper-approvals" element={<AdminPaperApprovals />} />
+              <Route path="/admin/paper-approvals/:auditPaperId" element={<AdminPaperApproval />} />
+              <Route path="/admin/checker-log" element={<AdminCheckerLog />} />
+              <Route path="/admin/checker-log/:actorKey" element={<AdminCheckerLogPerson />} />
               <Route path="/checker" element={<Checker />} />
               {/* Legacy admin URLs redirect into the console (pages.md §15). */}
               <Route path="/admin/applications" element={<Navigate to="/admin/approvals" replace />} />

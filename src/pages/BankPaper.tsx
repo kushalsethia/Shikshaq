@@ -29,6 +29,7 @@ import {
 import { displayBodyWithoutDuplicateNumber } from '@/lib/checker-body';
 import { qtypeLabel } from '@/lib/qtype-label';
 import { DebugId } from '@/components/DebugId';
+import { HeldQuestionCard } from '@/components/papers/held-question-card';
 
 /** The teachers route for a bank paper's subject, or the filtered browse
  *  when that subject has no page of its own. Never an invented slug. */
@@ -435,7 +436,7 @@ export default function BankPaper() {
      The old "not applied while filtering" exemption is gone with the rows it
      protected: filtering cannot reveal a question the client never received. */
   const withheld =
-    paper && !user ? Math.max(0, paper.questionCount - questions.length) : 0;
+    paper && !user ? Math.max(0, paper.questionCount - questions.filter((row) => !row.held).length) : 0;
   const filtering = Boolean(chapter || needle);
 
   /* Title and description come from src/lib/paper-seo.ts, the same builder
@@ -479,6 +480,14 @@ export default function BankPaper() {
      are never sent, so every card this renders is one the reader is entitled
      to and there is nothing left to soften. */
   const questionCard = (row: BankQuestion, depth = 0) => {
+    /* QUEUE_20261002: a question held back on a live paper (set aside,
+       rejected, or still being checked). The server sends no text, options
+       or figure for it, so there is nothing to show but its number and a
+       short note. No report chip: there is nothing to report yet. */
+    if (row.held) {
+      const heldNumber = resolveDisplayNumber(row.dn, displayNumbers.get(row.i), row.n);
+      return <HeldQuestionCard key={row.i} id={row.i} number={heldNumber} depth={depth} />;
+    }
     /* D66: the printed display_number, when the checker/admin has recorded
        one, wins over the client-derived a/b/c run lettering below -- it is a
        real fact about how the paper was numbered, not a guess from repeated
