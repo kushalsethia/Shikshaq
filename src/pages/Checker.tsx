@@ -23,7 +23,16 @@ import {
   PICTURE_MAY_MISS_PARTS,
   type PicturePlan,
 } from '@/lib/checker-pictures';
-import { planWholePage, PAGE_HEADING, type PagePlan } from '@/lib/checker-page';
+import { planVerifiedPage, PAGE_HEADING, type PagePlan } from '@/lib/checker-page';
+import {
+  typoSaveProblem,
+  TYPO_CHECKBOX_LABEL,
+  TYPO_RULE_TITLE,
+  TYPO_RULE_NOTE,
+  TYPO_NOTE_LABEL,
+  TYPO_NOTE_MAX,
+} from '@/lib/checker-save';
+import { DebugFacts } from '@/components/admin/DebugFacts';
 import { PageImageViewer } from '@/components/checker/PageImageViewer';
 import { matchCheckerKeyboardEvent, shortcutHint } from '@/lib/checker-shortcuts';
 import {
@@ -254,34 +263,25 @@ export function CheckerPage({
   // never a tap-to-show button, never a doubtful crop.
   const picturePlan: PicturePlan | null =
     question && !contextQuery.isLoading ? planCheckerPicture(question, context) : null;
-  // No trusted crop: a Maths question falls back to the whole printed page as
-  // scanned (checker-page.ts). Null when the pipeline has not said which page.
-  const pagePlan: PagePlan | null =
-    question && !contextQuery.isLoading ? planWholePage(question, picturePlan !== null) : null;
-  const viewPath = picturePlan?.path ?? pagePlan?.path ?? '';
+  // The verified whole page, beside every question that has one, crop or not
+  // (owner round 24, checker-page.ts). Null when the page is not verified.
+  const pagePlan: PagePlan | null = question && !contextQuery.isLoading ? planVerifiedPage(question) : null;
+  const viewPath = picturePlan?.path ?? '';
+  const pagePath = pagePlan?.path ?? '';
   const picturePlanKey = question && !contextQuery.isLoading ? `${question.id}|${viewPath}` : '';
+  const pagePlanKey = question && !contextQuery.isLoading ? `${question.id}|${pagePath}` : '';
   // undefined = still looking, null = none (or it failed to load).
-  const [pictureUrl, setPictureUrl] = useState<string | null | undefined>(undefined);
-  useEffect(() => {
-    setPictureUrl(undefined);
-    if (!picturePlanKey) return;
-    if (!viewPath) {
-      setPictureUrl(null);
-      return;
-    }
-    let cancelled = false;
-    api.pictureUrl(viewPath).then((url) => {
-      if (!cancelled) setPictureUrl(url);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // `picturePlan` is derived from picturePlanKey (a new object every render).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picturePlanKey]);
-  // While the picture is still loading, sentences assume it will arrive
-  // when one is planned.
-  const hasPicture = pictureUrl === undefined ? viewPath !== '' : Boolean(pictureUrl);
+  const pictureUrl = useSignedUrl(api, picturePlanKey, viewPath);
+  const [pictureFailed, setPictureFailed] = useState<string>('');
+  const pageUrl = useSignedUrl(api, pagePlanKey, pagePath);
+  const [pageFailed, setPageFailed] = useState<string>('');
+  const cropShown = pictureUrl && pictureFailed !== picturePlanKey ? pictureUrl : pictureUrl === undefined ? undefined : null;
+  const pageShown = pageUrl && pageFailed !== pagePlanKey ? pageUrl : pageUrl === undefined ? undefined : null;
+  // While a picture is still loading, sentences assume it will arrive when
+  // one is planned.
+  const hasCrop = cropShown === undefined ? viewPath !== '' : Boolean(cropShown);
+  const hasPage = pageShown === undefined ? pagePath !== '' : Boolean(pageShown);
+  const hasPicture = hasCrop || hasPage;
   const whatToCheckLine = question
     ? whatToCheck(question.flag_reasons, question.flag_detail, { hasPicture })
     : { line: null, detail: null };
@@ -293,6 +293,8 @@ export function CheckerPage({
   const [numberDraft, setNumberDraft] = useState('');
   const [marksDraft, setMarksDraft] = useState('');
   const [splitAt, setSplitAt] = useState<number | null>(null);
+  const [printedTypo, setPrintedTypo] = useState(false);
+  const [typoNote, setTypoNote] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpReason, setHelpReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -308,6 +310,8 @@ export function CheckerPage({
       setNumberDraft(question.display_number ?? '');
       setMarksDraft(question.marks != null ? String(question.marks) : '');
       setSplitAt(null);
+      setPrintedTypo(false);
+      setTypoNote('');
       setHelpOpen(false);
       setHelpReason('');
       setError(null);
@@ -414,19 +418,31 @@ export function CheckerPage({
       }
       const finalBody = stripped;
       const bodyChanged = finalBody !== (question.body ?? '');
+      const typo = mode === 'fix' && printedTypo;
+      const typoProblem = typoSaveProblem(typo, bodyChanged);
+      if (typoProblem) {
+        setError(typoProblem);
+        return;
+      }
       await run(
         () =>
-          api.fixQuestion(question.id, {
-            // Unchanged text is not sent at all (null keeps the stored body),
-            // so fixing only the marks can never rewrite the words.
-            body: bodyChanged ? finalBody : null,
-            display_number: savedNumber,
-            marks: marksDraft.trim() === '' ? null : Number(marksDraft),
-          }),
-        'Saved. Here is the next one.',
+          api.fixQuestion(
+            question.id,
+            {
+              // Unchanged text is not sent at all (null keeps the stored body),
+              // so fixing only the marks can never rewrite the words.
+              body: bodyChanged ? finalBody : null,
+              display_number: savedNumber,
+              marks: marksDraft.trim() === '' ? null : Number(marksDraft),
+            },
+            // The version this checker saw: a save over a newer version is
+            // refused (40001) instead of silently overwriting it.
+            { version: question.version, printedTypo: typo, typoNote: typo ? typoNote : null },
+          ),
+        typo ? 'Saved with the typo corrected. Here is the next one.' : 'Saved. Here is the next one.',
       );
     } else {
-      await run(() => api.passQuestion(question.id), 'Marked as right. Here is the next one.');
+      await run(() => api.passQuestion(question.id, question.version), 'Marked as right. Here is the next one.');
     }
   }
 
@@ -454,6 +470,8 @@ export function CheckerPage({
     setNumberDraft(question.display_number ?? '');
     setMarksDraft(question.marks != null ? String(question.marks) : '');
     setSplitAt(null);
+    setPrintedTypo(false);
+    setTypoNote('');
     setMode('check');
   }
 
@@ -538,6 +556,15 @@ export function CheckerPage({
               <span className="ml-2 inline-flex gap-1 align-middle">
                 <DebugId label="question" value={question.id} />
                 <DebugId label="paper" value={question.paper_id} />
+                <DebugFacts
+                  facts={{
+                    version: question.version,
+                    flags: question.flag_reasons,
+                    page: typeof question.source?.page === 'number' ? question.source.page : null,
+                    'page verified': typeof question.source?.page_verified === 'boolean' ? question.source.page_verified : null,
+                    align: typeof question.source?.align_score === 'number' ? question.source.align_score : null,
+                  }}
+                />
               </span>
             ) : null}
           </h1>
@@ -649,46 +676,52 @@ export function CheckerPage({
             </div>
           </div>
         ) : (
-          <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-2">
-            {/* Left: the printed page snippet */}
-            <div className="flex min-w-0 flex-col">
-              <p className="mb-1 text-[12px] text-warm-meta">
-                {pagePlan && !picturePlan ? PAGE_HEADING : pictureHeading(pictureUrl ? picturePlan : null)}
-              </p>
-              {picturePlan?.mayMissParts && pictureUrl ? (
-                <p className="mb-2 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
+          // Desktop: crop top-left, the verified page under it, the question on
+          // the right. Phone (one column): crop, then the question, then the
+          // page, so the words to check are not pushed below a whole A4 page.
+          // With no crop the page is the only picture and comes first.
+          <div className="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-2 lg:grid-rows-[auto_1fr]">
+            {/* Left top: the printed question (crop). */}
+            <div className="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-1">
+              {viewPath && cropShown !== null ? (
+                <div className="flex min-w-0 flex-col">
+                  <p className="mb-1 text-[12px] text-warm-meta">{pictureHeading(cropShown ? picturePlan : null)}</p>
+                  {picturePlan?.mayMissParts && cropShown ? (
+                    <p className="mb-2 text-[13px] leading-snug text-warm-secondary">{PICTURE_MAY_MISS_PARTS}</p>
+                  ) : null}
+                  <div className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-white p-2 lg:max-h-[60vh]">
+                    {cropShown === undefined ? (
+                      <div className="h-40 animate-pulse rounded-[14px] bg-muted" aria-label="Loading the picture" />
+                    ) : (
+                      // Natural size, never stretched past it: a small crop blown
+                      // up to the panel width turned into a few giant blurry words.
+                      <img
+                        key={cropShown}
+                        src={cropShown}
+                        alt={picturePlan && picturePlan.kind !== 'own' ? 'the printed whole question' : 'the printed question'}
+                        onError={() => setPictureFailed(picturePlanKey)}
+                        className="mx-auto block h-auto max-w-full shrink-0"
+                      />
+                    )}
+                  </div>
+                </div>
               ) : null}
-              {pagePlan && !picturePlan && pictureUrl ? (
-                <PageImageViewer
-                  src={pictureUrl}
-                  alt={`the whole printed page ${pagePlan.page}, as scanned`}
-                  note={pagePlan.note}
-                  onError={() => setPictureUrl(null)}
-                />
-              ) : (
-              <div className="flex max-h-[42vh] w-full flex-col gap-2 overflow-y-auto rounded-2xl bg-white p-2 lg:max-h-[60vh]">
-                {pictureUrl === undefined ? (
-                  <div className="h-40 animate-pulse rounded-[14px] bg-muted" aria-label="Loading the picture" />
-                ) : pictureUrl ? (
-                  // Natural size, never stretched past it: a small crop blown
-                  // up to the panel width turned into a few giant blurry words.
-                  <img
-                    key={pictureUrl}
-                    src={pictureUrl}
-                    alt={picturePlan && picturePlan.kind !== 'own' ? 'the printed whole question' : 'the printed question'}
-                    onError={() => setPictureUrl(null)}
-                    className="mx-auto block h-auto max-w-full shrink-0"
-                  />
-                ) : (
-                  // D65 + W11: no trustworthy crop exists, or it failed to load.
-                  // The question is still checkable and every button works.
-                  <div className="p-6 text-center">
+
+              {!picturePlanKey ? (
+                <div className="h-40 animate-pulse rounded-2xl bg-muted" aria-label="Loading the picture" />
+              ) : null}
+
+              {picturePlanKey && !hasPicture && pictureUrl !== undefined && pageUrl !== undefined ? (
+                // D65 + W11: no trustworthy crop and no verified page, or both
+                // failed to load. The question is still checkable.
+                <div className="flex min-w-0 flex-col">
+                  <p className="mb-1 text-[12px] text-warm-meta">{pictureHeading(null)}</p>
+                  <div className="rounded-2xl bg-white p-6 text-center">
                     <p className="text-[14px] font-semibold text-foreground">{NO_PICTURE_TITLE}</p>
                     <p className="mt-1 text-[13px] text-warm-secondary">{NO_PICTURE_NOTE}</p>
                   </div>
-                )}
-              </div>
-              )}
+                </div>
+              ) : null}
               {(question.school || question.subject) && (
                 <p className="mt-1 text-[12px] text-warm-meta">
                   {[question.school ?? 'School not known', question.subject, question.cls ? `Class ${question.cls}` : null, question.year]
@@ -699,7 +732,7 @@ export function CheckerPage({
             </div>
 
             {/* Right: the question + actions */}
-            <div className="flex min-w-0 flex-col">
+            <div className="flex min-w-0 flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1">
               {blank ? (
                 <Callout tone="warn" title="There are no words to check here">
                   The computer read this question together with another one, so its words are not on this row. Press Ask
@@ -747,10 +780,40 @@ export function CheckerPage({
               {mode === 'fix' ? (
                 <div>
                   <div className="mb-2 rounded-2xl bg-brand-subtle px-3 py-2">
-                    <p className="text-[13px] font-semibold text-foreground">{FIX_RULE_TITLE}</p>
-                    <p className="text-[13px] leading-snug text-warm-secondary">{FIX_RULE_NOTE}</p>
+                    <p className="text-[13px] font-semibold text-foreground">
+                      {printedTypo ? TYPO_RULE_TITLE : FIX_RULE_TITLE}
+                    </p>
+                    <p className="text-[13px] leading-snug text-warm-secondary">
+                      {printedTypo ? TYPO_RULE_NOTE : FIX_RULE_NOTE}
+                    </p>
                   </div>
                   <BodyEditor value={bodyDraft} onChange={setBodyDraft} disabled={submitting} />
+                  {/* Owner round 24: a student may correct a typo printed on
+                      the paper. Off by default; the printed version is kept
+                      in version history and an admin can put it back. */}
+                  <label className="tap-44 mt-2 flex cursor-pointer items-start gap-2.5 rounded-2xl bg-muted px-3 py-2.5 text-[14px] text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={printedTypo}
+                      onChange={(e) => setPrintedTypo(e.target.checked)}
+                      disabled={submitting}
+                      className="mt-0.5 h-5 w-5 shrink-0 accent-brand-blue"
+                    />
+                    <span className="leading-snug">{TYPO_CHECKBOX_LABEL}</span>
+                  </label>
+                  {printedTypo ? (
+                    <label className="mt-2 flex flex-col gap-1 text-[13px] font-medium text-warm-secondary">
+                      {TYPO_NOTE_LABEL}
+                      <input
+                        value={typoNote}
+                        maxLength={TYPO_NOTE_MAX}
+                        onChange={(e) => setTypoNote(e.target.value)}
+                        disabled={submitting}
+                        placeholder="e.g. the paper printed 'teh' for 'the'"
+                        className="min-h-[44px] rounded-xl bg-muted px-3 py-2 text-[16px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      />
+                    </label>
+                  ) : null}
                   <OptionList options={question.options} />
                   {showBigEditWarning ? (
                     <p role="status" className="mt-1 text-[13px] leading-snug text-destructive">
@@ -820,6 +883,28 @@ export function CheckerPage({
                 </label>
               </div>
             </div>
+
+            {/* Left bottom: the verified whole page (owner round 24). */}
+            {pagePlan && pageShown !== null ? (
+              <div
+                className={cn(
+                  'flex min-w-0 flex-col lg:col-start-1 lg:row-start-2',
+                  !hasCrop && 'order-first lg:order-none',
+                )}
+              >
+                <p className="mb-1 text-[12px] text-warm-meta">{PAGE_HEADING}</p>
+                {pageShown === undefined ? (
+                  <div className="h-72 animate-pulse rounded-2xl bg-muted" aria-label="Loading the printed page" />
+                ) : (
+                  <PageImageViewer
+                    src={pageShown}
+                    alt={`the whole printed page ${pagePlan.page}, as scanned`}
+                    note={pagePlan.note}
+                    onError={() => setPageFailed(pagePlanKey)}
+                  />
+                )}
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -977,6 +1062,33 @@ export function CheckerPage({
       ) : null}
     </BentoStack>
   );
+}
+
+/**
+ * A short-lived signed URL for one object, re-asked whenever `key` changes.
+ * undefined = still looking (or nothing to look for yet), null = no object or
+ * it failed. One per picture: the crop and the page load side by side.
+ */
+function useSignedUrl(api: CheckerApi, key: string, path: string): string | null | undefined {
+  const [state, setState] = useState<{ key: string; url: string | null } | null>(null);
+  useEffect(() => {
+    if (!key) return;
+    if (!path) {
+      setState({ key, url: null });
+      return;
+    }
+    let cancelled = false;
+    api.pictureUrl(path).then((url) => {
+      if (!cancelled) setState({ key, url });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // `path` is part of `key`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, api]);
+  if (!key || !state || state.key !== key) return undefined;
+  return state.url;
 }
 
 /* Shaped like what it replaces: a picture box and a question box. */

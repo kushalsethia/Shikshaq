@@ -16,6 +16,9 @@ import { resolveDisplayNumber, showQuestionInstructions, marksShownInText } from
 import { passageHeading } from '@/lib/checker-english';
 import { isDoubtfulCrop } from '@/lib/checker-pictures';
 import { DebugId } from '@/components/DebugId';
+import { DebugFacts } from '@/components/admin/DebugFacts';
+import { VersionHistory } from '@/components/admin/VersionHistory';
+import { realActivityApi } from '@/lib/activity-api';
 import { useBusyActions } from '@/lib/busy-guard';
 import {
   adminPaperDraft,
@@ -646,6 +649,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
   const [fields, setFields] = useState(() => toFieldStrings(row));
   const [state, dispatch] = useReducer(autosaveReducer, initialAutosave);
   const [editing, setEditing] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const [lostText, setLostText] = useState<string | null>(null);
 
@@ -787,6 +791,7 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
         </span>
         <DebugId label="question" value={id} />
         <DebugId label="live-question" value={row.live_bank_question_id} />
+        <DebugFacts facts={{ flags: row.flag_reasons ?? [], bucket: row.review_bucket, status: row.status }} />
         <span
           aria-live="polite"
           className={cn(
@@ -810,7 +815,41 @@ const QuestionEditor = memo(function QuestionEditor({ row, depth, snippetUrl, on
             </>
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => setVersionsOpen(true)}
+          className="inline-flex min-h-11 items-center rounded-full px-3 text-[13px] font-semibold text-warm-secondary transition-colors duration-150 hover:bg-card hover:text-foreground active:scale-[0.96]"
+        >
+          Versions
+        </button>
       </div>
+
+      {versionsOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          onClick={() => setVersionsOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Version history"
+            className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-card p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <VersionHistory api={realActivityApi} table="audit_questions" rowId={id} />
+            <p className="mt-3 text-[12px] text-warm-meta">
+              After putting a version back, reload this page to see it in the editor.
+            </p>
+            <button
+              type="button"
+              onClick={() => setVersionsOpen(false)}
+              className="tap-44 mt-3 rounded-full bg-muted px-4 text-[13px] font-semibold text-warm-secondary"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {flagLines.length > 0 ? (
         <div className="mb-2.5 rounded-[12px] bg-brand-subtle px-3 py-2">

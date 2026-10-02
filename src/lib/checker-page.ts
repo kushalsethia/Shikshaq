@@ -92,6 +92,22 @@ export function planWholePage(
   return { path, page, note: findQuestionNote(question.display_number) };
 }
 
+/**
+ * Owner round 24 (2026-09-30): "students see the verified raw page always".
+ * The verified page now sits beside every question that has one, crop or
+ * not: the crop shows the question up close, the page shows where it sits
+ * and what is printed around it. Same gates as before otherwise (Maths,
+ * page_verified true, a usable page number).
+ */
+export function planVerifiedPage(question: {
+  paper_id: string;
+  display_number: string | null;
+  subject: string | null;
+  source: Source;
+}): PagePlan | null {
+  return planWholePage(question, false);
+}
+
 /** Zoom steps for the page viewer: 1 = the page fits the width of its panel. */
 export const PAGE_ZOOM_STEPS = [1, 1.5, 2, 3] as const;
 

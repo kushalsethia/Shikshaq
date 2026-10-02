@@ -56,7 +56,10 @@ interface AdminDebugContextValue {
   toggle: () => void;
 }
 
-const AdminDebugContext = createContext<AdminDebugContextValue>({
+/* Exported only so the dummy-mode wrappers (src/dummy/, compiled out of the
+   live bundle) can preview the chips without an admin sign-in. Real pages
+   read it through the hooks below; nothing else may provide it. */
+export const AdminDebugContext = createContext<AdminDebugContextValue>({
   on: false,
   canToggle: false,
   toggle: () => {},

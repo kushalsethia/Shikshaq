@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { ContextRow } from '@/lib/checker-context';
 import { mergeQueueRows } from '@/lib/paper-review-filter';
 import type { RawOption } from '@/lib/checker-options';
+import { checkerSaveRoute, TYPO_NEEDS_VERSION } from '@/lib/checker-save';
 
 /**
  * Client wrapper for the paper-checker (Kid Mode) and paper-admin RPCs added
@@ -41,6 +42,9 @@ export interface CheckerQuestion {
   cls: string | null;
   exam: string | null;
   year: string | null;
+  /** audit_questions.version, the one the checker is looking at
+   *  (20261002090000). Absent until that migration is applied. */
+  version?: number | null;
 }
 
 /** audit_questions.source (jsonb). The pipeline writes more keys than the
@@ -89,15 +93,48 @@ export async function checkerNextQuestion(): Promise<CheckerQuestion | null> {
   return rpcRow<CheckerQuestion>(data);
 }
 
-export async function checkerPassQuestion(questionId: string): Promise<void> {
+export async function checkerPassQuestion(questionId: string, version?: number | null): Promise<void> {
+  if (checkerSaveRoute(version, false) === 'locked') {
+    const { error } = await supabase.rpc('checker_pass_locked' as never, {
+      p_question_id: questionId,
+      p_expected_version: version,
+    } as never);
+    if (error) throw error;
+    return;
+  }
   const { error } = await supabase.rpc('checker_pass_question' as never, { p_question_id: questionId } as never);
   if (error) throw error;
+}
+
+export interface CheckerFixOptions {
+  /** The version the checker saw (CheckerQuestion.version). */
+  version?: number | null;
+  /** Owner round 24: the printed paper itself has a typo and the checker corrected it. */
+  printedTypo?: boolean;
+  /** What the typo was, in the checker's words (optional, max 500 characters server side). */
+  typoNote?: string | null;
 }
 
 export async function checkerFixQuestion(
   questionId: string,
   patch: { body?: string | null; display_number?: string | null; marks?: number | null },
+  options: CheckerFixOptions = {},
 ): Promise<void> {
+  const route = checkerSaveRoute(options.version, Boolean(options.printedTypo));
+  if (route === 'refuse') throw new Error(TYPO_NEEDS_VERSION);
+  if (route === 'locked') {
+    const { error } = await supabase.rpc('checker_fix_locked' as never, {
+      p_question_id: questionId,
+      p_expected_version: options.version,
+      p_body: patch.body ?? null,
+      p_display_number: patch.display_number ?? null,
+      p_marks: patch.marks ?? null,
+      p_printed_typo: Boolean(options.printedTypo),
+      p_typo_note: options.typoNote?.trim() || null,
+    } as never);
+    if (error) throw error;
+    return;
+  }
   const { error } = await supabase.rpc('checker_fix_question' as never, {
     p_question_id: questionId,
     p_body: patch.body ?? null,

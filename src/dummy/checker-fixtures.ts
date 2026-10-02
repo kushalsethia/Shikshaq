@@ -24,6 +24,7 @@ export const DUMMY_PICTURES: Record<string, string[]> = {
     '   (b) Find the total number of trees planted.     [2]',
     '   (c) Which two districts planted the same number? [1]',
   ],
+  'dummy/q-factorise.png': ['8. Factorise compleetly: 3x^2 - 12                    [2]'],
   'dummy/q-split.png': [
     '7. State two uses of a lever in daily life.          [2]',
     '8. Define power. Give its unit.                      [2]',
@@ -53,6 +54,7 @@ function q(partial: Partial<CheckerQuestion> & Pick<CheckerQuestion, 'id' | 'bod
     cls: 'X',
     exam: 'Prelims',
     year: '2025',
+    version: 1,
     ...partial,
   };
 }
@@ -70,6 +72,20 @@ export function dummyQuestions(): CheckerQuestion[] {
       body: '6. Find the value of $k$ if the points $(2, 3)$, $(4, k)$ and $(6, -3)$ are collinear.',
       flag_reasons: ['snippet_unaligned', 'display_number_missing'],
       source: { page: 3, page_verified: true, align_score: 0.41, snippet_object: 'dummy/q-not-shown.png' },
+    }),
+    // A trusted crop AND a verified page (owner round 24: the verified page
+    // sits beside every question that has one). The made-up "printed paper"
+    // has a made-up typo ("compleetly"), so the typo box can be tried here.
+    q({
+      id: 'd00000ff-0000-4000-8000-0000000000ff',
+      ord: 0.5,
+      display_number: '8',
+      marks: 2,
+      version: 3,
+      body: 'Factorise compleetly: $3x^2 - 12$',
+      flag_reasons: ['spelling_suspect'],
+      flag_detail: JSON.stringify({ spelling_suspect: 'Computer check: "compleetly" may be misspelt on the paper itself.' }),
+      source: { page: 3, page_verified: true, align_score: 0.96, snippet_object: 'dummy/q-factorise.png' },
     }),
     q({
       id: 'd0000001-0000-4000-8000-000000000001',
@@ -263,7 +279,7 @@ export function dummyPageDataUrl(path: string): string | null {
     [222, '7. A bag holds 4 red and 6 blue marbles. One is drawn at random.'],
     [244, '   (i) What is the chance it is red?                                       [1]'],
     [266, '   (ii) What is the chance it is not blue?                                [1]'],
-    [316, '8. Factorise completely: 3x^2 - 12                                         [2]'],
+    [316, '8. Factorise compleetly: 3x^2 - 12                                        [2]'],
     [366, '9. The sum of two numbers is 25 and their product is 144.'],
     [388, '   Find the numbers.                                                            [4]'],
     [800, 'Page 3 of 8'],
