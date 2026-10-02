@@ -82,6 +82,7 @@ function q(r: Partial<ReviewRow> & Pick<ReviewRow, 'id' | 'ord' | 'body'>): Revi
     flag_detail: null,
     review_bucket: 'none',
     live_bank_question_id: null,
+    set_aside_reason: null,
     ...r,
   };
 }
@@ -105,6 +106,8 @@ function v(
     actor_kind: who.kind,
     action: null,
     note: null,
+    changes: null,
+    restored_from_version: null,
     ...extra,
   };
 }
@@ -202,6 +205,7 @@ function seed(): Store {
       state: 'set_aside',
       version: 1,
       review_bucket: 'none',
+      set_aside_reason: 'The scan is torn here',
     }),
   ];
   const counts = reviewCounts(rows);
@@ -219,6 +223,7 @@ function seed(): Store {
       live_bank_paper_id: null,
       is_published: false,
       approval: 'pending',
+      approval_note: null,
       general_instructions: 'Answers to this paper must be written on the paper provided separately. The time given at the head of this paper is the time allowed for writing the answers.',
       allowed_time_minutes: 120,
     },
@@ -269,7 +274,7 @@ function seed(): Store {
     ev({ at: at(299), actor_kind: 'student', actor_name: PEOPLE.rahul, action: 'checker_pass', question_id: id(5), question_label: '4(a)' }),
     ev({ at: at(240), actor_kind: 'ai', model: 'sonnet', action: 'ai_verdict', verdict: 'pass', confidence: 0.92, question_id: id(2), question_label: '2' }),
     ev({ at: at(230), actor_kind: 'ai', model: 'sonnet', action: 'ai_fix', confidence: 0.88, question_id: id(3), question_label: '3', changes: [{ field: 'body', before: s.versions.get(id(3))![0].body, after: s.versions.get(id(3))![1].body }] }),
-    ev({ at: at(200), actor_kind: 'pipeline', action: 'set_aside', question_id: id(8), question_label: '6' }),
+    ev({ at: at(200), actor_kind: 'admin', actor_name: PEOPLE.priya, action: 'admin_set_aside', question_id: id(8), question_label: '6', note: 'The scan is torn here' }),
     ev({ at: at(108), actor_kind: 'admin', actor_name: PEOPLE.priya, action: 'admin_edit', question_id: id(2), question_label: '2', note: 'The paper prints [3] at the end', changes: [{ field: 'marks', before: 2, after: 3 }] }),
     ev({ at: at(95), actor_kind: 'student', actor_name: PEOPLE.meera, action: 'checker_fix', question_id: id(6), question_label: '4(b)', changes: [{ field: 'marks', before: 3, after: 2 }] }),
     ev({ at: at(94), actor_kind: 'student', actor_name: PEOPLE.meera, action: 'checker_ask_help', question_id: id(6), question_label: '4(b)', note: 'The scan cuts off the marks box' }),
@@ -304,6 +309,7 @@ function seed(): Store {
         approval: 'pending',
         general_instructions: null,
         allowed_time_minutes: null,
+        approval_note: null,
       },
       rows: rs,
       open_count: 0,
@@ -399,7 +405,8 @@ export function createFakeApprovalApi(delayMs = 250): ApprovalApi {
       await tick();
       const p = s.papers.get(auditPaperId);
       if (!p) throw new Error('not found');
-      if (reviewCounts(p.rows).open > 0) throw { message: 'paper has open questions' };
+      if (reviewCounts(p.rows).open > 0)
+        throw { code: '55000', message: 'This paper still has open questions. Pass or set each one aside first' };
       p.paper.approval = 'approved';
       p.paper.is_published = true;
       p.paper.live_bank_paper_id ??= `bk${auditPaperId.slice(-4)}`;
@@ -418,6 +425,7 @@ export function createFakeApprovalApi(delayMs = 250): ApprovalApi {
       await tick();
       const p = [...s.papers.values()].find((x) => x.paper.live_bank_paper_id === bankPaperId);
       if (!p) throw new Error('not found');
+      if (!p.paper.is_published) throw { code: '55000', message: 'This paper is already off the site' };
       p.paper.is_published = false;
       logPaper(p.paper.audit_paper_id, ev({ at: nowIso(), actor_kind: 'admin', actor_name: PEOPLE.arjun, action: 'admin_unpublish', note }));
     },
@@ -426,7 +434,7 @@ export function createFakeApprovalApi(delayMs = 250): ApprovalApi {
       const p = findPaperOf(s, questionId);
       const row = p?.rows.find((r) => r.id === questionId);
       if (!p || !row) throw new Error('not found');
-      if (row.version !== version) throw { message: 'stale version' };
+      if (row.version !== version) throw { code: '40001', message: 'stale version' };
       const list = s.versions.get(questionId) ?? [];
       const prev = list[list.length - 1] ?? null;
       const next = {
@@ -439,6 +447,8 @@ export function createFakeApprovalApi(delayMs = 250): ApprovalApi {
         actor_kind: 'admin' as const,
         action: 'admin_edit',
         note: note || null,
+        changes: null,
+        restored_from_version: null,
       };
       const nv = addVersion(questionId, next);
       const ver = s.versions.get(questionId)!.slice(-1)[0];
@@ -455,11 +465,35 @@ export function createFakeApprovalApi(delayMs = 250): ApprovalApi {
       const target = list.find((x) => x.version === toVersion);
       if (!p || !row || !target) throw new Error('not found');
       const prev = list[list.length - 1];
-      const nv = addVersion(questionId, { ...target, actor_name: PEOPLE.arjun, actor_kind: 'admin', action: 'admin_revert', note: note || null });
+      const nv = addVersion(questionId, { ...target, actor_name: PEOPLE.arjun, actor_kind: 'admin', action: 'admin_revert', note: note || null, changes: null, restored_from_version: toVersion });
       const ver = s.versions.get(questionId)!.slice(-1)[0];
       applyToRow(row, ver);
       logPaper(p.paper.audit_paper_id, ev({ at: ver.created_at, actor_kind: 'admin', actor_name: PEOPLE.arjun, action: 'admin_revert', to_version: toVersion, question_id: questionId, question_label: row.display_number, changes: versionChanges(prev, ver), note: note || null }));
       return nv;
+    },
+    async setQuestionState(questionId, state, note) {
+      await tick();
+      const p = findPaperOf(s, questionId);
+      const row = p?.rows.find((r) => r.id === questionId);
+      if (!p || !row) throw { code: 'P0002', message: 'Question not found' };
+      if (p.paper.approval !== 'pending')
+        throw { code: '55000', message: 'Questions can be passed or set aside only while the paper waits for approval' };
+      if (state === 'set_aside' && !note.trim()) throw { code: '22023', message: 'Say why the question is set aside' };
+      row.state = state === 'pass' ? 'passed' : state === 'set_aside' ? 'set_aside' : 'open';
+      row.set_aside_reason = state === 'set_aside' ? note : null;
+      if (state === 'pass') row.flag_reasons = [];
+      p.open_count = reviewCounts(p.rows).open;
+      const q = s.queue.find((x) => x.audit_paper_id === p.paper.audit_paper_id);
+      if (q) Object.assign(q, (({ passed, open, set_aside }) => ({ passed, open, set_aside }))(reviewCounts(p.rows)));
+      logPaper(p.paper.audit_paper_id, ev({ at: nowIso(), actor_kind: 'admin', actor_name: PEOPLE.arjun, action: state === 'pass' ? 'admin_pass' : state === 'set_aside' ? 'admin_set_aside' : 'admin_reopen', question_id: questionId, question_label: row.display_number, note: note || null }));
+      return row.state;
+    },
+    async restorePaper(bankPaperId) {
+      await tick();
+      const p = [...s.papers.values()].find((x) => x.paper.live_bank_paper_id === bankPaperId);
+      if (!p) throw { code: 'P0002', message: 'Paper not found' };
+      p.paper.is_published = true;
+      logPaper(p.paper.audit_paper_id, ev({ at: nowIso(), actor_kind: 'admin', actor_name: PEOPLE.arjun, action: 'admin_restore' }));
     },
     async questionHistory(questionId) {
       await tick();

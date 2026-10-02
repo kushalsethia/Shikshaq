@@ -293,7 +293,9 @@ export function loadPaperQuestions(paperId: string, signedIn = false): Promise<B
   if (hit) return hit;
 
   const req = Promise.resolve(
-    supabase.rpc('bank_paper_questions', { p_paper_id: paperId }),
+    // p_with_placeholders (20261003100000): held questions come back as
+    // {held: true, number, ord} with no text, and render as a placeholder card.
+    supabase.rpc('bank_paper_questions', { p_paper_id: paperId, p_with_placeholders: true } as never),
   )
     .then(({ data, error }) => {
       if (error) throw new Error(`bank questions: ${error.message}`);

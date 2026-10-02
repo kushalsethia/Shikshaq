@@ -52,6 +52,7 @@ export const MODEL_LABELS: Record<string, string> = {
 
 /** checker_kind values from content_checks (20261001090000). */
 export const CHECKER_KIND_LABELS: Record<string, string> = {
+  haiku: 'AI check (Haiku)',
   haiku_paddle: 'AI check (Haiku, from the scan)',
   haiku_pdf: 'AI check (Haiku, from the page)',
   sonnet: 'AI check (Sonnet)',
@@ -81,9 +82,14 @@ const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
  * email's local part). Defensive anyway: an email becomes its local part, a
  * uuid or a code becomes nothing, so the caller falls back to "An admin".
  */
+/** The server's own role words when it has no name (history_person_name). */
+const GENERIC_NAMES = new Set(['an admin', 'a student checker']);
+
 export function cleanPersonName(raw: string | null | undefined): string | null {
   let s = (raw ?? '').trim();
   if (!s) return null;
+  if (GENERIC_NAMES.has(s.toLowerCase())) return null;
+  if (s.startsWith('[email]')) return null;
   if (s.includes('@')) s = s.split('@')[0];
   if (UUID_RE.test(s) || /^[0-9a-f]{8,}$/i.test(s)) return null;
   if (/^(ai|system|pipeline|script)(:|$)/i.test(s)) return null;
@@ -157,6 +163,9 @@ export const FIELD_LABELS: Record<string, string> = {
   school: 'the school',
   subject: 'the subject',
   cls: 'the class',
+  class: 'the class',
+  exam_type: 'the exam',
+  max_marks: 'the total marks',
   board: 'the board',
   year: 'the year',
   exam: 'the exam',
@@ -339,14 +348,17 @@ export const ACTION_LABELS: Record<string, (c: Ctx) => string> = {
   admin_edit: (c) => (c.changes ? `changed ${c.changes}${c.on}` : `edited ${c.q}`),
   admin_revert: (c) => `restored ${c.toVersion}${c.on}`,
   admin_set_aside: (c) => `set ${c.q} aside`,
+  admin_pass: (c) => `passed ${c.q}`,
+  admin_reopen: (c) => `reopened ${c.q} for checking`,
   admin_queue: () => 'put the paper in the approval queue',
   queued_for_approval: () => 'put the paper in the approval queue',
   // earlier admin tools
   admin_draft_edit: (c) => (c.changes ? `changed ${c.changes}${c.on}` : `edited ${c.q}`),
   admin_verify_paper: () => 'verified the paper',
   admin_resolve_escalation: (c) => `answered a request for help${c.on}`,
-  admin_hide: (c) => `hid ${c.q}`,
-  admin_restore: (c) => `brought ${c.q} back`,
+  // log_action_catalog: "An admin hid a paper" / "restored a hidden paper"
+  admin_hide: () => 'took the paper off the site',
+  admin_restore: () => 'put the paper back on the site',
   admin_reapply_paper_to_live: () => 'copied the checked paper to the live site',
   admin_english_rescue_publish: () => 'published the rescued English paper',
   admin_english_rescue_unpublish: () => 'took the rescued English paper off the site',
@@ -354,6 +366,12 @@ export const ACTION_LABELS: Record<string, (c: Ctx) => string> = {
   admin_add_checker: () => 'added a checker',
   admin_revoke_checker: () => 'removed checker access',
   admin_remove_checker: () => 'removed a checker',
+  admin_undo: (c) => `undid an earlier change${c.on}`,
+  admin_add: (c) => `added ${c.q}`,
+  admin_delete: (c) => `deleted ${c.q}`,
+  admin_merge: (c) => `joined two questions into one${c.on}`,
+  admin_split: (c) => `split ${c.q} in two`,
+  admin_reorder: () => 'changed the order of the questions',
   // student checkers (Kid Mode)
   checker_pass: (c) => `said ${c.q} matches the page`,
   checker_fix: (c) => (c.changes ? `fixed a reading mistake in ${c.changes}${c.on}` : `fixed a reading mistake${c.on}`),
@@ -390,6 +408,28 @@ export const ACTION_LABELS: Record<string, (c: Ctx) => string> = {
   set_aside: (c) => `set ${c.q} aside`,
   question_set_aside: (c) => `set ${c.q} aside`,
   paper_loaded: () => 'loaded the paper for checking',
+  load: () => 'loaded the paper for checking',
+  created: (c) => `added ${c.q}`,
+  publish: () => 'published the paper',
+  autofill_metadata: (c) => `filled in the chapter and other details${c.on}`,
+  locate_page: (c) => `looked for ${c.q} on the scanned pages`,
+  pdf_mismatch_flag: () => 'noticed the scan may not match this paper',
+  auto_fix: (c) => (c.changes ? `fixed a reading mistake in ${c.changes}${c.on}` : `fixed a reading mistake${c.on}`),
+  flag_fix: (c) => `updated the warnings${c.on}`,
+  discard_mark: (c) => `removed a stray mark${c.on}`,
+  correct_pdf_match: () => 'matched the paper to its scan',
+  gap_flag: (c) => `noticed a question may be missing near ${c.q}`,
+  gap_audit_pass: () => 'checked that no question is missing',
+  gap_audit_renderer_note: () => 'left a note about how the paper displays',
+  live_match_loop_resolve: () => 'matched the paper to its live copy',
+  search_no_match_broad_resolve: () => 'found the live copy of the paper',
+  marks_from_picture: (c) => `read the marks from the picture${c.on}`,
+  picture_check_hide: () => 'hid the paper after checking its pictures',
+  revert_header: () => 'undid a change to the paper details',
+  restore: (c) => `brought ${c.q} back`,
+  live_clear: () => 'marked the live paper as complete',
+  auto_return: () => 'put the paper back on the site',
+  other: (c) => (c.changes ? `changed ${c.changes}${c.on}` : `made a change${c.on}`),
   apply_fix: (c) => (c.changes ? `applied a fix to ${c.changes}${c.on}` : `applied a fix${c.on}`),
 };
 

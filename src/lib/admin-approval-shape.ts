@@ -134,6 +134,8 @@ export interface ReviewRow {
   flag_detail: string | null;
   review_bucket: string | null;
   live_bank_question_id: string | null;
+  /** Why an admin set it aside (admin_set_question_state's note). */
+  set_aside_reason: string | null;
 }
 
 export interface ReviewPaper {
@@ -147,11 +149,14 @@ export interface ReviewPaper {
   exam: string | null;
   kind: QueueKind;
   live_bank_paper_id: string | null;
+  /** On the site right now (admin_paper_review's paper.is_live). */
   is_published: boolean;
-  /** 'approved' | 'rejected' | 'pending' */
+  /** approval_state: 'awaiting' reads as 'pending'. */
   approval: 'approved' | 'rejected' | 'pending';
   general_instructions: string | null;
   allowed_time_minutes: number | null;
+  /** The note left with the last approve or send-back. */
+  approval_note: string | null;
 }
 
 export interface PaperReview {
@@ -189,13 +194,15 @@ export function normaliseReviewRow(raw: unknown, i: number): ReviewRow {
     options: normaliseOptions(r.options),
     marks: num(r.marks),
     instructions: str(r.instructions),
-    figure: str(pick(r, 'figure', 'figure_path')),
+    // admin_paper_review sends figure as an object and figure_path as its path.
+    figure: str(r.figure_path) ?? str(r.figure),
     state: questionState(str(pick(r, 'state', 'status')), r.question_passed === true),
     version: num(pick(r, 'version', 'current_version')) ?? 1,
     flag_reasons: flags,
     flag_detail: str(r.flag_detail),
     review_bucket: str(r.review_bucket),
     live_bank_question_id: str(r.live_bank_question_id),
+    set_aside_reason: str(r.set_aside_reason),
   };
 }
 
@@ -215,16 +222,17 @@ export function normaliseReview(raw: unknown): PaperReview {
       title: str(p.title) || paperTitleFrom(base),
       ...base,
       school: str(p.school),
-      exam: str(p.exam),
+      exam: str(pick(p, 'exam', 'exam_type')),
       kind: str(p.kind) === 'retro' ? 'retro' : 'new',
       live_bank_paper_id: live,
-      is_published: p.is_published === true,
+      is_published: p.is_live === true || p.is_published === true,
       approval: approvalRaw === 'approved' || approvalRaw === 'rejected' ? approvalRaw : 'pending',
-      general_instructions: str(p.general_instructions),
+      general_instructions: str(pick(p, 'general_instructions', 'instructions')),
       allowed_time_minutes: num(p.allowed_time_minutes),
+      approval_note: str(p.approval_note),
     },
     rows,
-    open_count: num(pick(r, 'open_count', 'open')) ?? openFromRows,
+    open_count: num(pick(r, 'open_count', 'open')) ?? num(asObj(r.counts).open) ?? openFromRows,
   };
 }
 
@@ -270,6 +278,10 @@ export interface QuestionVersion {
   actor_kind: ActorKind;
   action: string | null;
   note: string | null;
+  /** What changed since the version before, when the server sends it. */
+  changes: FieldChange[] | null;
+  /** Set when this version is an admin's restore of an older one. */
+  restored_from_version: number | null;
 }
 
 export interface QuestionCheck {
@@ -355,6 +367,8 @@ export function normaliseVersion(raw: unknown): QuestionVersion {
     actor_kind: normaliseActorKind(str(r.actor_kind)),
     action: str(pick(r, 'action', 'op')),
     note: str(pick(r, 'note', 'reason')),
+    changes: Array.isArray(r.changes) ? changesFrom(r) : null,
+    restored_from_version: num(r.restored_from_version),
   };
 }
 
@@ -388,6 +402,8 @@ export function normalisePaperHistory(raw: unknown): HistoryEvent[] {
 
 /** What changed between two versions of one question, as field changes. */
 export function versionChanges(older: QuestionVersion | null, newer: QuestionVersion): FieldChange[] {
+  // admin_question_full_history sends each version's own changes; trust it.
+  if (newer.changes) return newer.changes;
   if (!older) return [];
   const out: FieldChange[] = [];
   if (older.body !== newer.body) out.push({ field: 'body', before: older.body, after: newer.body });
@@ -450,6 +466,10 @@ export interface ApprovalApi {
   revertQuestion(questionId: string, toVersion: number, note: string): Promise<number | null>;
   questionHistory(questionId: string): Promise<QuestionHistory>;
   paperHistory(auditPaperId: string): Promise<HistoryEvent[]>;
+  /** Pass, set aside (note required) or reopen one question while the paper waits. Returns the new state. */
+  setQuestionState(questionId: string, state: 'pass' | 'set_aside' | 'reopen', note: string): Promise<QuestionState>;
+  /** Undo of unpublish: admin_restore_bank_paper. */
+  restorePaper(bankPaperId: string): Promise<void>;
 }
 
 /** A version number out of whatever an RPC returned: 4, "4", {version: 4}. */
@@ -460,12 +480,36 @@ export function versionFrom(data: unknown): number | null {
   return num(pick(o, 'version', 'new_version', 'admin_edit_question', 'admin_revert_question'));
 }
 
-/** Plain words for a failed write, never the server's code. */
+/** A server message a person can read as it is: a sentence, no codes or ids. */
+function readable(message: string | null): string | null {
+  const m = (message ?? '').trim();
+  if (!m || m.length > 200) return null;
+  if (/[{}[\]]|\b[a-z]+_[a-z_]+\b|[0-9a-f]{8}-[0-9a-f]{4}-/i.test(m)) return null;
+  return /[.!?]$/.test(m) ? m : `${m}.`;
+}
+
+/**
+ * Plain words for a failed write, never the server's code.
+ *   42501  not an admin
+ *   40001  someone else changed the question first (stale version)
+ *   55000  a refusal written for people ("This paper is already off the site"): shown as it is
+ *   22023  a field that cannot be edited here, or a missing note
+ */
 export function writeErrorWords(e: unknown, fallback: string): string {
   const o = asObj(e);
-  const msg = `${str(o.message) ?? ''} ${str(o.details) ?? ''} ${str(o.hint) ?? ''}`.toLowerCase();
+  const raw = str(o.message);
+  const msg = `${raw ?? ''} ${str(o.details) ?? ''} ${str(o.hint) ?? ''}`.toLowerCase();
   const code = str(o.code) ?? '';
   if (code === '42501' || msg.includes('not authorized')) return 'Your account is not allowed to do this. Sign in as an admin and try again.';
+  if (code === '40001')
+    return 'Someone else changed this question while you were editing. Reload to see their version, then try again.';
+  if (code === '55000') return readable(raw) ?? fallback;
+  if (code === '22023') {
+    if (/cannot be edited here/.test(msg))
+      return 'Only the question text, number, marks, instructions and answer choices can be changed here.';
+    return readable(raw) ?? fallback;
+  }
+  if (code === 'P0002') return readable(raw) ?? 'That was not found. Reload the page and try again.';
   if (/still open|open question/.test(msg)) return 'Some questions are still open. Each one must be passed or set aside first.';
   if (/version|stale|conflict|changed since/.test(msg))
     return 'Someone else changed this question while you were editing. Reload to see their version, then try again.';

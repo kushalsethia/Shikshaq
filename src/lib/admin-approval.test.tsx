@@ -70,6 +70,32 @@ describe('approval RPC shapes are absorbed', () => {
     expect(r.rows[1].options).toEqual([{ label: null, text: 'x' }, { label: 'b', text: 'y' }]);
   });
 
+  it('reads admin_paper_review exactly as 20261003100000 returns it', () => {
+    const r = normaliseReview({
+      paper: {
+        audit_paper_id: 'p', title: 'T', board: 'ICSE', class: '10', subject: 'Physics', exam_type: 'Pre-board',
+        instructions: 'Answer all.', approval_state: 'awaiting', kind: 'retro', live_bank_paper_id: 'b1', is_live: true,
+        approval_note: null,
+      },
+      counts: { total: 2, passed: 1, open: 1, set_aside: 0 },
+      open: 1,
+      pages: [{ page: 1, object_path: 'x' }],
+      rows: [
+        { id: 's', ord: 0, kind: 'section_break', body: 'Section A', state: 'section' },
+        { id: 'a', ord: 1, kind: 'question', body: 'one', state: 'passed', figure: { path: 'f/1.webp' }, figure_path: 'f/1.webp', version: 2 },
+        { id: 'b', ord: 2, kind: 'question', body: 'two', state: 'open', status: 'passed', set_aside_reason: null },
+      ],
+    });
+    expect(r.paper.cls).toBe('10');
+    expect(r.paper.exam).toBe('Pre-board');
+    expect(r.paper.general_instructions).toBe('Answer all.');
+    expect(r.paper.approval).toBe('pending');
+    expect(r.paper.is_published).toBe(true);
+    expect(r.open_count).toBe(1);
+    expect(r.rows[1].figure).toBe('f/1.webp');
+    expect(r.rows[2].state).toBe('open');
+  });
+
   it('turns audit_review_log before/after objects into field changes', () => {
     expect(
       changesFrom({ before: { body: 'a', marks: 2, display_number: '1' }, after: { body: 'b', marks: 2, display_number: '1' } }),
@@ -107,6 +133,17 @@ describe('approval RPC shapes are absorbed', () => {
     expect(writeErrorWords({ message: 'paper has open questions' }, 'x')).toMatch(/still open/);
     expect(writeErrorWords({ message: 'stale version 3' }, 'x')).toMatch(/Someone else changed/);
     expect(writeErrorWords(new Error('boom'), 'fallback')).toBe('fallback');
+    expect(writeErrorWords({ code: '55000', message: 'This paper is already off the site' }, 'x')).toBe(
+      'This paper is already off the site.',
+    );
+    expect(writeErrorWords({ code: '55000', message: 'bad live_bank_question_id' }, 'fallback')).toBe('fallback');
+    expect(writeErrorWords({ code: '40001', message: 'could not serialize' }, 'x')).toMatch(/Someone else changed/);
+    expect(writeErrorWords({ code: '22023', message: 'These fields cannot be edited here: kind' }, 'x')).toMatch(
+      /Only the question text/,
+    );
+    expect(writeErrorWords({ code: '22023', message: 'Say why the question is set aside' }, 'x')).toBe(
+      'Say why the question is set aside.',
+    );
   });
 });
 
@@ -163,6 +200,33 @@ describe('rendered history reads like people', () => {
     expect(h.versions.map((v) => v.version)).toEqual([1, 2, 3]);
     expect(h.versions[2].marks).toBe(5);
     await expect(api.editQuestion(q.id, 1, { marks: 7 }, '')).rejects.toBeTruthy();
+  });
+});
+
+describe('resolving open questions', () => {
+  it('pass and set aside bring the open count to zero, then approval goes through', async () => {
+    const api = createFakeApprovalApi(0);
+    const review = await api.review(FIXTURE_PAPER_ID);
+    const open = review.rows.filter((r) => r.kind === 'question' && r.state === 'open');
+    expect(open.length).toBeGreaterThan(0);
+    await expect(api.setQuestionState(open[0].id, 'set_aside', '')).rejects.toMatchObject({ code: '22023' });
+    for (const q of open) expect(await api.setQuestionState(q.id, 'pass', '')).toBe('passed');
+    expect((await api.review(FIXTURE_PAPER_ID)).open_count).toBe(0);
+    await api.approve(FIXTURE_PAPER_ID, '');
+    const t = text(renderToStaticMarkup(<HistoryList events={await api.paperHistory(FIXTURE_PAPER_ID)} now={FIXTURE_NOW} />));
+    expect(t).toContain('Arjun Mehta passed question 4(b)');
+    expect(t).toContain('Priya Sharma set question 6 aside');
+  });
+
+  it('take off the site, then put back', async () => {
+    const api = createFakeApprovalApi(0);
+    const queue = await api.queue();
+    const retro = queue.find((q) => q.kind === 'retro')!;
+    await api.unpublish(retro.live_bank_paper_id!, 'Wrong school');
+    expect((await api.review(retro.audit_paper_id)).paper.is_published).toBe(false);
+    await expect(api.unpublish(retro.live_bank_paper_id!, 'again')).rejects.toMatchObject({ code: '55000' });
+    await api.restorePaper(retro.live_bank_paper_id!);
+    expect((await api.review(retro.audit_paper_id)).paper.is_published).toBe(true);
   });
 });
 

@@ -4,6 +4,7 @@ import {
   normaliseQuestionHistory,
   normaliseQueueRow,
   normaliseReview,
+  questionState,
   versionFrom,
   type ApprovalApi,
 } from '@/lib/admin-approval-shape';
@@ -17,23 +18,22 @@ import {
    spelled once each in realApprovalApi. Shapes are absorbed by the
    normalisers in admin-approval-shape.ts.
 
-   NOTE admin_paper_queue: a function with this name ALREADY exists (the
-   /admin/paper-review list, 20260929100000_plumbing_step1.sql) with a
-   different return type. Postgres cannot change a return type with
-   CREATE OR REPLACE, so the backend either renames the new one or drops the
-   old one (and /admin/paper-review with it). Change RPC.queue to whatever
-   the migration ships. */
+   Names and shapes match supabase/migrations/20261003100000_admin_paper_approval.sql
+   (the queue is admin_approval_queue, not admin_paper_queue, which stays
+   the /admin/paper-review list). */
 
 export const RPC = {
-  queue: 'admin_paper_queue',
+  queue: 'admin_approval_queue',
   review: 'admin_paper_review',
   approve: 'admin_approve_paper',
   reject: 'admin_reject_paper',
   unpublish: 'admin_unpublish_paper',
   edit: 'admin_edit_question',
   revert: 'admin_revert_question',
-  questionHistory: 'admin_question_history',
-  paperHistory: 'admin_paper_history',
+  questionHistory: 'admin_question_full_history',
+  paperHistory: 'admin_paper_full_history',
+  setState: 'admin_set_question_state',
+  restorePaper: 'admin_restore_bank_paper',
 } as const;
 
 async function call(fn: string, args?: Record<string, unknown>): Promise<unknown> {
@@ -75,5 +75,12 @@ export const realApprovalApi: ApprovalApi = {
   },
   async paperHistory(auditPaperId) {
     return normalisePaperHistory(await call(RPC.paperHistory, { p_audit_paper_id: auditPaperId }));
+  },
+  async setQuestionState(questionId, state, note) {
+    const data = await call(RPC.setState, { p_question_id: questionId, p_state: state, p_note: note || null });
+    return questionState(typeof data === 'string' ? data : null);
+  },
+  async restorePaper(bankPaperId) {
+    await call(RPC.restorePaper, { p_paper_id: bankPaperId });
   },
 };

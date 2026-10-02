@@ -32,14 +32,17 @@ export function ReviewQuestionCard({
   depth,
   api,
   onSaved,
+  canResolve = false,
   now,
 }: {
   row: ReviewRow;
   /** The number shown on the badge (display number, else the printed path). */
   label: string | null;
   depth: number;
-  api: Pick<ApprovalApi, 'editQuestion' | 'questionHistory' | 'revertQuestion'>;
+  api: Pick<ApprovalApi, 'editQuestion' | 'questionHistory' | 'revertQuestion' | 'setQuestionState'>;
   onSaved: () => void;
+  /** Pass / Set aside / Reopen are offered only while the paper waits for approval. */
+  canResolve?: boolean;
   now?: Date;
 }) {
   const [editing, setEditing] = useState(false);
@@ -52,6 +55,30 @@ export function ReviewQuestionCard({
   const pill = STATE_PILL[row.state];
   const why = row.state === 'open' ? adminFlagLines(row.flag_reasons, row.flag_detail) : [];
   const qName = label ? `question ${label}` : 'this question';
+  const [asideOpen, setAsideOpen] = useState(false);
+  const [asideNote, setAsideNote] = useState('');
+  const [resolving, setResolving] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+
+  async function resolve(state: 'pass' | 'set_aside' | 'reopen') {
+    if (state === 'set_aside' && !asideNote.trim()) {
+      setResolveError('Say why it is set aside. The note is shown in the history.');
+      return;
+    }
+    setResolving(true);
+    setResolveError(null);
+    try {
+      await api.setQuestionState(row.id, state, state === 'set_aside' ? asideNote.trim() : '');
+      setAsideOpen(false);
+      setAsideNote('');
+      setVersionsKey((k) => k + 1);
+      onSaved();
+    } catch (e) {
+      setResolveError(writeErrorWords(e, 'That did not go through. Nothing was changed. Try again.'));
+    } finally {
+      setResolving(false);
+    }
+  }
 
   function startEdit() {
     setDraft(draftOf(row));
@@ -213,7 +240,88 @@ export function ReviewQuestionCard({
       ) : null}
       {row.state === 'set_aside' ? (
         <p className="mt-2 text-[13px] text-warm-secondary">
-          Set aside. Visitors see a short card saying this question is being checked, with no text.
+          Set aside{row.set_aside_reason ? `: ${row.set_aside_reason}` : '.'} Visitors see a short card saying this question is
+          being checked, with no text.
+        </p>
+      ) : null}
+
+      {!editing && canResolve ? (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {row.state === 'open' ? (
+            <>
+              <button
+                type="button"
+                disabled={resolving}
+                onClick={() => void resolve('pass')}
+                aria-label={`Pass ${qName}`}
+                className="inline-flex min-h-10 items-center rounded-full bg-mint px-3.5 text-[13px] font-bold text-[#24603D] transition-transform duration-150 hover:brightness-95 active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Pass
+              </button>
+              <button
+                type="button"
+                disabled={resolving}
+                aria-expanded={asideOpen}
+                onClick={() => {
+                  setAsideOpen((v) => !v);
+                  setResolveError(null);
+                }}
+                aria-label={`Set ${qName} aside`}
+                className="inline-flex min-h-10 items-center rounded-full bg-[#F9E2E2] px-3.5 text-[13px] font-bold text-[#8C2A2A] transition-transform duration-150 hover:brightness-95 active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Set aside
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={resolving}
+              onClick={() => void resolve('reopen')}
+              aria-label={`Reopen ${qName}`}
+              className="inline-flex min-h-10 items-center rounded-full bg-card px-3.5 text-[13px] font-bold text-warm-secondary transition-transform duration-150 hover:bg-warm-hairline active:scale-[0.96] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Reopen
+            </button>
+          )}
+          {resolving ? <span className="text-[13px] text-warm-meta">Saving...</span> : null}
+        </div>
+      ) : null}
+      {asideOpen && row.state === 'open' ? (
+        <div className="mt-2 rounded-[14px] bg-card p-3">
+          <label className="flex flex-col gap-1 text-[12px] font-semibold text-warm-secondary">
+            Why is it set aside? (shown in the history)
+            <input
+              value={asideNote}
+              onChange={(e) => setAsideNote(e.target.value)}
+              maxLength={300}
+              placeholder="For example: the scan is torn here"
+              className="min-h-10 rounded-xl bg-muted px-3 text-[14px] text-foreground outline-none placeholder:text-warm-label focus-visible:ring-2 focus-visible:ring-brand"
+            />
+          </label>
+          <p className="mt-1 text-[12px] text-warm-meta">Visitors see a short placeholder card instead of this question.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={resolving}
+              onClick={() => void resolve('set_aside')}
+              className="inline-flex min-h-10 items-center rounded-full bg-panel px-4 text-[13px] font-bold text-background transition-transform duration-150 active:scale-[0.96] disabled:opacity-60"
+            >
+              {resolving ? 'Setting aside...' : 'Set aside'}
+            </button>
+            <button
+              type="button"
+              disabled={resolving}
+              onClick={() => setAsideOpen(false)}
+              className="inline-flex min-h-10 items-center rounded-full bg-muted px-4 text-[13px] font-semibold text-warm-secondary"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {resolveError ? (
+        <p role="alert" className="mt-2 text-[13px] text-destructive">
+          {resolveError}
         </p>
       ) : null}
 

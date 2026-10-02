@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Bot, ChevronDown, Cog, GraduationCap, UserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { historyLine, shownChanges, type ActorKind } from '@/lib/history-labels';
@@ -24,7 +25,10 @@ const KIND_TINT: Record<ActorKind, string> = {
   pipeline: 'bg-muted text-warm-secondary',
 };
 
-export function HistoryItem({ event, now }: { event: HistoryEvent; now?: Date }) {
+/** Where a line happened, for logs that span papers (the checker log). */
+export type PaperRef = { title: string; to: string | null };
+
+export function HistoryItem({ event, now, paper }: { event: HistoryEvent; now?: Date; paper?: PaperRef | null }) {
   const [open, setOpen] = useState(false);
   const { who, what, when, note } = historyLine(event, now);
   const Icon = KIND_ICON[event.actor_kind];
@@ -39,7 +43,21 @@ export function HistoryItem({ event, now }: { event: HistoryEvent; now?: Date })
         <p className="text-pretty text-[14px] leading-[1.5] text-foreground">
           <span className="font-bold">{who}</span> {what}
         </p>
-        <p className="text-[12px] tabular-nums text-warm-meta">{when}</p>
+        <p className="text-[12px] tabular-nums text-warm-meta">
+          {when}
+          {paper ? (
+            <>
+              {' · '}
+              {paper.to ? (
+                <Link to={paper.to} className="font-semibold text-brand-blue hover:text-brand-blue-deep">
+                  {paper.title}
+                </Link>
+              ) : (
+                <span className="font-semibold text-warm-secondary">{paper.title}</span>
+              )}
+            </>
+          ) : null}
+        </p>
         {note ? (
           <p className="mt-1 rounded-[10px] bg-muted px-2.5 py-1.5 text-[13px] text-warm-prose">
             <span className="font-semibold">Note:</span> {note}
@@ -64,14 +82,24 @@ export function HistoryItem({ event, now }: { event: HistoryEvent; now?: Date })
   );
 }
 
-export function HistoryList({ events, now, empty }: { events: HistoryEvent[]; now?: Date; empty?: string }) {
+export function HistoryList<E extends HistoryEvent>({
+  events,
+  now,
+  empty,
+  paperFor,
+}: {
+  events: E[];
+  now?: Date;
+  empty?: string;
+  paperFor?: (e: E) => PaperRef | null;
+}) {
   if (!events.length) {
     return <p className="rounded-2xl bg-muted p-4 text-[13px] text-warm-secondary">{empty ?? 'Nothing has happened here yet.'}</p>;
   }
   return (
     <ol className="divide-y divide-warm-hairline" aria-label="History, newest first">
       {events.map((e, i) => (
-        <HistoryItem key={`${e.at}-${e.action}-${i}`} event={e} now={now} />
+        <HistoryItem key={`${e.at}-${e.action}-${i}`} event={e} now={now} paper={paperFor?.(e) ?? null} />
       ))}
     </ol>
   );

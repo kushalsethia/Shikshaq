@@ -75,9 +75,20 @@ const DB_ACTIONS = [
   'admin_reject',
   'admin_unpublish',
   'admin_revert',
+  // log_action_catalog, all three migrations that fill it:
+  // 20260930090000_admin_hardening, 20261002090000_checker_versions_and_activity,
+  // 20261003100000_admin_paper_approval
+  'admin_add', 'admin_delete', 'admin_merge', 'admin_pass', 'admin_reopen', 'admin_reorder',
+  'admin_set_aside', 'admin_split', 'admin_undo', 'auto_fix', 'auto_return', 'autofill_metadata',
+  'correct_pdf_match', 'created', 'discard_mark', 'flag_fix', 'gap_audit_pass', 'gap_audit_renderer_note',
+  'gap_flag', 'live_clear', 'live_match_loop_resolve', 'load', 'locate_page', 'marks_from_picture',
+  'pdf_mismatch_flag', 'picture_check_hide', 'publish', 'queued_for_approval', 'restore', 'revert_header',
+  'search_no_match_broad_resolve',
+  // history_events(): uncatalogued actions arrive as 'other'
+  'other',
 ];
 
-const CHECKER_KINDS = ['haiku_paddle', 'haiku_pdf', 'sonnet', 'student', 'admin'];
+const CHECKER_KINDS = ['haiku', 'haiku_paddle', 'haiku_pdf', 'sonnet', 'student', 'admin'];
 const VERDICTS = ['pass', 'fix', 'printed_typo', 'escalate', 'flag'];
 const REVIEW_BUCKETS = ['kid', 'admin', 'data', 'renderer', 'none', 'escalated'];
 const FIELDS = [
@@ -99,6 +110,9 @@ const FIELDS = [
   'school',
   'year',
   'exam',
+  // history_readable_fields() in 20261003100000_admin_paper_approval.sql
+  'section_label', 'chapter', 'alternative_label', 'alternative_group', 'suggested_time_minutes',
+  'subject', 'cls', 'class', 'board', 'exam_type', 'title',
 ];
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -119,6 +133,20 @@ describe('history labels cover every code', () => {
   it('has a label for every action code the database emits', () => {
     const missing = DB_ACTIONS.filter((a) => !ACTION_LABELS[a]);
     expect(missing).toEqual([]);
+  });
+
+  it('has a label for every action in any log_action_catalog insert in the repo', () => {
+    const dir = 'supabase/migrations';
+    const found = new Set<string>();
+    for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql'))) {
+      const sql = readFileSync(join(dir, f), 'utf8');
+      const re = /insert into public\.log_action_catalog[\s\S]*?;/gi;
+      for (const block of sql.match(re) ?? []) {
+        for (const m of block.matchAll(/\(\s*'([a-z_]+)'\s*,\s*'[a-z]+'/g)) found.add(m[1]);
+      }
+    }
+    expect(found.size).toBeGreaterThan(10);
+    expect([...found].filter((a) => !ACTION_LABELS[a])).toEqual([]);
   });
 
   it('has a label for every checker kind, verdict, review pile and field', () => {
@@ -146,6 +174,11 @@ describe('history labels cover every code', () => {
     expect(actorLabel({ actor_kind: 'ai', model: 'sonnet' })).toBe('AI check (Sonnet)');
     expect(actorLabel({ actor_kind: 'system' })).toBe('Pipeline (automatic)');
     expect(cleanPersonName('ai:sonnet')).toBeNull();
+    // the server's own fallbacks (history_actor / history_person_name)
+    expect(actorLabel({ actor_kind: 'student', actor_name: 'A student checker' })).toBe('A student checker');
+    expect(actorLabel({ actor_kind: 'admin', actor_name: 'An admin' })).toBe('An admin');
+    expect(actorLabel({ actor_kind: 'ai', actor_name: 'AI check (Haiku)' })).toBe('AI check (Haiku)');
+    expect(actorLabel({ checker_kind: 'haiku', actor_name: 'AI check (Haiku)' })).toBe('AI check (Haiku)');
   });
 
   it('writes the owner\'s own examples', () => {

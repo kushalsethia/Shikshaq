@@ -46,7 +46,7 @@ const DummyPaperApproval = PREVIEW_TOOLS ? lazy(() => import('@/dummy/AdminPaper
      sentences. Owner, 2026-10-02: "That this user edited this. And that user
      edited this." */
 
-type Action = 'approve' | 'reject' | 'unpublish';
+type Action = 'approve' | 'reject' | 'unpublish' | 'restore';
 
 const ACTION_COPY: Record<Action, { title: string; body: string; button: string; busy: string; noteLabel: string; needsNote: boolean }> = {
   approve: {
@@ -72,6 +72,14 @@ const ACTION_COPY: Record<Action, { title: string; body: string; button: string;
     busy: 'Taking it off...',
     noteLabel: 'Why',
     needsNote: true,
+  },
+  restore: {
+    title: 'Put this paper back on the site?',
+    body: 'Visitors can read it again at once, with the questions as they are now. Set-aside questions still show as placeholder cards.',
+    button: 'Put it back',
+    busy: 'Putting it back...',
+    noteLabel: '',
+    needsNote: false,
   },
 };
 
@@ -187,9 +195,12 @@ export function AdminPaperApprovalPage({
       } else if (action === 'reject') {
         await api.reject(review.paper.audit_paper_id, note.trim());
         adminToast('Paper sent back. It stays off the site.');
-      } else if (review.paper.live_bank_paper_id) {
+      } else if (action === 'unpublish' && review.paper.live_bank_paper_id) {
         await api.unpublish(review.paper.live_bank_paper_id, note.trim());
         adminToast('Paper taken off the site.');
+      } else if (action === 'restore' && review.paper.live_bank_paper_id) {
+        await api.restorePaper(review.paper.live_bank_paper_id);
+        adminToast('Paper is back on the site.');
       }
       setAction(null);
       setNote('');
@@ -247,8 +258,9 @@ export function AdminPaperApprovalPage({
 
   const { paper } = review;
   const open = review.open_count || counts.open;
-  const isLive = Boolean(paper.live_bank_paper_id) && (paper.is_published || paper.kind === 'retro');
+  const isLive = Boolean(paper.live_bank_paper_id) && paper.is_published;
   const approved = paper.approval === 'approved';
+  const wasLive = Boolean(paper.live_bank_paper_id) && !paper.is_published && (approved || paper.kind === 'retro');
   const rejected = paper.approval === 'rejected';
   const copy = action ? ACTION_COPY[action] : null;
   const meta = [paper.school ? displaySchool(paper.school) : null, paper.exam, paper.year].filter(Boolean).join(' · ');
@@ -275,6 +287,7 @@ export function AdminPaperApprovalPage({
             {paper.kind === 'retro' ? <AdminStatusPill status="live" label="Already live" /> : null}
             {approved ? <AdminStatusPill status="live" label="Approved" /> : null}
             {rejected ? <AdminStatusPill status="hidden" label="Sent back" /> : null}
+            {wasLive ? <AdminStatusPill status="paused" label="Off the site" /> : null}
             {!approved && !rejected ? <AdminStatusPill status="pending" label="Waiting for approval" /> : null}
           </div>
         </div>
@@ -340,6 +353,19 @@ export function AdminPaperApprovalPage({
               Take off the site
             </button>
           ) : null}
+          {wasLive ? (
+            <button
+              type="button"
+              onClick={() => {
+                setAction('restore');
+                setNote('');
+                setActionError(null);
+              }}
+              className={adminSecondaryBtnStyle}
+            >
+              Put back on the site
+            </button>
+          ) : null}
           <a href="#paper-history" className={cn(adminSecondaryBtnStyle, 'lg:hidden')}>
             History
           </a>
@@ -379,6 +405,7 @@ export function AdminPaperApprovalPage({
                   depth={depths.get(r.id) ?? 0}
                   api={api}
                   onSaved={afterWrite}
+                  canResolve={paper.approval === 'pending'}
                   now={now}
                 />
               );
@@ -408,6 +435,7 @@ export function AdminPaperApprovalPage({
             <>
               <DialogTitle className="text-balance text-xl font-bold text-foreground">{copy.title}</DialogTitle>
               <p className="mt-2 text-[14px] text-warm-secondary">{copy.body}</p>
+              {copy.noteLabel ? (
               <label className="mt-3 flex flex-col gap-1 text-[12px] font-semibold text-warm-secondary">
                 {copy.noteLabel}
                 <textarea
@@ -418,6 +446,7 @@ export function AdminPaperApprovalPage({
                   className="rounded-xl bg-muted px-3 py-2 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 />
               </label>
+              ) : null}
               {actionError ? (
                 <p role="alert" className="mt-2 text-[13px] text-destructive">
                   {actionError}

@@ -96,6 +96,7 @@ export type AdminSectionKey =
   | 'papers'
   | 'paper-review'
   | 'paper-approvals'
+  | 'checker-log'
   | 'team'
   | 'activity'
   | 'reviews'
@@ -132,6 +133,7 @@ export function buildAdminNav(
     { key: 'reviews', label: 'Reviews', path: '/admin/reviews', count: counts.reviews, active: active === 'reviews' },
     { key: 'feedback', label: 'Feedback', path: '/admin/feedback', active: active === 'feedback' },
     { key: 'checkers', label: 'Checkers', path: '/admin/checkers', active: active === 'checkers' },
+    { key: 'checker-log', label: 'Checker log', path: '/admin/checker-log', active: active === 'checker-log' },
     { key: 'audit', label: 'Audit', path: '/admin/audit', active: active === 'audit' },
   ];
 }

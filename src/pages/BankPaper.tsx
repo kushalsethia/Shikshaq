@@ -436,7 +436,7 @@ export default function BankPaper() {
      The old "not applied while filtering" exemption is gone with the rows it
      protected: filtering cannot reveal a question the client never received. */
   const withheld =
-    paper && !user ? Math.max(0, paper.questionCount - questions.length) : 0;
+    paper && !user ? Math.max(0, paper.questionCount - questions.filter((row) => !row.held).length) : 0;
   const filtering = Boolean(chapter || needle);
 
   /* Title and description come from src/lib/paper-seo.ts, the same builder
