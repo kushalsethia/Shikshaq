@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { InfoTip } from '@/components/admin/AdminHelp';
 
 /* Handoff 09i AD-003/AD-004 — the one AdminTable column template shared by
    every admin section (approvals, teachers, papers, reviews-as-table
@@ -87,6 +88,8 @@ export interface AdminTableColumn {
   label: string;
   /** Tailwind grid-template-columns fraction, e.g. "2.2fr". */
   width: string;
+  /** Plain-words explanation of the column, opened from a small "i" in the header. */
+  hint?: string;
 }
 
 export interface AdminTableRow {
@@ -144,8 +147,9 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
           style={SUBGRID_ROW}
         >
           {columns.map((c) => (
-            <span role="columnheader" key={c.key} className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
+            <span role="columnheader" key={c.key} className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
               {c.label}
+              {c.hint ? <InfoTip text={c.hint} label={c.label} /> : null}
             </span>
           ))}
           {/* The actions column is unlabelled by design, but a header cell
@@ -193,8 +197,9 @@ export function AdminTable({ columns, rows, className, readOnly }: AdminTablePro
                 {row.cells.slice(1).map((cell, i) => (
                   <div key={i} className="min-w-0">
                     {columns[i + 1] ? (
-                      <dt className="text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
+                      <dt className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.06em] text-warm-label">
                         {columns[i + 1].label}
+                        {columns[i + 1].hint ? <InfoTip text={columns[i + 1].hint} label={columns[i + 1].label} /> : null}
                       </dt>
                     ) : null}
                     <dd className="truncate text-[14px] leading-[1.45] text-warm-prose">{cell}</dd>

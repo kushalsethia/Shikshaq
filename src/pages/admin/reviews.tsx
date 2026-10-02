@@ -24,6 +24,8 @@ import {
   AdminGuardErrorState,
 } from '@/components/AdminConsole';
 import { AdminHeader, AdminAuditNote, buildAdminNav } from '@/pages/admin/shell';
+import { AdminPageIntroPanel } from '@/components/admin/AdminHelp';
+import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { AdminStatusPill, AdminRowActions, type AdminStatus, type AdminRowAction } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { useConfirm } from '@/components/ui/use-confirm';
@@ -639,7 +641,8 @@ export default function AdminReviews() {
   const pendingReviewsCount = useMemo(() => comments.filter((c) => !c.approved).length, [comments]);
   const pendingRecsCount = useMemo(() => recommendations.filter((r) => r.status === 'pending').length, [recommendations]);
 
-  const nav = buildAdminNav('reviews', { reviews: pendingReviewsCount + pendingRecsCount || undefined });
+  const sectionCounts = useAdminSectionCounts();
+  const nav = buildAdminNav('reviews', { ...sectionCounts, reviews: pendingReviewsCount + pendingRecsCount || undefined });
 
   const sourceTabs: { key: Source; label: string; count: number }[] = [
     { key: 'reviews', label: 'Reviews', count: pendingReviewsCount },
@@ -753,6 +756,7 @@ export default function AdminReviews() {
   return (
     <BentoStack className="min-h-screen bg-muted">
       <AdminHeader nav={nav} signedInEmail={user?.email ?? signedInName} />
+      <AdminPageIntroPanel page="reviews" />
 
       <BentoPanel fill="card" className="px-5 py-[18px] lg:px-5 lg:py-[18px]">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-[18px]">

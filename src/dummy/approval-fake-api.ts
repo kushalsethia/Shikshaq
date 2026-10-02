@@ -1,5 +1,6 @@
 import type {
   ApprovalApi,
+  ApprovalHistoryRow,
   ApprovalQueueRow,
   HistoryEvent,
   PaperReview,
@@ -43,6 +44,7 @@ const PEOPLE = {
 
 type Store = {
   queue: ApprovalQueueRow[];
+  decided: ApprovalHistoryRow[];
   papers: Map<string, PaperReview>;
   versions: Map<string, QuestionVersion[]>;
   events: Map<string, HistoryEvent[]>; // by question id
@@ -115,6 +117,7 @@ function v(
 function seed(): Store {
   const s: Store = {
     queue: [],
+    decided: [],
     papers: new Map(),
     versions: new Map(),
     events: new Map(),
@@ -329,6 +332,28 @@ function seed(): Store {
     ]);
   }
 
+  s.decided = [
+    {
+      audit_paper_id: 'f1a00000-0000-4000-8000-0000000000d1',
+      title: 'ICSE Class 10 Chemistry, 2023',
+      kind: 'new',
+      state: 'approved',
+      by_name: PEOPLE.arjun,
+      at: at(60 * 26),
+      note: 'Read through, two numbers fixed.',
+      live_bank_paper_id: 'bkd001',
+    },
+    {
+      audit_paper_id: 'f1a00000-0000-4000-8000-0000000000d2',
+      title: 'CBSE Class 9 Science, 2022',
+      kind: 'new',
+      state: 'rejected',
+      by_name: PEOPLE.priya,
+      at: at(60 * 50),
+      note: 'Half the pages are missing from the scan.',
+      live_bank_paper_id: null,
+    },
+  ];
   s.queue = [
     { pid: P_PHYSICS, ai: { pass: 6, fix: 1, student: 2 }, queued: 60 },
     { pid: P_GEO, ai: { pass: 6, fix: 0, student: 0 }, queued: 80 },
@@ -392,6 +417,10 @@ export function createFakeApprovalApi(delayMs = 250): ApprovalApi {
   }
 
   return {
+    async history() {
+      await tick();
+      return s.decided.map((r) => ({ ...r }));
+    },
     async queue() {
       await tick();
       return s.queue.map((r) => ({ ...r }));
@@ -411,6 +440,8 @@ export function createFakeApprovalApi(delayMs = 250): ApprovalApi {
       p.paper.is_published = true;
       p.paper.live_bank_paper_id ??= `bk${auditPaperId.slice(-4)}`;
       logPaper(auditPaperId, ev({ at: nowIso(), actor_kind: 'admin', actor_name: PEOPLE.arjun, action: p.paper.kind === 'retro' ? 'admin_retro_approve' : 'admin_approve', note }));
+      const done = s.queue.find((r) => r.audit_paper_id === auditPaperId);
+      s.decided.unshift({ audit_paper_id: auditPaperId, title: p.paper.title, kind: done?.kind ?? 'new', state: 'approved', by_name: PEOPLE.arjun, at: nowIso(), note: note || null, live_bank_paper_id: p.paper.live_bank_paper_id });
       s.queue = s.queue.filter((r) => r.audit_paper_id !== auditPaperId);
       return p.paper.live_bank_paper_id;
     },

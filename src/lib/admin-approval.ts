@@ -3,6 +3,7 @@ import {
   normalisePaperHistory,
   normaliseQuestionHistory,
   normaliseQueueRow,
+  normaliseHistoryRow,
   normaliseReview,
   questionState,
   versionFrom,
@@ -24,6 +25,7 @@ import {
 
 export const RPC = {
   queue: 'admin_approval_queue',
+  history: 'admin_approval_history',
   review: 'admin_paper_review',
   approve: 'admin_approve_paper',
   reject: 'admin_reject_paper',
@@ -46,6 +48,10 @@ export const realApprovalApi: ApprovalApi = {
   async queue() {
     const data = await call(RPC.queue);
     return (Array.isArray(data) ? data : []).map(normaliseQueueRow).filter((r) => r.audit_paper_id);
+  },
+  async history() {
+    const data = await call(RPC.history, { p_limit: 200 });
+    return (Array.isArray(data) ? data : []).map(normaliseHistoryRow).filter((r) => r.audit_paper_id);
   },
   async review(auditPaperId) {
     return normaliseReview(await call(RPC.review, { p_audit_paper_id: auditPaperId }));

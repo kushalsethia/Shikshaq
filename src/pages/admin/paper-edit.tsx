@@ -4,6 +4,7 @@ import { Clock, FileText, Pencil } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useAdminGuard, AdminGuardErrorState, adminToast, adminPrimaryBtnStyle, adminSecondaryBtnStyle } from '@/components/AdminConsole';
 import { AdminHeader, buildAdminNav } from '@/pages/admin/shell';
+import { useAdminSectionCounts } from '@/pages/admin/useAdminSectionCounts';
 import { AdminStatusPill } from '@/pages/admin/AdminTable';
 import { BentoPanel, BentoStack } from '@/components/layout/PageContainer';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -234,7 +235,8 @@ export default function AdminPaperEditPage() {
     [paperId, runBusy],
   );
 
-  const nav = buildAdminNav('paper-review', {});
+  const sectionCounts = useAdminSectionCounts();
+  const nav = buildAdminNav('library', sectionCounts);
 
   if (checkingAdmin) {
     return (
@@ -272,8 +274,8 @@ export default function AdminPaperEditPage() {
       <AdminHeader nav={nav} signedInEmail={user?.email ?? actorName} />
 
       <BentoPanel fill="card" className="px-4 py-[18px] lg:px-[18px]">
-        <Link to="/admin/paper-review" className="inline-flex min-h-11 items-center text-[13px] font-semibold text-warm-secondary hover:text-foreground">
-          Back to paper review
+        <Link to="/admin/library" className="inline-flex min-h-11 items-center text-[13px] font-semibold text-warm-secondary hover:text-foreground">
+          Back to the Library
         </Link>
 
         {loading && rows.length === 0 ? (

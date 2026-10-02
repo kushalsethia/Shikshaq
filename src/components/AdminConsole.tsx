@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { InfoTip } from '@/components/admin/AdminHelp';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { saveAuthRedirect } from '@/utils/authRedirect';
@@ -261,16 +262,19 @@ export const adminFieldStyle = 'min-h-[48px] rounded-xl bg-muted';
  * bigger hero treatment — but a page of nothing but rows and pills reads as flat, and this is
  * a free device to reuse since it only ever renders numbers each page has already fetched.
  */
-export function AdminStatTiles({ stats }: { stats: { label: string; value: number | string }[] }) {
+export function AdminStatTiles({ stats }: { stats: { label: string; value: number | string; hint?: string }[] }) {
   const fills = ['bg-card', 'bg-brand-blue-subtle', 'bg-muted', 'bg-mint'];
   return (
     <div
       className="mb-[18px] grid gap-2.5"
-      style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 4)}, minmax(0,1fr))` }}
+      style={{ gridTemplateColumns: `repeat(${stats.length > 4 && stats.length % 3 === 0 ? 3 : Math.min(stats.length, 4)}, minmax(0,1fr))` }}
     >
       {stats.map((st, i) => (
         <div key={st.label} className={`rounded-2xl px-4 py-3.5 ${fills[i % fills.length]}`}>
-          <div className="text-[11px] font-semibold uppercase tracking-[.02em] text-warm-label">{st.label}</div>
+          <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[.02em] text-warm-label">
+            {st.label}
+            {st.hint ? <InfoTip text={st.hint} label={st.label} /> : null}
+          </div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-foreground">{st.value}</div>
         </div>
       ))}
